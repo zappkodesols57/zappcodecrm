@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Daily EOD Report · CRM{% endblock %}
+{% block extra_css %}
+<style>
+  .report-card {
+    background: #fff;
+    border: 1px solid #f1f5f9;
+    border-radius: 1rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 1.25rem;
+  }
+  .report-card .card-header {
+    background: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 1rem 1.25rem;
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: 0.875rem; font-weight: 700; color: #374151;
+    border-radius: 1rem 1rem 0 0;
+  }
+  .report-card .card-header i { width: 28px; height: 28px; border-radius: 8px; display:flex; align-items:center; justify-content:center; font-size:0.8rem; }
+  .report-card .card-body { padding: 1.25rem; }
+  .field-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.9rem; }
+  .field-label { font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.3rem; }
+
+  .mood-selector { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .mood-option { display: none; }
+  .mood-option + label {
+    font-size: 1.6rem; cursor: pointer; border-radius: 0.6rem;
+    padding: 0.4rem 0.7rem;
+    border: 2px solid transparent; transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+  }
+  .mood-option + label span { font-size: 0.65rem; font-weight: 600; color: #6b7280; }
+  .mood-option:checked + label {
+    border-color: #6366f1;
+    background: #eef2ff;
+  }
+  .mood-option + label:hover { background: #f5f3ff; }
+
+  .stat-preview {
+    display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;
+  }
+  .stat-chip {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;
+    padding: 0.4rem 0.8rem; font-size: 0.75rem; font-weight: 600; color: #475569;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .stat-chip i { color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Submit EOD Report</h4>
+    <p class="text-muted small mb-0">{{ report_date|date:"l, d F Y" }}</p>
+  </div>
+  <div>
+    {% if existing %}
+      <span class="badge text-bg-warning fs-6 me-2"><i class="fa-solid fa-edit me-1"></i> Editing today's report</span>
+    {% endif %}
+    <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary">Cancel</a>
+  </div>
+</div>
+
+<!-- Auto-filled stats from CRM activity -->
+{% if suggestions %}
+<div class="alert border-0 mb-3" style="background: #f0fdf4; border-left: 4px solid #22c55e !important; border-radius: 0.75rem;">
+  <div class="fw-bold text-success mb-2"><i class="fa-solid fa-magic-wand-sparkles me-1"></i> Auto-suggested from today's CRM activity</div>
+  <div class="stat-preview">
+    <div class="stat-chip"><i class="fa-solid fa-phone-volume"></i> Outgoing: {{ suggestions.outgoing_calls }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-phone-incoming"></i> Incoming: {{ suggestions.incoming_calls }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-calendar-check"></i> Total Follow-ups: {{ suggestions.calls_attended }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-phone-slash"></i> Not Connected: {{ suggestions.calls_not_connected }}</div>
+  </div>
+  <div class="text-muted small">These are pre-filled from your follow-ups logged today. You can edit them below.</div>
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+
+  <!-- Section 1: Call Stats -->
+  <div class="report-card">
+    <div class="card-header">
+      <i style="background:#dbeafe; color:#2563eb;" class="fa-solid fa-phone-volume"></i>
+      Call Activity
+    </div>
+    <div class="card-body">
+      <div class="field-group">
+        <div>
+          <div class="field-label">Total Calls Attended</div>
+          {{ form.calls_attended }}
+        </div>
+        <div>
+          <div class="field-label">Outgoing Calls Made</div>
+          {{ form.outgoing_calls }}
+        </div>
+        <div>
+          <div class="field-label">Incoming Calls Received</div>
+          {{ form.incoming_calls }}
+        </div>
+        <div>
+          <div class="field-label">Calls Not Connected</div>
+          {{ form.calls_not_connected }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Lead Outcomes -->
+  <div class="report-card">
+    <div class="card-header">
+      <i style="background:#d1fae5; color:#059669;" class="fa-solid fa-bullseye"></i>
+      Lead Outcomes
+    </div>
+    <div class="card-body">
+      <div class="field-group">
+        <div>
+          <div class="field-label">Interested Leads</div>
+          {{ form.leads_interested }}
+        </div>
+        <div>
+          <div class="field-label">Cold / Not Interested</div>
+          {{ form.leads_cold }}
+        </div>
+        <div>
+          <div class="field-label">Leads Who Visited</div>
+          {{ form.leads_visited }}
+        </div>
+        <div>
+          <div class="field-label">Admissions Done Today</div>
+          {{ form.admissions_done }}
+        </div>
+        <div>
+          <div class="field-label">Follow-ups Pending</div>
+          {{ form.follow_ups_pending }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Qualitative -->
+  <div class="report-card">
+    <div class="card-header">
+      <i style="background:#fef3c7; color:#d97706;" class="fa-solid fa-pen-to-square"></i>
+      Daily Notes
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <div class="field-label">⭐ Key Highlight / Achievement Today</div>
+        {{ form.key_highlight }}
+      </div>
+      <div class="mb-3">
+        <div class="field-label">🚧 Challenges Faced</div>
+        {{ form.challenges_faced }}
+      </div>
+      <div class="mb-3">
+        <div class="field-label">📋 Tomorrow's Priority / Plan</div>
+        {{ form.tomorrow_priority }}
+      </div>
+      <div>
+        <div class="field-label">📝 Other Updates</div>
+        {{ form.other_updates }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Mood Rating -->
+  <div class="report-card">
+    <div class="card-header">
+      <i style="background:#fae8ff; color:#9333ea;" class="fa-solid fa-heart-pulse"></i>
+      Energy / Mood Rating
+    </div>
+    <div class="card-body">
+      <div class="field-label mb-2">How was your energy today?</div>
+      <div class="mood-selector">
+        {% for value, label in form.mood_rating.field.choices %}
+        <div>
+          <input type="radio" name="mood_rating" id="mood_{{ value }}" value="{{ value }}" class="mood-option"
+            {% if form.mood_rating.value|stringformat:"s" == value|stringformat:"s" %}checked{% elif not form.mood_rating.value and value == 3 %}checked{% endif %}>
+          <label for="mood_{{ value }}">
+            {% if value == 1 %}😞{% elif value == 2 %}😕{% elif value == 3 %}😐{% elif value == 4 %}🙂{% elif value == 5 %}😄{% endif %}
+            <span>{{ label|slice:"2:" }}</span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if form.errors %}
+  <div class="alert alert-danger">
+    <strong>Please fix the following errors:</strong>
+    {{ form.errors }}
+  </div>
+  {% endif %}
+
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary px-4">
+      <i class="fa-solid fa-floppy-disk me-1"></i>
+      {% if existing %}Update Report{% else %}Submit Report{% endif %}
+    </button>
+  </div>
+</form>
+{% endblock %}

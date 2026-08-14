@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Select Sheet{% endblock %}
+{% block content %}
+<h4 class="mb-3">Step 2 · Select Sheet</h4>
+<div class="card" style="max-width:480px;">
+  <div class="card-body">
+    <p class="text-muted small">{{ job.original_filename }}</p>
+    <form method="post" action="{% url 'imports:pick_sheet' job.pk %}">
+      {% csrf_token %}
+      <select name="sheet_name" class="form-select mb-3" required>
+        {% for s in sheets %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-brand text-white">Continue</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

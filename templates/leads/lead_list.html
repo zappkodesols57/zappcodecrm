@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}All Leads{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">All Leads</h4>
+    <div class="text-muted small">{{ total_count }} lead(s)</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'imports:export' %}?{{ request.GET.urlencode }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-file-export"></i> Export</a>
+    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white"><i class="fa-solid fa-user-plus"></i> Add New Lead</a>
+  </div>
+</div>
+
+{% if selected_import_job %}
+<div class="alert alert-info d-flex justify-content-between align-items-center py-2 px-3 mb-3 border-info">
+  <div>
+    <i class="fa-solid fa-file-excel me-2 text-primary"></i> Showing leads imported from file: <strong>{{ selected_import_job.original_filename }}</strong> (Sheet: {{ selected_import_job.sheet_name }}) — <strong>{{ total_count }}</strong> lead(s)
+  </div>
+  <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-xmark me-1"></i> Clear Filter</a>
+</div>
+{% endif %}
+
+<form method="get" class="card p-3 mb-3">
+  <div class="row g-2">
+    <div class="col-md-2">
+      <input type="search" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ q }}">
+    </div>
+    <div class="col-md-2">
+      <select name="city" class="form-select form-select-sm">
+        <option value="">All Cities</option>
+        {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="source_category" class="form-select form-select-sm">
+        <option value="">All Source Categories</option>
+        {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="lead_source" class="form-select form-select-sm">
+        <option value="">All Lead Sources</option>
+        {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="course" class="form-select form-select-sm">
+        <option value="">All Courses</option>
+        {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <select name="stage" class="form-select form-select-sm">
+        <option value="">All Stages</option>
+        {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <select name="temperature" class="form-select form-select-sm">
+        <option value="">All Temps</option>
+        <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
+        <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
+        <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
+        <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
+        <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
+      </select>
+    </div>
+  </div>
+  <div class="row g-2 mt-1">
+    <div class="col-md-2">
+      <select name="deal_status" class="form-select form-select-sm">
+        <option value="">All Deal Statuses</option>
+        <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+        <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+        <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+        <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="assigned_to" class="form-select form-select-sm">
+        <option value="">All Assigned Employees</option>
+        {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="followup" class="form-select form-select-sm">
+        <option value="">All Follow-up Statuses</option>
+        <option value="today" {% if request_get.followup == "today" %}selected{% endif %}>Due Today</option>
+        <option value="overdue" {% if request_get.followup == "overdue" %}selected{% endif %}>Overdue</option>
+      </select>
+    </div>
+    <div class="col-md-2"><input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}"></div>
+    <div class="col-md-2"><input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}"></div>
+    <div class="col-md-2">
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
+        <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<form method="post" action="{% url 'leads:bulk_action' %}">
+  {% csrf_token %}
+  <div class="card mb-2 p-2 d-flex flex-row gap-2 align-items-center">
+    <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px;">
+      <option value="assign">Assign to...</option>
+      <option value="stage">Change Stage to...</option>
+      <option value="archive">Archive</option>
+    </select>
+    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px;">
+      <option value="">Employee</option>
+      {% for e in employees %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+    </select>
+    <select name="stage" class="form-select form-select-sm" style="max-width:180px;">
+      {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline-secondary" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead><tr>
+          <th><input type="checkbox" onclick="document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked)"></th>
+          <th>Lead ID</th><th>Date</th><th>Name</th><th>Mobile</th><th>Course</th><th>Source</th><th>Stage</th><th>Temp</th><th>Deal</th><th>Assigned</th><th>Next Follow-up</th>
+        </tr></thead>
+        <tbody>
+          {% for lead in page_obj %}
+          <tr>
+            <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
+            <td><a href="{% url 'leads:lead_detail' lead.pk %}">{{ lead.lead_code }}</a></td>
+            <td><span class="text-nowrap">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
+            <td>{{ lead.name }}</td>
+            <td>{{ lead.mobile }}</td>
+            <td>{{ lead.course|default:"—" }}</td>
+            <td>{{ lead.lead_source|default:"—" }}</td>
+            <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
+            <td><span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span></td>
+            <td>{{ lead.get_deal_status_display }}</td>
+            <td>{{ lead.assigned_to|default:"Unassigned" }}</td>
+            <td>{% if lead.next_followup_date %}{{ lead.next_followup_date|date:"d-m-Y" }}{% else %}—{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="12"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No leads found. Try adjusting filters or add a new lead.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-3 mt-3">
+  <nav>
+    <ul class="pagination pagination-sm mb-0">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+            <i class="fa-solid fa-chevron-left"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-left"></i></span></li>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-4' and num < page_obj.number|add:'4' %}
+          <li class="page-item">
+            <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+            <i class="fa-solid fa-chevron-right"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-right"></i></span></li>
+      {% endif %}
+    </ul>
+  </nav>
+
+  <div class="d-flex align-items-center gap-1 small text-muted">
+    <span>Page <strong>{{ page_obj.number }}</strong> of <strong>{{ page_obj.paginator.num_pages }}</strong></span>
+    <span class="mx-2">|</span>
+    <span>Go to:</span>
+    <input type="number" id="jump_page" class="form-control form-control-sm text-center" style="width: 70px;" min="1" max="{{ page_obj.paginator.num_pages }}" value="{{ page_obj.number }}">
+    <button class="btn btn-sm btn-outline-secondary" onclick="jumpToPage()">Go</button>
+  </div>
+</div>
+
+<script>
+function jumpToPage() {
+    const pageNum = document.getElementById('jump_page').value;
+    if (pageNum && pageNum >= 1 && pageNum <= {{ page_obj.paginator.num_pages }}) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('page', pageNum);
+        window.location.search = urlParams.toString();
+    } else {
+        alert('Please enter a valid page number between 1 and {{ page_obj.paginator.num_pages }}');
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

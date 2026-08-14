@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Import Leads{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4>Import Leads</h4>
+  <a href="{% url 'imports:download_template' %}" class="btn btn-success">
+    <i class="fa-solid fa-file-excel me-1"></i> Download Import Template
+  </a>
+</div>
+
+<div class="card mb-4" style="max-width: 600px;">
+  <div class="card-header bg-light">
+    <ul class="nav nav-tabs card-header-tabs" id="importTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="quick-tab" data-bs-toggle="tab" data-bs-target="#quick" type="button" role="tab" aria-controls="quick" aria-selected="true">
+          <i class="fa-solid fa-bolt me-1"></i> Quick Template Import
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom" type="button" role="tab" aria-controls="custom" aria-selected="false">
+          <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Custom Mapping Import
+        </button>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <div class="tab-content" id="importTabContent">
+      <!-- Quick Template Import Tab -->
+      <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
+        <p class="text-muted small mb-3">
+          Download the template above, fill in the columns, and upload it here. The system will read the standard columns directly, handle duplicates, and import all leads instantly.
+        </p>
+        <form method="post" action="{% url 'imports:quick_import' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Excel File</label>
+            <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Duplicate Strategy</label>
+            <select name="on_duplicate" class="form-select">
+              <option value="skip" selected>Skip (Do not import duplicates)</option>
+              <option value="update">Update existing records</option>
+              <option value="create">Allow duplicate creation</option>
+            </select>
+          </div>
+          <button class="btn btn-brand text-white"><i class="fa-solid fa-upload"></i> Start Quick Import</button>
+        </form>
+      </div>
+
+      <!-- Custom Mapping Import Tab -->
+      <div class="tab-pane fade" id="custom" role="tabpanel" aria-labelledby="custom-tab">
+        <p class="text-muted small mb-3">
+          For historical sheets or files with custom column names. You will upload the file, select a sheet, and map the columns (like Name, Mobile, Course) manually.
+        </p>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Excel File</label>
+            <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control" required>
+          </div>
+          <button class="btn btn-brand text-white"><i class="fa-solid fa-arrow-right"></i> Upload & Map Columns</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

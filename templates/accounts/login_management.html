@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Management Login · CRM</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top left, #1e1b4b 0%, #0f0e2a 65%, #080714 100%);
+    font-family: 'Inter', system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
+      radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 70px 70px, 140px 140px;
+    background-position: 0 0, 35px 35px;
+    pointer-events: none;
+  }
+  .panel-wrap {
+    display: flex; width: min(900px, 95vw); border-radius: 1.5rem;
+    overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    position: relative; z-index: 2;
+  }
+  .form-panel {
+    flex: 1; background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 3rem 2.5rem; display: flex;
+    flex-direction: column; justify-content: center;
+  }
+  .form-panel h3 { font-size: 1.5rem; font-weight: 800; color: #eef2ff; margin-bottom: 0.3rem; }
+  .form-panel .sub { color: rgba(199,210,254,0.55); font-size: 0.83rem; margin-bottom: 1.8rem; }
+  .form-control {
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+    color: #eef2ff; border-radius: 0.6rem; font-size: 0.9rem; padding: 0.65rem 0.9rem;
+  }
+  .form-control::placeholder { color: rgba(199,210,254,0.35); }
+  .form-control:focus {
+    background: rgba(255,255,255,0.1); border-color: rgba(129,140,248,0.6);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.2); color: #eef2ff; outline: none;
+  }
+  .form-label { font-size: 0.8rem; font-weight: 600; color: rgba(199,210,254,0.8); }
+  .input-icon-wrap { position: relative; }
+  .input-icon-wrap i {
+    position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+    color: rgba(199,210,254,0.4); font-size: 0.85rem;
+  }
+  .input-icon-wrap .form-control { padding-left: 2.3rem; }
+  .btn-login {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border: none; color: #fff; font-weight: 700;
+    padding: 0.75rem 1.5rem; border-radius: 0.7rem;
+    width: 100%; font-size: 0.95rem; cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+  }
+  .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+  .error-box {
+    background: rgba(239,68,68,0.12); color: #fca5a5;
+    padding: 0.65rem 0.9rem; border-radius: 0.6rem; font-size: 0.83rem;
+    margin-bottom: 1.2rem; border-left: 3px solid #ef4444;
+  }
+  .side-art {
+    flex: 0 0 40%;
+    background: linear-gradient(160deg, #312e81, #4338ca 40%, #6366f1 100%);
+    padding: 3rem 2rem; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .side-art::before {
+    content: '';
+    position: absolute; width: 300px; height: 300px;
+    background: rgba(255,255,255,0.06); border-radius: 50%;
+    top: -80px; left: -80px;
+  }
+  .side-art::after {
+    content: '';
+    position: absolute; width: 200px; height: 200px;
+    background: rgba(255,255,255,0.04); border-radius: 50%;
+    bottom: -60px; right: -60px;
+  }
+  .side-art .art-icon {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(255,255,255,0.15); display: flex;
+    align-items: center; justify-content: center;
+    font-size: 2rem; color: #fff; margin-bottom: 1.4rem;
+    border: 2px solid rgba(255,255,255,0.25);
+    box-shadow: 0 0 0 12px rgba(255,255,255,0.05);
+  }
+  .side-art h2 { color: #fff; font-size: 1.4rem; font-weight: 800; margin-bottom: 0.6rem; }
+  .side-art p { color: rgba(255,255,255,0.65); font-size: 0.82rem; line-height: 1.6; margin-bottom: 1.5rem; }
+  .feature-list { list-style: none; padding: 0; margin: 0 0 1.5rem; text-align: left; }
+  .feature-list li { color: rgba(255,255,255,0.7); font-size: 0.78rem; padding: 0.25rem 0; display: flex; align-items: center; gap: 0.5rem; }
+  .feature-list li i { color: #a5b4fc; font-size: 0.7rem; }
+  .side-art .back-link {
+    color: rgba(255,255,255,0.55); font-size: 0.78rem; text-decoration: none;
+    display: flex; align-items: center; gap: 0.3rem; margin-top: 0.5rem;
+  }
+  .side-art .back-link:hover { color: #fff; }
+  @media (max-width: 640px) { .side-art { display: none; } }
+</style>
+</head>
+<body>
+<div class="panel-wrap">
+  <div class="form-panel">
+    <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.5rem;">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(99,102,241,0.3);">
+        <i class="fa-solid fa-shield-halved" style="color: #a5b4fc; font-size: 1rem;"></i>
+      </div>
+      <span style="font-size: 0.72rem; color: rgba(199,210,254,0.5); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">Management Portal</span>
+    </div>
+    <h3>Welcome Back</h3>
+    <p class="sub">Manager &amp; Super Admin access only</p>
+
+    {% if form.errors %}
+      <div class="error-box"><i class="fa-solid fa-circle-exclamation me-1"></i>
+        {% if form.non_field_errors %}
+          {{ form.non_field_errors.0 }}
+        {% else %}
+          Invalid credentials. This portal is restricted to management accounts.
+        {% endif %}
+      </div>
+    {% endif %}
+    {% for message in messages %}
+      <div class="error-box">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ message }}
+      </div>
+    {% endfor %}
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="mb-3">
+        <label class="form-label">Username</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-user"></i>
+          <input type="text" name="username" class="form-control" required autofocus placeholder="Management username">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Password</label>
+        <div class="input-icon-wrap">
+          <i class="fa-solid fa-lock"></i>
+          <input type="password" name="password" class="form-control" required placeholder="••••••••">
+        </div>
+      </div>
+      <button type="submit" class="btn-login"><i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Sign In to Management Portal</button>
+    </form>
+  </div>
+
+  <div class="side-art">
+    <div class="art-icon"><i class="fa-solid fa-shield-halved"></i></div>
+    <h2>Management Portal</h2>
+    <p>Exclusive access for Managers and Super Admins.</p>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check-circle"></i> Full team performance dashboard</li>
+      <li><i class="fa-solid fa-check-circle"></i> Lead assignment &amp; transfer</li>
+      <li><i class="fa-solid fa-check-circle"></i> Employee approvals &amp; management</li>
+      <li><i class="fa-solid fa-check-circle"></i> Daily EOD reports review &amp; export</li>
+      <li><i class="fa-solid fa-check-circle"></i> Source, campaign &amp; employee analytics</li>
+    </ul>
+    <a href="{% url 'accounts:portal_select' %}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to portal selection</a>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

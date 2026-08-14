@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Management Dashboard · CRM{% endblock %}
+{% block extra_head %}
+<style>
+  .kpi-link {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .kpi-link:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+  }
+  .btn-outline-brand {
+    color: var(--brand);
+    border-color: var(--brand);
+  }
+  .btn-outline-brand:hover {
+    background-color: var(--brand);
+    color: #fff;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  .animate-pulse {
+    animation: pulse 2s infinite ease-in-out;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0 fw-bold">Management Dashboard</h4>
+  {% if pending_approvals_count > 0 %}
+    <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse">
+      <i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s) Pending
+    </a>
+  {% endif %}
+</div>
+
+<!-- Filters Bar -->
+<form method="get" class="card p-3 mb-3">
+  <div class="row g-2">
+    <div class="col-md-2">
+      <input type="search" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ request_get.q }}">
+    </div>
+    <div class="col-md-2">
+      <select name="city" class="form-select form-select-sm">
+        <option value="">All Cities</option>
+        {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="source_category" class="form-select form-select-sm">
+        <option value="">All Source Categories</option>
+        {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="lead_source" class="form-select form-select-sm">
+        <option value="">All Lead Sources</option>
+        {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="course" class="form-select form-select-sm">
+        <option value="">All Courses</option>
+        {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <select name="stage" class="form-select form-select-sm">
+        <option value="">All Stages</option>
+        {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <select name="temperature" class="form-select form-select-sm">
+        <option value="">All Temps</option>
+        <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
+        <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
+        <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
+        <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
+        <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
+      </select>
+    </div>
+  </div>
+  <div class="row g-2 mt-1">
+    <div class="col-md-2">
+      <select name="deal_status" class="form-select form-select-sm">
+        <option value="">All Deal Statuses</option>
+        <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+        <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+        <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+        <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="assigned_to" class="form-select form-select-sm">
+        <option value="">All Assigned Employees</option>
+        {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
+    </div>
+    <div class="col-md-2">
+      <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
+        <a href="{% url 'dashboard:management_home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Vibrant KPI Cards Row 1 -->
+<div class="row g-3 mb-2">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="kpi-card kpi-1 text-decoration-none d-block kpi-link">
+      <div class="label">Total Leads</div>
+      <div class="value">{{ kpis.total_leads }}</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="kpi-card kpi-7 text-decoration-none d-block kpi-link">
+      <div class="label">Uncontacted</div>
+      <div class="value">{{ kpis.uncontacted }}</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=NOT_PICKED" class="kpi-card kpi-8 text-decoration-none d-block kpi-link">
+      <div class="label">Call Not Picked</div>
+      <div class="value">{{ kpis.not_picked }}</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=HOT" class="kpi-card kpi-3 text-decoration-none d-block kpi-link">
+      <div class="label">Hot Leads</div>
+      <div class="value">{{ kpis.hot }}</div>
+    </a>
+  </div>
+</div>
+
+<!-- Vibrant KPI Cards Row 2 -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=WARM" class="kpi-card kpi-4 text-decoration-none d-block kpi-link">
+      <div class="label">Warm Leads</div>
+      <div class="value">{{ kpis.warm }}</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=COLD" class="kpi-card kpi-6 text-decoration-none d-block kpi-link">
+      <div class="label">Cold (Not Interested)</div>
+      <div class="value">{{ kpis.cold }}</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'followups:today' %}" class="kpi-card kpi-2 text-decoration-none d-block kpi-link">
+      <div class="label">Today's Follow-ups</div>
+      <div class="value">{{ kpis.followups_today }}</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'followups:overdue' %}" class="kpi-card kpi-3 text-decoration-none d-block kpi-link">
+      <div class="label">Overdue Follow-ups</div>
+      <div class="value">{{ kpis.overdue }}</div>
+    </a>
+  </div>
+</div>
+
+<!-- Vibrant KPI Cards Row 3 -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <a href="{% url 'admissions:list' %}" class="kpi-card kpi-5 text-decoration-none d-block kpi-link">
+      <div class="label">Conversion Rate</div>
+      <div class="value">{{ kpis.conversion_rate }}%</div>
+    </a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&q=visit" class="kpi-card kpi-1 text-decoration-none d-block kpi-link">
+      <div class="label">Visits</div>
+      <div class="value">{{ kpis.visits }}</div>
+    </a>
+  </div>
+  <div class="col-12 col-md-4">
+    <a href="{% url 'payments:list' %}" class="kpi-card kpi-2 text-decoration-none d-block kpi-link">
+      <div class="label">Total Revenue</div>
+      <div class="value">₹{{ kpis.total_revenue|floatformat:0 }}</div>
+    </a>
+  </div>
+</div>
+
+<!-- 2x2 Graphs Section -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="text-muted text-uppercase small font-weight-bold">Lead Source Distribution</h6>
+      <div style="height: 220px; position: relative;"><canvas id="sourceChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="text-muted text-uppercase small font-weight-bold">Lead Stage Funnel</h6>
+      <div style="height: 220px; position: relative;"><canvas id="funnelChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="text-muted text-uppercase small font-weight-bold">Leads per Employee</h6>
+      <div style="height: 220px; position: relative;"><canvas id="employeeChart"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="text-muted text-uppercase small font-weight-bold">Course-wise Leads</h6>
+      <div style="height: 220px; position: relative;"><canvas id="courseChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Team Activity Today Table -->
+<div class="card mb-4 shadow-sm border-0">
+  <div class="card-header bg-white py-3 border-0 d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa-solid fa-users-gear text-primary fs-5"></i>
+      <h5 class="card-title mb-0 fw-bold">Team Activity Today — {{ today|date:"d M Y" }}</h5>
+    </div>
+    <a href="{% url 'dashboard:management_daily_reports' %}?date_from={{ today|date:'Y-m-d' }}&date_to={{ today|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary fw-semibold">View EOD Reports Log</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Employee Name</th>
+          <th>Role</th>
+          <th>Outgoing Calls</th>
+          <th>Incoming Calls</th>
+          <th>WhatsApp Sent</th>
+          <th>SMS Sent</th>
+          <th>Email Sent</th>
+          <th>Total Entries Today</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in team_stats %}
+        <tr>
+          <td>
+            <div class="fw-semibold text-dark">{{ stat.member.get_full_name|default:stat.member.username }}</div>
+            <div class="text-muted small">@{{ stat.member.username }}</div>
+          </td>
+          <td><span class="badge text-bg-light border">{{ stat.member.get_role_display }}</span></td>
+          <td><span class="badge text-bg-success px-2 py-1">{{ stat.outgoing_calls }}</span></td>
+          <td><span class="badge text-bg-info px-2 py-1">{{ stat.incoming_calls }}</span></td>
+          <td>{{ stat.whatsapp }}</td>
+          <td>{{ stat.sms }}</td>
+          <td>{{ stat.email }}</td>
+          <td><strong class="text-dark">{{ stat.total_entries }}</strong></td>
+          <td class="text-end">
+            <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}" class="btn btn-sm btn-outline-secondary">View Activity Log</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">
+            <i class="fa-solid fa-users-slash fs-4 d-block mb-2"></i> No active Counselor or HR members found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const chartData = {{ chart_data|safe }};
+  const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#64748b','#eab308','#14b8a6'];
+
+  if (document.getElementById('sourceChart')) {
+    new Chart(document.getElementById('sourceChart'), {
+      type: 'doughnut',
+      data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
+    });
+  }
+
+  if (document.getElementById('funnelChart')) {
+    new Chart(document.getElementById('funnelChart'), {
+      type: 'bar',
+      data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#4f46e5' }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+
+  if (document.getElementById('employeeChart')) {
+    new Chart(document.getElementById('employeeChart'), {
+      type: 'bar',
+      data: { labels: chartData.employee.labels, datasets: [{ label: 'Leads', data: chartData.employee.counts, backgroundColor: '#10b981' }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+
+  if (document.getElementById('courseChart')) {
+    new Chart(document.getElementById('courseChart'), {
+      type: 'pie',
+      data: { labels: chartData.course.labels, datasets: [{ data: chartData.course.counts, backgroundColor: palette }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
+    });
+  }
+});
+</script>
+{% endblock %}

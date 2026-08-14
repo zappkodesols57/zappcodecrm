@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Import History{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Import History</h4>
+  <a href="{% url 'imports:upload' %}" class="btn btn-brand btn-sm text-white"><i class="fa-solid fa-file-import"></i> New Import</a>
+</div>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>File</th><th>Sheet</th><th>Status</th><th>Total</th><th>Imported</th><th>Updated</th><th>Duplicate</th><th>Invalid</th><th>Date</th><th></th></tr></thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr>
+          <td>{{ j.original_filename }}</td><td>{{ j.sheet_name }}</td>
+          <td><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
+          <td>{{ j.total_rows }}</td><td>{{ j.imported_count }}</td><td>{{ j.updated_count }}</td>
+          <td>{{ j.duplicate_count }}</td><td>{{ j.invalid_count }}</td>
+          <td>{{ j.created_at|date:"d-m-Y H:i" }}</td>
+          <td>
+            <div class="d-flex gap-1 align-items-center">
+              <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary" title="View Leads Imported from this File"><i class="fa-solid fa-users me-1"></i> View Leads</a>
+              <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary">Details</a>
+              <form method="post" action="{% url 'imports:delete_job' j.pk %}" onsubmit="return confirmAction('Are you sure you want to delete this import? This will delete the job history and all leads imported by this excel file.');" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Import File & Leads">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10"><div class="empty-state"><i class="fa-solid fa-file-excel"></i>No imports yet.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

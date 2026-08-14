@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Map Columns{% endblock %}
+{% block content %}
+<h4 class="mb-3">Step 3 · Map Columns — {{ job.sheet_name }}</h4>
+
+{% if date_columns %}
+<div class="alert alert-info small">
+  <i class="fa-solid fa-circle-info"></i> {{ date_columns|length }} date-headed columns detected
+  ({{ date_columns.0.label }}{% if date_columns|length > 1 %} … {{ date_columns|last|default:"" }}{% endif %}) —
+  these will automatically become Follow-up history records, one per non-empty cell.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="{% url 'imports:preview' job.pk %}">
+      {% csrf_token %}
+      {% for dc in date_columns %}<input type="hidden" name="date_col_idx" value="{{ dc.idx }}">{% endfor %}
+      <table class="table table-sm">
+        <thead><tr><th>Excel Column</th><th>Maps to CRM Field</th></tr></thead>
+        <tbody>
+          {% for col in columns %}
+          <tr>
+            <td>{{ col.label }}</td>
+            <td>
+              <select name="map_{{ col.idx }}" class="form-select form-select-sm">
+                {% for val, label in target_fields %}
+                <option value="{{ val }}" {% if val == col.guess %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button class="btn btn-brand text-white">Preview Import</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

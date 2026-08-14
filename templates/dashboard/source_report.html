@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Source Performance{% endblock %}
+{% block content %}
+<h4 class="mb-3">Source Performance</h4>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Source</th><th>Leads</th><th>Interested</th><th>Visits</th><th>Admissions</th><th>Conversion</th><th>Revenue</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.source }}</td><td>{{ r.leads }}</td><td>{{ r.interested }}</td><td>{{ r.visits }}</td>
+          <td>{{ r.admissions }}</td><td>{{ r.conversion }}%</td><td>₹{{ r.revenue|floatformat:0 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="empty-state"><i class="fa-solid fa-chart-pie"></i>No data yet.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

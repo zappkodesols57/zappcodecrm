@@ -1,0 +1,7 @@
+Django==5.0.14
+pandas==2.2.2
+openpyxl==3.1.5
+gunicorn==22.0.0
+
+# Needs system libmysqlclient-dev for MySQL connection
+mysqlclient==2.2.4

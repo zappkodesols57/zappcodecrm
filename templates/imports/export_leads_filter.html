@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Export Leads{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4>Export Leads</h4>
+  <a href="{% url 'imports:export' %}?download=1" class="btn btn-brand text-white">
+    <i class="fa-solid fa-download me-1"></i> Export All Leads (Total)
+  </a>
+</div>
+
+<div class="card" style="max-width: 800px;">
+  <div class="card-header bg-light fw-bold text-secondary">
+    <i class="fa-solid fa-filter me-1"></i> Select Export Filters
+  </div>
+  <div class="card-body">
+    <form method="get" action="{% url 'imports:export' %}">
+      <input type="hidden" name="download" value="1">
+      
+      <div class="row g-3 mb-3">
+        <!-- Date Filters -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Inquiry Date From</label>
+          <input type="date" name="date_from" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Inquiry Date To</label>
+          <input type="date" name="date_to" class="form-control">
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <!-- Search query -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Search (Name, Mobile, Email, etc.)</label>
+          <input type="search" name="q" class="form-control" placeholder="Search keyword...">
+        </div>
+        <!-- City filter -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">City</label>
+          <select name="city" class="form-select">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <!-- Source Category -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Source Category</label>
+          <select name="source_category" class="form-select">
+            <option value="">All Categories</option>
+            {% for sc in source_categories %}
+              <option value="{{ sc.id }}">{{ sc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- Lead Source -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Lead Source</label>
+          <select name="lead_source" class="form-select">
+            <option value="">All Sources</option>
+            {% for ls in lead_sources %}
+              <option value="{{ ls.id }}">{{ ls.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <!-- Campaign -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Campaign</label>
+          <select name="campaign" class="form-select">
+            <option value="">All Campaigns</option>
+            {% for camp in campaigns %}
+              <option value="{{ camp.id }}">{{ camp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- Course -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Course</label>
+          <select name="course" class="form-select">
+            <option value="">All Courses</option>
+            {% for c in courses %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <!-- Lead Stage -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Lead Stage</label>
+          <select name="stage" class="form-select">
+            <option value="">All Stages</option>
+            {% for s in stages %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- Assigned To -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold">Assigned To</label>
+          <select name="assigned_to" class="form-select">
+            <option value="">All Employees</option>
+            {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <!-- Temperature -->
+        <div class="col-md-4">
+          <label class="form-label small fw-bold">Temperature</label>
+          <select name="temperature" class="form-select">
+            <option value="">All Temperatures</option>
+            <option value="UNCONTACTED">Uncontacted</option>
+            <option value="NOT_PICKED">Call Not Picked</option>
+            <option value="HOT">Hot</option>
+            <option value="WARM">Warm</option>
+            <option value="COLD">Cold (Not Interested)</option>
+          </select>
+        </div>
+        <!-- Deal Status -->
+        <div class="col-md-4">
+          <label class="form-label small fw-bold">Deal Status</label>
+          <select name="deal_status" class="form-select">
+            <option value="">All Deal Statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="WON">Won</option>
+            <option value="LOST">Lost</option>
+            <option value="HOLD">Hold</option>
+          </select>
+        </div>
+        <!-- Admission Status -->
+        <div class="col-md-4">
+          <label class="form-label small fw-bold">Admission Status</label>
+          <select name="admission_status" class="form-select">
+            <option value="">All Admission Statuses</option>
+            <option value="NOT_APPLIED">Not Applied</option>
+            <option value="APPLIED">Applied</option>
+            <option value="JOINED">Joined</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success">
+        <i class="fa-solid fa-file-excel me-1"></i> Export Filtered Leads
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

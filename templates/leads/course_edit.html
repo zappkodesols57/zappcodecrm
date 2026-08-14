@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Edit Course - {{ course.name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0"><i class="fa-solid fa-graduation-cap me-2 text-brand"></i>Edit Course details</h5>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+          
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase fw-semibold">Course Name</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label text-muted small text-uppercase fw-semibold">Base Price (₹)</label>
+              {{ form.base_price }}
+              {% if form.base_price.errors %}
+              <div class="text-danger small mt-1">{{ form.base_price.errors.0 }}</div>
+              {% endif %}
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small text-uppercase fw-semibold">Max Discount (₹)</label>
+              {{ form.max_discount }}
+              {% if form.max_discount.errors %}
+              <div class="text-danger small mt-1">{{ form.max_discount.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="mb-4 form-check">
+            {{ form.is_active }}
+            <label class="form-check-label text-muted small text-uppercase fw-semibold" style="margin-left: 5px;">Active Status</label>
+          </div>
+          
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-brand text-white w-50">Save Changes</button>
+            <a href="{% url 'leads:course_master' %}" class="btn btn-outline-secondary w-50">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

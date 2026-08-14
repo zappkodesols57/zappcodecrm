@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Preview Import{% endblock %}
+{% block content %}
+<h4 class="mb-3">Step 4 · Preview ({{ total_rows }} total rows — showing first {{ preview_rows|length }})</h4>
+
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Name</th><th>Mobile</th><th>City</th><th>Course</th><th>Source</th><th>Temp</th><th>Inquiry Date</th><th>Warnings</th></tr></thead>
+      <tbody>
+        {% for r in preview_rows %}
+        <tr class="{% if r.warnings %}table-warning{% endif %}">
+          <td>{{ r.name }}</td><td>{{ r.mobile }}</td><td>{{ r.city }}</td><td>{{ r.course_name|default:"—" }}</td>
+          <td>{{ r.source_category|default:"—" }} / {{ r.source_name|default:"—" }}</td>
+          <td>{{ r.temperature }}</td><td>{{ r.inquiry_date }}</td>
+          <td class="small text-danger">{{ r.warnings|join:"; " }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="{% url 'imports:run_import' job.pk %}">
+      {% csrf_token %}
+      <label class="form-label small fw-semibold">If a duplicate mobile number is found:</label>
+      <select name="on_duplicate" class="form-select mb-3" style="max-width:320px;">
+        <option value="skip">Skip (keep existing lead untouched)</option>
+        <option value="update">Update existing lead with new info</option>
+        <option value="create">Create new lead anyway</option>
+      </select>
+      <button class="btn btn-brand text-white" onclick="return confirmAction('Import all {{ total_rows }} rows now?')"><i class="fa-solid fa-check"></i> Confirm Import</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

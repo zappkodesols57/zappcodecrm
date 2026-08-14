@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h4 class="mb-3">{{ title }} <span class="badge text-bg-light border">{{ leads.count }}</span></h4>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Lead ID</th><th>Name</th><th>Mobile</th><th>Course</th><th>Stage</th><th>Next Follow-up</th><th>Assigned</th><th></th></tr></thead>
+      <tbody>
+        {% for lead in leads %}
+        <tr class="{% if active == 'fu_overdue' %}table-danger{% elif active == 'fu_today' %}table-warning{% endif %}">
+          <td><a href="{% url 'leads:lead_detail' lead.pk %}">{{ lead.lead_code }}</a></td>
+          <td>{{ lead.name }}</td>
+          <td>{{ lead.mobile }}</td>
+          <td>{{ lead.course|default:"—" }}</td>
+          <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
+          <td>{{ lead.next_followup_date }} {{ lead.next_followup_time|default:"" }}</td>
+          <td>{{ lead.assigned_to|default:"Unassigned" }}</td>
+          <td class="d-flex gap-1">
+            <form method="post" action="{% url 'followups:complete' lead.pk %}" class="d-flex gap-1">
+              {% csrf_token %}
+              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Comment" style="width:140px;">
+              <button class="btn btn-sm btn-outline-success"><i class="fa-solid fa-check"></i></button>
+            </form>
+            <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8"><div class="empty-state"><i class="fa-solid fa-calendar-check"></i>Nothing here — you're all caught up.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

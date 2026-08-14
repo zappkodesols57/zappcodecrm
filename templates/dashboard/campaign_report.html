@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Campaign Performance{% endblock %}
+{% block content %}
+<h4 class="mb-3">Campaign Performance</h4>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Campaign</th><th>Platform</th><th>Leads</th><th>Admissions</th><th>Revenue</th><th>Cost</th><th>Cost/Lead</th><th>Cost/Admission</th><th>Conversion</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.campaign }}</td><td>{{ r.platform|default:"—" }}</td><td>{{ r.leads }}</td><td>{{ r.admissions }}</td>
+          <td>₹{{ r.revenue|floatformat:0 }}</td><td>₹{{ r.cost|floatformat:0 }}</td>
+          <td>₹{{ r.cost_per_lead }}</td><td>₹{{ r.cost_per_admission }}</td><td>{{ r.conversion }}%</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9"><div class="empty-state"><i class="fa-solid fa-bullhorn"></i>No campaigns set up yet — add one in Settings.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

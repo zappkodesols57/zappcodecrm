@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Master Data{% endblock %}
+{% block content %}
+<h4 class="mb-3">Settings · Master Data</h4>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted">Source Categories</h6>
+        <ul class="list-group list-group-flush mb-2">
+          {% for sc in source_categories %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            {{ sc.name }} {% if not sc.is_active %}<span class="badge text-bg-secondary">inactive</span>{% endif %}
+            <a href="{% url 'leads:master_toggle' 'source_category' sc.pk %}" class="btn btn-sm btn-outline-secondary">{% if sc.is_active %}Deactivate{% else %}Activate{% endif %}</a>
+          </li>
+          {% endfor %}
+        </ul>
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}<input type="hidden" name="kind" value="source_category">
+          <input type="text" name="name" class="form-control form-control-sm" placeholder="New source category" required>
+          <button class="btn btn-sm btn-brand text-white">Add</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted">Lead Sources</h6>
+        <ul class="list-group list-group-flush mb-2">
+          {% for ls in lead_sources %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            {{ ls.name }} <span class="text-muted small">({{ ls.category }})</span>
+            <a href="{% url 'leads:master_toggle' 'lead_source' ls.pk %}" class="btn btn-sm btn-outline-secondary">{% if ls.is_active %}Deactivate{% else %}Activate{% endif %}</a>
+          </li>
+          {% endfor %}
+        </ul>
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}<input type="hidden" name="kind" value="lead_source">
+          <input type="text" name="name" class="form-control form-control-sm" placeholder="New lead source" required>
+          <select name="category" class="form-select form-select-sm">{% for sc in source_categories %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select>
+          <button class="btn btn-sm btn-brand text-white">Add</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted">Lead Stages (pipeline order)</h6>
+        <ul class="list-group list-group-flush mb-2">
+          {% for s in stages %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            {{ s.order }}. {{ s.name }}
+            <a href="{% url 'leads:master_toggle' 'stage' s.pk %}" class="btn btn-sm btn-outline-secondary">{% if s.is_active %}Deactivate{% else %}Activate{% endif %}</a>
+          </li>
+          {% endfor %}
+        </ul>
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}<input type="hidden" name="kind" value="stage">
+          <input type="text" name="name" class="form-control form-control-sm" placeholder="New stage" required>
+          <input type="number" name="order" class="form-control form-control-sm" placeholder="Order" style="max-width:90px;">
+          <button class="btn btn-sm btn-brand text-white">Add</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted">Campaigns</h6>
+        <ul class="list-group list-group-flush mb-2">
+          {% for c in campaigns %}
+          <li class="list-group-item px-0">{{ c.name }} <span class="text-muted small">({{ c.platform }})</span></li>
+          {% endfor %}
+        </ul>
+        <form method="post" class="row g-2">
+          {% csrf_token %}<input type="hidden" name="kind" value="campaign">
+          <div class="col-6"><input type="text" name="name" class="form-control form-control-sm" placeholder="Campaign name" required></div>
+          <div class="col-6"><input type="text" name="platform" class="form-control form-control-sm" placeholder="Platform (Google/Meta...)"></div>
+          <div class="col-6"><input type="text" name="campaign_id" class="form-control form-control-sm" placeholder="Campaign ID"></div>
+          <div class="col-6"><input type="number" step="0.01" name="cost" class="form-control form-control-sm" placeholder="Cost"></div>
+          <div class="col-12"><button class="btn btn-sm btn-brand text-white">Add Campaign</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

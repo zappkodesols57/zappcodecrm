@@ -1,0 +1,90 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Lead CRM{% endblock %} · Zappkode CRM</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+  :root{
+    --sidebar-w: 250px;
+    --brand: #4f46e5;
+    --brand-dark: #3730a3;
+    --bg: #f4f5fa;
+    --card-border: #e7e8f0;
+  }
+  body{ background: var(--bg); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .sidebar{
+    position: fixed; top:0; left:0; bottom:0; width: var(--sidebar-w);
+    background: linear-gradient(180deg,#1e1b3a,#151233); color:#cfd0e6; overflow-y:auto; z-index:1030;
+    transition: transform .25s ease;
+  }
+  .sidebar .brand{ padding:1.1rem 1.2rem; font-weight:700; font-size:1.15rem; color:#fff; display:flex; align-items:center; gap:.5rem; border-bottom:1px solid rgba(255,255,255,.08);}
+  .sidebar .brand i{ color: #818cf8; }
+  .sidebar .nav-section{ font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:#7d7fa3; padding:1rem 1.2rem .3rem; }
+  .sidebar a.nav-link{ color:#cfd0e6; padding:.5rem 1.2rem; font-size:.9rem; border-left:3px solid transparent; display:flex; align-items:center; gap:.6rem;}
+  .sidebar a.nav-link:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .sidebar a.nav-link.active{ background:rgba(129,140,248,.15); color:#fff; border-left-color: var(--brand); font-weight:600; }
+  .sidebar a.nav-link i{ width:18px; text-align:center; opacity:.85; }
+  .sidebar .sub-link{ padding-left:2.6rem; font-size:.83rem; }
+  .main-wrap{ margin-left: var(--sidebar-w); min-height:100vh; display:flex; flex-direction:column; }
+  .topbar{ background:#fff; border-bottom:1px solid var(--card-border); padding:.65rem 1.25rem; display:flex; align-items:center; gap:1rem; position:sticky; top:0; z-index:1020; }
+  .topbar .search-box{ max-width:420px; flex:1; }
+  .content{ padding:1.5rem; flex:1; }
+  .card{ border:1px solid var(--card-border); border-radius:.7rem; }
+  .kpi-card{ border-radius:.85rem; padding:1.1rem 1.3rem; color:#fff; box-shadow:0 4px 14px rgba(0,0,0,.06); }
+  .kpi-card .label{ font-size:.78rem; opacity:.9; text-transform:uppercase; letter-spacing:.04em;}
+  .kpi-card .value{ font-size:1.7rem; font-weight:700; }
+  .kpi-1{ background:linear-gradient(135deg,#6366f1,#4338ca);}
+  .kpi-2{ background:linear-gradient(135deg,#f97316,#c2410c);}
+  .kpi-3{ background:linear-gradient(135deg,#0ea5e9,#0369a1);}
+  .kpi-4{ background:linear-gradient(135deg,#10b981,#047857);}
+  .kpi-5{ background:linear-gradient(135deg,#ec4899,#be185d);}
+  .kpi-6{ background:linear-gradient(135deg,#64748b,#334155);}
+  .kpi-7{ background:linear-gradient(135deg,#8b5cf6,#6d28d9);}
+  .kpi-8{ background:linear-gradient(135deg,#d97706,#b45309);}
+  .badge-stage{ background:#eef2ff; color:#4338ca; }
+  .badge-hot{ background:#fee2e2; color:#b91c1c; }
+  .badge-warm{ background:#fef3c7; color:#b45309; }
+  .badge-cold{ background:#f1f5f9; color:#475569; }
+  .badge-uncontacted{ background:#e0e7ff; color:#3730a3; }
+  .badge-not_picked{ background:#ffedd5; color:#c2410c; }
+  .table thead th{ font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; border-bottom-width:1px; background:#fafafe;}
+  .table td{ font-size:.87rem; vertical-align:middle;}
+  .btn-brand{ background:var(--brand); border-color:var(--brand); color:#fff; }
+  .btn-brand:hover{ background:var(--brand-dark); border-color:var(--brand-dark); color:#fff;}
+  .empty-state{ text-align:center; padding:3rem 1rem; color:#9ca3af;}
+  .empty-state i{ font-size:2.4rem; margin-bottom:.75rem; display:block;}
+  .toast-container{ z-index:1080; }
+  @media (max-width: 991px){
+    .sidebar{ transform: translateX(-100%); }
+    .sidebar.show{ transform: translateX(0); }
+    .main-wrap{ margin-left:0; }
+  }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% include "includes/sidebar.html" %}
+
+<div class="main-wrap">
+  {% include "includes/header.html" %}
+
+  <div class="content">
+    {% include "includes/messages.html" %}
+
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% include "includes/footer.html" %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>
+

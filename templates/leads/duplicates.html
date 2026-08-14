@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Duplicate Management{% endblock %}
+{% block content %}
+<h4 class="mb-3">Duplicate Management</h4>
+<p class="text-muted small">Leads sharing the same mobile number (normalized). Review and merge/archive manually — the CRM never auto-deletes data.</p>
+
+{% for group in dup_groups %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="small text-muted mb-2">Mobile match: {{ group.0.mobile }} · {{ group|length }} records</div>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Lead ID</th><th>Name</th><th>Course</th><th>Source</th><th>Stage</th><th>Assigned</th><th>Created</th><th></th></tr></thead>
+      <tbody>
+        {% for l in group %}
+        <tr>
+          <td>{{ l.lead_code }}</td><td>{{ l.name }}</td><td>{{ l.course|default:"—" }}</td>
+          <td>{{ l.lead_source|default:"—" }}</td><td>{{ l.stage }}</td><td>{{ l.assigned_to|default:"—" }}</td>
+          <td>{{ l.created_at|date:"d-m-Y" }}</td>
+          <td><a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-primary">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% empty %}
+<div class="card"><div class="card-body"><div class="empty-state"><i class="fa-solid fa-circle-check"></i>No duplicate leads found.</div></div></div>
+{% endfor %}
+{% endblock %}

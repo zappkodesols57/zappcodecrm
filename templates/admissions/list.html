@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Admissions Dashboard{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-graduation-cap me-2 text-brand"></i>Student Admissions</h4>
+  <a href="{% url 'admissions:add' %}" class="btn btn-brand text-white btn-sm">
+    <i class="fa-solid fa-user-plus me-1"></i> Add New Student / Direct Admission
+  </a>
+</div>
+
+<!-- KPI Section -->
+<div class="row g-3 mb-4">
+  <div class="col-md col-sm-6">
+    <div class="card shadow-sm border-0 border-start border-primary border-4">
+      <div class="card-body py-3">
+        <div class="text-muted small text-uppercase fw-semibold">Total Admissions</div>
+        <div class="fs-3 fw-bold text-dark mt-1">{{ total_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md col-sm-6">
+    <div class="card shadow-sm border-0 border-start border-success border-4">
+      <div class="card-body py-3">
+        <div class="text-muted small text-uppercase fw-semibold">Full Paid</div>
+        <div class="fs-3 fw-bold text-success mt-1">{{ full_paid_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md col-sm-6">
+    <div class="card shadow-sm border-0 border-start border-warning border-4">
+      <div class="card-body py-3">
+        <div class="text-muted small text-uppercase fw-semibold">EMI Plan</div>
+        <div class="fs-3 fw-bold text-warning mt-1">{{ emi_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md col-sm-6">
+    <div class="card shadow-sm border-0 border-start border-info border-4">
+      <div class="card-body py-3">
+        <div class="text-muted small text-uppercase fw-semibold">Course Completed</div>
+        <div class="fs-3 fw-bold text-info mt-1">{{ completed_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md col-sm-6">
+    <div class="card shadow-sm border-0 border-start border-danger border-4">
+      <div class="card-body py-3">
+        <div class="text-muted small text-uppercase fw-semibold">Pending Fees</div>
+        <div class="fs-3 fw-bold text-danger mt-1">₹{{ total_pending_fees|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label text-muted small fw-semibold">Search Student</label>
+        <input type="text" name="search" class="form-control form-control-sm" placeholder="Name or Lead ID..." value="{{ search_query }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-muted small fw-semibold">Payment Plan</label>
+        <select name="payment_plan" class="form-select form-select-sm">
+          <option value="">All Plans</option>
+          {% for code, label in payment_plans %}
+          <option value="{{ code }}" {% if plan_filter == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-muted small fw-semibold">Course Status</label>
+        <select name="course_status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          {% for code, label in course_statuses %}
+          <option value="{{ code }}" {% if course_filter == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label text-muted small fw-semibold">Fee Status</label>
+        <select name="fee_status" class="form-select form-select-sm">
+          <option value="">All Fees</option>
+          <option value="FULLY_PAID" {% if fee_filter == 'FULLY_PAID' %}selected{% endif %}>Fully Paid</option>
+          <option value="PENDING" {% if fee_filter == 'PENDING' %}selected{% endif %}>Pending / EMI Balance</option>
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-brand text-white w-50"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+        <a href="{% url 'admissions:list' %}" class="btn btn-sm btn-outline-secondary w-50"><i class="fa-solid fa-arrows-rotate me-1"></i>Reset</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Main Table & Bulk Actions Form -->
+<form method="post" action="{% url 'admissions:bulk_action' %}" id="bulkActionForm">
+  {% csrf_token %}
+  
+  <!-- Bulk Action Bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border shadow-sm">
+    <div class="d-flex align-items-center gap-2">
+      <span class="small text-muted fw-semibold ms-2"><span id="selected-count">0</span> students selected</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <select name="bulk_action" class="form-select form-select-sm" style="max-width: 250px;" required>
+        <option value="">-- Select Bulk Action --</option>
+        <option value="mark_ongoing">Mark Course as Ongoing</option>
+        <option value="mark_completed">Mark Course as Completed</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-brand text-white">Apply Action</button>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="card shadow-sm border-0">
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle table-hover text-nowrap">
+        <thead class="table-light">
+          <tr>
+            <th width="40" class="text-center"><input type="checkbox" id="select-all" class="form-check-input"></th>
+            <th>Student</th>
+            <th>Lead ID</th>
+            <th>Course</th>
+            <th>Admission Date</th>
+            <th>Plan</th>
+            <th class="text-end">Base Price</th>
+            <th class="text-end">Discount</th>
+            <th class="text-end">Final Fee</th>
+            <th class="text-end text-success">Collected</th>
+            <th class="text-end text-warning">Pending</th>
+            <th class="text-center">Course Status</th>
+            <th>Counselor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in admissions %}
+          <tr>
+            <td class="text-center"><input type="checkbox" name="selected" value="{{ a.id }}" class="form-check-input student-checkbox"></td>
+            <td>
+              <a href="{% url 'leads:lead_detail' a.lead_id %}"><strong>{{ a.student_name }}</strong></a>
+              {% if a.discount > a.max_allowed_discount %}
+              <span class="d-block small text-danger" style="font-size: 0.72rem;" title="Reason: {{ a.extra_discount_reason }}">
+                <i class="fa-solid fa-circle-exclamation me-1"></i>Extra Discount Given
+              </span>
+              {% endif %}
+            </td>
+            <td><code class="small text-muted">{{ a.lead.lead_code }}</code></td>
+            <td>{{ a.course|default:"" }}</td>
+            <td>{{ a.admission_date|date:"d-m-Y" }}</td>
+            <td>
+              {% if a.payment_plan == 'EMI' %}
+              <span class="badge text-bg-warning" style="font-size: 0.72rem;">EMI</span>
+              {% else %}
+              <span class="badge text-bg-light text-secondary border" style="font-size: 0.72rem;">Full Pay</span>
+              {% endif %}
+            </td>
+            <td class="text-end">₹{{ a.total_fee|floatformat:0 }}</td>
+            <td class="text-end text-danger">
+              ₹{{ a.discount|floatformat:0 }}
+              {% if a.discount > a.max_allowed_discount %}
+              <i class="fa-solid fa-triangle-exclamation ms-1 text-warning" style="cursor:help;" title="Exceeded master discount of ₹{{ a.max_allowed_discount|floatformat:0 }}. Reason: {{ a.extra_discount_reason }}"></i>
+              {% endif %}
+            </td>
+            <td class="text-end fw-bold text-dark">₹{{ a.final_fee|floatformat:0 }}</td>
+            <td class="text-end text-success">₹{{ a.total_collected|default:a.collected|floatformat:0 }}</td>
+            <td class="text-end text-warning fw-bold">₹{{ a.pending|floatformat:0 }}</td>
+            <td class="text-center">
+              {% if a.course_status == 'COMPLETED' %}
+              <span class="badge text-bg-success" style="font-size: 0.72rem;">Completed</span>
+              {% elif a.course_status == 'DROPOUT' %}
+              <span class="badge text-bg-danger" style="font-size: 0.72rem;">Dropout</span>
+              {% else %}
+              <span class="badge text-bg-info text-white" style="font-size: 0.72rem;">Ongoing</span>
+              {% endif %}
+            </td>
+            <td>{{ a.assigned_counselor|default:"" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="13" class="text-center py-5 text-muted">
+              <i class="fa-solid fa-user-slash fs-1 d-block mb-2 text-secondary"></i>
+              No admitted students matching filter settings.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</form>
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    function updateCount() {
+      const checkedCount = document.querySelectorAll('.student-checkbox:checked').length;
+      selectedCountSpan.textContent = checkedCount;
+    }
+
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', function() {
+        studentCheckboxes.forEach(cb => {
+          cb.checked = this.checked;
+        });
+        updateCount();
+      });
+    }
+
+    studentCheckboxes.forEach(cb => {
+      cb.addEventListener('change', function() {
+        if (!this.checked) {
+          selectAllCheckbox.checked = false;
+        }
+        updateCount();
+      });
+    });
+  });
+</script>
+{% endblock %}
+{% endblock %}

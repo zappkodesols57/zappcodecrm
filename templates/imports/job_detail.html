@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Import Summary{% endblock %}
+{% block content %}
+<h4 class="mb-3">Import Summary — {{ job.original_filename }}</h4>
+<div class="row g-3 mb-3">
+  <div class="col"><div class="kpi-card kpi-1"><div class="label">Total Rows</div><div class="value">{{ job.total_rows }}</div></div></div>
+  <div class="col"><div class="kpi-card kpi-4"><div class="label">Imported</div><div class="value">{{ job.imported_count }}</div></div></div>
+  <div class="col"><div class="kpi-card kpi-3"><div class="label">Updated</div><div class="value">{{ job.updated_count }}</div></div></div>
+  <div class="col"><div class="kpi-card kpi-6"><div class="label">Duplicate</div><div class="value">{{ job.duplicate_count }}</div></div></div>
+  <div class="col"><div class="kpi-card kpi-2"><div class="label">Invalid</div><div class="value">{{ job.invalid_count }}</div></div></div>
+</div>
+
+{% if errors %}
+<div class="card">
+  <div class="card-body">
+    <h6 class="text-muted text-uppercase small">Row-level Errors</h6>
+    <table class="table table-sm">
+      <thead><tr><th>Row</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for e in errors %}<tr><td>{{ e.row_number }}</td><td>{{ e.error_message }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+<a href="{% url 'leads:lead_list' %}?import_job={{ job.id }}" class="btn btn-brand text-white mt-3"><i class="fa-solid fa-users me-1"></i> View Imported Leads ({{ job.imported_count }})</a>
+<a href="{% url 'imports:history' %}" class="btn btn-outline-secondary mt-3 ms-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Import History</a>
+{% endblock %}

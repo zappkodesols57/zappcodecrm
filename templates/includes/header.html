@@ -1,0 +1,22 @@
+{% if user.is_authenticated %}
+<div class="topbar">
+  <button class="btn btn-sm btn-light d-lg-none" onclick="document.getElementById('sidebar').classList.toggle('show')"><i class="fa-solid fa-bars"></i></button>
+  <form class="search-box" method="get" action="{% url 'leads:lead_list' %}">
+    <input type="search" name="q" class="form-control form-control-sm" placeholder="Search leads by name, mobile, email, lead ID..." value="{{ request.GET.q }}">
+  </form>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-brand text-white d-none d-sm-inline-flex align-items-center gap-1">
+      <i class="fa-solid fa-user-plus"></i> Add Lead
+    </a>
+    <span class="badge text-bg-light border me-1">{{ user.get_role_display }}</span>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fa-solid fa-circle-user"></i> {{ user.get_full_name|default:user.username }}
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="dropdown-item" type="submit"><i class="fa-solid fa-right-from-bracket me-1 text-danger"></i> Logout</button></form></li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endif %}

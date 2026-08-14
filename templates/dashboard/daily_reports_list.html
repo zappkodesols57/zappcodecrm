@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Daily Task Reports Log{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="mb-0">Daily Task Reports Log</h4>
+    <p class="text-muted small mb-0">Review end-of-day task reports submitted by employees</p>
+  </div>
+  <div>
+    <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-sm btn-success text-white"><i class="fa-solid fa-file-excel me-1"></i> Export to Excel</a>
+  </div>
+</div>
+
+<form method="get" class="card p-3 mb-4 border-0 shadow-sm bg-white">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-3">
+      <select name="employee" class="form-select form-select-sm">
+        <option value="">All Employees</option>
+        {% for e in employees %}
+          <option value="{{ e.id }}" {% if request_get.employee == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }} ({{ e.get_role_display }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text small">From</span>
+        <input type="date" name="date_from" class="form-control" value="{{ request_get.date_from }}">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text small">To</span>
+        <input type="date" name="date_to" class="form-control" value="{{ request_get.date_to }}">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Filter</button>
+        <a href="{% url 'dashboard:management_daily_reports' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Reset</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Date</th>
+          <th>Employee</th>
+          <th>Role</th>
+          <th>Calls Attended</th>
+          <th>Cold Leads</th>
+          <th>Calls Not Connected</th>
+          <th>Updates / Summary</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in reports %}
+        <tr>
+          <td><span class="badge text-bg-light border fw-normal">{{ report.report_date|date:"d-m-Y" }}</span></td>
+          <td>
+            <div class="fw-bold">{{ report.user.get_full_name|default:report.user.username }}</div>
+            <div class="text-muted small">@{{ report.user.username }}</div>
+          </td>
+          <td><span class="badge text-bg-light border">{{ report.user.get_role_display }}</span></td>
+          <td><span class="badge text-bg-primary fs-6">{{ report.calls_attended }}</span></td>
+          <td><span class="badge text-bg-secondary fs-6">{{ report.leads_cold }}</span></td>
+          <td><span class="badge text-bg-warning fs-6">{{ report.calls_not_connected }}</span></td>
+          <td style="max-width: 320px;" class="text-truncate" title="{{ report.other_updates }}">{{ report.other_updates|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            <div class="empty-state text-center py-5 text-muted">
+              <i class="fa-solid fa-file-circle-question fs-3 mb-2"></i>
+              <div>No daily reports found matching the selected filters.</div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

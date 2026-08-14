@@ -1,0 +1,817 @@
+file,sheet,row,field,raw_value,reason
+2526Leads,2526Leads,2,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,2,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,5,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,7,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,8,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,9,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,10,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,11,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,12,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,18,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,19,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,21,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,24,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,25,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,26,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,29,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,30,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,31,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,42,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,45,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,47,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,51,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,52,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,53,origin,Ma'am,Ambiguous / unrecognized source
+2526Leads,2526Leads,55,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,59,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,61,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,62,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,63,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,64,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,65,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,66,course,DA with AI,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,67,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,68,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,70,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,71,course,Data Anlystics,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,72,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,73,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,75,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,76,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,77,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,79,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,81,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,82,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,83,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,88,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,90,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,92,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,93,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,99,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,100,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,101,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,102,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,103,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,105,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,107,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,108,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,110,course,Full Stack.,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,111,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,112,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,116,course,Data Anakytics,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,117,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,118,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,122,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,127,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,129,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,131,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,132,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,133,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,134,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,135,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,137,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,140,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,143,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,144,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,145,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,147,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,148,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,150,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,151,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,153,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,154,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,155,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,156,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,157,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,161,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,163,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,164,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,167,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,168,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,169,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,172,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,173,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,178,course,Dat Analytics,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,181,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,190,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,193,lead_state,Hold,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,195,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,196,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,198,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,199,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,202,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,205,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,214,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,214,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,214,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,216,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,219,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,227,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,227,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,228,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,229,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,231,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,232,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,234,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,236,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,237,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,244,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,248,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,249,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,250,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,252,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,253,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,255,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,256,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,259,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,260,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,265,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,265,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,265,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,269,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,273,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,274,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,275,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,276,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,280,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,282,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,283,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,284,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,285,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,290,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,291,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,292,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,293,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,296,course,Data Anlytics,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,299,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,301,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,306,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,307,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,308,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,309,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,310,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,311,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,313,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,314,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,315,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,319,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,321,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,322,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,323,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,326,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,327,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,327,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,327,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,328,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,329,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,330,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,331,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,332,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,333,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,334,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,335,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,336,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,338,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,339,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,341,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,342,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,343,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,344,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,347,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,348,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,349,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,350,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,351,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,352,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,353,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,354,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,356,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,359,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,360,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,361,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,362,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,363,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,364,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,365,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,366,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,370,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,371,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,372,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,373,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,374,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,375,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,376,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,377,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,378,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,379,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,382,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,383,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,385,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,388,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,393,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,394,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,404,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,413,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,419,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,419,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,422,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,423,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,423,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,424,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,425,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,426,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,427,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,428,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,429,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,431,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,435,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,436,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,437,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,438,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,439,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,440,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,440,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,441,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,441,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,442,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,443,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,444,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,445,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,446,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,447,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,448,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,448,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,449,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,449,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,450,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,450,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,451,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,451,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,452,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,452,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,454,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,454,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,455,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,455,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,456,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,456,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,458,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,460,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,463,lead_state,Hold,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,464,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,465,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,465,lead_state,Closed,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,466,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,466,lead_state,Hold,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,467,lead_state,DONE,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,468,lead_state,DONE,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,469,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,469,lead_state,Hold,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,470,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,470,lead_state,Open,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,473,lead_state,HOLD,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,474,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,475,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,476,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,476,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,480,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,481,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,481,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,482,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,483,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,483,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,485,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,486,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,486,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,487,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,487,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,487,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,491,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,493,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,495,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,495,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,495,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,496,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,496,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,501,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,501,lead_state,HOLD,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,502,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,502,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,503,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,507,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,507,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,508,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,509,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,509,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,510,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,511,lead_state,DONE,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,512,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,512,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,513,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,513,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,514,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,514,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,515,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,515,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,516,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,516,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,517,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,517,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,518,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,518,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,519,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,520,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,520,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,521,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,522,lead_state,HOLD,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,523,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,524,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,524,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,525,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,525,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,526,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,527,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,528,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,528,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,529,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,529,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,529,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,530,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,531,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,532,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,532,lead_state,HOLD,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,533,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,533,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,534,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,534,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,534,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,535,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,535,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,536,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,538,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,538,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,539,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,540,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,540,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,541,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,542,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,542,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,543,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,543,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,544,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,544,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,545,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,546,lead_state,HOLD,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,547,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,547,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,548,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,548,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,549,lead_state,CLOSED,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,550,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,550,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,551,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,551,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,552,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,552,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,553,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,553,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,554,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,555,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,555,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,556,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,557,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,557,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,558,course,nan,Unrecognized course spelling — kept as typed
+2526Leads,2526Leads,558,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,559,lead_state,OPEN,Could not map to Hot/Warm/Cold
+2526Leads,2526Leads,560,origin,nan,Ambiguous / unrecognized source
+2526Leads,2526Leads,560,lead_state,OPEN,Could not map to Hot/Warm/Cold
+June-July,June-July,2,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,3,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,4,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,5,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,6,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,7,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,8,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,9,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,10,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,11,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,12,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,13,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,15,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,16,course,Pyhon Programming ,Unrecognized course spelling — kept as typed
+June-July,June-July,17,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,18,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,19,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,20,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,21,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,22,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,23,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,24,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,40,course,Python programming,Unrecognized course spelling — kept as typed
+June-July,June-July,41,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,42,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,43,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,44,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,46,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,47,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,49,course,Advance AI ,Unrecognized course spelling — kept as typed
+June-July,June-July,55,course,AI & Machine Learning,Unrecognized course spelling — kept as typed
+June-July,June-July,67,course,AI & Machine Learning,Unrecognized course spelling — kept as typed
+June-July,June-July,72,course,AI & Machine Learning,Unrecognized course spelling — kept as typed
+June-July,June-July,74,course,Java+ full stack ,Unrecognized course spelling — kept as typed
+June-July,June-July,75,course,Java+ full stack ,Unrecognized course spelling — kept as typed
+June-July,June-July,76,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,77,course,ai_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,78,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,79,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,80,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,81,course,ai_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,82,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,83,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,84,course,python_programming,Unrecognized course spelling — kept as typed
+June-July,June-July,85,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,86,course,ai_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,87,course,python_programming,Unrecognized course spelling — kept as typed
+June-July,June-July,88,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,89,course,ai_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,90,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,91,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,92,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,93,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,95,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,98,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,99,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,100,course,AI & Machine Learning,Unrecognized course spelling — kept as typed
+June-July,June-July,101,course,python_programming,Unrecognized course spelling — kept as typed
+June-July,June-July,102,course,not_sure_(need_career_guidance),Unrecognized course spelling — kept as typed
+June-July,June-July,103,course,not_sure_(need_career_guidance),Unrecognized course spelling — kept as typed
+June-July,June-July,104,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,105,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,106,course,data_analytics,Unrecognized course spelling — kept as typed
+June-July,June-July,108,course,(ai)_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,109,course,Data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,115,course,DA & DM ,Unrecognized course spelling — kept as typed
+June-July,June-July,118,course,course not decided,Unrecognized course spelling — kept as typed
+June-July,June-July,119,course,AI+ Excel,Unrecognized course spelling — kept as typed
+June-July,June-July,120,course,Data Science + AI,Unrecognized course spelling — kept as typed
+June-July,June-July,121,course,not_sure_(need_career_guidance),Unrecognized course spelling — kept as typed
+June-July,June-July,122,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,123,course,course not decided,Unrecognized course spelling — kept as typed
+June-July,June-July,125,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,126,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,129,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,130,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,131,course,course not selected - need counselling ,Unrecognized course spelling — kept as typed
+June-July,June-July,132,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,133,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,134,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,136,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,137,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,138,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,139,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,140,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,141,course,full_stack_development,Unrecognized course spelling — kept as typed
+June-July,June-July,142,course,(ai)_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,143,course,data_science,Unrecognized course spelling — kept as typed
+June-July,June-July,144,course,course not decided,Unrecognized course spelling — kept as typed
+June-July,June-July,145,course,Video Editing course,Unrecognized course spelling — kept as typed
+June-July,June-July,146,course,Digital Marketing ,Unrecognized course spelling — kept as typed
+June-July,June-July,147,course,not_sure_(need_career_guidance),Unrecognized course spelling — kept as typed
+June-July,June-July,148,course,(ai)_&_machine_learning,Unrecognized course spelling — kept as typed
+June-July,June-July,150,course,Data Analyics,Unrecognized course spelling — kept as typed
+June-July,June-July,151,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,155,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,157,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,158,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,159,course,Not Decided ,Unrecognized course spelling — kept as typed
+June-July,June-July,162,course,-,Unrecognized course spelling — kept as typed
+June-July,June-July,163,course,Digital Marketing ,Unrecognized course spelling — kept as typed
+June-July,June-July,165,course,Full Stack Development (Java),Unrecognized course spelling — kept as typed
+June-July,June-July,166,course,Full Stack Development (python ),Unrecognized course spelling — kept as typed
+June-July,June-July,167,course,Full Stack Python ,Unrecognized course spelling — kept as typed
+June-July,June-July,168,course,Data Anlytics + AI ,Unrecognized course spelling — kept as typed
+June-July,June-July,169,course,Data Science +AI,Unrecognized course spelling — kept as typed
+June-July,June-July,170,course,-,Unrecognized course spelling — kept as typed
+Aug,Aug,9,course,-,Unrecognized course spelling — kept as typed
+Aug,Aug,10,course,-,Unrecognized course spelling — kept as typed
+Aug,Aug,11,course,-,Unrecognized course spelling — kept as typed
+Aug,Aug,15,course,-,Unrecognized course spelling — kept as typed
+Aug,Aug,18,course,Not decided ,Unrecognized course spelling — kept as typed
+Aug,Aug,21,course,Full Stack Java,Unrecognized course spelling — kept as typed
+Aug,Aug,22,course,Full Stack Java,Unrecognized course spelling — kept as typed
+Aug,Aug,23,course,Business Analytics ,Unrecognized course spelling — kept as typed
+Aug,Aug,24,course,ai_&_machine_learning,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,11,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,14,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,20,course,Business Analytics,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,24,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,25,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,26,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,34,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,37,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,38,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,39,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,40,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,45,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,47,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,49,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,51,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,52,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,53,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,58,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,64,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,65,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,66,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,67,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,68,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,69,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,77,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,78,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,79,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,80,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,81,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,82,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,83,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,84,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,85,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,86,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,88,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,89,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,90,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,91,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,92,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,93,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,96,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,97,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,98,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,99,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,101,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,105,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,106,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,107,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,108,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,109,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,110,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,111,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,112,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,116,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,117,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,118,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,119,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,121,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,122,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,123,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,125,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,126,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,136,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,137,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,139,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,141,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,142,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,145,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,146,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,147,course,-,Unrecognized course spelling — kept as typed
+OLD data calling,OLD data calling ,148,course,-,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,357,course,nan,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,358,course,nan,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,359,course,nan,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,360,course,nan,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,361,course,nan,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,362,course,nan,Unrecognized course spelling — kept as typed
+Old Sheet 25,Old Sheet 25,363,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,109,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,112,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,114,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,115,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,119,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,120,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,126,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,127,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,129,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,132,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,133,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,136,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,137,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,138,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,139,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,140,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,141,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,144,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,148,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,149,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,150,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,151,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,154,course,web development,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,155,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,157,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,158,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,160,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,161,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,162,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,164,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,165,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,166,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,167,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,168,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,170,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,172,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,179,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,180,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,181,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,188,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,190,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,191,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,192,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,193,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,196,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,200,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,201,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,204,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,208,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,210,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,212,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,214,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,215,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,216,course,Data Science+Ai,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,218,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,220,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,222,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,229,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,231,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,232,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,233,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,234,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,235,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,236,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,237,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,238,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,239,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,240,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,242,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,243,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,244,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,245,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,246,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,247,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,248,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,252,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,253,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,254,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,262,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,264,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,267,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,270,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,274,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,277,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,278,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,280,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,281,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,286,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,287,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,288,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,294,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,295,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,296,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,297,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,298,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,300,course,digital marketing,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,301,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,303,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,304,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,305,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,307,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,308,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,309,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,311,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,312,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,313,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,314,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,315,course,nan,Unrecognized course spelling — kept as typed
+Feb-MarLead26,Feb-MarLead26,316,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,2,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,4,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,5,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,6,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,10,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,11,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,12,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,13,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,14,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,15,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,16,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,17,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,18,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,19,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,20,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,21,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,28,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,32,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,33,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,34,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,36,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,37,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,38,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,39,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,43,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,44,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,45,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,46,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,48,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,49,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,50,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,51,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,53,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,54,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,57,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,61,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,64,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,65,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,66,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,67,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,68,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,69,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,70,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,71,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,72,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,73,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,77,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,78,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,80,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,81,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,82,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,84,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,85,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,86,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,88,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,89,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,90,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,91,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,92,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,93,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,94,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,95,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,96,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,97,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,99,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,101,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,103,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,104,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,106,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,109,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,110,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,111,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,112,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,113,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,114,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,115,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,116,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,117,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,118,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,119,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,120,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,122,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,123,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,124,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,125,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,127,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,129,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,132,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,133,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,135,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,136,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,137,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,138,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,139,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,140,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,141,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,143,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,147,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,149,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,150,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,151,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,152,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,153,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,154,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,156,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,163,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,164,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,165,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,167,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,176,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,177,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,185,course,Prompt Engineering ,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,189,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,190,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,193,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,206,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,208,course,Frontend Web dewlopmwent,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,209,course,Frontend Web dewlopmwent,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,210,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,215,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,217,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,218,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,223,course,nan,Unrecognized course spelling — kept as typed
+April - May 26,April - May 26,231,course,nan,Unrecognized course spelling — kept as typed
+May-June 26,May-June 26,51,course,nan,Unrecognized course spelling — kept as typed

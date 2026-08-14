@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Direct Student Admission{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="fa-solid fa-user-graduate text-brand me-2"></i>Direct Student Admission</h4>
+    <p class="text-muted small mb-0">Directly register and enroll a new student for training & courses.</p>
+  </div>
+  <a href="{% url 'admissions:list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back to Admissions</a>
+</div>
+
+<div class="card shadow-sm border-0" style="max-width: 800px;">
+  <div class="card-body p-4">
+    <form method="post">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2 small mb-3">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+      {% endif %}
+
+      <h6 class="text-uppercase small text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-user me-1 text-brand"></i> Student Information</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Student Full Name *</label>
+          {{ form.student_name }}
+          {% if form.student_name.errors %}<div class="text-danger small mt-1">{{ form.student_name.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Mobile Number *</label>
+          {{ form.mobile }}
+          {% if form.mobile.errors %}<div class="text-danger small mt-1">{{ form.mobile.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Email Address</label>
+          {{ form.email }}
+          {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">City</label>
+          {{ form.city }}
+          {% if form.city.errors %}<div class="text-danger small mt-1">{{ form.city.errors.0 }}</div>{% endif %}
+        </div>
+      </div>
+
+      <h6 class="text-uppercase small text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-graduation-cap me-1 text-brand"></i> Course & Fees Details</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Course Enrolled *</label>
+          {{ form.course }}
+          {% if form.course.errors %}<div class="text-danger small mt-1">{{ form.course.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Admission Date *</label>
+          {{ form.admission_date }}
+          {% if form.admission_date.errors %}<div class="text-danger small mt-1">{{ form.admission_date.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Total Course Fee (₹) *</label>
+          {{ form.total_fee }}
+          {% if form.total_fee.errors %}<div class="text-danger small mt-1">{{ form.total_fee.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Discount Allowed (₹)</label>
+          {{ form.discount }}
+          {% if form.discount.errors %}<div class="text-danger small mt-1">{{ form.discount.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Payment Plan</label>
+          {{ form.payment_plan }}
+          {% if form.payment_plan.errors %}<div class="text-danger small mt-1">{{ form.payment_plan.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-md-12">
+          <label class="form-label small fw-semibold">Discount Reason / Notes</label>
+          {{ form.extra_discount_reason }}
+        </div>
+      </div>
+
+      <h6 class="text-uppercase small text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-user-tie me-1 text-brand"></i> Status & Counselor Assignment</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Course Status</label>
+          {{ form.course_status }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Assigned Counselor / Employee</label>
+          {{ form.assigned_counselor }}
+        </div>
+        <div class="col-md-12">
+          <label class="form-label small fw-semibold">Additional Admission Notes</label>
+          {{ form.notes }}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 pt-3 border-top">
+        <button type="submit" class="btn btn-brand text-white"><i class="fa-solid fa-user-check me-1"></i> Register Student Admission</button>
+        <a href="{% url 'admissions:list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // 1. Live Mobile Duplicate Check
+  var mobileInput = document.querySelector('input[name="mobile"]');
+  if (mobileInput) {
+    var statusDiv = document.createElement('div');
+    statusDiv.className = 'mt-1 small';
+    mobileInput.parentNode.appendChild(statusDiv);
+
+    var timer = null;
+    mobileInput.addEventListener('input', function() {
+      clearTimeout(timer);
+      var val = mobileInput.value.trim();
+      if (val.length < 8) {
+        statusDiv.innerHTML = '';
+        return;
+      }
+      timer = setTimeout(function() {
+        fetch("{% url 'leads:check_duplicate_mobile' %}?mobile=" + encodeURIComponent(val))
+          .then(function(res){ return res.json(); })
+          .then(function(data) {
+            if (data.exists) {
+              statusDiv.innerHTML = '<span class="badge text-bg-warning py-1 px-2"><i class="fa-solid fa-circle-info me-1"></i> Matching Lead Found: ' + data.name + ' (' + data.lead_code + ') — Will convert to Admission</span>';
+            } else {
+              statusDiv.innerHTML = '<span class="badge text-bg-success py-1 px-2"><i class="fa-solid fa-check me-1"></i> New Student Record</span>';
+            }
+          });
+      }, 350);
+    });
+  }
+
+  // 2. Real-time Final Fee Calculator
+  var totalFeeInput = document.querySelector('input[name="total_fee"]');
+  var discountInput = document.querySelector('input[name="discount"]');
+  if (totalFeeInput && discountInput) {
+    var calcDiv = document.createElement('div');
+    calcDiv.className = 'mt-1 small fw-bold text-success';
+    discountInput.parentNode.appendChild(calcDiv);
+
+    function updateCalculatedFee() {
+      var tf = parseFloat(totalFeeInput.value) || 0;
+      var disc = parseFloat(discountInput.value) || 0;
+      var finalFee = Math.max(0, tf - disc);
+      calcDiv.innerHTML = 'Net Final Payable Fee: ₹' + finalFee.toLocaleString('en-IN');
+    }
+
+    totalFeeInput.addEventListener('input', updateCalculatedFee);
+    discountInput.addEventListener('input', updateCalculatedFee);
+    updateCalculatedFee();
+  }
+});
+</script>
+{% endblock %}

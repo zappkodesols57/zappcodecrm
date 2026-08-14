@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Report Already Submitted · CRM{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+  <div class="text-center" style="max-width: 480px;">
+
+    <!-- Green check animation -->
+    <div style="width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;
+      box-shadow: 0 0 0 16px rgba(16,185,129,0.12), 0 0 0 32px rgba(16,185,129,0.05);">
+      <i class="fa-solid fa-check" style="font-size: 2.5rem; color: #fff;"></i>
+    </div>
+
+    <h3 class="fw-bold mb-1">Report Already Submitted!</h3>
+    <p class="text-muted mb-4">
+      Aapki <strong>{{ report_date|date:"d F Y" }}</strong> ki daily report already submit ho chuki hai.
+      <br>Kal phir submit kar sakte hain. 😊
+    </p>
+
+    <!-- Summary of submitted report -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1rem; text-align: left;">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3 text-muted text-uppercase small">Today's Report Summary</h6>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <div class="p-2 rounded" style="background: #dbeafe;">
+              <div style="font-size: 0.7rem; color: #1e40af; font-weight: 600;">Total Calls</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #1d4ed8;">{{ report.calls_attended }}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background: #d1fae5;">
+              <div style="font-size: 0.7rem; color: #065f46; font-weight: 600;">Interested Leads</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #047857;">{{ report.leads_interested }}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background: #fee2e2;">
+              <div style="font-size: 0.7rem; color: #991b1b; font-weight: 600;">Cold / Not Interested</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #b91c1c;">{{ report.leads_cold }}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background: #fae8ff;">
+              <div style="font-size: 0.7rem; color: #6b21a8; font-weight: 600;">Admissions Done</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #7c3aed;">{{ report.admissions_done }}</div>
+            </div>
+          </div>
+        </div>
+
+        {% if report.key_highlight %}
+        <div class="mb-2">
+          <div class="text-muted small fw-semibold">⭐ Key Highlight</div>
+          <div class="small">{{ report.key_highlight }}</div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex align-items-center gap-2 mt-2">
+          <div class="text-muted small fw-semibold">Mood:</div>
+          <span style="font-size: 1.2rem;">
+            {% if report.mood_rating == 1 %}😞{% elif report.mood_rating == 2 %}😕{% elif report.mood_rating == 3 %}😐{% elif report.mood_rating == 4 %}🙂{% elif report.mood_rating == 5 %}😄{% endif %}
+          </span>
+          <span class="text-muted small">{{ report.get_mood_rating_display|slice:"3:" }}</span>
+        </div>
+
+        <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.75rem;">
+          <i class="fa-solid fa-clock me-1"></i> Submitted at {{ report.created_at|date:"h:i A" }}
+        </div>
+      </div>
+    </div>
+
+    <a href="{% url 'dashboard:home' %}" class="btn btn-primary px-4">
+      <i class="fa-solid fa-gauge-high me-1"></i> Go to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

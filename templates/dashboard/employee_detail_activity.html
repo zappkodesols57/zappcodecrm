@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.get_full_name|default:employee.username }} - Daily Log{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    <h4 class="mb-0">{{ employee.get_full_name|default:employee.username }} <span class="badge text-bg-secondary fs-6">{{ employee.get_role_display }}</span></h4>
+    <p class="text-muted small mb-0">Daily entry log and call tracking sheet</p>
+  </div>
+  <div>
+    <form method="get" class="d-flex gap-2">
+      <input type="date" name="date" class="form-control form-control-sm" value="{{ target_date|date:'Y-m-d' }}" onchange="this.form.submit()">
+      <button class="btn btn-sm btn-brand text-white" type="submit">Go</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card p-3 shadow-sm border-0 bg-primary-subtle text-primary-emphasis">
+      <div class="small fw-semibold text-uppercase opacity-75">Outgoing Calls</div>
+      <div class="fs-3 fw-bold mt-1">{{ stats.outgoing_calls }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 shadow-sm border-0 bg-info-subtle text-info-emphasis">
+      <div class="small fw-semibold text-uppercase opacity-75">Incoming Calls</div>
+      <div class="fs-3 fw-bold mt-1">{{ stats.incoming_calls }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card p-3 shadow-sm border-0 bg-success-subtle text-success-emphasis">
+      <div class="small fw-semibold text-uppercase opacity-75">WhatsApp / SMS</div>
+      <div class="fs-3 fw-bold mt-1">{{ stats.whatsapp }} / {{ stats.sms }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card p-3 shadow-sm border-0 bg-warning-subtle text-warning-emphasis">
+      <div class="small fw-semibold text-uppercase opacity-75">Notes Added</div>
+      <div class="fs-3 fw-bold mt-1">{{ stats.notes }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-2">
+    <div class="card p-3 shadow-sm border-0 bg-dark-subtle text-dark-emphasis">
+      <div class="small fw-semibold text-uppercase opacity-75">Total Entries</div>
+      <div class="fs-3 fw-bold mt-1">{{ stats.total_entries }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-white py-3">
+    <h5 class="card-title mb-0"><i class="fa-solid fa-list-check me-2 text-primary"></i>Entries on {{ target_date|date:"d M Y" }}</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Lead</th>
+          <th>Type</th>
+          <th>Details / Mode</th>
+          <th>Status</th>
+          <th>Comment / Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        <tr>
+          <td><span class="badge text-bg-light fw-normal">{{ entry.time|date:"H:i" }}</span></td>
+          <td>
+            {% if entry.lead %}
+              <a href="{% url 'leads:lead_detail' entry.lead.pk %}" class="fw-semibold text-decoration-none">{{ entry.lead.name }}</a>
+              <div class="text-muted" style="font-size: 0.75rem;">{{ entry.lead.lead_code }}</div>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td><span class="badge {% if entry.type == 'Note' %}text-bg-warning{% else %}text-bg-primary{% endif %}">{{ entry.type }}</span></td>
+          <td>{{ entry.details }}</td>
+          <td>
+            {% if entry.status != "—" %}
+              <span class="badge text-bg-secondary">{{ entry.status }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>{{ entry.comment|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <i class="fa-solid fa-clipboard-question"></i>
+              No logs or entries recorded by this employee on this date.
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

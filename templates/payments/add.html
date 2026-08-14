@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Record Payment{% endblock %}
+{% block content %}
+<h4 class="mb-3">Record Payment — {{ admission.student_name }}</h4>
+<div class="card" style="max-width:480px;">
+  <div class="card-body">
+    <div class="small text-muted mb-3">Final Fee: ₹{{ admission.final_fee }} · Pending: ₹{{ admission.pending }}</div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-2"><label class="form-label small">Amount</label><input type="number" step="0.01" name="amount" class="form-control" required></div>
+      <div class="mb-2"><label class="form-label small">Payment Date</label><input type="date" name="payment_date" class="form-control"></div>
+      <div class="mb-2"><label class="form-label small">Mode</label>
+        <select name="payment_mode" class="form-select">
+          <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="CARD">Card</option>
+          <option value="NETBANKING">Net Banking</option><option value="CHEQUE">Cheque</option><option value="OTHER">Other</option>
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label small">Transaction Reference</label><input type="text" name="transaction_reference" class="form-control"></div>
+      <div class="mb-2"><label class="form-label small">Remarks</label><input type="text" name="remarks" class="form-control"></div>
+      <button class="btn btn-brand text-white">Save Payment</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

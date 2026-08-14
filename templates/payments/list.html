@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Payments{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Payments</h4>
+  <div class="kpi-card kpi-4" style="padding:.6rem 1rem;"><div class="label">Total Collected</div><div class="value">₹{{ collected|floatformat:0 }}</div></div>
+</div>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Student</th><th>Amount</th><th>Date</th><th>Mode</th><th>Status</th><th>Reference</th></tr></thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td><a href="{% url 'leads:lead_detail' p.admission.lead_id %}">{{ p.admission.student_name }}</a></td>
+          <td>₹{{ p.amount }}</td>
+          <td>{{ p.payment_date }}</td>
+          <td>{{ p.get_payment_mode_display }}</td>
+          <td>{{ p.get_payment_status_display }}</td>
+          <td>{{ p.transaction_reference|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6"><div class="empty-state"><i class="fa-solid fa-indian-rupee-sign"></i>No payments recorded yet.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
