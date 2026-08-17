@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'payments',
     'dashboard',
     'audit',
+    'meta_ads',
 ]
 
 MIDDLEWARE = [
