@@ -9,7 +9,6 @@ from django.utils import timezone
 # ---------------------------------------------------------------------------
 
 class SourceCategory(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(default=0)
@@ -23,7 +22,6 @@ class SourceCategory(models.Model):
 
 
 class LeadSource(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     category = models.ForeignKey(SourceCategory, on_delete=models.PROTECT, related_name="sources")
     is_active = models.BooleanField(default=True)
@@ -38,7 +36,6 @@ class LeadSource(models.Model):
 
 
 class Campaign(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)
     platform = models.CharField(max_length=100, blank=True)
     campaign_id = models.CharField(max_length=150, blank=True)
@@ -58,7 +55,6 @@ class Campaign(models.Model):
 
 
 class Course(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150, unique=True)
     base_price = models.PositiveIntegerField(default=0, help_text="Base course fee in Rupees")
     max_discount = models.PositiveIntegerField(default=0, help_text="Maximum allowed discount in Rupees")
@@ -73,7 +69,6 @@ class Course(models.Model):
 
 class LeadStage(models.Model):
     """Configurable pipeline stage (New -> Contacted -> ... -> Admission)."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=60, unique=True)
     order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
@@ -86,7 +81,6 @@ class LeadStage(models.Model):
 
 
 class Tag(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
@@ -102,7 +96,6 @@ class MasterGroup(models.Model):
     Parent Master Category (e.g., 'Qualifications', 'Branches', 'Loss Reasons', 'Cities').
     Allows admins to create new master categories dynamically without backend code.
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=100, unique=True, blank=True)
     description = models.TextField(blank=True, help_text="Purpose/usage of this master category")
@@ -137,7 +130,6 @@ class MasterItem(models.Model):
     """
     Sub-Master Item belonging to a MasterGroup (e.g., 'B.Tech' under 'Qualifications').
     """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     group = models.ForeignKey(MasterGroup, on_delete=models.CASCADE, related_name="items")
     name = models.CharField(max_length=150)
     code = models.CharField(max_length=50, blank=True, help_text="Optional short code or identifier")
@@ -199,8 +191,6 @@ def next_lead_code():
 
 
 class Lead(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
     # Identity
     lead_code = models.CharField(max_length=20, unique=True, editable=False)
 

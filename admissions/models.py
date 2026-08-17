@@ -19,7 +19,6 @@ class CourseStatus(models.TextChoices):
 
 
 class Admission(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lead = models.OneToOneField("leads.Lead", on_delete=models.CASCADE, related_name="admission")
     student_name = models.CharField(max_length=150)
     course = models.ForeignKey("leads.Course", on_delete=models.SET_NULL, null=True)
@@ -54,7 +53,6 @@ class Admission(models.Model):
 
 
 class Installment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     admission = models.ForeignKey(Admission, on_delete=models.CASCADE, related_name="installments")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     due_date = models.DateField()

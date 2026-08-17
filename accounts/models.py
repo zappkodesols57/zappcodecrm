@@ -7,8 +7,6 @@ class User(AbstractUser):
     """Custom user with CRM role. Role drives server-side permission checks
     everywhere (views, querysets) — never trust the frontend alone."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
     class Role(models.TextChoices):
         SUPER_ADMIN = "SUPER_ADMIN", "Super Admin"
         MANAGER = "MANAGER", "Manager"

@@ -4,7 +4,6 @@ from django.db import models
 
 
 class ImportJob(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"
         PROCESSING = "PROCESSING", "Processing"
@@ -34,7 +33,6 @@ class ImportJob(models.Model):
 
 
 class ImportError(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job = models.ForeignKey(ImportJob, on_delete=models.CASCADE, related_name="errors")
     row_number = models.PositiveIntegerField()
     error_message = models.TextField()

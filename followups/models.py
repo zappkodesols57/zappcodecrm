@@ -25,7 +25,6 @@ class FollowUpStatus(models.TextChoices):
 
 
 class FollowUp(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lead = models.ForeignKey("leads.Lead", on_delete=models.CASCADE, related_name="followups")
     followup_date = models.DateField(db_index=True)
     followup_time = models.TimeField(null=True, blank=True)
@@ -48,7 +47,6 @@ class FollowUp(models.Model):
 
 
 class Note(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lead = models.ForeignKey("leads.Lead", on_delete=models.CASCADE, related_name="lead_notes")
     note = models.TextField()
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -74,7 +72,6 @@ class ActivityType(models.TextChoices):
 class Activity(models.Model):
     """Feeds the Lead Timeline. Written by signals/views whenever something
     timeline-worthy happens — never edited after the fact."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lead = models.ForeignKey("leads.Lead", on_delete=models.CASCADE, related_name="activities")
     activity_type = models.CharField(max_length=25, choices=ActivityType.choices)
     description = models.TextField()
