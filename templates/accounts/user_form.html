@@ -23,7 +23,7 @@
 
       <div class="row g-3">
         {% for field in form %}
-        <div class="{% if field.name == 'is_active_employee' or field.name == 'is_active' %}col-md-6{% elif field.name == 'first_name' or field.name == 'last_name' %}col-md-6{% else %}col-md-12{% endif %}">
+        <div id="div_id_{{ field.name }}" class="{% if field.name == 'is_active_employee' or field.name == 'is_active' %}col-md-6{% elif field.name == 'first_name' or field.name == 'last_name' %}col-md-6{% else %}col-md-12{% endif %}">
           <label class="form-label small fw-semibold text-dark">{{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}</label>
           {{ field }}
           {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
@@ -39,4 +39,32 @@
     </form>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const roleField = document.getElementById("id_role");
+    const deptDiv = document.getElementById("div_id_department");
+    const specDiv = document.getElementById("div_id_speciality");
+
+    function toggleFields() {
+      if (roleField.value === "DOCTOR") {
+        deptDiv.style.display = "block";
+        specDiv.style.display = "block";
+      } else {
+        deptDiv.style.display = "none";
+        specDiv.style.display = "none";
+        // Optionally clear values to avoid saving them for non-doctors
+        const deptSelect = document.getElementById("id_department");
+        const specSelect = document.getElementById("id_speciality");
+        if(deptSelect) deptSelect.value = "";
+        if(specSelect) specSelect.value = "";
+      }
+    }
+
+    if (roleField && deptDiv && specDiv) {
+      roleField.addEventListener("change", toggleFields);
+      toggleFields(); // Initial call
+    }
+  });
+</script>
 {% endblock %}

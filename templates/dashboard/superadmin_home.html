@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Nelson Data Dashboard{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    /* Base Variables matching the external CRM */
+    :root {
+        --primary: #4f46e5;
+        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --bg-color: #f8fafc;
+        --surface: #ffffff;
+        --border: rgba(99, 102, 241, 0.1);
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+    }
+    
+    .nelson-dashboard {
+        font-family: 'Outfit', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        padding-bottom: 2rem;
+    }
+
+    .card {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border);
+        transition: all 0.3s ease;
+        padding: 1.5rem;
+    }
+    .card:hover {
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    /* Insights Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+        background: var(--surface);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
+        border-color: rgba(139, 92, 246, 0.4);
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+        flex-shrink: 0;
+    }
+
+    .stat-info {
+        min-width: 0;
+        flex: 1;
+    }
+    .stat-info h3 {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stat-info h2 {
+        color: var(--text-main);
+        font-size: clamp(1.2rem, 2vw, 2rem);
+        font-weight: 700;
+        margin-bottom: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+    @media (max-width: 991px) {
+        .charts-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nelson-dashboard">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold mb-1" style="color: var(--primary);">Nelson Data Dashboard</h3>
+            <p class="text-muted mb-0">Overview and Analytics for Nelson Leads</p>
+        </div>
+        <div style="background: white; padding: 0.5rem 1rem; border-radius: 50px; border: 2px solid var(--primary); font-weight: 600; color: var(--text-main);">
+            <i class="ph ph-calendar-blank me-2 text-primary"></i>{{ now|date:"l, j F Y" }}
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #EC4899 0%, #BE185D 100%);">
+                <i class="ph ph-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Total Leads</h3>
+                <h2>{{ insights.total_leads|intcomma }}</h2>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+                <i class="ph ph-calendar-check"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Appts Booked</h3>
+                <h2>{{ insights.appointments_booked|intcomma }}</h2>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">
+                <i class="ph ph-trend-up"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Conversion Rate</h3>
+                <h2>{{ insights.conversion_rate }}</h2>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);">
+                <i class="ph ph-currency-inr"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Total Revenue</h3>
+                <h2>{{ insights.total_revenue|intcomma }}</h2>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);">
+                <i class="ph ph-user-plus"></i>
+            </div>
+            <div class="stat-info">
+                <h3>New Leads (Month)</h3>
+                <h2>{{ insights.new_leads_this_month|intcomma }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid mt-4">
+        <div class="card">
+            <h4 class="mb-3 fs-6 fw-bold">Leads Count by Gender</h4>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="genderChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h4 class="mb-3 fs-6 fw-bold">Leads Count by Sources</h4>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h4 class="mb-3 fs-6 fw-bold">Lead Priority Distribution</h4>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="priorityChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h4 class="mb-3 fs-6 fw-bold">Campaign Performance</h4>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="campaignChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const insights = JSON.parse('{{ insights_json|escapejs }}');
+    
+    // Global Chart.js Config
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.05)';
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+
+    function renderChart(canvasId, dataObj, label, type = 'doughnut') {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const labels = Object.keys(dataObj);
+        const values = Object.values(dataObj);
+        
+        if (type === 'bar') {
+            // Sort highest to lowest
+            const sorted = labels.map((l, i) => ({l, v: values[i]})).sort((a,b) => b.v - a.v);
+            labels.length = 0; values.length = 0;
+            sorted.forEach(item => { labels.push(item.l); values.push(item.v); });
+        }
+        
+        new Chart(ctx, {
+            type: type,
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: label,
+                    data: values,
+                    backgroundColor: [
+                        '#4F46E5', '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: type === 'bar' ? 'y' : 'x',
+                plugins: {
+                    legend: { 
+                        position: type === 'bar' ? 'none' : 'bottom',
+                        display: type !== 'bar' 
+                    }
+                }
+            }
+        });
+    }
+
+    window.onload = () => {
+        renderChart('genderChart', insights.gender_distribution, 'Gender', 'pie');
+        renderChart('sourceChart', insights.source_distribution, 'Sources', 'bar');
+        renderChart('priorityChart', insights.priority_distribution, 'Priority', 'doughnut');
+        renderChart('campaignChart', insights.campaign_distribution, 'Campaign', 'doughnut');
+    };
+</script>
+{% endblock %}

@@ -1,11 +1,53 @@
 {% if user.is_authenticated %}
 <nav class="sidebar" id="sidebar">
   <div class="brand" style="padding: 1.1rem 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-    <img src="/media/zappkode_logo.png" alt="Zappkode Logo" style="max-height: 30px; max-width: 70%; object-fit: contain;">
-    <span style="font-family: 'Dancing Script', cursive; font-size: 1.9rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1; margin-top: -2px;">CRM</span>
+    {% if user.hospital %}
+      <img src="{% if user.hospital.logo %}{{ user.hospital.logo.url }}{% else %}/media/nelson_logo.png{% endif %}" alt="{{ user.hospital.name }} Logo" style="max-height: 35px; max-width: 40%; object-fit: contain; background: white; padding: 2px; border-radius: 4px;">
+      <span style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1;">{{ user.hospital.name }}</span>
+    {% else %}
+      <img src="/media/zappkode_logo.png" alt="Zappkode Logo" style="max-height: 30px; max-width: 70%; object-fit: contain;">
+      <span style="font-family: 'Dancing Script', cursive; font-size: 1.9rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1; margin-top: -2px;">CRM</span>
+    {% endif %}
   </div>
 
-  {% if user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}
+  {% if user.hospital %}
+  {# ═══════════ HOSPITAL SIDEBAR ═══════════ #}
+  
+  <div class="nav-section">Overview</div>
+  <a class="nav-link {% if active == 'superadmin_home' %}active{% endif %}" href="{% url 'dashboard:superadmin_home' %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+  <a class="nav-link {% if active == 'hospital-profile' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'hospital-profile' %}"><i class="fa-solid fa-hospital"></i> Hospital Profile</a>
+
+  <div class="nav-section">People Management</div>
+  <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"><i class="fa-solid fa-users-gear"></i> User Management</a>
+  <a class="nav-link {% if active == 'roles-permissions' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'roles-permissions' %}"><i class="fa-solid fa-user-shield"></i> Role & Permissions</a>
+  <a class="nav-link {% if active == 'staff-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'staff-management' %}"><i class="fa-solid fa-user-nurse"></i> Staff Management</a>
+  <a class="nav-link {% if active == 'manager-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'manager-management' %}"><i class="fa-solid fa-user-tie"></i> Manager Management</a>
+  
+  <div class="nav-section">Clinical & Patients</div>
+  <a class="nav-link {% if active == 'doctor-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'doctor-management' %}"><i class="fa-solid fa-user-doctor"></i> Doctor Management</a>
+  <a class="nav-link {% if active == 'department-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'department-management' %}"><i class="fa-solid fa-building-user"></i> Department Management</a>
+  <a class="nav-link {% if active == 'patient-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'patient-management' %}"><i class="fa-solid fa-bed-pulse"></i> Patient Management</a>
+  <a class="nav-link {% if active == 'appointment-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'appointment-management' %}"><i class="fa-solid fa-calendar-check"></i> Appointment Mgmt</a>
+
+  <div class="nav-section">Leads & Campaigns</div>
+  <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"><i class="fa-solid fa-users"></i> Lead Management</a>
+  <a class="nav-link {% if active == 'lead-assignment' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'lead-assignment' %}"><i class="fa-solid fa-user-plus"></i> Lead Assignment</a>
+  <a class="nav-link {% if active == 'lead-configuration' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'lead-configuration' %}"><i class="fa-solid fa-sliders"></i> Lead Configuration</a>
+  <a class="nav-link {% if active == 'campaign-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'campaign-management' %}"><i class="fa-solid fa-bullhorn"></i> Campaign Management</a>
+
+  <div class="nav-section">Operations & Analytics</div>
+  <a class="nav-link {% if active == 'reports' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'reports' %}"><i class="fa-solid fa-chart-column"></i> Reports</a>
+  <a class="nav-link {% if active == 'financial-overview' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'financial-overview' %}"><i class="fa-solid fa-indian-rupee-sign"></i> Financial Overview</a>
+  <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'notifications' %}"><i class="fa-solid fa-bell"></i> Notifications</a>
+  <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'tasks' %}"><i class="fa-solid fa-list-check"></i> Tasks</a>
+  <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}"><i class="fa-solid fa-shield-halved"></i> Audit Logs</a>
+  <a class="nav-link {% if active == 'export' %}active{% endif %}" href="{% url 'imports:export' %}"><i class="fa-solid fa-file-export"></i> Data Export</a>
+
+  <div class="nav-section">Settings</div>
+  <a class="nav-link {% if active == 'hospital-settings' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'hospital-settings' %}"><i class="fa-solid fa-hospital-user"></i> Hospital Settings</a>
+  <a class="nav-link {% if active == 'profile-security' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'profile-security' %}"><i class="fa-solid fa-lock"></i> Profile & Security</a>
+
+  {% elif user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}
   {# ═══════════ MANAGEMENT SIDEBAR ═══════════ #}
 
   <div class="nav-section">Overview</div>
