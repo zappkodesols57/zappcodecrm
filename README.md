@@ -1,4 +1,4 @@
-# Zappkode Lead Management CRM
+# Zappcode Lead Management CRM
 
 A Django + Bootstrap 5 CRM for managing, tracking, and converting leads — built to replace the
 Excel-based workflow while still supporting Excel import/export. This is a working MVP covering

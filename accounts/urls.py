@@ -11,7 +11,7 @@ urlpatterns = [
     path("login/", views.employee_login, name="login"),          # default / fallback
     path("login/employee/", views.employee_login, name="employee_login"),
     path("login/management/", views.management_login, name="management_login"),
-    path("logout/", auth_views.LogoutView.as_view(next_page="accounts:portal_select"), name="logout"),
+    path("logout/", views.custom_logout, name="logout"),
     path("register/", views.register, name="register"),
     path("users/", views.user_list, name="user_list"),
     path("users/add/", views.user_add, name="user_add"),

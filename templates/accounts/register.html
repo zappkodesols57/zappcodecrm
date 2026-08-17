@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Register Employee · Zappkode CRM</title>
+<title>Register Employee · Zappcode CRM</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
   body{
     min-height:100vh; display:flex; align-items:center; justify-content:center;
     background: radial-gradient(circle at top left, #4338ca, #151233 65%);
@@ -23,9 +24,13 @@
 </head>
 <body>
   <div class="register-card">
-    <div class="brand">
-      <img src="/media/zappkode_logo.png" alt="Zappkode Logo" style="max-height: 48px; max-width: 100%; object-fit: contain; margin-bottom: 0.5rem;">
-      <h1 class="small text-muted text-uppercase fw-semibold" style="letter-spacing: 0.05em; font-size: 0.75rem;">Employee Registration</h1>
+    <div class="brand" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <img src="/media/zappcode_logo.png" alt="Zappcode Logo" style="max-height: 58px; width: 90%; object-fit: contain;">
+      <div style="display: flex; align-items: baseline; gap: 6px;">
+        <span style="font-size: 1.7rem; font-weight: 800; color: #1e1b3a; letter-spacing: -0.5px;">Zappcode</span>
+        <span style="font-family: 'Dancing Script', cursive; font-size: 2.1rem; font-weight: 700; color: #4f46e5;">CRM</span>
+      </div>
+      <h1 class="small text-muted text-uppercase fw-semibold" style="letter-spacing: 0.05em; font-size: 0.75rem; margin-top: 2px;">Employee Registration</h1>
     </div>
     
     {% if form.errors %}
