@@ -140,7 +140,10 @@
         </div>
       </div>
       <div class="mb-4">
-        <label class="form-label">Password</label>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label mb-0">Password</label>
+          <a href="{% url 'accounts:forgot_password' %}" class="small text-decoration-none" style="color: #059669; font-weight: 600; font-size: 0.78rem;">Forgot Password?</a>
+        </div>
         <div class="input-icon-wrap">
           <i class="fa-solid fa-lock"></i>
           <input type="password" name="password" class="form-control" required placeholder="••••••••">

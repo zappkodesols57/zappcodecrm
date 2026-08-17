@@ -21,4 +21,9 @@ urlpatterns = [
     path("users/<int:pk>/approve/", views.approve_user, name="approve_user"),
     path("users/<int:pk>/reject/", views.reject_user, name="reject_user"),
     path("audit-log/", views.audit_log, name="audit_log"),
+
+    # Single-Page 6-Digit OTP Password Reset
+    path("forgot-password/", views.forgot_password, name="forgot_password"),
+    path("password-reset/", views.forgot_password, name="password_reset"),
 ]
+
