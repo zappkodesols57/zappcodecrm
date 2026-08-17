@@ -1,8 +1,11 @@
 {% if user.is_authenticated %}
 <nav class="sidebar" id="sidebar">
-  <div class="brand" style="padding: 1.1rem 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-    <img src="/media/zappkode_logo.png" alt="Zappkode Logo" style="max-height: 30px; max-width: 70%; object-fit: contain;">
-    <span style="font-family: 'Dancing Script', cursive; font-size: 1.9rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1; margin-top: -2px;">CRM</span>
+  <div class="brand" style="padding: 1.1rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    <img src="/media/zappcode_logo.png" alt="Zappcode Logo" style="max-height: 44px; max-width: 95%; object-fit: contain;">
+    <div style="display: flex; align-items: baseline; gap: 5px; margin-top: 2px;">
+      <span style="font-size: 1.25rem; font-weight: 700; color: #ffffff; letter-spacing: -0.3px;">Zappcode</span>
+      <span style="font-family: 'Dancing Script', cursive; font-size: 1.6rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); line-height: 1;">CRM</span>
+    </div>
   </div>
 
   {% if user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}

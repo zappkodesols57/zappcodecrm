@@ -144,6 +144,16 @@ MAX_IMPORT_ROWS = 50000
 
 
 
+# Session & Cookie Persistence Settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 86400 * 30  # Keep session active for 30 days
+SESSION_SAVE_EVERY_REQUEST = False  # Prevent race condition cookie overwrites on static/media requests
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True

@@ -31,6 +31,8 @@ def _role_redirect(user):
 
 # ─── EMPLOYEE LOGIN (Counsellor / HR) ─────────────────────────────────────────
 
+# ─── EMPLOYEE LOGIN (Counsellor / HR) ─────────────────────────────────────────
+
 def employee_login(request):
     if request.user.is_authenticated:
         return _role_redirect(request.user)
@@ -48,12 +50,11 @@ def employee_login(request):
             messages.error(request, "Your account is pending approval. Please wait for an admin to activate your account.")
             return render(request, "accounts/login_employee.html", {"form_error": True})
 
-        if user.role not in (User.Role.COUNSELLOR, User.Role.HR):
-            messages.error(request, "This portal is for Counsellors and HR only. Please use the Management Portal instead.")
-            return render(request, "accounts/login_employee.html", {"form_error": True})
-
         login(request, user)
-        return redirect(request.POST.get("next") or "dashboard:home")
+        next_url = request.POST.get("next")
+        if next_url:
+            return redirect(next_url)
+        return _role_redirect(user)
 
     return render(request, "accounts/login_employee.html")
 
@@ -73,18 +74,24 @@ def management_login(request):
             messages.error(request, "Invalid username or password.")
             return render(request, "accounts/login_management.html", {"form_error": True})
 
-        if not user.is_active:
-            messages.error(request, "This account is inactive.")
-            return render(request, "accounts/login_management.html", {"form_error": True})
-
-        if user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
-            messages.error(request, "This portal is for Managers and Admins only. Please use the Employee Portal instead.")
+        if not user.is_active or not user.is_approved:
+            messages.error(request, "This account is inactive or pending approval.")
             return render(request, "accounts/login_management.html", {"form_error": True})
 
         login(request, user)
-        return redirect(request.POST.get("next") or "dashboard:management_home")
+        next_url = request.POST.get("next")
+        if next_url:
+            return redirect(next_url)
+        return _role_redirect(user)
 
     return render(request, "accounts/login_management.html")
+
+
+def custom_logout(request):
+    from django.contrib.auth import logout
+    logout(request)
+    messages.info(request, "You have been logged out successfully.")
+    return redirect("accounts:portal_select")
 
 
 
