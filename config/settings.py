@@ -18,14 +18,14 @@ env_file = BASE_DIR / '.env'
 if env_file.exists():
     try:
         from dotenv import load_dotenv
-        load_dotenv(env_file)
+        load_dotenv(env_file, override=True)
     except ImportError:
         with open(env_file, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     k, v = line.split('=', 1)
-                    os.environ.setdefault(k.strip(), v.strip())
+                    os.environ[k.strip()] = v.strip()
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-dev-key-change-me-in-production")
 
@@ -159,3 +159,14 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+# Email Configuration (Brevo SMTP - ae3d0f001@smtp-brevo.com)
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1') in ('1', 'true', 'True')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'zappkodesolutions@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Zappkode CRM <zappkodesolutions@gmail.com>')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
