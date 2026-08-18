@@ -6,7 +6,7 @@ from .models import User
 class CRMUserCreateForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "department", "speciality", "phone", "reports_to")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -18,6 +18,8 @@ class CRMUserCreateForm(UserCreationForm):
                 (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
+        if "hospital" in self.fields:
+            self.fields["hospital"].label = "Business"
         for name, field in self.fields.items():
             css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
             field.widget.attrs.setdefault("class", css)
@@ -26,7 +28,7 @@ class CRMUserCreateForm(UserCreationForm):
 class CRMUserEditForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ("first_name", "last_name", "email", "role", "department", "speciality", "phone", "reports_to", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -38,6 +40,8 @@ class CRMUserEditForm(forms.ModelForm):
                 (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
+        if "hospital" in self.fields:
+            self.fields["hospital"].label = "Business"
         for name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", "form-check-input")
@@ -86,3 +90,13 @@ class CRMUserRegisterForm(UserCreationForm):
         for name, field in self.fields.items():
             css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
             field.widget.attrs.setdefault("class", css)
+
+from .models import Hospital
+class BusinessForm(forms.ModelForm):
+    class Meta:
+        model = Hospital
+        fields = ("name", "contact_email", "phone", "address")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            field.widget.attrs.setdefault("class", "form-control")

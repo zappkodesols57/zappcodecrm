@@ -38,7 +38,7 @@ def lead_list(request):
         "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
     ).filter(is_archived=False)
 
-    if request.user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if request.user.role in ('COUNSELLOR', 'HR'):
         leads = leads.filter(assigned_to=request.user)
     elif request.user.hospital:
         leads = leads.filter(hospital=request.user.hospital)
@@ -111,7 +111,7 @@ def lead_list(request):
 
     # Filter dropdown options to only those that have at least one lead associated
     active_leads = Lead.objects.filter(is_archived=False)
-    if request.user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if request.user.role in ('COUNSELLOR', 'HR'):
         active_leads = active_leads.filter(assigned_to=request.user)
     
     used_sc_ids = active_leads.values_list("source_category_id", flat=True).distinct()
@@ -297,7 +297,7 @@ def lead_detail(request, pk):
     admission = getattr(lead, "admission", None)
     
     # Retrieve active/approved users for the assignment form
-    employees = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER])
+    employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER])
     managers = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.MANAGER])
     
     return render(request, "leads/lead_detail.html", {

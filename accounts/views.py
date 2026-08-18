@@ -24,7 +24,7 @@ def portal_select(request):
 
 def _role_redirect(user):
     """Return a redirect response based on user role."""
-    if 'nelson' in user.username.lower():
+    if user.hospital:
         return redirect("dashboard:superadmin_home")
     if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         return redirect("dashboard:management_home")
@@ -370,3 +370,45 @@ def forgot_password(request):
 
     return render(request, "accounts/forgot_password.html", {"step": 1})
 
+
+from .models import Hospital
+from .forms import BusinessForm
+
+@login_required
+def business_list(request):
+    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("dashboard:home")
+    businesses = Hospital.objects.all().order_by('-created_at')
+    return render(request, "accounts/business_list.html", {"businesses": businesses})
+
+@login_required
+def business_add(request):
+    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("dashboard:home")
+    if request.method == "POST":
+        form = BusinessForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Business created successfully.")
+            return redirect("accounts:business_list")
+    else:
+        form = BusinessForm()
+    return render(request, "accounts/business_form.html", {"form": form, "mode": "Add"})
+
+@login_required
+def business_edit(request, pk):
+    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("dashboard:home")
+    business = get_object_or_404(Hospital, pk=pk)
+    if request.method == "POST":
+        form = BusinessForm(request.POST, instance=business)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Business updated successfully.")
+            return redirect("accounts:business_list")
+    else:
+        form = BusinessForm(instance=business)
+    return render(request, "accounts/business_form.html", {"form": form, "mode": "Edit"})
