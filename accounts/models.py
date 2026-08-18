@@ -24,6 +24,8 @@ class User(AbstractUser):
         MANAGER = "MANAGER", "Manager"
         LEAD_ATTENDENT = "LEAD_ATTENDENT", "Lead Attendent"
         DOCTOR = "DOCTOR", "Doctor"
+        HR = "HR", "HR"
+        COUNSELLOR = "COUNSELLOR", "Counsellor"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LEAD_ATTENDENT)
     phone = models.CharField(max_length=20, blank=True)

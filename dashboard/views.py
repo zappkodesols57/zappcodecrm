@@ -22,7 +22,7 @@ def home(request):
     today = timezone.localdate()
     leads = Lead.objects.filter(is_archived=False)
 
-    if request.user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if request.user.role in ('COUNSELLOR', 'HR'):
         leads = leads.filter(assigned_to=request.user)
 
     # 1. Apply Filters
@@ -128,7 +128,7 @@ def home(request):
     course_counts = [c["count"] for c in course_data]
 
     # 7. Dropdowns for filters
-    if request.user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if request.user.role in ('COUNSELLOR', 'HR'):
         active_leads_all = Lead.objects.filter(is_archived=False, assigned_to=request.user)
     else:
         active_leads_all = Lead.objects.filter(is_archived=False)
@@ -149,7 +149,7 @@ def home(request):
         team_members = User.objects.filter(
             is_active=True, 
             is_approved=True, 
-            role__in=[User.Role.COUNSELLOR, User.Role.HR]
+            role__in=['COUNSELLOR', 'HR']
         )
         from followups.models import FollowUp, Note
         for member in team_members:
@@ -205,14 +205,17 @@ def home(request):
 
 @login_required
 def superadmin_home(request):
-    """Dedicated specialized dashboard for Nelson Super Admin."""
+    """Dedicated specialized dashboard for Hospital Super Admins."""
     from accounts.models import User
     from django.core.exceptions import PermissionDenied
     from django.db.models import Count, Sum
     import json
 
-    if 'nelson' not in request.user.username.lower():
-        raise PermissionDenied("This dashboard is restricted to the specific Super Admin.")
+    if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+        raise PermissionDenied("This dashboard is restricted to Super Admins.")
+    
+    # If the user is a tenant, they must have a hospital.
+    # Zappcode admins (no hospital) are also allowed to view this as an aggregated dashboard.
 
     today = timezone.localdate()
     user = request.user
@@ -296,6 +299,9 @@ def management_home(request):
 
     if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         raise PermissionDenied("This dashboard is restricted to management accounts.")
+        
+    if request.user.hospital is not None:
+        raise PermissionDenied("This dashboard is restricted to Zappcode management only.")
 
     today = timezone.localdate()
     all_leads = Lead.objects.filter(is_archived=False)
@@ -342,7 +348,7 @@ def management_home(request):
     pending_approvals_count = User.objects.filter(is_approved=False).count()
 
     # ─── Team Activity Today ──────────────────────────────────────────────────
-    team_members = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.COUNSELLOR, User.Role.HR])
+    team_members = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR'])
     team_stats = []
     for member in team_members:
         member_fu = FollowUp.objects.filter(created_by=member, followup_date=today)
@@ -706,7 +712,7 @@ def management_daily_reports(request):
         return response
         
     # Get active/approved employees for filter dropdown
-    employees = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER])
+    employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER])
     
     return render(request, "dashboard/daily_reports_list.html", {
         "active": "reports_daily",

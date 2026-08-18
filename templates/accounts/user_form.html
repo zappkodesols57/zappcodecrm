@@ -45,23 +45,30 @@
     const roleField = document.getElementById("id_role");
     const deptDiv = document.getElementById("div_id_department");
     const specDiv = document.getElementById("div_id_speciality");
+    const hospDiv = document.getElementById("div_id_hospital"); // New logic for hospital
 
     function toggleFields() {
       if (roleField.value === "DOCTOR") {
-        deptDiv.style.display = "block";
-        specDiv.style.display = "block";
+        if(deptDiv) deptDiv.style.display = "block";
+        if(specDiv) specDiv.style.display = "block";
       } else {
-        deptDiv.style.display = "none";
-        specDiv.style.display = "none";
-        // Optionally clear values to avoid saving them for non-doctors
+        if(deptDiv) deptDiv.style.display = "none";
+        if(specDiv) specDiv.style.display = "none";
         const deptSelect = document.getElementById("id_department");
         const specSelect = document.getElementById("id_speciality");
         if(deptSelect) deptSelect.value = "";
         if(specSelect) specSelect.value = "";
       }
+      
+      // Superadmin Tenant logic
+      if (true) { // Show business dropdown for all roles so Zappcode admin can assign anyone to a business
+        if(hospDiv) hospDiv.style.display = "block";
+      } else {
+        if(hospDiv) hospDiv.style.display = "none";
+      }
     }
 
-    if (roleField && deptDiv && specDiv) {
+    if (roleField) {
       roleField.addEventListener("change", toggleFields);
       toggleFields(); // Initial call
     }

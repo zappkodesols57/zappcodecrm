@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ mode }} Business{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="fa-solid fa-building text-brand me-2"></i>{{ mode }} Business</h4>
+  </div>
+  <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+</div>
+
+<div class="card shadow-sm border-0" style="max-width: 650px;">
+  <div class="card-body p-4">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        {% for field in form %}
+        <div class="col-md-12">
+          <label class="form-label small fw-semibold text-dark">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="d-flex gap-2 mt-4 pt-2 border-top">
+        <button type="submit" class="btn btn-brand text-white"><i class="fa-solid fa-check me-1"></i> Save Business</button>
+        <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
