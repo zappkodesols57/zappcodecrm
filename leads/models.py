@@ -248,6 +248,7 @@ class Lead(models.Model):
 
     # Assignment
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_leads", db_index=True)
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="leads")
     assigned_manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_leads")
 
     # Follow-up cache (denormalized for fast list/dashboard queries; source of truth is FollowUp model)
@@ -325,3 +326,39 @@ class Lead(models.Model):
         if self.email:
             return qs.filter(email__iexact=self.email)
         return Lead.objects.none()
+
+class NelsonLeadData(models.Model):
+    lead = models.OneToOneField(Lead, on_delete=models.CASCADE, related_name='nelson_data')
+    nelson_dantoli = models.CharField(max_length=150, blank=True)
+    lead_received_time = models.TimeField(null=True, blank=True)
+    lead_calling_time = models.TimeField(null=True, blank=True)
+    gender = models.CharField(max_length=20, blank=True)
+    age = models.CharField(max_length=10, blank=True)
+    department = models.CharField(max_length=150, blank=True)
+    doctor = models.CharField(max_length=150, blank=True)
+    
+    appo_book = models.CharField(max_length=50, blank=True)
+    appo_booked_date = models.DateField(null=True, blank=True)
+    
+    calling_date_remark_1 = models.DateField(null=True, blank=True)
+    remark_1 = models.TextField(blank=True)
+    calling_time_remark_2 = models.TimeField(null=True, blank=True)
+    calling_date_remark_2 = models.DateField(null=True, blank=True)
+    remark_2 = models.TextField(blank=True)
+    calling_date_remark_3 = models.DateField(null=True, blank=True)
+    remark_3 = models.TextField(blank=True)
+    
+    done = models.CharField(max_length=100, blank=True)
+    visit_date = models.DateField(null=True, blank=True)
+    
+    uhid_id_no = models.CharField(max_length=100, blank=True)
+    pharmacy_bill = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    opd_bill = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ipd_no = models.CharField(max_length=100, blank=True)
+    investigation = models.CharField(max_length=255, blank=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    priority = models.CharField(max_length=50, blank=True)
+
+    def __str__(self):
+        return f"Nelson Data for {self.lead.name}"
+

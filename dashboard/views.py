@@ -204,6 +204,90 @@ def home(request):
 
 
 @login_required
+def superadmin_home(request):
+    """Dedicated specialized dashboard for Nelson Super Admin."""
+    from accounts.models import User
+    from django.core.exceptions import PermissionDenied
+    from django.db.models import Count, Sum
+    import json
+
+    if 'nelson' not in request.user.username.lower():
+        raise PermissionDenied("This dashboard is restricted to the specific Super Admin.")
+
+    today = timezone.localdate()
+    user = request.user
+
+    if user.hospital:
+        base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
+    else:
+        base_leads = Lead.objects.filter(is_archived=False)
+
+    total_leads = base_leads.count()
+    appts_booked = base_leads.filter(nelson_data__appo_book__iexact='YES').count()
+    conv_rate = round(appts_booked / total_leads, 2) if total_leads > 0 else 0.0
+    total_revenue = base_leads.aggregate(s=Sum('nelson_data__total'))['s'] or 0
+    new_leads_month = base_leads.filter(created_at__year=today.year, created_at__month=today.month).count()
+
+    def get_dist(field_name, default_key='Unknown'):
+        qs = base_leads.values(field_name).annotate(c=Count('id'))
+        dist = {}
+        for row in qs:
+            k = row[field_name]
+            k = str(k).strip() if k else default_key
+            if not k: k = default_key
+            dist[k] = row['c']
+        return dist
+
+    insights = {
+        "total_leads": total_leads,
+        "appointments_booked": appts_booked,
+        "conversion_rate": conv_rate,
+        "total_revenue": float(total_revenue),
+        "new_leads_this_month": new_leads_month,
+        "gender_distribution": get_dist('nelson_data__gender'),
+        "source_distribution": get_dist('lead_source__name'),
+        "priority_distribution": get_dist('nelson_data__priority'),
+        "campaign_distribution": get_dist('campaign__name'),
+    }
+
+    context = {
+        "active": "superadmin_home",
+        "today": today,
+        "now": timezone.now(),
+        "insights_json": json.dumps(insights),
+        "insights": insights
+    }
+    return render(request, "dashboard/superadmin_home.html", context)
+
+def nelson_module_view(request, module_name):
+    from django.core.exceptions import PermissionDenied
+    if 'nelson' not in request.user.username.lower():
+        raise PermissionDenied("Restricted to Nelson admin.")
+        
+    titles = {
+        'hospital-profile': 'Hospital Profile',
+        'roles-permissions': 'Role & Permissions',
+        'staff-management': 'Staff Management',
+        'manager-management': 'Manager Management',
+        'lead-assignment': 'Lead Assignment',
+        'lead-configuration': 'Lead Configuration',
+        'doctor-management': 'Doctor Management',
+        'department-management': 'Department Management',
+        'appointment-management': 'Appointment Management',
+        'patient-management': 'Patient Management',
+        'campaign-management': 'Campaign Management',
+        'reports': 'Reports',
+        'financial-overview': 'Financial Overview',
+        'notifications': 'Notifications',
+        'tasks': 'Tasks',
+        'hospital-settings': 'Hospital Settings',
+        'profile-security': 'Profile & Security',
+    }
+    title = titles.get(module_name, module_name.replace('-', ' ').title())
+    return render(request, "dashboard/nelson_generic.html", {"title": title, "module_name": module_name, "active": module_name})
+
+
+@login_required
 def management_home(request):
     """Dedicated management dashboard for Managers and Super Admins matching home dashboard style."""
     from accounts.models import User
