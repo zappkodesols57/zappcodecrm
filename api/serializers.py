@@ -34,12 +34,12 @@ class LeadSerializer(serializers.ModelSerializer):
 
 class FollowUpSerializer(serializers.ModelSerializer):
     lead_name = serializers.CharField(source='lead.name', read_only=True)
-    assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     
     class Meta:
         model = FollowUp
         fields = [
-            'id', 'lead', 'lead_name', 'assigned_to', 'assigned_to_name',
-            'scheduled_date', 'scheduled_time', 'followup_type',
-            'status', 'notes', 'actual_date', 'created_at'
+            'id', 'lead', 'lead_name', 'created_by', 'created_by_name',
+            'followup_date', 'followup_time', 'followup_mode',
+            'followup_status', 'comment', 'next_followup_date', 'created_at'
         ]

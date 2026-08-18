@@ -131,17 +131,16 @@ class LeadViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='call-outcome')
     def call_outcome(self, request, pk=None):
         lead = self.get_object()
-        # Create a followup/note based on call outcome
         notes = request.data.get('remark1', '')
         call_result = request.data.get('call_result', '')
         
         FollowUp.objects.create(
             lead=lead,
-            assigned_to=request.user,
-            followup_type='CALL',
-            notes=f"Outcome: {call_result} | Notes: {notes}",
-            actual_date=timezone.localdate(),
-            status='COMPLETED'
+            created_by=request.user,
+            followup_mode='CALL',
+            comment=f"Outcome: {call_result} | Notes: {notes}",
+            followup_date=timezone.localdate(),
+            followup_status='COMPLETED'
         )
         return Response({'message': 'Call outcome recorded successfully.'})
 
@@ -151,16 +150,11 @@ class LeadViewSet(viewsets.ModelViewSet):
         doctor_id = request.data.get('doctor_id')
         try:
             doctor = User.objects.get(id=doctor_id, role='DOCTOR')
-            # Assign the doctor in the JSON field or a dedicated field if one exists
-            nelson_data = lead.nelson_data or {}
-            nelson_data['doctor_id'] = doctor.id
-            nelson_data['doctor_name'] = doctor.get_full_name()
-            lead.nelson_data = nelson_data
-            
-            # Alternatively, re-assign the lead to the doctor directly:
-            # lead.assigned_to = doctor
-            
-            lead.save()
+            # Assign the doctor using the NelsonLeadData model
+            from leads.models import NelsonLeadData
+            nelson, _ = NelsonLeadData.objects.get_or_create(lead=lead)
+            nelson.doctor = doctor.get_full_name()
+            nelson.save()
             return Response(self.get_serializer(lead).data)
         except User.DoesNotExist:
             return Response({'error': 'Doctor not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -204,9 +198,9 @@ class FollowUpViewSet(viewsets.ReadOnlyModelViewSet):
         
         date_param = self.request.query_params.get('date')
         if date_param:
-            qs = qs.filter(scheduled_date=date_param)
+            qs = qs.filter(followup_date=date_param)
             
-        return qs.order_by('-scheduled_date', '-scheduled_time')
+        return qs.order_by('-followup_date', '-followup_time')
 
 class AppointmentListAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
