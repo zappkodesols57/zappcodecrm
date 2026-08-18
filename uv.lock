@@ -279,6 +279,7 @@ dependencies = [
     { name = "mysqlclient" },
     { name = "openpyxl" },
     { name = "pandas" },
+    { name = "pillow" },
 ]
 
 [package.metadata]
@@ -291,4 +292,5 @@ requires-dist = [
     { name = "mysqlclient", specifier = "==2.2.4" },
     { name = "openpyxl", specifier = "==3.1.5" },
     { name = "pandas", specifier = "==2.2.2" },
+    { name = "pillow", specifier = ">=12.3.0" },
 ]
