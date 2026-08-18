@@ -20,6 +20,14 @@
   .btn-brand{ background:#4f46e5; border-color:#4f46e5; }
   .btn-brand:hover{ background:#3730a3; border-color:#3730a3; }
   .error-box{ background:#fee2e2; color:#b91c1c; padding:.6rem .8rem; border-radius:.5rem; font-size:.85rem; margin-bottom:1rem;}
+  .input-pass-wrap { position: relative; }
+  .input-pass-wrap .form-control { padding-right: 2.5rem; }
+  .input-pass-wrap .toggle-password {
+    position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%);
+    color: #9ca3af; font-size: 0.85rem; cursor: pointer; z-index: 10; padding: 4px;
+    transition: color 0.2s;
+  }
+  .input-pass-wrap .toggle-password:hover { color: #4f46e5; }
 </style>
 </head>
 <body>
@@ -42,13 +50,33 @@
         <input type="text" name="username" class="form-control" required autofocus>
       </div>
       <div class="mb-3">
-        <label class="form-label small fw-semibold">Password</label>
-        <input type="password" name="password" class="form-control" required>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label small fw-semibold mb-0">Password</label>
+          <a href="{% url 'accounts:forgot_password' %}" class="small text-decoration-none" style="color: #4f46e5; font-weight: 600; font-size: 0.78rem;">Forgot Password?</a>
+        </div>
+        <div class="input-pass-wrap">
+          <input type="password" name="password" id="fallbackPassword" class="form-control" required>
+          <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('fallbackPassword', this)" title="Show/Hide Password"></i>
+        </div>
       </div>
       <input type="hidden" name="next" value="{{ next }}">
       <button type="submit" class="btn btn-brand w-100 text-white">Sign in</button>
     </form>
   </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePasswordVisibility(inputId, icon) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+</script>
 </body>
 </html>

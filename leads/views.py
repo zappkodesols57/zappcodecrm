@@ -38,8 +38,10 @@ def lead_list(request):
         "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
     ).filter(is_archived=False)
 
-    if request.user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if request.user.role in ('COUNSELLOR', 'HR'):
         leads = leads.filter(assigned_to=request.user)
+    elif request.user.hospital:
+        leads = leads.filter(hospital=request.user.hospital)
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -109,7 +111,7 @@ def lead_list(request):
 
     # Filter dropdown options to only those that have at least one lead associated
     active_leads = Lead.objects.filter(is_archived=False)
-    if request.user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if request.user.role in ('COUNSELLOR', 'HR'):
         active_leads = active_leads.filter(assigned_to=request.user)
     
     used_sc_ids = active_leads.values_list("source_category_id", flat=True).distinct()
@@ -148,6 +150,75 @@ def lead_list(request):
 
 @login_required
 def lead_add(request):
+    if request.user.hospital:
+        if request.method == "POST":
+            name = request.POST.get("PAITENT NAME")
+            mobile = request.POST.get("MOBILE NO")
+            source_name = request.POST.get("ORGANIC LEAD") or "Unknown"
+            campaign_name = request.POST.get("CAMPAIGN NAME") or "Unknown"
+            
+            from leads.models import SourceCategory, LeadStage, LeadSource, Campaign, NelsonLeadData, Lead
+            from django.utils import timezone
+            default_cat = SourceCategory.objects.first()
+            default_stage = LeadStage.objects.first()
+            
+            source, _ = LeadSource.objects.get_or_create(name=source_name, defaults={'category': default_cat})
+            campaign, _ = Campaign.objects.get_or_create(name=campaign_name)
+
+            lead = Lead.objects.create(
+                name=name,
+                mobile=mobile,
+                lead_source=source,
+                campaign=campaign,
+                hospital=request.user.hospital,
+                stage=default_stage,
+                assigned_to=request.user,
+                created_by=request.user,
+                inquiry_date=timezone.localdate()
+            )
+
+            def safe_decimal(val):
+                try: return float(val)
+                except (ValueError, TypeError): return 0.0
+
+            def safe_time(val):
+                if not val: return None
+                from dateutil.parser import parse
+                try: return parse(val).time()
+                except: return None
+
+            NelsonLeadData.objects.create(
+                lead=lead,
+                nelson_dantoli=request.POST.get("NELSON DANTOLI", ""),
+                lead_received_time=safe_time(request.POST.get("LEAD RECIVED TIME")),
+                lead_calling_time=safe_time(request.POST.get("LEAD CALLING TIME")),
+                gender=request.POST.get("FEMALE", ""),
+                age=request.POST.get("AGE", ""),
+                department=request.POST.get("DEPARTMENT", ""),
+                doctor=request.POST.get("DOCOTOR", ""),
+                appo_book=request.POST.get("APPO.BOOK", ""),
+                appo_booked_date=request.POST.get("APPO.BOOKED DATE") or None,
+                calling_date_remark_1=request.POST.get("CALLING DATE REMARK 1") or None,
+                remark_1=request.POST.get("REMARK:1", ""),
+                calling_time_remark_2=safe_time(request.POST.get("CALLING TIME REMARK 2")),
+                calling_date_remark_2=request.POST.get("CALLING DATE REMARK 2") or None,
+                remark_2=request.POST.get("REMARK:2", ""),
+                calling_date_remark_3=request.POST.get("CALLING DATE REMARK 3") or None,
+                remark_3=request.POST.get("REMARK:3", ""),
+                done=request.POST.get("DONE", ""),
+                visit_date=request.POST.get("Visit Date") or None,
+                uhid_id_no=request.POST.get("UHID ID NO", ""),
+                pharmacy_bill=safe_decimal(request.POST.get("PHARMACY BILL")),
+                opd_bill=safe_decimal(request.POST.get("OPD BILL")),
+                ipd_no=request.POST.get("IPD NO", ""),
+                investigation=request.POST.get("INVESTIGATION ", ""),
+                total=safe_decimal(request.POST.get("TOTAL"))
+            )
+            messages.success(request, f"Lead for {name} added successfully.")
+            return redirect("leads:lead_list")
+            
+        return render(request, "leads/nelson_lead_form.html", {"active": "leads_add"})
+
     duplicates = None
     if request.method == "POST":
         form = LeadForm(request.POST, user=request.user)
@@ -226,7 +297,7 @@ def lead_detail(request, pk):
     admission = getattr(lead, "admission", None)
     
     # Retrieve active/approved users for the assignment form
-    employees = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER])
+    employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER])
     managers = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.MANAGER])
     
     return render(request, "leads/lead_detail.html", {
