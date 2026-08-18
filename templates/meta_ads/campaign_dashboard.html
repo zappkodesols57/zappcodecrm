@@ -222,46 +222,58 @@
 <!-- ── KPI Cards ── -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3">
-    <div class="meta-stat-card">
-      <div class="d-flex align-items-start justify-content-between">
+    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
+      <div class="d-flex align-items-start justify-content-between mb-2">
         <div>
           <div class="stat-label">Total Spend</div>
-          <div class="stat-value">₹{{ total_spend|floatformat:0|intcomma }}</div>
+          <div class="stat-value">₹{{ total_spend|floatformat:0|intcomma|default:"0" }}</div>
         </div>
         <div class="stat-icon icon-blue"><i class="fa-solid fa-indian-rupee-sign"></i></div>
       </div>
+      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
+        <span class="text-success fw-600"><i class="fa-solid fa-arrow-trend-up me-1"></i>Active</span>
+      </div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="meta-stat-card">
-      <div class="d-flex align-items-start justify-content-between">
+    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
+      <div class="d-flex align-items-start justify-content-between mb-2">
         <div>
           <div class="stat-label">Total Leads</div>
-          <div class="stat-value">{{ total_leads|intcomma }}</div>
+          <div class="stat-value">{{ total_leads|intcomma|default:"0" }}</div>
         </div>
         <div class="stat-icon icon-green"><i class="fa-solid fa-users"></i></div>
       </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="meta-stat-card">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="stat-label">Cost Per Lead</div>
-          <div class="stat-value">₹{{ overall_cpl|floatformat:0 }}</div>
-        </div>
-        <div class="stat-icon icon-orange"><i class="fa-solid fa-bullseye"></i></div>
+      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
+        <span class="text-muted"><i class="fa-solid fa-chart-line me-1"></i>From Meta Ads</span>
       </div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="meta-stat-card">
-      <div class="d-flex align-items-start justify-content-between">
+    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
+      <div class="d-flex align-items-start justify-content-between mb-2">
+        <div>
+          <div class="stat-label">Cost Per Lead</div>
+          <div class="stat-value">₹{{ overall_cpl|floatformat:0|default:"0" }}</div>
+        </div>
+        <div class="stat-icon icon-orange"><i class="fa-solid fa-bullseye"></i></div>
+      </div>
+      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
+        <span class="text-success fw-600"><i class="fa-solid fa-arrow-down me-1"></i>Efficient</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
+      <div class="d-flex align-items-start justify-content-between mb-2">
         <div>
           <div class="stat-label">Click-Through Rate</div>
-          <div class="stat-value">{{ overall_ctr }}%</div>
+          <div class="stat-value">{{ overall_ctr|default:"0" }}%</div>
         </div>
         <div class="stat-icon icon-purple"><i class="fa-solid fa-arrow-pointer"></i></div>
+      </div>
+      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
+        <span class="text-muted"><i class="fa-solid fa-eye me-1"></i>Avg. Engagement</span>
       </div>
     </div>
   </div>
