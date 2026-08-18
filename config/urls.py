@@ -15,6 +15,7 @@ urlpatterns = [
     path('admissions/', include('admissions.urls')),
     path('payments/', include('payments.urls')),
     path('meta-ads/', include('meta_ads.urls')),
+    path('api/', include('api.urls')),
 ]
 
 if settings.DEBUG:
