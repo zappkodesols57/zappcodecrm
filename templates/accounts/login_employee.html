@@ -75,11 +75,17 @@
   .form-control:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
   .form-label { font-size: 0.8rem; font-weight: 600; color: #374151; }
   .input-icon-wrap { position: relative; }
-  .input-icon-wrap i {
+  .input-icon-wrap i.icon-left {
     position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
-    color: #9ca3af; font-size: 0.85rem;
+    color: #9ca3af; font-size: 0.85rem; pointer-events: none;
   }
-  .input-icon-wrap .form-control { padding-left: 2.3rem; }
+  .input-icon-wrap .toggle-password {
+    position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%);
+    color: #9ca3af; font-size: 0.85rem; cursor: pointer; z-index: 10; padding: 4px;
+    transition: color 0.2s;
+  }
+  .input-icon-wrap .toggle-password:hover { color: #10b981; }
+  .input-icon-wrap .form-control { padding-left: 2.3rem; padding-right: 2.5rem; }
   .btn-login {
     background: linear-gradient(135deg, #059669, #10b981);
     border: none; color: #fff; font-weight: 700;
@@ -102,12 +108,9 @@
 <body>
 <div class="panel-wrap">
   <div class="side-art">
-    <div class="art-icon"><i class="fa-solid fa-headset"></i></div>
+    <div class="art-icon"><i class="fa-solid fa-user-tie"></i></div>
     <h2>Employee Portal</h2>
-    <p>Welcome back! Log in to manage your leads, follow-ups, and submit your daily task report.</p>
-    <div style="font-size: 0.72rem; color: rgba(255,255,255,0.5); margin-bottom: 1.2rem; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 1rem; width: 100%;">
-      FOR: Counsellors &amp; HR Team
-    </div>
+    <p>Sign in to manage lead pipelines, follow-ups, and student admissions.</p>
     <a href="{% url 'accounts:portal_select' %}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to portal selection</a>
   </div>
   <div class="form-panel">
@@ -135,15 +138,19 @@
       <div class="mb-3">
         <label class="form-label">Username</label>
         <div class="input-icon-wrap">
-          <i class="fa-solid fa-user"></i>
+          <i class="fa-solid fa-user icon-left"></i>
           <input type="text" name="username" class="form-control" required autofocus placeholder="Your username">
         </div>
       </div>
       <div class="mb-4">
-        <label class="form-label">Password</label>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label mb-0">Password</label>
+          <a href="{% url 'accounts:forgot_password' %}" class="small text-decoration-none" style="color: #059669; font-weight: 600; font-size: 0.78rem;">Forgot Password?</a>
+        </div>
         <div class="input-icon-wrap">
-          <i class="fa-solid fa-lock"></i>
-          <input type="password" name="password" class="form-control" required placeholder="••••••••">
+          <i class="fa-solid fa-lock icon-left"></i>
+          <input type="password" name="password" id="empPassword" class="form-control" required placeholder="••••••••">
+          <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('empPassword', this)" title="Show/Hide Password"></i>
         </div>
       </div>
       <button type="submit" class="btn-login"><i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Sign In to Employee Portal</button>
@@ -155,5 +162,19 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePasswordVisibility(inputId, icon) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+</script>
 </body>
 </html>

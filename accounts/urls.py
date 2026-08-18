@@ -11,7 +11,7 @@ urlpatterns = [
     path("login/", views.employee_login, name="login"),          # default / fallback
     path("login/employee/", views.employee_login, name="employee_login"),
     path("login/management/", views.management_login, name="management_login"),
-    path("logout/", auth_views.LogoutView.as_view(next_page="accounts:portal_select"), name="logout"),
+    path("logout/", views.custom_logout, name="logout"),
     path("register/", views.register, name="register"),
     path("users/", views.user_list, name="user_list"),
     path("users/add/", views.user_add, name="user_add"),
@@ -21,4 +21,9 @@ urlpatterns = [
     path("users/<int:pk>/approve/", views.approve_user, name="approve_user"),
     path("users/<int:pk>/reject/", views.reject_user, name="reject_user"),
     path("audit-log/", views.audit_log, name="audit_log"),
+
+    # Single-Page 6-Digit OTP Password Reset
+    path("forgot-password/", views.forgot_password, name="forgot_password"),
+    path("password-reset/", views.forgot_password, name="password_reset"),
 ]
+

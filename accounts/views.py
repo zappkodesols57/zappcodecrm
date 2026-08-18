@@ -33,6 +33,8 @@ def _role_redirect(user):
 
 # ─── EMPLOYEE LOGIN (Counsellor / HR) ─────────────────────────────────────────
 
+# ─── EMPLOYEE LOGIN (Counsellor / HR) ─────────────────────────────────────────
+
 def employee_login(request):
     if request.user.is_authenticated:
         return _role_redirect(request.user)
@@ -48,10 +50,6 @@ def employee_login(request):
 
         if not user.is_approved or not user.is_active:
             messages.error(request, "Your account is pending approval. Please wait for an admin to activate your account.")
-            return render(request, "accounts/login_employee.html", {"form_error": True})
-
-        if user.role not in (User.Role.COUNSELLOR, User.Role.HR):
-            messages.error(request, "This portal is for Counsellors and HR only. Please use the Management Portal instead.")
             return render(request, "accounts/login_employee.html", {"form_error": True})
 
         login(request, user)
@@ -78,12 +76,8 @@ def management_login(request):
             messages.error(request, "Invalid username or password.")
             return render(request, "accounts/login_management.html", {"form_error": True})
 
-        if not user.is_active:
-            messages.error(request, "This account is inactive.")
-            return render(request, "accounts/login_management.html", {"form_error": True})
-
-        if user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
-            messages.error(request, "This portal is for Managers and Admins only. Please use the Employee Portal instead.")
+        if not user.is_active or not user.is_approved:
+            messages.error(request, "This account is inactive or pending approval.")
             return render(request, "accounts/login_management.html", {"form_error": True})
 
         login(request, user)
@@ -93,6 +87,13 @@ def management_login(request):
         return _role_redirect(user)
 
     return render(request, "accounts/login_management.html")
+
+
+def custom_logout(request):
+    from django.contrib.auth import logout
+    logout(request)
+    messages.info(request, "You have been logged out successfully.")
+    return redirect("accounts:portal_select")
 
 
 
@@ -241,3 +242,131 @@ def reject_user(request, pk):
         user.delete()
         messages.warning(request, f"Registration request for {username} rejected and user deleted.")
     return redirect("accounts:user_list")
+
+
+def forgot_password(request):
+    """Single-page 6-Digit OTP Password Reset Flow using Cryptographically Signed Tokens"""
+    import random
+    from django.core import signing
+    from django.core.mail import send_mail
+    from django.conf import settings
+
+    if request.user.is_authenticated:
+        return redirect("dashboard:home")
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+
+        if action == "send_otp":
+            email_or_username = request.POST.get("email_or_username", "").strip()
+            user = (
+                User.objects.filter(email__iexact=email_or_username).first()
+                or User.objects.filter(username__iexact=email_or_username).first()
+            )
+
+            if not user:
+                messages.error(request, "No account found matching that email or username.")
+                return render(request, "accounts/forgot_password.html", {"step": 1, "email_or_username": email_or_username})
+
+            otp = str(random.randint(100000, 999999))
+            
+            # Create cryptographic token signed with SECRET_KEY (valid for 15 mins)
+            payload = {"user_id": user.id, "otp": otp, "email": user.email}
+            token = signing.dumps(payload)
+
+            # Send OTP email via Brevo SMTP
+            subject = "[Zappkode CRM] Your Password Reset OTP Code"
+            message = (
+                f"Hello {user.get_full_name() or user.username},\n\n"
+                f"Your 6-digit OTP code to reset your password is:\n\n"
+                f"🔑 {otp}\n\n"
+                f"This code is valid for 15 minutes. If you did not request a password reset, please ignore this email.\n\n"
+                f"Best regards,\nZappkode CRM Team"
+            )
+            try:
+                send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+                messages.success(request, f"A fresh 6-digit OTP code has been sent to {user.email}. Check your inbox.")
+            except Exception as e:
+                messages.error(request, f"Could not send OTP email via Brevo SMTP ({e}).")
+                if settings.DEBUG:
+                    messages.info(request, f"[DEBUG] Generated OTP is: {otp}")
+
+            return render(request, "accounts/forgot_password.html", {
+                "step": 2,
+                "user_email": user.email,
+                "token": token,
+            })
+
+        elif action == "verify_otp":
+            token = request.POST.get("token", "")
+            input_otp = request.POST.get("otp", "").replace(" ", "").strip()
+
+            if not token:
+                messages.error(request, "No active security token found. Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+
+            try:
+                # Valid for 15 minutes (900 seconds)
+                data = signing.loads(token, max_age=900)
+            except signing.SignatureExpired:
+                messages.error(request, "The OTP code has expired (15 minutes limit). Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+            except signing.BadSignature:
+                messages.error(request, "Invalid security token. Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+
+            if input_otp and input_otp == data.get("otp"):
+                verified_payload = {"user_id": data["user_id"], "verified": True}
+                verified_token = signing.dumps(verified_payload)
+                messages.success(request, "OTP verified successfully! Please enter your new password.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 3,
+                    "verified_token": verified_token,
+                })
+            else:
+                messages.error(request, "Invalid 6-digit OTP code. Please enter the correct OTP received in your email.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 2,
+                    "user_email": data.get("email"),
+                    "token": token,
+                })
+
+        elif action == "reset_password":
+            verified_token = request.POST.get("verified_token", "")
+            if not verified_token:
+                messages.error(request, "Security verification missing. Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+
+            try:
+                data = signing.loads(verified_token, max_age=900)
+            except (signing.SignatureExpired, signing.BadSignature):
+                messages.error(request, "Session expired or invalid token. Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+
+            p1 = request.POST.get("password1", "").strip()
+            p2 = request.POST.get("password2", "").strip()
+
+            if len(p1) < 6:
+                messages.error(request, "Password must be at least 6 characters long.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 3,
+                    "verified_token": verified_token,
+                })
+
+            if p1 != p2:
+                messages.error(request, "Passwords do not match. Please re-enter.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 3,
+                    "verified_token": verified_token,
+                })
+
+            user_id = data.get("user_id")
+            user = get_object_or_404(User, pk=user_id)
+            user.set_password(p1)
+            user.save()
+
+            messages.success(request, f"Password for '{user.username}' reset successfully! You can now log in.")
+            return redirect("accounts:portal_select")
+
+    return render(request, "accounts/forgot_password.html", {"step": 1})
+

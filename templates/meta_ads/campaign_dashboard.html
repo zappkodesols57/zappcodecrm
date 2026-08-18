@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Meta Ads Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+  .meta-header {
+    background: linear-gradient(135deg, #1877f2 0%, #0d47a1 100%);
+    color: #fff;
+    border-radius: 1rem;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .meta-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+  .meta-header h1 .meta-icon {
+    background: rgba(255,255,255,0.2);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+  .meta-stat-card {
+    background: #fff;
+    border: 1px solid #e7e8f0;
+    border-radius: .85rem;
+    padding: 1.25rem 1.4rem;
+    height: 100%;
+    transition: box-shadow .2s;
+  }
+  .meta-stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  .meta-stat-card .stat-label {
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #6b7280;
+    margin-bottom: .3rem;
+  }
+  .meta-stat-card .stat-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.1;
+  }
+  .meta-stat-card .stat-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+  }
+  .icon-blue   { background: #eff6ff; color: #2563eb; }
+  .icon-green  { background: #f0fdf4; color: #16a34a; }
+  .icon-orange { background: #fff7ed; color: #ea580c; }
+  .icon-purple { background: #faf5ff; color: #7c3aed; }
+
+  .campaign-table th {
+    font-size: .71rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #6b7280;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 600;
+  }
+  .campaign-table td { font-size: .88rem; vertical-align: middle; }
+  .badge-active   { background: #dcfce7; color: #15803d; font-size: .73rem; padding: .22rem .6rem; border-radius: 99px; font-weight: 600; }
+  .badge-paused   { background: #fef9c3; color: #854d0e; font-size: .73rem; padding: .22rem .6rem; border-radius: 99px; font-weight: 600; }
+  .badge-meta-src { background: #eff6ff; color: #1d4ed8; font-size: .72rem; padding: .18rem .5rem; border-radius: 5px; font-weight: 600; }
+
+  .funnel-wrap {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .funnel-step {
+    flex: 1;
+    min-width: 100px;
+    background: #1e3a8a;
+    color: #fff;
+    padding: 1rem .75rem;
+    text-align: center;
+    position: relative;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%);
+  }
+  .funnel-step:first-child { clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%); }
+  .funnel-step:last-child  { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 16px 50%); }
+  .funnel-step:nth-child(2) { background: #1d4ed8; }
+  .funnel-step:nth-child(3) { background: #2563eb; }
+  .funnel-step:nth-child(4) { background: #3b82f6; }
+  .funnel-step:nth-child(5) { background: #60a5fa; color: #1e3a8a; }
+  .funnel-step .step-name  { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; opacity: .85; }
+  .funnel-step .step-count { font-size: 1.5rem; font-weight: 800; margin: .2rem 0; }
+
+  .lead-feed-item {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .75rem 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .lead-feed-item:last-child { border-bottom: none; }
+  .lead-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    font-weight: 700;
+    font-size: .85rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .lead-feed-name  { font-size: .88rem; font-weight: 600; color: #111827; }
+  .lead-feed-phone { font-size: .8rem; color: #6b7280; }
+  .lead-feed-campaign { font-size: .75rem; color: #2563eb; font-weight: 500; }
+  .lead-feed-time  { font-size: .72rem; color: #9ca3af; white-space: nowrap; margin-left: auto; }
+
+  .no-connection-alert {
+    background: #fef9c3;
+    border: 1px solid #fde047;
+    border-radius: .85rem;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6b7280;
+    margin-bottom: .85rem;
+  }
+  .sync-badge {
+    font-size: .73rem;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    padding: .2rem .6rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="meta-header">
+  <h1>
+    <span class="meta-icon"><i class="fa-brands fa-meta"></i></span>
+    Meta Ads Dashboard
+  </h1>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <!-- Date Preset Filter -->
+    <form method="get" class="d-flex align-items-center gap-2 mb-0">
+      <select name="date_preset" class="form-select form-select-sm"
+              style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);min-width:140px;"
+              onchange="this.form.submit()">
+        {% for value, label in date_presets %}
+          <option value="{{ value }}" {% if date_preset == value %}selected{% endif %}
+                  style="background:#1e3a8a;">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if connection %}
+      <form method="post" action="{% url 'meta_ads:sync' %}" class="mb-0">
+        {% csrf_token %}
+        <input type="hidden" name="date_preset" value="{{ date_preset }}">
+        <button type="submit" class="btn btn-sm btn-light fw-600">
+          <i class="fa-solid fa-rotate me-1"></i> Sync Now
+        </button>
+      </form>
+      {% if connection.last_synced_at %}
+        <span class="sync-badge">
+          Last synced: {{ connection.last_synced_at|timesince }} ago
+        </span>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- No Connection Warning -->
+{% if not connection %}
+<div class="no-connection-alert">
+  <i class="fa-solid fa-triangle-exclamation fa-lg text-warning"></i>
+  <div>
+    <div class="fw-600">Meta Ads not connected yet</div>
+    <div class="text-muted" style="font-size:.85rem;">
+      Go to <a href="/django-admin/meta_ads/metaadsconnection/add/" target="_blank">Admin → Meta Ads Connection</a>
+      and add your Page Access Token and Ad Account ID to enable live data.
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" style="border-radius:.75rem;">
+  <i class="fa-solid fa-wifi-slash"></i>
+  <span>{{ error }}</span>
+</div>
+{% endif %}
+
+<!-- ── KPI Cards ── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="meta-stat-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="stat-label">Total Spend</div>
+          <div class="stat-value">₹{{ total_spend|floatformat:0|intcomma }}</div>
+        </div>
+        <div class="stat-icon icon-blue"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="meta-stat-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="stat-label">Total Leads</div>
+          <div class="stat-value">{{ total_leads|intcomma }}</div>
+        </div>
+        <div class="stat-icon icon-green"><i class="fa-solid fa-users"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="meta-stat-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="stat-label">Cost Per Lead</div>
+          <div class="stat-value">₹{{ overall_cpl|floatformat:0 }}</div>
+        </div>
+        <div class="stat-icon icon-orange"><i class="fa-solid fa-bullseye"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="meta-stat-card">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="stat-label">Click-Through Rate</div>
+          <div class="stat-value">{{ overall_ctr }}%</div>
+        </div>
+        <div class="stat-icon icon-purple"><i class="fa-solid fa-arrow-pointer"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Grid ── -->
+<div class="row g-3">
+
+  <!-- Left: Campaigns Table -->
+  <div class="col-lg-8">
+
+    <!-- Campaign Table -->
+    <div class="card mb-3">
+      <div class="card-body p-0">
+        <div class="d-flex align-items-center justify-content-between px-4 pt-3 pb-2">
+          <div class="section-title mb-0">Campaign Performance</div>
+          <span class="badge bg-light text-secondary" style="font-size:.75rem;">{{ campaigns|length }} campaigns</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table campaign-table mb-0">
+            <thead>
+              <tr>
+                <th class="ps-4">Campaign</th>
+                <th>Spend</th>
+                <th>Impressions</th>
+                <th>Clicks</th>
+                <th>Leads</th>
+                <th>CPL</th>
+                <th>CTR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in campaigns %}
+              <tr>
+                <td class="ps-4 fw-500">{{ c.campaign_name }}</td>
+                <td>₹{{ c.spend|floatformat:0|stringformat:"s" }}</td>
+                <td>{{ c.impressions|intcomma }}</td>
+                <td>{{ c.clicks|intcomma }}</td>
+                <td>
+                  <span class="fw-700 text-success">{{ c.leads_count }}</span>
+                </td>
+                <td>₹{{ c.cpl|floatformat:0 }}</td>
+                <td>{{ c.ctr }}%</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                  <i class="fa-solid fa-chart-bar d-block mb-2" style="font-size:1.5rem;opacity:.4;"></i>
+                  No campaign data available. Connect Meta Ads or sync data.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            {% if campaigns %}
+            <tfoot style="background:#f9fafb;">
+              <tr>
+                <td class="ps-4 fw-700 text-dark">Totals</td>
+                <td class="fw-700">₹{{ total_spend|floatformat:0 }}</td>
+                <td class="fw-700">{{ total_impressions|intcomma }}</td>
+                <td class="fw-700">{{ total_clicks|intcomma }}</td>
+                <td class="fw-700 text-success">{{ total_leads }}</td>
+                <td class="fw-700">₹{{ overall_cpl|floatformat:0 }}</td>
+                <td class="fw-700">{{ overall_ctr }}%</td>
+              </tr>
+            </tfoot>
+            {% endif %}
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lead Funnel -->
+    <div class="card">
+      <div class="card-body">
+        <div class="section-title">Lead Pipeline — Meta Ads</div>
+        {% if funnel %}
+        <div class="funnel-wrap mt-2">
+          {% for step in funnel %}
+          <div class="funnel-step">
+            <div class="step-name">{{ step.name }}</div>
+            <div class="step-count">{{ step.count }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted text-center py-3">No lead stages configured.</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: Recent Leads Feed -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="section-title mb-0">Live Leads from Meta</div>
+          <span class="badge-active" id="live-badge">
+            <i class="fa-solid fa-circle fa-xs me-1" style="animation: pulse 1.5s infinite;"></i>Live
+          </span>
+        </div>
+
+        <div id="lead-feed">
+          {% for lead in recent_meta_leads %}
+          <div class="lead-feed-item">
+            <div class="lead-avatar">{{ lead.name|first|upper }}</div>
+            <div class="flex-grow-1">
+              <div class="lead-feed-name">
+                <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-dark text-decoration-none">
+                  {{ lead.name }}
+                </a>
+              </div>
+              <div class="lead-feed-phone">{{ lead.mobile }}</div>
+              {% if lead.utm_campaign %}
+              <div class="lead-feed-campaign">
+                <i class="fa-brands fa-meta me-1"></i>{{ lead.utm_campaign }}
+              </div>
+              {% endif %}
+            </div>
+            <div class="lead-feed-time">{{ lead.created_at|timesince }} ago</div>
+          </div>
+          {% empty %}
+          <div class="text-center text-muted py-4">
+            <i class="fa-solid fa-inbox d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
+            No Meta leads yet.<br>
+            <small>They will appear here in real-time.</small>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh the live lead feed every 30 seconds
+function refreshLeadFeed() {
+  fetch("{% url 'meta_ads:recent_leads_json' %}")
+    .then(r => r.json())
+    .then(data => {
+      const feed = document.getElementById("lead-feed");
+      if (!data.leads.length) return;
+      feed.innerHTML = data.leads.map(l => `
+        <div class="lead-feed-item">
+          <div class="lead-avatar">${l.name.charAt(0).toUpperCase()}</div>
+          <div class="flex-grow-1">
+            <div class="lead-feed-name">
+              <a href="/leads/${l.id}/" class="text-dark text-decoration-none">${l.name}</a>
+            </div>
+            <div class="lead-feed-phone">${l.mobile}</div>
+            ${l.campaign ? `<div class="lead-feed-campaign"><i class="fa-brands fa-meta me-1"></i>${l.campaign}</div>` : ''}
+          </div>
+          <div class="lead-feed-time">${l.created_at}</div>
+        </div>
+      `).join("");
+    })
+    .catch(() => {});
+}
+
+// Refresh every 30 seconds
+setInterval(refreshLeadFeed, 30000);
+
+// Pulse animation for live badge
+const style = document.createElement('style');
+style.textContent = `@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

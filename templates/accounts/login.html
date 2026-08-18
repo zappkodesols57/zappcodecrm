@@ -3,29 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login · Zappkode CRM</title>
+<title>Login · Zappcode CRM</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
   body{
     min-height:100vh; display:flex; align-items:center; justify-content:center;
     background: radial-gradient(circle at top left, #4338ca, #151233 65%);
     font-family:'Segoe UI', system-ui, sans-serif;
   }
-  .login-card{ width:100%; max-width:380px; background:#fff; border-radius:1rem; padding:2.2rem 2rem; box-shadow:0 20px 45px rgba(0,0,0,.35);}
+  .login-card{ width:100%; max-width:400px; background:#fff; border-radius:1rem; padding:2.2rem 2rem; box-shadow:0 20px 45px rgba(0,0,0,.35);}
   .login-card .brand{ text-align:center; margin-bottom:1.5rem; }
   .login-card .brand i{ font-size:2rem; color:#4f46e5; }
   .login-card .brand h1{ font-size:1.2rem; font-weight:700; margin-top:.4rem; color:#1e1b3a;}
   .btn-brand{ background:#4f46e5; border-color:#4f46e5; }
   .btn-brand:hover{ background:#3730a3; border-color:#3730a3; }
   .error-box{ background:#fee2e2; color:#b91c1c; padding:.6rem .8rem; border-radius:.5rem; font-size:.85rem; margin-bottom:1rem;}
+  .input-pass-wrap { position: relative; }
+  .input-pass-wrap .form-control { padding-right: 2.5rem; }
+  .input-pass-wrap .toggle-password {
+    position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%);
+    color: #9ca3af; font-size: 0.85rem; cursor: pointer; z-index: 10; padding: 4px;
+    transition: color 0.2s;
+  }
+  .input-pass-wrap .toggle-password:hover { color: #4f46e5; }
 </style>
 </head>
 <body>
   <div class="login-card">
-    <div class="brand">
-      <img src="/media/zappkode_logo.png" alt="Zappkode Logo" style="max-height: 48px; max-width: 100%; object-fit: contain; margin-bottom: 0.5rem;">
-      <h1 class="small text-muted text-uppercase fw-semibold" style="letter-spacing: 0.05em; font-size: 0.75rem;">Lead Management System</h1>
+    <div class="brand" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <img src="/media/zappcode_logo.png" alt="Zappcode Logo" style="max-height: 58px; width: 90%; object-fit: contain;">
+      <div style="display: flex; align-items: baseline; gap: 6px;">
+        <span style="font-size: 1.7rem; font-weight: 800; color: #1e1b3a; letter-spacing: -0.5px;">Zappcode</span>
+        <span style="font-family: 'Dancing Script', cursive; font-size: 2.1rem; font-weight: 700; color: #4f46e5;">CRM</span>
+      </div>
+      <h1 class="small text-muted text-uppercase fw-semibold" style="letter-spacing: 0.05em; font-size: 0.75rem; margin-top: 2px;">Lead Management System</h1>
     </div>
     {% if form.errors %}
       <div class="error-box">Invalid username or password. Please try again.</div>
@@ -37,13 +50,33 @@
         <input type="text" name="username" class="form-control" required autofocus>
       </div>
       <div class="mb-3">
-        <label class="form-label small fw-semibold">Password</label>
-        <input type="password" name="password" class="form-control" required>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label small fw-semibold mb-0">Password</label>
+          <a href="{% url 'accounts:forgot_password' %}" class="small text-decoration-none" style="color: #4f46e5; font-weight: 600; font-size: 0.78rem;">Forgot Password?</a>
+        </div>
+        <div class="input-pass-wrap">
+          <input type="password" name="password" id="fallbackPassword" class="form-control" required>
+          <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('fallbackPassword', this)" title="Show/Hide Password"></i>
+        </div>
       </div>
       <input type="hidden" name="next" value="{{ next }}">
       <button type="submit" class="btn btn-brand w-100 text-white">Sign in</button>
     </form>
   </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePasswordVisibility(inputId, icon) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+</script>
 </body>
 </html>
