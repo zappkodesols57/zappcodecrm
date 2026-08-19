@@ -61,3 +61,20 @@ staticfiles/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Data files
+*.xlsx
+*.xls
+*.csv
+
+# Temporary scripts
+check_nginx.py
+deploy_main.py
+deploy_remote.py
+find_service.py
+install_ssl.py
+restart_service.py
+update_domain.py
+add_logger.py
+import_nelson_excel.py
+

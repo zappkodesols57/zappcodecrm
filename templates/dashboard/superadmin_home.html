@@ -127,6 +127,9 @@
             <p class="text-muted mb-0">Overview and Analytics for {{ request.user.hospital.name|default:'Hospital' }} Leads</p>
         </div>
         <div class="d-flex gap-2">
+            <a href="{% url 'meta_ads:dashboard' %}" class="btn btn-outline-primary" style="border-radius: 50px; font-weight: 600;">
+                <i class="fa-brands fa-meta me-1"></i> Meta Ads
+            </a>
             {% if not request.user.hospital %}
             <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-primary" style="border-radius: 50px; font-weight: 600;">
                 <i class="ph ph-buildings me-1"></i> Manage Businesses
