@@ -14,12 +14,21 @@ from admissions.models import Admission
 from accounts.models import User
 from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, MasterGroup, MasterItem
 from .forms import (
-    LeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
+    LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
 )
 
 
-def _can_access_lead(user, lead):
+def _can_edit_lead(user, lead):
+    from accounts.models import User
     if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+        return True
+    return lead.assigned_to == user
+
+def _can_access_lead(user, lead):
+    from accounts.models import User
+    if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+        return True
+    if user.role == User.Role.LEAD_ATTENDENT and user.hospital == lead.hospital:
         return True
     return lead.assigned_to == user
 
@@ -150,137 +159,62 @@ def lead_list(request):
 
 @login_required
 def lead_add(request):
-    if request.user.hospital:
-        if request.method == "POST":
-            name = request.POST.get("PAITENT NAME")
-            mobile = request.POST.get("MOBILE NO")
-            source_name = request.POST.get("ORGANIC LEAD") or "Unknown"
-            campaign_name = request.POST.get("CAMPAIGN NAME") or "Unknown"
-            
-            from leads.models import SourceCategory, LeadStage, LeadSource, Campaign, NelsonLeadData, Lead
-            from django.utils import timezone
-            default_cat = SourceCategory.objects.first()
-            default_stage = LeadStage.objects.first()
-            
-            source, _ = LeadSource.objects.get_or_create(name=source_name, defaults={'category': default_cat})
-            campaign, _ = Campaign.objects.get_or_create(name=campaign_name)
-
-            lead = Lead.objects.create(
-                name=name,
-                mobile=mobile,
-                lead_source=source,
-                campaign=campaign,
-                hospital=request.user.hospital,
-                stage=default_stage,
-                assigned_to=request.user,
-                created_by=request.user,
-                inquiry_date=timezone.localdate()
-            )
-
-            def safe_decimal(val):
-                try: return float(val)
-                except (ValueError, TypeError): return 0.0
-
-            def safe_time(val):
-                if not val: return None
-                from dateutil.parser import parse
-                try: return parse(val).time()
-                except: return None
-
-            NelsonLeadData.objects.create(
-                lead=lead,
-                nelson_dantoli=request.POST.get("NELSON DANTOLI", ""),
-                lead_received_time=safe_time(request.POST.get("LEAD RECIVED TIME")),
-                lead_calling_time=safe_time(request.POST.get("LEAD CALLING TIME")),
-                gender=request.POST.get("FEMALE", ""),
-                age=request.POST.get("AGE", ""),
-                department=request.POST.get("DEPARTMENT", ""),
-                doctor=request.POST.get("DOCOTOR", ""),
-                appo_book=request.POST.get("APPO.BOOK", ""),
-                appo_booked_date=request.POST.get("APPO.BOOKED DATE") or None,
-                calling_date_remark_1=request.POST.get("CALLING DATE REMARK 1") or None,
-                remark_1=request.POST.get("REMARK:1", ""),
-                calling_time_remark_2=safe_time(request.POST.get("CALLING TIME REMARK 2")),
-                calling_date_remark_2=request.POST.get("CALLING DATE REMARK 2") or None,
-                remark_2=request.POST.get("REMARK:2", ""),
-                calling_date_remark_3=request.POST.get("CALLING DATE REMARK 3") or None,
-                remark_3=request.POST.get("REMARK:3", ""),
-                done=request.POST.get("DONE", ""),
-                visit_date=request.POST.get("Visit Date") or None,
-                uhid_id_no=request.POST.get("UHID ID NO", ""),
-                pharmacy_bill=safe_decimal(request.POST.get("PHARMACY BILL")),
-                opd_bill=safe_decimal(request.POST.get("OPD BILL")),
-                ipd_no=request.POST.get("IPD NO", ""),
-                investigation=request.POST.get("INVESTIGATION ", ""),
-                total=safe_decimal(request.POST.get("TOTAL"))
-            )
-            messages.success(request, f"Lead for {name} added successfully.")
-            return redirect("leads:lead_list")
-            
-        return render(request, "leads/nelson_lead_form.html", {"active": "leads_add"})
-
     duplicates = None
+    FormClass = HospitalLeadForm if request.user.hospital else LeadForm
+    template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/lead_form.html"
+    
     if request.method == "POST":
-        form = LeadForm(request.POST, user=request.user)
+        form = FormClass(request.POST, user=request.user)
         force = request.POST.get("force_create") == "1"
         if form.is_valid():
-            mobile = form.cleaned_data["mobile"]
-            digits = Lead.clean_mobile(mobile)
-            existing = [l for l in Lead.objects.only("id", "mobile", "name") if Lead.clean_mobile(l.mobile) == digits] if digits else []
-            if existing and not force:
-                duplicates = Lead.objects.filter(pk__in=[e.pk for e in existing]).select_related("stage", "assigned_to", "lead_source")
-            else:
-                lead = form.save(commit=False)
-                lead.created_by = request.user
-                if not request.user.can_assign_leads:
-                    lead.assigned_to = request.user
-                lead.save()
-                form.save_m2m()
-                messages.success(request, f"Lead {lead.lead_code} created.")
-                return redirect("leads:lead_detail", pk=lead.pk)
+            if not force:
+                mobile = form.cleaned_data.get("mobile")
+                duplicates = Lead.objects.filter(mobile=mobile, is_archived=False)
+                if duplicates.exists():
+                    return render(request, template, {
+                        "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates
+                    })
+            lead = form.save(commit=False)
+            lead.created_by = request.user
+            if request.user.hospital:
+                lead.hospital = request.user.hospital
+            
+            # Ensure defaults
+            from leads.models import LeadStage, LeadSource, SourceCategory
+            if not lead.stage_id:
+                lead.stage = LeadStage.objects.first()
+                
+            lead.save()
+            form.save_m2m()
+            messages.success(request, "Lead created successfully.")
+            return redirect("leads:lead_detail", pk=lead.pk)
     else:
-        form = LeadForm(initial={"inquiry_date": timezone.localdate()}, user=request.user)
-    return render(request, "leads/lead_form.html", {
+        from django.utils import timezone
+        form = FormClass(initial={"inquiry_date": timezone.localdate()}, user=request.user)
+        
+    return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
     })
 
-
 @login_required
-def check_duplicate_mobile(request):
-    from django.http import JsonResponse
-    raw_mobile = request.GET.get("mobile", "").strip()
-    digits = Lead.clean_mobile(raw_mobile)
-    if not digits or len(digits) < 8:
-        return JsonResponse({"exists": False})
-    
-    existing = Lead.objects.filter(is_archived=False)
-    for lead in existing.only("id", "lead_code", "name", "mobile", "assigned_to"):
-        if Lead.clean_mobile(lead.mobile) == digits:
-            assigned_name = lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned")
-            return JsonResponse({
-                "exists": True,
-                "lead_id": lead.pk,
-                "lead_code": lead.lead_code,
-                "name": lead.name,
-                "assigned_to": assigned_name
-            })
-    return JsonResponse({"exists": False})
-
-
 @login_required
 def lead_edit(request, pk):
     lead = get_object_or_404(Lead, pk=pk)
-    if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
+    if not _can_edit_lead(request.user, lead):
+        raise PermissionDenied("You do not have permission to edit this lead. It may be assigned to someone else.")
+        
+    FormClass = HospitalLeadForm if request.user.hospital else LeadForm
+    template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/lead_form.html"
+    
     if request.method == "POST":
-        form = LeadForm(request.POST, instance=lead, user=request.user)
+        form = FormClass(request.POST, instance=lead, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, "Lead updated.")
             return redirect("leads:lead_detail", pk=lead.pk)
     else:
-        form = LeadForm(instance=lead, user=request.user)
-    return render(request, "leads/lead_form.html", {"active": "leads_all", "form": form, "mode": "Edit", "obj": lead})
+        form = FormClass(instance=lead, user=request.user)
+    return render(request, template, {"active": "leads_all", "form": form, "mode": "Edit", "obj": lead})
 
 
 @login_required
@@ -692,3 +626,81 @@ def master_item_delete(request, pk):
     messages.success(request, f"Sub-Master item '{name}' deleted.")
     return redirect(f"/leads/universal-masters/?group_id={group_id}")
 
+
+@login_required
+def lead_self_assign(request, pk):
+    from accounts.models import User
+    from django.core.exceptions import PermissionDenied
+    lead = get_object_or_404(Lead, pk=pk)
+    
+    if not _can_access_lead(request.user, lead):
+        raise PermissionDenied("You do not have permission to access this lead.")
+        
+    if request.user.role != User.Role.LEAD_ATTENDENT:
+        messages.error(request, "Only Lead Attendants can self-assign leads.")
+        return redirect('leads:lead_detail', pk=pk)
+        
+    if lead.assigned_to is not None:
+        messages.error(request, "This lead is already assigned to someone else.")
+        return redirect('leads:lead_detail', pk=pk)
+        
+    if request.method == "POST":
+        lead.assigned_to = request.user
+        lead.save(update_fields=['assigned_to'])
+        messages.success(request, "Lead successfully assigned to you.")
+        
+    return redirect('leads:lead_detail', pk=pk)
+
+@login_required
+def book_appointment(request, pk):
+    from django.core.exceptions import PermissionDenied
+    from django.contrib import messages
+    from leads.models import Lead, Appointment, AppointmentStatus
+    
+    lead = get_object_or_404(Lead, pk=pk)
+    
+    if not _can_access_lead(request.user, lead):
+        raise PermissionDenied("You do not have access to this lead.")
+        
+    if request.method == "POST":
+        doctor_name = request.POST.get('doctor_name')
+        appointment_date = request.POST.get('appointment_date')
+        appointment_time = request.POST.get('appointment_time') or None
+        notes = request.POST.get('notes', '')
+        
+        if doctor_name and appointment_date:
+            Appointment.objects.create(
+                lead=lead,
+                hospital=request.user.hospital,
+                doctor_name=doctor_name,
+                appointment_date=appointment_date,
+                appointment_time=appointment_time,
+                notes=notes,
+                created_by=request.user
+            )
+            messages.success(request, "Appointment booked successfully.")
+        else:
+            messages.error(request, "Doctor name and date are required.")
+            
+    return redirect('leads:lead_detail', pk=pk)
+
+@login_required
+def check_duplicate_mobile(request):
+    from django.http import JsonResponse
+    raw_mobile = request.GET.get("mobile", "").strip()
+    digits = Lead.clean_mobile(raw_mobile)
+    if not digits or len(digits) < 8:
+        return JsonResponse({"exists": False})
+    
+    existing = Lead.objects.filter(is_archived=False)
+    for lead in existing.only("id", "lead_code", "name", "mobile", "assigned_to"):
+        if Lead.clean_mobile(lead.mobile) == digits:
+            assigned_name = lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned")
+            return JsonResponse({
+                "exists": True,
+                "lead_id": lead.pk,
+                "lead_code": lead.lead_code,
+                "name": lead.name,
+                "assigned_to": assigned_name
+            })
+    return JsonResponse({"exists": False})

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}My Leads{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1"><i class="fa-solid fa-users me-2"></i> My Assigned Leads</h3>
+        <p class="text-muted mb-0">Leads assigned specifically to you, ordered by most recently updated.</p>
+    </div>
+</div>
+
+<!-- Search Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="GET" action="" class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label small fw-bold text-uppercase text-muted">Search My Leads</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name or Phone Number..." value="{{ q }}">
+                </div>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Search</button>
+                <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-light border w-100">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Card -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Last Updated</th>
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="fw-bold text-dark">{{ lead.name }}</div>
+                            <div class="small text-muted">{{ lead.lead_code }}</div>
+                        </td>
+                        <td>
+                            <div><i class="fa-solid fa-phone text-muted me-1 small"></i> {{ lead.mobile }}</div>
+                            {% if lead.email %}
+                            <div class="small text-muted"><i class="fa-solid fa-envelope text-muted me-1 small"></i> {{ lead.email }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="mb-1 d-flex flex-wrap gap-1">
+                                {% if lead.custom_data.appointment_status == 'Booked' or lead.custom_data.appointment_status == 'Cancelled' %}
+                                    <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% else %}bg-danger text-danger border-danger-subtle{% endif %} bg-opacity-10 border px-2 py-1">
+                                        <i class="fa-solid {% if lead.custom_data.appointment_status == 'Booked' %}fa-calendar-check{% else %}fa-calendar-xmark{% endif %} me-1"></i> {{ lead.custom_data.appointment_status }}
+                                    </span>
+                                {% else %}
+                                    {% if lead.admission_status == 'ADMISSION_DONE' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Converted</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.get_deal_status_display }}</span>
+                                    {% endif %}
+                                    
+                                    {% if lead.custom_data.priority %}
+                                        {% if lead.custom_data.priority == 'Hot' %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-fire me-1"></i> Hot</span>
+                                        {% elif lead.custom_data.priority == 'Warm' %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-temperature-half me-1"></i> Warm</span>
+                                        {% elif lead.custom_data.priority == 'Cold' %}
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-snowflake me-1"></i> Cold</span>
+                                        {% else %}
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ lead.custom_data.priority }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    
+                                    {% if lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                            <i class="fa-solid fa-calendar me-1"></i> {{ lead.custom_data.appointment_status }}
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ lead.updated_at|date:"d M Y, h:i A" }}</div>
+                            <div class="small text-muted">Assigned to Me</div>
+                        </td>
+                        <td class="px-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View"><i class="fa-solid fa-eye text-primary"></i></a>
+                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand border" title="Edit Lead"><i class="fa-solid fa-pen text-white"></i> Edit</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="text-muted mb-3"><i class="fa-solid fa-inbox fa-3x"></i></div>
+                            <h5 class="fw-bold">No assigned leads</h5>
+                            <p>You don't have any leads assigned to you yet. You can self-assign leads from the Search & Filter tab.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if leads %}
+        <div class="px-4 py-3 border-top bg-light text-muted small rounded-bottom-4">
+            Showing {{ leads|length }} assigned lead(s).
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

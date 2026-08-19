@@ -27,6 +27,7 @@ class User(AbstractUser):
         HR = "HR", "HR"
         COUNSELLOR = "COUNSELLOR", "Counsellor"
 
+    profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LEAD_ATTENDENT)
     phone = models.CharField(max_length=20, blank=True)
     is_active_employee = models.BooleanField(default=True)

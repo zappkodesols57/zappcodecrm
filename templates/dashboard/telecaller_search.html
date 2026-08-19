@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Search & Filter Leads{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1"><i class="fa-solid fa-magnifying-glass me-2"></i> Search & Filter</h3>
+        <p class="text-muted mb-0">Search, filter, and export leads for {{ request.user.hospital.name }}</p>
+    </div>
+    <a href="?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}export=1" class="btn btn-success shadow-sm rounded-pill px-4">
+        <i class="fa-solid fa-file-excel me-2"></i> Export to Excel
+    </a>
+</div>
+
+<!-- Filters Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="GET" action="" class="row g-3 align-items-end">
+            <!-- Search -->
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-uppercase text-muted">Patient Name / Phone</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search..." value="{{ filters.q }}">
+                </div>
+            </div>
+            <!-- Date -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-uppercase text-muted">Inquiry Date</label>
+                <input type="date" name="date" class="form-control" value="{{ filters.date }}">
+            </div>
+            <!-- Status -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-uppercase text-muted">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for val, label in deal_statuses %}
+                        <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- Doctor -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-uppercase text-muted">Doctor</label>
+                <input type="text" name="doctor" class="form-control" placeholder="Dr. Name" value="{{ filters.doctor }}">
+            </div>
+            <!-- Disease -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-uppercase text-muted">Disease</label>
+                <input type="text" name="disease" class="form-control" placeholder="e.g. Fever" value="{{ filters.disease }}">
+            </div>
+            <!-- Priority -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-uppercase text-muted">Priority</label>
+                <select name="priority" class="form-select">
+                    <option value="">All Priorities</option>
+                    <option value="High" {% if filters.priority == 'High' %}selected{% endif %}>High</option>
+                    <option value="Medium" {% if filters.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                    <option value="Low" {% if filters.priority == 'Low' %}selected{% endif %}>Low</option>
+                </select>
+            </div>
+            <!-- Converted -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-uppercase text-muted">Converted?</label>
+                <select name="converted" class="form-select">
+                    <option value="">Any</option>
+                    <option value="1" {% if filters.converted == '1' %}selected{% endif %}>Yes (Admission Done)</option>
+                </select>
+            </div>
+            <!-- Actions -->
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                <a href="{% url 'dashboard:telecaller_search' %}" class="btn btn-light border w-100">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Card -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Doctor & Disease</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Status & Priority</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Date</th>
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="fw-bold text-dark">{{ lead.name }}</div>
+                            <div class="small text-muted">{{ lead.lead_code }}</div>
+                        </td>
+                        <td>
+                            <div><i class="fa-solid fa-phone text-muted me-1 small"></i> {{ lead.mobile }}</div>
+                            {% if lead.email %}
+                            <div class="small text-muted"><i class="fa-solid fa-envelope me-1"></i> {{ lead.email }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lead.custom_data.doctor %}
+                                <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.custom_data.doctor }}</span></div>
+                            {% endif %}
+                            {% if lead.custom_data.disease %}
+                                <div class="mt-1 small fw-semibold text-secondary"><i class="fa-solid fa-virus me-1"></i> {{ lead.custom_data.disease }}</div>
+                            {% endif %}
+                            {% if not lead.custom_data.doctor and not lead.custom_data.disease %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="mb-1">
+                                {% if lead.admission_status == 'ADMISSION_DONE' %}
+                                    <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Converted</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ lead.get_deal_status_display }}</span>
+                                {% endif %}
+                            </div>
+                            {% if lead.custom_data.priority %}
+                                <span class="badge {% if lead.custom_data.priority == 'High' %}bg-danger{% elif lead.custom_data.priority == 'Medium' %}bg-warning text-dark{% else %}bg-primary{% endif %} opacity-75" style="font-size: 0.7rem;">
+                                    {{ lead.custom_data.priority }} Priority
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="small fw-semibold">{{ lead.inquiry_date|date:"d M Y" }}</div>
+                        </td>
+                        <td class="px-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View"><i class="fa-solid fa-eye text-primary"></i></a>
+                                {% if lead.assigned_to == request.user or request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
+                                    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-light border" title="Edit"><i class="fa-solid fa-pen text-warning"></i></a>
+                                {% elif not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' %}
+                                    <form action="{% url 'leads:lead_self_assign' lead.pk %}" method="POST" class="d-inline m-0 p-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-brand border" title="Assign to me"><i class="fa-solid fa-user-plus text-white"></i></button>
+                                    </form>
+                                {% else %}
+                                    <button class="btn btn-sm btn-light border" disabled title="Assigned to {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}"><i class="fa-solid fa-lock text-muted"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="text-muted mb-3"><i class="fa-solid fa-search fa-3x"></i></div>
+                            <h5 class="fw-bold">No leads found</h5>
+                            <p>Try adjusting your filters or search query.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if leads %}
+        <div class="px-4 py-3 border-top bg-light text-muted small rounded-bottom-4">
+            Showing {{ leads|length }} lead(s).
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

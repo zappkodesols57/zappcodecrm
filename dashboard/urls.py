@@ -14,4 +14,11 @@ urlpatterns = [
     path("employee/<int:emp_id>/", views.employee_detail_activity, name="employee_detail_activity"),
     path("daily-report/", views.submit_daily_report, name="submit_daily_report"),
     path("reports/daily/", views.management_daily_reports, name="management_daily_reports"),
+
+    path("telecaller/", views.telecaller_home, name="telecaller_home"),
+    path("telecaller/my-leads/", views.telecaller_my_leads, name="telecaller_my_leads"),
+    path("telecaller/search/", views.telecaller_search, name="telecaller_search"),
+    path("telecaller/appointments/", views.telecaller_appointments, name="telecaller_appointments"),
+    path("placeholder/<str:module_name>/", views.placeholder_view, name="placeholder"),
+
 ]

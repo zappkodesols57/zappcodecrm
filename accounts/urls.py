@@ -13,6 +13,7 @@ urlpatterns = [
     path("login/management/", views.management_login, name="management_login"),
     path("logout/", views.custom_logout, name="logout"),
     path("register/", views.register, name="register"),
+    path("profile/", views.user_profile, name="profile"),
     path("users/", views.user_list, name="user_list"),
     path("users/add/", views.user_add, name="user_add"),
     path("users/<int:pk>/edit/", views.user_edit, name="user_edit"),
