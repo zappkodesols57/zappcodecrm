@@ -246,6 +246,9 @@ class Lead(models.Model):
     external_lead_id = models.CharField(max_length=150, blank=True, db_index=True, help_text="ID from external system (API/Website/Ad platform) — used to prevent duplicate auto-created leads")
     raw_source_metadata = models.JSONField(null=True, blank=True)
 
+    # Custom Data for Tenant specific flexible attributes (e.g., Doctor, Disease)
+    custom_data = models.JSONField(default=dict, blank=True)
+
     # Assignment
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_leads", db_index=True)
     hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="leads")
@@ -361,4 +364,30 @@ class NelsonLeadData(models.Model):
 
     def __str__(self):
         return f"Nelson Data for {self.lead.name}"
+
+
+class AppointmentStatus(models.TextChoices):
+    SCHEDULED = "SCHEDULED", "Scheduled"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+    NO_SHOW = "NO_SHOW", "No-Show"
+
+class Appointment(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="appointments")
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="appointments")
+    doctor_name = models.CharField(max_length=150)
+    appointment_date = models.DateField()
+    appointment_time = models.TimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.SCHEDULED)
+    notes = models.TextField(blank=True)
+    
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ["-appointment_date", "-appointment_time"]
+        
+    def __str__(self):
+        return f"{self.lead.name} - {self.doctor_name} ({self.appointment_date})"
 

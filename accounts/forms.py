@@ -18,11 +18,25 @@ class CRMUserCreateForm(UserCreationForm):
                 (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
+            if "hospital" in self.fields:
+                del self.fields["hospital"]
+            if "reports_to" in self.fields:
+                self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
+        
         if "hospital" in self.fields:
             self.fields["hospital"].label = "Business"
+            
         for name, field in self.fields.items():
             css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
             field.widget.attrs.setdefault("class", css)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if self.user and self.user.hospital:
+            user.hospital = self.user.hospital
+        if commit:
+            user.save()
+        return user
 
 
 class CRMUserEditForm(forms.ModelForm):
@@ -40,14 +54,28 @@ class CRMUserEditForm(forms.ModelForm):
                 (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
+            if "hospital" in self.fields:
+                del self.fields["hospital"]
+            if "reports_to" in self.fields:
+                self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
+                
         if "hospital" in self.fields:
             self.fields["hospital"].label = "Business"
+            
         for name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", "form-check-input")
             else:
                 css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
                 field.widget.attrs.setdefault("class", css)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if self.user and self.user.hospital:
+            user.hospital = self.user.hospital
+        if commit:
+            user.save()
+        return user
 
 
 class CRMUserPasswordResetForm(forms.Form):
@@ -100,3 +128,15 @@ class BusinessForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'phone', 'profile_picture']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+        }

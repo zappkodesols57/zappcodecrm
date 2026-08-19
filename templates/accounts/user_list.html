@@ -80,17 +80,24 @@
           <td>
             <strong class="text-dark">{{ u.get_full_name|default:u.username }}</strong>
             {% if u.email %}<div class="small text-muted">{{ u.email }}</div>{% endif %}
+            {% if u.hospital %}<div class="small fw-bold mt-1" style="color: var(--brand);"><i class="fa-solid fa-hospital-user"></i> {{ u.hospital.name }}</div>{% endif %}
           </td>
           <td><code>{{ u.username }}</code></td>
           <td>
             {% if u.role == 'SUPER_ADMIN' %}
             <span class="badge text-bg-danger">Super Admin</span>
+            {% elif u.role == 'ADMIN' %}
+            <span class="badge text-bg-danger">Admin</span>
             {% elif u.role == 'MANAGER' %}
             <span class="badge text-bg-primary">Manager</span>
             {% elif u.role == 'HR' %}
             <span class="badge text-bg-info">HR</span>
+            {% elif u.role == 'LEAD_ATTENDENT' %}
+            <span class="badge text-bg-warning text-dark">Lead Attendent</span>
+            {% elif u.role == 'DOCTOR' %}
+            <span class="badge text-bg-success">Doctor</span>
             {% else %}
-            <span class="badge text-bg-secondary">Counsellor</span>
+            <span class="badge text-bg-secondary">{{ u.get_role_display }}</span>
             {% endif %}
           </td>
           <td>{{ u.phone|default:"—" }}</td>

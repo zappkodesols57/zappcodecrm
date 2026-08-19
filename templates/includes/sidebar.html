@@ -15,7 +15,7 @@
     {% endif %}
   </div>
 
-  {% if user.hospital %}
+  {% if user.hospital and user.role == 'SUPER_ADMIN' %}
   {# ═══════════ HOSPITAL SIDEBAR ═══════════ #}
 
   <div class="nav-section">Overview</div>
@@ -86,8 +86,8 @@
   <a class="nav-link {% if active == 'hospital-settings' %}active{% endif %}"
     href="{% url 'dashboard:nelson_module' 'hospital-settings' %}"><i class="fa-solid fa-hospital-user"></i> Hospital
     Settings</a>
-  <a class="nav-link {% if active == 'profile-security' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'profile-security' %}"><i class="fa-solid fa-lock"></i> Profile &
+  <a class="nav-link {% if active == 'profile' %}active{% endif %}"
+    href="{% url 'accounts:profile' %}"><i class="fa-solid fa-lock"></i> Profile &
     Security</a>
 
   {% elif user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}
@@ -165,6 +165,48 @@
       class="fa-solid fa-shield-halved"></i> Audit Log</a>
   {% endif %}
 
+  
+  {% elif user.role == 'LEAD_ATTENDENT' and user.hospital %}
+  {# 🔹 TELECALLER SIDEBAR (Lead Attendant - Tenant Specific) 🔹 #}
+  
+  <div class="nav-section">Overview</div>
+  <a class="nav-link {% if active == 'telecaller_dashboard' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+
+  <div class="nav-section">Lead Management</div>
+  <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'dashboard:telecaller_my_leads' %}"><i class="fa-solid fa-user-tag"></i> My Leads</a>
+  <a class="nav-link {% if active == 'new_enquiries' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'new_enquiries' %}"><i class="fa-solid fa-envelope-open-text"></i> New Enquiries</a>
+  <a class="nav-link {% if active == 'lead_details' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_details' %}"><i class="fa-solid fa-address-card"></i> Lead Details</a>
+  <a class="nav-link {% if active == 'lead_info_collection' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_info_collection' %}"><i class="fa-solid fa-clipboard-list"></i> Lead Info Collection</a>
+  <a class="nav-link {% if active == 'lead_status' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_status' %}"><i class="fa-solid fa-bars-progress"></i> Lead Status</a>
+  <a class="nav-link {% if active == 'lead_temperature' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_temperature' %}"><i class="fa-solid fa-temperature-half"></i> Lead Temperature</a>
+
+  <div class="nav-section">Calling & Engagement</div>
+  <a class="nav-link {% if active == 'calling' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'calling' %}"><i class="fa-solid fa-headset"></i> Calling</a>
+  <a class="nav-link {% if active == 'call_history' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'call_history' %}"><i class="fa-solid fa-phone-volume"></i> Call History</a>
+  <a class="nav-link {% if active == 'lead_timeline' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_timeline' %}"><i class="fa-solid fa-clock-rotate-left"></i> Lead Timeline</a>
+  <a class="nav-link {% if active == 'notes_remarks' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'notes_remarks' %}"><i class="fa-solid fa-note-sticky"></i> Notes & Remarks</a>
+
+  <div class="nav-section">Follow-up Management</div>
+  <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"><i class="fa-solid fa-calendar-day"></i> Today's Follow-ups</a>
+  <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"><i class="fa-solid fa-calendar-plus"></i> Upcoming</a>
+  <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}"><i class="fa-solid fa-calendar-xmark"></i> Overdue</a>
+
+  <div class="nav-section">Appointments & Patients</div>
+  <a class="nav-link {% if active == 'apt_request' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'apt_request' %}"><i class="fa-solid fa-calendar-check"></i> Appointment Request</a>
+  <a class="nav-link {% if active == 'apt_management' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'apt_management' %}"><i class="fa-solid fa-truck-medical"></i> Appointment Management</a>
+  <a class="nav-link {% if active == 'patient_conversion' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'patient_conversion' %}"><i class="fa-solid fa-user-doctor"></i> Patient Conversion</a>
+  <a class="nav-link {% if active == 'patient_info' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'patient_info' %}"><i class="fa-solid fa-bed-pulse"></i> Patient Information</a>
+
+  <div class="nav-section">Productivity Tools</div>
+  <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'tasks' %}"><i class="fa-solid fa-list-check"></i> Tasks / Reminders</a>
+  <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'notifications' %}"><i class="fa-solid fa-bell"></i> Notifications</a>
+  <a class="nav-link {% if active == 'search_filter' %}active{% endif %}" href="{% url 'dashboard:telecaller_search' %}"><i class="fa-solid fa-magnifying-glass"></i> Search & Filter</a>
+
+  <div class="nav-section">Account</div>
+  <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-lock"></i> Profile</a>
+  <a class="nav-link" href="{% url 'accounts:logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+
+
   {% else %}
   {# ═══════════ EMPLOYEE SIDEBAR (Counsellor / HR) ═══════════ #}
 
@@ -197,6 +239,10 @@
       class="fa-solid fa-indian-rupee-sign"></i> Payments</a>
 
   {% endif %}
+
+  <div class="nav-section">Account</div>
+  <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-lock"></i> Profile</a>
+  <a class="nav-link" href="{% url 'accounts:logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
 
 </nav>
 {% endif %}

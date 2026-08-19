@@ -41,35 +41,120 @@
 </div>
 
 <script>
+  const userRolesMap = {{ user_roles_map|default:"{}"|safe }};
+  let originalReportsToOptions = null; // To store backup of original options
+
   document.addEventListener("DOMContentLoaded", function() {
     const roleField = document.getElementById("id_role");
     const deptDiv = document.getElementById("div_id_department");
     const specDiv = document.getElementById("div_id_speciality");
-    const hospDiv = document.getElementById("div_id_hospital"); // New logic for hospital
+    const hospDiv = document.getElementById("div_id_hospital");
+    const reportsToSelect = document.getElementById("id_reports_to");
+
+    // Backup original options
+    if (reportsToSelect) {
+      originalReportsToOptions = Array.from(reportsToSelect.options).map(opt => ({
+        value: opt.value,
+        text: opt.text,
+        selected: opt.selected
+      }));
+    }
 
     function toggleFields() {
-      if (roleField.value === "DOCTOR") {
-        if(deptDiv) deptDiv.style.display = "block";
-        if(specDiv) specDiv.style.display = "block";
-      } else {
-        if(deptDiv) deptDiv.style.display = "none";
-        if(specDiv) specDiv.style.display = "none";
+      if (!roleField) return;
+      
+      const isDoctor = roleField.value === "DOCTOR";
+      
+      if (deptDiv) deptDiv.style.display = isDoctor ? "block" : "none";
+      if (specDiv) specDiv.style.display = isDoctor ? "block" : "none";
+      
+      if (!isDoctor) {
         const deptSelect = document.getElementById("id_department");
         const specSelect = document.getElementById("id_speciality");
-        if(deptSelect) deptSelect.value = "";
-        if(specSelect) specSelect.value = "";
+        
+        if(deptSelect) {
+            deptSelect.value = "";
+            if (deptSelect.tomselect) deptSelect.tomselect.clear();
+        }
+        if(specSelect) {
+            specSelect.value = "";
+            if (specSelect.tomselect) specSelect.tomselect.clear();
+        }
       }
       
       // Superadmin Tenant logic
-      if (true) { // Show business dropdown for all roles so Zappcode admin can assign anyone to a business
-        if(hospDiv) hospDiv.style.display = "block";
-      } else {
-        if(hospDiv) hospDiv.style.display = "none";
+      if (hospDiv) hospDiv.style.display = "block";
+
+      // Hierarchy logic for reports_to
+      if (reportsToSelect && originalReportsToOptions) {
+        const selectedRole = roleField.value;
+        let allowedRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER"]; // default
+        
+        if (selectedRole === "ADMIN") {
+            allowedRoles = ["ADMIN", "SUPER_ADMIN"];
+        }
+
+        let currentValue = reportsToSelect.value;
+        let hasTomSelect = !!reportsToSelect.tomselect;
+        
+        if (hasTomSelect) {
+            currentValue = reportsToSelect.tomselect.getValue();
+            reportsToSelect.tomselect.destroy();
+        }
+
+        // Clear native select
+        reportsToSelect.innerHTML = "";
+        
+        let valueStillValid = false;
+
+        // Re-populate native select with allowed options
+        originalReportsToOptions.forEach(optData => {
+            if (optData.value === "") {
+                const opt = new Option(optData.text, optData.value);
+                reportsToSelect.add(opt);
+                return;
+            }
+            const userRole = userRolesMap[optData.value];
+            if (userRole && allowedRoles.includes(userRole)) {
+                const opt = new Option(optData.text, optData.value);
+                if (optData.value === currentValue) {
+                    opt.selected = true;
+                    valueStillValid = true;
+                }
+                reportsToSelect.add(opt);
+            }
+        });
+
+        if (!valueStillValid) {
+            reportsToSelect.value = "";
+        }
+
+        // Re-init Tom Select if it was there before, or let the footer init it if it's the first time
+        if (hasTomSelect && typeof TomSelect !== 'undefined') {
+            new TomSelect(reportsToSelect, {
+                create: false,
+                maxOptions: 100,
+                allowEmptyOption: true,
+                placeholder: reportsToSelect.getAttribute('placeholder') || 'Type to search...'
+            });
+        }
       }
     }
 
     if (roleField) {
+      // Listen to native change event (Tom Select triggers this)
       roleField.addEventListener("change", toggleFields);
+      
+      // Also bind to Tom Select event if initialized
+      setTimeout(() => {
+          if (roleField.tomselect) {
+              roleField.tomselect.on("change", toggleFields);
+          }
+          // The first time toggleFields runs, tomSelect on reports_to might not be initialized yet.
+          // Let's run toggleFields again after Tom Selects have initialized globally in footer
+          setTimeout(toggleFields, 100);
+      }, 500);
+
       toggleFields(); // Initial call
     }
   });
