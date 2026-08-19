@@ -1,6 +1,8 @@
 {% extends "base.html" %}
-{% block title %}All Leads{% endblock %}
+{% block title %}All Leads</div>
+{% endblock %}
 {% block content %}
+<div class="nelson-dashboard">
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h4 class="mb-0">All Leads</h4>
@@ -21,83 +23,121 @@
 </div>
 {% endif %}
 
-<form method="get" class="card p-3 mb-3">
-  <div class="row g-2">
-    <div class="col-md-2">
-      <input type="search" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ q }}">
-    </div>
-    <div class="col-md-2">
-      <select name="city" class="form-select form-select-sm">
-        <option value="">All Cities</option>
-        {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="source_category" class="form-select form-select-sm">
-        <option value="">All Source Categories</option>
-        {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="lead_source" class="form-select form-select-sm">
-        <option value="">All Lead Sources</option>
-        {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="course" class="form-select form-select-sm">
-        <option value="">All Courses</option>
-        {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-1">
-      <select name="stage" class="form-select form-select-sm">
-        <option value="">All Stages</option>
-        {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-1">
-      <select name="temperature" class="form-select form-select-sm">
-        <option value="">All Temps</option>
-        <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
-        <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
-        <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
-        <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
-        <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
-      </select>
-    </div>
+<form method="get" class="card p-4 mb-4 shadow-sm border-0" style="border-radius: 1rem;">
+  <h6 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-filter me-2"></i> Advanced Filters</h6>
+  <div class="row g-3">
+     <!-- Top row: Search, Dates, Assignee -->
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Search Keyword</label>
+       <input type="search" name="q" class="form-control" placeholder="Search name, phone, etc..." value="{{ q }}">
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date From</label>
+       <input type="date" name="date_from" class="form-control" value="{{ request_get.date_from }}">
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date To</label>
+       <input type="date" name="date_to" class="form-control" value="{{ request_get.date_to }}">
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Assigned To</label>
+       <select name="assigned_to" class="form-select">
+         <option value="">All Employees</option>
+         {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+       </select>
+     </div>
+
+     <!-- Second row: Campaigns & Sources -->
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Campaign</label>
+       <select name="campaign" class="form-select">
+         <option value="">All Campaigns</option>
+         {% if request.user.hospital %}
+           {% for c in hospital_campaigns %}<option value="{{ c.name }}" {% if request_get.campaign == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+         {% else %}
+           {% for c in campaigns %}<option value="{{ c.id }}" {% if request_get.campaign == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+         {% endif %}
+       </select>
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Source</label>
+       <select name="lead_source" class="form-select">
+         <option value="">All Lead Sources</option>
+         {% if request.user.hospital %}
+           {% for ls in hospital_sources %}<option value="{{ ls.name }}" {% if request_get.lead_source == ls.name %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
+         {% else %}
+           {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
+         {% endif %}
+       </select>
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Source Category</label>
+       <select name="source_category" class="form-select">
+         <option value="">All Source Categories</option>
+         {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
+       </select>
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Location (City)</label>
+       <select name="location" class="form-select">
+         <option value="">All Locations</option>
+         {% for l in locations %}<option value="{{ l }}" {% if request_get.location == l %}selected{% endif %}>{{ l }}</option>{% endfor %}
+       </select>
+     </div>
+     
+     <!-- Third row: Statuses -->
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Stage</label>
+       <select name="stage" class="form-select">
+         <option value="">All Stages</option>
+         {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+       </select>
+     </div>
+     <div class="col-md-2">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Course / Dept</label>
+       <select name="course" class="form-select">
+         <option value="">All Courses</option>
+         {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+       </select>
+     </div>
+     <div class="col-md-2">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Follow-up</label>
+       <select name="followup" class="form-select">
+         <option value="">All Follow-ups</option>
+         <option value="today" {% if request_get.followup == "today" %}selected{% endif %}>Due Today</option>
+         <option value="overdue" {% if request_get.followup == "overdue" %}selected{% endif %}>Overdue</option>
+       </select>
+     </div>
+     <div class="col-md-2">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Temperature</label>
+       <select name="temperature" class="form-select">
+         <option value="">All Temps</option>
+         <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
+         <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
+         <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
+         <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
+         <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
+       </select>
+     </div>
+     <div class="col-md-3">
+       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Deal Status</label>
+       <select name="deal_status" class="form-select">
+         <option value="">All Deal Statuses</option>
+         {% if request.user.hospital %}
+           {% for ds in hospital_statuses %}<option value="{{ ds.name }}" {% if request_get.deal_status == ds.name %}selected{% endif %}>{{ ds.name }}</option>{% endfor %}
+         {% else %}
+           <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+           <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+           <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+           <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+         {% endif %}
+       </select>
+     </div>
   </div>
-  <div class="row g-2 mt-1">
-    <div class="col-md-2">
-      <select name="deal_status" class="form-select form-select-sm">
-        <option value="">All Deal Statuses</option>
-        <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-        <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-        <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-        <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="assigned_to" class="form-select form-select-sm">
-        <option value="">All Assigned Employees</option>
-        {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="followup" class="form-select form-select-sm">
-        <option value="">All Follow-up Statuses</option>
-        <option value="today" {% if request_get.followup == "today" %}selected{% endif %}>Due Today</option>
-        <option value="overdue" {% if request_get.followup == "overdue" %}selected{% endif %}>Overdue</option>
-      </select>
-    </div>
-    <div class="col-md-2"><input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}"></div>
-    <div class="col-md-2"><input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}"></div>
-    <div class="col-md-2">
-      <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
-        <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
-      </div>
-    </div>
+  
+  <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+    <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary px-4 rounded-pill fw-bold">Reset Filters</a>
+    <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm fw-bold"><i class="fa-solid fa-filter me-2"></i> Apply Filters</button>
   </div>
 </form>
 
@@ -209,4 +249,5 @@ function jumpToPage() {
 }
 </script>
 {% endif %}
+</div>
 {% endblock %}

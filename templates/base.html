@@ -13,13 +13,13 @@
     --sidebar-w: 250px;
     --brand: #4f46e5;
     --brand-dark: #3730a3;
-    --bg: #f4f5fa;
+    --bg: #eef2ff;
     --card-border: #e7e8f0;
   }
   body{ background: var(--bg); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
   .sidebar{
     position: fixed; top:0; left:0; bottom:0; width: var(--sidebar-w);
-    background: linear-gradient(180deg,#1e1b3a,#151233); color:#cfd0e6; overflow-y:auto; z-index:1030;
+    background: linear-gradient(180deg, #1E1B4B, #0F172A); color:#cfd0e6; overflow-y:auto; z-index:1030;
     transition: transform .25s ease;
   }
   .sidebar .brand{ padding:1.1rem 1.2rem; font-weight:700; font-size:1.15rem; color:#fff; display:flex; align-items:center; gap:.5rem; border-bottom:1px solid rgba(255,255,255,.08);}
@@ -59,6 +59,71 @@
   .empty-state{ text-align:center; padding:3rem 1rem; color:#9ca3af;}
   .empty-state i{ font-size:2.4rem; margin-bottom:.75rem; display:block;}
   .toast-container{ z-index:1080; }
+  
+  .nelson-dashboard {
+      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+      color: #1e293b;
+      padding: 2rem;
+      border-radius: 1rem;
+      min-height: calc(100vh - 100px);
+  }
+  
+  .nelson-dashboard .card {
+      background: rgba(255, 255, 255, 0.7) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.6) !important;
+      border-radius: 1rem !important;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05) !important;
+  }
+  
+  .nelson-dashboard .card-header {
+      background: rgba(255, 255, 255, 0.4) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+  }
+
+  .nelson-dashboard table {
+      background: transparent !important;
+  }
+
+  .nelson-dashboard .table-light th {
+      background-color: rgba(79, 70, 229, 0.08) !important;
+      color: #4f46e5 !important;
+      font-weight: 700 !important;
+  }
+
+  .nelson-dashboard .table-hover tbody tr:hover td {
+      background-color: rgba(255, 255, 255, 0.5) !important;
+  }
+  
+  .nelson-dashboard tbody tr:nth-of-type(odd) {
+      background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .nelson-dashboard .form-control, .nelson-dashboard .form-select {
+      background-color: rgba(255, 255, 255, 0.8) !important;
+      border: 1px solid rgba(79, 70, 229, 0.2) !important;
+      border-radius: 0.6rem !important;
+      transition: all 0.3s ease !important;
+  }
+  
+  .nelson-dashboard .form-control:focus, .nelson-dashboard .form-select:focus {
+      background-color: #ffffff !important;
+      border-color: #818cf8 !important;
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15) !important;
+  }
+
+  .nelson-dashboard .form-check-input {
+      border: 2px solid #94a3b8 !important; /* Makes unchecked state clearly visible */
+      background-color: #ffffff;
+      cursor: pointer;
+  }
+  
+  .nelson-dashboard .form-check-input:checked {
+      background-color: #4f46e5 !important;
+      border-color: #4f46e5 !important;
+  }
+
   @media (max-width: 991px){
     .sidebar{ transform: translateX(-100%); }
     .sidebar.show{ transform: translateX(0); }

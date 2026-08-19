@@ -16,13 +16,27 @@
     var selectElements = root.querySelectorAll('select.form-select, select.tom-select');
     selectElements.forEach(function(el) {
       if (el.classList.contains('no-tom-select') || el.tomselect) return;
+      
       var isMultiple = el.hasAttribute('multiple');
+      var placeholderText = el.getAttribute('placeholder') || 'Type to search...';
+      
+      // If first option has value="", use its text as placeholder and hide it from the list
+      if (el.options.length > 0 && el.options[0].value === "") {
+        if (el.options[0].text.trim() !== "") {
+          placeholderText = el.options[0].text;
+          el.options[0].text = ""; // TomSelect uses empty text options as placeholders
+        }
+      }
+      
+      el.setAttribute('placeholder', placeholderText);
+
       new TomSelect(el, {
         create: false,
         plugins: isMultiple ? ['remove_button'] : [],
         maxOptions: 100,
-        placeholder: el.getAttribute('placeholder') || 'Type to search...',
-        allowEmptyOption: true,
+        placeholder: placeholderText,
+        allowEmptyOption: false,
+        dropdownParent: 'body'
       });
     });
   }

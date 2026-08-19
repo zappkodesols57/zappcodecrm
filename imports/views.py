@@ -324,16 +324,55 @@ def history(request):
 
 @login_required
 def export_leads(request):
-    if "download" not in request.GET:
+    is_hospital = bool(request.user.hospital)
+    is_download = request.GET.get("download") == "1"
+    is_preview = request.GET.get("preview") == "1"
+    
+    if not is_download and not is_preview:
         from leads.models import SourceCategory, LeadSource, Campaign, Course, LeadStage
         from accounts.models import User
-        source_categories = SourceCategory.objects.all()
-        lead_sources = LeadSource.objects.all()
-        campaigns = Campaign.objects.all()
-        courses = Course.objects.all()
-        stages = LeadStage.objects.all()
-        employees = User.objects.filter(is_active_employee=True)
-        distinct_cities = sorted(list(set(Lead.objects.exclude(city="").values_list("city", flat=True))))
+        
+        base_leads = Lead.objects.filter(is_archived=False)
+        if is_hospital:
+            base_leads = base_leads.filter(hospital=request.user.hospital)
+            
+        used_sc_ids = base_leads.values_list("source_category_id", flat=True).distinct()
+        used_stage_ids = base_leads.values_list("stage_id", flat=True).distinct()
+        used_emp_ids = base_leads.values_list("assigned_to_id", flat=True).distinct()
+        
+        source_categories = SourceCategory.objects.filter(id__in=used_sc_ids)
+        stages = LeadStage.objects.filter(id__in=used_stage_ids)
+        employees = User.objects.filter(id__in=used_emp_ids)
+        
+        nelson_locations = []
+        nelson_campaigns = []
+        nelson_lead_sources = []
+        nelson_deal_statuses = []
+        
+        if is_hospital:
+            from leads.models import MasterGroup
+            def get_master(name):
+                grp = MasterGroup.objects.filter(name=name).first()
+                if grp:
+                    return grp.items.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True)
+                return []
+            nelson_locations = get_master("Locations")
+            nelson_campaigns = get_master("Campaigns")
+            nelson_lead_sources = get_master("Lead Sources")
+            nelson_deal_statuses = get_master("Deal Statuses")
+            
+            lead_sources = []
+            campaigns = []
+            distinct_cities = []
+        else:
+            used_ls_ids = base_leads.values_list("lead_source_id", flat=True).distinct()
+            used_camp_ids = base_leads.values_list("campaign_id", flat=True).distinct()
+            lead_sources = LeadSource.objects.filter(id__in=used_ls_ids)
+            campaigns = Campaign.objects.filter(id__in=used_camp_ids)
+            distinct_cities = sorted(list(set(base_leads.exclude(city="").values_list("city", flat=True))))
+        
+        # Only include courses if it's not a hospital tenant
+        courses = Course.objects.all() if not is_hospital else []
         
         context = {
             "active": "export",
@@ -344,34 +383,71 @@ def export_leads(request):
             "stages": stages,
             "employees": employees,
             "cities": distinct_cities,
+            "is_hospital": is_hospital,
+            "nelson_locations": nelson_locations,
+            "nelson_campaigns": nelson_campaigns,
+            "nelson_lead_sources": nelson_lead_sources,
+            "nelson_deal_statuses": nelson_deal_statuses,
         }
         return render(request, "imports/export_leads_filter.html", context)
+
+
 
     from django.db.models import Q
     from leads.views import FK_FILTER_FIELDS, CHAR_FILTER_FIELDS
     leads = Lead.objects.select_related("course", "stage", "lead_source", "source_category", "assigned_to").filter(is_archived=False)
     
+    if is_hospital:
+        leads = leads.filter(hospital=request.user.hospital)
+        
     q = request.GET.get("q", "").strip()
     if q:
-        leads = leads.filter(
-            Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
-            | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
-            | Q(lead_source__name__icontains=q) | Q(campaign__name__icontains=q)
-        )
+        if is_hospital:
+            leads = leads.filter(
+                Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+                | Q(email__icontains=q) | Q(location__icontains=q)
+                | Q(custom_data__lead_source__icontains=q) | Q(custom_data__campaign__icontains=q)
+            )
+        else:
+            leads = leads.filter(
+                Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+                | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
+                | Q(lead_source__name__icontains=q) | Q(campaign__name__icontains=q)
+            )
         
     for field in FK_FILTER_FIELDS:
         val = request.GET.get(field)
         if val:
-            leads = leads.filter(**{f"{field}_id": val})
+            if is_hospital and field in ['campaign', 'lead_source']:
+                leads = leads.filter(**{f"custom_data__{field}": val})
+            else:
+                leads = leads.filter(**{f"{field}_id": val})
 
     for field in CHAR_FILTER_FIELDS:
         val = request.GET.get(field)
         if val:
             leads = leads.filter(**{field: val})
 
-    city = request.GET.get("city")
-    if city:
-        leads = leads.filter(city__iexact=city)
+    if is_hospital:
+        location = request.GET.get("location")
+        if location:
+            leads = leads.filter(location__iexact=location)
+            
+        deal_status = request.GET.get("deal_status")
+        if deal_status:
+            leads = leads.filter(custom_data__deal_status=deal_status)
+    else:
+        city = request.GET.get("city")
+        if city:
+            leads = leads.filter(city__iexact=city)
+        
+        deal_status = request.GET.get("deal_status")
+        if deal_status:
+            leads = leads.filter(deal_status=deal_status)
+            
+        admission_status = request.GET.get("admission_status")
+        if admission_status:
+            leads = leads.filter(admission_status=admission_status)
 
     def _parse_date_input(val):
         if not val:
@@ -391,17 +467,40 @@ def export_leads(request):
     if date_to:
         leads = leads.filter(inquiry_date__lte=date_to)
 
-    rows = []
-    for l in leads:
-        rows.append({
-            "Lead ID": l.lead_code, "Name": l.name, "Mobile": l.mobile, "Email": l.email,
-            "City": l.city, "Course": str(l.course or ""), "Source Category": str(l.source_category or ""),
-            "Lead Source": str(l.lead_source or ""), "Campaign": str(l.campaign or ""),
-            "Stage": str(l.stage), "Temperature": l.get_temperature_display(),
-            "Deal Status": l.get_deal_status_display(), "Admission Status": l.get_admission_status_display(),
-            "Inquiry Date": l.inquiry_date, "Assigned To": str(l.assigned_to or ""),
-            "Next Follow-up": l.next_followup_date, "Created At": l.created_at.strftime("%Y-%m-%d %H:%M"),
-        })
+    def build_row(l):
+        if is_hospital:
+            cd = l.custom_data or {}
+            return {
+                "Lead ID": l.lead_code, "Name": l.name, "Mobile": l.mobile, "Email": l.email,
+                "Location": l.location, "Source Category": str(l.source_category or ""),
+                "Lead Source": cd.get("lead_source", ""), "Campaign": cd.get("campaign", ""),
+                "Stage": str(l.stage), "Temperature": l.get_temperature_display(),
+                "Deal Status": cd.get("deal_status", ""),
+                "Inquiry Date": str(l.inquiry_date), "Assigned To": str(l.assigned_to or ""),
+                "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
+                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+        else:
+            return {
+                "Lead ID": l.lead_code, "Name": l.name, "Mobile": l.mobile, "Email": l.email,
+                "City": l.city, "Course": str(l.course or ""), "Source Category": str(l.source_category or ""),
+                "Lead Source": str(l.lead_source or ""), "Campaign": str(l.campaign or ""),
+                "Stage": str(l.stage), "Temperature": l.get_temperature_display(),
+                "Deal Status": l.get_deal_status_display(), "Admission Status": l.get_admission_status_display(),
+                "Inquiry Date": str(l.inquiry_date), "Assigned To": str(l.assigned_to or ""),
+                "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
+                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M"),
+            }
+
+    if is_preview:
+        total_count = leads.count()
+        preview_leads = leads.order_by("-id")[:10]
+        rows = [build_row(l) for l in preview_leads]
+        from django.http import JsonResponse
+        return JsonResponse({"total_count": total_count, "rows": rows})
+
+    # Download
+    rows = [build_row(l) for l in leads]
     df = pd.DataFrame(rows)
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="leads_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'

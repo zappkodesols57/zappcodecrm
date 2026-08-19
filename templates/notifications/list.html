@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}All Notifications{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold text-dark"><i class="fa-solid fa-bell text-warning me-2"></i> Notifications</h4>
+  <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="markAllAsRead()">
+    <i class="fa-solid fa-check-double me-1"></i> Mark All as Read
+  </button>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+  <div class="card-header bg-white fw-bold py-3 px-4 border-bottom">
+    <i class="fa-solid fa-clock-rotate-left me-2"></i> Last 30 Days
+  </div>
+  <div class="card-body p-0">
+    <div class="list-group list-group-flush rounded-bottom-4">
+      {% for n in notifications %}
+      <a href="{% if n.link %}{{ n.link }}{% else %}#{% endif %}" onclick="if(!{{ n.is_read|lower }}) { markRead({{ n.id }}); }" class="list-group-item list-group-item-action p-4 {% if not n.is_read %}bg-light border-start border-primary border-4{% endif %}">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+          <h6 class="mb-1 fw-bold {% if not n.is_read %}text-dark{% else %}text-secondary{% endif %}">
+            {{ n.title }}
+            {% if not n.is_read %}
+            <span class="badge bg-danger ms-2 rounded-pill" id="badge-{{ n.id }}">New</span>
+            {% endif %}
+          </h6>
+          <small class="text-muted"><i class="fa-regular fa-clock me-1"></i> {{ n.created_at|naturaltime }}</small>
+        </div>
+        <p class="mb-0 text-muted mt-2">{{ n.message }}</p>
+      </a>
+      {% empty %}
+      <div class="p-5 text-center text-muted">
+        <i class="fa-regular fa-bell-slash fs-1 mb-3 text-light"></i>
+        <h5>No Notifications</h5>
+        <p class="small">You're all caught up for the last 30 days.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function markRead(id) {
+    fetch(`/notifications/api/mark-read/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    }).then(response => {
+        if(response.ok) {
+            const badge = document.getElementById(`badge-${id}`);
+            if(badge) badge.remove();
+        }
+    });
+}
+
+function markAllAsRead() {
+    fetch(`/notifications/api/mark-all-read/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    }).then(response => {
+        if(response.ok) {
+            window.location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

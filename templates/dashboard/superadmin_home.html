@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}{{ request.user.hospital.name|default:'Hospital' }} Data Dashboard{% endblock %}
+{% block title %}{{ request.user.hospital.name|default:'Hospital' }} Overall Analytics{% endblock %}
 
 {% block extra_head %}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -8,7 +8,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* Base Variables matching the external CRM */
     :root {
         --primary: #4f46e5;
         --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
@@ -22,13 +21,15 @@
         --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     }
-    
+
     .nelson-dashboard {
         font-family: 'Outfit', sans-serif;
-        background-color: var(--bg-color);
+        background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
         color: var(--text-main);
-        padding-bottom: 2rem;
+        padding: 2rem;
+        border-radius: var(--radius-lg);
     }
+
 
     .card {
         background: var(--surface);
@@ -38,12 +39,7 @@
         transition: all 0.3s ease;
         padding: 1.5rem;
     }
-    .card:hover {
-        box-shadow: var(--shadow-md);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-    }
 
-    /* Insights Grid */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -52,54 +48,62 @@
     }
 
     .stat-card {
-        background: var(--surface);
+        background: #f1f5f9;
         border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        border: 1px solid var(--border);
         padding: 1.5rem;
         display: flex;
         align-items: center;
         gap: 1rem;
-        transition: all 0.3s ease;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+        cursor: pointer;
+        color: var(--text-main);
     }
+    
+    .stats-grid>a:nth-child(1) .stat-card, .stats-grid>div:nth-child(1) { background: linear-gradient(135deg, #fff0f5 0%, #ffe6ee 100%); }
+    .stats-grid>a:nth-child(2) .stat-card, .stats-grid>div:nth-child(2) { background: linear-gradient(135deg, #fff9e6 0%, #fff4cc 100%); }
+    .stats-grid>a:nth-child(3) .stat-card, .stats-grid>div:nth-child(3) { background: linear-gradient(135deg, #e6fffa 0%, #c6f6d5 100%); }
+    .stats-grid>a:nth-child(4) .stat-card, .stats-grid>div:nth-child(4) { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); }
+    .stats-grid>a:nth-child(5) .stat-card, .stats-grid>div:nth-child(5) { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
+
     .stat-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
-        border-color: rgba(139, 92, 246, 0.4);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
     }
 
     .stat-icon {
         width: 50px;
         height: 50px;
         border-radius: 12px;
-        background: var(--primary-gradient);
-        color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.75rem;
-        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+        font-size: 1.5rem;
+        color: white;
         flex-shrink: 0;
     }
 
     .stat-info {
-        min-width: 0;
-        flex: 1;
-    }
-    .stat-info h3 {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
-        white-space: nowrap;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
         overflow: hidden;
-        text-overflow: ellipsis;
+    }
+
+    .stat-info h3 {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+        white-space: normal;
+        line-height: 1.2;
     }
 
     .stat-info h2 {
-        color: var(--text-main);
         font-size: clamp(1.2rem, 2vw, 2rem);
         font-weight: 700;
         margin-bottom: 0;
@@ -110,32 +114,157 @@
 
     .charts-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 1.5rem;
     }
-    @media (max-width: 991px) {
-        .charts-grid { grid-template-columns: 1fr; }
+
+    .chart-card {
+        background: #f1f5f9;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        padding: 1.5rem;
+        color: #1e293b;
     }
+    
+    .charts-grid > .chart-card:nth-child(1) { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); }
+    .charts-grid > .chart-card:nth-child(2) { background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%); }
+    .charts-grid > .chart-card:nth-child(3) { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); }
+    .charts-grid > .chart-card:nth-child(4) { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); }
+    .charts-grid > .chart-card:nth-child(5) { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
+    .charts-grid > .chart-card:nth-child(6) { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); }
+
+    .chart-card h4 {
+        color: #1e293b !important; /* Ensure chart titles are readable */
+    }
+
+    .custom-funnel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        max-height: 280px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+    
+    .custom-funnel::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-funnel::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.1);
+        border-radius: 4px;
+    }
+
+    .funnel-stage {
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: var(--radius-md);
+        padding: 0.5rem 0.75rem;
+        border-left: 3px solid var(--primary);
+        position: relative;
+    }
+
+    .funnel-stage:not(:last-child)::after {
+        content: '↓';
+        position: absolute;
+        bottom: -0.6rem;
+        left: 2rem;
+        font-weight: bold;
+        color: rgba(0,0,0,0.3);
+        font-size: 0.9rem;
+        z-index: 10;
+    }
+
+    .funnel-stage-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        font-size: 0.9rem;
+        margin-right: 0.75rem;
+    }
+    
+    .funnel-stage-info {
+        flex-grow: 1;
+    }
+
+    .funnel-stage-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 0.1rem;
+    }
+
+    .funnel-stage-count {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 0;
+    }
+
+    .funnel-stage-stats {
+        display: flex;
+        gap: 0.5rem;
+        text-align: right;
+    }
+
+    .funnel-stat {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.7rem;
+    }
+
+    .funnel-stat-label {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .funnel-stat-value.conv { color: #10b981; font-weight: 600; }
+    .funnel-stat-value.drop { color: #ef4444; font-weight: 600; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="nelson-dashboard">
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
         <div>
-            <h3 class="fw-bold mb-1" style="color: var(--primary);">{{ request.user.hospital.name|default:'Hospital' }} Data Dashboard</h3>
-            <p class="text-muted mb-0">Overview and Analytics for {{ request.user.hospital.name|default:'Hospital' }} Leads</p>
+            <p class="text-muted mb-1 text-uppercase tracking-wider fw-bold"
+                style="letter-spacing: 1px; font-size: 0.85rem;">
+                👋 Welcome back, {{ request.user.get_full_name|default:request.user.username }}
+            </p>
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="fw-bold mb-1" style="color: #1e293b;">
+                    Overall Analytics
+                </h2>
+                {% if has_active_filters %}
+                <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold"
+                    title="Clear chart filters">
+                    <i class="ph ph-x me-1"></i> Clear Filters
+                </a>
+                {% endif %}
+            </div>
+            <p class="text-muted mb-0" style="font-size: 0.95rem;">Comprehensive 360° Overview for {{
+                request.user.hospital.name|default:'Hospital' }}</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'meta_ads:dashboard' %}" class="btn btn-outline-primary" style="border-radius: 50px; font-weight: 600;">
+            <a href="{% url 'meta_ads:dashboard' %}" class="btn btn-outline-primary"
+                style="border-radius: 50px; font-weight: 600;">
                 <i class="fa-brands fa-meta me-1"></i> Meta Ads
             </a>
             {% if not request.user.hospital %}
-            <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-primary" style="border-radius: 50px; font-weight: 600;">
+            <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-primary"
+                style="border-radius: 50px; font-weight: 600;">
                 <i class="ph ph-buildings me-1"></i> Manage Businesses
             </a>
             {% endif %}
-            <div style="background: white; padding: 0.5rem 1rem; border-radius: 50px; border: 2px solid var(--primary); font-weight: 600; color: var(--text-main);">
+            <div
+                style="background: white; padding: 0.5rem 1rem; border-radius: 50px; border: 2px solid var(--primary); font-weight: 600; color: var(--text-main);">
                 <i class="ph ph-calendar-blank me-2 text-primary"></i>{{ now|date:"l, j F Y" }}
             </div>
         </div>
@@ -152,17 +281,19 @@
                 <h2>{{ insights.total_leads|intcomma }}</h2>
             </div>
         </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
-                <i class="ph ph-calendar-check"></i>
+
+        <a href="{% url 'leads:lead_list' %}?appo_book=YES" class="text-decoration-none">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+                    <i class="ph ph-calendar-check"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Appointments Booked</h3>
+                    <h2>{{ insights.appointments_booked|intcomma }}</h2>
+                </div>
             </div>
-            <div class="stat-info">
-                <h3>Appts Booked</h3>
-                <h2>{{ insights.appointments_booked|intcomma }}</h2>
-            </div>
-        </div>
-        
+        </a>
+
         <div class="stat-card">
             <div class="stat-icon" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">
                 <i class="ph ph-trend-up"></i>
@@ -172,17 +303,19 @@
                 <h2>{{ insights.conversion_rate }}</h2>
             </div>
         </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);">
-                <i class="ph ph-currency-inr"></i>
+
+        <a href="{% url 'leads:lead_list' %}?has_revenue=1" class="text-decoration-none">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);">
+                    <i class="ph ph-currency-inr"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Total Revenue</h3>
+                    <h2>{{ insights.total_revenue|intcomma }}</h2>
+                </div>
             </div>
-            <div class="stat-info">
-                <h3>Total Revenue</h3>
-                <h2>{{ insights.total_revenue|intcomma }}</h2>
-            </div>
-        </div>
-        
+        </a>
+
         <div class="stat-card">
             <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);">
                 <i class="ph ph-user-plus"></i>
@@ -196,28 +329,39 @@
 
     <!-- Charts -->
     <div class="charts-grid mt-4">
-        <div class="card">
+        <div class="chart-card">
+            <h4 class="mb-3 fs-6 fw-bold">Conversion Funnel</h4>
+            <div id="customFunnelContainer" class="custom-funnel"></div>
+        </div>
+        <div class="chart-card">
             <h4 class="mb-3 fs-6 fw-bold">Leads Count by Gender</h4>
             <div style="position: relative; height: 260px; width: 100%;">
                 <canvas id="genderChart"></canvas>
             </div>
         </div>
-        <div class="card">
+        <div class="chart-card">
             <h4 class="mb-3 fs-6 fw-bold">Leads Count by Sources</h4>
             <div style="position: relative; height: 260px; width: 100%;">
                 <canvas id="sourceChart"></canvas>
             </div>
         </div>
-        <div class="card">
+        <div class="chart-card">
             <h4 class="mb-3 fs-6 fw-bold">Lead Priority Distribution</h4>
             <div style="position: relative; height: 260px; width: 100%;">
                 <canvas id="priorityChart"></canvas>
             </div>
         </div>
-        <div class="card">
+        <div class="chart-card">
             <h4 class="mb-3 fs-6 fw-bold">Campaign Performance</h4>
             <div style="position: relative; height: 260px; width: 100%;">
                 <canvas id="campaignChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h4 class="mb-3 fs-6 fw-bold">Month-wise Leads</h4>
+            <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="monthWiseChart"></canvas>
             </div>
         </div>
     </div>
@@ -226,33 +370,33 @@
 
 {% block extra_js %}
 <script>
-    const insights = JSON.parse('{{ insights_json|escapejs }}');
-    
+    const insights = {{ insights_json| safe }};
+
     // Global Chart.js Config
-    Chart.defaults.color = '#64748b';
+    Chart.defaults.color = '#1e293b'; // Dark color for better contrast on pastel backgrounds
     Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.05)';
     Chart.defaults.font.family = "'Outfit', sans-serif";
 
-    function renderChart(canvasId, dataObj, label, type = 'doughnut') {
+    function renderChart(canvasId, type, dataObj, customColors = null) {
         const ctx = document.getElementById(canvasId).getContext('2d');
-        const labels = Object.keys(dataObj);
-        const values = Object.values(dataObj);
-        
+        const labels = Object.keys(dataObj || {});
+        const values = Object.values(dataObj || {});
+
         if (type === 'bar') {
             // Sort highest to lowest
-            const sorted = labels.map((l, i) => ({l, v: values[i]})).sort((a,b) => b.v - a.v);
+            const sorted = labels.map((l, i) => ({ l, v: values[i] })).sort((a, b) => b.v - a.v);
             labels.length = 0; values.length = 0;
             sorted.forEach(item => { labels.push(item.l); values.push(item.v); });
         }
-        
+
         new Chart(ctx, {
             type: type,
             data: {
                 labels: labels,
                 datasets: [{
-                    label: label,
+                    label: 'Count',
                     data: values,
-                    backgroundColor: [
+                    backgroundColor: customColors || [
                         '#4F46E5', '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'
                     ]
                 }]
@@ -261,21 +405,127 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 indexAxis: type === 'bar' ? 'y' : 'x',
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const idx = elements[0].index;
+                        const clickedLabel = labels[idx];
+
+                        const urlParams = new URLSearchParams(window.location.search);
+                        let paramName = '';
+                        if (canvasId === 'genderChart') paramName = 'gender';
+                        else if (canvasId === 'sourceChart') paramName = 'source';
+                        else if (canvasId === 'priorityChart') paramName = 'priority';
+                        else if (canvasId === 'campaignChart') paramName = 'campaign';
+                        
+                        if (paramName) {
+                            urlParams.set(paramName, clickedLabel);
+                            window.location.search = urlParams.toString();
+                        }
+                    }
+                },
                 plugins: {
-                    legend: { 
+                    legend: {
                         position: type === 'bar' ? 'none' : 'bottom',
-                        display: type !== 'bar' 
+                        display: type !== 'bar'
                     }
                 }
             }
         });
     }
 
-    window.onload = () => {
-        renderChart('genderChart', insights.gender_distribution, 'Gender', 'pie');
-        renderChart('sourceChart', insights.source_distribution, 'Sources', 'bar');
-        renderChart('priorityChart', insights.priority_distribution, 'Priority', 'doughnut');
-        renderChart('campaignChart', insights.campaign_distribution, 'Campaign', 'doughnut');
-    };
+    function renderCustomFunnel(containerId, dataObj) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        const stages = [
+            { key: 'Leads', icon: 'ph-users' },
+            { key: 'Contacted', icon: 'ph-phone-call' },
+            { key: 'Follow-up', icon: 'ph-arrow-u-up-right' },
+            { key: 'Appointments', icon: 'ph-calendar-check' },
+            { key: 'Visits Completed', icon: 'ph-check-circle' },
+            { key: 'Active Patients', icon: 'ph-heartbeat' },
+            { key: 'Revenue', icon: 'ph-currency-inr' }
+        ];
+
+        let prevCount = null;
+
+        stages.forEach((stage, index) => {
+            const count = dataObj[stage.key] || 0;
+            let convRate = null;
+            let dropRate = null;
+
+            if (prevCount !== null && stage.key !== 'Revenue') {
+                if (prevCount > 0) {
+                    convRate = ((count / prevCount) * 100).toFixed(1);
+                    dropRate = (100 - convRate).toFixed(1);
+                } else {
+                    convRate = "0.0";
+                    dropRate = "0.0";
+                }
+            }
+
+            const isRevenue = stage.key === 'Revenue';
+            const displayCount = isRevenue ? `₹${count.toLocaleString('en-IN')}` : count.toLocaleString('en-IN');
+
+            let statsHtml = '';
+            if (convRate !== null) {
+                statsHtml = `
+                    <div class="funnel-stage-stats">
+                        <div class="funnel-stat">
+                            <span class="funnel-stat-label">Conversion</span>
+                            <span class="funnel-stat-value conv">↓ ${convRate}%</span>
+                        </div>
+                        <div class="funnel-stat">
+                            <span class="funnel-stat-label">Drop-off</span>
+                            <span class="funnel-stat-value drop">${dropRate}%</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const stageHtml = `
+                <div class="funnel-stage">
+                    <div class="funnel-stage-icon">
+                        <i class="ph ${stage.icon}"></i>
+                    </div>
+                    <div class="funnel-stage-info">
+                        <div class="funnel-stage-title">${stage.key}</div>
+                        <div class="funnel-stage-count">${displayCount}</div>
+                    </div>
+                    ${statsHtml}
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', stageHtml);
+            
+            if (!isRevenue) {
+                prevCount = count;
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        if(typeof Chart === 'undefined') {
+            console.error("Chart.js is not loaded.");
+            return;
+        }
+        renderChart('genderChart', 'pie', insights.gender_distribution, 
+            ['#F472B6', '#60A5FA', '#34D399', '#A78BFA', '#FBBF24']);
+        
+        renderChart('sourceChart', 'doughnut', insights.source_distribution, 
+            ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#14B8A6']);
+            
+        renderChart('priorityChart', 'bar', insights.priority_distribution, 
+            ['#EF4444', '#F59E0B', '#3B82F6', '#10B981']);
+            
+        renderChart('campaignChart', 'bar', insights.campaign_distribution, 
+            ['#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B']);
+
+        renderCustomFunnel('customFunnelContainer', insights.funnel_data);
+
+        renderChart('monthWiseChart', 'bar', insights.month_wise_leads, 
+            ['#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#0ea5e9'], false);
+    });
 </script>
 {% endblock %}

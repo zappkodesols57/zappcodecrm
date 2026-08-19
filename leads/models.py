@@ -131,6 +131,7 @@ class MasterItem(models.Model):
     Sub-Master Item belonging to a MasterGroup (e.g., 'B.Tech' under 'Qualifications').
     """
     group = models.ForeignKey(MasterGroup, on_delete=models.CASCADE, related_name="items")
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="master_items")
     name = models.CharField(max_length=150)
     code = models.CharField(max_length=50, blank=True, help_text="Optional short code or identifier")
     order = models.PositiveIntegerField(default=0, help_text="Sort order")
@@ -139,7 +140,7 @@ class MasterItem(models.Model):
 
     class Meta:
         ordering = ["order", "name"]
-        unique_together = ("group", "name")
+        unique_together = ("group", "name", "hospital")
         verbose_name = "Master Item"
         verbose_name_plural = "Master Items"
 

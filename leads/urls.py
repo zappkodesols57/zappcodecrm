@@ -32,4 +32,5 @@ urlpatterns = [
     path("universal-masters/item/<int:pk>/edit/", views.master_item_edit, name="master_item_edit"),
     path("universal-masters/item/<int:pk>/toggle/", views.master_item_toggle, name="master_item_toggle"),
     path("universal-masters/item/<int:pk>/delete/", views.master_item_delete, name="master_item_delete"),
+    path("universal-masters/import/", views.universal_master_import, name="universal_master_import"),
 ]

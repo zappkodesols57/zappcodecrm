@@ -121,15 +121,20 @@ class LeadStageForm(forms.ModelForm):
 
 class HospitalLeadForm(forms.ModelForm):
     # Medical & Demographic Fields
-    gender = forms.ChoiceField(choices=[('', 'Select'), ('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')], required=False)
+    gender = forms.ChoiceField(choices=[], required=False)
     age = forms.IntegerField(required=False)
-    department = forms.CharField(max_length=100, required=False)
-    doctor = forms.CharField(max_length=150, required=False)
-    appointment_status = forms.ChoiceField(choices=[('Not Booked', 'Not Booked'), ('Booked', 'Booked'), ('Cancelled', 'Cancelled')], required=False, initial='Not Booked')
+    department = forms.ChoiceField(choices=[], required=False)
+    doctor = forms.ChoiceField(choices=[], required=False)
+    appointment_status = forms.ChoiceField(choices=[], required=False)
     appo_booked_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     visit_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    priority = forms.ChoiceField(choices=[('', 'Select'), ('Hot', 'Hot'), ('Warm', 'Warm'), ('Cold', 'Cold')], required=False)
+    priority = forms.ChoiceField(choices=[], required=False)
     location = forms.ChoiceField(choices=[], required=False)
+    
+    # Custom Overrides for System Fields
+    deal_status = forms.ChoiceField(choices=[], required=False)
+    campaign = forms.ChoiceField(choices=[], required=False)
+    lead_source = forms.ChoiceField(choices=[], required=False)
     
     # Billing & ID
     uhid_id_no = forms.CharField(max_length=100, required=False, label="UHID ID NO")
@@ -153,8 +158,8 @@ class HospitalLeadForm(forms.ModelForm):
     class Meta:
         model = Lead
         fields = [
-            "name", "mobile", "location", "deal_status", 
-            "source_category", "lead_source", "campaign", "assigned_to", "notes"
+            "name", "mobile", "location", 
+            "source_category", "assigned_to", "notes"
         ]
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 3}),
@@ -167,7 +172,7 @@ class HospitalLeadForm(forms.ModelForm):
         # Load JSON fields into form
         if self.instance and self.instance.pk and self.instance.custom_data:
             cd = self.instance.custom_data
-            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3']:
+            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source']:
                 if field in cd:
                     self.fields[field].initial = cd[field]
 
@@ -175,22 +180,41 @@ class HospitalLeadForm(forms.ModelForm):
         if user and not user.can_assign_leads:
             if "assigned_to" in self.fields:
                 self.fields.pop("assigned_to")
+        elif "assigned_to" in self.fields:
+            if user and user.hospital:
+                self.fields["assigned_to"].queryset = self.fields["assigned_to"].queryset.filter(hospital=user.hospital)
+            self.fields["assigned_to"].empty_label = "Select Assignee"
                 
         # Filter Master Data
         try:
             from leads.models import MasterGroup
-            group, _ = MasterGroup.objects.get_or_create(name="Locations")
-            items = group.items.filter(is_active=True).values_list("name", "name")
-            self.fields["location"].choices = [("", "Select Location (City, State)")] + list(items)
+            
+            # Helper to filter items based on tenant
+            def get_tenant_items(group_name):
+                group, _ = MasterGroup.objects.get_or_create(name=group_name)
+                items = group.items.filter(is_active=True)
+                if user and user.hospital:
+                    items = items.filter(hospital=user.hospital)
+                else:
+                    items = items.filter(hospital__isnull=True)
+                return list(items.values_list("name", "name"))
+            
+            self.fields["location"].choices = [("", "Select Location (City, State)")] + get_tenant_items("Locations")
+            self.fields["department"].choices = [("", "Select Department")] + get_tenant_items("Departments")
+            self.fields["doctor"].choices = [("", "Select Doctor")] + get_tenant_items("Doctors")
+            
+            self.fields["gender"].choices = [("", "Select Gender")] + get_tenant_items("Genders")
+            self.fields["priority"].choices = [("", "Select Priority")] + get_tenant_items("Priorities")
+            self.fields["appointment_status"].choices = [("", "Select Status")] + get_tenant_items("Appointment Statuses")
+            
+            self.fields["deal_status"].choices = [("", "Select Deal Status")] + get_tenant_items("Deal Statuses")
+            self.fields["campaign"].choices = [("", "Select Campaign")] + get_tenant_items("Campaigns")
+            self.fields["lead_source"].choices = [("", "Select Lead Source")] + get_tenant_items("Lead Sources")
         except Exception:
             pass
 
         if "source_category" in self.fields:
             self.fields["source_category"].queryset = SourceCategory.objects.filter(is_active=True).order_by("order", "name")
-        if "lead_source" in self.fields:
-            self.fields["lead_source"].queryset = LeadSource.objects.filter(is_active=True).order_by("order", "name")
-        if "campaign" in self.fields:
-            self.fields["campaign"].queryset = Campaign.objects.filter(is_active=True).order_by("-id")
             
         for name, field in self.fields.items():
             css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
@@ -201,7 +225,7 @@ class HospitalLeadForm(forms.ModelForm):
         cd = instance.custom_data or {}
         
         # Extract custom fields
-        custom_fields = ['gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'remark_1', 'remark_2', 'remark_3']
+        custom_fields = ['gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source']
         date_time_fields = ['appo_booked_date', 'visit_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'calling_date_remark_3']
         
         for field in custom_fields:

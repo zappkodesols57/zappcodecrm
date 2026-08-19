@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Users & Team Management{% endblock %}
 {% block content %}
+<div class="nelson-dashboard">
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -80,7 +81,7 @@
           <td>
             <strong class="text-dark">{{ u.get_full_name|default:u.username }}</strong>
             {% if u.email %}<div class="small text-muted">{{ u.email }}</div>{% endif %}
-            {% if u.hospital %}<div class="small fw-bold mt-1" style="color: var(--brand);"><i class="fa-solid fa-hospital-user"></i> {{ u.hospital.name }}</div>{% endif %}
+            {% if u.hospital and not request.user.hospital %}<div class="small fw-bold mt-1" style="color: var(--brand);"><i class="fa-solid fa-hospital-user"></i> {{ u.hospital.name }}</div>{% endif %}
           </td>
           <td><code>{{ u.username }}</code></td>
           <td>
@@ -140,4 +141,5 @@
   </div>
 </div>
 
+</div>
 {% endblock %}
