@@ -30,7 +30,7 @@ def clean_date(val):
 
 def import_data():
     file_path_local = 'F:/NELSON LEAD  (5).xlsx'
-    file_path_server = '/root/zappcodecrm/NELSON_LEAD.xlsx'
+    file_path_server = '/var/www/zappcodecrm/NELSON_LEAD.xlsx'
     
     file_path = file_path_local if os.path.exists(file_path_local) else file_path_server
     
@@ -67,6 +67,9 @@ def import_data():
             course, _ = Course.objects.get_or_create(name=department_name)
             
         inquiry_date = clean_date(row.get('DATE'))
+        if not inquiry_date:
+            inquiry_date = datetime.now().date()
+        
         campaign_name = clean_val(row.get('CAMPAIGN NAME', ''))
         
         # Create Lead
