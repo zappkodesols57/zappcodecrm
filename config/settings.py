@@ -201,8 +201,11 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 
+# ─── Log directory ──────────────────────────────────────────────────────────
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
 
-# Logging Configuration
+# Logging Configuration — rotating file so it never grows unbounded
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -219,9 +222,12 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'django.log'),
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django.log',
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB per file
+            'backupCount': 3,              # keep last 3 rotated files
             'formatter': 'verbose',
+            'encoding': 'utf-8',
         },
         'console': {
             'level': 'INFO',
@@ -235,10 +241,24 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        'django.security.DisallowedHost': {
+            'handlers': [],         # silence noisy bot requests
+            'propagate': False,
+        },
         'api': {
             'handlers': ['file', 'console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
+        },
+        'meta_ads': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'leads': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }
