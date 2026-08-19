@@ -53,7 +53,7 @@
       {% csrf_token %}
       
       {% for field in form %}
-        <div class="mb-3">
+        <div class="mb-3" id="div_id_{{ field.name }}">
           <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
           {{ field }}
           {% if field.help_text %}
@@ -70,5 +70,31 @@
     </div>
   </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const roleField = document.getElementById("id_role");
+    const deptDiv = document.getElementById("div_id_department");
+    const specDiv = document.getElementById("div_id_speciality");
+
+    function toggleFields() {
+      if (!roleField) return;
+      const isDoctor = roleField.value === "DOCTOR";
+      if (deptDiv) deptDiv.style.display = isDoctor ? "block" : "none";
+      if (specDiv) specDiv.style.display = isDoctor ? "block" : "none";
+      
+      if (!isDoctor) {
+        const deptSelect = document.getElementById("id_department");
+        const specSelect = document.getElementById("id_speciality");
+        if(deptSelect) deptSelect.value = "";
+        if(specSelect) specSelect.value = "";
+      }
+    }
+
+    if (roleField) {
+      roleField.addEventListener("change", toggleFields);
+      toggleFields(); // Initial call
+    }
+  });
+</script>
 </body>
 </html>

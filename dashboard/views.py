@@ -11,6 +11,7 @@ from django.utils import timezone
 from leads.models import Lead, LeadSource, SourceCategory, Course, Campaign, LeadStage
 from admissions.models import Admission
 from payments.models import Payment, PaymentStatus
+from accounts.models import User
 
 
 @login_required
@@ -720,3 +721,145 @@ def management_daily_reports(request):
         "employees": employees,
         "request_get": request.GET,
     })
+
+@login_required
+def telecaller_home(request):
+    if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+    return render(request, "dashboard/telecaller_home.html", {"active": "telecaller_dashboard"})
+
+@login_required
+def placeholder_view(request, module_name):
+    # This acts as a dummy view for all incomplete telecaller modules
+    return render(request, "dashboard/placeholder.html", {"active": module_name, "module_name": module_name.replace("_", " ").title()})
+
+@login_required
+def telecaller_search(request):
+    from accounts.models import User
+    from leads.models import Lead, DealStatus, AdmissionStatus
+    from django.db.models import Q
+    import csv
+    from django.http import HttpResponse
+
+    if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+
+    leads = Lead.objects.filter(hospital=request.user.hospital).order_by('-inquiry_date')
+
+    # Get Filter Parameters
+    q = request.GET.get('q', '').strip()
+    date_filter = request.GET.get('date', '')
+    status_filter = request.GET.get('status', '')
+    converted_filter = request.GET.get('converted', '')
+    doctor_filter = request.GET.get('doctor', '').strip()
+    disease_filter = request.GET.get('disease', '').strip()
+    priority_filter = request.GET.get('priority', '').strip()
+
+    # Apply Filters
+    if q:
+        leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q))
+    if date_filter:
+        leads = leads.filter(inquiry_date=date_filter)
+    if status_filter:
+        leads = leads.filter(deal_status=status_filter)
+    if converted_filter == '1':
+        leads = leads.filter(admission_status=AdmissionStatus.ADMISSION_DONE)
+    if doctor_filter:
+        leads = leads.filter(custom_data__doctor__icontains=doctor_filter)
+    if disease_filter:
+        leads = leads.filter(custom_data__disease__icontains=disease_filter)
+    if priority_filter:
+        leads = leads.filter(custom_data__priority__iexact=priority_filter)
+
+    # Export Logic
+    if request.GET.get('export') == '1':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="filtered_leads.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Patient Name', 'Mobile', 'Date', 'Status', 'Doctor', 'Disease', 'Priority', 'Converted'])
+        
+        for lead in leads:
+            is_converted = 'Yes' if lead.admission_status == AdmissionStatus.ADMISSION_DONE else 'No'
+            writer.writerow([
+                lead.name,
+                lead.mobile,
+                lead.inquiry_date.strftime('%Y-%m-%d') if lead.inquiry_date else '',
+                lead.get_deal_status_display(),
+                lead.custom_data.get('doctor', ''),
+                lead.custom_data.get('disease', ''),
+                lead.custom_data.get('priority', ''),
+                is_converted
+            ])
+        return response
+
+    context = {
+        'leads': leads,
+        'active': 'search_filter',
+        'filters': {
+            'q': q,
+            'date': date_filter,
+            'status': status_filter,
+            'converted': converted_filter,
+            'doctor': doctor_filter,
+            'disease': disease_filter,
+            'priority': priority_filter
+        },
+        'deal_statuses': DealStatus.choices
+    }
+    return render(request, "dashboard/telecaller_search.html", context)
+
+@login_required
+def telecaller_appointments(request):
+    from accounts.models import User
+    from leads.models import Appointment
+    
+    if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+        
+    # Mark appointment logic
+    if request.method == "POST":
+        apt_id = request.POST.get('appointment_id')
+        action = request.POST.get('action')
+        apt = get_object_or_404(Appointment, pk=apt_id, hospital=request.user.hospital)
+        if action in ['COMPLETED', 'CANCELLED', 'NO_SHOW']:
+            apt.status = action
+            apt.save(update_fields=['status'])
+            messages.success(request, f"Appointment marked as {action.capitalize()}.")
+        return redirect('dashboard:telecaller_appointments')
+
+    # Get appointments for this hospital
+    appointments = Appointment.objects.filter(hospital=request.user.hospital).select_related('lead').order_by('-appointment_date', '-appointment_time')
+    
+    context = {
+        'appointments': appointments,
+        'active': 'apt_management',
+    }
+    return render(request, "dashboard/telecaller_appointments.html", context)
+
+@login_required
+def telecaller_my_leads(request):
+    from accounts.models import User
+    from leads.models import Lead
+    from django.db.models import Q
+    
+    if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+        
+    # Get leads strictly assigned to the current user, ordered by most recently updated
+    leads = Lead.objects.filter(assigned_to=request.user).order_by('-updated_at')
+    
+    # Search logic
+    q = request.GET.get('q', '').strip()
+    if q:
+        leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q))
+        
+    context = {
+        'leads': leads,
+        'q': q,
+        'active': 'my_leads',
+    }
+    return render(request, "dashboard/telecaller_my_leads.html", context)

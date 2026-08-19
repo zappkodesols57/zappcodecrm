@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}Lead Form{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1">
+            <i class="fa-solid fa-notes-medical me-2"></i> Lead Form
+        </h3>
+        <p class="text-muted mb-0">Fill in patient information for {{ request.user.hospital.name }}</p>
+    </div>
+    <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'dashboard:telecaller_my_leads' %}{% endif %}" class="btn btn-light border shadow-sm px-4 rounded-pill">
+        <i class="fa-solid fa-arrow-left me-2"></i> Back
+    </a>
+</div>
+
+{% if form.errors %}
+<div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
+    <div class="d-flex align-items-center mb-2">
+        <i class="fa-solid fa-triangle-exclamation fa-2x me-3"></i>
+        <h6 class="mb-0 fw-bold">Please correct the errors below.</h6>
+    </div>
+    <ul class="mb-0 mt-2 text-sm text-danger">
+        {% for field in form %}
+            {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+            {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="POST" class="needs-validation">
+    {% csrf_token %}
+    
+    <div class="row g-4">
+        <!-- Patient Info Section -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="fw-bold text-dark"><i class="fa-solid fa-user-injured text-info me-2"></i> Patient Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Patient Name *</label>
+                            {{ form.name }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Age</label>
+                            {{ form.age }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Gender</label>
+                            {{ form.gender }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Mobile No *</label>
+                            {{ form.mobile }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Location</label>
+                            {{ form.location }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4 text-muted opacity-25">
+
+                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-stethoscope text-primary me-2"></i> Medical Details</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Department</label>
+                            {{ form.department }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Doctor</label>
+                            {{ form.doctor }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Priority</label>
+                            {{ form.priority }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Investigation</label>
+                            {{ form.investigation }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Appointment Status</label>
+                            {{ form.appointment_status }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Visit Date</label>
+                            {{ form.visit_date }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System & Status Section -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="fw-bold text-dark"><i class="fa-solid fa-server text-secondary me-2"></i> System & Status</h5>
+                </div>
+                <div class="card-body bg-light rounded-bottom-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Status / Temperature</label>
+                        {{ form.deal_status }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Assigned To</label>
+                        {{ form.assigned_to }}
+                        <div class="form-text small"><i class="fa-solid fa-lock text-muted me-1"></i> Assignment locked</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Campaign Name</label>
+                        {{ form.campaign }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Lead Source</label>
+                        {{ form.lead_source }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Billing & IDs Section -->
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i> Billing & Registration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">UHID ID NO</label>
+                            {{ form.uhid_id_no }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">IPD NO</label>
+                            {{ form.ipd_no }}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Pharmacy Bill</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">₹</span>
+                                {{ form.pharmacy_bill }}
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase">OPD Bill</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">₹</span>
+                                {{ form.opd_bill }}
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase text-danger">Total Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-danger text-white border-end-0">₹</span>
+                                {{ form.total }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Remarks Tracking -->
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="fw-bold text-dark"><i class="fa-regular fa-comments text-warning me-2"></i> Telecaller Remarks</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <!-- Remark 1 -->
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded-3 h-100 border border-light-subtle">
+                                <h6 class="fw-bold text-muted small text-uppercase mb-3">Call Attempt 1</h6>
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted">Calling Date</label>
+                                    {{ form.calling_date_remark_1 }}
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted">Remark 1</label>
+                                    {{ form.remark_1 }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Remark 2 -->
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded-3 h-100 border border-light-subtle">
+                                <h6 class="fw-bold text-muted small text-uppercase mb-3">Call Attempt 2</h6>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted">Date</label>
+                                        {{ form.calling_date_remark_2 }}
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted">Time</label>
+                                        {{ form.calling_time_remark_2 }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted">Remark 2</label>
+                                    {{ form.remark_2 }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Remark 3 -->
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded-3 h-100 border border-light-subtle">
+                                <h6 class="fw-bold text-muted small text-uppercase mb-3">Call Attempt 3</h6>
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted">Calling Date</label>
+                                    {{ form.calling_date_remark_3 }}
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted">Remark 3</label>
+                                    {{ form.remark_3 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4 text-muted opacity-25">
+                    
+                    <div>
+                        <label class="form-label small fw-bold text-muted text-uppercase">General Comments</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Action Buttons Fixed at Bottom -->
+    <div class="position-sticky bottom-0 bg-white p-3 border-top shadow-lg rounded-top-4 mt-4 text-end z-index-3">
+        <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
+            <i class="fa-solid fa-floppy-disk me-2"></i> Save Patient Information
+        </button>
+    </div>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const inputs = document.querySelectorAll('.form-control, .form-select');
+        inputs.forEach(input => {
+            input.classList.add('shadow-sm', 'border-light-subtle');
+        });
+        
+        // Make the total auto calculate if pharmacy and opd are entered
+        const pharmacy = document.querySelector('input[name="pharmacy_bill"]');
+        const opd = document.querySelector('input[name="opd_bill"]');
+        const total = document.querySelector('input[name="total"]');
+        
+        function calcTotal() {
+            let p = parseFloat(pharmacy.value) || 0;
+            let o = parseFloat(opd.value) || 0;
+            total.value = (p + o).toFixed(2);
+        }
+        
+        if(pharmacy && opd && total) {
+            pharmacy.addEventListener('input', calcTotal);
+            opd.addEventListener('input', calcTotal);
+        }
+    });
+</script>
+
+{% endblock %}

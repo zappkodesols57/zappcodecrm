@@ -25,7 +25,13 @@ def portal_select(request):
 def _role_redirect(user):
     """Return a redirect response based on user role."""
     if user.hospital:
-        return redirect("dashboard:superadmin_home")
+        if user.role == User.Role.SUPER_ADMIN:
+            return redirect("dashboard:superadmin_home")
+        if user.role == User.Role.LEAD_ATTENDENT:
+            return redirect("dashboard:telecaller_home")
+        if user.role == User.Role.MANAGER:
+            return redirect("dashboard:management_home")
+        return redirect("dashboard:home")
     if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         return redirect("dashboard:management_home")
     return redirect("dashboard:home")
@@ -128,7 +134,18 @@ def user_add(request):
             return redirect("accounts:user_list")
     else:
         form = CRMUserCreateForm(user=request.user)
-    return render(request, "accounts/user_form.html", {"active": "users", "form": form, "mode": "Add"})
+        
+    import json
+    # Pass user roles mapping for frontend JS filtering
+    reports_to_queryset = form.fields["reports_to"].queryset
+    user_roles_map = {str(u.id): u.role for u in reports_to_queryset}
+    
+    return render(request, "accounts/user_form.html", {
+        "active": "users", 
+        "form": form, 
+        "mode": "Add",
+        "user_roles_map": json.dumps(user_roles_map)
+    })
 
 
 @login_required
@@ -144,7 +161,18 @@ def user_edit(request, pk):
             return redirect("accounts:user_list")
     else:
         form = CRMUserEditForm(instance=obj, user=request.user)
-    return render(request, "accounts/user_form.html", {"active": "users", "form": form, "mode": "Edit", "obj": obj})
+        
+    import json
+    reports_to_queryset = form.fields["reports_to"].queryset
+    user_roles_map = {str(u.id): u.role for u in reports_to_queryset}
+    
+    return render(request, "accounts/user_form.html", {
+        "active": "users", 
+        "form": form, 
+        "mode": "Edit", 
+        "obj": obj,
+        "user_roles_map": json.dumps(user_roles_map)
+    })
 
 
 @login_required
@@ -412,3 +440,37 @@ def business_edit(request, pk):
     else:
         form = BusinessForm(instance=business)
     return render(request, "accounts/business_form.html", {"form": form, "mode": "Edit"})
+
+@login_required
+def user_profile(request):
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.forms import PasswordChangeForm
+    from .forms import UserProfileForm
+
+    if request.method == 'POST':
+        if 'update_profile' in request.POST:
+            profile_form = UserProfileForm(request.POST, request.FILES, instance=request.user)
+            password_form = PasswordChangeForm(request.user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, 'Your profile has been updated successfully!')
+                return redirect('accounts:profile')
+        elif 'update_password' in request.POST:
+            profile_form = UserProfileForm(instance=request.user)
+            password_form = PasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)  # Keeps the user logged in
+                messages.success(request, 'Your password was successfully updated!')
+                return redirect('accounts:profile')
+            else:
+                messages.error(request, 'Please correct the error below in the password form.')
+    else:
+        profile_form = UserProfileForm(instance=request.user)
+        password_form = PasswordChangeForm(request.user)
+
+    return render(request, 'accounts/profile.html', {
+        'profile_form': profile_form,
+        'password_form': password_form,
+        'active': 'profile'
+    })
