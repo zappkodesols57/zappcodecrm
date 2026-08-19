@@ -19,18 +19,22 @@ from .forms import (
 
 
 def _can_edit_lead(user, lead):
-    from accounts.models import User
-    if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+    if user.can_edit_any_lead:
         return True
-    return lead.assigned_to == user
+    if user.can_edit_own_leads and lead.assigned_to == user:
+        return True
+    return False
 
 def _can_access_lead(user, lead):
-    from accounts.models import User
-    if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+    if user.can_view_all_leads:
         return True
-    if user.role == User.Role.LEAD_ATTENDENT and user.hospital == lead.hospital:
+    if user.can_view_team_leads:
+        team = User.objects.filter(reports_to=user)
+        if lead.assigned_to == user or lead.assigned_to in team:
+            return True
+    if user.can_view_assigned_leads and lead.assigned_to == user:
         return True
-    return lead.assigned_to == user
+    return False
 
 
 FK_FILTER_FIELDS = [
@@ -47,10 +51,18 @@ def lead_list(request):
         "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
     ).filter(is_archived=False)
 
-    if request.user.role in ('COUNSELLOR', 'HR'):
-        leads = leads.filter(assigned_to=request.user)
-    elif request.user.hospital:
+    if request.user.hospital:
         leads = leads.filter(hospital=request.user.hospital)
+        
+        if not request.user.can_view_all_leads:
+            if request.user.can_view_team_leads:
+                # View leads assigned to team members reporting to this user
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+            elif request.user.can_view_assigned_leads:
+                leads = leads.filter(assigned_to=request.user)
+            else:
+                leads = leads.none()
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -65,7 +77,10 @@ def lead_list(request):
             continue
         val = request.GET.get(field)
         if val:
-            leads = leads.filter(**{f"{field}_id": val})
+            if request.user.hospital and field in ['campaign', 'lead_source', 'source_category']:
+                leads = leads.filter(**{f"custom_data__{field}": val})
+            else:
+                leads = leads.filter(**{f"{field}_id": val})
 
     import_job_id = request.GET.get("import_job")
     selected_import_job = None
@@ -81,11 +96,18 @@ def lead_list(request):
     for field in CHAR_FILTER_FIELDS:
         val = request.GET.get(field)
         if val:
-            leads = leads.filter(**{field: val})
+            if request.user.hospital and field in ['deal_status', 'temperature', 'admission_status']:
+                leads = leads.filter(**{f"custom_data__{field}": val})
+            else:
+                leads = leads.filter(**{field: val})
 
     city = request.GET.get("city")
     if city:
         leads = leads.filter(city__iexact=city)
+        
+    location = request.GET.get("location")
+    if location:
+        leads = leads.filter(location__iexact=location)
 
     def _parse_date_input(val):
         if not val:
@@ -111,6 +133,23 @@ def lead_list(request):
     elif followup_filter == "today":
         leads = leads.filter(next_followup_date=today)
 
+    is_nelson = not request.user.hospital or 'nelson' in request.user.hospital.name.lower()
+
+    appo_book = request.GET.get("appo_book")
+    if appo_book == "YES":
+        if is_nelson:
+            leads = leads.filter(nelson_data__appo_book__iexact="YES")
+        else:
+            leads = leads.filter(custom_data__appo_book__iexact="YES")
+
+    has_revenue = request.GET.get("has_revenue")
+    if has_revenue == "1":
+        if is_nelson:
+            leads = leads.filter(nelson_data__total__gt=0)
+        else:
+            # Exclude strings like "0.00", "0" if they are accidentally stored in custom_data
+            leads = leads.exclude(custom_data__total__in=["0", "0.00", "", 0, 0.0]).filter(custom_data__total__isnull=False)
+
     paginator = Paginator(leads, 25)
     page = paginator.get_page(request.GET.get("page"))
 
@@ -131,6 +170,7 @@ def lead_list(request):
     used_emp_ids = active_leads.values_list("assigned_to_id", flat=True).distinct()
 
     distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
+    distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
     
     import_job_id = request.GET.get("import_job")
     selected_import_job = None
@@ -150,10 +190,21 @@ def lead_list(request):
         "campaigns": Campaign.objects.filter(id__in=used_camp_ids),
         "courses": Course.objects.filter(id__in=used_course_ids),
         "stages": LeadStage.objects.filter(id__in=used_stage_ids),
-        "employees": User.objects.filter(id__in=used_emp_ids),
         "cities": distinct_cities,
+        "locations": distinct_locations,
         "request_get": request.GET,
     }
+
+    if request.user.hospital:
+        context["employees"] = User.objects.filter(hospital=request.user.hospital, is_active=True, is_approved=True)
+    else:
+        context["employees"] = User.objects.filter(is_active=True, is_approved=True)
+
+    if request.user.hospital:
+        context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=request.user.hospital)
+        context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
+        context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
+
     return render(request, "leads/lead_list.html", context)
 
 
@@ -498,7 +549,12 @@ def universal_master_list(request):
     if not selected_group and groups.exists():
         selected_group = groups.first()
 
-    items = selected_group.items.all() if selected_group else []
+    items = []
+    if selected_group:
+        if request.user.hospital:
+            items = selected_group.items.filter(hospital=request.user.hospital)
+        else:
+            items = selected_group.items.filter(hospital__isnull=True)
 
     return render(request, "leads/universal_masters.html", {
         "active": "universal_masters",
@@ -570,7 +626,8 @@ def master_item_add(request):
 
         if name:
             item, created = MasterItem.objects.get_or_create(
-                group=group, name=name, defaults={"code": code, "order": order, "is_active": True}
+                group=group, name=name, hospital=request.user.hospital, 
+                defaults={"code": code, "order": order, "is_active": True}
             )
             if created:
                 messages.success(request, f"Sub-Master item '{name}' added to {group.name}.")
@@ -585,6 +642,10 @@ def master_item_add(request):
 @user_passes_test(lambda u: u.can_manage_masters)
 def master_item_edit(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
+    if item.hospital != request.user.hospital:
+        messages.error(request, "You do not have permission to edit this item.")
+        return redirect("leads:universal_masters")
+        
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
@@ -610,6 +671,10 @@ def master_item_edit(request, pk):
 @user_passes_test(lambda u: u.can_manage_masters)
 def master_item_toggle(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
+    if item.hospital != request.user.hospital:
+        messages.error(request, "You do not have permission to modify this item.")
+        return redirect("leads:universal_masters")
+        
     item.is_active = not item.is_active
     item.save(update_fields=["is_active"])
     messages.success(request, f"Status for '{item.name}' changed to {'Active' if item.is_active else 'Inactive'}.")
@@ -620,11 +685,56 @@ def master_item_toggle(request, pk):
 @user_passes_test(lambda u: u.can_manage_masters)
 def master_item_delete(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
+    if item.hospital != request.user.hospital:
+        messages.error(request, "You do not have permission to delete this item.")
+        return redirect("leads:universal_masters")
+        
     group_id = item.group.pk
     name = item.name
     item.delete()
     messages.success(request, f"Sub-Master item '{name}' deleted.")
     return redirect(f"/leads/universal-masters/?group_id={group_id}")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def universal_master_import(request):
+    if request.method == "POST" and request.FILES.get("import_file"):
+        import pandas as pd
+        excel_file = request.FILES["import_file"]
+        
+        try:
+            if excel_file.name.endswith('.csv'):
+                df = pd.read_csv(excel_file)
+            else:
+                df = pd.read_excel(excel_file)
+                
+            items_created = 0
+            
+            for column in df.columns:
+                group_name = str(column).strip()
+                if not group_name or group_name.lower() == 'unnamed':
+                    continue
+                    
+                group, _ = MasterGroup.objects.get_or_create(name=group_name)
+                
+                for value in df[column].dropna():
+                    item_name = str(value).strip()
+                    if item_name:
+                        item, created = MasterItem.objects.get_or_create(
+                            group=group, 
+                            name=item_name, 
+                            hospital=request.user.hospital,
+                            defaults={"is_active": True}
+                        )
+                        if created:
+                            items_created += 1
+                            
+            messages.success(request, f"Successfully imported {items_created} items from file.")
+        except Exception as e:
+            messages.error(request, f"Error processing file: {str(e)}")
+            
+    return redirect("leads:universal_masters")
 
 
 @login_required

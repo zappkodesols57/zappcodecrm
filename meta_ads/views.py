@@ -108,6 +108,28 @@ def _create_lead_from_meta(connection, meta_lead_id):
 
     logger.info(f"✅ New Meta lead created: {lead.lead_code} — {lead.name}")
 
+    # Generate Notification
+    try:
+        from notifications.models import Notification
+        from accounts.models import User
+        from django.urls import reverse
+        
+        # Determine who to notify. For now, notify admins and managers.
+        # Can be customized based on roles later.
+        notify_users = User.objects.filter(is_superuser=True) | User.objects.filter(role__in=['admin', 'manager', 'counsellor', 'nelson_admin', 'nelson_manager'])
+        notify_users = notify_users.distinct()
+        
+        link = reverse('leads:lead_edit', args=[lead.pk])
+        for u in notify_users:
+            Notification.objects.create(
+                user=u,
+                title="New Meta Lead Captured",
+                message=f"Lead {lead.name} ({lead.mobile}) arrived from campaign {lead.utm_campaign or 'Meta'}.",
+                link=link
+            )
+    except Exception as e:
+        logger.error(f"Failed to create notifications for lead {lead.lead_code}: {e}")
+
 
 # ─────────────────────────────────────────────
 # CAMPAIGN DASHBOARD

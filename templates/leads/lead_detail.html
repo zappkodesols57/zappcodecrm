@@ -39,7 +39,12 @@
           <div class="col-4 text-muted">Course</div><div class="col-8">{{ lead.course|default:"—" }}</div>
           <div class="col-4 text-muted">Education</div><div class="col-8">{{ lead.education|default:"—" }} {{ lead.qualification }}</div>
           <div class="col-4 text-muted">Inquiry Date</div><div class="col-8">{{ lead.inquiry_date }}</div>
-          <div class="col-4 text-muted">Deal Status</div><div class="col-8">{{ lead.get_deal_status_display }}</div>
+          <div class="col-4 text-muted">Deal Status</div>
+          <div class="col-8">
+            {% if lead.hospital and lead.custom_data.deal_status %}{{ lead.custom_data.deal_status }}
+            {% else %}{{ lead.get_deal_status_display }}
+            {% endif %}
+          </div>
           <div class="col-4 text-muted">Admission Status</div><div class="col-8">{{ lead.get_admission_status_display }}</div>
           <div class="col-4 text-muted">Assignment / Transfer</div>
           <div class="col-8">
@@ -78,9 +83,19 @@
       <div class="card-body">
         <h6 class="text-muted text-uppercase small">Attribution</h6>
         <div class="row small">
-          <div class="col-4 text-muted">Current Source</div><div class="col-8">{{ lead.source_category|default:"—" }} / {{ lead.lead_source|default:"—" }}</div>
+          <div class="col-4 text-muted">Current Source</div>
+          <div class="col-8">
+            {% if lead.hospital and lead.custom_data.lead_source %}{{ lead.custom_data.lead_source }}
+            {% else %}{{ lead.source_category|default:"—" }} / {{ lead.lead_source|default:"—" }}
+            {% endif %}
+          </div>
           <div class="col-4 text-muted">Original Source</div><div class="col-8"><strong>{{ lead.original_source_category|default:"—" }} / {{ lead.original_lead_source|default:"—" }}</strong></div>
-          <div class="col-4 text-muted">Campaign</div><div class="col-8">{{ lead.campaign|default:"—" }}</div>
+          <div class="col-4 text-muted">Campaign</div>
+          <div class="col-8">
+            {% if lead.hospital and lead.custom_data.campaign %}{{ lead.custom_data.campaign }}
+            {% else %}{{ lead.campaign|default:"—" }}
+            {% endif %}
+          </div>
           <div class="col-4 text-muted">UTM</div><div class="col-8">{{ lead.utm_source }} / {{ lead.utm_medium }} / {{ lead.utm_campaign }}</div>
           {% if lead.referral_person %}
           <div class="col-4 text-muted">Referral</div><div class="col-8">{{ lead.get_referral_type_display }} — {{ lead.referral_person }} ({{ lead.referral_contact }})</div>

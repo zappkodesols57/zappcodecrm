@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'audit',
     'meta_ads',
     'api',
+    'notifications',
 ]
 
 MIDDLEWARE = [

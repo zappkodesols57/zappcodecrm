@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("superadmin/", views.superadmin_home, name="superadmin_home"),
     path("management/", views.management_home, name="management_home"),
+    path("nelson/roles-permissions/", views.roles_permissions_view, name="roles_permissions"),
     path("nelson/module/<str:module_name>/", views.nelson_module_view, name="nelson_module"),
     path("reports/source/", views.source_report, name="source_report"),
     path("reports/campaign/", views.campaign_report, name="campaign_report"),

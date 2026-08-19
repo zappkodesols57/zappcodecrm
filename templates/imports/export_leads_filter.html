@@ -2,159 +2,289 @@
 {% block title %}Export Leads{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h4>Export Leads</h4>
-  <a href="{% url 'imports:export' %}?download=1" class="btn btn-brand text-white">
+  <h4 class="fw-bold text-dark"><i class="fa-solid fa-file-export text-primary me-2"></i> Export Leads</h4>
+  <a href="{% url 'imports:export' %}?download=1" class="btn btn-primary bg-gradient text-white shadow-sm rounded-pill px-4">
     <i class="fa-solid fa-download me-1"></i> Export All Leads (Total)
   </a>
 </div>
 
-<div class="card" style="max-width: 800px;">
-  <div class="card-header bg-light fw-bold text-secondary">
-    <i class="fa-solid fa-filter me-1"></i> Select Export Filters
-  </div>
-  <div class="card-body">
-    <form method="get" action="{% url 'imports:export' %}">
-      <input type="hidden" name="download" value="1">
-      
-      <div class="row g-3 mb-3">
-        <!-- Date Filters -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Inquiry Date From</label>
-          <input type="date" name="date_from" class="form-control">
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Inquiry Date To</label>
-          <input type="date" name="date_to" class="form-control">
-        </div>
+<div class="row justify-content-center">
+  <div class="col-xl-10 col-lg-12">
+    <div class="card shadow-lg border-0 rounded-4 mb-5">
+      <div class="card-header bg-primary bg-gradient text-white fw-bold py-3 px-4 border-0 rounded-top-4">
+        <i class="fa-solid fa-filter me-2"></i> Select Export Filters
       </div>
+      <div class="card-body p-4 p-md-5 bg-light">
+        <form id="exportForm" method="get" action="{% url 'imports:export' %}">
+          <input type="hidden" name="download" value="1">
+          
+          <div class="row g-4 mb-4">
+            <!-- Date Filters -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Inquiry Date From</label>
+              <input type="date" name="date_from" class="form-control form-control-lg shadow-sm border-0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Inquiry Date To</label>
+              <input type="date" name="date_to" class="form-control form-control-lg shadow-sm border-0">
+            </div>
+          </div>
 
-      <div class="row g-3 mb-3">
-        <!-- Search query -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Search (Name, Mobile, Email, etc.)</label>
-          <input type="search" name="q" class="form-control" placeholder="Search keyword...">
-        </div>
-        <!-- City filter -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">City</label>
-          <select name="city" class="form-select">
-            <option value="">All Cities</option>
-            {% for c in cities %}
-              <option value="{{ c }}">{{ c }}</option>
-            {% endfor %}
-          </select>
-        </div>
+          <div class="row g-4 mb-4">
+            <!-- Search query -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Search (Name, Mobile, Email, etc.)</label>
+              <input type="search" name="q" class="form-control form-control-lg shadow-sm border-0" placeholder="Search keyword...">
+            </div>
+            <!-- City / Location filter -->
+            <div class="col-md-6">
+              {% if is_hospital %}
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Location</label>
+              <select name="location" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Locations</option>
+                {% for loc in nelson_locations %}
+                  <option value="{{ loc }}">{{ loc }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">City</label>
+              <select name="city" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Cities</option>
+                {% for c in cities %}
+                  <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </select>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="row g-4 mb-4">
+            <!-- Source Category -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Source Category</label>
+              <select name="source_category" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Categories</option>
+                {% for sc in source_categories %}
+                  <option value="{{ sc.id }}">{{ sc.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <!-- Lead Source -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Lead Source</label>
+              <select name="lead_source" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Sources</option>
+                {% if is_hospital %}
+                  {% for ls in nelson_lead_sources %}
+                    <option value="{{ ls }}">{{ ls }}</option>
+                  {% endfor %}
+                {% else %}
+                  {% for ls in lead_sources %}
+                    <option value="{{ ls.id }}">{{ ls.name }}</option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-4 mb-4">
+            <!-- Campaign -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Campaign</label>
+              <select name="campaign" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Campaigns</option>
+                {% if is_hospital %}
+                  {% for camp in nelson_campaigns %}
+                    <option value="{{ camp }}">{{ camp }}</option>
+                  {% endfor %}
+                {% else %}
+                  {% for camp in campaigns %}
+                    <option value="{{ camp.id }}">{{ camp.name }}</option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+            {% if not is_hospital %}
+            <!-- Course -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Course</label>
+              <select name="course" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Courses</option>
+                {% for c in courses %}
+                  <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="row g-4 mb-4">
+            <!-- Lead Stage -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Lead Stage</label>
+              <select name="stage" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Stages</option>
+                {% for s in stages %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <!-- Assigned To -->
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Assigned To</label>
+              <select name="assigned_to" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Employees</option>
+                {% for emp in employees %}
+                  <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-4 mb-5">
+            <!-- Temperature -->
+            <div class="col-md-{% if is_hospital %}6{% else %}4{% endif %}">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Temperature</label>
+              <select name="temperature" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Temperatures</option>
+                <option value="UNCONTACTED">Uncontacted</option>
+                <option value="NOT_PICKED">Call Not Picked</option>
+                <option value="HOT">Hot</option>
+                <option value="WARM">Warm</option>
+                <option value="COLD">Cold (Not Interested)</option>
+              </select>
+            </div>
+            <!-- Deal Status -->
+            <div class="col-md-{% if is_hospital %}6{% else %}4{% endif %}">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Deal Status</label>
+              <select name="deal_status" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Deal Statuses</option>
+                {% if is_hospital %}
+                  {% for ds in nelson_deal_statuses %}
+                    <option value="{{ ds }}">{{ ds }}</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="OPEN">Open</option>
+                  <option value="WON">Won</option>
+                  <option value="LOST">Lost</option>
+                  <option value="HOLD">Hold</option>
+                {% endif %}
+              </select>
+            </div>
+            {% if not is_hospital %}
+            <!-- Admission Status -->
+            <div class="col-md-4">
+              <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Admission Status</label>
+              <select name="admission_status" class="form-select form-select-lg shadow-sm border-0">
+                <option value="">All Admission Statuses</option>
+                <option value="NOT_APPLIED">Not Applied</option>
+                <option value="APPLIED">Applied</option>
+                <option value="JOINED">Joined</option>
+              </select>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="d-flex gap-3 justify-content-end mt-4 pt-3 border-top">
+            <button type="button" class="btn btn-info btn-lg text-white shadow-sm px-4 rounded-pill" id="previewBtn">
+              <i class="fa-solid fa-eye me-2"></i> Preview Data
+            </button>
+            <button type="submit" class="btn btn-success btn-lg shadow-sm px-4 rounded-pill" id="exportBtn">
+              <i class="fa-solid fa-file-excel me-2"></i> Export Filtered Leads
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div class="row g-3 mb-3">
-        <!-- Source Category -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Source Category</label>
-          <select name="source_category" class="form-select">
-            <option value="">All Categories</option>
-            {% for sc in source_categories %}
-              <option value="{{ sc.id }}">{{ sc.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <!-- Lead Source -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Lead Source</label>
-          <select name="lead_source" class="form-select">
-            <option value="">All Sources</option>
-            {% for ls in lead_sources %}
-              <option value="{{ ls.id }}">{{ ls.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-
-      <div class="row g-3 mb-3">
-        <!-- Campaign -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Campaign</label>
-          <select name="campaign" class="form-select">
-            <option value="">All Campaigns</option>
-            {% for camp in campaigns %}
-              <option value="{{ camp.id }}">{{ camp.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <!-- Course -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Course</label>
-          <select name="course" class="form-select">
-            <option value="">All Courses</option>
-            {% for c in courses %}
-              <option value="{{ c.id }}">{{ c.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-
-      <div class="row g-3 mb-3">
-        <!-- Lead Stage -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Lead Stage</label>
-          <select name="stage" class="form-select">
-            <option value="">All Stages</option>
-            {% for s in stages %}
-              <option value="{{ s.id }}">{{ s.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <!-- Assigned To -->
-        <div class="col-md-6">
-          <label class="form-label small fw-bold">Assigned To</label>
-          <select name="assigned_to" class="form-select">
-            <option value="">All Employees</option>
-            {% for emp in employees %}
-              <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-
-      <div class="row g-3 mb-4">
-        <!-- Temperature -->
-        <div class="col-md-4">
-          <label class="form-label small fw-bold">Temperature</label>
-          <select name="temperature" class="form-select">
-            <option value="">All Temperatures</option>
-            <option value="UNCONTACTED">Uncontacted</option>
-            <option value="NOT_PICKED">Call Not Picked</option>
-            <option value="HOT">Hot</option>
-            <option value="WARM">Warm</option>
-            <option value="COLD">Cold (Not Interested)</option>
-          </select>
-        </div>
-        <!-- Deal Status -->
-        <div class="col-md-4">
-          <label class="form-label small fw-bold">Deal Status</label>
-          <select name="deal_status" class="form-select">
-            <option value="">All Deal Statuses</option>
-            <option value="OPEN">Open</option>
-            <option value="WON">Won</option>
-            <option value="LOST">Lost</option>
-            <option value="HOLD">Hold</option>
-          </select>
-        </div>
-        <!-- Admission Status -->
-        <div class="col-md-4">
-          <label class="form-label small fw-bold">Admission Status</label>
-          <select name="admission_status" class="form-select">
-            <option value="">All Admission Statuses</option>
-            <option value="NOT_APPLIED">Not Applied</option>
-            <option value="APPLIED">Applied</option>
-            <option value="JOINED">Joined</option>
-          </select>
-        </div>
-      </div>
-
-      <button type="submit" class="btn btn-success">
-        <i class="fa-solid fa-file-excel me-1"></i> Export Filtered Leads
-      </button>
-    </form>
+    </div>
   </div>
 </div>
+
+<div id="previewContainer" class="mt-5 row justify-content-center" style="display: none;">
+  <div class="col-xl-10 col-lg-12">
+    <div class="d-flex justify-content-between align-items-center mb-3 px-2">
+      <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-table text-primary me-2"></i> Data Preview</h5>
+      <span class="badge bg-primary bg-gradient rounded-pill px-3 py-2 fs-6 shadow-sm" id="previewCountBadge">Loading...</span>
+    </div>
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-striped mb-0 text-nowrap align-middle" id="previewTable">
+            <thead class="table-light text-muted small text-uppercase" id="previewThead">
+              <!-- Headers injected via JS -->
+            </thead>
+            <tbody id="previewTbody" class="border-top-0">
+              <!-- Rows injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer bg-white text-muted small text-center py-3" id="previewFooter">
+        Showing top 10 rows. <span class="text-primary fw-bold">Export</span> to download complete data.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const previewBtn = document.getElementById('previewBtn');
+  const exportForm = document.getElementById('exportForm');
+  const container = document.getElementById('previewContainer');
+  const thead = document.getElementById('previewThead');
+  const tbody = document.getElementById('previewTbody');
+  const countBadge = document.getElementById('previewCountBadge');
+  
+  // Removed invalid querySelector
+  previewBtn.addEventListener('click', async function() {
+    // Show container and loading state
+    container.style.display = 'block';
+    countBadge.textContent = 'Loading...';
+    tbody.innerHTML = '<tr><td colspan="100%" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+    
+    // Serialize form data
+    const formData = new FormData(exportForm);
+    formData.delete('download'); // Remove download flag
+    formData.append('preview', '1'); // Add preview flag
+    
+    const queryString = new URLSearchParams(formData).toString();
+    
+    try {
+      const response = await fetch(`{% url 'imports:export' %}?${queryString}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      
+      countBadge.textContent = `Total Leads: ${data.total_count}`;
+      
+      if (data.rows.length === 0) {
+        thead.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="100%" class="text-center py-4 text-muted">No leads match the selected filters.</td></tr>';
+        return;
+      }
+      
+      // Build Headers
+      const headers = Object.keys(data.rows[0]);
+      let trHead = '<tr>';
+      headers.forEach(h => { trHead += `<th>${h}</th>`; });
+      trHead += '</tr>';
+      thead.innerHTML = trHead;
+      
+      // Build Rows
+      let trBody = '';
+      data.rows.forEach(row => {
+        trBody += '<tr>';
+        headers.forEach(h => { 
+          trBody += `<td>${row[h] || '-'}</td>`; 
+        });
+        trBody += '</tr>';
+      });
+      tbody.innerHTML = trBody;
+      
+    } catch (error) {
+      console.error('Error fetching preview:', error);
+      countBadge.textContent = 'Error';
+      tbody.innerHTML = '<tr><td colspan="100%" class="text-center py-4 text-danger">Failed to load preview data. Please try again.</td></tr>';
+    }
+  });
+});
+</script>
 {% endblock %}

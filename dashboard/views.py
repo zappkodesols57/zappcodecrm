@@ -23,8 +23,16 @@ def home(request):
     today = timezone.localdate()
     leads = Lead.objects.filter(is_archived=False)
 
-    if request.user.role in ('COUNSELLOR', 'HR'):
-        leads = leads.filter(assigned_to=request.user)
+    if not request.user.can_view_all_leads:
+        if request.user.can_view_team_leads:
+            # View leads assigned to team members reporting to this user
+            team = User.objects.filter(reports_to=request.user)
+            leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+        elif request.user.can_view_assigned_leads:
+            leads = leads.filter(assigned_to=request.user)
+        else:
+            # Can't view any leads
+            leads = leads.none()
 
     # 1. Apply Filters
     q = request.GET.get("q", "").strip()
@@ -226,21 +234,65 @@ def superadmin_home(request):
     else:
         base_leads = Lead.objects.filter(is_archived=False)
 
+    gender_filter = request.GET.get('gender')
+    if gender_filter:
+        base_leads = base_leads.filter(nelson_data__gender__iexact=gender_filter)
+        
+    source_filter = request.GET.get('source')
+    if source_filter:
+        base_leads = base_leads.filter(lead_source__name__iexact=source_filter)
+        
+    priority_filter = request.GET.get('priority')
+    if priority_filter:
+        base_leads = base_leads.filter(nelson_data__priority__iexact=priority_filter)
+        
+    campaign_filter = request.GET.get('campaign')
+    if campaign_filter:
+        base_leads = base_leads.filter(campaign__name__iexact=campaign_filter)
+
+    department_filter = request.GET.get('department')
+    if department_filter:
+        base_leads = base_leads.filter(nelson_data__department__iexact=department_filter)
+
+    doctor_filter = request.GET.get('doctor')
+    if doctor_filter:
+        base_leads = base_leads.filter(nelson_data__doctor__iexact=doctor_filter)
+
     total_leads = base_leads.count()
     appts_booked = base_leads.filter(nelson_data__appo_book__iexact='YES').count()
     conv_rate = round(appts_booked / total_leads, 2) if total_leads > 0 else 0.0
     total_revenue = base_leads.aggregate(s=Sum('nelson_data__total'))['s'] or 0
     new_leads_month = base_leads.filter(created_at__year=today.year, created_at__month=today.month).count()
 
-    def get_dist(field_name, default_key='Unknown'):
+    def get_dist(field_name):
         qs = base_leads.values(field_name).annotate(c=Count('id'))
         dist = {}
         for row in qs:
             k = row[field_name]
-            k = str(k).strip() if k else default_key
-            if not k: k = default_key
-            dist[k] = row['c']
+            if not k: 
+                continue
+            k_str = str(k).strip()
+            if not k_str or k_str.lower() in ['unknown', 'none', 'null', 'nan']:
+                continue
+            dist[k_str] = row['c']
         return dist
+
+    import calendar
+    month_wise_leads = {}
+    current_year = today.year
+    current_month = today.month
+    
+    months_to_fetch = []
+    if current_month <= 2:
+        months_to_fetch.extend([(current_year - 1, 11), (current_year - 1, 12)])
+        
+    for m in range(1, current_month + 1):
+        months_to_fetch.append((current_year, m))
+        
+    for y, m in months_to_fetch:
+        count = base_leads.filter(inquiry_date__year=y, inquiry_date__month=m).count()
+        label = f"{calendar.month_abbr[m]} {str(y)[-2:]}" # e.g. "Nov 25"
+        month_wise_leads[label] = count
 
     insights = {
         "total_leads": total_leads,
@@ -252,6 +304,16 @@ def superadmin_home(request):
         "source_distribution": get_dist('lead_source__name'),
         "priority_distribution": get_dist('nelson_data__priority'),
         "campaign_distribution": get_dist('campaign__name'),
+        "funnel_data": {
+            "Leads": base_leads.count(),
+            "Contacted": base_leads.exclude(nelson_data__remark_1='').count(),
+            "Follow-up": base_leads.exclude(nelson_data__remark_2='').count(),
+            "Appointments": base_leads.filter(nelson_data__appo_book__iexact='YES').count(),
+            "Visits Completed": base_leads.filter(nelson_data__done__iexact='YES').count(),
+            "Active Patients": base_leads.exclude(nelson_data__uhid_id_no='').count(),
+            "Revenue": float(total_revenue)
+        },
+        "month_wise_leads": month_wise_leads,
     }
 
     context = {
@@ -259,17 +321,60 @@ def superadmin_home(request):
         "today": today,
         "now": timezone.now(),
         "insights_json": json.dumps(insights),
-        "insights": insights
+        "insights": insights,
+        "has_active_filters": any([gender_filter, source_filter, priority_filter, campaign_filter, department_filter, doctor_filter]),
     }
     return render(request, "dashboard/superadmin_home.html", context)
 
+@login_required
 def nelson_module_view(request, module_name):
     from django.core.exceptions import PermissionDenied
-    if 'nelson' not in request.user.username.lower():
-        raise PermissionDenied("Restricted to Nelson admin.")
+    from accounts.models import User
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    import json
+    
+    if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+        raise PermissionDenied("Restricted to Admin/Manager.")
+
+    if module_name == 'hospital-profile':
+        hospital = request.user.hospital
+        if not hospital:
+            messages.error(request, "No hospital associated with your account.")
+            return redirect('dashboard:home')
+            
+        if request.method == 'POST':
+            hospital.name = request.POST.get('name', hospital.name)
+            hospital.contact_email = request.POST.get('contact_email', hospital.contact_email)
+            hospital.phone = request.POST.get('phone', hospital.phone)
+            hospital.address = request.POST.get('address', hospital.address)
+            hospital.registration_no = request.POST.get('registration_no', hospital.registration_no)
+            
+            if 'logo' in request.FILES:
+                hospital.logo = request.FILES['logo']
+                
+            settings_data = {
+                'facebook_url': request.POST.get('facebook_url', ''),
+                'instagram_url': request.POST.get('instagram_url', ''),
+                'whatsapp_number': request.POST.get('whatsapp_number', ''),
+                'gst_number': request.POST.get('gst_number', ''),
+                'bank_name': request.POST.get('bank_name', ''),
+                'account_no': request.POST.get('account_no', ''),
+                'ifsc_code': request.POST.get('ifsc_code', ''),
+                'welcome_message': request.POST.get('welcome_message', ''),
+            }
+            hospital.settings = settings_data
+            hospital.save()
+            messages.success(request, "Hospital Profile updated successfully.")
+            return redirect('dashboard:nelson_module', module_name='hospital-profile')
+            
+        return render(request, "dashboard/hospital_profile.html", {
+            "title": "Hospital Profile", 
+            "hospital": hospital, 
+            "active": module_name
+        })
         
     titles = {
-        'hospital-profile': 'Hospital Profile',
         'roles-permissions': 'Role & Permissions',
         'staff-management': 'Staff Management',
         'manager-management': 'Manager Management',
@@ -863,3 +968,102 @@ def telecaller_my_leads(request):
         'active': 'my_leads',
     }
     return render(request, "dashboard/telecaller_my_leads.html", context)
+
+from accounts.models import HospitalRolePermission
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
+
+@login_required
+def roles_permissions_view(request):
+    if not request.user.can_manage_users:
+        raise PermissionDenied("You do not have permission to manage roles and permissions.")
+        
+    hospital = request.user.hospital
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    available_permissions = [
+        {"key": "view_all_leads", "label": "View All Hospital Leads", "type": "data"},
+        {"key": "view_team_leads", "label": "View Team Leads", "type": "data"},
+        {"key": "view_assigned_leads", "label": "View Only Own/Assigned Leads", "type": "data"},
+        {"key": "add_leads", "label": "Add New Leads", "type": "action"},
+        {"key": "edit_any_lead", "label": "Edit Any Lead", "type": "action"},
+        {"key": "edit_own_leads", "label": "Edit Own/Assigned Leads", "type": "action"},
+        {"key": "delete_leads", "label": "Delete Leads", "type": "action"},
+        {"key": "assign_leads", "label": "Assign/Transfer Leads", "type": "action"},
+        {"key": "import_export", "label": "Import / Export Data", "type": "action"},
+        {"key": "manage_users", "label": "Manage Staff & Users", "type": "action"},
+        {"key": "manage_masters", "label": "Manage Masters", "type": "action"},
+    ]
+
+    # Pre-fetch all role configurations for this hospital
+    role_permissions = {
+        rp.role: rp.permissions
+        for rp in HospitalRolePermission.objects.filter(hospital=hospital)
+    }
+    
+    users = User.objects.filter(hospital=hospital).exclude(id=request.user.id).order_by("first_name", "last_name")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        
+        if action == "save_role_permissions":
+            role_key = request.POST.get("role")
+            if role_key in [r[0] for r in User.Role.choices]:
+                # Extract boolean perms from POST
+                perms = {}
+                for p in available_permissions:
+                    # If checkbox is checked, it will be in POST
+                    perms[p["key"]] = request.POST.get(f"perm_{p['key']}") == "on"
+                
+                rp, created = HospitalRolePermission.objects.get_or_create(
+                    hospital=hospital, role=role_key,
+                    defaults={"permissions": perms}
+                )
+                if not created:
+                    rp.permissions = perms
+                    rp.save()
+                    
+                messages.success(request, f"Permissions updated successfully for {role_key} role.")
+            else:
+                messages.error(request, "Invalid role selected.")
+                
+        elif action == "save_user_permissions":
+            user_id = request.POST.get("user_id")
+            target_user = get_object_or_404(User, id=user_id, hospital=hospital)
+            
+            perms = {}
+            # We want to clear the dict if 'reset' is checked
+            if request.POST.get("reset_to_default") == "on":
+                target_user.custom_permissions = {}
+                messages.success(request, f"Permissions reset to default for {target_user.get_full_name()}.")
+            else:
+                for p in available_permissions:
+                    # To store an override, we only store if it differs from default?
+                    # Or we store everything if they explicitly hit save. Let's store all explicit overrides.
+                    perms[p["key"]] = request.POST.get(f"perm_{p['key']}") == "on"
+                target_user.custom_permissions = perms
+                messages.success(request, f"Custom permissions saved for {target_user.get_full_name()}.")
+            
+            target_user.save()
+            
+        return redirect("dashboard:roles_permissions")
+
+    context = {
+        "active": "roles_permissions",
+        "roles": [r for r in User.Role.choices if r[0] in ('MANAGER', 'LEAD_ATTENDENT', 'DOCTOR')],
+        "available_permissions": available_permissions,
+        "role_permissions": role_permissions,
+        "role_permissions_json": json.dumps(role_permissions),
+        "users": users,
+        "users_json": json.dumps({
+            u.id: {
+                "name": u.get_full_name() or u.username,
+                "role": u.role,
+                "custom_permissions": u.custom_permissions
+            } for u in users
+        })
+    }
+    return render(request, "dashboard/nelson/roles_permissions.html", context)
+
