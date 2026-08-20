@@ -272,6 +272,29 @@
             pharmacy.addEventListener('input', calcTotal);
             opd.addEventListener('input', calcTotal);
         }
+        
+        // Appointment Status Logic: Hide Open/Freeze if Booked/Not Interested
+        const appStatusSelect = document.querySelector('select[name="appointment_status"]');
+        if (appStatusSelect) {
+            function updateAppStatusOptions() {
+                if(appStatusSelect.selectedIndex < 0) return;
+                const selectedText = appStatusSelect.options[appStatusSelect.selectedIndex].text.toLowerCase();
+                const isFinal = selectedText.includes('booked') || selectedText.includes('not intrested') || selectedText.includes('not interested');
+                
+                Array.from(appStatusSelect.options).forEach(opt => {
+                    const optText = opt.text.toLowerCase();
+                    if (optText.includes('open') || optText.includes('freeze')) {
+                        // Some browsers don't support display:none on options, so disabled is the safest cross-browser bet
+                        opt.style.display = isFinal ? 'none' : '';
+                        opt.disabled = isFinal;
+                    }
+                });
+            }
+            // Run on load
+            updateAppStatusOptions();
+            // Run on change
+            appStatusSelect.addEventListener('change', updateAppStatusOptions);
+        }
     });
 </script>
 

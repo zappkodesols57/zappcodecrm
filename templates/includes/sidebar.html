@@ -16,14 +16,13 @@
   </div>
 
   {% if user.hospital and user.role == 'SUPER_ADMIN' %}
-  {# ═══════════ HOSPITAL SIDEBAR ═══════════ #}
+  {# 🏥 HOSPITAL SUPER ADMIN SIDEBAR #}
 
   <div class="nav-section">Overview</div>
   <a class="nav-link {% if active == 'superadmin_home' %}active{% endif %}"
     href="{% url 'dashboard:superadmin_home' %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
   <a class="nav-link {% if active == 'hospital-profile' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'hospital-profile' %}"><i class="fa-solid fa-hospital"></i> Hospital
-    Profile</a>
+    href="{% url 'dashboard:nelson_module' 'hospital-profile' %}"><i class="fa-solid fa-hospital"></i> Hospital Profile</a>
 
   <div class="nav-section">People Management</div>
   <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"><i
@@ -31,33 +30,26 @@
   <a class="nav-link {% if active == 'roles_permissions' %}active{% endif %}"
     href="{% url 'dashboard:roles_permissions' %}"><i class="fa-solid fa-user-shield"></i> Roles & Permissions</a>
 
-
-
-
   <div class="nav-section">Leads & Campaigns</div>
   <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"><i
       class="fa-solid fa-users"></i> Lead Management</a>
   <a class="nav-link {% if active == 'meta_ads' %}active{% endif %}" href="{% url 'meta_ads:dashboard' %}"><i
       class="fa-brands fa-meta"></i> Meta Ads Dashboard</a>
   <a class="nav-link {% if active == 'lead-assignment' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'lead-assignment' %}"><i class="fa-solid fa-user-plus"></i> Lead
-    Assignment</a>
+    href="{% url 'dashboard:nelson_module' 'lead-assignment' %}"><i class="fa-solid fa-user-plus"></i> Lead Assignment</a>
   <a class="nav-link {% if active == 'lead-configuration' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'lead-configuration' %}"><i class="fa-solid fa-sliders"></i> Lead
-    Configuration</a>
+    href="{% url 'dashboard:nelson_module' 'lead-configuration' %}"><i class="fa-solid fa-sliders"></i> Lead Configuration</a>
   <a class="nav-link {% if active == 'campaign-management' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'campaign-management' %}"><i class="fa-solid fa-bullhorn"></i> Campaign
-    Management</a>
+    href="{% url 'dashboard:nelson_module' 'campaign-management' %}"><i class="fa-solid fa-bullhorn"></i> Campaign Management</a>
 
   <div class="nav-section">Operations & Analytics</div>
   <a class="nav-link {% if active == 'reports' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'reports' %}"><i class="fa-solid fa-chart-column"></i> Reports</a>
+    href="{% url 'dashboard:admin_reports' %}"><i class="fa-solid fa-chart-column"></i> Reports</a>
   <a class="nav-link {% if active == 'financial-overview' %}active{% endif %}"
-    href="{% url 'dashboard:nelson_module' 'financial-overview' %}"><i class="fa-solid fa-indian-rupee-sign"></i>
-    Financial Overview</a>
+    href="{% url 'dashboard:nelson_module' 'financial-overview' %}"><i class="fa-solid fa-indian-rupee-sign"></i> Financial Overview</a>
   <a class="nav-link {% if active == 'notifications' %}active{% endif %}"
     href="{% url 'notifications:list' %}"><i class="fa-solid fa-bell"></i> Notifications</a>
-  <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'tasks' %}"><i
+  <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"><i
       class="fa-solid fa-list-check"></i> Tasks</a>
   <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}"><i
       class="fa-solid fa-shield-halved"></i> Audit Logs</a>
@@ -66,11 +58,33 @@
 
   <div class="nav-section">Master Management</div>
   <a class="nav-link {% if active == 'universal_masters' %}active{% endif %}"
-    href="{% url 'leads:universal_masters' %}"><i class="fa-solid fa-database"></i> Master
-    Settings</a>
+    href="{% url 'leads:universal_masters' %}"><i class="fa-solid fa-database"></i> Master Settings</a>
+
+  {% elif user.role == 'LEAD_ATTENDENT' and user.hospital %}
+  {# 🎧 TELECALLER / LEAD ATTENDANT SIDEBAR (Hospital Specific) #}
+  
+  <div class="nav-section">Overview</div>
+  <a class="nav-link {% if active == 'telecaller_dashboard' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+
+  <div class="nav-section">Lead Management</div>
+  <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'dashboard:telecaller_my_leads' %}"><i class="fa-solid fa-user-tag"></i> My Leads</a>
+  <a class="nav-link {% if active == 'new_enquiries' %}active{% endif %}" href="{% url 'dashboard:telecaller_new_enquiries' %}"><i class="fa-solid fa-envelope-open-text"></i> New Enquiries</a>
+  <a class="nav-link {% if active == 'search_filter' %}active{% endif %}" href="{% url 'dashboard:telecaller_search' %}"><i class="fa-solid fa-magnifying-glass"></i> Search & Filter</a>
+
+  <div class="nav-section">Follow-up Management</div>
+  <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"><i class="fa-solid fa-calendar-day"></i> Today's Follow-ups</a>
+  <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"><i class="fa-solid fa-calendar-plus"></i> Upcoming</a>
+  <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}"><i class="fa-solid fa-calendar-xmark"></i> Overdue</a>
+  <a class="nav-link {% if active == 'call_history' %}active{% endif %}" href="{% url 'dashboard:call_history' %}"><i class="fa-solid fa-phone-volume"></i> Call History</a>
+
+
+
+  <div class="nav-section">Productivity Tools</div>
+  <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"><i class="fa-solid fa-list-check"></i> Tasks / Reminders</a>
+  <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"><i class="fa-solid fa-bell"></i> Notifications</a>
 
   {% elif user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}
-  {# ═══════════ MANAGEMENT SIDEBAR ═══════════ #}
+  {# 👔 MANAGEMENT SIDEBAR (General / Zappcode) #}
 
   <div class="nav-section">Overview</div>
   <a class="nav-link {% if active == 'management_dashboard' %}active{% endif %}"
@@ -130,13 +144,13 @@
     href="{% url 'leads:universal_masters' %}"><i class="fa-solid fa-layer-group"></i> Universal Masters</a>
   {% endif %}
 
-    {% if user.role == 'SUPER_ADMIN' and not user.hospital %}
+  {% if user.role == 'SUPER_ADMIN' and not user.hospital %}
   <div class="nav-section">Other Business</div>
   <a class="nav-link {% if active == 'business_list' %}active{% endif %}" href="{% url 'accounts:business_list' %}"><i
       class="fa-solid fa-building"></i> Manage Businesses</a>
   {% endif %}
 
-{% if user.can_manage_users %}
+  {% if user.can_manage_users %}
   <div class="nav-section">Team Management</div>
   <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"><i
       class="fa-solid fa-user-shield"></i> Users & Approvals</a>
@@ -144,50 +158,8 @@
       class="fa-solid fa-shield-halved"></i> Audit Log</a>
   {% endif %}
 
-  
-  {% elif user.role == 'LEAD_ATTENDENT' and user.hospital %}
-  {# 🔹 TELECALLER SIDEBAR (Lead Attendant - Tenant Specific) 🔹 #}
-  
-  <div class="nav-section">Overview</div>
-  <a class="nav-link {% if active == 'telecaller_dashboard' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
-
-  <div class="nav-section">Lead Management</div>
-  <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'dashboard:telecaller_my_leads' %}"><i class="fa-solid fa-user-tag"></i> My Leads</a>
-  <a class="nav-link {% if active == 'new_enquiries' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'new_enquiries' %}"><i class="fa-solid fa-envelope-open-text"></i> New Enquiries</a>
-  <a class="nav-link {% if active == 'lead_details' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_details' %}"><i class="fa-solid fa-address-card"></i> Lead Details</a>
-  <a class="nav-link {% if active == 'lead_info_collection' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_info_collection' %}"><i class="fa-solid fa-clipboard-list"></i> Lead Info Collection</a>
-  <a class="nav-link {% if active == 'lead_status' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_status' %}"><i class="fa-solid fa-bars-progress"></i> Lead Status</a>
-  <a class="nav-link {% if active == 'lead_temperature' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_temperature' %}"><i class="fa-solid fa-temperature-half"></i> Lead Temperature</a>
-
-  <div class="nav-section">Calling & Engagement</div>
-  <a class="nav-link {% if active == 'calling' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'calling' %}"><i class="fa-solid fa-headset"></i> Calling</a>
-  <a class="nav-link {% if active == 'call_history' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'call_history' %}"><i class="fa-solid fa-phone-volume"></i> Call History</a>
-  <a class="nav-link {% if active == 'lead_timeline' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'lead_timeline' %}"><i class="fa-solid fa-clock-rotate-left"></i> Lead Timeline</a>
-  <a class="nav-link {% if active == 'notes_remarks' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'notes_remarks' %}"><i class="fa-solid fa-note-sticky"></i> Notes & Remarks</a>
-
-  <div class="nav-section">Follow-up Management</div>
-  <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"><i class="fa-solid fa-calendar-day"></i> Today's Follow-ups</a>
-  <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"><i class="fa-solid fa-calendar-plus"></i> Upcoming</a>
-  <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}"><i class="fa-solid fa-calendar-xmark"></i> Overdue</a>
-
-  <div class="nav-section">Appointments & Patients</div>
-  <a class="nav-link {% if active == 'apt_request' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'apt_request' %}"><i class="fa-solid fa-calendar-check"></i> Appointment Request</a>
-  <a class="nav-link {% if active == 'apt_management' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'apt_management' %}"><i class="fa-solid fa-truck-medical"></i> Appointment Management</a>
-  <a class="nav-link {% if active == 'patient_conversion' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'patient_conversion' %}"><i class="fa-solid fa-user-doctor"></i> Patient Conversion</a>
-  <a class="nav-link {% if active == 'patient_info' %}active{% endif %}" href="{% url 'dashboard:placeholder' 'patient_info' %}"><i class="fa-solid fa-bed-pulse"></i> Patient Information</a>
-
-  <div class="nav-section">Productivity Tools</div>
-  <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'tasks' %}"><i class="fa-solid fa-list-check"></i> Tasks / Reminders</a>
-  <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'notifications' %}"><i class="fa-solid fa-bell"></i> Notifications</a>
-  <a class="nav-link {% if active == 'search_filter' %}active{% endif %}" href="{% url 'dashboard:telecaller_search' %}"><i class="fa-solid fa-magnifying-glass"></i> Search & Filter</a>
-
-  <div class="nav-section">Account</div>
-  <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-lock"></i> Profile</a>
-  <a class="nav-link" href="{% url 'accounts:logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-
-
   {% else %}
-  {# ═══════════ EMPLOYEE SIDEBAR (Counsellor / HR) ═══════════ #}
+  {# 💼 COUNSELLOR / HR EMPLOYEE SIDEBAR #}
 
   <div class="nav-section">Overview</div>
   <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}"><i
@@ -219,6 +191,7 @@
 
   {% endif %}
 
+  <!-- Universal Single Account Section -->
   <div class="nav-section">Account</div>
   <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}"><i class="fa-solid fa-user-lock"></i> Profile</a>
   <a class="nav-link" href="{% url 'accounts:logout' %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>

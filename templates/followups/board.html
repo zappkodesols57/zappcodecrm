@@ -1,35 +1,205 @@
 {% extends "base.html" %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-<h4 class="mb-3">{{ title }} <span class="badge text-bg-light border">{{ leads.count }}</span></h4>
-<div class="card">
-  <div class="table-responsive">
-    <table class="table mb-0">
-      <thead><tr><th>Lead ID</th><th>Name</th><th>Mobile</th><th>Course</th><th>Stage</th><th>Next Follow-up</th><th>Assigned</th><th></th></tr></thead>
-      <tbody>
-        {% for lead in leads %}
-        <tr class="{% if active == 'fu_overdue' %}table-danger{% elif active == 'fu_today' %}table-warning{% endif %}">
-          <td><a href="{% url 'leads:lead_detail' lead.pk %}">{{ lead.lead_code }}</a></td>
-          <td>{{ lead.name }}</td>
-          <td>{{ lead.mobile }}</td>
-          <td>{{ lead.course|default:"—" }}</td>
-          <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
-          <td>{{ lead.next_followup_date }} {{ lead.next_followup_time|default:"" }}</td>
-          <td>{{ lead.assigned_to|default:"Unassigned" }}</td>
-          <td class="d-flex gap-1">
-            <form method="post" action="{% url 'followups:complete' lead.pk %}" class="d-flex gap-1">
-              {% csrf_token %}
-              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Comment" style="width:140px;">
-              <button class="btn btn-sm btn-outline-success"><i class="fa-solid fa-check"></i></button>
-            </form>
-            <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="8"><div class="empty-state"><i class="fa-solid fa-calendar-check"></i>Nothing here — you're all caught up.</div></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-primary mb-1">
+            <i class="fa-solid {% if active == 'fu_today' %}fa-calendar-day text-primary{% elif active == 'fu_upcoming' %}fa-calendar-plus text-info{% else %}fa-calendar-xmark text-danger{% endif %} me-2"></i>
+            {{ title }}
+        </h3>
+        <p class="text-muted mb-0">Track and manage patient follow-ups, scheduled callback remarks, and appointments.</p>
+    </div>
 </div>
+
+<!-- Search & Stats Filter Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="GET" action="" class="row g-3 align-items-end">
+            <div class="col-md-9">
+                <label class="form-label small fw-bold text-uppercase text-muted">Search Patients / Remarks / Doctor</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name, Mobile, Doctor, or Department..." value="{{ q }}">
+                </div>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Search</button>
+                <a href="{% if active == 'fu_today' %}{% url 'followups:today' %}{% elif active == 'fu_upcoming' %}{% url 'followups:upcoming' %}{% else %}{% url 'followups:overdue' %}{% endif %}" class="btn btn-light border w-100">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Card -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Doctor / Dept</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Status & Priority</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Follow-up / Appt Date</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Latest Remark</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Assigned To</th>
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr class="{% if active == 'fu_overdue' %}table-danger-subtle{% elif active == 'fu_today' %}table-light{% endif %}">
+                        <td class="px-4">
+                            <div class="fw-bold text-dark">{{ lead.name }}</div>
+                            <div class="small text-muted">{{ lead.lead_code }}</div>
+                        </td>
+                        <td>
+                            <div><i class="fa-solid fa-phone text-muted me-1 small"></i> {{ lead.mobile }}</div>
+                            {% if lead.custom_data.location or lead.city %}
+                            <div class="small text-muted"><i class="fa-solid fa-location-dot text-muted me-1 small"></i> {{ lead.custom_data.location|default:lead.city }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lead.hospital_doctor %}
+                                <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.hospital_doctor }}</span></div>
+                            {% endif %}
+                            {% if lead.hospital_dept %}
+                                <div class="mt-1 small fw-semibold text-secondary"><i class="fa-solid fa-hospital-user me-1"></i> {{ lead.hospital_dept }}</div>
+                            {% endif %}
+                            {% if not lead.hospital_doctor and not lead.hospital_dept %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="mb-1 d-flex flex-wrap gap-1">
+                                {% if lead.appt_status == 'Booked' or lead.appt_status == 'Cancelled' %}
+                                    <span class="badge {% if lead.appt_status == 'Booked' %}bg-success text-success border-success-subtle{% else %}bg-danger text-danger border-danger-subtle{% endif %} bg-opacity-10 border px-2 py-1">
+                                        <i class="fa-solid {% if lead.appt_status == 'Booked' %}fa-calendar-check{% else %}fa-calendar-xmark{% endif %} me-1"></i> {{ lead.appt_status }}
+                                    </span>
+                                {% else %}
+                                    {% if lead.admission_status == 'ADMISSION_DONE' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Done</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.stage.name|default:lead.get_deal_status_display }}</span>
+                                    {% endif %}
+                                    
+                                    {% if lead.lead_priority %}
+                                        {% if lead.lead_priority == 'Hot' %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-fire me-1"></i> Hot</span>
+                                        {% elif lead.lead_priority == 'Warm' %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-temperature-half me-1"></i> Warm</span>
+                                        {% elif lead.lead_priority == 'Cold' %}
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-snowflake me-1"></i> Cold</span>
+                                        {% else %}
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ lead.lead_priority }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if lead.followup_schedule_date %}
+                                <div class="fw-semibold text-dark">{{ lead.followup_schedule_date }}</div>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 220px;">
+                            {% if lead.latest_remark %}
+                                <div class="small text-truncate" title="{{ lead.latest_remark }}">
+                                    <i class="fa-regular fa-comment-dots text-muted me-1"></i>
+                                    {{ lead.latest_remark }}
+                                </div>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="small fw-semibold">
+                                {% if lead.assigned_to %}
+                                    {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+                                {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View Patient"><i class="fa-solid fa-eye text-primary"></i></a>
+                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand border" title="Update Follow-up"><i class="fa-solid fa-pen text-white"></i> Edit</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <div class="text-muted mb-3"><i class="fa-solid fa-calendar-check fa-3x"></i></div>
+                            <h5 class="fw-bold">No follow-ups found</h5>
+                            <p class="text-muted">You're all caught up! No scheduled calls or appointments matching this tab.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if page_obj.paginator.count >= 0 %}
+<div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="small text-muted fw-semibold order-2 order-md-1">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} lead(s) (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    </div>
+    
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-left"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in page_range %}
+                {% if num == page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">…</span></li>
+                {% elif page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-3 border-0 bg-primary text-white px-3 py-2 fw-bold shadow-sm">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 border-0 bg-light text-dark px-3 py-2 fw-semibold" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="order-1 order-md-2">
+        <span class="badge bg-light text-secondary border px-3 py-2 rounded-3 fw-semibold"><i class="fa-solid fa-check-double me-1 text-success"></i> All follow-ups shown</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

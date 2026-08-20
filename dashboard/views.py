@@ -1,3 +1,4 @@
+from django.core.paginator import Paginator
 import json
 from datetime import timedelta
 
@@ -829,10 +830,95 @@ def management_daily_reports(request):
 
 @login_required
 def telecaller_home(request):
+    from accounts.models import User
+    from leads.models import Lead, LeadTemperature
+    from dashboard.models import TaskReminder
+    from followups.models import FollowUp
+    from datetime import date
+    
     if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
         messages.error(request, "Access denied.")
         return redirect("dashboard:home")
-    return render(request, "dashboard/telecaller_home.html", {"active": "telecaller_dashboard"})
+        
+    user = request.user
+    today_date = timezone.localdate()
+    today_str = today_date.strftime("%Y-%m-%d")
+    today_alt_str = today_date.strftime("%d-%m-%Y")
+    
+    # 1. Calls Today (Calls made by this user today)
+    # Checked from remarks date or FollowUp objects logged by user
+    calls_today_count = Lead.objects.filter(
+        hospital=user.hospital,
+        assigned_to=user,
+    ).filter(
+        Q(custom_data__calling_date_remark_1=today_str) |
+        Q(custom_data__calling_date_remark_1=today_alt_str) |
+        Q(custom_data__calling_date_remark_2=today_str) |
+        Q(custom_data__calling_date_remark_2=today_alt_str) |
+        Q(custom_data__calling_date_remark_3=today_str) |
+        Q(custom_data__calling_date_remark_3=today_alt_str) |
+        Q(followups__followup_date=today_date, followups__created_by=user)
+    ).distinct().count()
+    
+    # 2. Appointments Booked Today by this user
+    appts_today_count = Lead.objects.filter(
+        hospital=user.hospital,
+        assigned_to=user,
+        custom_data__appointment_status="Booked",
+    ).filter(
+        Q(custom_data__appo_booked_date=today_str) |
+        Q(custom_data__appo_booked_date=today_alt_str) |
+        Q(updated_at__date=today_date)
+    ).count()
+    
+    # 3. New Hot Leads Today Overall (Received in Hospital today)
+    hot_leads_today_count = Lead.objects.filter(
+        hospital=user.hospital,
+        is_archived=False,
+    ).filter(
+        Q(inquiry_date=today_date) | Q(created_at__date=today_date)
+    ).filter(
+        Q(custom_data__priority__iexact="Hot") | Q(temperature=LeadTemperature.HOT)
+    ).count()
+    
+    # 4. Overdue Follow-ups Remaining for this user
+    overdue_followups_count = Lead.objects.filter(
+        hospital=user.hospital,
+        assigned_to=user,
+        is_archived=False,
+    ).exclude(
+        deal_status__in=['WON', 'LOST']
+    ).filter(
+        Q(next_followup_date__lt=today_date) |
+        Q(custom_data__calling_date_remark_1__lt=today_str, custom_data__calling_date_remark_1__gt="")
+    ).count()
+    
+    # 5. My Recent Leads (Latest 10 entries assigned to this user)
+    my_recent_leads = Lead.objects.filter(
+        hospital=user.hospital,
+        assigned_to=user,
+        is_archived=False,
+    ).select_related('stage').order_by('-updated_at')[:10]
+    
+    # 6. Today's Tasks & Reminders (Assigned by Manager/Admin or created by user for today)
+    todays_tasks = TaskReminder.objects.filter(
+        Q(user=user) | Q(user__hospital=user.hospital, user__role__in=['SUPER_ADMIN', 'MANAGER']),
+        due_date=today_date,
+    ).exclude(
+        status=TaskReminder.Status.COMPLETED
+    ).select_related('user', 'lead').order_by('-priority', 'due_time')
+    
+    context = {
+        'active': 'telecaller_dashboard',
+        'calls_today_count': calls_today_count,
+        'appts_today_count': appts_today_count,
+        'hot_leads_today_count': hot_leads_today_count,
+        'overdue_followups_count': overdue_followups_count,
+        'my_recent_leads': my_recent_leads,
+        'todays_tasks': todays_tasks,
+        'today_date': today_date,
+    }
+    return render(request, "dashboard/telecaller_home.html", context)
 
 @login_required
 def placeholder_view(request, module_name):
@@ -846,6 +932,7 @@ def telecaller_search(request):
     from django.db.models import Q
     import csv
     from django.http import HttpResponse
+    from django.core.paginator import Paginator
 
     if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
         messages.error(request, "Access denied.")
@@ -853,10 +940,14 @@ def telecaller_search(request):
 
     leads = Lead.objects.filter(hospital=request.user.hospital).order_by('-inquiry_date')
 
+    from leads.models import LeadStage
+    
     # Get Filter Parameters
     q = request.GET.get('q', '').strip()
     date_filter = request.GET.get('date', '')
-    status_filter = request.GET.get('status', '')
+    status_filter = request.GET.get('status', '').strip()
+    assigned_filter = request.GET.get('assigned', '').strip()
+    appointment_filter = request.GET.get('appointment_status', '').strip()
     converted_filter = request.GET.get('converted', '')
     doctor_filter = request.GET.get('doctor', '').strip()
     disease_filter = request.GET.get('disease', '').strip()
@@ -864,54 +955,86 @@ def telecaller_search(request):
 
     # Apply Filters
     if q:
-        leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q))
+        leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q) | Q(lead_code__icontains=q))
     if date_filter:
         leads = leads.filter(inquiry_date=date_filter)
+    
+    # Status / Assigned Filter logic
     if status_filter:
-        leads = leads.filter(deal_status=status_filter)
-    if converted_filter == '1':
+        if status_filter.lower() == 'assigned':
+            leads = leads.filter(assigned_to__isnull=False)
+        elif status_filter.lower() in ['unassigned', 'new']:
+            leads = leads.filter(assigned_to__isnull=True)
+        else:
+            leads = leads.filter(Q(stage__name__iexact=status_filter) | Q(deal_status__iexact=status_filter))
+            
+    if assigned_filter:
+        if assigned_filter == 'assigned':
+            leads = leads.filter(assigned_to__isnull=False)
+        elif assigned_filter == 'unassigned':
+            leads = leads.filter(assigned_to__isnull=True)
+        elif assigned_filter == 'my_leads':
+            leads = leads.filter(assigned_to=request.user)
+        else:
+            # Specific user ID
+            leads = leads.filter(assigned_to_id=assigned_filter)
+    if appointment_filter:
+        leads = leads.filter(custom_data__appointment_status=appointment_filter)
+    if converted_filter == 'yes':
         leads = leads.filter(admission_status=AdmissionStatus.ADMISSION_DONE)
+    elif converted_filter == 'no':
+        leads = leads.exclude(admission_status=AdmissionStatus.ADMISSION_DONE)
+    
+    # Custom Data JSON Filters
     if doctor_filter:
         leads = leads.filter(custom_data__doctor__icontains=doctor_filter)
     if disease_filter:
         leads = leads.filter(custom_data__disease__icontains=disease_filter)
     if priority_filter:
-        leads = leads.filter(custom_data__priority__iexact=priority_filter)
+        leads = leads.filter(custom_data__priority=priority_filter)
 
-    # Export Logic
-    if request.GET.get('export') == '1':
+    # Handle Export
+    if 'export' in request.GET:
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="filtered_leads.csv"'
+        response['Content-Disposition'] = 'attachment; filename="leads_search_export.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Patient Name', 'Mobile', 'Date', 'Status', 'Doctor', 'Disease', 'Priority', 'Converted'])
-        
+        writer.writerow(['Patient Name', 'Mobile', 'Doctor', 'Disease', 'Priority', 'Status', 'Inquiry Date', 'Assigned To'])
         for lead in leads:
-            is_converted = 'Yes' if lead.admission_status == AdmissionStatus.ADMISSION_DONE else 'No'
-            writer.writerow([
-                lead.name,
-                lead.mobile,
-                lead.inquiry_date.strftime('%Y-%m-%d') if lead.inquiry_date else '',
-                lead.get_deal_status_display(),
-                lead.custom_data.get('doctor', ''),
-                lead.custom_data.get('disease', ''),
-                lead.custom_data.get('priority', ''),
-                is_converted
-            ])
+            doctor = lead.custom_data.get('doctor', '') if lead.custom_data else ''
+            disease = lead.custom_data.get('disease', '') if lead.custom_data else ''
+            priority = lead.custom_data.get('priority', '') if lead.custom_data else ''
+            assigned = lead.assigned_to.get_full_name() if lead.assigned_to else 'Unassigned'
+            writer.writerow([lead.name, lead.mobile, doctor, disease, priority, lead.get_deal_status_display(), lead.inquiry_date, assigned])
         return response
 
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+
+    all_stages = LeadStage.objects.filter(is_active=True).order_by('order')
+    
     context = {
-        'leads': leads,
+        'page_obj': page_obj,
+        'leads': page_obj,
+        'page_range': page_range,
+        'total_count': paginator.count,
+        'query_params': query_params.urlencode(),
+        'q': q,
+        'date_filter': date_filter,
+        'status_filter': status_filter,
+        'assigned_filter': assigned_filter,
+        'appointment_filter': appointment_filter,
+        'converted_filter': converted_filter,
+        'doctor_filter': doctor_filter,
+        'disease_filter': disease_filter,
+        'priority_filter': priority_filter,
+        'all_stages': all_stages,
         'active': 'search_filter',
-        'filters': {
-            'q': q,
-            'date': date_filter,
-            'status': status_filter,
-            'converted': converted_filter,
-            'doctor': doctor_filter,
-            'disease': disease_filter,
-            'priority': priority_filter
-        },
-        'deal_statuses': DealStatus.choices
     }
     return render(request, "dashboard/telecaller_search.html", context)
 
@@ -949,6 +1072,7 @@ def telecaller_my_leads(request):
     from accounts.models import User
     from leads.models import Lead
     from django.db.models import Q
+    from django.core.paginator import Paginator
     
     if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
         messages.error(request, "Access denied.")
@@ -960,11 +1084,26 @@ def telecaller_my_leads(request):
     # Search logic
     q = request.GET.get('q', '').strip()
     if q:
-        leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q))
+        leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q) | Q(lead_code__icontains=q))
+        
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Calculate custom dynamic range for nice scroller
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+    
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
         
     context = {
-        'leads': leads,
+        'page_obj': page_obj,
+        'leads': page_obj,
+        'page_range': page_range,
         'q': q,
+        'query_params': query_params.urlencode(),
+        'total_count': paginator.count,
         'active': 'my_leads',
     }
     return render(request, "dashboard/telecaller_my_leads.html", context)
@@ -1067,3 +1206,371 @@ def roles_permissions_view(request):
     }
     return render(request, "dashboard/nelson/roles_permissions.html", context)
 
+
+@login_required
+def telecaller_new_enquiries(request):
+    from accounts.models import User
+    from leads.models import Lead
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    
+    if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+        
+    leads = Lead.objects.filter(
+        hospital=request.user.hospital,
+        is_archived=False,
+        assigned_to__isnull=True,  # STRICTLY UNASSIGNED: Disappears once assigned to anyone
+    ).filter(
+        Q(temperature='UNCONTACTED') | Q(stage__name__icontains='new') | Q(stage__name__icontains='fresh')
+    ).select_related('lead_source', 'assigned_to', 'stage').defer('notes').order_by('-created_at')
+    
+    q = request.GET.get('q', '').strip()
+    if q:
+        leads = leads.filter(
+            Q(name__icontains=q) | Q(mobile__icontains=q) | 
+            Q(city__icontains=q) | Q(email__icontains=q)
+        )
+        
+    paginator = Paginator(leads, 24)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+    
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+        
+    context = {
+        'leads': page_obj,
+        'page_obj': page_obj,
+        'page_range': page_range,
+        'query_params': query_params.urlencode(),
+        'total_count': paginator.count,
+        'q': q,
+        'active': 'new_enquiries',
+    }
+    return render(request, "dashboard/telecaller_new_enquiries.html", context)
+
+from .models import TaskReminder
+from leads.models import Lead
+
+@login_required
+def task_list_view(request):
+    user = request.user
+    
+    # Get user's tasks or hospital admin view
+    if user.hospital and (user.role == 'SUPER_ADMIN' or user.role == 'MANAGER'):
+        # Admin can view all hospital tasks or filter
+        tasks = TaskReminder.objects.filter(user__hospital=user.hospital)
+    else:
+        tasks = TaskReminder.objects.filter(user=user)
+        
+    # Filter by Status
+    status_filter = request.GET.get('status', '').strip()
+    if status_filter:
+        tasks = tasks.filter(status=status_filter)
+        
+    # Filter by Priority
+    priority_filter = request.GET.get('priority', '').strip()
+    if priority_filter:
+        tasks = tasks.filter(priority=priority_filter)
+        
+    # Search query
+    q = request.GET.get('q', '').strip()
+    if q:
+        tasks = tasks.filter(
+            Q(title__icontains=q) |
+            Q(description__icontains=q) |
+            Q(lead__name__icontains=q) |
+            Q(lead__mobile__icontains=q)
+        )
+        
+    # Stats
+    total_tasks = tasks.count()
+    pending_tasks = tasks.filter(status=TaskReminder.Status.PENDING).count()
+    completed_tasks = tasks.filter(status=TaskReminder.Status.COMPLETED).count()
+    urgent_tasks = tasks.filter(priority__in=[TaskReminder.Priority.HIGH, TaskReminder.Priority.URGENT], status__in=[TaskReminder.Status.PENDING, TaskReminder.Status.IN_PROGRESS]).count()
+    
+    # Pagination
+    paginator = Paginator(tasks, 20)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+        
+    # Leads for dropdown search/selection in modal
+    user_leads = Lead.objects.filter(is_archived=False)
+    if user.hospital:
+        user_leads = user_leads.filter(hospital=user.hospital)
+    if user.role == 'LEAD_ATTENDENT':
+        user_leads = user_leads.filter(assigned_to=user)
+    user_leads = user_leads.order_by('-updated_at')[:50]
+
+    context = {
+        'page_obj': page_obj,
+        'tasks': page_obj,
+        'page_range': page_range,
+        'query_params': query_params.urlencode(),
+        'total_tasks': total_tasks,
+        'pending_tasks': pending_tasks,
+        'completed_tasks': completed_tasks,
+        'urgent_tasks': urgent_tasks,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'q': q,
+        'user_leads': user_leads,
+        'active': 'tasks',
+    }
+    return render(request, "dashboard/tasks.html", context)
+
+
+@login_required
+def task_create_view(request):
+    if request.method == "POST":
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
+        due_date = request.POST.get('due_date') or timezone.localdate()
+        due_time = request.POST.get('due_time') or None
+        priority = request.POST.get('priority', TaskReminder.Priority.MEDIUM)
+        lead_id = request.POST.get('lead_id')
+        sync_to_followup = bool(request.POST.get('sync_to_followup'))
+        
+        lead = None
+        if lead_id:
+            try:
+                lead = Lead.objects.get(pk=lead_id)
+            except Lead.DoesNotExist:
+                lead = None
+                
+        task = TaskReminder.objects.create(
+            user=request.user,
+            title=title,
+            description=description,
+            due_date=due_date,
+            due_time=due_time if due_time else None,
+            priority=priority,
+            lead=lead,
+            sync_to_followup=sync_to_followup,
+            status=TaskReminder.Status.PENDING,
+        )
+        
+        # If synced to followup, update lead's next followup
+        if sync_to_followup and lead:
+            lead.next_followup_date = due_date
+            if due_time:
+                lead.next_followup_time = due_time
+            lead.save(update_fields=['next_followup_date', 'next_followup_time'])
+            
+        messages.success(request, f"Task '{title}' created successfully!")
+    return redirect("dashboard:tasks")
+
+
+@login_required
+def task_update_status(request, pk):
+    task = get_object_or_404(TaskReminder, pk=pk)
+    if task.user != request.user and not (request.user.hospital and request.user.role in ['SUPER_ADMIN', 'MANAGER']):
+        messages.error(request, "Unauthorized action.")
+        return redirect("dashboard:tasks")
+        
+    new_status = request.POST.get('status')
+    if new_status in TaskReminder.Status.values:
+        task.status = new_status
+        task.save(update_fields=['status'])
+        messages.success(request, f"Task status updated to {task.get_status_display()}.")
+    return redirect("dashboard:tasks")
+
+
+@login_required
+def task_send_report_to_admin(request):
+    if request.method == "POST":
+        report_notes = request.POST.get('report_notes', '').strip()
+        selected_task_ids = request.POST.getlist('task_ids')
+        
+        user = request.user
+        tasks_to_report = TaskReminder.objects.filter(user=user)
+        if selected_task_ids:
+            tasks_to_report = tasks_to_report.filter(id__in=selected_task_ids)
+            
+        tasks_count = tasks_to_report.count()
+        tasks_to_report.update(
+            is_reported_to_admin=True,
+            admin_report_notes=report_notes,
+            reported_at=timezone.now()
+        )
+        
+        # Send Notification to Admin / SuperAdmin
+        from notifications.models import Notification
+        admins = User.objects.filter(role__in=['SUPER_ADMIN', 'ADMIN', 'MANAGER'])
+        if user.hospital:
+            admins = admins.filter(hospital=user.hospital)
+            
+        for admin_user in admins:
+            Notification.objects.create(
+                user=admin_user,
+                title=f"Task Report from {user.get_full_name() or user.username}",
+                message=f"{user.get_full_name() or user.username} submitted a Task & Reminder summary report ({tasks_count} tasks). Notes: {report_notes[:200]}",
+                link="/dashboard/reports/admin/",
+            )
+            
+        messages.success(request, f"Successfully submitted task report ({tasks_count} tasks) to Administration!")
+    return redirect("dashboard:tasks")
+
+@login_required
+def call_history_view(request):
+    from django.core.paginator import Paginator
+    user = request.user
+    
+    # 1. Get Base Leads for hospital / user
+    leads = Lead.objects.filter(is_archived=False)
+    if user.hospital:
+        leads = leads.filter(hospital=user.hospital)
+        
+    if user.role == 'LEAD_ATTENDENT':
+        leads = leads.filter(assigned_to=user)
+    elif not user.can_view_all_leads:
+        if user.can_view_team_leads:
+            team = User.objects.filter(reports_to=user)
+            leads = leads.filter(Q(assigned_to=user) | Q(assigned_to__in=team))
+        elif user.can_view_assigned_leads:
+            leads = leads.filter(assigned_to=user)
+            
+    # Filter leads that have any telecaller remarks or call logs
+    leads = leads.filter(
+        Q(custom_data__remark_1__isnull=False, custom_data__remark_1__gt="") |
+        Q(custom_data__remark_2__isnull=False, custom_data__remark_2__gt="") |
+        Q(custom_data__remark_3__isnull=False, custom_data__remark_3__gt="") |
+        Q(custom_data__calling_date_remark_1__isnull=False, custom_data__calling_date_remark_1__gt="") |
+        Q(custom_data__calling_date_remark_2__isnull=False, custom_data__calling_date_remark_2__gt="") |
+        Q(custom_data__calling_date_remark_3__isnull=False, custom_data__calling_date_remark_3__gt="") |
+        Q(followups__isnull=False)
+    ).distinct().select_related('assigned_to', 'stage').order_by('-updated_at')
+    
+    # Search Query
+    q = request.GET.get('q', '').strip()
+    if q:
+        leads = leads.filter(
+            Q(name__icontains=q) |
+            Q(mobile__icontains=q) |
+            Q(lead_code__icontains=q) |
+            Q(custom_data__remark_1__icontains=q) |
+            Q(custom_data__remark_2__icontains=q) |
+            Q(custom_data__remark_3__icontains=q) |
+            Q(custom_data__doctor__icontains=q) |
+            Q(custom_data__department__icontains=q)
+        )
+        
+    # Date Filter
+    call_date = request.GET.get('call_date', '').strip()
+    if call_date:
+        leads = leads.filter(
+            Q(custom_data__calling_date_remark_1=call_date) |
+            Q(custom_data__calling_date_remark_2=call_date) |
+            Q(custom_data__calling_date_remark_3=call_date) |
+            Q(followups__followup_date=call_date)
+        )
+        
+    # Call Status / Appointment filter
+    call_status = request.GET.get('call_status', '').strip()
+    if call_status:
+        leads = leads.filter(custom_data__appointment_status=call_status)
+        
+    # Stats
+    total_calls_logged = leads.count()
+    
+    # Pagination
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+    
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+        
+    context = {
+        'page_obj': page_obj,
+        'leads': page_obj,
+        'page_range': page_range,
+        'total_calls_logged': total_calls_logged,
+        'query_params': query_params.urlencode(),
+        'q': q,
+        'call_date': call_date,
+        'call_status': call_status,
+        'active': 'call_history',
+    }
+    return render(request, "dashboard/call_history.html", context)
+
+@login_required
+def admin_reports_view(request):
+    user = request.user
+    if user.role not in ['SUPER_ADMIN', 'MANAGER', 'ADMIN'] and not user.is_superuser:
+        messages.error(request, "Access restricted to Administration and Management.")
+        return redirect("dashboard:home")
+        
+    hospital = user.hospital
+    
+    # 1. Fetch Task Reports submitted to Admin
+    task_reports_qs = TaskReminder.objects.filter(is_reported_to_admin=True)
+    if hospital:
+        task_reports_qs = task_reports_qs.filter(user__hospital=hospital)
+        
+    # Search / User filter for tasks
+    task_user_filter = request.GET.get('user', '').strip()
+    if task_user_filter:
+        task_reports_qs = task_reports_qs.filter(user__username=task_user_filter)
+        
+    date_filter = request.GET.get('date', '').strip()
+    if date_filter:
+        task_reports_qs = task_reports_qs.filter(reported_at__date=date_filter)
+        
+    task_reports = task_reports_qs.select_related('user', 'lead').order_by('-reported_at')
+    
+    # 2. Daily Calling & EOD Reports submitted by Employees
+    daily_reports_qs = DailyReport.objects.all()
+    if hospital:
+        daily_reports_qs = daily_reports_qs.filter(user__hospital=hospital)
+    if task_user_filter:
+        daily_reports_qs = daily_reports_qs.filter(user__username=task_user_filter)
+    if date_filter:
+        daily_reports_qs = daily_reports_qs.filter(report_date=date_filter)
+    daily_reports = daily_reports_qs.select_related('user').order_by('-report_date')
+    
+    # Stats
+    total_task_reports = task_reports_qs.count()
+    total_daily_reports = daily_reports_qs.count()
+    
+    # Telecallers / Employees for filter dropdown
+    employees = User.objects.filter(is_active=True)
+    if hospital:
+        employees = employees.filter(hospital=hospital)
+        
+    # Pagination for Task Reports
+    paginator = Paginator(task_reports, 15)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+    
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+
+    context = {
+        'active': 'reports',
+        'task_reports': page_obj,
+        'page_obj': page_obj,
+        'page_range': page_range,
+        'daily_reports': daily_reports[:10],
+        'total_task_reports': total_task_reports,
+        'total_daily_reports': total_daily_reports,
+        'employees': employees,
+        'selected_user': task_user_filter,
+        'selected_date': date_filter,
+        'query_params': query_params.urlencode(),
+    }
+    return render(request, "dashboard/admin_reports.html", context)

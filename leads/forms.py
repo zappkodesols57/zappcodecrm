@@ -185,33 +185,38 @@ class HospitalLeadForm(forms.ModelForm):
                 self.fields["assigned_to"].queryset = self.fields["assigned_to"].queryset.filter(hospital=user.hospital)
             self.fields["assigned_to"].empty_label = "Select Assignee"
                 
-        # Filter Master Data
-        try:
-            from leads.models import MasterGroup
-            
-            # Helper to filter items based on tenant
-            def get_tenant_items(group_name):
-                group, _ = MasterGroup.objects.get_or_create(name=group_name)
+        # Populate Master Data dropdowns dynamically
+        from leads.models import MasterGroup, MasterItem
+        from django.db.models import Q
+        
+        def get_tenant_items(group_name):
+            try:
+                group = MasterGroup.objects.filter(name__iexact=group_name).first()
+                if not group:
+                    return []
                 items = group.items.filter(is_active=True)
                 if user and user.hospital:
-                    items = items.filter(hospital=user.hospital)
-                else:
-                    items = items.filter(hospital__isnull=True)
+                    # Filter by hospital or universal items
+                    items = items.filter(Q(hospital=user.hospital) | Q(hospital__isnull=True))
                 return list(items.values_list("name", "name"))
-            
-            self.fields["location"].choices = [("", "Select Location (City, State)")] + get_tenant_items("Locations")
-            self.fields["department"].choices = [("", "Select Department")] + get_tenant_items("Departments")
-            self.fields["doctor"].choices = [("", "Select Doctor")] + get_tenant_items("Doctors")
-            
-            self.fields["gender"].choices = [("", "Select Gender")] + get_tenant_items("Genders")
-            self.fields["priority"].choices = [("", "Select Priority")] + get_tenant_items("Priorities")
-            self.fields["appointment_status"].choices = [("", "Select Status")] + get_tenant_items("Appointment Statuses")
-            
-            self.fields["deal_status"].choices = [("", "Select Deal Status")] + get_tenant_items("Deal Statuses")
-            self.fields["campaign"].choices = [("", "Select Campaign")] + get_tenant_items("Campaigns")
-            self.fields["lead_source"].choices = [("", "Select Lead Source")] + get_tenant_items("Lead Sources")
-        except Exception:
-            pass
+            except Exception as ex:
+                print(f"Error loading {group_name}: {ex}")
+                return []
+        
+        try:
+            loc_items = list(MasterItem.objects.filter(group__name__iexact="Locations", is_active=True).order_by("name").values_list("name", "name"))
+            self.fields["location"].choices = [("", "-- Select Patient Location (City, State) --")] + loc_items
+            self.fields["department"].choices = [("", "-- Select Department --")] + get_tenant_items("Departments")
+            self.fields["doctor"].choices = [("", "-- Select Doctor --")] + get_tenant_items("Doctors")
+            self.fields["gender"].choices = [("", "-- Select Gender --")] + get_tenant_items("Genders")
+            self.fields["priority"].choices = [("", "-- Select Priority --")] + get_tenant_items("Priorities")
+            self.fields["appointment_status"].choices = [("", "-- Select Appointment Status --")] + get_tenant_items("Appointment Statuses")
+            self.fields["deal_status"].choices = [("", "-- Select Deal Status --")] + get_tenant_items("Deal Statuses")
+            self.fields["campaign"].choices = [("", "-- Select Campaign --")] + get_tenant_items("Campaigns")
+            self.fields["lead_source"].choices = [("", "-- Select Lead Source --")] + get_tenant_items("Lead Sources")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
 
         if "source_category" in self.fields:
             self.fields["source_category"].queryset = SourceCategory.objects.filter(is_active=True).order_by("order", "name")
@@ -224,8 +229,20 @@ class HospitalLeadForm(forms.ModelForm):
         instance = super().save(commit=False)
         cd = instance.custom_data or {}
         
+        # Intelligently split and save standard location into City, State, and Location columns
+        loc_val = self.cleaned_data.get('location')
+        if loc_val:
+            loc_str = str(loc_val).strip()
+            instance.location = loc_str
+            if "," in loc_str:
+                parts = [p.strip() for p in loc_str.split(",", 1)]
+                instance.city = parts[0]
+                instance.state = parts[1]
+            else:
+                instance.city = loc_str
+            
         # Extract custom fields
-        custom_fields = ['gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source']
+        custom_fields = ['location', 'gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source']
         date_time_fields = ['appo_booked_date', 'visit_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'calling_date_remark_3']
         
         for field in custom_fields:

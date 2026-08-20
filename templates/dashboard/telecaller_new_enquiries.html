@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}New Enquiries | Nelson CRM{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --nelson-primary: #818cf8;
+        --nelson-primary-light: #e0e7ff;
+        --nelson-primary-hover: #6366f1;
+        --nelson-bg: #f8fafc;
+        --nelson-card-bg: rgba(255, 255, 255, 0.85);
+        --nelson-glass-border: rgba(255, 255, 255, 0.4);
+    }
+
+    body {
+        background-color: var(--nelson-bg);
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #818cf8 100%);
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%;
+    }
+
+    .glass-card {
+        background: var(--nelson-card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--nelson-glass-border);
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+        border-color: var(--nelson-primary-light);
+    }
+
+    .lead-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--nelson-primary-light);
+        color: var(--nelson-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-right: 15px;
+    }
+
+    .lead-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.35em 0.8em;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-new {
+        background-color: #fef3c7;
+        color: #d97706;
+        border: 1px solid #fde68a;
+    }
+    
+    .badge-source {
+        background-color: #e0e7ff;
+        color: #4338ca;
+        border: 1px solid #c7d2fe;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        color: #64748b;
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-item i {
+        width: 20px;
+        color: var(--nelson-primary);
+        font-size: 0.95rem;
+    }
+
+    .search-box-custom {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 30px;
+        padding: 0.5rem 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        transition: all 0.3s ease;
+    }
+
+    .search-box-custom:focus-within {
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.15);
+        border-color: var(--nelson-primary-light);
+    }
+
+    .search-box-custom input {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .search-box-custom input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .action-btn {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+    }
+
+    .action-btn-primary {
+        background-color: var(--nelson-primary);
+        color: white;
+        border: none;
+    }
+
+    .action-btn-primary:hover {
+        background-color: var(--nelson-primary-hover);
+        color: white;
+        transform: scale(1.02);
+    }
+
+    .action-btn-outline {
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        background: white;
+    }
+
+    .action-btn-outline:hover {
+        border-color: var(--nelson-primary);
+        color: var(--nelson-primary);
+        background: var(--nelson-primary-light);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    
+    <!-- Header -->
+    <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-1" style="font-family: 'Outfit', sans-serif;">New Enquiries ({{ leads|length }})</h2>
+            <p class="mb-0 text-white-50">Fresh, uncontacted leads synchronized from Meta API and other sources.</p>
+        </div>
+        
+        <form method="get" class="search-box-custom d-flex align-items-center" style="min-width: 300px;">
+            <i class="fa-solid fa-search text-muted me-2"></i>
+            <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search by name, mobile, city...">
+            {% if q %}
+                <a href="{% url 'dashboard:telecaller_new_enquiries' %}" class="text-muted text-decoration-none ms-2"><i class="fa-solid fa-xmark"></i></a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Leads Grid -->
+    <div class="row g-4">
+        {% for lead in leads %}
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="glass-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="lead-avatar">
+                                {{ lead.name|first|upper }}
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-bold text-dark">{{ lead.name }}</h5>
+                                <span class="text-muted small">{{ lead.created_at|timesince }} ago</span>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column align-items-end gap-1">
+                            <span class="lead-badge badge-new"><i class="fa-solid fa-fire text-danger"></i> {{ lead.custom_data.priority|default:lead.get_temperature_display|default:"New" }}</span>
+                            {% if lead.lead_source or lead.custom_data.lead_source %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-2 py-1" style="font-size: 0.7rem;">
+                                    <i class="fa-solid fa-bullhorn me-1"></i>{{ lead.lead_source.name|default:lead.custom_data.lead_source }}
+                                </span>
+                            {% endif %}
+                            {% if lead.campaign or lead.custom_data.campaign %}
+                                <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 text-truncate" style="max-width: 140px; font-size: 0.65rem;" title="{{ lead.campaign.name|default:lead.custom_data.campaign }}">
+                                    {{ lead.campaign.name|default:lead.custom_data.campaign }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <i class="fa-solid fa-mobile-screen-button"></i> 
+                        <a href="tel:{{ lead.mobile }}" class="text-decoration-none text-dark fw-medium">{{ lead.mobile }}</a>
+                    </div>
+                    {% if lead.email %}
+                    <div class="info-item">
+                        <i class="fa-solid fa-envelope"></i> {{ lead.email|truncatechars:25 }}
+                    </div>
+                    {% endif %}
+                    {% if lead.city or lead.custom_data.department %}
+                    <div class="info-item">
+                        <i class="fa-solid fa-location-dot"></i> 
+                        {% if lead.city %}{{ lead.city }}{% endif %}
+                        {% if lead.city and lead.custom_data.department %} • {% endif %}
+                        {% if lead.custom_data.department %}Dept: <span class="fw-medium">{{ lead.custom_data.department }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if lead.assigned_to %}
+                    <div class="info-item mt-2 pt-2 border-top">
+                        <i class="fa-solid fa-user-check text-success"></i> Assigned to: <span class="fw-bold ms-1">{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-transparent border-top-0 p-3 pt-0 mt-auto">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'leads:lead_detail' lead.id %}" class="btn action-btn action-btn-primary flex-grow-1">
+                            <i class="fa-solid fa-eye me-1"></i> View & Act
+                        </a>
+                        <a href="tel:{{ lead.mobile }}" class="btn action-btn action-btn-outline" title="Call Now">
+                            <i class="fa-solid fa-phone"></i>
+                        </a>
+                        <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }}%2C%20Greetings%20from%20{{ request.user.hospital.name|default:'Nelson%20Hospital'|urlencode }}!%20We%20received%20your%20enquiry%20and%20are%20here%20to%20assist%20you%20with%20doctor%20consultations%2C%20appointments%2C%20and%20healthcare%20guidance.%20How%20may%20we%20help%20you%20today%3F" target="_blank" class="btn action-btn action-btn-outline" title="Chat on WhatsApp with Welcome Greeting">
+                            <i class="fa-brands fa-whatsapp text-success"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="empty-state">
+                <i class="fa-solid fa-inbox text-muted opacity-25"></i>
+                <h4 class="fw-bold text-dark">No New Enquiries</h4>
+                <p class="text-muted">You're all caught up! No fresh or uncontacted leads found right now.</p>
+                {% if q %}
+                    <a href="{% url 'dashboard:telecaller_new_enquiries' %}" class="btn btn-primary rounded-pill mt-3 px-4">Clear Search</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="small text-muted fw-semibold order-2 order-md-1">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} leads (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    </div>
+    
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-left"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in page_range %}
+                {% if num == page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">…</span></li>
+                {% elif page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-3 border-0 bg-primary text-white px-3 py-2 fw-bold shadow-sm">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 border-0 bg-light text-dark px-3 py-2 fw-semibold" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+</div>
+{% endblock %}

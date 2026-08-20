@@ -23,6 +23,9 @@ def _can_edit_lead(user, lead):
         return True
     if user.can_edit_own_leads and lead.assigned_to == user:
         return True
+    # Allow hospital users to edit unassigned leads in their hospital
+    if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
+        return True
     return False
 
 def _can_access_lead(user, lead):
@@ -33,6 +36,9 @@ def _can_access_lead(user, lead):
         if lead.assigned_to == user or lead.assigned_to in team:
             return True
     if user.can_view_assigned_leads and lead.assigned_to == user:
+        return True
+    # Allow hospital users to view unassigned leads in their hospital (like New Enquiries)
+    if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
         return True
     return False
 
@@ -260,8 +266,43 @@ def lead_edit(request, pk):
     if request.method == "POST":
         form = FormClass(request.POST, instance=lead, user=request.user)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Lead updated.")
+            saved_lead = form.save(commit=False)
+            
+            # If user is a Telecaller (Lead Attendant), automatically assign lead to them if not already assigned
+            if request.user.role == User.Role.LEAD_ATTENDENT:
+                saved_lead.assigned_to = request.user
+            elif saved_lead.assigned_to is None:
+                saved_lead.assigned_to = request.user
+                
+            # Check if telecaller filled calling remarks or call dates
+            cd = saved_lead.custom_data if saved_lead.custom_data else {}
+            has_call_interaction = bool(
+                cd.get('remark_1') or cd.get('calling_date_remark_1') or 
+                cd.get('remark_2') or cd.get('calling_date_remark_2') or 
+                cd.get('remark_3') or cd.get('calling_date_remark_3') or
+                cd.get('appointment_status') in ['Booked', 'Cancelled']
+            )
+            
+            try:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
+                contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
+                
+                if has_call_interaction:
+                    # Telecaller called patient and entered call remarks / details
+                    saved_lead.stage = contacted_stage
+                    if saved_lead.temperature == LeadTemperature.UNCONTACTED:
+                        saved_lead.temperature = LeadTemperature.WARM
+                else:
+                    # Lead is only assigned but no call remarks filled yet
+                    if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                        saved_lead.stage = assigned_stage
+            except Exception:
+                pass
+                
+            saved_lead.save()
+            if hasattr(form, 'save_m2m'):
+                form.save_m2m()
+            messages.success(request, "Lead updated successfully.")
             return redirect("leads:lead_detail", pk=lead.pk)
     else:
         form = FormClass(instance=lead, user=request.user)
@@ -312,6 +353,9 @@ def add_note(request, pk):
         raise PermissionDenied("You do not have permission to access this lead.")
     if request.method == "POST" and request.POST.get("note", "").strip():
         Note.objects.create(lead=lead, note=request.POST["note"].strip(), created_by=request.user)
+        if lead.assigned_to is None:
+            lead.assigned_to = request.user
+            lead.save(update_fields=["assigned_to"])
         messages.success(request, "Note added.")
     return redirect("leads:lead_detail", pk=pk)
 
@@ -333,6 +377,9 @@ def add_followup(request, pk):
             next_followup_time=request.POST.get("next_followup_time") or None,
             created_by=request.user,
         )
+        if lead.assigned_to is None:
+            lead.assigned_to = request.user
+            lead.save(update_fields=["assigned_to"])
         messages.success(request, "Follow-up recorded.")
     return redirect("leads:lead_detail", pk=pk)
 
@@ -519,6 +566,12 @@ def assign_lead(request, pk):
         # Update assigned_to
         if assigned_to_id:
             lead.assigned_to_id = assigned_to_id
+            try:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
+                if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                    lead.stage = assigned_stage
+            except Exception:
+                pass
         else:
             lead.assigned_to = None
             
@@ -756,8 +809,14 @@ def lead_self_assign(request, pk):
         
     if request.method == "POST":
         lead.assigned_to = request.user
-        lead.save(update_fields=['assigned_to'])
-        messages.success(request, "Lead successfully assigned to you.")
+        try:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
+            if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                lead.stage = assigned_stage
+        except Exception:
+            pass
+        lead.save()
+        messages.success(request, "Lead successfully assigned to you and added to My Leads.")
         
     return redirect('leads:lead_detail', pk=pk)
 

@@ -1,86 +1,237 @@
 {% extends "base.html" %}
 {% block title %}Telecaller Dashboard{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+
+<!-- Dashboard Greeting & Quick Actions -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
-        <h3 class="fw-bold text-primary mb-1">Welcome, {{ request.user.get_full_name|default:request.user.username }}!</h3>
-        <p class="text-muted mb-0">Here is your daily telecaller summary for {{ request.user.hospital.name }}</p>
+        <h3 class="fw-bold text-primary mb-1">Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h3>
+        <p class="text-muted mb-0">Here is your daily calling performance overview & action items for {{ today_date|date:"l, d M Y" }}.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dashboard:tasks' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm">
+            <i class="fa-solid fa-list-check me-1"></i> Manage Tasks
+        </a>
+        <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="fa-solid fa-user-tag me-1"></i> My Leads Pipeline
+        </a>
     </div>
 </div>
 
+<!-- 4 Key Metric Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="display-6 me-3"><i class="fa-solid fa-phone-volume"></i></div>
+    <!-- 1. Calls Today -->
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 text-white-50 text-uppercase fw-bold" style="font-size: 0.8rem;">Calls Today</h6>
-                    <h2 class="mb-0 fw-bold">0</h2>
+                    <span class="small text-muted fw-bold text-uppercase">Calls Today</span>
+                    <h2 class="fw-bold text-primary mb-0 mt-1">{{ calls_today_count }}</h2>
+                    <span class="small text-muted" style="font-size: 0.72rem;">By you today</span>
+                </div>
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-3">
+                    <i class="fa-solid fa-phone-volume fa-xl"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="display-6 me-3"><i class="fa-solid fa-user-check"></i></div>
+
+    <!-- 2. Appointments Booked Today -->
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 text-white-50 text-uppercase fw-bold" style="font-size: 0.8rem;">Appointments</h6>
-                    <h2 class="mb-0 fw-bold">0</h2>
+                    <span class="small text-muted fw-bold text-uppercase">Appointments Booked</span>
+                    <h2 class="fw-bold text-success mb-0 mt-1">{{ appts_today_count }}</h2>
+                    <span class="small text-muted" style="font-size: 0.72rem;">Booked by you</span>
+                </div>
+                <div class="rounded-circle bg-success bg-opacity-10 text-success p-3">
+                    <i class="fa-solid fa-calendar-check fa-xl"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-dark border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="display-6 me-3"><i class="fa-solid fa-fire"></i></div>
+
+    <!-- 3. New Hot Leads Today Overall -->
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 text-dark-50 text-uppercase fw-bold" style="font-size: 0.8rem;">Hot Leads</h6>
-                    <h2 class="mb-0 fw-bold">0</h2>
+                    <span class="small text-muted fw-bold text-uppercase">New Hot Leads</span>
+                    <h2 class="fw-bold text-warning mb-0 mt-1">{{ hot_leads_today_count }}</h2>
+                    <span class="small text-muted" style="font-size: 0.72rem;">Received today</span>
+                </div>
+                <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3">
+                    <i class="fa-solid fa-fire fa-xl"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-danger text-white border-0 shadow-sm h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="display-6 me-3"><i class="fa-solid fa-calendar-xmark"></i></div>
+
+    <!-- 4. Overdue Follow-ups Remaining -->
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-danger border-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 text-white-50 text-uppercase fw-bold" style="font-size: 0.8rem;">Overdue Follow-ups</h6>
-                    <h2 class="mb-0 fw-bold">0</h2>
+                    <span class="small text-muted fw-bold text-uppercase">Overdue Follow-ups</span>
+                    <h2 class="fw-bold text-danger mb-0 mt-1">{{ overdue_followups_count }}</h2>
+                    <span class="small text-muted" style="font-size: 0.72rem;">Pending calls</span>
+                </div>
+                <div class="rounded-circle bg-danger bg-opacity-10 text-danger p-3">
+                    <i class="fa-solid fa-clock-rotate-left fa-xl"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Main Body: Recent Leads & Today's Tasks -->
 <div class="row g-4">
-    <div class="col-md-8">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-white border-0 pt-4 pb-0">
-                <h6 class="fw-bold mb-0">My Recent Leads</h6>
+    <!-- Left Column: My Recent Leads (Latest 10 Entries) -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-user-clock text-primary me-2"></i> My Recent Leads</h5>
+                    <small class="text-muted">Latest 10 patient leads assigned to your active queue</small>
+                </div>
+                <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold">
+                    View All My Leads <i class="fa-solid fa-arrow-right ms-1"></i>
+                </a>
             </div>
-            <div class="card-body">
-                <div class="text-center text-muted py-5">
-                    <i class="fa-solid fa-inbox fa-3x mb-3 text-light"></i>
-                    <p>No recent leads assigned to you yet.</p>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient</th>
+                                <th class="border-0 py-3 text-muted small text-uppercase">Doctor / Dept</th>
+                                <th class="border-0 py-3 text-muted small text-uppercase">Status / Appt</th>
+                                <th class="border-0 py-3 text-muted small text-uppercase">Latest Remark</th>
+                                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in my_recent_leads %}
+                            <tr>
+                                <td class="px-4">
+                                    <div class="fw-bold text-dark">{{ lead.name }}</div>
+                                    <div class="small text-muted"><i class="fa-solid fa-phone me-1 small"></i> {{ lead.mobile }}</div>
+                                </td>
+                                <td>
+                                    {% if lead.hospital_doctor %}
+                                        <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.hospital_doctor }}</span></div>
+                                    {% endif %}
+                                    {% if lead.hospital_dept %}
+                                        <div class="small fw-semibold text-secondary">{{ lead.hospital_dept }}</div>
+                                    {% elif not lead.hospital_doctor %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if lead.appt_status == 'Booked' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i> Booked</span>
+                                    {% elif lead.appt_status == 'Cancelled' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ lead.stage.name|default:lead.deal_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="max-width: 180px;">
+                                    {% if lead.latest_remark %}
+                                        <div class="small text-truncate text-muted" title="{{ lead.latest_remark }}">{{ lead.latest_remark }}</div>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 text-end">
+                                    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-light border rounded-pill px-3" title="Edit & Call Lead">
+                                        <i class="fa-solid fa-pen text-primary"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="text-muted mb-2"><i class="fa-solid fa-inbox fa-3x opacity-25"></i></div>
+                                    <h6 class="fw-bold text-dark">No assigned leads in your queue yet</h6>
+                                    <p class="text-muted small">Go to <a href="{% url 'dashboard:telecaller_new_enquiries' %}">New Enquiries</a> to pick and assign fresh leads to yourself.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-white border-0 pt-4 pb-0">
-                <h6 class="fw-bold mb-0">Today's Tasks</h6>
-            </div>
-            <div class="card-body">
-                <div class="text-center text-muted py-5">
-                    <i class="fa-regular fa-calendar-check fa-3x mb-3 text-light"></i>
-                    <p>You have no pending tasks today.</p>
+
+    <!-- Right Column: Today's Tasks (Bullets list from Admin / Self) -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-warning me-2"></i> Today's Tasks</h5>
+                    <small class="text-muted">Assigned by Management or Self</small>
                 </div>
+                <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
+                    <i class="fa-solid fa-plus text-primary"></i>
+                </a>
+            </div>
+            <div class="card-body p-4">
+                {% if todays_tasks %}
+                    <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
+                        {% for task in todays_tasks %}
+                        <li class="p-3 rounded-3 bg-light border border-light-subtle position-relative d-flex align-items-start gap-3">
+                            <div class="mt-1">
+                                {% if task.priority == 'URGENT' %}
+                                    <i class="fa-solid fa-circle-exclamation text-danger fa-lg"></i>
+                                {% elif task.priority == 'HIGH' %}
+                                    <i class="fa-solid fa-bolt text-warning fa-lg"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-circle-dot text-primary fa-lg"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ task.title }}</span>
+                                    {% if task.due_time %}
+                                        <span class="badge bg-white text-muted border small" style="font-size: 0.7rem;"><i class="fa-regular fa-clock me-1"></i>{{ task.due_time|time:"h:i A" }}</span>
+                                    {% endif %}
+                                </div>
+                                {% if task.description %}
+                                    <p class="small text-muted mb-2" style="font-size: 0.8rem;">{{ task.description }}</p>
+                                {% endif %}
+
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light-subtle">
+                                    {% if task.lead %}
+                                        <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="small fw-semibold text-primary text-decoration-none" style="font-size: 0.75rem;">
+                                            <i class="fa-solid fa-user me-1"></i>{{ task.lead.name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="small text-muted" style="font-size: 0.75rem;">General Task</span>
+                                    {% endif %}
+
+                                    {% if task.user != request.user %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">By {{ task.user.get_full_name|default:task.user.username }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Self</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fa-regular fa-calendar-check fa-3x mb-3 opacity-25"></i>
+                        <h6 class="fw-bold text-dark">No pending tasks for today</h6>
+                        <p class="text-muted small">You're all caught up! Click <a href="{% url 'dashboard:tasks' %}">here</a> to add reminders or tasks.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}

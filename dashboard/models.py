@@ -40,3 +40,45 @@ class DailyReport(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.report_date}"
+
+
+class TaskReminder(models.Model):
+    class Priority(models.TextChoices):
+        LOW = "LOW", "Low"
+        MEDIUM = "MEDIUM", "Medium"
+        HIGH = "HIGH", "High"
+        URGENT = "URGENT", "Urgent / Critical"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        COMPLETED = "COMPLETED", "Completed"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tasks_created")
+    title = models.CharField(max_length=255, verbose_name="Task Title")
+    description = models.TextField(blank=True, verbose_name="Task Details")
+    due_date = models.DateField(default=timezone.localdate, verbose_name="Due Date")
+    due_time = models.TimeField(null=True, blank=True, verbose_name="Due Time / Reminder Time")
+    priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.MEDIUM)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+    # Optional Link to Lead / Patient
+    lead = models.ForeignKey('leads.Lead', on_delete=models.SET_NULL, null=True, blank=True, related_name="linked_tasks")
+    
+    # Auto Followup sync flag
+    sync_to_followup = models.BooleanField(default=False, verbose_name="Sync as Follow-up on Lead")
+    
+    # Reported to Admin flag & notes
+    is_reported_to_admin = models.BooleanField(default=False, verbose_name="Reported to Admin")
+    admin_report_notes = models.TextField(blank=True, verbose_name="Report Summary sent to Admin")
+    reported_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["status", "due_date", "due_time", "-created_at"]
+
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()}) - {self.user.username}"
