@@ -12,8 +12,22 @@
 
 <!-- Quick Metric Stats -->
 <div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-info border-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="small text-muted fw-bold text-uppercase">Today's Staff Logged In</span>
+                    <h2 class="fw-bold text-info mb-0 mt-1">{{ today_logged_in_count }} / {{ total_staff_count }}</h2>
+                    <span class="small text-muted" style="font-size: 0.72rem;">Active on {{ today_date|date:"d M Y" }}</span>
+                </div>
+                <div class="rounded-circle bg-info bg-opacity-10 text-info p-3">
+                    <i class="fa-solid fa-users-viewfinder fa-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="small text-muted fw-bold text-uppercase">Task Reports Submitted</span>
@@ -26,8 +40,8 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4 h-100">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <span class="small text-muted fw-bold text-uppercase">Daily EOD Submissions</span>
@@ -38,6 +52,99 @@
                     <i class="fa-solid fa-file-signature fa-xl"></i>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Staff Daily Attendance & Login/Logout Tracker for Today -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-user-clock text-primary me-2"></i> Today's Live Staff Attendance & Login/Logout Timings ({{ today_date|date:"d M Y" }})</h5>
+            <small class="text-muted">Real-time attendance log for all hospital employees (Telecallers, Doctors, Staff)</small>
+        </div>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 rounded-pill fw-semibold">
+            <i class="fa-solid fa-signal me-1"></i> Live Status
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Employee</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Role</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">First Login Time</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Last Logout Time</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Current Session Status</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase text-center">EOD Report</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for att in staff_attendance %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width: 34px; height: 34px; border-radius: 8px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #4338ca;">
+                                    {{ att.user.first_name|slice:":1"|default:att.user.username|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ att.user.get_full_name|default:att.user.username }}</div>
+                                    <small class="text-muted">@{{ att.user.username }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ att.user.get_role_display }}</span>
+                        </td>
+                        <td>
+                            {% if att.first_login %}
+                                <span class="d-inline-flex align-items-center px-2 py-1 rounded-2 fw-bold" style="background: #ecfdf5; border: 1px solid #10b981; color: #047857; font-size: 0.82rem;">
+                                    <i class="fa-solid fa-right-to-bracket me-1 text-success"></i>{{ att.first_login|date:"h:i A" }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border px-2 py-1" style="font-size: 0.72rem;">Not Logged In Yet</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if att.last_logout %}
+                                <span class="d-inline-flex align-items-center px-2 py-1 rounded-2 fw-semibold" style="background: #f1f5f9; border: 1px solid #94a3b8; color: #334155; font-size: 0.82rem;">
+                                    <i class="fa-solid fa-right-from-bracket me-1 text-secondary"></i>{{ att.last_logout|date:"h:i A" }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if att.session_status == 'Active / In Session' %}
+                                <span class="badge bg-success text-white px-3 py-1 rounded-pill">
+                                    <i class="fa-solid fa-circle me-1" style="font-size: 0.5rem;"></i> Active Now
+                                </span>
+                            {% elif att.session_status == 'Logged Out' %}
+                                <span class="badge bg-secondary text-white px-3 py-1 rounded-pill">Logged Out</span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border px-3 py-1 rounded-pill">Absent / Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if att.eod_report %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1 small">
+                                    <i class="fa-solid fa-circle-check me-1"></i>Submitted ({{ att.eod_report.created_at|time:"h:i A" }})
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2 py-1 small">
+                                    <i class="fa-solid fa-clock me-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No staff members found for this hospital.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -69,18 +176,126 @@
     </div>
 </div>
 
-<!-- Task Reports Table -->
+<!-- Daily EOD Reports Table -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
-        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Telecaller Task & Reminder Reports</h5>
-        <small class="text-muted">Direct task milestones & summaries submitted by telecallers to Administration</small>
+    <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-file-signature text-success me-2"></i> Employee Daily EOD Reports & Attendance Timings</h5>
+            <small class="text-muted">End-of-day summary reports, calls, appointment milestones, freeze leads, and login/logout activity</small>
+        </div>
+        <a href="{% url 'dashboard:management_daily_reports' %}?{{ query_params }}&export=1" class="btn btn-sm btn-outline-success rounded-pill px-3">
+            <i class="fa-solid fa-file-excel me-1"></i> Export Reports Excel
+        </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Telecaller</th>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Date & Employee</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Reports To</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Login / Logout</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase text-center">Leads Assigned</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase text-center">Calls Made</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase text-center">Appts Booked</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase text-center">Freeze Leads</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Summary / Highlight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in daily_reports %}
+                    <tr>
+                        <!-- Date & Employee -->
+                        <td class="px-4">
+                            <span class="badge text-bg-light border fw-bold">{{ r.report_date|date:"d-m-Y" }}</span>
+                            <div class="fw-bold text-dark mt-1">{{ r.user.get_full_name|default:r.user.username }}</div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle small" style="font-size: 0.68rem;">{{ r.user.get_role_display }}</span>
+                        </td>
+
+                        <!-- Reports To -->
+                        <td>
+                            {% if r.user.reports_to %}
+                                <div class="fw-semibold text-secondary small"><i class="fa-solid fa-user-tie me-1 text-muted"></i>{{ r.user.reports_to.get_full_name|default:r.user.reports_to.username }}</div>
+                                <span class="badge bg-light text-muted border small" style="font-size: 0.65rem;">{{ r.user.reports_to.get_role_display }}</span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border small"><i class="fa-solid fa-user-shield me-1"></i>Admin</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Login / Logout Timings -->
+                        <td>
+                            <div class="small text-nowrap">
+                                <span class="d-inline-flex align-items-center px-2 py-1 rounded-2 fw-bold" style="background: #ecfdf5; border: 1px solid #10b981; color: #047857; font-size: 0.78rem;">
+                                    <i class="fa-solid fa-right-to-bracket me-1 text-success"></i>In: {% if r.first_login_at %}{{ r.first_login_at|date:"h:i A" }}{% elif r.created_at %}{{ r.created_at|date:"h:i A" }}{% else %}—{% endif %}
+                                </span>
+                            </div>
+                            <div class="small text-nowrap mt-1">
+                                <span class="d-inline-flex align-items-center px-2 py-1 rounded-2 fw-semibold" style="background: #f1f5f9; border: 1px solid #94a3b8; color: #334155; font-size: 0.78rem;">
+                                    <i class="fa-solid fa-right-from-bracket me-1 text-secondary"></i>Out: {% if r.last_logout_at %}{{ r.last_logout_at|date:"h:i A" }}{% else %}Active / In Session{% endif %}
+                                </span>
+                            </div>
+                        </td>
+
+                        <!-- Leads Assigned -->
+                        <td class="text-center">
+                            <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">{{ r.leads_assigned }}</span>
+                        </td>
+
+                        <!-- Calls & Follow-ups -->
+                        <td class="text-center">
+                            <span class="badge bg-info text-dark fs-6 px-3 py-2 rounded-pill">{{ r.calls_attended }}</span>
+                            <div class="small text-muted mt-1">{{ r.follow_ups_taken }} follow-up(s)</div>
+                        </td>
+
+                        <!-- Appointments Booked -->
+                        <td class="text-center">
+                            <span class="badge bg-success fs-6 px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-check me-1"></i>{{ r.appointments_booked }}</span>
+                        </td>
+
+                        <!-- Freeze Leads -->
+                        <td class="text-center">
+                            <span class="badge bg-secondary fs-6 px-3 py-2 rounded-pill">{{ r.freeze_leads }}</span>
+                        </td>
+
+                        <!-- Key Highlight / Notes -->
+                        <td style="max-width: 280px;">
+                            {% if r.key_highlight %}
+                                <div class="small fw-semibold text-dark text-truncate" title="{{ r.key_highlight }}"><i class="fa-solid fa-star text-warning me-1"></i>{{ r.key_highlight }}</div>
+                            {% endif %}
+                            {% if r.other_updates %}
+                                <div class="small text-muted text-truncate" title="{{ r.other_updates }}">{{ r.other_updates }}</div>
+                            {% elif not r.key_highlight %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <div class="text-muted mb-3"><i class="fa-solid fa-file-circle-question fa-3x opacity-25"></i></div>
+                            <h5 class="fw-bold text-dark">No daily EOD reports submitted yet</h5>
+                            <p class="text-muted">When attendants and staff submit their daily reports, their statistics and timings will appear here.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Task Reports Table -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Individual Task & Reminder Reports</h5>
+        <small class="text-muted">Task milestones reported directly to administration</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Employee</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Task Title & Details</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Linked Patient</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Status / Priority</th>
@@ -101,60 +316,55 @@
                         <td>
                             <div class="fw-bold text-dark">{{ task.title }}</div>
                             {% if task.description %}
-                                <div class="small text-muted text-truncate" style="max-width: 220px;">{{ task.description }}</div>
+                                <small class="text-muted d-block text-truncate" style="max-width: 260px;">{{ task.description }}</small>
                             {% endif %}
                         </td>
 
-                        <!-- Linked Patient -->
+                        <!-- Linked Lead -->
                         <td>
                             {% if task.lead %}
-                                <div><a href="{% url 'leads:lead_detail' task.lead.pk %}" class="fw-bold text-primary text-decoration-none"><i class="fa-solid fa-user me-1"></i> {{ task.lead.name }}</a></div>
-                                <div class="small text-muted"><i class="fa-solid fa-phone me-1 small"></i> {{ task.lead.mobile }}</div>
+                                <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="fw-bold text-primary text-decoration-none">
+                                    {{ task.lead.name }}
+                                </a>
+                                <small class="text-muted d-block">{{ task.lead.mobile }}</small>
                             {% else %}
-                                <span class="text-muted small">General Task</span>
+                                <span class="badge bg-light text-muted border">General / Internal</span>
                             {% endif %}
                         </td>
 
-                        <!-- Status & Priority -->
+                        <!-- Status / Priority -->
                         <td>
-                            {% if task.status == 'COMPLETED' %}
-                                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Completed</span>
-                            {% elif task.status == 'IN_PROGRESS' %}
-                                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">In Progress</span>
-                            {% else %}
-                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle text-dark px-2 py-1">Pending</span>
-                            {% endif %}
-
-                            {% if task.priority == 'URGENT' %}
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-fire me-1"></i> Urgent</span>
-                            {% elif task.priority == 'HIGH' %}
-                                <span class="badge bg-warning text-dark bg-opacity-25 border border-warning px-2 py-1">High</span>
-                            {% endif %}
+                            <div>
+                                {% if task.status == 'COMPLETED' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Completed</span>
+                                {% elif task.status == 'IN_PROGRESS' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-spinner me-1"></i> In Progress</span>
+                                {% else %}
+                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i> Pending</span>
+                                {% endif %}
+                            </div>
+                            <div class="mt-1">
+                                <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">Priority: {{ task.get_priority_display }}</span>
+                            </div>
                         </td>
 
-                        <!-- Admin Summary Note -->
+                        <!-- Admin Note -->
                         <td>
-                            {% if task.admin_report_notes %}
-                                <div class="p-2 rounded-3 bg-light border border-light-subtle small text-dark fw-medium">
-                                    <i class="fa-solid fa-quote-left text-muted me-1 small"></i> {{ task.admin_report_notes }}
-                                </div>
-                            {% else %}
-                                <span class="text-muted small fst-italic">No extra notes</span>
-                            {% endif %}
+                            <div class="p-2 rounded bg-light border text-dark small" style="max-height: 80px; overflow-y: auto;">
+                                <i class="fa-solid fa-quote-left text-muted opacity-50 me-1"></i> {{ task.admin_report_notes|default:"No additional summary provided." }}
+                            </div>
                         </td>
 
                         <!-- Reported Time -->
                         <td class="px-4 text-end">
-                            <div class="small fw-semibold text-dark">{{ task.reported_at|date:"d M Y" }}</div>
-                            <div class="small text-muted">{{ task.reported_at|time:"h:i A" }}</div>
+                            <span class="small fw-bold text-dark">{{ task.reported_at|date:"d M Y" }}</span>
+                            <span class="small text-muted d-block" style="font-size: 0.72rem;">{{ task.reported_at|date:"h:i A" }}</span>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-5">
-                            <div class="text-muted mb-3"><i class="fa-solid fa-clipboard-check fa-3x opacity-25"></i></div>
-                            <h5 class="fw-bold text-dark">No task reports submitted yet</h5>
-                            <p class="text-muted">When telecallers use the "Send Report to Admin" button in Tasks / Reminders, their summary reports will be chronicled here.</p>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted small">No individual task reports logged.</div>
                         </td>
                     </tr>
                     {% endfor %}

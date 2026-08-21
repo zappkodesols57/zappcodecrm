@@ -22,64 +22,64 @@
 <div class="row g-3 mb-4">
     <!-- 1. Calls Today -->
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4 h-100">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="small text-muted fw-bold text-uppercase">Calls Today</span>
-                    <h2 class="fw-bold text-primary mb-0 mt-1">{{ calls_today_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">By you today</span>
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4 h-100 position-relative">
+            <div class="position-absolute top-0 end-0 p-3">
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-phone-volume fs-6"></i>
                 </div>
-                <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-3">
-                    <i class="fa-solid fa-phone-volume fa-xl"></i>
-                </div>
+            </div>
+            <div class="pe-4">
+                <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Calls Today</span>
+                <h2 class="fw-bold text-primary mb-0 mt-1">{{ calls_today_count }}</h2>
+                <span class="small text-muted" style="font-size: 0.72rem;">By you today</span>
             </div>
         </div>
     </div>
 
     <!-- 2. Appointments Booked Today -->
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4 h-100">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="small text-muted fw-bold text-uppercase">Appointments Booked</span>
-                    <h2 class="fw-bold text-success mb-0 mt-1">{{ appts_today_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">Booked by you</span>
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4 h-100 position-relative">
+            <div class="position-absolute top-0 end-0 p-3">
+                <div class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-calendar-check fs-6"></i>
                 </div>
-                <div class="rounded-circle bg-success bg-opacity-10 text-success p-3">
-                    <i class="fa-solid fa-calendar-check fa-xl"></i>
-                </div>
+            </div>
+            <div class="pe-4">
+                <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Appointments Booked</span>
+                <h2 class="fw-bold text-success mb-0 mt-1">{{ appts_today_count }}</h2>
+                <span class="small text-muted" style="font-size: 0.72rem;">Booked by you</span>
             </div>
         </div>
     </div>
 
     <!-- 3. New Hot Leads Today Overall -->
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4 h-100">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="small text-muted fw-bold text-uppercase">New Hot Leads</span>
-                    <h2 class="fw-bold text-warning mb-0 mt-1">{{ hot_leads_today_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">Received today</span>
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4 h-100 position-relative">
+            <div class="position-absolute top-0 end-0 p-3">
+                <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-fire fs-6"></i>
                 </div>
-                <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3">
-                    <i class="fa-solid fa-fire fa-xl"></i>
-                </div>
+            </div>
+            <div class="pe-4">
+                <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">New Hot Leads</span>
+                <h2 class="fw-bold text-warning mb-0 mt-1">{{ hot_leads_today_count }}</h2>
+                <span class="small text-muted" style="font-size: 0.72rem;">Received today</span>
             </div>
         </div>
     </div>
 
     <!-- 4. Overdue Follow-ups Remaining -->
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-danger border-4 h-100">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="small text-muted fw-bold text-uppercase">Overdue Follow-ups</span>
-                    <h2 class="fw-bold text-danger mb-0 mt-1">{{ overdue_followups_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">Pending calls</span>
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-danger border-4 h-100 position-relative">
+            <div class="position-absolute top-0 end-0 p-3">
+                <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-clock-rotate-left fs-6"></i>
                 </div>
-                <div class="rounded-circle bg-danger bg-opacity-10 text-danger p-3">
-                    <i class="fa-solid fa-clock-rotate-left fa-xl"></i>
-                </div>
+            </div>
+            <div class="pe-4">
+                <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Overdue Follow-ups</span>
+                <h2 class="fw-bold text-danger mb-0 mt-1">{{ overdue_followups_count }}</h2>
+                <span class="small text-muted" style="font-size: 0.72rem;">Pending calls</span>
             </div>
         </div>
     </div>

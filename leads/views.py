@@ -143,18 +143,22 @@ def lead_list(request):
 
     appo_book = request.GET.get("appo_book")
     if appo_book == "YES":
-        if is_nelson:
-            leads = leads.filter(nelson_data__appo_book__iexact="YES")
-        else:
-            leads = leads.filter(custom_data__appo_book__iexact="YES")
+        leads = leads.filter(
+            Q(custom_data__appo_booked_date__isnull=False) |
+            Q(custom_data__appointment_status__icontains="Booked") |
+            Q(custom_data__appointment_status__icontains="Complete") |
+            Q(custom_data__appo_book__iexact="YES")
+        )
 
     has_revenue = request.GET.get("has_revenue")
     if has_revenue == "1":
-        if is_nelson:
-            leads = leads.filter(nelson_data__total__gt=0)
-        else:
-            # Exclude strings like "0.00", "0" if they are accidentally stored in custom_data
-            leads = leads.exclude(custom_data__total__in=["0", "0.00", "", 0, 0.0]).filter(custom_data__total__isnull=False)
+        # Match leads that have revenue (custom_data total, Admission payments, or Won status)
+        leads = leads.filter(
+            (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0])) |
+            Q(admission__payments__payment_status='SUCCESS', admission__payments__amount__gt=0) |
+            Q(deal_status='WON') |
+            Q(admission_status='ADMISSION_DONE')
+        ).distinct()
 
     paginator = Paginator(leads, 25)
     page = paginator.get_page(request.GET.get("page"))
@@ -216,6 +220,10 @@ def lead_list(request):
 
 @login_required
 def lead_add(request):
+    if request.user.role == User.Role.DOCTOR or not request.user.can_add_leads:
+        messages.error(request, "Doctors cannot create new leads.")
+        return redirect("dashboard:doctor_home")
+        
     duplicates = None
     FormClass = HospitalLeadForm if request.user.hospital else LeadForm
     template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/lead_form.html"
@@ -235,16 +243,64 @@ def lead_add(request):
             lead.created_by = request.user
             if request.user.hospital:
                 lead.hospital = request.user.hospital
+                
+            # If creator is a Lead Attendant and assigned_to wasn't set, assign to them
+            if request.user.role == User.Role.LEAD_ATTENDENT and not lead.assigned_to:
+                lead.assigned_to = request.user
             
             # Ensure defaults
-            from leads.models import LeadStage, LeadSource, SourceCategory
+            from leads.models import LeadStage, LeadSource, SourceCategory, Appointment, AppointmentStatus
+            from notifications.models import Notification
+            
             if not lead.stage_id:
-                lead.stage = LeadStage.objects.first()
+                if lead.assigned_to:
+                    lead.stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.first()
+                else:
+                    lead.stage = LeadStage.objects.first()
                 
             lead.save()
             form.save_m2m()
-            messages.success(request, "Lead created successfully.")
-            return redirect("leads:lead_detail", pk=lead.pk)
+            messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) saved successfully! ✅")
+
+            # 1. Send Notification to assigned Telecaller / Staff member
+            if lead.assigned_to and lead.assigned_to != request.user:
+                Notification.objects.create(
+                    user=lead.assigned_to,
+                    title="New Lead Assigned",
+                    message=f"Patient lead '{lead.name}' ({lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}.",
+                    link=f"/leads/{lead.pk}/",
+                )
+
+            # 2. Notify Doctor if appointment was booked or doctor selected
+            doc_name = (lead.custom_data or {}).get('doctor')
+            apt = Appointment.objects.filter(lead=lead).order_by('-id').first()
+            if apt and apt.doctor_user and apt.doctor_user != request.user:
+                time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot pending'
+                Notification.objects.create(
+                    user=apt.doctor_user,
+                    title="New Appointment Scheduled",
+                    message=f"Patient {lead.name} appointment booked for {apt.appointment_date.strftime('%d %b %Y')} at {time_str}.",
+                    link="/dashboard/doctor/",
+                )
+            elif doc_name:
+                import re
+                clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name, flags=re.IGNORECASE).strip()
+                doc_user = User.objects.filter(role=User.Role.DOCTOR, hospital=request.user.hospital).filter(
+                    Q(first_name__icontains=clean_doc_name) | Q(last_name__icontains=clean_doc_name) | Q(username__icontains=clean_doc_name)
+                ).first()
+                if doc_user and doc_user != request.user:
+                    Notification.objects.create(
+                        user=doc_user,
+                        title="New Patient Lead Allocated",
+                        message=f"Patient {lead.name} ({lead.mobile}) has been registered under your consultation by {request.user.get_full_name() or request.user.username}.",
+                        link="/dashboard/doctor/",
+                    )
+
+            if request.user.role == User.Role.LEAD_ATTENDENT:
+                return redirect("dashboard:telecaller_my_leads")
+            return redirect("leads:lead_list")
+        else:
+            messages.error(request, "Could not save lead. Please check the highlighted fields below.")
     else:
         from django.utils import timezone
         form = FormClass(initial={"inquiry_date": timezone.localdate()}, user=request.user)
@@ -254,11 +310,29 @@ def lead_add(request):
     })
 
 @login_required
+def _get_lead_or_redirect(request, pk):
+    """Helper to safely fetch a lead or redirect with a user-friendly warning message."""
+    lead = Lead.objects.select_related(
+        "course", "stage", "lead_source", "source_category", "campaign",
+        "assigned_to", "assigned_manager", "original_lead_source", "original_source_category", "original_campaign",
+    ).filter(pk=pk).first()
+    if not lead:
+        messages.warning(request, f"⚠️ Lead #{pk} not found or may have been removed.")
+        return None
+    return lead
+
+
 @login_required
 def lead_edit(request, pk):
-    lead = get_object_or_404(Lead, pk=pk)
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        if request.user.role == User.Role.LEAD_ATTENDENT:
+            return redirect("dashboard:telecaller_my_leads")
+        return redirect("leads:lead_list")
+
     if not _can_edit_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to edit this lead. It may be assigned to someone else.")
+        messages.error(request, "You do not have permission to edit this lead.")
+        return redirect("leads:lead_list")
         
     FormClass = HospitalLeadForm if request.user.hospital else LeadForm
     template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/lead_form.html"
@@ -284,41 +358,91 @@ def lead_edit(request, pk):
             )
             
             try:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
-                contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
-                
-                if has_call_interaction:
-                    # Telecaller called patient and entered call remarks / details
+                # If payment is done / deal won, keep stage as Payment Done / Admission Done
+                is_won = saved_lead.deal_status == DealStatus.WON or saved_lead.admission_status == AdmissionStatus.ADMISSION_DONE or bool(cd.get('total') and float(cd.get('total') or 0) > 0)
+                if is_won:
+                    won_stage = LeadStage.objects.filter(name__iexact='Admission').first() or \
+                                LeadStage.objects.filter(name__iexact='Payment Done').first() or \
+                                LeadStage.objects.filter(name__iexact='Visited').first()
+                    if won_stage:
+                        saved_lead.stage = won_stage
+                        saved_lead.deal_status = DealStatus.WON
+                        saved_lead.admission_status = AdmissionStatus.ADMISSION_DONE
+                        cd['deal_status'] = 'Won (Payment Done)'
+                        cd['appointment_status'] = 'Payment Done'
+                        saved_lead.custom_data = cd
+                elif has_call_interaction:
+                    contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
                     saved_lead.stage = contacted_stage
                     if saved_lead.temperature == LeadTemperature.UNCONTACTED:
                         saved_lead.temperature = LeadTemperature.WARM
                 else:
-                    # Lead is only assigned but no call remarks filled yet
+                    assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
                     if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
                         saved_lead.stage = assigned_stage
             except Exception:
                 pass
                 
+            prev_assigned = lead.assigned_to
             saved_lead.save()
             if hasattr(form, 'save_m2m'):
                 form.save_m2m()
+
+            # 1. Send notification to newly assigned Telecaller if assigned_to changed
+            from notifications.models import Notification
+            from leads.models import Appointment
+            if saved_lead.assigned_to and saved_lead.assigned_to != request.user and saved_lead.assigned_to != prev_assigned:
+                Notification.objects.create(
+                    user=saved_lead.assigned_to,
+                    title="Lead Assigned to You",
+                    message=f"Lead '{saved_lead.name}' ({saved_lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}.",
+                    link=f"/leads/{saved_lead.pk}/",
+                )
+
+            # 2. Notify Doctor if appointment exists for this lead
+            apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
+            if apt and apt.doctor_user and apt.doctor_user != request.user:
+                time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot not fixed'
+                Notification.objects.create(
+                    user=apt.doctor_user,
+                    title="Appointment Update",
+                    message=f"Patient {saved_lead.name} appointment scheduled for {apt.appointment_date.strftime('%d %b %Y')} at {time_str}.",
+                    link="/dashboard/doctor/",
+                )
+
             messages.success(request, "Lead updated successfully.")
             return redirect("leads:lead_detail", pk=lead.pk)
     else:
         form = FormClass(instance=lead, user=request.user)
-    return render(request, template, {"active": "leads_all", "form": form, "mode": "Edit", "obj": lead})
+
+    # Check if appointment is completed either via Lead custom_data or Appointment model
+    from leads.models import Appointment, AppointmentStatus
+    cd = lead.custom_data or {}
+    apt_status_str = str(cd.get('appointment_status', '')).upper()
+    has_completed_apt = Appointment.objects.filter(lead=lead, status=AppointmentStatus.COMPLETED).exists()
+    is_appointment_completed = 'COMPLET' in apt_status_str or 'DONE' in apt_status_str or 'VISIT' in apt_status_str or has_completed_apt
+
+    return render(request, template, {
+        "active": "leads_all",
+        "form": form,
+        "mode": "Edit",
+        "obj": lead,
+        "is_appointment_completed": is_appointment_completed,
+    })
 
 
 @login_required
 def lead_detail(request, pk):
-    lead = get_object_or_404(
-        Lead.objects.select_related(
-            "course", "stage", "lead_source", "source_category", "campaign",
-            "assigned_to", "assigned_manager", "original_lead_source", "original_source_category", "original_campaign",
-        ), pk=pk
-    )
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        if request.user.role == User.Role.LEAD_ATTENDENT:
+            return redirect("dashboard:telecaller_my_leads")
+        return redirect("leads:lead_list")
+
     if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
+        messages.error(request, "You do not have permission to access this lead.")
+        return redirect("leads:lead_list")
+
     timeline = lead.activities.all()[:200]
     admission = getattr(lead, "admission", None)
     
@@ -326,8 +450,22 @@ def lead_detail(request, pk):
     employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER])
     managers = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.MANAGER])
     
-    return render(request, "leads/lead_detail.html", {
+    latest_appointment = None
+    custom_field_data = []
+    if request.user.hospital:
+        from leads.models import Appointment, LeadCustomField
+        latest_appointment = Appointment.objects.filter(lead=lead).order_by('-id').first()
+        cfs = LeadCustomField.objects.filter(hospital=request.user.hospital, is_active=True).order_by("order")
+        cd = lead.custom_data or {}
+        for cf in cfs:
+            if cf.name in cd and cd[cf.name] != "":
+                custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
+        
+    template = "leads/hospital_lead_detail.html" if request.user.hospital else "leads/lead_detail.html"
+    return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
+        "latest_appointment": latest_appointment,
+        "custom_field_data": custom_field_data,
         "followup_modes": FollowUpMode.choices, "followup_statuses": FollowUpStatus.choices,
         "today": timezone.localdate(),
         "employees": employees,
@@ -337,9 +475,12 @@ def lead_detail(request, pk):
 
 @login_required
 def lead_archive(request, pk):
-    lead = get_object_or_404(Lead, pk=pk)
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
     if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
+        messages.error(request, "You do not have permission to access this lead.")
+        return redirect("leads:lead_list")
     lead.is_archived = not lead.is_archived
     lead.save(update_fields=["is_archived"])
     messages.success(request, f"Lead {'archived' if lead.is_archived else 'restored'}.")
@@ -348,9 +489,12 @@ def lead_archive(request, pk):
 
 @login_required
 def add_note(request, pk):
-    lead = get_object_or_404(Lead, pk=pk)
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
     if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
+        messages.error(request, "You do not have permission to access this lead.")
+        return redirect("leads:lead_list")
     if request.method == "POST" and request.POST.get("note", "").strip():
         Note.objects.create(lead=lead, note=request.POST["note"].strip(), created_by=request.user)
         if lead.assigned_to is None:
@@ -362,9 +506,12 @@ def add_note(request, pk):
 
 @login_required
 def add_followup(request, pk):
-    lead = get_object_or_404(Lead, pk=pk)
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
     if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
+        messages.error(request, "You do not have permission to access this lead.")
+        return redirect("leads:lead_list")
     if request.method == "POST":
         FollowUp.objects.create(
             lead=lead,
@@ -386,9 +533,12 @@ def add_followup(request, pk):
 
 @login_required
 def convert_admission(request, pk):
-    lead = get_object_or_404(Lead, pk=pk)
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
     if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
+        messages.error(request, "You do not have permission to access this lead.")
+        return redirect("leads:lead_list")
     if hasattr(lead, "admission"):
         messages.info(request, "This lead already has an admission record.")
         return redirect("leads:lead_detail", pk=pk)
@@ -609,12 +759,133 @@ def universal_master_list(request):
         else:
             items = selected_group.items.filter(hospital__isnull=True)
 
+    from leads.models import LeadCustomField
+    if request.user.hospital:
+        custom_fields = LeadCustomField.objects.filter(hospital=request.user.hospital)
+    else:
+        custom_fields = LeadCustomField.objects.filter(hospital__isnull=True)
+
     return render(request, "leads/universal_masters.html", {
         "active": "universal_masters",
         "groups": groups,
         "selected_group": selected_group,
         "items": items,
+        "custom_fields": custom_fields,
+        "tab": request.GET.get("tab", "masters"),
     })
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def custom_field_add(request):
+    from leads.models import LeadCustomField
+    from django.utils.text import slugify
+    if request.method == "POST":
+        label = request.POST.get("label", "").strip()
+        field_type = request.POST.get("field_type", "TEXT")
+        options = request.POST.get("options", "").strip()
+        placeholder = request.POST.get("placeholder", "").strip()
+        help_text = request.POST.get("help_text", "").strip()
+        is_required = request.POST.get("is_required") == "on"
+        order = request.POST.get("order", 0)
+        try:
+            order = int(order)
+        except ValueError:
+            order = 0
+
+        if label:
+            name = slugify(label).replace("-", "_")
+            # Ensure unique name per hospital
+            base_name = name
+            count = 1
+            while LeadCustomField.objects.filter(hospital=request.user.hospital, name=name).exists():
+                name = f"{base_name}_{count}"
+                count += 1
+
+            LeadCustomField.objects.create(
+                hospital=request.user.hospital,
+                name=name,
+                label=label,
+                field_type=field_type,
+                options=options,
+                placeholder=placeholder,
+                help_text=help_text,
+                is_required=is_required,
+                order=order,
+                is_active=True,
+            )
+            messages.success(request, f"New custom form field '{label}' added successfully.")
+            return redirect("/leads/universal-masters/?tab=custom_fields")
+        messages.error(request, "Field label is required.")
+    return redirect("/leads/universal-masters/?tab=custom_fields")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def custom_field_edit(request, pk):
+    from leads.models import LeadCustomField
+    field = get_object_or_404(LeadCustomField, pk=pk)
+    if field.hospital != request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("/leads/universal-masters/?tab=custom_fields")
+        
+    if request.method == "POST":
+        label = request.POST.get("label", "").strip()
+        field_type = request.POST.get("field_type", "TEXT")
+        options = request.POST.get("options", "").strip()
+        placeholder = request.POST.get("placeholder", "").strip()
+        help_text = request.POST.get("help_text", "").strip()
+        is_required = request.POST.get("is_required") == "on"
+        is_active = request.POST.get("is_active") == "on"
+        order = request.POST.get("order", 0)
+        try:
+            order = int(order)
+        except ValueError:
+            order = 0
+
+        if label:
+            field.label = label
+            field.field_type = field_type
+            field.options = options
+            field.placeholder = placeholder
+            field.help_text = help_text
+            field.is_required = is_required
+            field.is_active = is_active
+            field.order = order
+            field.save()
+            messages.success(request, f"Custom form field '{label}' updated successfully.")
+        return redirect("/leads/universal-masters/?tab=custom_fields")
+    return redirect("/leads/universal-masters/?tab=custom_fields")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def custom_field_toggle(request, pk):
+    from leads.models import LeadCustomField
+    field = get_object_or_404(LeadCustomField, pk=pk)
+    if field.hospital != request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("/leads/universal-masters/?tab=custom_fields")
+        
+    field.is_active = not field.is_active
+    field.save(update_fields=["is_active"])
+    messages.success(request, f"Field '{field.label}' is now {'Active' if field.is_active else 'Hidden'}.")
+    return redirect("/leads/universal-masters/?tab=custom_fields")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def custom_field_delete(request, pk):
+    from leads.models import LeadCustomField
+    field = get_object_or_404(LeadCustomField, pk=pk)
+    if field.hospital != request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("/leads/universal-masters/?tab=custom_fields")
+        
+    label = field.label
+    field.delete()
+    messages.success(request, f"Custom form field '{label}' removed from lead form.")
+    return redirect("/leads/universal-masters/?tab=custom_fields")
 
 
 @login_required
@@ -873,3 +1144,207 @@ def check_duplicate_mobile(request):
                 "assigned_to": assigned_name
             })
     return JsonResponse({"exists": False})
+
+
+@login_required
+def doctor_slots_api(request):
+    import re
+    from datetime import datetime, time, timedelta
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from django.db import models
+    from django.db.models import Q
+    from accounts.models import User
+    from leads.models import Appointment, DoctorSchedule, DoctorLeave, AppointmentStatus
+    
+    try:
+        doctor_name = request.GET.get("doctor", "").strip()
+        date_str = request.GET.get("date", "").strip()
+        
+        if not doctor_name or not date_str:
+            return JsonResponse({"error": "Doctor and date are required", "slots": []})
+            
+        try:
+            req_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return JsonResponse({"error": "Invalid date format", "slots": []})
+            
+        hospital = request.user.hospital
+        
+        # Clean doctor name (remove prefixes like Dr. / Dr / Doctor)
+        clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doctor_name, flags=re.IGNORECASE).strip()
+        
+        # Try finding doctor user
+        doctor_user = None
+        user_qs = User.objects.filter(role=User.Role.DOCTOR)
+        if hospital:
+            user_qs = user_qs.filter(hospital=hospital)
+            
+        for u in user_qs:
+            full_name = (u.get_full_name() or "").strip().lower()
+            u_clean = re.sub(r'^(dr\.?|doctor)\s+', '', full_name, flags=re.IGNORECASE).strip()
+            username = u.username.lower()
+            search_low = clean_doc_name.lower()
+            doc_raw_low = doctor_name.lower()
+            
+            if (search_low and (search_low in full_name or search_low in u_clean or search_low in username)) or \
+               (doc_raw_low and (doc_raw_low in full_name or doc_raw_low in username)):
+                doctor_user = u
+                break
+        
+        # Helper to parse time object from string or time
+        def parse_time_val(t_val, default_time):
+            if isinstance(t_val, time):
+                return t_val
+            if isinstance(t_val, str):
+                for fmt in ("%H:%M:%S", "%H:%M", "%I:%M %p", "%I:%M%p"):
+                    try:
+                        return datetime.strptime(t_val.strip(), fmt).time()
+                    except ValueError:
+                        pass
+            return default_time
+
+        # Check doctor OPD start, end and slot duration
+        duration = 30
+        is_doctor_active = True
+        off_days = ["Sunday"]
+        
+        doctor_opd_start = time(9, 0)
+        doctor_opd_end = time(18, 0)
+        
+        if doctor_user:
+            sched = getattr(doctor_user, 'doctor_schedule', None)
+            if sched:
+                if sched.opd_start_time:
+                    doctor_opd_start = parse_time_val(sched.opd_start_time, time(9, 0))
+                if sched.opd_end_time:
+                    doctor_opd_end = parse_time_val(sched.opd_end_time, time(18, 0))
+                if sched.slot_duration_minutes and sched.slot_duration_minutes > 0:
+                    duration = sched.slot_duration_minutes
+                is_doctor_active = sched.is_available
+                if sched.off_days:
+                    off_days = [d.strip().lower() for d in sched.off_days.split(",") if d.strip()]
+
+        # If start >= end, fallback to 9 AM to 6 PM
+        if doctor_opd_start >= doctor_opd_end:
+            doctor_opd_start = time(9, 0)
+            doctor_opd_end = time(18, 0)
+                    
+        # Check day of week off
+        day_name = req_date.strftime("%A").lower()
+        is_weekly_off = (day_name in [d.lower() for d in off_days]) or (not is_doctor_active)
+        
+        # Check doctor leave
+        leaves = DoctorLeave.objects.filter(
+            start_date__lte=req_date,
+            end_date__gte=req_date
+        )
+        if doctor_user:
+            leaves = leaves.filter(doctor=doctor_user)
+        elif hospital:
+            leaves = leaves.filter(hospital=hospital)
+            
+        full_day_leave = leaves.filter(is_full_day=True).first()
+
+        # If on full day leave or weekly off, return no slots with clear alert message
+        if full_day_leave:
+            return JsonResponse({
+                "slots": [],
+                "doctor": doctor_name,
+                "date": date_str,
+                "is_off": False,
+                "is_on_leave": True,
+                "leave_reason": full_day_leave.reason or "Personal Leave"
+            })
+
+        if is_weekly_off:
+            return JsonResponse({
+                "slots": [],
+                "doctor": doctor_name,
+                "date": date_str,
+                "is_off": True,
+                "is_on_leave": False,
+                "off_day_name": req_date.strftime("%A")
+            })
+            
+        # Get booked appointments for this doctor on this date
+        booked_apts = Appointment.objects.filter(
+            hospital=hospital,
+            appointment_date=req_date
+        ).exclude(
+            status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW]
+        )
+        if doctor_user:
+            booked_apts = booked_apts.filter(models.Q(doctor_user=doctor_user) | models.Q(doctor_name__iexact=doctor_name))
+        else:
+            booked_apts = booked_apts.filter(doctor_name__iexact=doctor_name)
+            
+        booked_times = set()
+        for apt in booked_apts:
+            if apt.appointment_time:
+                booked_times.add(apt.appointment_time.strftime("%H:%M"))
+                
+        # Generate slots based on doctor's OPD timings
+        curr_dt = datetime.combine(req_date, doctor_opd_start)
+        end_dt = datetime.combine(req_date, doctor_opd_end)
+        now = timezone.localtime()
+        
+        slots = []
+        while curr_dt < end_dt:
+            time_str_24 = curr_dt.strftime("%H:%M")
+            time_str_12 = curr_dt.strftime("%I:%M %p")
+            slot_t = curr_dt.time()
+            
+            # Check if partial leave blocks this slot
+            partial_leave = False
+            for l in leaves.filter(is_full_day=False):
+                if l.start_time and l.end_time:
+                    if l.start_time <= slot_t < l.end_time:
+                        partial_leave = True
+                        break
+                        
+            is_booked = time_str_24 in booked_times
+            is_past = (req_date == now.date() and slot_t < now.time()) or (req_date < now.date())
+            
+            if full_day_leave:
+                status = "leave"
+                status_text = "On Leave"
+            elif is_weekly_off:
+                status = "off"
+                status_text = "Doctor Off"
+            elif partial_leave:
+                status = "leave"
+                status_text = "On Leave"
+            elif is_booked:
+                status = "booked"
+                status_text = "Booked"
+            elif is_past:
+                status = "past"
+                status_text = "Past"
+            else:
+                status = "available"
+                status_text = "Available"
+                
+            slots.append({
+                "time_24": time_str_24,
+                "time_12": time_str_12,
+                "status": status,
+                "status_text": status_text,
+                "available": (status == "available")
+            })
+            curr_dt += timedelta(minutes=duration)
+            
+        return JsonResponse({
+            "slots": slots,
+            "doctor": doctor_name,
+            "date": date_str,
+            "duration": duration,
+            "is_off": is_weekly_off,
+            "is_on_leave": bool(full_day_leave),
+            "leave_reason": full_day_leave.reason if full_day_leave else ""
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e), "slots": []}, status=200)
+

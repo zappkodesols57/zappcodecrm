@@ -40,4 +40,34 @@
       });
     });
   }
+
+  // Sidebar Minimize & State Persistence
+  document.addEventListener("DOMContentLoaded", function() {
+    const isSidebarMinimized = localStorage.getItem('sidebar_minimized') === 'true';
+    if (isSidebarMinimized && window.innerWidth >= 992) {
+      document.body.classList.add('sidebar-minimized');
+    }
+
+    function toggleSidebar() {
+      const willMinimize = !document.body.classList.contains('sidebar-minimized');
+      if (willMinimize) {
+        document.body.classList.add('sidebar-minimized');
+        localStorage.setItem('sidebar_minimized', 'true');
+      } else {
+        document.body.classList.remove('sidebar-minimized');
+        localStorage.setItem('sidebar_minimized', 'false');
+      }
+    }
+
+    const topbarToggleBtn = document.getElementById('sidebarMinimizeBtn');
+    if (topbarToggleBtn) {
+      topbarToggleBtn.addEventListener('click', toggleSidebar);
+    }
+
+    const innerToggleBtn = document.getElementById('sidebarInnerToggleBtn');
+    if (innerToggleBtn) {
+      innerToggleBtn.addEventListener('click', toggleSidebar);
+    }
+  });
 </script>
+

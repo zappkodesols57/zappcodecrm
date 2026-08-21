@@ -25,11 +25,12 @@ urlpatterns = [
     path("daily-report/", views.submit_daily_report, name="submit_daily_report"),
     path("reports/daily/", views.management_daily_reports, name="management_daily_reports"),
 
+    path("doctor/", views.doctor_home, name="doctor_home"),
+    path("doctor/appointments/", views.doctor_appointments, name="doctor_appointments"),
     path("telecaller/", views.telecaller_home, name="telecaller_home"),
     path("telecaller/my-leads/", views.telecaller_my_leads, name="telecaller_my_leads"),
     path("telecaller/new-enquiries/", views.telecaller_new_enquiries, name="telecaller_new_enquiries"),
     path("telecaller/search/", views.telecaller_search, name="telecaller_search"),
     path("telecaller/appointments/", views.telecaller_appointments, name="telecaller_appointments"),
     path("placeholder/<str:module_name>/", views.placeholder_view, name="placeholder"),
-
 ]

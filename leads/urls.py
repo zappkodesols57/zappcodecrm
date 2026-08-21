@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.lead_list, name="lead_list"),
     path("add/", views.lead_add, name="lead_add"),
     path("api/check-mobile/", views.check_duplicate_mobile, name="check_duplicate_mobile"),
+    path("api/doctor-slots/", views.doctor_slots_api, name="doctor_slots_api"),
     path("<int:pk>/", views.lead_detail, name="lead_detail"),
     path("<int:pk>/edit/", views.lead_edit, name="lead_edit"),
     path("<int:pk>/self-assign/", views.lead_self_assign, name="lead_self_assign"),
@@ -33,4 +34,10 @@ urlpatterns = [
     path("universal-masters/item/<int:pk>/toggle/", views.master_item_toggle, name="master_item_toggle"),
     path("universal-masters/item/<int:pk>/delete/", views.master_item_delete, name="master_item_delete"),
     path("universal-masters/import/", views.universal_master_import, name="universal_master_import"),
+
+    # Dynamic Lead Custom Form Fields routes
+    path("universal-masters/custom-fields/add/", views.custom_field_add, name="custom_field_add"),
+    path("universal-masters/custom-fields/<int:pk>/edit/", views.custom_field_edit, name="custom_field_edit"),
+    path("universal-masters/custom-fields/<int:pk>/toggle/", views.custom_field_toggle, name="custom_field_toggle"),
+    path("universal-masters/custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom_field_delete"),
 ]

@@ -1,139 +1,145 @@
 {% extends "base.html" %}
-{% block title %}Search & Filter Leads{% endblock %}
+{% block title %}All Leads | Nelson CRM{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h3 class="fw-bold text-primary mb-1"><i class="fa-solid fa-magnifying-glass me-2"></i> Search & Filter</h3>
-        <p class="text-muted mb-0">Quickly search patient records or apply advanced filters.</p>
+        <h3 class="fw-bold text-primary mb-1">
+            <i class="fa-solid fa-list-ul me-2"></i>All Leads
+        </h3>
+        <p class="text-muted mb-0">Browse and search all hospital patient records, filter by doctor, department, priority, or appointment status.</p>
     </div>
-    <a href="?{% for key, value in request.GET.items %}{% if key != 'export' %}{{ key }}={{ value }}&{% endif %}{% endfor %}export=1" class="btn btn-success shadow-sm rounded-pill px-4">
-        <i class="fa-solid fa-file-excel me-2"></i> Export to Excel
-    </a>
+    <div class="d-flex gap-2">
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'export' %}{{ key }}={{ value }}&{% endif %}{% endfor %}export=1" class="btn btn-outline-success rounded-pill px-3 shadow-sm">
+            <i class="fa-solid fa-file-excel me-1"></i> Export to Excel
+        </a>
+    </div>
 </div>
 
-<!-- Primary Search Bar & Filter Toggle Card -->
+<!-- Primary Search & Clean Filter Panel -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-body p-4">
+    <div class="card-body p-3">
         <form method="GET" action="" id="searchFilterForm">
-            <div class="row g-2 align-items-center">
+            <div class="row g-2 align-items-center mb-2">
                 <!-- Search Input -->
                 <div class="col-md-7 col-12">
                     <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0 px-3"><i class="fa-solid fa-search text-muted"></i></span>
-                        <input type="text" name="q" class="form-control form-control-lg border-start-0 ps-0" placeholder="Search by Patient Name, Phone Number, or Lead Code..." value="{{ q }}">
+                        <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name, Mobile, Lead Code..." value="{{ q }}">
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="col-md-5 col-12 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-lg rounded-pill flex-grow-1 shadow-sm">
+                    <button type="submit" class="btn btn-primary rounded-pill flex-grow-1">
                         <i class="fa-solid fa-search me-1"></i> Search
                     </button>
                     
-                    <button type="button" class="btn btn-outline-secondary btn-lg rounded-pill px-3 d-flex align-items-center gap-2" data-bs-toggle="collapse" data-bs-target="#advancedFiltersPanel" aria-expanded="{% if date_filter or status_filter or appointment_filter or doctor_filter or disease_filter or priority_filter or converted_filter %}true{% else %}false{% endif %}">
-                        <i class="fa-solid fa-sliders"></i>
+                    <button type="button" class="btn btn-light border rounded-pill px-3 d-flex align-items-center gap-2" data-bs-toggle="collapse" data-bs-target="#advancedFiltersPanel" aria-expanded="{% if date_filter or status_filter or appointment_filter or doctor_filter or disease_filter or priority_filter or converted_filter %}true{% else %}false{% endif %}">
+                        <i class="fa-solid fa-sliders text-primary"></i>
                         <span>Filters</span>
                         {% if date_filter or status_filter or appointment_filter or doctor_filter or disease_filter or priority_filter or converted_filter %}
                             <span class="badge bg-primary rounded-pill">Active</span>
                         {% endif %}
                     </button>
 
-                    <a href="{% url 'dashboard:telecaller_search' %}" class="btn btn-light border btn-lg rounded-pill px-3" title="Clear all search & filters">
-                        <i class="fa-solid fa-rotate-left"></i>
+                    <a href="{% url 'dashboard:telecaller_search' %}" class="btn btn-light border rounded-pill px-3" title="Clear all search & filters">
+                        <i class="fa-solid fa-rotate-left text-muted"></i>
                     </a>
                 </div>
             </div>
 
-            <!-- Collapsible Advanced Filters Section -->
+            <!-- Collapsible Clean Filter Box -->
             <div class="collapse {% if date_filter or status_filter or appointment_filter or doctor_filter or disease_filter or priority_filter or converted_filter %}show{% endif %} mt-3 pt-3 border-top" id="advancedFiltersPanel">
-                <div class="row g-3 align-items-end">
+                <div class="row g-3">
                     <!-- Date -->
                     <div class="col-md-3 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Inquiry Date</label>
-                        <input type="date" name="date" class="form-control rounded-3" value="{{ date_filter }}">
+                        <label class="form-label small fw-bold text-muted">Inquiry Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ date_filter }}">
                     </div>
 
                     <!-- Lead Status -->
                     <div class="col-md-3 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Lead Status</label>
-                        <select name="status" class="form-select rounded-3">
+                        <label class="form-label small fw-bold text-muted">Lead Status</label>
+                        <select name="status" class="form-select">
                             <option value="">All Statuses</option>
-                            <option value="Assigned" {% if status_filter == 'Assigned' %}selected{% endif %}>👥 Assigned Leads</option>
-                            <option value="New" {% if status_filter == 'New' %}selected{% endif %}>🆕 Unassigned / Fresh</option>
-                            <option value="Contacted" {% if status_filter == 'Contacted' %}selected{% endif %}>📞 Contacted</option>
-                            <option value="Follow-up" {% if status_filter == 'Follow-up' %}selected{% endif %}>⏳ Follow-up</option>
-                            <option value="Interested" {% if status_filter == 'Interested' %}selected{% endif %}>⭐ Interested</option>
-                            <option value="Visited" {% if status_filter == 'Visited' %}selected{% endif %}>🏥 Visited / OPD Done</option>
-                            <option value="Lost" {% if status_filter == 'Lost' %}selected{% endif %}>✕ Lost / Cancelled</option>
+                            <option value="Assigned" {% if status_filter == 'Assigned' %}selected{% endif %}>Assigned Leads</option>
+                            <option value="New" {% if status_filter == 'New' %}selected{% endif %}>Unassigned / Fresh</option>
+                            <option value="Contacted" {% if status_filter == 'Contacted' %}selected{% endif %}>Contacted</option>
+                            <option value="Follow-up" {% if status_filter == 'Follow-up' %}selected{% endif %}>Follow-up</option>
+                            <option value="Interested" {% if status_filter == 'Interested' %}selected{% endif %}>Interested</option>
+                            <option value="Visited" {% if status_filter == 'Visited' %}selected{% endif %}>Visited / OPD Done</option>
+                            <option value="Lost" {% if status_filter == 'Lost' %}selected{% endif %}>Lost / Cancelled</option>
                         </select>
                     </div>
 
                     <!-- Assignment Filter -->
                     <div class="col-md-3 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Allocation</label>
-                        <select name="assigned" class="form-select rounded-3">
+                        <label class="form-label small fw-bold text-muted">Allocation</label>
+                        <select name="assigned" class="form-select">
                             <option value="">All Allocations</option>
-                            <option value="assigned" {% if assigned_filter == 'assigned' %}selected{% endif %}>✓ All Assigned Leads</option>
-                            <option value="my_leads" {% if assigned_filter == 'my_leads' %}selected{% endif %}>👤 Assigned to Me</option>
-                            <option value="unassigned" {% if assigned_filter == 'unassigned' %}selected{% endif %}>⚠️ Unassigned Leads</option>
+                            <option value="assigned" {% if assigned_filter == 'assigned' %}selected{% endif %}>All Assigned Leads</option>
+                            <option value="my_leads" {% if assigned_filter == 'my_leads' %}selected{% endif %}>Assigned to Me</option>
+                            <option value="unassigned" {% if assigned_filter == 'unassigned' %}selected{% endif %}>Unassigned Leads</option>
                         </select>
                     </div>
 
                     <!-- Appointment Status -->
                     <div class="col-md-3 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Appointment</label>
-                        <select name="appointment_status" class="form-select rounded-3">
+                        <label class="form-label small fw-bold text-muted">Appointment Status</label>
+                        <select name="appointment_status" class="form-select">
                             <option value="">All Appointments</option>
-                            <option value="Booked" {% if appointment_filter == 'Booked' %}selected{% endif %}>📅 Booked</option>
+                            <option value="Booked" {% if appointment_filter == 'Booked' %}selected{% endif %}>Booked</option>
                             <option value="Not Booked" {% if appointment_filter == 'Not Booked' %}selected{% endif %}>Not Booked</option>
-                            <option value="Cancelled" {% if appointment_filter == 'Cancelled' %}selected{% endif %}>❌ Cancelled</option>
+                            <option value="Cancelled" {% if appointment_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                         </select>
                     </div>
 
                     <!-- Priority -->
                     <div class="col-md-3 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Priority</label>
-                        <select name="priority" class="form-select rounded-3">
+                        <label class="form-label small fw-bold text-muted">Priority</label>
+                        <select name="priority" class="form-select">
                             <option value="">All Priorities</option>
-                            <option value="Hot" {% if priority_filter == 'Hot' %}selected{% endif %}>🔥 Hot</option>
-                            <option value="Warm" {% if priority_filter == 'Warm' %}selected{% endif %}>⚡ Warm</option>
-                            <option value="Cold" {% if priority_filter == 'Cold' %}selected{% endif %}>❄️ Cold</option>
+                            <option value="Hot" {% if priority_filter == 'Hot' %}selected{% endif %}>Hot</option>
+                            <option value="Warm" {% if priority_filter == 'Warm' %}selected{% endif %}>Warm</option>
+                            <option value="Cold" {% if priority_filter == 'Cold' %}selected{% endif %}>Cold</option>
                         </select>
                     </div>
 
                     <!-- Doctor -->
-                    <div class="col-md-4 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Doctor</label>
-                        <input type="text" name="doctor" class="form-control rounded-3" placeholder="Filter by Dr. Name..." value="{{ doctor_filter }}">
+                    <div class="col-md-3 col-sm-6">
+                        <label class="form-label small fw-bold text-muted">Doctor</label>
+                        <input type="text" name="doctor" class="form-control" placeholder="Dr. Name..." value="{{ doctor_filter }}">
                     </div>
 
-                    <!-- Disease / Dept -->
-                    <div class="col-md-4 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Disease / Department</label>
-                        <input type="text" name="disease" class="form-control rounded-3" placeholder="e.g. Gynaec, Paediatrics, Fever..." value="{{ disease_filter }}">
+                    <!-- Department -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="form-label small fw-bold text-muted">Department</label>
+                        <input type="text" name="disease" class="form-control" placeholder="e.g. Gynaec, Paediatrics..." value="{{ disease_filter }}">
                     </div>
 
                     <!-- Conversion Status -->
-                    <div class="col-md-4 col-sm-6">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Conversion Status</label>
-                        <select name="converted" class="form-select rounded-3">
-                            <option value="">All Statuses</option>
-                            <option value="yes" {% if converted_filter == 'yes' %}selected{% endif %}>✓ Done (OPD / IPD Done)</option>
-                            <option value="no" {% if converted_filter == 'no' %}selected{% endif %}>⏳ Pending / Open</option>
+                    <div class="col-md-3 col-sm-6">
+                        <label class="form-label small fw-bold text-muted">Conversion</label>
+                        <select name="converted" class="form-select">
+                            <option value="">All</option>
+                            <option value="yes" {% if converted_filter == 'yes' %}selected{% endif %}>Done (OPD / Visited)</option>
+                            <option value="no" {% if converted_filter == 'no' %}selected{% endif %}>Pending / Open</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="d-flex justify-content-end gap-2 mt-3 pt-2">
-                    <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm"><i class="fa-solid fa-filter me-1"></i> Apply Advanced Filters</button>
+                    <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                        <i class="fa-solid fa-filter me-1"></i> Apply Filters
+                    </button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Results Card -->
-<div class="card border-0 shadow-sm rounded-4">
+<!-- Results Table Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -143,7 +149,7 @@
                         <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Doctor & Department</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Status & Priority</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Date</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Inquiry Date / Staff</th>
                         <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Actions</th>
                     </tr>
                 </thead>
@@ -152,12 +158,12 @@
                     <tr>
                         <td class="px-4">
                             <div class="fw-bold text-dark">{{ lead.name }}</div>
-                            <div class="small text-muted">{{ lead.lead_code }}</div>
+                            <div class="small text-muted">ID: #{{ lead.lead_code|default:lead.pk }}</div>
                         </td>
                         <td>
-                            <div><i class="fa-solid fa-phone text-muted me-1 small"></i> {{ lead.mobile }}</div>
-                            {% if lead.email %}
-                            <div class="small text-muted"><i class="fa-solid fa-envelope me-1"></i> {{ lead.email }}</div>
+                            <div><i class="fa-solid fa-phone text-muted me-1 small"></i> <a href="tel:{{ lead.mobile }}" class="text-decoration-none text-dark fw-medium">{{ lead.mobile }}</a></div>
+                            {% if lead.location or lead.city %}
+                            <div class="small text-muted"><i class="fa-solid fa-location-dot text-muted me-1 small"></i> {{ lead.location|default:lead.city }}</div>
                             {% endif %}
                         </td>
                         <td>
@@ -172,7 +178,11 @@
                         </td>
                         <td>
                             <div class="mb-1 d-flex flex-wrap gap-1 align-items-center">
-                                {% if lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' and lead.custom_data.appointment_status != '' %}
+                                {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                                        <i class="fa-solid fa-circle-check me-1"></i> Payment Done
+                                    </span>
+                                {% elif lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' and lead.custom_data.appointment_status != '' %}
                                     <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% elif lead.custom_data.appointment_status == 'Cancelled' or 'Not Int' in lead.custom_data.appointment_status %}bg-danger text-danger border-danger-subtle{% else %}bg-primary text-primary border-primary-subtle{% endif %} bg-opacity-10 border px-2 py-1">
                                         <i class="fa-solid {% if lead.custom_data.appointment_status == 'Booked' %}fa-calendar-check{% elif lead.custom_data.appointment_status == 'Cancelled' %}fa-calendar-xmark{% elif 'Not Int' in lead.custom_data.appointment_status %}fa-user-xmark{% else %}fa-clock{% endif %} me-1"></i> {{ lead.custom_data.appointment_status }}
                                     </span>
@@ -209,7 +219,7 @@
                         </td>
                         <td class="px-4 text-end">
                             <div class="btn-group shadow-sm">
-                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View"><i class="fa-solid fa-eye text-primary"></i></a>
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View Patient"><i class="fa-solid fa-eye text-primary"></i></a>
                                 {% if lead.assigned_to == request.user or request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
                                     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-light border" title="Edit"><i class="fa-solid fa-pen text-warning"></i></a>
                                 {% elif not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' %}
@@ -228,7 +238,7 @@
                         <td colspan="6" class="text-center py-5">
                             <div class="text-muted mb-3"><i class="fa-solid fa-search fa-3x opacity-25"></i></div>
                             <h5 class="fw-bold text-dark">No leads found</h5>
-                            <p class="text-muted">Try adjusting your search query or advanced filter criteria.</p>
+                            <p class="text-muted">Try adjusting your search query or filter criteria.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -238,7 +248,7 @@
     </div>
 </div>
 
-<!-- Adaptive Responsive Pagination -->
+<!-- Pagination -->
 {% if page_obj.paginator.count > 0 %}
 <div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
     <div class="small text-muted fw-semibold order-2 order-md-1">
@@ -250,7 +260,7 @@
         <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
                         <i class="fa-solid fa-chevron-left"></i>
                     </a>
                 </li>
@@ -276,7 +286,7 @@
 
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
                         <i class="fa-solid fa-chevron-right"></i>
                     </a>
                 </li>
@@ -286,10 +296,6 @@
                 </li>
             {% endif %}
         </ul>
-    </div>
-    {% else %}
-    <div class="order-1 order-md-2">
-        <span class="badge bg-light text-secondary border px-3 py-2 rounded-3 fw-semibold"><i class="fa-solid fa-check-double me-1 text-success"></i> All leads displayed</span>
     </div>
     {% endif %}
 </div>

@@ -70,9 +70,29 @@
       </div>
     </div>
 
-    <a href="{% url 'dashboard:home' %}" class="btn btn-primary px-4">
-      <i class="fa-solid fa-gauge-high me-1"></i> Go to Dashboard
-    </a>
+    {% if user.hospital %}
+      {% if user.role == 'LEAD_ATTENDENT' %}
+        <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
+          <i class="fa-solid fa-gauge-high me-1"></i> Go to My Dashboard
+        </a>
+      {% elif user.role == 'DOCTOR' %}
+        <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
+          <i class="fa-solid fa-gauge-high me-1"></i> Go to Doctor Portal
+        </a>
+      {% elif user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' %}
+        <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
+          <i class="fa-solid fa-gauge-high me-1"></i> Go to Admin Dashboard
+        </a>
+      {% else %}
+        <a href="{% url 'dashboard:home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
+          <i class="fa-solid fa-gauge-high me-1"></i> Go to Dashboard
+        </a>
+      {% endif %}
+    {% else %}
+      <a href="{% url 'dashboard:home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
+        <i class="fa-solid fa-gauge-high me-1"></i> Go to Dashboard
+      </a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

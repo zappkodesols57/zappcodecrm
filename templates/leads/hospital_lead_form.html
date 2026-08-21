@@ -1,301 +1,775 @@
 {% extends "base.html" %}
-{% block title %}Lead Form{% endblock %}
+{% block title %}{% if obj %}Edit Lead - {{ obj.name }}{% else %}New Lead{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .crm-form-card {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 2rem 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem auto;
+  }
+
+  .crm-section-header {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .crm-form-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.1rem;
+  }
+
+  .crm-form-label {
+    width: 32%;
+    font-size: 0.94rem;
+    font-weight: 650;
+    color: #1e293b;
+    text-align: right;
+    padding-right: 1.25rem;
+    margin-bottom: 0;
+    user-select: none;
+    letter-spacing: 0.2px;
+  }
+
+  .crm-form-label.required::after {
+    content: " *";
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  .crm-form-field {
+    width: 68%;
+    position: relative;
+  }
+
+  .crm-form-field .form-control,
+  .crm-form-field .form-select {
+    height: 40px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 0.94rem;
+    font-weight: 550;
+    color: #0f172a;
+    background-color: #fcfdfe;
+    transition: all 0.2s ease;
+    padding: 0.42rem 0.85rem;
+  }
+
+  .crm-form-field textarea.form-control {
+    height: auto;
+    min-height: 72px;
+    font-weight: normal;
+  }
+
+  .crm-name-field-wrap input.form-control,
+  #id_name {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    height: 42px !important;
+    background-color: #f8faff !important;
+    border: 1.5px solid #6366f1 !important;
+    box-shadow: 0 1px 3px rgba(99, 102, 241, 0.12) !important;
+    border-radius: 7px !important;
+    letter-spacing: 0.3px;
+  }
+
+  .crm-name-field-wrap input.form-control:focus,
+  #id_name:focus {
+    background-color: #ffffff !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.22) !important;
+  }
+
+  .crm-form-field .form-control:focus,
+  .crm-form-field .form-select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    outline: none;
+  }
+
+  .crm-owner-badge {
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.88rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .crm-btn-save {
+    background-color: #4f46e5;
+    color: #ffffff;
+    border: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.6rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+  }
+
+  .crm-btn-save:hover {
+    background-color: #4338ca;
+    color: #ffffff;
+  }
+
+  .crm-btn-cancel {
+    background-color: #ffffff;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.4rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+
+  .crm-btn-cancel:hover {
+    background-color: #f8fafc;
+    color: #334155;
+  }
+
+  @media (max-width: 768px) {
+    .crm-form-card {
+      padding: 1.25rem;
+    }
+    .crm-form-row {
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 0.9rem;
+    }
+    .crm-form-label {
+      width: 100%;
+      text-align: left;
+      padding-right: 0;
+      margin-bottom: 0.35rem;
+    }
+    .crm-form-field {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-2">
+  
+  <!-- Header Bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3" style="max-width: 1100px; margin: 0 auto;">
     <div>
-        <h3 class="fw-bold text-primary mb-1">
-            <i class="fa-solid fa-notes-medical me-2"></i> Lead Form
-        </h3>
-        <p class="text-muted mb-0">Fill in patient information for {{ request.user.hospital.name }}</p>
+      <h5 class="fw-bold text-dark mb-0">
+        {% if obj %}<i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Lead{% else %}<i class="fa-solid fa-user-plus text-primary me-2"></i>Create Lead{% endif %}
+      </h5>
+      <span class="text-muted small">{% if user.hospital %}{{ user.hospital.name }}{% endif %}</span>
     </div>
-    <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'dashboard:telecaller_my_leads' %}{% endif %}" class="btn btn-light border shadow-sm px-4 rounded-pill">
-        <i class="fa-solid fa-arrow-left me-2"></i> Back
-    </a>
-</div>
+    <div class="d-flex gap-2">
+      <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="crm-btn-cancel">
+        Cancel
+      </a>
+      <button type="submit" form="nelsonLeadForm" class="crm-btn-save">
+        Save Lead
+      </button>
+    </div>
+  </div>
 
-{% if form.errors %}
-<div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
-    <div class="d-flex align-items-center mb-2">
-        <i class="fa-solid fa-triangle-exclamation fa-2x me-3"></i>
-        <h6 class="mb-0 fw-bold">Please correct the errors below.</h6>
-    </div>
-    <ul class="mb-0 mt-2 text-sm text-danger">
-        {% for field in form %}
-            {% for error in field.errors %}
-                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+  {% if duplicates %}
+  <div class="card mb-3 border-warning shadow-sm rounded-3" style="max-width: 1100px; margin: 0 auto 1.5rem auto;">
+    <div class="card-body p-3">
+      <h6 class="text-warning fw-bold mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Patient with this mobile number already exists:</h6>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-2">
+          <thead class="bg-light">
+            <tr>
+              <th>Lead ID</th><th>Patient Name</th><th>Mobile</th><th>Doctor</th><th>Appt Status</th><th>Assigned To</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in duplicates %}
+            <tr>
+              <td class="fw-bold">{{ d.lead_code }}</td>
+              <td>{{ d.name }}</td>
+              <td>{{ d.mobile }}</td>
+              <td>{{ d.custom_data.doctor|default:"—" }}</td>
+              <td><span class="badge text-bg-light border">{{ d.custom_data.appointment_status|default:d.stage.name }}</span></td>
+              <td>{{ d.assigned_to.get_full_name|default:d.assigned_to.username|default:"Unassigned" }}</td>
+              <td><a href="{% url 'leads:lead_detail' d.pk %}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 small">View Patient</a></td>
+            </tr>
             {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-warning py-2 px-3 small mb-0 rounded-2">
+        <i class="fa-solid fa-circle-info me-1"></i> If this is a new enquiry for the same patient, click <strong>"Save Lead"</strong> again to force-create a new inquiry.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form.errors %}
+  <div class="alert alert-danger shadow-sm border-0 rounded-3 mb-3" style="max-width: 1100px; margin: 0 auto 1rem auto;">
+    <div class="fw-bold mb-1"><i class="fa-solid fa-circle-exclamation me-2"></i>Please resolve the following errors:</div>
+    <ul class="mb-0 small ps-3">
+      {% for field in form %}
+        {% for error in field.errors %}
+          <li><strong>{{ field.label }}:</strong> {{ error }}</li>
         {% endfor %}
-        {% for error in form.non_field_errors %}
-            <li>{{ error }}</li>
-        {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
     </ul>
-</div>
-{% endif %}
+  </div>
+  {% endif %}
 
-<form method="POST" class="needs-validation">
-    {% csrf_token %}
-    
-    <div class="row g-4">
-        <!-- Patient Info Section -->
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="fw-bold text-dark"><i class="fa-solid fa-user-injured text-info me-2"></i> Patient Information</h5>
+  <div class="crm-form-card">
+    <form method="POST" id="nelsonLeadForm" class="needs-validation">
+      {% csrf_token %}
+      {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
+
+      <!-- Section: Lead Information -->
+      <div class="crm-section-header">
+        <i class="fa-solid fa-id-card text-primary opacity-75"></i> Lead Information
+      </div>
+
+      <!-- Full-Width Top Bar: Assign To / Lead Owner -->
+      <div class="row mb-3 pb-3 border-bottom">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label">Assign To</label>
+            <div class="crm-form-field">
+              {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
+                {{ form.assigned_to }}
+                <div class="form-text small text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-user-check me-1"></i>Select the Lead Attendant / Staff member to assign this lead to.</div>
+              {% else %}
+                <div class="crm-owner-badge d-flex justify-content-between align-items-center p-2 rounded border bg-light">
+                  <span><i class="fa-solid fa-circle-user text-primary me-2"></i><strong>{{ user.get_full_name|default:user.username }}</strong></span>
+                  <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
                 </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Patient Name *</label>
-                            {{ form.name }}
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Age</label>
-                            {{ form.age }}
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Gender</label>
-                            {{ form.gender }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Mobile No *</label>
-                            {{ form.mobile }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Location</label>
-                            {{ form.location }}
-                        </div>
-                    </div>
-
-                    <hr class="my-4 text-muted opacity-25">
-
-                    <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-stethoscope text-primary me-2"></i> Medical Details</h6>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Department</label>
-                            {{ form.department }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Doctor</label>
-                            {{ form.doctor }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Priority</label>
-                            {{ form.priority }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Investigation</label>
-                            {{ form.investigation }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Appointment Status</label>
-                            {{ form.appointment_status }}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Visit Date</label>
-                            {{ form.visit_date }}
-                        </div>
-                    </div>
-                </div>
+                <input type="hidden" name="assigned_to" value="{{ user.pk }}">
+              {% endif %}
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-6">
+
+          <!-- 1. Patient Name -->
+          <div class="crm-form-row">
+            <label class="crm-form-label required fw-bold text-dark">Patient Name</label>
+            <div class="crm-form-field">
+              <div class="crm-name-field-wrap">
+                {{ form.name }}
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Age -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Age</label>
+            <div class="crm-form-field">
+              {{ form.age }}
+            </div>
+          </div>
+
+          <!-- 3. Comments / Notes -->
+          <div class="crm-form-row align-items-start">
+            <label class="crm-form-label">Comments</label>
+            <div class="crm-form-field">
+              {{ form.comments }}
+              <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-regular fa-comment-dots me-1"></i>Enter patient notes or comments</small>
+            </div>
+          </div>
+
+          <!-- 4. Doctor -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Doctor</label>
+            <div class="crm-form-field">
+              {{ form.doctor }}
+            </div>
+          </div>
+
+          <!-- 5. Lead Source (under Doctor) -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Lead Source</label>
+            <div class="crm-form-field">
+              {{ form.lead_source }}
+            </div>
+          </div>
+
+          <!-- 6. Campaign (under Lead Source) -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Campaign</label>
+            <div class="crm-form-field">
+              {{ form.campaign }}
+            </div>
+          </div>
+
         </div>
 
-        <!-- System & Status Section -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="fw-bold text-dark"><i class="fa-solid fa-server text-secondary me-2"></i> System & Status</h5>
-                </div>
-                <div class="card-body bg-light rounded-bottom-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Status / Temperature</label>
-                        {{ form.deal_status }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Assigned To</label>
-                        {{ form.assigned_to }}
-                        <div class="form-text small"><i class="fa-solid fa-lock text-muted me-1"></i> Assignment locked</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Campaign Name</label>
-                        {{ form.campaign }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Lead Source</label>
-                        {{ form.lead_source }}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Billing & IDs Section -->
-        <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i> Billing & Registration</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">UHID ID NO</label>
-                            {{ form.uhid_id_no }}
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">IPD NO</label>
-                            {{ form.ipd_no }}
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Pharmacy Bill</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">₹</span>
-                                {{ form.pharmacy_bill }}
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase">OPD Bill</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0">₹</span>
-                                {{ form.opd_bill }}
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold text-muted text-uppercase text-danger">Total Amount</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-danger text-white border-end-0">₹</span>
-                                {{ form.total }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Right Column -->
+        <div class="col-md-6">
 
-        <!-- Remarks Tracking -->
-        <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 mb-4">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="fw-bold text-dark"><i class="fa-regular fa-comments text-warning me-2"></i> Telecaller Remarks</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-4">
-                        <!-- Remark 1 -->
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded-3 h-100 border border-light-subtle">
-                                <h6 class="fw-bold text-muted small text-uppercase mb-3">Call Attempt 1</h6>
-                                <div class="mb-2">
-                                    <label class="form-label small text-muted">Calling Date</label>
-                                    {{ form.calling_date_remark_1 }}
-                                </div>
-                                <div>
-                                    <label class="form-label small text-muted">Remark 1</label>
-                                    {{ form.remark_1 }}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Remark 2 -->
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded-3 h-100 border border-light-subtle">
-                                <h6 class="fw-bold text-muted small text-uppercase mb-3">Call Attempt 2</h6>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label small text-muted">Date</label>
-                                        {{ form.calling_date_remark_2 }}
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small text-muted">Time</label>
-                                        {{ form.calling_time_remark_2 }}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="form-label small text-muted">Remark 2</label>
-                                    {{ form.remark_2 }}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Remark 3 -->
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded-3 h-100 border border-light-subtle">
-                                <h6 class="fw-bold text-muted small text-uppercase mb-3">Call Attempt 3</h6>
-                                <div class="mb-2">
-                                    <label class="form-label small text-muted">Calling Date</label>
-                                    {{ form.calling_date_remark_3 }}
-                                </div>
-                                <div>
-                                    <label class="form-label small text-muted">Remark 3</label>
-                                    {{ form.remark_3 }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4 text-muted opacity-25">
-                    
+          <!-- 1. Mobile (across Patient Name) -->
+          <div class="crm-form-row">
+            <label class="crm-form-label required">Mobile</label>
+            <div class="crm-form-field">
+              {{ form.mobile }}
+            </div>
+          </div>
+
+          <!-- 2. Gender (across Age) -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Gender</label>
+            <div class="crm-form-field">
+              {{ form.gender }}
+            </div>
+          </div>
+
+          <!-- 3. Location (under Gender) -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Location</label>
+            <div class="crm-form-field">
+              {{ form.location }}
+            </div>
+          </div>
+
+          <!-- 4. Department (under Location) -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Department</label>
+            <div class="crm-form-field">
+              {{ form.department }}
+            </div>
+          </div>
+
+          <!-- 5. Appointment Status -->
+          <div class="crm-form-row">
+            <label class="crm-form-label">Appointment Status</label>
+            <div class="crm-form-field">
+              {{ form.appointment_status }}
+            </div>
+          </div>
+
+          <!-- Container for BOOKED Status (Appointment Date & Real-time Slots) -->
+          <div id="bookedFieldsContainer" style="display: none;">
+            <!-- Appo. Booked Date -->
+            <div class="crm-form-row">
+              <label class="crm-form-label required">Appointment Date</label>
+              <div class="crm-form-field">
+                {{ form.appo_booked_date }}
+                <small class="text-muted" style="font-size: 0.75rem;">Select today or a future date</small>
+              </div>
+            </div>
+
+            <!-- Doctor Calendar & Time Slots Box matching reference UI -->
+            <div class="crm-form-row align-items-start">
+              <label class="crm-form-label required">Appointment Slot</label>
+              <div class="crm-form-field">
+                <input type="hidden" name="appointment_time" id="id_appointment_time" value="{{ form.appointment_time.value|default:'' }}">
+                
+                <!-- Selected Slot Locked View (Shows when slot is selected) -->
+                <div id="selectedSlotBanner" class="p-2 px-3 border border-success-subtle rounded-3 bg-success bg-opacity-10 d-flex justify-content-between align-items-center mb-2" style="display: none !important;">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-success fs-5"></i>
                     <div>
-                        <label class="form-label small fw-bold text-muted text-uppercase">General Comments</label>
-                        {{ form.notes }}
+                      <div class="small fw-bold text-success mb-0">Locked Slot: <span id="selectedSlotText" class="fs-6 text-dark">—</span></div>
+                      <small class="text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-lock text-muted me-1"></i>Slot reserved for this appointment</small>
                     </div>
+                  </div>
+                  <button type="button" id="btnChangeSlot" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold" style="font-size: 0.75rem;">
+                    <i class="fa-solid fa-arrows-rotate me-1"></i> Change Slot
+                  </button>
                 </div>
+
+                <!-- Expandable Calendar & Slots Box -->
+                <div id="slotsCalendarBox" class="p-3 border rounded-3 bg-light-subtle shadow-sm" style="background: #f8fafc; border-color: #e2e8f0;">
+                  <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.88rem;">
+                      <i class="fa-regular fa-clock text-primary me-1"></i> Available time slots
+                    </h6>
+                    <span id="slotsDurationBadge" class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.72rem;">30 min slots</span>
+                  </div>
+
+                  <div id="slotsLoading" style="display:none;" class="text-primary small py-2 text-center">
+                    <i class="fa-solid fa-spinner fa-spin me-1"></i> Checking doctor's live calendar...
+                  </div>
+
+                  <div id="slotsMessage" class="small text-muted text-center py-2">
+                    Please select a Doctor & Appointment Date to load slots.
+                  </div>
+
+                  <!-- 3-Column Time Slot Grid as in Reference Image -->
+                  <div id="slotsGrid" class="row g-2 pt-1" style="max-height: 240px; overflow-y: auto;">
+                    <!-- Slots dynamically injected via JS -->
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <!-- Container for WAITING Status (Follow-up Date & Time) -->
+          <div id="waitingFieldsContainer" style="display: none;">
+            <div class="crm-form-row">
+              <label class="crm-form-label required">Follow-up Date</label>
+              <div class="crm-form-field">
+                {{ form.followup_date }}
+                <small class="text-info" style="font-size: 0.75rem;"><i class="fa-solid fa-calendar-check me-1"></i>Moves to your Follow-ups List automatically</small>
+              </div>
+            </div>
+            <div class="crm-form-row">
+              <label class="crm-form-label">Follow-up Time</label>
+              <div class="crm-form-field">
+                {{ form.followup_time }}
+              </div>
+            </div>
+          </div>
+
         </div>
+      </div>
 
-    </div>
+      {% if form.dynamic_custom_fields %}
+      <!-- Section: Additional Custom Details (Configured by Admin) -->
+      <div class="crm-section-header mt-4">
+        <i class="fa-solid fa-sliders text-primary opacity-75"></i> Additional Fields
+      </div>
+      <div class="row">
+        {% for cf in form.dynamic_custom_fields %}
+        <div class="col-md-6">
+          <div class="crm-form-row">
+            <label class="crm-form-label {% if cf.is_required %}required{% endif %}">{{ cf.label }}</label>
+            <div class="crm-form-field">
+              {% for field in form %}
+                {% if field.name == "dyn_"|add:cf.name %}
+                  {{ field }}
+                  {% if cf.help_text %}<small class="text-muted d-block mt-1" style="font-size: 0.72rem;">{{ cf.help_text }}</small>{% endif %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-    <!-- Action Buttons Fixed at Bottom -->
-    <div class="position-sticky bottom-0 bg-white p-3 border-top shadow-lg rounded-top-4 mt-4 text-end z-index-3">
-        <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
-            <i class="fa-solid fa-floppy-disk me-2"></i> Save Patient Information
+      <!-- Conditional Container for UHID & Billing Details (Appears ONLY when Appointment Status is Completed) -->
+      <div id="billingDetailsSection" style="{% if not is_appointment_completed %}display: none;{% endif %}">
+        <div class="crm-section-header mt-4">
+          <i class="fa-solid fa-notes-medical text-primary opacity-75"></i> UHID & Billing Details
+        </div>
+        <div class="row">
+          <!-- Left Column (3 Fields) -->
+          <div class="col-md-6">
+            <div class="crm-form-row">
+              <label class="crm-form-label">UHID ID NO</label>
+              <div class="crm-form-field">
+                {{ form.uhid_id_no }}
+              </div>
+            </div>
+            <div class="crm-form-row">
+              <label class="crm-form-label">OPD Bill (₹)</label>
+              <div class="crm-form-field">
+                {{ form.opd_bill }}
+              </div>
+            </div>
+            <div class="crm-form-row">
+              <label class="crm-form-label">Total Bill (₹)</label>
+              <div class="crm-form-field">
+                {{ form.total }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column (3 Fields) -->
+          <div class="col-md-6">
+            <div class="crm-form-row">
+              <label class="crm-form-label">IPD NO</label>
+              <div class="crm-form-field">
+                {{ form.ipd_no }}
+              </div>
+            </div>
+            <div class="crm-form-row">
+              <label class="crm-form-label">Pharmacy (₹)</label>
+              <div class="crm-form-field">
+                {{ form.pharmacy_bill }}
+              </div>
+            </div>
+            <div class="crm-form-row">
+              <label class="crm-form-label">Remark 1</label>
+              <div class="crm-form-field">
+                {{ form.remark_1 }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+        <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="crm-btn-cancel">
+          Cancel
+        </a>
+        <button type="submit" class="crm-btn-save">
+          <i class="fa-solid fa-check me-1"></i> Save Lead
         </button>
-    </div>
-</form>
+      </div>
+
+    </form>
+  </div>
+
+</div>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const inputs = document.querySelectorAll('.form-control, .form-select');
-        inputs.forEach(input => {
-            input.classList.add('shadow-sm', 'border-light-subtle');
+        // Set minimum date to today for date fields
+        const todayStr = new Date().toISOString().split('T')[0];
+        const dateInputs = ['appo_booked_date', 'followup_date', 'visit_date'];
+        dateInputs.forEach(fieldName => {
+            const input = document.querySelector(`input[name="${fieldName}"]`);
+            if (input) {
+                input.setAttribute('min', todayStr);
+            }
         });
-        
-        // Make the total auto calculate if pharmacy and opd are entered
+
+        // Appointment Status Change Logic
+        const appStatusSelect = document.querySelector('select[name="appointment_status"]');
+        const bookedContainer = document.getElementById('bookedFieldsContainer');
+        const waitingContainer = document.getElementById('waitingFieldsContainer');
+        const doctorSelect = document.querySelector('select[name="doctor"]');
+        const appoDateInput = document.querySelector('input[name="appo_booked_date"]');
+        const appoTimeInput = document.getElementById('id_appointment_time');
+        const slotsGrid = document.getElementById('slotsGrid');
+        const slotsMessage = document.getElementById('slotsMessage');
+        const slotsLoading = document.getElementById('slotsLoading');
+        const selectedSlotBanner = document.getElementById('selectedSlotBanner');
+        const selectedSlotText = document.getElementById('selectedSlotText');
+        const slotsCalendarBox = document.getElementById('slotsCalendarBox');
+        const btnChangeSlot = document.getElementById('btnChangeSlot');
+
+        function lockSelectedSlot(time24, time12) {
+            appoTimeInput.value = time24;
+            if (selectedSlotText) {
+                selectedSlotText.textContent = time12 || time24;
+            }
+            if (selectedSlotBanner) {
+                selectedSlotBanner.style.setProperty('display', 'flex', 'important');
+            }
+            if (slotsCalendarBox) {
+                slotsCalendarBox.style.display = 'none';
+            }
+        }
+
+        if (btnChangeSlot) {
+            btnChangeSlot.addEventListener('click', function() {
+                if (selectedSlotBanner) {
+                    selectedSlotBanner.style.setProperty('display', 'none', 'important');
+                }
+                if (slotsCalendarBox) {
+                    slotsCalendarBox.style.display = 'block';
+                }
+                fetchDoctorSlots();
+            });
+        }
+
+        function toggleAppointmentSections() {
+            if (!appStatusSelect) return;
+            const val = (appStatusSelect.value || '').toUpperCase();
+            const text = (appStatusSelect.options[appStatusSelect.selectedIndex]?.text || '').toUpperCase();
+
+            const isBooked = val.includes('BOOKED') || text.includes('BOOKED') || val.includes('YES') || text.includes('YES');
+            const isWaiting = val.includes('WAITING') || text.includes('WAITING');
+            const isCompleted = val.includes('COMPLET') || text.includes('COMPLET') || val.includes('DONE') || text.includes('DONE') || val.includes('VISIT') || text.includes('VISIT') || {{ is_appointment_completed|default:False|yesno:"true,false" }};
+
+            if (isBooked) {
+                bookedContainer.style.display = 'block';
+                waitingContainer.style.display = 'none';
+                if (!appoTimeInput.value) {
+                    fetchDoctorSlots();
+                } else {
+                    // Already has a selected slot
+                    lockSelectedSlot(appoTimeInput.value, appoTimeInput.value);
+                }
+            } else if (isWaiting) {
+                bookedContainer.style.display = 'none';
+                waitingContainer.style.display = 'block';
+            } else {
+                bookedContainer.style.display = 'none';
+                waitingContainer.style.display = 'none';
+            }
+
+            // UHID & Billing details unlock ONLY when Appointment is Completed
+            const billingSection = document.getElementById('billingDetailsSection');
+            if (billingSection) {
+                billingSection.style.display = isCompleted ? 'block' : 'none';
+            }
+        }
+
+        function fetchDoctorSlots() {
+            const doctor = doctorSelect ? doctorSelect.value : '';
+            const date = appoDateInput ? appoDateInput.value : '';
+
+            if (!doctor || !date) {
+                slotsGrid.innerHTML = '';
+                slotsMessage.style.display = 'block';
+                slotsMessage.innerHTML = '<i class="fa-solid fa-circle-info text-info me-1"></i> Please choose both <strong>Doctor</strong> and <strong>Appointment Date</strong>.';
+                return;
+            }
+
+            slotsLoading.style.display = 'block';
+            slotsMessage.style.display = 'none';
+            slotsGrid.innerHTML = '';
+
+            fetch(`{% url "leads:doctor_slots_api" %}?doctor=${encodeURIComponent(doctor)}&date=${encodeURIComponent(date)}`)
+                .then(res => res.json())
+                .then(data => {
+                    slotsLoading.style.display = 'none';
+                    slotsGrid.innerHTML = '';
+
+                    if (data.is_on_leave) {
+                        slotsMessage.style.display = 'block';
+                        slotsMessage.innerHTML = `<div class="alert alert-danger py-2 px-3 small mb-0 rounded-2 text-center"><i class="fa-solid fa-plane-slash me-1"></i> Doctor is on leave on this date: <strong>${data.leave_reason || 'Personal Leave'}</strong>.</div>`;
+                        return;
+                    } else if (data.is_off) {
+                        slotsMessage.style.display = 'block';
+                        slotsMessage.innerHTML = `<div class="alert alert-warning py-2 px-3 small mb-0 rounded-2 text-center"><i class="fa-solid fa-calendar-xmark me-1"></i> Doctor has a weekly off on <strong>${data.off_day_name || 'this day'}</strong>.</div>`;
+                        return;
+                    }
+
+                    let slots = data.slots;
+                    if (!slots || slots.length === 0) {
+                        slots = [
+                            {"time_24": "09:00", "time_12": "09:00 AM", "status": "available"},
+                            {"time_24": "09:30", "time_12": "09:30 AM", "status": "available"},
+                            {"time_24": "10:00", "time_12": "10:00 AM", "status": "available"},
+                            {"time_24": "10:30", "time_12": "10:30 AM", "status": "available"},
+                            {"time_24": "11:00", "time_12": "11:00 AM", "status": "available"},
+                            {"time_24": "11:30", "time_12": "11:30 AM", "status": "available"},
+                            {"time_24": "12:00", "time_12": "12:00 PM", "status": "available"},
+                            {"time_24": "12:30", "time_12": "12:30 PM", "status": "available"},
+                            {"time_24": "02:00", "time_12": "02:00 PM", "status": "available"},
+                            {"time_24": "02:30", "time_12": "02:30 PM", "status": "available"},
+                            {"time_24": "03:00", "time_12": "03:00 PM", "status": "available"},
+                            {"time_24": "03:30", "time_12": "03:30 PM", "status": "available"},
+                            {"time_24": "04:00", "time_12": "04:00 PM", "status": "available"},
+                            {"time_24": "04:30", "time_12": "04:30 PM", "status": "available"},
+                            {"time_24": "05:00", "time_12": "05:00 PM", "status": "available"},
+                            {"time_24": "05:30", "time_12": "05:30 PM", "status": "available"}
+                        ];
+                    }
+
+                    slotsMessage.style.display = 'none';
+
+                    const selectedTime = (appoTimeInput.value || '').trim();
+                    const durationBadge = document.getElementById('slotsDurationBadge');
+                    if (durationBadge && data.duration) {
+                        durationBadge.textContent = `${data.duration} min slots`;
+                    }
+
+                    slots.forEach(slot => {
+                        const col = document.createElement('div');
+                        col.className = 'col-4';
+
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn w-100 py-2 px-1 text-center rounded-2 fw-semibold';
+                        btn.style.fontSize = '0.8rem';
+                        btn.style.transition = 'all 0.15s ease';
+                        btn.style.border = '1px solid #e2e8f0';
+
+                        if (slot.status === 'available') {
+                            btn.className += ' text-dark bg-white shadow-xs';
+                            btn.style.background = '#ffffff';
+                            btn.innerHTML = `${slot.time_12}`;
+                            btn.onmouseover = () => { btn.style.borderColor = '#3b82f6'; };
+                            btn.onmouseout = () => { btn.style.borderColor = '#e2e8f0'; };
+
+                            btn.onclick = function() {
+                                lockSelectedSlot(slot.time_24, slot.time_12);
+                            };
+                        } else if (slot.status === 'booked') {
+                            btn.className += ' text-white opacity-90';
+                            btn.style.background = '#ef4444';
+                            btn.style.borderColor = '#dc2626';
+                            btn.disabled = true;
+                            btn.style.cursor = 'not-allowed';
+                            btn.innerHTML = `<span style="text-decoration: line-through;">${slot.time_12}</span>`;
+                            btn.title = 'Slot already booked for another patient';
+                        } else {
+                            btn.className += ' text-muted bg-light';
+                            btn.disabled = true;
+                            btn.style.cursor = 'not-allowed';
+                            btn.style.opacity = '0.4';
+                            btn.innerHTML = `${slot.time_12}`;
+                        }
+
+                        col.appendChild(btn);
+                        slotsGrid.appendChild(col);
+                    });
+                })
+                .catch(err => {
+                    slotsLoading.style.display = 'none';
+                    slotsMessage.style.display = 'block';
+                    slotsMessage.innerHTML = '<span class="text-muted small"><i class="fa-solid fa-clock me-1"></i> Please choose or enter appointment time.</span>';
+                });
+        }
+
+        if (appStatusSelect) {
+            appStatusSelect.addEventListener('change', toggleAppointmentSections);
+            toggleAppointmentSections();
+        }
+        if (doctorSelect) {
+            doctorSelect.addEventListener('change', function() {
+                if (slotsCalendarBox) slotsCalendarBox.style.display = 'block';
+                if (selectedSlotBanner) selectedSlotBanner.style.setProperty('display', 'none', 'important');
+                fetchDoctorSlots();
+            });
+        }
+        if (appoDateInput) {
+            appoDateInput.addEventListener('change', function() {
+                if (slotsCalendarBox) slotsCalendarBox.style.display = 'block';
+                if (selectedSlotBanner) selectedSlotBanner.style.setProperty('display', 'none', 'important');
+                fetchDoctorSlots();
+            });
+        }
+
+        // Check if there is already a pre-filled appointment time on load
+        if (appoTimeInput && appoTimeInput.value) {
+            lockSelectedSlot(appoTimeInput.value, appoTimeInput.value);
+        }
+
+        // Auto calculate total
         const pharmacy = document.querySelector('input[name="pharmacy_bill"]');
         const opd = document.querySelector('input[name="opd_bill"]');
         const total = document.querySelector('input[name="total"]');
         
         function calcTotal() {
-            let p = parseFloat(pharmacy.value) || 0;
-            let o = parseFloat(opd.value) || 0;
-            total.value = (p + o).toFixed(2);
+            let p = parseFloat(pharmacy?.value) || 0;
+            let o = parseFloat(opd?.value) || 0;
+            if (total) total.value = (p + o).toFixed(2);
         }
         
         if(pharmacy && opd && total) {
             pharmacy.addEventListener('input', calcTotal);
             opd.addEventListener('input', calcTotal);
         }
-        
-        // Appointment Status Logic: Hide Open/Freeze if Booked/Not Interested
-        const appStatusSelect = document.querySelector('select[name="appointment_status"]');
-        if (appStatusSelect) {
-            function updateAppStatusOptions() {
-                if(appStatusSelect.selectedIndex < 0) return;
-                const selectedText = appStatusSelect.options[appStatusSelect.selectedIndex].text.toLowerCase();
-                const isFinal = selectedText.includes('booked') || selectedText.includes('not intrested') || selectedText.includes('not interested');
-                
-                Array.from(appStatusSelect.options).forEach(opt => {
-                    const optText = opt.text.toLowerCase();
-                    if (optText.includes('open') || optText.includes('freeze')) {
-                        // Some browsers don't support display:none on options, so disabled is the safest cross-browser bet
-                        opt.style.display = isFinal ? 'none' : '';
-                        opt.disabled = isFinal;
-                    }
-                });
-            }
-            // Run on load
-            updateAppStatusOptions();
-            // Run on change
-            appStatusSelect.addEventListener('change', updateAppStatusOptions);
-        }
     });
 </script>
-
 {% endblock %}
+

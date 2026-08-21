@@ -1,13 +1,18 @@
 {% if user.is_authenticated %}
 <div class="topbar">
   <button class="btn btn-sm btn-light d-lg-none" onclick="document.getElementById('sidebar').classList.toggle('show')"><i class="fa-solid fa-bars"></i></button>
+  <button class="btn btn-sm btn-light d-none d-lg-inline-flex align-items-center justify-content-center me-2 text-secondary" id="sidebarMinimizeBtn" title="Toggle Sidebar Minimize" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #e2e8f0;">
+    <i class="fa-solid fa-bars-staggered" id="sidebarMinimizeIcon"></i>
+  </button>
   <form class="search-box" method="get" action="{% url 'leads:lead_list' %}">
     <input type="search" name="q" class="form-control form-control-sm" placeholder="Search leads by name, mobile, email, lead ID..." value="{{ request.GET.q }}">
   </form>
   <div class="ms-auto d-flex align-items-center gap-2">
+    {% if user.role != 'DOCTOR' and user.can_add_leads %}
     <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-brand text-white d-none d-sm-inline-flex align-items-center gap-1">
       <i class="fa-solid fa-user-plus"></i> Add Lead
     </a>
+    {% endif %}
 
     <!-- Notification Bell -->
     <div class="dropdown me-2">
@@ -30,11 +35,51 @@
 
     <span class="badge text-bg-light border me-1">{{ user.get_role_display }}</span>
     <div class="dropdown">
-      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-        <i class="fa-solid fa-circle-user"></i> {{ user.get_full_name|default:user.username }}
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 rounded-pill" data-bs-toggle="dropdown" style="background: #ffffff;">
+        {% if user.profile_picture %}
+          <img src="{{ user.profile_picture.url }}" alt="{{ user.username }}" class="rounded-circle object-fit-cover" style="width: 24px; height: 24px; border: 1px solid #cbd5e1;">
+        {% else %}
+          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.72rem;">
+            {{ user.first_name|first|default:user.username|first|upper }}
+          </div>
+        {% endif %}
+        <span class="fw-semibold text-dark">{{ user.get_full_name|default:user.username }}</span>
       </button>
-      <ul class="dropdown-menu dropdown-menu-end">
-        <li><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="dropdown-item" type="submit"><i class="fa-solid fa-right-from-bracket me-1 text-danger"></i> Logout</button></form></li>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-1">
+        <li class="px-3 py-2 border-bottom mb-1 d-flex align-items-center gap-2">
+          {% if user.profile_picture %}
+            <img src="{{ user.profile_picture.url }}" alt="{{ user.username }}" class="rounded-circle object-fit-cover" style="width: 36px; height: 36px; border: 1px solid #cbd5e1;">
+          {% else %}
+            <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.9rem;">
+              {{ user.first_name|first|default:user.username|first|upper }}
+            </div>
+          {% endif %}
+          <div class="overflow-hidden">
+            <div class="fw-bold text-dark text-truncate">{{ user.get_full_name|default:user.username }}</div>
+            <div class="small text-muted text-truncate" style="font-size: 0.75rem;">{{ user.email|default:user.get_role_display }}</div>
+          </div>
+        </li>
+        <li>
+          <a class="dropdown-item py-2" href="{% url 'accounts:profile' %}">
+            <i class="fa-solid fa-id-badge text-primary me-2"></i> My Profile
+          </a>
+        </li>
+        {% if user.hospital and user.role == 'SUPER_ADMIN' %}
+        <li>
+          <a class="dropdown-item py-2" href="{% url 'dashboard:nelson_module' 'hospital-profile' %}">
+            <i class="fa-solid fa-hospital text-info me-2"></i> Hospital Profile
+          </a>
+        </li>
+        {% endif %}
+        <li><hr class="dropdown-divider my-1"></li>
+        <li>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button class="dropdown-item py-2 text-danger" type="submit">
+              <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
+            </button>
+          </form>
+        </li>
       </ul>
     </div>
   </div>

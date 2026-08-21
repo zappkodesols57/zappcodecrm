@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Financial Overview · Analytics & ROI{% endblock %}
+
+{% block content %}
+<style>
+  .fin-card {
+    border-radius: 14px;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .fin-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  }
+  .fin-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+  }
+  .stat-revenue { background: #ecfdf5; color: #059669; }
+  .stat-cost { background: #fef2f2; color: #dc2626; }
+  .stat-profit { background: #eff6ff; color: #2563eb; }
+  .stat-roi { background: #fdf4ff; color: #a855f7; }
+  .table-fin th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    border-bottom: 2px solid #f1f5f9;
+  }
+  .table-fin td {
+    vertical-align: middle;
+    border-bottom: 1px solid #f8fafc;
+  }
+</style>
+
+<!-- Top Header & Filter Info -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <div class="text-muted small fw-bold"><i class="fa-solid fa-chart-line text-primary me-1"></i> Hospital Financial Intelligence</div>
+    <h3 class="mb-1 fw-bold text-dark" style="letter-spacing: -0.5px;">Financial Overview & Campaign ROI</h3>
+    <p class="text-muted mb-0">Track revenue generated from patient leads, campaign costs, returns, timing, and billing transaction history.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'dashboard:nelson_module' 'campaign-management' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm fw-semibold">
+      <i class="fa-solid fa-bullhorn me-1"></i> Manage Campaigns
+    </a>
+    <button class="btn btn-light border rounded-pill px-3 shadow-sm fw-semibold text-secondary" onclick="window.print()">
+      <i class="fa-solid fa-print me-1"></i> Print Report
+    </button>
+  </div>
+</div>
+
+<!-- Key Financial KPI Cards Row -->
+<div class="row g-3 mb-4">
+  <!-- 1. Total Gross Revenue -->
+  <div class="col-sm-6 col-lg-3">
+    <div class="fin-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Gross Revenue</span>
+          <h3 class="fw-bold text-dark mt-1 mb-0">₹{{ total_gross_revenue|floatformat:2 }}</h3>
+          <div class="small text-muted mt-2">
+            <span class="text-success fw-bold"><i class="fa-solid fa-hospital-user me-1"></i>OPD ₹{{ total_opd_revenue|floatformat:0 }}</span> · Pharm ₹{{ total_pharmacy_revenue|floatformat:0 }}
+          </div>
+        </div>
+        <div class="fin-stat-icon stat-revenue">
+          <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Campaign Spend / Cost -->
+  <div class="col-sm-6 col-lg-3">
+    <div class="fin-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Campaign Costs</span>
+          <h3 class="fw-bold text-dark mt-1 mb-0">₹{{ total_campaign_cost|floatformat:2 }}</h3>
+          <div class="small text-muted mt-2">
+            <span class="text-secondary fw-semibold">{{ total_campaigns_count }} Campaigns</span> ({{ active_campaigns_count }} Active)
+          </div>
+        </div>
+        <div class="fin-stat-icon stat-cost">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Net Returns / Profit -->
+  <div class="col-sm-6 col-lg-3">
+    <div class="fin-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Net Returns</span>
+          <h3 class="fw-bold mt-1 mb-0 {% if net_profit >= 0 %}text-primary{% else %}text-danger{% endif %}">
+            ₹{{ net_profit|floatformat:2 }}
+          </h3>
+          <div class="small text-muted mt-2">
+            <span>Avg Revenue / Lead: <strong>₹{{ revenue_per_lead_overall|floatformat:1 }}</strong></span>
+          </div>
+        </div>
+        <div class="fin-stat-icon stat-profit">
+          <i class="fa-solid fa-hand-holding-dollar"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Overall ROI & Cost Per Lead -->
+  <div class="col-sm-6 col-lg-3">
+    <div class="fin-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="text-muted small fw-semibold text-uppercase">Overall ROI</span>
+          <h3 class="fw-bold text-dark mt-1 mb-0">{{ roi_percentage|floatformat:1 }}%</h3>
+          <div class="small text-muted mt-2">
+            <span class="text-info fw-bold">Avg CPL: ₹{{ cost_per_lead_overall|floatformat:1 }}</span> ({{ total_leads_overall }} Leads)
+          </div>
+        </div>
+        <div class="fin-stat-icon stat-roi">
+          <i class="fa-solid fa-percent"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 1: Campaign Cost, Leads, Returns & Timing Breakdown -->
+<div class="card fin-card border-0 mb-4">
+  <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
+    <div>
+      <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-bullhorn text-primary me-2"></i>Campaign Returns, Cost & Lead Analytics</h5>
+      <small class="text-muted">Detailed performance per marketing campaign, start/end dates, budget spend, leads count, and direct returns.</small>
+    </div>
+    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-2">
+      {{ campaigns_financial_data|length }} Campaigns Monitored
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-fin table-hover align-middle mb-0">
+        <thead class="bg-light-subtle">
+          <tr>
+            <th class="ps-4">Campaign Name</th>
+            <th>Platform</th>
+            <th>Timing (Dates)</th>
+            <th class="text-center">Leads</th>
+            <th class="text-center">Booked Appts</th>
+            <th>Cost (Spend)</th>
+            <th>Revenue</th>
+            <th>Returns (Net)</th>
+            <th class="text-center">ROI %</th>
+            <th class="pe-4 text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in campaigns_financial_data %}
+          <tr>
+            <td class="ps-4">
+              <strong class="text-dark">{{ c.obj.name }}</strong>
+              {% if c.obj.ad_name %}<div class="small text-muted" style="font-size: 0.72rem;">Ad: {{ c.obj.ad_name }}</div>{% endif %}
+            </td>
+            <td>
+              <span class="badge bg-light text-secondary border px-2 py-1">{{ c.obj.platform|default:"Meta Ads" }}</span>
+            </td>
+            <td>
+              <div class="small text-dark">
+                {% if c.start_date %}
+                  <i class="fa-regular fa-calendar me-1 text-muted"></i>{{ c.start_date|date:"d M Y" }}
+                  {% if c.end_date %} to {{ c.end_date|date:"d M Y" }}{% endif %}
+                {% else %}
+                  <span class="text-muted">Ongoing</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ c.leads_count }}</span>
+              <div class="small text-muted" style="font-size: 0.7rem;">CPL: ₹{{ c.cpl|floatformat:1 }}</div>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1 fw-bold">{{ c.booked_count }}</span>
+            </td>
+            <td>
+              <strong class="text-danger">₹{{ c.cost|floatformat:2 }}</strong>
+            </td>
+            <td>
+              <strong class="text-success">₹{{ c.revenue|floatformat:2 }}</strong>
+            </td>
+            <td>
+              <strong class="{% if c.profit >= 0 %}text-primary{% else %}text-danger{% endif %}">
+                {% if c.profit >= 0 %}+{% endif %}₹{{ c.profit|floatformat:2 }}
+              </strong>
+            </td>
+            <td class="text-center">
+              {% if c.roi >= 0 %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1"><i class="fa-solid fa-arrow-trend-up me-1"></i>{{ c.roi|floatformat:1 }}%</span>
+              {% else %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-2 py-1"><i class="fa-solid fa-arrow-trend-down me-1"></i>{{ c.roi|floatformat:1 }}%</span>
+              {% endif %}
+            </td>
+            <td class="pe-4 text-center">
+              {% if c.is_active %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1">Active</span>
+              {% else %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary rounded-pill px-2 py-1">Ended</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center py-5 text-muted">
+              <i class="fa-solid fa-bullhorn fa-3x opacity-50 mb-2"></i>
+              <h6 class="fw-bold">No campaigns registered yet</h6>
+              <p class="small mb-2">Add marketing campaigns to begin tracking lead costs, revenue generation, and ROI.</p>
+              <a href="{% url 'dashboard:nelson_module' 'campaign-management' %}" class="btn btn-sm btn-primary rounded-pill px-3">Add Campaign</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: Financial Billing History & Recent Patient Transactions -->
+<div class="card fin-card border-0">
+  <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
+    <div>
+      <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-success me-2"></i>Patient Billing & Revenue History</h5>
+      <small class="text-muted">Real-time breakdown of OPD, Pharmacy, and Total billing transactions attributed to leads and patients.</small>
+    </div>
+    <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2">
+      Recent {{ financial_history|length }} Transactions
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-fin table-hover align-middle mb-0">
+        <thead class="bg-light-subtle">
+          <tr>
+            <th class="ps-4">Timing (Date)</th>
+            <th>Patient / Lead</th>
+            <th>Type</th>
+            <th>Department / Doctor</th>
+            <th>OPD (₹)</th>
+            <th>Pharmacy (₹)</th>
+            <th>Total Bill (₹)</th>
+            <th>Appointment Status</th>
+            <th class="pe-4 text-center">Payment Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in financial_history %}
+          <tr>
+            <td class="ps-4 text-muted small">
+              <i class="fa-regular fa-clock me-1 text-primary"></i><strong>{{ rec.date|date:"d M Y" }}</strong>
+            </td>
+            <td>
+              <a href="{% url 'leads:lead_detail' rec.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">
+                {{ rec.lead.name }}
+              </a>
+              <div class="small text-muted" style="font-size: 0.72rem;">Mobile: {{ rec.lead.mobile }}</div>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border px-2 py-1">{{ rec.type }}</span>
+            </td>
+            <td>
+              <div class="text-dark small fw-semibold">{{ rec.department }}</div>
+              <small class="text-muted">{{ rec.doctor }}</small>
+            </td>
+            <td>
+              <span class="text-secondary small">₹{{ rec.opd|floatformat:2 }}</span>
+            </td>
+            <td>
+              <span class="text-secondary small">₹{{ rec.pharmacy|floatformat:2 }}</span>
+            </td>
+            <td>
+              <strong class="text-success fs-6">₹{{ rec.total|floatformat:2 }}</strong>
+            </td>
+            <td>
+              <span class="badge bg-light-subtle text-dark border px-2 py-1">{{ rec.appointment_status }}</span>
+            </td>
+            <td class="pe-4 text-center">
+              <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1">
+                <i class="fa-solid fa-circle-check me-1"></i>{{ rec.status }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              <i class="fa-solid fa-file-invoice-dollar fa-3x opacity-50 mb-2"></i>
+              <h6 class="fw-bold">No billing transaction history found</h6>
+              <p class="small mb-0">Bills recorded on patient lead forms (OPD, Pharmacy, Total) will appear in this ledger automatically.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

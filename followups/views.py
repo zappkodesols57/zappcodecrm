@@ -40,6 +40,18 @@ def _board(request, leads, active, title, date_info=None):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+
+    for l in page_obj.object_list:
+        cd = l.custom_data or {}
+        l.hospital_doctor = cd.get('doctor', '')
+        l.hospital_dept = cd.get('department', '')
+        l.appt_status = cd.get('appointment_status', '')
+        l.lead_priority = cd.get('priority', '')
+        l.followup_schedule_date = cd.get('appo_booked_date') or cd.get('followup_date') or l.next_followup_date
+        l.latest_remark = cd.get('remark_1') or cd.get('remark_2') or cd.get('remark_3') or cd.get('comments') or l.notes
+        l.uhid_no = cd.get('uhid_id_no', '')
+        l.total_bill = cd.get('total', '0')
+        l.is_billing_filled = bool(cd.get('total') or cd.get('uhid_id_no') or cd.get('opd_bill'))
     
     query_params = request.GET.copy()
     if 'page' in query_params:
@@ -116,6 +128,29 @@ def overdue(request):
     
     leads = _filter_by_role(request.user, leads)
     return _board(request, leads, "fu_overdue", "Overdue Follow-ups & Pending Calls", d)
+
+
+@login_required
+def billing_followup(request):
+    """
+    Dedicated view for Telecallers/Staff to track leads whose appointment has been marked Completed by Doctor.
+    Telecallers can open the lead form (where UHID & Billing section is now unlocked) to enter billing/UHID details.
+    """
+    from leads.models import Appointment, AppointmentStatus
+    
+    completed_lead_ids = Appointment.objects.filter(
+        status=AppointmentStatus.COMPLETED
+    ).values_list('lead_id', flat=True)
+    
+    leads = Lead.objects.filter(
+        is_archived=False
+    ).filter(
+        Q(id__in=completed_lead_ids) | 
+        Q(custom_data__appointment_status__icontains="Completed")
+    ).select_related("assigned_to", "stage").distinct().order_by("-updated_at")
+    
+    leads = _filter_by_role(request.user, leads)
+    return _board(request, leads, "fu_billing", "Billing Follow-ups (Doctor Completed)", None)
 
 
 @login_required

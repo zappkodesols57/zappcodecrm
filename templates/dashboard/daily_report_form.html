@@ -59,28 +59,90 @@
     {% if existing %}
       <span class="badge text-bg-warning fs-6 me-2"><i class="fa-solid fa-edit me-1"></i> Editing today's report</span>
     {% endif %}
-    <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    {% if user.hospital and user.role == 'LEAD_ATTENDENT' %}
+      <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    {% elif user.hospital and user.role == 'DOCTOR' %}
+      <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    {% elif user.hospital and user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'ADMIN' %}
+      <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    {% else %}
+      <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recipient Dispatch Info Card -->
+<div class="card border-0 shadow-xs mb-3 p-3 rounded-3" style="background: #ffffff; border: 1px solid #e2e8f0;">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <div style="width: 38px; height: 38px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center;">
+        <i class="fa-solid fa-paper-plane text-primary"></i>
+      </div>
+      <div>
+        <div class="small fw-bold text-dark mb-0">Report Recipient & Route</div>
+        <div class="text-muted" style="font-size: 0.76rem;">
+          {% if reports_to_user %}
+            Directly sending to Manager: <strong class="text-primary">{{ reports_to_user.get_full_name|default:reports_to_user.username }}</strong> & Hospital Administration
+          {% else %}
+            Directly sending to: <strong class="text-primary">Hospital Administration / Super Admin</strong>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <span class="badge bg-light text-secondary border px-3 py-2" style="font-size: 0.72rem;">
+      <i class="fa-solid fa-bell text-warning me-1"></i> Instant Live Notification on Submit
+    </span>
   </div>
 </div>
 
 <!-- Auto-filled stats from CRM activity -->
 {% if suggestions %}
-<div class="alert border-0 mb-3" style="background: #f0fdf4; border-left: 4px solid #22c55e !important; border-radius: 0.75rem;">
-  <div class="fw-bold text-success mb-2"><i class="fa-solid fa-magic-wand-sparkles me-1"></i> Auto-suggested from today's CRM activity</div>
+<div class="alert border-0 mb-3" style="background: #f8fafc; border-left: 4px solid #3b82f6 !important; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
+  <div class="fw-bold text-primary mb-2"><i class="fa-solid fa-chart-line me-1"></i> Auto-computed from today's CRM activity & system logs</div>
   <div class="stat-preview">
-    <div class="stat-chip"><i class="fa-solid fa-phone-volume"></i> Outgoing: {{ suggestions.outgoing_calls }}</div>
-    <div class="stat-chip"><i class="fa-solid fa-phone-incoming"></i> Incoming: {{ suggestions.incoming_calls }}</div>
-    <div class="stat-chip"><i class="fa-solid fa-calendar-check"></i> Total Follow-ups: {{ suggestions.calls_attended }}</div>
-    <div class="stat-chip"><i class="fa-solid fa-phone-slash"></i> Not Connected: {{ suggestions.calls_not_connected }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-user-plus text-primary"></i> Assigned: {{ suggestions.leads_assigned }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-circle-check text-success"></i> Appts Booked: {{ suggestions.appointments_booked }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-snowflake text-danger"></i> Freeze Leads: {{ suggestions.freeze_leads }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-phone-volume text-primary"></i> Total Calls: {{ suggestions.calls_attended }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-calendar-check text-success"></i> Follow-ups Taken: {{ suggestions.follow_ups_taken }}</div>
+    <div class="stat-chip"><i class="fa-solid fa-right-to-bracket text-secondary"></i> First Login: {{ suggestions.first_login_time|date:"h:i A"|default:"Today" }}</div>
   </div>
-  <div class="text-muted small">These are pre-filled from your follow-ups logged today. You can edit them below.</div>
+  <div class="text-muted small">These numbers are pre-calculated for your report today. You can confirm or adjust them below.</div>
 </div>
 {% endif %}
 
 <form method="post">
   {% csrf_token %}
 
-  <!-- Section 1: Call Stats -->
+  <!-- Section 1: Today's Overview & Lead Milestones -->
+  <div class="report-card">
+    <div class="card-header">
+      <i style="background:#e0e7ff; color:#4338ca;" class="fa-solid fa-chart-pie"></i>
+      Today's Overview & Lead Milestones
+    </div>
+    <div class="card-body">
+      <div class="field-group">
+        <div>
+          <div class="field-label">Leads Assigned Today</div>
+          {{ form.leads_assigned }}
+        </div>
+        <div>
+          <div class="field-label">Appointments Booked / Approved</div>
+          {{ form.appointments_booked }}
+        </div>
+        <div>
+          <div class="field-label">Freeze Leads (Cancelled / Cold)</div>
+          {{ form.freeze_leads }}
+        </div>
+        <div>
+          <div class="field-label">Follow-ups Taken Today</div>
+          {{ form.follow_ups_taken }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Call Activity -->
   <div class="report-card">
     <div class="card-header">
       <i style="background:#dbeafe; color:#2563eb;" class="fa-solid fa-phone-volume"></i>
@@ -123,6 +185,10 @@
         <div>
           <div class="field-label">Cold / Not Interested</div>
           {{ form.leads_cold }}
+        </div>
+        <div>
+          <div class="field-label">Appointments Booked</div>
+          <input type="number" name="appointments_booked" class="form-control" value="{{ appointments_confirmed_today|default:0 }}" readonly style="background-color: #f0fdf4; font-weight: bold; color: #166534;">
         </div>
         <div>
           <div class="field-label">Leads Who Visited</div>
@@ -196,11 +262,19 @@
   </div>
   {% endif %}
 
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">Cancel</a>
-    <button type="submit" class="btn btn-primary px-4">
-      <i class="fa-solid fa-floppy-disk me-1"></i>
-      {% if existing %}Update Report{% else %}Submit Report{% endif %}
+  <div class="d-flex gap-2 justify-content-end align-items-center mt-3">
+    {% if user.hospital and user.role == 'LEAD_ATTENDENT' %}
+      <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-outline-secondary">Cancel</a>
+    {% elif user.hospital and user.role == 'DOCTOR' %}
+      <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-outline-secondary">Cancel</a>
+    {% elif user.hospital and user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'ADMIN' %}
+      <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-secondary">Cancel</a>
+    {% else %}
+      <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">Cancel</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm">
+      <i class="fa-solid fa-paper-plane me-2"></i>
+      {% if existing %}Update & Resend EOD Report{% else %}Send EOD Report to Manager / Admin{% endif %}
     </button>
   </div>
 </form>
