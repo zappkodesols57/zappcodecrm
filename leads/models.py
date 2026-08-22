@@ -127,6 +127,118 @@ class MasterGroup(models.Model):
         return group.items.filter(is_active=True).order_by("order", "name")
 
 
+# ---------------------------------------------------------------------------
+# Hospital Master Configuration Models
+# ---------------------------------------------------------------------------
+
+class HospitalBranch(models.Model):
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, related_name="branches")
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=50, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    address = models.TextField(blank=True)
+    contact_number = models.CharField(max_length=30, blank=True)
+    is_main_branch = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "name"]
+        unique_together = ("hospital", "name")
+        verbose_name = "Hospital Branch"
+        verbose_name_plural = "Hospital Branches"
+
+    def __str__(self):
+        return f"{self.name} ({self.city})" if self.city else self.name
+
+
+class HospitalDepartment(models.Model):
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, related_name="hospital_departments")
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    branches = models.ManyToManyField(HospitalBranch, related_name="departments", blank=True)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "name"]
+        unique_together = ("hospital", "name")
+        verbose_name = "Hospital Department"
+        verbose_name_plural = "Hospital Departments"
+
+    def __str__(self):
+        return self.name
+
+
+class HospitalDisease(models.Model):
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, related_name="diseases")
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=50, blank=True)
+    department = models.ForeignKey(HospitalDepartment, on_delete=models.CASCADE, related_name="diseases")
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "name"]
+        unique_together = ("hospital", "department", "name")
+        verbose_name = "Disease / Condition"
+        verbose_name_plural = "Diseases & Conditions"
+
+    def __str__(self):
+        return f"{self.name} ({self.department.name})"
+
+
+class HospitalDoctor(models.Model):
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, related_name="hospital_doctors")
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="doctor_profile")
+    name = models.CharField(max_length=150)
+    qualification = models.CharField(max_length=150, blank=True)
+    specialization = models.CharField(max_length=150, blank=True)
+    contact_number = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    department = models.ForeignKey(HospitalDepartment, on_delete=models.SET_NULL, null=True, blank=True, related_name="primary_doctors")
+    departments = models.ManyToManyField(HospitalDepartment, blank=True, related_name="doctors")
+    associated_diseases = models.ManyToManyField(HospitalDisease, blank=True, related_name="doctors")
+    branches = models.ManyToManyField(HospitalBranch, through="DoctorBranchAvailability", related_name="doctors", blank=True)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "name"]
+        unique_together = ("hospital", "name")
+        verbose_name = "Doctor"
+        verbose_name_plural = "Doctors"
+
+    def __str__(self):
+        return f"Dr. {self.name}" if not self.name.lower().startswith("dr") else self.name
+
+
+class DoctorBranchAvailability(models.Model):
+    doctor = models.ForeignKey(HospitalDoctor, on_delete=models.CASCADE, related_name="availabilities")
+    branch = models.ForeignKey(HospitalBranch, on_delete=models.CASCADE, related_name="doctor_availabilities")
+    days_of_week = models.JSONField(default=list, blank=True, help_text="e.g. ['Monday', 'Tuesday', 'Wednesday']")
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    slot_duration_minutes = models.PositiveIntegerField(default=15)
+    max_patients_per_slot = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("doctor", "branch")
+        verbose_name = "Doctor Branch Availability"
+        verbose_name_plural = "Doctor Branch Availabilities"
+
+    def __str__(self):
+        return f"{self.doctor.name} at {self.branch.name}"
+
+
 class MasterItem(models.Model):
     """
     Sub-Master Item belonging to a MasterGroup (e.g., 'B.Tech' under 'Qualifications').
@@ -168,6 +280,7 @@ class LeadCustomField(models.Model):
     help_text = models.CharField(max_length=255, blank=True)
     is_required = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    is_system = models.BooleanField(default=False, help_text="True if this is a core standard field")
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -183,6 +296,30 @@ class LeadCustomField(models.Model):
         if not self.options:
             return []
         return [opt.strip() for opt in self.options.split(",") if opt.strip()]
+
+    def get_type_code(self):
+        code_map = {
+            "TEXT": "T",
+            "NUMBER": "N",
+            "DROPDOWN": "D",
+            "DATE": "Dt",
+            "TEXTAREA": "Tx",
+            "CHECKBOX": "Cb",
+            "DECIMAL": "Dec",
+        }
+        return code_map.get(self.field_type, "T")
+
+    def get_type_short_label(self):
+        label_map = {
+            "TEXT": "Text (T)",
+            "NUMBER": "Number (N)",
+            "DROPDOWN": "Dropdown (D)",
+            "DATE": "Date (Dt)",
+            "TEXTAREA": "Textarea (Tx)",
+            "CHECKBOX": "Checkbox (Cb)",
+            "DECIMAL": "Decimal (Dec)",
+        }
+        return label_map.get(self.field_type, self.field_type)
 
 
 
@@ -326,6 +463,27 @@ class Lead(models.Model):
 
     def __str__(self):
         return f"{self.lead_code} — {self.name}"
+
+    def get_custom(self, key, default=""):
+        if isinstance(self.custom_data, dict):
+            return self.custom_data.get(key, default)
+        return default
+
+    @property
+    def custom_dept(self):
+        return self.get_custom("department")
+
+    @property
+    def custom_source(self):
+        return self.get_custom("lead_source") or self.get_custom("source")
+
+    @property
+    def custom_priority(self):
+        return self.get_custom("priority")
+
+    @property
+    def custom_camp(self):
+        return self.get_custom("campaign")
 
     def save(self, *args, **kwargs):
         if not self.lead_code:

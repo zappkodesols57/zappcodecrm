@@ -5,14 +5,20 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db import models
+from django.db.models import Q, F, Max
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
 from followups.models import FollowUp, Note, Activity, FollowUpMode, FollowUpStatus
 from admissions.models import Admission
 from accounts.models import User
-from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, MasterGroup, MasterItem
+from .models import (
+    Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, 
+    MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
+    HospitalDisease, DoctorBranchAvailability,
+)
 from .forms import (
     LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
 )
@@ -410,17 +416,51 @@ def lead_edit(request, pk):
                     link="/dashboard/doctor/",
                 )
 
-            messages.success(request, "Lead updated successfully.")
+            messages.success(request, f"Lead #{saved_lead.lead_code or saved_lead.pk} ({saved_lead.name}) updated and assigned successfully! ✅")
+            if request.user.role == User.Role.LEAD_ATTENDENT:
+                return redirect("dashboard:telecaller_my_leads")
             return redirect("leads:lead_detail", pk=lead.pk)
     else:
         form = FormClass(instance=lead, user=request.user)
 
-    # Check if appointment is completed either via Lead custom_data or Appointment model
+    # Check if appointment is confirmed/approved/scheduled/completed or payment done
     from leads.models import Appointment, AppointmentStatus
     cd = lead.custom_data or {}
     apt_status_str = str(cd.get('appointment_status', '')).upper()
+    deal_status_str = str(cd.get('deal_status', '')).upper()
     has_completed_apt = Appointment.objects.filter(lead=lead, status=AppointmentStatus.COMPLETED).exists()
-    is_appointment_completed = 'COMPLET' in apt_status_str or 'DONE' in apt_status_str or 'VISIT' in apt_status_str or has_completed_apt
+    is_payment_done = 'PAYMENT' in apt_status_str or 'PAYMENT' in deal_status_str or bool(cd.get('total') and float(cd.get('total') or 0) > 0)
+    is_appointment_completed = 'COMPLET' in apt_status_str or 'DONE' in apt_status_str or 'VISIT' in apt_status_str or has_completed_apt or is_payment_done
+
+    # Get latest active/confirmed appointment for this lead
+    latest_appointment = Appointment.objects.filter(lead=lead).order_by('-appointment_date', '-id').first()
+    
+    # If appointment exists or lead has booked date/doctor and completed/confirmed status
+    is_appointment_confirmed = False
+    if latest_appointment:
+        is_appointment_confirmed = True
+    elif cd.get('appo_booked_date') or cd.get('doctor'):
+        is_appointment_confirmed = True
+
+    current_apt_status = cd.get("appointment_status") or ""
+    if (is_appointment_confirmed or is_payment_done or is_appointment_completed) and (not current_apt_status or current_apt_status in ['Completed', 'Payment Done', 'Booked']):
+        current_apt_status = "Booking"
+
+    saved_initial = {
+        "hospital_branch": cd.get("hospital_branch") or cd.get("branch") or "",
+        "department": cd.get("department") or "",
+        "doctor": cd.get("doctor") or (latest_appointment.doctor_name if latest_appointment else ""),
+        "disease": cd.get("disease") or "",
+        "appointment_status": current_apt_status,
+        "appo_booked_date": str(latest_appointment.appointment_date) if latest_appointment and latest_appointment.appointment_date else (cd.get("appo_booked_date") or ""),
+        "appointment_time": latest_appointment.appointment_time.strftime("%H:%M") if latest_appointment and latest_appointment.appointment_time else (cd.get("appointment_time") or ""),
+    }
+
+    # Calculate grand total paid across all bills
+    billing_history = cd.get('billing_history', [])
+    history_total = sum(float(b.get('total') or 0) for b in billing_history if isinstance(b, dict))
+    single_total = float(cd.get('total_paid') or cd.get('total') or 0)
+    grand_total_paid = max(history_total, single_total) if billing_history else single_total
 
     return render(request, template, {
         "active": "leads_all",
@@ -428,6 +468,13 @@ def lead_edit(request, pk):
         "mode": "Edit",
         "obj": lead,
         "is_appointment_completed": is_appointment_completed,
+        "is_appointment_confirmed": is_appointment_confirmed,
+        "is_payment_done": is_payment_done,
+        "grand_total_paid": grand_total_paid,
+        "billing_history_list": billing_history,
+        "latest_appointment": latest_appointment,
+        "all_appointments": Appointment.objects.filter(lead=lead).order_by("-appointment_date"),
+        "saved_initial": saved_initial,
     })
 
 
@@ -760,18 +807,54 @@ def universal_master_list(request):
             items = selected_group.items.filter(hospital__isnull=True)
 
     from leads.models import LeadCustomField
-    if request.user.hospital:
-        custom_fields = LeadCustomField.objects.filter(hospital=request.user.hospital)
+    h = request.user.hospital
+    
+    # Ensure default core fields exist in DB for this hospital if not yet initialized
+    core_field_defs = [
+        ('name', 'Patient Name', 'TEXT', 1, True, True, 'Enter full patient name', ''),
+        ('mobile', 'Mobile Number', 'TEXT', 2, True, True, '10-digit mobile number', ''),
+        ('age', 'Age', 'NUMBER', 3, False, True, 'e.g. 35', ''),
+        ('gender', 'Gender', 'DROPDOWN', 4, False, True, 'Select Gender', 'Male, Female, Other'),
+        ('comments', 'Comments / Notes', 'TEXTAREA', 5, False, True, 'Enter patient notes...', ''),
+        ('location', 'Location', 'DROPDOWN', 6, False, True, 'Select Location', 'Nagpur, Wardha, Hinganghat, Chandrapur, Amravati, Bhandara, Yavatmal, Gondia'),
+        ('doctor', 'Doctor', 'DROPDOWN', 7, False, True, 'Select Doctor', 'Dr. Pradeep Patil, Dr. Rahul Sharma, Dr. Priya Deshmukh, Dr. Amit Verma'),
+        ('department', 'Department', 'DROPDOWN', 8, False, True, 'Select Department', 'Cardiology, Neurology, Orthopedics, Pediatrics, Oncology, Gynecology, General Medicine'),
+        ('lead_source', 'Lead Source', 'DROPDOWN', 9, False, True, 'Select Lead Source', 'Google Ads, Facebook / Instagram, Walk-in, Doctor Referral, Website, Newspaper, Camp / Event'),
+        ('appointment_status', 'Appointment Status', 'DROPDOWN', 10, False, True, 'Select Status', 'Interested, Booked, Visited, Follow-up Needed, Cancelled / Rescheduled, Not Interested'),
+        ('campaign', 'Campaign', 'DROPDOWN', 11, False, True, 'Select Campaign', 'Summer Health Checkup, Cardiology Camp, Free OPD Camp, Digital Awareness 2026')
+    ]
+    if h:
+        for f_name, f_lbl, f_type, f_ord, f_req, f_act, f_ph, f_opt in core_field_defs:
+            if not LeadCustomField.objects.filter(hospital=h, name=f_name).exists():
+                LeadCustomField.objects.create(
+                    hospital=h, name=f_name, label=f_lbl, field_type=f_type,
+                    order=f_ord, is_required=f_req, is_active=f_act,
+                    placeholder=f_ph, options=f_opt, is_system=True
+                )
+
+    if h:
+        # Automatically sync current options for special master fields so admin modal displays them
+        cf_disease = LeadCustomField.objects.filter(hospital=h, name="disease").first()
+        if cf_disease:
+            dis_names = list(HospitalDisease.objects.filter(hospital=h, is_active=True).values_list("name", flat=True))
+            if dis_names:
+                cf_disease.options = ", ".join(dis_names)
+                cf_disease.save(update_fields=["options"])
+
+        cf_branch = LeadCustomField.objects.filter(hospital=h, name="hospital_branch").first()
+        if cf_branch:
+            branch_names = list(HospitalBranch.objects.filter(hospital=h, is_active=True).values_list("name", flat=True))
+            if branch_names:
+                cf_branch.options = ", ".join(branch_names)
+                cf_branch.save(update_fields=["options"])
+
+        all_fields_qs = LeadCustomField.objects.filter(hospital=h).order_by('order', 'id')
     else:
-        custom_fields = LeadCustomField.objects.filter(hospital__isnull=True)
+        all_fields_qs = LeadCustomField.objects.filter(hospital__isnull=True).order_by('order', 'id')
 
     return render(request, "leads/universal_masters.html", {
         "active": "universal_masters",
-        "groups": groups,
-        "selected_group": selected_group,
-        "items": items,
-        "custom_fields": custom_fields,
-        "tab": request.GET.get("tab", "masters"),
+        "all_fields": all_fields_qs,
     })
 
 
@@ -780,6 +863,7 @@ def universal_master_list(request):
 def custom_field_add(request):
     from leads.models import LeadCustomField
     from django.utils.text import slugify
+    from django.db.models import Max, F
     if request.method == "POST":
         label = request.POST.get("label", "").strip()
         field_type = request.POST.get("field_type", "TEXT")
@@ -787,11 +871,23 @@ def custom_field_add(request):
         placeholder = request.POST.get("placeholder", "").strip()
         help_text = request.POST.get("help_text", "").strip()
         is_required = request.POST.get("is_required") == "on"
-        order = request.POST.get("order", 0)
+        order_raw = request.POST.get("order", "").strip()
+
+        qs = LeadCustomField.objects.filter(hospital=request.user.hospital)
+
         try:
-            order = int(order)
+            order_val = int(order_raw) if order_raw else None
         except ValueError:
-            order = 0
+            order_val = None
+
+        if order_val is None or order_val <= 0:
+            # Add to the end: max order + 1
+            max_order = qs.aggregate(m=Max('order'))['m'] or 0
+            order = max_order + 1
+        else:
+            order = order_val
+            # Shift all subsequent fields with order >= specified order by +1
+            qs.filter(order__gte=order).update(order=F('order') + 1)
 
         if label:
             name = slugify(label).replace("-", "_")
@@ -814,10 +910,11 @@ def custom_field_add(request):
                 order=order,
                 is_active=True,
             )
-            messages.success(request, f"New custom form field '{label}' added successfully.")
+            messages.success(request, f"New custom form field '{label}' added at position #{order} successfully.")
             return redirect("/leads/universal-masters/?tab=custom_fields")
         messages.error(request, "Field label is required.")
     return redirect("/leads/universal-masters/?tab=custom_fields")
+
 
 
 @login_required
@@ -844,6 +941,7 @@ def custom_field_edit(request, pk):
             order = 0
 
         if label:
+            old_order = field.order
             field.label = label
             field.field_type = field_type
             field.options = options
@@ -851,11 +949,57 @@ def custom_field_edit(request, pk):
             field.help_text = help_text
             field.is_required = is_required
             field.is_active = is_active
-            field.order = order
-            field.save()
-            messages.success(request, f"Custom form field '{label}' updated successfully.")
-        return redirect("/leads/universal-masters/?tab=custom_fields")
-    return redirect("/leads/universal-masters/?tab=custom_fields")
+            
+            # Fetch all fields in current order
+            all_fields = list(LeadCustomField.objects.filter(hospital=request.user.hospital).order_by('order', 'id'))
+            
+            if order > 0 and order != old_order:
+                # Remove field from current list position
+                all_fields = [f for f in all_fields if f.pk != field.pk]
+                # Insert at new 0-indexed position (order - 1)
+                insert_idx = max(0, min(order - 1, len(all_fields)))
+                all_fields.insert(insert_idx, field)
+                
+                # Reassign clean contiguous orders: 1, 2, 3...
+                for idx, f in enumerate(all_fields):
+                    f.order = idx + 1
+                    if f.pk == field.pk:
+                        field.order = idx + 1
+                        field.save()
+                    else:
+                        f.save(update_fields=['order'])
+            else:
+                field.save()
+
+            # Automatically sync updated options into corresponding MasterGroup/MasterItems
+            FIELD_TO_GROUP_MAP = {
+                "appointment_status": "Appointment Statuses",
+                "lead_source": "Lead Sources",
+                "campaign": "Campaigns",
+                "location": "Locations",
+                "gender": "Genders",
+                "priority": "Priorities",
+                "deal_status": "Deal Statuses",
+            }
+            if field.name in FIELD_TO_GROUP_MAP and field.field_type == LeadCustomField.FieldType.DROPDOWN:
+                from leads.models import MasterGroup, MasterItem
+                group_name = FIELD_TO_GROUP_MAP[field.name]
+                mg, _ = MasterGroup.objects.get_or_create(name=group_name)
+                new_opts = [o.strip() for o in options.split(",") if o.strip()]
+                if new_opts:
+                    # Deactivate or remove old items not in new list
+                    mg.items.filter(hospital=request.user.hospital).exclude(name__in=new_opts).delete()
+                    for idx, opt_name in enumerate(new_opts):
+                        MasterItem.objects.update_or_create(
+                            group=mg,
+                            hospital=request.user.hospital,
+                            name=opt_name,
+                            defaults={"order": idx + 1, "is_active": True}
+                        )
+                
+            messages.success(request, f"Form field '{label}' updated successfully.")
+        return redirect("/leads/universal-masters/")
+    return redirect("/leads/universal-masters/")
 
 
 @login_required
@@ -1347,4 +1491,517 @@ def doctor_slots_api(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({"error": str(e), "slots": []}, status=200)
+
+# ---------------------------------------------------------------------------
+# Hospital Master Configuration Views & Cascading Relationships
+# ---------------------------------------------------------------------------
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_configuration_view(request):
+    """
+    Dedicated Hospital Configuration Master Settings module for Hospital Admin & Permitted Managers.
+    Manages:
+    - Hospital Branches
+    - Hospital Departments (Linked to Branches)
+    - Doctors (Linked to Department, Diseases & Branches with availability)
+    - Diseases & Medical Conditions (Linked to Department)
+    """
+    hospital = request.user.hospital
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    branches = HospitalBranch.objects.filter(hospital=hospital).prefetch_related("departments", "doctors")
+    departments = HospitalDepartment.objects.filter(hospital=hospital).prefetch_related("branches", "doctors", "diseases")
+    doctors = HospitalDoctor.objects.filter(hospital=hospital).select_related("department", "user").prefetch_related("branches", "associated_diseases", "availabilities")
+    diseases = HospitalDisease.objects.filter(hospital=hospital).select_related("department")
+
+    active_tab = request.GET.get("tab", "branches")
+
+    # Doctor login users eligible for linking
+    doctor_users = User.objects.filter(
+        models.Q(role=User.Role.DOCTOR) | models.Q(hospital=hospital, is_active=True),
+        is_active=True
+    ).distinct()
+    if hospital:
+        doctor_users = User.objects.filter(hospital=hospital, is_active=True).distinct()
+
+    context = {
+        "active": "hospital_config",
+        "hospital": hospital,
+        "branches": branches,
+        "departments": departments,
+        "doctors": doctors,
+        "diseases": diseases,
+        "active_tab": active_tab,
+        "doctor_users": doctor_users,
+    }
+    return render(request, "leads/hospital_configuration.html", context)
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_branch_save(request, pk=None):
+    hospital = request.user.hospital
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        code = request.POST.get("code", "").strip()
+        city = request.POST.get("city", "").strip()
+        address = request.POST.get("address", "").strip()
+        contact_number = request.POST.get("contact_number", "").strip()
+        is_main = request.POST.get("is_main_branch") == "1"
+        order = int(request.POST.get("order", 0) or 0)
+
+        if not name:
+            messages.error(request, "Branch name is required.")
+            return redirect(f"/leads/hospital-configuration/?tab=branches")
+
+        if is_main:
+            # Only one main branch per hospital
+            HospitalBranch.objects.filter(hospital=hospital).update(is_main_branch=False)
+
+        if pk:
+            branch = get_object_or_404(HospitalBranch, pk=pk, hospital=hospital)
+            branch.name = name
+            branch.code = code
+            branch.city = city
+            branch.address = address
+            branch.contact_number = contact_number
+            branch.is_main_branch = is_main
+            branch.order = order
+            branch.save()
+            messages.success(request, f"Branch '{name}' updated successfully.")
+        else:
+            HospitalBranch.objects.create(
+                hospital=hospital,
+                name=name,
+                code=code,
+                city=city,
+                address=address,
+                contact_number=contact_number,
+                is_main_branch=is_main,
+                order=order,
+                is_active=True,
+            )
+            messages.success(request, f"Branch '{name}' created successfully.")
+
+    return redirect("/leads/hospital-configuration/?tab=branches")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_department_save(request, pk=None):
+    hospital = request.user.hospital
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        code = request.POST.get("code", "").strip()
+        description = request.POST.get("description", "").strip()
+        order = int(request.POST.get("order", 0) or 0)
+        branch_ids = request.POST.getlist("branches")
+
+        if not name:
+            messages.error(request, "Department name is required.")
+            return redirect("/leads/hospital-configuration/?tab=departments")
+
+        if pk:
+            dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
+            dept.name = name
+            dept.code = code
+            dept.description = description
+            dept.order = order
+            dept.save()
+            dept.branches.set(HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital))
+            messages.success(request, f"Department '{name}' updated successfully.")
+        else:
+            dept = HospitalDepartment.objects.create(
+                hospital=hospital,
+                name=name,
+                code=code,
+                description=description,
+                order=order,
+                is_active=True,
+            )
+            dept.branches.set(HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital))
+            messages.success(request, f"Department '{name}' created successfully.")
+
+    return redirect("/leads/hospital-configuration/?tab=departments")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_disease_save(request, pk=None):
+    hospital = request.user.hospital
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        code = request.POST.get("code", "").strip()
+        department_id = request.POST.get("department")
+        description = request.POST.get("description", "").strip()
+        order = int(request.POST.get("order", 0) or 0)
+
+        if not name or not department_id:
+            messages.error(request, "Disease name and Department are required.")
+            return redirect("/leads/hospital-configuration/?tab=diseases")
+
+        dept = get_object_or_404(HospitalDepartment, pk=department_id, hospital=hospital)
+
+        if pk:
+            disease = get_object_or_404(HospitalDisease, pk=pk, hospital=hospital)
+            disease.name = name
+            disease.code = code
+            disease.department = dept
+            disease.description = description
+            disease.order = order
+            disease.save()
+            messages.success(request, f"Disease '{name}' updated successfully.")
+        else:
+            HospitalDisease.objects.create(
+                hospital=hospital,
+                name=name,
+                code=code,
+                department=dept,
+                description=description,
+                order=order,
+                is_active=True,
+            )
+            messages.success(request, f"Disease '{name}' added successfully.")
+
+    return redirect("/leads/hospital-configuration/?tab=diseases")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_doctor_save(request, pk=None):
+    hospital = request.user.hospital
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        user_id = request.POST.get("user")
+        department_ids = request.POST.getlist("departments")
+        if not department_ids and request.POST.get("department"):
+            department_ids = [request.POST.get("department")]
+        qualification = request.POST.get("qualification", "").strip()
+        specialization = request.POST.get("specialization", "").strip()
+        contact_number = request.POST.get("contact_number", "").strip()
+        email = request.POST.get("email", "").strip()
+        consultation_fee = float(request.POST.get("consultation_fee", 0.0) or 0.0)
+        order = int(request.POST.get("order", 0) or 0)
+
+        disease_ids = request.POST.getlist("associated_diseases")
+        branch_ids = request.POST.getlist("branches")
+
+        if not name or not department_ids:
+            messages.error(request, "Doctor name and at least one Clinical Department are required.")
+            return redirect("/leads/hospital-configuration/?tab=doctors")
+
+        selected_depts = HospitalDepartment.objects.filter(id__in=department_ids, hospital=hospital)
+        primary_dept = selected_depts.first()
+        doc_user = User.objects.filter(pk=user_id, hospital=hospital).first() if user_id else None
+
+        if pk:
+            doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
+            doc.name = name
+            doc.user = doc_user
+            doc.department = primary_dept
+            doc.qualification = qualification
+            doc.specialization = specialization
+            doc.contact_number = contact_number
+            doc.email = email
+            doc.consultation_fee = consultation_fee
+            doc.order = order
+            doc.save()
+            doc.departments.set(selected_depts)
+            doc.associated_diseases.set(HospitalDisease.objects.filter(id__in=disease_ids, hospital=hospital))
+            
+            # Sync Branch availabilities
+            selected_branches = HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital)
+            for b in selected_branches:
+                DoctorBranchAvailability.objects.get_or_create(doctor=doc, branch=b, defaults={"is_active": True})
+            DoctorBranchAvailability.objects.filter(doctor=doc).exclude(branch__in=selected_branches).delete()
+
+            messages.success(request, f"Doctor 'Dr. {name}' updated successfully.")
+        else:
+            doc = HospitalDoctor.objects.create(
+                hospital=hospital,
+                name=name,
+                user=doc_user,
+                department=primary_dept,
+                qualification=qualification,
+                specialization=specialization,
+                contact_number=contact_number,
+                email=email,
+                consultation_fee=consultation_fee,
+                order=order,
+                is_active=True,
+            )
+            doc.departments.set(selected_depts)
+            doc.associated_diseases.set(HospitalDisease.objects.filter(id__in=disease_ids, hospital=hospital))
+            for b in HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital):
+                DoctorBranchAvailability.objects.create(doctor=doc, branch=b, is_active=True)
+
+            messages.success(request, f"Doctor 'Dr. {name}' registered successfully.")
+
+    return redirect("/leads/hospital-configuration/?tab=doctors")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_branch_toggle(request, pk):
+    branch = get_object_or_404(HospitalBranch, pk=pk, hospital=request.user.hospital)
+    branch.is_active = not branch.is_active
+    branch.save(update_fields=["is_active"])
+    status_str = "activated" if branch.is_active else "deactivated"
+    messages.success(request, f"Hospital Branch '{branch.name}' has been {status_str}.")
+    return redirect("/leads/hospital-configuration/?tab=branches")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_department_toggle(request, pk):
+    dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=request.user.hospital)
+    dept.is_active = not dept.is_active
+    dept.save(update_fields=["is_active"])
+    status_str = "activated" if dept.is_active else "deactivated"
+    messages.success(request, f"Department '{dept.name}' has been {status_str}.")
+    return redirect("/leads/hospital-configuration/?tab=departments")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_disease_toggle(request, pk):
+    dis = get_object_or_404(HospitalDisease, pk=pk, hospital=request.user.hospital)
+    dis.is_active = not dis.is_active
+    dis.save(update_fields=["is_active"])
+    status_str = "activated" if dis.is_active else "deactivated"
+    messages.success(request, f"Disease / Condition '{dis.name}' has been {status_str}.")
+    return redirect("/leads/hospital-configuration/?tab=diseases")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_doctor_toggle(request, pk):
+    doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=request.user.hospital)
+    doc.is_active = not doc.is_active
+    doc.save(update_fields=["is_active"])
+    status_str = "activated" if doc.is_active else "deactivated"
+    messages.success(request, f"Doctor 'Dr. {doc.name}' has been {status_str}.")
+    return redirect("/leads/hospital-configuration/?tab=doctors")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_master_excel_import(request):
+    """
+    Bulk import Hospital Master data from Excel/CSV containing:
+    Hospital Branch | Department | Doctor | Disease
+    """
+    hospital = request.user.hospital
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    if request.method == "POST" and request.FILES.get("excel_file"):
+        uploaded_file = request.FILES["excel_file"]
+        filename = uploaded_file.name.lower()
+
+        try:
+            import pandas as pd
+            if filename.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+
+            # Clean and normalize column names
+            df.columns = [str(c).strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
+            
+            # Map possible column header variations
+            branch_col = next((c for c in df.columns if "branch" in c), None)
+            dept_col = next((c for c in df.columns if "dept" in c or "department" in c), None)
+            doc_col = next((c for c in df.columns if "doc" in c or "doctor" in c), None)
+            dis_col = next((c for c in df.columns if "dis" in c or "disease" in c or "condition" in c), None)
+
+            branches_created = 0
+            depts_created = 0
+            docs_created = 0
+            diseases_created = 0
+            rows_processed = 0
+
+            for _, row in df.iterrows():
+                branch_name = str(row.get(branch_col, "")).strip() if branch_col and pd.notna(row.get(branch_col)) else ""
+                dept_name = str(row.get(dept_col, "")).strip() if dept_col and pd.notna(row.get(dept_col)) else ""
+                doc_name = str(row.get(doc_col, "")).strip() if doc_col and pd.notna(row.get(doc_col)) else ""
+                disease_name = str(row.get(dis_col, "")).strip() if dis_col and pd.notna(row.get(dis_col)) else ""
+
+                if not dept_name and not doc_name and not disease_name and not branch_name:
+                    continue
+
+                rows_processed += 1
+                branch_obj = None
+                dept_obj = None
+                doc_obj = None
+                disease_obj = None
+
+                # 1. Branch
+                if branch_name and branch_name.lower() not in ["nan", "none", ""]:
+                    branch_obj, b_created = HospitalBranch.objects.get_or_create(
+                        hospital=hospital,
+                        name=branch_name,
+                        defaults={"is_active": True}
+                    )
+                    if b_created:
+                        branches_created += 1
+
+                # 2. Department
+                if dept_name and dept_name.lower() not in ["nan", "none", ""]:
+                    dept_obj, d_created = HospitalDepartment.objects.get_or_create(
+                        hospital=hospital,
+                        name=dept_name,
+                        defaults={"is_active": True}
+                    )
+                    if d_created:
+                        depts_created += 1
+                    if branch_obj and dept_obj:
+                        dept_obj.branches.add(branch_obj)
+
+                # 3. Doctor
+                if doc_name and doc_name.lower() not in ["nan", "none", ""]:
+                    clean_doc_name = doc_name
+                    if clean_doc_name.lower().startswith("dr.") or clean_doc_name.lower().startswith("dr "):
+                        clean_doc_name = clean_doc_name[3:].strip()
+
+                    doc_obj = HospitalDoctor.objects.filter(
+                        hospital=hospital,
+                        name__iexact=clean_doc_name
+                    ).first()
+
+                    if not doc_obj:
+                        doc_obj = HospitalDoctor.objects.create(
+                            hospital=hospital,
+                            name=clean_doc_name,
+                            department=dept_obj,
+                            is_active=True
+                        )
+                        docs_created += 1
+
+                    if dept_obj:
+                        doc_obj.departments.add(dept_obj)
+                        if not doc_obj.department:
+                            doc_obj.department = dept_obj
+                            doc_obj.save(update_fields=["department"])
+
+                    if branch_obj:
+                        DoctorBranchAvailability.objects.get_or_create(
+                            doctor=doc_obj,
+                            branch=branch_obj,
+                            defaults={"is_active": True}
+                        )
+
+                # 4. Disease / Condition
+                if disease_name and disease_name.lower() not in ["nan", "none", ""] and dept_obj:
+                    disease_obj, dis_created = HospitalDisease.objects.get_or_create(
+                        hospital=hospital,
+                        department=dept_obj,
+                        name=disease_name,
+                        defaults={"is_active": True}
+                    )
+                    if dis_created:
+                        diseases_created += 1
+
+                    if doc_obj and disease_obj:
+                        doc_obj.associated_diseases.add(disease_obj)
+
+            messages.success(
+                request,
+                f"Excel Import Successful! Processed {rows_processed} rows. "
+                f"Added {branches_created} branches, {depts_created} departments, "
+                f"{docs_created} doctors, {diseases_created} conditions."
+            )
+        except Exception as ex:
+            messages.error(request, f"Failed to import Excel/CSV file: {str(ex)}")
+
+    return redirect("/leads/hospital-configuration/")
+
+
+@login_required
+def hospital_master_sample_download(request):
+    """Download Sample Excel / CSV template for Hospital Master Configuration"""
+    from django.http import HttpResponse
+    import csv
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="hospital_master_template.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["hospital_branch", "department", "doctor", "disease"])
+    writer.writerow(["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Migraine"])
+    writer.writerow(["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Stroke"])
+    writer.writerow(["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Dementia"])
+    writer.writerow(["Nelson Luxe Mother & Child Care Hospital, Wardhmannagar", "Gynaecology", "Dr. Priya Sharma", "Infertility / IVF"])
+    writer.writerow(["Central Brain & Spine Hospital, Dhantoli", "Cardiology", "Dr. Rajesh Patil", "Hypertension"])
+
+    return response
+
+
+@login_required
+def cascading_hospital_data_api(request):
+    """
+    High-Performance JSON API for dynamic cascading dependent dropdowns:
+    Branch -> Department -> Doctor / Disease
+    """
+    hospital = request.user.hospital
+    if not hospital:
+        return JsonResponse({"error": "No hospital context"}, status=400)
+
+    branch_id = request.GET.get("branch_id")
+    dept_id = request.GET.get("department_id")
+    doctor_id = request.GET.get("doctor_id")
+
+    res = {
+        "departments": [],
+        "doctors": [],
+        "diseases": [],
+    }
+
+    # 1. If branch selected, filter departments available at this branch
+    if branch_id:
+        if str(branch_id).isdigit():
+            branch = HospitalBranch.objects.filter(pk=branch_id, hospital=hospital, is_active=True).first()
+        else:
+            branch = HospitalBranch.objects.filter(name__iexact=branch_id, hospital=hospital, is_active=True).first()
+            if not branch:
+                branch = HospitalBranch.objects.filter(name__icontains=branch_id, hospital=hospital, is_active=True).first()
+
+        if branch:
+            dept_qs = branch.departments.filter(is_active=True).order_by("order", "name")
+            res["departments"] = [{"id": d.id, "name": d.name} for d in dept_qs]
+
+    # 2. If department selected, filter doctors and diseases for this department
+    if dept_id:
+        if str(dept_id).isdigit():
+            dept = HospitalDepartment.objects.filter(pk=dept_id, hospital=hospital, is_active=True).first()
+        else:
+            dept = HospitalDepartment.objects.filter(name__iexact=dept_id, hospital=hospital, is_active=True).first()
+            
+        if dept:
+            doc_qs = HospitalDoctor.objects.filter(
+                models.Q(departments=dept) | models.Q(department=dept),
+                hospital=hospital,
+                is_active=True
+            ).distinct().order_by("order", "name")
+            
+            if branch_id and str(branch_id).isdigit():
+                doc_qs = doc_qs.filter(branches__id=branch_id)
+            res["doctors"] = [{"id": doc.id, "name": doc.name, "display_name": f"Dr. {doc.name}" if not doc.name.lower().startswith("dr") else doc.name, "fee": float(doc.consultation_fee)} for doc in doc_qs]
+
+            dis_qs = dept.diseases.filter(is_active=True).order_by("order", "name")
+            res["diseases"] = [{"id": dis.id, "name": dis.name} for dis in dis_qs]
+
+    # 3. If doctor selected, return doctor's available branches and diseases
+    if doctor_id:
+        doc = HospitalDoctor.objects.filter(pk=doctor_id, hospital=hospital, is_active=True).first()
+        if doc:
+            res["diseases"] = [{"id": dis.id, "name": dis.name} for dis in doc.associated_diseases.filter(is_active=True)]
+            res["branches"] = [{"id": b.id, "name": b.name} for b in doc.branches.filter(is_active=True)]
+
+    return JsonResponse(res)
+
 

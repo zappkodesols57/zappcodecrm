@@ -9,9 +9,19 @@
         </h3>
         <p class="text-muted mb-0">Fresh, uncontacted leads synchronized from Meta API and other sources.</p>
     </div>
-    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold">
-        <i class="fa-solid fa-bell me-1"></i> {{ total_count }} Fresh Leads
-    </span>
+    <div class="d-flex align-items-center gap-2">
+        {% if user.can_import_export %}
+        <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-semibold">
+            <i class="fa-solid fa-file-excel me-1"></i> Import Excel
+        </a>
+        <a href="{% url 'imports:export' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm">
+            <i class="fa-solid fa-file-export me-1"></i> Export
+        </a>
+        {% endif %}
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold">
+            <i class="fa-solid fa-bell me-1"></i> {{ total_count }} Fresh Leads
+        </span>
+    </div>
 </div>
 
 <!-- Simple Search Card -->
@@ -63,25 +73,25 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if lead.lead_source or lead.custom_data.lead_source %}
+                            {% if lead.lead_source or lead.custom_source %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-2 py-1 mb-1 d-inline-block" style="font-size: 0.72rem;">
-                                    <i class="fa-solid fa-bullhorn me-1"></i>{{ lead.lead_source.name|default:lead.custom_data.lead_source }}
+                                    <i class="fa-solid fa-bullhorn me-1"></i>{{ lead.lead_source.name|default:lead.custom_source }}
                                 </span>
                             {% endif %}
-                            {% if lead.campaign or lead.custom_data.campaign %}
-                                <div class="small text-muted text-truncate" style="max-width: 160px;" title="{{ lead.campaign.name|default:lead.custom_data.campaign }}">
-                                    <i class="fa-solid fa-rectangle-ad me-1 text-muted"></i>{{ lead.campaign.name|default:lead.custom_data.campaign }}
+                            {% if lead.campaign or lead.custom_camp %}
+                                <div class="small text-muted text-truncate" style="max-width: 160px;" title="{{ lead.campaign.name|default:lead.custom_camp }}">
+                                    <i class="fa-solid fa-rectangle-ad me-1 text-muted"></i>{{ lead.campaign.name|default:lead.custom_camp }}
                                 </div>
                             {% endif %}
                         </td>
                         <td>
                             <div class="d-flex flex-wrap gap-1 align-items-center">
                                 <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
-                                    <i class="fa-solid fa-fire text-danger me-1"></i>{{ lead.custom_data.priority|default:lead.get_temperature_display|default:"Fresh" }}
+                                    <i class="fa-solid fa-fire text-danger me-1"></i>{{ lead.custom_priority|default:lead.get_temperature_display|default:"Fresh" }}
                                 </span>
-                                {% if lead.custom_data.department %}
+                                {% if lead.custom_dept %}
                                     <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
-                                        {{ lead.custom_data.department }}
+                                        {{ lead.custom_dept }}
                                     </span>
                                 {% endif %}
                             </div>
@@ -100,8 +110,8 @@
                                 <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }}%2C%20Greetings%20from%20{{ request.user.hospital.name|default:'Nelson%20Hospital'|urlencode }}!%20We%20received%20your%20enquiry%20and%20are%20here%20to%20assist%20you%20with%20doctor%20consultations%2C%20appointments%2C%20and%20healthcare%20guidance.%20How%20may%20we%20help%20you%20today%3F" target="_blank" class="btn btn-sm btn-light border text-success" title="WhatsApp Message">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </a>
-                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-primary px-3 fw-semibold">
-                                    <i class="fa-solid fa-eye me-1"></i> Open & Act
+                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-primary px-3 fw-semibold">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Open & Act
                                 </a>
                             </div>
                         </td>

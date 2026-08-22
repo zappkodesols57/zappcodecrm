@@ -75,19 +75,21 @@ def today(request):
     d = timezone.localdate()
     today_str = d.strftime("%Y-%m-%d")
     
-    # Query leads having next_followup_date today OR hospital remark calling dates today OR appo_booked_date today
+    # Query leads having next_followup_date today or earlier (pending + overdue) OR remark calling dates today/earlier OR appo_booked_date today/earlier
     leads = Lead.objects.filter(
         is_archived=False
     ).filter(
-        Q(next_followup_date=d) |
-        Q(custom_data__calling_date_remark_1=today_str) |
-        Q(custom_data__calling_date_remark_2=today_str) |
-        Q(custom_data__calling_date_remark_3=today_str) |
-        Q(custom_data__appo_booked_date=today_str)
-    ).select_related("assigned_to", "stage").order_by("-updated_at")
+        Q(next_followup_date__lte=d) |
+        Q(custom_data__calling_date_remark_1__lte=today_str, custom_data__calling_date_remark_1__gt="") |
+        Q(custom_data__calling_date_remark_2__lte=today_str, custom_data__calling_date_remark_2__gt="") |
+        Q(custom_data__calling_date_remark_3__lte=today_str, custom_data__calling_date_remark_3__gt="") |
+        Q(custom_data__appo_booked_date__lte=today_str, custom_data__appo_booked_date__gt="")
+    ).exclude(
+        deal_status__in=["WON", "LOST"]
+    ).select_related("assigned_to", "stage").order_by("next_followup_date", "-updated_at")
     
     leads = _filter_by_role(request.user, leads)
-    return _board(request, leads, "fu_today", "Today's Follow-ups & Appointments", d)
+    return _board(request, leads, "fu_today", "Follow-ups (Pending & Today's Schedule)", d)
 
 
 @login_required

@@ -8,7 +8,7 @@
   </a>
 </div>
 
-<div class="card mb-4" style="max-width: 600px;">
+<div class="card mb-4" style="max-width: 850px;">
   <div class="card-header bg-light">
     <ul class="nav nav-tabs card-header-tabs" id="importTab" role="tablist">
       <li class="nav-item" role="presentation">
@@ -28,12 +28,12 @@
       <!-- Quick Template Import Tab -->
       <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
         <p class="text-muted small mb-3">
-          Download the template above, fill in the columns, and upload it here. The system will read the standard columns directly, handle duplicates, and import all leads instantly.
+          Download the template above or format your Excel file with the standard columns below. The system automatically detects headers, matches telecallers, doctors, and sources, and imports leads directly.
         </p>
         <form method="post" action="{% url 'imports:quick_import' %}" enctype="multipart/form-data">
           {% csrf_token %}
           <div class="mb-3">
-            <label class="form-label small fw-bold">Excel File</label>
+            <label class="form-label small fw-bold">Excel File (.xlsx, .xls)</label>
             <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control" required>
           </div>
           <div class="mb-3">
@@ -46,12 +46,110 @@
           </div>
           <button class="btn btn-brand text-white"><i class="fa-solid fa-upload"></i> Start Quick Import</button>
         </form>
+
+        <!-- Sample Expected Database Columns Table -->
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold text-dark mb-0 small text-uppercase">
+              <i class="fa-solid fa-table text-primary me-1"></i> Standard Expected Columns & Sample Data:
+            </h6>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1" style="font-size: 0.72rem;">
+              Nelson Hospital Schema
+            </span>
+          </div>
+          <div class="table-responsive border rounded-3 bg-white">
+            <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.78rem;">
+              <thead class="bg-light text-muted">
+                <tr>
+                  <th class="py-2 px-3">Column Name</th>
+                  <th class="py-2">Required?</th>
+                  <th class="py-2">Accepted Aliases / Headers</th>
+                  <th class="py-2 px-3">Sample Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Patient Name</td>
+                  <td><span class="badge bg-danger">Required</span></td>
+                  <td><code>Name</code>, <code>Full Name</code>, <code>Lead Name</code></td>
+                  <td class="text-primary fw-semibold px-3">Rahul Sharma</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Mobile</td>
+                  <td><span class="badge bg-danger">Required</span></td>
+                  <td><code>Phone</code>, <code>Contact Number</code>, <code>Mobile Number</code></td>
+                  <td class="text-primary fw-semibold px-3">9876543210</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">City / Location</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Location</code>, <code>City</code>, <code>Address</code></td>
+                  <td class="px-3">Nagpur</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Gender</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Gender</code>, <code>Sex</code>, <code>M/F</code></td>
+                  <td class="px-3">Male / Female</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Age</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Age</code>, <code>Years</code>, <code>Yrs</code></td>
+                  <td class="px-3">28</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Department</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Department</code>, <code>Speciality</code>, <code>Dept</code></td>
+                  <td class="px-3">Neurology / Gynaecology</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Doctor</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Doctor</code>, <code>Consultant</code>, <code>Dr Name</code></td>
+                  <td class="px-3">Dr. Pradeep Patil</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Lead Source</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Source</code>, <code>Platform</code>, <code>Channel</code>, <code>IG/FB</code></td>
+                  <td class="px-3">Instagram / Google Ads / FB</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Campaign</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Campaign Name</code>, <code>Campaign</code>, <code>Ad Name</code></td>
+                  <td class="px-3">LuxeFreeHealthCheckup_Aug21st</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Telecaller / Assigned To</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Assigned To</code>, <code>Telecaller</code>, <code>Attendant</code>, <code>Executive</code></td>
+                  <td class="px-3">rajratan / Staff Name</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Date / Created At</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Inquiry Date</code>, <code>Created At</code>, <code>Date</code></td>
+                  <td class="px-3">2026-08-22 / 22-08-2026</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-dark px-3">Notes / Survey Questions</td>
+                  <td><span class="badge bg-light text-muted border">Optional</span></td>
+                  <td><code>Notes</code>, <code>Comments</code>, <code>Remark</code>, <code>Questions...</code></td>
+                  <td class="px-3">Interested in consultation</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Custom Mapping Import Tab -->
       <div class="tab-pane fade" id="custom" role="tabpanel" aria-labelledby="custom-tab">
         <p class="text-muted small mb-3">
-          For historical sheets or files with custom column names. You will upload the file, select a sheet, and map the columns (like Name, Mobile, Course) manually.
+          For historical sheets or files with custom column names. You will upload the file, select a sheet, and map the columns (like Name, Mobile, Course/Department) manually.
         </p>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}

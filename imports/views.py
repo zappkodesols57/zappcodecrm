@@ -14,33 +14,67 @@ from .models import ImportJob, ImportError as ImportErrorModel
 from . import cleaning
 
 TARGET_FIELDS = [
-    ("IGNORE", "— Ignore this column —"),
-    ("name", "Name"),
-    ("mobile", "Mobile Number"),
-    ("email", "Email"),
-    ("city", "City"),
-    ("course", "Course"),
-    ("source", "Lead Source / Origin"),
-    ("temperature", "Lead Temperature / State"),
-    ("deal_status", "Deal Status"),
-    ("admission_status", "Admission Status"),
-    ("inquiry_date", "Inquiry Date"),
-    ("notes", "Notes"),
+    ("IGNORE", "— Ignore this column (ID / Ad ID / Non-required) —"),
+    ("name", "Patient / Lead Name"),
+    ("mobile", "Mobile / Phone Number"),
+    ("email", "Email Address"),
+    ("gender", "Gender (Male / Female / Other)"),
+    ("age", "Age"),
+    ("city", "City / Location / Area"),
+    ("doctor", "Doctor / Consultant"),
+    ("department", "Department / Speciality"),
+    ("campaign", "Campaign Name"),
+    ("source", "Lead Source / Platform (FB, IG, Google, etc.)"),
+    ("assigned_to", "Assigned To / Telecaller / Executive"),
+    ("inquiry_date", "Date / Created At (DD/MM/YYYY)"),
+    ("notes", "Comments / Notes / Survey Question Responses"),
 ]
 
 GUESS_KEYWORDS = {
-    "name": ["name"],
-    "mobile": ["contact", "mobile", "phone"],
-    "email": ["email"],
-    "city": ["city", "location"],
-    "course": ["course"],
-    "source": ["origin", "source", "leads origin"],
-    "temperature": ["lead state", "state", "temperature"],
-    "deal_status": ["deal status"],
-    "admission_status": ["admission", "admision"],
-    "inquiry_date": ["inquiry", "date of inquiry"],
-    "notes": ["remark", "comment", "issue", "note"],
+    "name": ["patient name", "patient", "full name", "customer name", "lead name", "name"],
+    "mobile": ["mobile number", "mobile", "phone number", "phone", "contact number", "contact", "call number", "whatsapp number", "cell"],
+    "email": ["email", "e-mail", "mail"],
+    "gender": ["gender", "sex", "m/f"],
+    "age": ["age", "years", "yrs"],
+    "city": ["city", "location", "address", "area", "town", "district"],
+    "doctor": ["doctor", "dr name", "consultant", "physician", "surgeon"],
+    "department": ["department", "speciality", "dept", "specialization"],
+    "campaign": ["campaign name", "campaign", "ad name", "ad set name"],
+    "source": ["origin", "source", "platform", "publisher platform", "lead source", "channel"],
+    "assigned_to": ["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"],
+    "inquiry_date": ["created at", "created_at", "date", "created time", "lead date", "inquiry date", "lead time"],
+    "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question"],
 }
+
+
+def _resolve_assigned_user(raw_val, hospital=None, default_user=None):
+    """Finds or matches a User/Telecaller by name or username, or returns default_user."""
+    if not raw_val or str(raw_val).strip() in ("", "-", "nan", "NaT", "none", "null"):
+        return default_user
+    from accounts.models import User
+    from django.db.models import Q
+    s = str(raw_val).strip()
+    s_low = s.lower()
+    
+    qs = User.objects.filter(is_active=True)
+    if hospital:
+        qs_h = qs.filter(hospital=hospital)
+        if qs_h.exists():
+            qs = qs_h
+
+    # 1. Exact username or full name match
+    for u in qs:
+        uname = (u.username or "").strip().lower()
+        fname = (u.get_full_name() or "").strip().lower()
+        if s_low == uname or s_low == fname or (fname and s_low in fname) or (uname and s_low in uname):
+            return u
+            
+    # 2. First name / Last name partial match
+    for u in qs:
+        if (u.first_name and u.first_name.lower() in s_low) or (u.last_name and u.last_name.lower() in s_low):
+            return u
+
+    return default_user
 
 
 def _guess_field(header):
@@ -95,6 +129,41 @@ def _default_stage():
     return stage
 
 
+def _load_excel_or_csv(file_path, filename=""):
+    """Robustly reads Excel (.xlsx, .xls, .xlsm, .xlsb) or CSV with automatic engine fallback and multi-encoding support."""
+    fn_lower = filename.lower()
+    
+    # 1. Try CSV parsing if filename ends with .csv or fallback
+    if fn_lower.endswith(".csv"):
+        for enc in ["utf-8-sig", "utf-8", "latin1", "cp1252", "iso-8859-1"]:
+            try:
+                df = pd.read_csv(file_path, encoding=enc)
+                return {"type": "df", "df": df, "sheets": ["CSV Data"]}
+            except Exception:
+                continue
+                
+    # 2. Try pd.ExcelFile with automatic and explicit engine fallbacks
+    for eng in [None, "openpyxl", "xlrd", "pyxlsb"]:
+        try:
+            if eng:
+                xl = pd.ExcelFile(file_path, engine=eng)
+            else:
+                xl = pd.ExcelFile(file_path)
+            return {"type": "excel", "xl": xl, "sheets": xl.sheet_names, "engine": eng}
+        except Exception:
+            continue
+            
+    # 3. Last fallback: Try reading as CSV even if named .xlsx/.xls
+    for enc in ["utf-8-sig", "utf-8", "latin1", "cp1252"]:
+        try:
+            df = pd.read_csv(file_path, encoding=enc)
+            return {"type": "df", "df": df, "sheets": ["Imported Data"]}
+        except Exception:
+            continue
+            
+    raise ValueError("File format could not be read. Please upload a valid .xlsx, .xls, or .csv file.")
+
+
 @login_required
 @user_passes_test(lambda u: u.can_import_export)
 def upload(request):
@@ -105,13 +174,14 @@ def upload(request):
             created_by=request.user,
         )
         try:
-            xl = pd.ExcelFile(job.file.path)
+            reader_res = _load_excel_or_csv(job.file.path, job.original_filename)
         except Exception as e:
             job.delete()
             messages.error(request, f"Could not read this file: {e}")
             return redirect("imports:upload")
+            
         return render(request, "imports/select_sheet.html", {
-            "active": "import", "job": job, "sheets": xl.sheet_names,
+            "active": "import", "job": job, "sheets": reader_res["sheets"],
         })
     return render(request, "imports/upload.html", {"active": "import"})
 
@@ -121,7 +191,25 @@ def upload(request):
 def pick_sheet(request, pk):
     job = get_object_or_404(ImportJob, pk=pk)
     sheet_name = request.POST.get("sheet_name")
-    raw = pd.read_excel(job.file.path, sheet_name=sheet_name, header=None)
+    
+    # Robust read
+    raw = None
+    for eng in ["openpyxl", "xlrd", None]:
+        try:
+            if eng:
+                raw = pd.read_excel(job.file.path, sheet_name=sheet_name, header=None, engine=eng)
+            else:
+                raw = pd.read_excel(job.file.path, sheet_name=sheet_name, header=None)
+            break
+        except Exception:
+            continue
+            
+    if raw is None:
+        try:
+            raw = pd.read_csv(job.file.path, header=None, encoding="utf-8-sig")
+        except Exception:
+            raw = pd.read_csv(job.file.path, header=None, encoding="latin1")
+
     header_row = _detect_header_row(raw)
     headers = list(raw.iloc[header_row])
     job.sheet_name = sheet_name
@@ -179,63 +267,118 @@ def preview(request, pk):
     })
 
 
-def _parse_row(row, cols, mapping):
+def _parse_row(row, cols, mapping, user=None):
     data = {}
+    survey_questions = []
+    
     for idx_str, field in mapping.items():
         idx = int(idx_str)
         if idx >= len(cols):
             continue
         val = row.iloc[idx] if hasattr(row, "iloc") else row[cols[idx]]
+        if pd.isna(val):
+            val = ""
         data[field] = val
+
+    # Gather unmapped or question-like columns into comments / survey notes
+    for idx, col_name in enumerate(cols):
+        idx_str = str(idx)
+        field_assigned = mapping.get(idx_str, "IGNORE")
+        col_str = str(col_name).strip()
+        val = row.iloc[idx] if hasattr(row, "iloc") else row[col_name]
+        
+        if pd.isna(val) or str(val).strip() in ("", "-", "nan", "NaT"):
+            continue
+            
+        val_str = str(val).strip()
+        
+        # Check if column is a survey question or non-standard custom header (e.g. Marathi/Hindi question, pregnant months, etc.)
+        if field_assigned == "IGNORE":
+            # Ignore technical ID columns
+            col_lower = col_str.lower()
+            if any(tech_id in col_lower for tech_id in ["ad_id", "adset_id", "campaign_id", "form_id", "lead_id", "hospital_id", "is_organic"]):
+                continue
+            if len(col_str) > 2 and not col_lower.startswith("unnamed"):
+                clean_q_name = col_str.replace("_", " ").strip()
+                survey_questions.append(f"[{clean_q_name}]: {val_str}")
 
     name = str(data.get("name", "")).strip()
     mobile, alt_mobile = cleaning.clean_phone(data.get("mobile"))
     source_cat, source_name, source_ambiguous = cleaning.normalize_source(data.get("source"))
     temperature, temp_ambiguous = cleaning.normalize_temperature(data.get("temperature"))
-    course_name, course_ambiguous = cleaning.normalize_course(data.get("course"))
     inquiry_date = cleaning.parse_date(data.get("inquiry_date")) or timezone.localdate()
+
+    # Combine explicit notes with survey questions
+    base_notes = str(data.get("notes", "") or "").strip()
+    all_notes_list = []
+    if base_notes:
+        all_notes_list.append(base_notes)
+    if survey_questions:
+        all_notes_list.extend(survey_questions)
+    combined_notes = "\n".join(all_notes_list)
 
     warnings = []
     if not name or name.lower() == "nan":
         warnings.append("Missing name")
     if not mobile:
         warnings.append("Missing/invalid mobile number")
-    if source_ambiguous and data.get("source"):
-        warnings.append(f"Ambiguous source '{data.get('source')}' — flagged for review")
-    if course_ambiguous and data.get("course"):
-        warnings.append(f"Unrecognized course '{data.get('course')}' — kept as-is")
+
+    assigned_user = _resolve_assigned_user(data.get("assigned_to"), hospital=getattr(user, 'hospital', None) if user else None)
 
     return {
         "name": name, "mobile": mobile, "alt_mobile": alt_mobile,
         "email": str(data.get("email", "") or "").strip(),
+        "gender": str(data.get("gender", "") or "").strip(),
+        "age": data.get("age", ""),
         "city": str(data.get("city", "") or "").strip(),
-        "course_name": course_name, "source_category": source_cat, "source_name": source_name,
-        "temperature": temperature or "UNCONTACTED", "inquiry_date": inquiry_date,
-        "notes": str(data.get("notes", "") or "").strip(),
-        "deal_status": cleaning.normalize_deal_status(data.get("deal_status"), data.get("admission_status")),
-        "admission_status": cleaning.normalize_admission_status(data.get("admission_status")),
+        "doctor": str(data.get("doctor", "") or "").strip(),
+        "department": str(data.get("department", "") or "").strip(),
+        "campaign_name": str(data.get("campaign", "") or "").strip(),
+        "source_category": source_cat, "source_name": source_name,
+        "assigned_user": assigned_user,
+        "assigned_to_raw": str(data.get("assigned_to", "") or "").strip(),
+        "temperature": "UNCONTACTED", "inquiry_date": inquiry_date,
+        "notes": combined_notes,
+        "deal_status": "OPEN",
+        "admission_status": "NOT_APPLIED",
         "warnings": warnings,
     }
 
 
 @login_required
-@user_passes_test(lambda u: u.can_import_export)
+@user_passes_test(lambda u: u.can_import_export or u.role in ("ADMIN", "SUPER_ADMIN", "MANAGER", "LEAD_ATTENDENT"))
 def run_import(request, pk):
+    from leads.models import Campaign as HospitalCampaign
     job = get_object_or_404(ImportJob, pk=pk)
     header_row = job.column_mapping.get("header_row", 0)
     mapping = job.column_mapping.get("field_map", {})
     date_cols_idx = [int(i) for i in job.column_mapping.get("date_columns", [])]
-    on_duplicate = request.POST.get("on_duplicate", "skip")
+    df = None
+    for eng in ["openpyxl", "xlrd", None]:
+        try:
+            if eng:
+                df = pd.read_excel(job.file.path, sheet_name=job.sheet_name, header=header_row, engine=eng)
+            else:
+                df = pd.read_excel(job.file.path, sheet_name=job.sheet_name, header=header_row)
+            break
+        except Exception:
+            continue
+            
+    if df is None:
+        try:
+            df = pd.read_csv(job.file.path, header=header_row, encoding="utf-8-sig")
+        except Exception:
+            df = pd.read_csv(job.file.path, header=header_row, encoding="latin1")
 
-    df = pd.read_excel(job.file.path, sheet_name=job.sheet_name, header=header_row)
     df = df.dropna(how="all")
     cols = list(df.columns)
 
     imported = updated = skipped = duplicate = invalid = 0
     default_stage = _default_stage()
+    user_hospital = request.user.hospital
 
     for row_num, (_, row) in enumerate(df.iterrows(), start=header_row + 2):
-        parsed = _parse_row(row, cols, mapping)
+        parsed = _parse_row(row, cols, mapping, user=request.user)
         if not parsed["name"] or not parsed["mobile"]:
             invalid += 1
             ImportErrorModel.objects.create(
@@ -257,13 +400,96 @@ def run_import(request, pk):
             continue
 
         cat, src = _get_or_create_source(parsed["source_category"], parsed["source_name"])
-        course = _get_or_create_course(parsed["course_name"])
+        
+        # Auto-register new Lead Source into Master Data & Lead Custom Field options
+        from leads.models import MasterGroup, MasterItem, LeadCustomField
+        if parsed["source_name"] and user_hospital:
+            s_name = parsed["source_name"].strip()
+            mg_src, _ = MasterGroup.objects.get_or_create(name="Lead Sources")
+            MasterItem.objects.get_or_create(
+                group=mg_src,
+                name=s_name,
+                hospital=user_hospital,
+                defaults={"is_active": True}
+            )
+            cf_src = LeadCustomField.objects.filter(hospital=user_hospital, name="lead_source").first()
+            if cf_src:
+                existing_opts = [o.strip() for o in cf_src.options.split(",") if o.strip()]
+                if not any(o.lower() == s_name.lower() for o in existing_opts):
+                    existing_opts.append(s_name)
+                    cf_src.options = ", ".join(existing_opts)
+                    cf_src.save(update_fields=["options"])
+
+        # Link or Auto-create Campaign for Hospital
+        campaign_obj = None
+        if parsed["campaign_name"]:
+            c_name = parsed["campaign_name"].strip()
+            if user_hospital:
+                campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                    hospital=user_hospital,
+                    name=c_name,
+                    defaults={"platform": parsed["source_name"] or "Meta Ads", "is_active": True}
+                )
+                # Auto-register new Campaign into Master Data & Lead Custom Field options
+                mg_camp, _ = MasterGroup.objects.get_or_create(name="Campaigns")
+                MasterItem.objects.get_or_create(
+                    group=mg_camp,
+                    name=c_name,
+                    hospital=user_hospital,
+                    defaults={"is_active": True}
+                )
+                cf_camp = LeadCustomField.objects.filter(hospital=user_hospital, name="campaign").first()
+                if cf_camp:
+                    existing_copts = [o.strip() for o in cf_camp.options.split(",") if o.strip()]
+                    if not any(o.lower() == c_name.lower() for o in existing_copts):
+                        existing_copts.append(c_name)
+                        cf_camp.options = ", ".join(existing_copts)
+                        cf_camp.save(update_fields=["options"])
+            else:
+                campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                    name=c_name,
+                    defaults={"platform": parsed["source_name"] or "Meta Ads", "is_active": True}
+                )
+
+        # Auto-register new Location/City into Master Data & Lead Custom Field options
+        if parsed["city"] and user_hospital:
+            city_name = parsed["city"].strip()
+            mg_loc, _ = MasterGroup.objects.get_or_create(name="Locations")
+            MasterItem.objects.get_or_create(
+                group=mg_loc,
+                name=city_name,
+                hospital=user_hospital,
+                defaults={"is_active": True}
+            )
+            cf_loc = LeadCustomField.objects.filter(hospital=user_hospital, name="location").first()
+            if cf_loc:
+                existing_lopts = [o.strip() for o in cf_loc.options.split(",") if o.strip()]
+                if not any(o.lower() == city_name.lower() for o in existing_lopts):
+                    existing_lopts.append(city_name)
+                    cf_loc.options = ", ".join(existing_lopts)
+                    cf_loc.save(update_fields=["options"])
+
+        custom_data_payload = {}
+        if parsed["doctor"]:
+            custom_data_payload["doctor"] = parsed["doctor"]
+        if parsed["department"]:
+            custom_data_payload["department"] = parsed["department"]
+        if parsed["age"]:
+            custom_data_payload["age"] = parsed["age"]
+        if parsed["gender"]:
+            custom_data_payload["gender"] = parsed["gender"]
 
         if existing and on_duplicate == "update":
             existing.city = parsed["city"] or existing.city
             existing.email = parsed["email"] or existing.email
-            existing.course = course or existing.course
-            existing.notes = (existing.notes + "\n" + parsed["notes"]).strip() if parsed["notes"] else existing.notes
+            if parsed.get("assigned_user"):
+                existing.assigned_to = parsed["assigned_user"]
+            if campaign_obj:
+                existing.campaign = campaign_obj
+            if parsed["notes"]:
+                existing.notes = (existing.notes + "\n" + parsed["notes"]).strip()
+            if custom_data_payload:
+                existing.custom_data.update(custom_data_payload)
             existing.import_job = job
             existing.import_source_file = job.original_filename
             existing.save()
@@ -272,11 +498,14 @@ def run_import(request, pk):
         else:
             lead = Lead.objects.create(
                 name=parsed["name"], mobile=parsed["mobile"], alternate_mobile=parsed["alt_mobile"],
-                email=parsed["email"], city=parsed["city"], course=course,
+                email=parsed["email"], city=parsed["city"], location=parsed["city"],
+                campaign=campaign_obj,
+                assigned_to=parsed.get("assigned_user"),
                 temperature=parsed["temperature"], stage=default_stage,
                 deal_status=parsed["deal_status"], admission_status=parsed["admission_status"],
                 inquiry_date=parsed["inquiry_date"], source_category=cat, lead_source=src,
-                notes=parsed["notes"], created_by=request.user,
+                notes=parsed["notes"], created_by=request.user, hospital=user_hospital,
+                custom_data=custom_data_payload,
                 import_source_file=job.original_filename, import_source_sheet=job.sheet_name,
                 import_source_row=row_num, import_job=job,
             )
@@ -635,32 +864,77 @@ def quick_import(request):
             created_by=request.user,
         )
         
-        try:
-            df = pd.read_excel(excel_file.path, sheet_name=0)
-        except Exception as e:
-            job.delete()
-            messages.error(request, f"Could not read the uploaded Excel file: {e}")
-            return redirect("imports:upload")
+        real_file_path = job.file.path
+        df = None
+        for eng in ["openpyxl", "xlrd", None]:
+            try:
+                if eng:
+                    df = pd.read_excel(real_file_path, sheet_name=0, engine=eng)
+                else:
+                    df = pd.read_excel(real_file_path, sheet_name=0)
+                break
+            except Exception:
+                continue
+                
+        if df is None:
+            try:
+                df = pd.read_csv(real_file_path, encoding="utf-8-sig")
+            except Exception:
+                try:
+                    df = pd.read_csv(real_file_path, encoding="latin1")
+                except Exception as e:
+                    job.delete()
+                    messages.error(request, f"Could not read the uploaded file: {e}")
+                    return redirect("imports:upload")
         
         df = df.dropna(how="all")
+        df = df.dropna(how="all")
         df.columns = [str(c).strip() for c in df.columns]
+        cols = list(df.columns)
         
-        required_cols = ["Name", "Mobile"]
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
+        # Smart Dynamic Column Matcher
+        def find_matching_col(aliases):
+            for col in cols:
+                c_clean = col.lower().replace("_", " ").strip()
+                for alias in aliases:
+                    if alias in c_clean or c_clean == alias:
+                        return col
+            return None
+
+        col_name = find_matching_col(["patient name", "full name", "lead name", "customer name", "name", "client name"])
+        col_mobile = find_matching_col(["mobile number", "phone number", "contact number", "call number", "whatsapp number", "mobile", "phone", "contact", "cell"])
+        col_email = find_matching_col(["email address", "e-mail", "email", "mail"])
+        col_city = find_matching_col(["city", "location", "address", "area", "town", "district"])
+        col_gender = find_matching_col(["gender", "sex", "m/f"])
+        col_age = find_matching_col(["age", "years", "yrs"])
+        col_doctor = find_matching_col(["doctor", "dr name", "consultant", "physician", "surgeon"])
+        col_dept = find_matching_col(["department", "speciality", "dept", "specialization"])
+        col_campaign = find_matching_col(["campaign name", "campaign", "ad name", "ad set name"])
+        col_source = find_matching_col(["lead source", "source", "platform", "publisher platform", "channel", "origin"])
+        col_assigned = find_matching_col(["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"])
+        col_date = find_matching_col(["created at", "created_at", "inquiry date", "lead date", "lead time", "date", "created time"])
+        col_notes = find_matching_col(["remark", "comment", "issue", "note", "notes", "symptom", "problem", "query"])
+
+        if not col_name or not col_mobile:
             job.delete()
-            messages.error(request, f"Missing required columns in template: {', '.join(missing_cols)}")
+            messages.error(
+                request, 
+                "Could not detect Name or Mobile column in your file. "
+                "Please make sure your sheet has a column for Name (e.g. 'Patient Name', 'Name', 'Full Name') "
+                "and Mobile (e.g. 'Mobile Number', 'Phone Number', 'Contact')."
+            )
             return redirect("imports:upload")
             
         default_stage = _default_stage()
+        user_hospital = request.user.hospital
+        from leads.models import Campaign as HospitalCampaign
         
         imported = updated = skipped = duplicate = invalid = 0
-        cols = list(df.columns)
         
         start_idx = 0
         if len(df) > 0:
-            first_row_name = str(df.iloc[0].get("Name", "")).strip().lower()
-            first_row_mobile = str(df.iloc[0].get("Mobile", "")).strip()
+            first_row_name = str(df.iloc[0].get(col_name, "")).strip().lower()
+            first_row_mobile = str(df.iloc[0].get(col_mobile, "")).strip()
             if "rahul kumar" in first_row_name or "9876543210" in first_row_mobile:
                 start_idx = 1
                 
@@ -668,110 +942,118 @@ def quick_import(request):
             row = df.iloc[idx]
             row_num = idx + 2
             
-            name = str(row.get("Name", "")).strip()
-            mobile_raw = row.get("Mobile")
-            email = str(row.get("Email", "") or "").strip()
-            city = str(row.get("City", "") or "").strip()
-            alt_mobile_raw = row.get("Alternate Mobile")
-            course_raw = row.get("Course")
-            source_raw = row.get("Lead Source")
-            temp_raw = row.get("Lead Temperature")
-            deal_raw = row.get("Deal Status")
-            adm_raw = row.get("Admission Status")
-            notes = str(row.get("Notes", "") or "").strip()
-            inquiry_date_raw = row.get("Inquiry Date")
-            
+            name = str(row.get(col_name, "")).strip()
+            mobile_raw = row.get(col_mobile)
             mobile, alt_mobile = cleaning.clean_phone(mobile_raw)
-            if not alt_mobile and alt_mobile_raw:
-                _, alt_mobile = cleaning.clean_phone(alt_mobile_raw)
-                
-            inquiry_date = cleaning.parse_date(inquiry_date_raw) or timezone.localdate()
             
             if not name or name.lower() == "nan" or not mobile:
                 invalid += 1
-                error_msg = []
-                if not name or name.lower() == "nan":
-                    error_msg.append("Missing Name")
-                if not mobile:
-                    error_msg.append("Missing/invalid Mobile number")
-                ImportErrorModel.objects.create(
-                    job=job,
-                    row_number=row_num,
-                    error_message=", ".join(error_msg),
-                    raw_row_data={str(c): str(row[c]) for c in cols[:15] if c in row}
-                )
                 continue
                 
+            email = str(row.get(col_email, "") or "").strip() if col_email else ""
+            city = str(row.get(col_city, "") or "").strip() if col_city else ""
+            gender = str(row.get(col_gender, "") or "").strip() if col_gender else ""
+            age_val = row.get(col_age, "") if col_age else ""
+            doctor_val = str(row.get(col_doctor, "") or "").strip() if col_doctor else ""
+            dept_val = str(row.get(col_dept, "") or "").strip() if col_dept else ""
+            campaign_val = str(row.get(col_campaign, "") or "").strip() if col_campaign else ""
+            source_raw = str(row.get(col_source, "") or "").strip() if col_source else ""
+            assigned_raw = str(row.get(col_assigned, "") or "").strip() if col_assigned else ""
+            assigned_user = _resolve_assigned_user(assigned_raw, hospital=user_hospital)
+            date_raw = row.get(col_date) if col_date else None
+            inquiry_date = cleaning.parse_date(date_raw) or timezone.localdate()
+            
+            base_notes = str(row.get(col_notes, "") or "").strip() if col_notes else ""
+            
+            # Auto-gather survey questions from other columns (e.g. Hindi/Marathi questions, pregnant months, etc.)
+            known_cols = [c for c in [col_name, col_mobile, col_email, col_city, col_gender, col_age, col_doctor, col_dept, col_campaign, col_source, col_assigned, col_date, col_notes] if c]
+            survey_notes = []
+            for col in cols:
+                if col not in known_cols:
+                    col_l = col.lower()
+                    if any(t in col_l for t in ["ad_id", "adset_id", "campaign_id", "form_id", "lead_id", "hospital_id", "is_organic", "unnamed"]):
+                        continue
+                    v = row.get(col)
+                    if pd.notna(v) and str(v).strip() not in ("", "-", "nan", "NaT"):
+                        clean_col_label = col.replace("_", " ").strip()
+                        survey_notes.append(f"[{clean_col_label}]: {str(v).strip()}")
+                        
+            all_notes = []
+            if base_notes:
+                all_notes.append(base_notes)
+            if survey_notes:
+                all_notes.extend(survey_notes)
+            combined_notes = "\n".join(all_notes)
+            
+            source_cat, source_name, _ = cleaning.normalize_source(source_raw)
+            
             existing = Lead.objects.filter(mobile=mobile).first()
             if not existing:
                 existing = next((l for l in Lead.objects.only("id", "mobile") if Lead.clean_mobile(l.mobile) == mobile), None)
                 
-            if existing:
-                if on_duplicate == "skip":
-                    duplicate += 1
-                    continue
-                elif on_duplicate == "create":
-                    existing = None
-            
-            course_name, _ = cleaning.normalize_course(course_raw)
-            course = None
-            if course_name:
-                course, _ = Course.objects.get_or_create(name=course_name)
+            if existing and on_duplicate == "skip":
+                duplicate += 1
+                continue
                 
-            cat = src = None
-            if source_raw:
-                cat_name, src_name, _ = cleaning.normalize_source(source_raw)
-                if cat_name:
-                    cat, _ = SourceCategory.objects.get_or_create(name=cat_name)
-                    src, _ = LeadSource.objects.get_or_create(name=src_name, category=cat)
+            cat, src = _get_or_create_source(source_cat, source_name)
             
-            temperature, _ = cleaning.normalize_temperature(temp_raw)
-            if not temperature:
-                temperature = "COLD"
+            campaign_obj = None
+            if campaign_val:
+                if user_hospital:
+                    campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                        hospital=user_hospital,
+                        name=campaign_val,
+                        defaults={"platform": source_name or "Meta Ads", "is_active": True}
+                    )
+                else:
+                    campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                        name=campaign_val,
+                        defaults={"platform": source_name or "Meta Ads", "is_active": True}
+                    )
+                    
+            custom_data_payload = {}
+            if doctor_val:
+                custom_data_payload["doctor"] = doctor_val
+            if dept_val:
+                custom_data_payload["department"] = dept_val
+            if age_val:
+                custom_data_payload["age"] = age_val
+            if gender:
+                custom_data_payload["gender"] = gender
+            if not custom_data_payload.get("priority"):
+                custom_data_payload["priority"] = "Hot"
                 
-            deal_status = cleaning.normalize_deal_status(deal_raw, adm_raw)
-            admission_status = cleaning.normalize_admission_status(adm_raw)
-            
             if existing and on_duplicate == "update":
-                existing.name = name or existing.name
-                existing.email = email or existing.email
                 existing.city = city or existing.city
-                if course:
-                    existing.course = course
-                if cat:
-                    existing.source_category = cat
-                if src:
-                    existing.lead_source = src
-                existing.temperature = temperature or existing.temperature
-                existing.deal_status = deal_status or existing.deal_status
-                existing.admission_status = admission_status or existing.admission_status
-                existing.notes = (existing.notes + "\n" + notes).strip() if notes else existing.notes
+                existing.email = email or existing.email
+                if assigned_user:
+                    existing.assigned_to = assigned_user
+                if campaign_obj:
+                    existing.campaign = campaign_obj
+                if combined_notes:
+                    existing.notes = (existing.notes + "\n" + combined_notes).strip()
+                if custom_data_payload:
+                    existing.custom_data.update(custom_data_payload)
+                existing.import_job = job
+                existing.import_source_file = job.original_filename
                 existing.save()
                 updated += 1
             else:
                 Lead.objects.create(
-                    name=name,
-                    mobile=mobile,
-                    alternate_mobile=alt_mobile,
-                    email=email,
-                    city=city,
-                    course=course,
-                    temperature=temperature,
-                    stage=default_stage,
-                    deal_status=deal_status,
-                    admission_status=admission_status,
-                    inquiry_date=inquiry_date,
-                    source_category=cat,
-                    lead_source=src,
-                    notes=notes,
-                    created_by=request.user,
-                    import_source_file=job.original_filename,
-                    import_source_sheet="Sheet1",
-                    import_source_row=row_num,
-                    import_job=job
+                    name=name, mobile=mobile, alternate_mobile=alt_mobile,
+                    email=email, city=city, location=city,
+                    campaign=campaign_obj,
+                    assigned_to=assigned_user,
+                    temperature="HOT", stage=default_stage,
+                    deal_status="OPEN", admission_status="NOT_APPLIED",
+                    inquiry_date=inquiry_date, source_category=cat, lead_source=src,
+                    notes=combined_notes, created_by=request.user, hospital=user_hospital,
+                    custom_data=custom_data_payload,
+                    import_source_file=job.original_filename, import_source_sheet="Sheet1",
+                    import_source_row=row_num, import_job=job,
                 )
                 imported += 1
-                
+
         job.imported_count = imported
         job.updated_count = updated
         job.duplicate_count = duplicate
@@ -785,7 +1067,7 @@ def quick_import(request):
             request, 
             f"Quick import complete: {imported} created, {updated} updated, {duplicate} duplicate skipped, {invalid} invalid."
         )
-        return redirect("imports:job_detail", pk=job.pk)
+        return redirect("dashboard:telecaller_new_enquiries" if request.user.role == "LEAD_ATTENDENT" else "imports:job_detail", pk=job.pk) if request.user.role != "LEAD_ATTENDENT" else redirect("dashboard:telecaller_new_enquiries")
         
     return redirect("imports:upload")
 

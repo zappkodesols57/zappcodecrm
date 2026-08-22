@@ -113,6 +113,7 @@
   </form>
 </div>
 
+{% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
 <form method="post" action="{% url 'leads:bulk_action' %}">
   {% csrf_token %}
   <div class="card mb-2 p-2 d-flex flex-row gap-2 align-items-center">
@@ -130,6 +131,7 @@
     </select>
     <button class="btn btn-sm btn-outline-secondary" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
   </div>
+{% endif %}
 
   <div class="card border-0 shadow-sm rounded-4">
     <div class="table-responsive">
@@ -166,8 +168,10 @@
             <td><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
             <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
             <td>
-              {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
+              {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total or lead.custom_data.total_paid %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                  <i class="fa-solid fa-circle-check me-1"></i>Payment Done: ₹{{ lead.custom_data.total_paid|default:lead.custom_data.total|default:'0' }}
+                </span>
               {% elif lead.custom_data.appointment_status %}
                 {% if lead.custom_data.appointment_status == 'Booked' or lead.custom_data.appointment_status == 'Confirmed' %}
                   <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Booked</span>
@@ -190,7 +194,7 @@
       </table>
     </div>
   </div>
-</form>
+{% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}</form>{% endif %}
 
 {% if page_obj.paginator.num_pages > 1 %}
 <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-3 mt-3">

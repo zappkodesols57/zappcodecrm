@@ -7,6 +7,50 @@ from django.utils import timezone
 
 @login_required
 def get_unread_notifications(request):
+    # Auto-generate reminders for assigned followups due today (including 30-minute advance alert)
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+    current_time = now.time()
+    
+    from leads.models import Lead
+    from followups.models import FollowUp, FollowUpStatus
+    
+    # Check pending followups for this user today
+    pending_fu = FollowUp.objects.filter(
+        lead__assigned_to=request.user,
+        followup_date=today,
+        followup_status=FollowUpStatus.PENDING
+    ).select_related('lead')
+
+    for fu in pending_fu:
+        time_msg = ""
+        should_alert = True
+        if fu.followup_time:
+            # Check if within 30 min window or due now
+            fu_dt = timezone.datetime.combine(today, fu.followup_time)
+            fu_dt = timezone.make_aware(fu_dt) if timezone.is_naive(fu_dt) else fu_dt
+            diff_minutes = (fu_dt - now).total_seconds() / 60.0
+            time_msg = f" at {fu.followup_time.strftime('%I:%M %p')}"
+            # Alert if due in <= 30 mins or overdue today
+            if diff_minutes > 30:
+                should_alert = False
+
+        if should_alert:
+            notif_title = f"⏰ Follow-up Reminder: {fu.lead.name}"
+            # Check if notification already sent in last 2 hours
+            exists = Notification.objects.filter(
+                user=request.user,
+                title=notif_title,
+                created_at__gte=now - timedelta(hours=2)
+            ).exists()
+            if not exists:
+                Notification.objects.create(
+                    user=request.user,
+                    title=notif_title,
+                    message=f"Upcoming follow-up for patient {fu.lead.name} scheduled for today{time_msg}. Contact: {fu.lead.mobile}",
+                    link=f"/leads/{fu.lead.pk}/"
+                )
+
     notifications = request.user.notifications.filter(is_read=False).order_by('-created_at')[:10]
     data = []
     for n in notifications:

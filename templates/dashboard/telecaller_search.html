@@ -178,9 +178,9 @@
                         </td>
                         <td>
                             <div class="mb-1 d-flex flex-wrap gap-1 align-items-center">
-                                {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total %}
+                                {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total or lead.custom_data.total_paid %}
                                     <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
-                                        <i class="fa-solid fa-circle-check me-1"></i> Payment Done
+                                        <i class="fa-solid fa-circle-check me-1"></i> Payment Done: ₹{{ lead.custom_data.total_paid|default:lead.custom_data.total|default:'0' }}
                                     </span>
                                 {% elif lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' and lead.custom_data.appointment_status != '' %}
                                     <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% elif lead.custom_data.appointment_status == 'Cancelled' or 'Not Int' in lead.custom_data.appointment_status %}bg-danger text-danger border-danger-subtle{% else %}bg-primary text-primary border-primary-subtle{% endif %} bg-opacity-10 border px-2 py-1">

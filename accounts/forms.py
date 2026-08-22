@@ -4,9 +4,15 @@ from .models import User
 
 
 class CRMUserCreateForm(UserCreationForm):
+    can_import_export = forms.BooleanField(
+        required=False, 
+        label="Allow Lead Data Import & Export (Excel/CSV)",
+        help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
+    )
+
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "can_import_export")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -27,26 +33,40 @@ class CRMUserCreateForm(UserCreationForm):
             self.fields["hospital"].label = "Business"
             
         for name, field in self.fields.items():
-            css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
-            field.widget.attrs.setdefault("class", css)
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault("class", "form-check-input")
+            else:
+                css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+                field.widget.attrs.setdefault("class", css)
 
     def save(self, commit=True):
         user = super().save(commit=False)
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
+        can_imp = self.cleaned_data.get("can_import_export", False)
+        user.custom_permissions["import_export"] = can_imp
         if commit:
             user.save()
         return user
 
 
 class CRMUserEditForm(forms.ModelForm):
+    can_import_export = forms.BooleanField(
+        required=False, 
+        label="Allow Lead Data Import & Export (Excel/CSV)",
+        help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
+    )
+
     class Meta:
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "can_import_export", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields["can_import_export"].initial = self.instance.can_import_export
+
         if self.user and self.user.hospital:
             self.fields["role"].choices = [
                 (User.Role.ADMIN, "Admin"),
@@ -73,6 +93,10 @@ class CRMUserEditForm(forms.ModelForm):
         user = super().save(commit=False)
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
+        can_imp = self.cleaned_data.get("can_import_export", False)
+        if not user.custom_permissions:
+            user.custom_permissions = {}
+        user.custom_permissions["import_export"] = can_imp
         if commit:
             user.save()
         return user

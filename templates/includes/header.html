@@ -14,6 +14,12 @@
     </a>
     {% endif %}
 
+    {% if user.can_import_export %}
+    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success d-none d-sm-inline-flex align-items-center gap-1 fw-semibold shadow-sm" title="Import Leads from Excel / CSV">
+      <i class="fa-solid fa-file-excel"></i> Import Excel
+    </a>
+    {% endif %}
+
     <!-- Notification Bell -->
     <div class="dropdown me-2">
       <button class="btn btn-sm btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false" id="notifDropdownBtn" style="border: none; background: transparent; font-size: 1.2rem;">

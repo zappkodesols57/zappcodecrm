@@ -68,16 +68,41 @@ def parse_date(raw):
 
 
 SOURCE_RULES = [
-    (r"meta|facebook|instagram|\bfb\b", ("Digital Marketing", "Meta Ads")),
-    (r"google", ("Digital Marketing", "Google Ads")),
-    (r"whats\s*app|wts\s*up|wtsup", ("Outreach", "WhatsApp")),
-    (r"walk", ("Direct", "Walk-in")),
-    (r"chatgpt", ("Other", "ChatGPT Referral")),
-    (r"website|landing", ("Digital Marketing", "Website")),
-    (r"referen|referr|refference|ref\b", ("Referral", "Student Referral")),
-    (r"inquiry call|phone|cold call", ("Direct", "Phone Call")),
-    (r"^ad$|^ads$|ad/walk", ("Digital Marketing", "Paid Ads - Unspecified")),
+    (r"^(fb|facebook|face\s*book|meta\s*fb)$", ("Digital Marketing", "Facebook")),
+    (r"^(ig|insta|instagram|meta\s*ig)$", ("Digital Marketing", "Instagram")),
+    (r"^(meta|meta\s*ads)$", ("Digital Marketing", "Meta Ads")),
+    (r"^(google|google\s*ads|g\s*ads)$", ("Digital Marketing", "Google Ads")),
+    (r"whats\s*app|wts\s*up|wtsup|wa\b", ("Outreach", "WhatsApp")),
+    (r"walk[\s\-_]*in|walk", ("Direct", "Walk-in")),
+    (r"chatgpt|chat\s*gpt", ("Other", "ChatGPT Referral")),
+    (r"website|landing\s*page|site", ("Digital Marketing", "Website")),
+    (r"referen|referr|refference|ref\b|doctor\s*ref", ("Referral", "Doctor Referral")),
+    (r"inquiry\s*call|phone|cold\s*call|call", ("Direct", "Phone Call")),
+    (r"^ad$|^ads$|paid\s*ads", ("Digital Marketing", "Meta Ads")),
 ]
+
+CANONICAL_SOURCE_MAP = {
+    "ig": "Instagram",
+    "insta": "Instagram",
+    "instagram": "Instagram",
+    "fb": "Facebook",
+    "facebook": "Facebook",
+    "meta": "Meta Ads",
+    "meta ads": "Meta Ads",
+    "google": "Google Ads",
+    "google ads": "Google Ads",
+    "gads": "Google Ads",
+    "whatsapp": "WhatsApp",
+    "wa": "WhatsApp",
+    "walk-in": "Walk-in",
+    "walkin": "Walk-in",
+    "walk in": "Walk-in",
+    "website": "Website",
+    "doctor referral": "Doctor Referral",
+    "referral": "Doctor Referral",
+    "campaign": "Campaign",
+    "newspaper": "Newspaper",
+}
 
 
 def normalize_source(raw):
@@ -85,13 +110,22 @@ def normalize_source(raw):
     if raw is None:
         return None, None, True
     s = str(raw).strip().lower()
-    if not s or s in ("nan", "-", "origin", "ma'am"):
+    if not s or s in ("nan", "-", "origin", "ma'am", "none", "null"):
         return None, None, True
+        
+    # 1. Exact canonical alias check
+    if s in CANONICAL_SOURCE_MAP:
+        std_name = CANONICAL_SOURCE_MAP[s]
+        cat = "Digital Marketing" if std_name in ["Instagram", "Facebook", "Meta Ads", "Google Ads", "Website"] else ("Outreach" if std_name == "WhatsApp" else ("Direct" if std_name == "Walk-in" else "Referral"))
+        return cat, std_name, False
+
+    # 2. Regex rules check
     for pattern, result in SOURCE_RULES:
-        if re.search(pattern, s):
+        if re.search(pattern, s, re.IGNORECASE):
             return result[0], result[1], False
-    # unknown value — preserve raw text as the lead source name so nothing is lost
-    return "Other", raw.strip().title()[:100], True
+            
+    # unknown value — preserve formatted text as the lead source name
+    return "Other", str(raw).strip().title()[:100], True
 
 
 TEMP_RULES = [

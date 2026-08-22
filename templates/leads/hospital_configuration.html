@@ -1,0 +1,948 @@
+{% extends "base.html" %}
+{% block title %}Master Settings → Hospital Configuration{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 px-md-3">
+  <!-- Page Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-4 rounded-4 shadow-sm border border-light">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+          <i class="fa-solid fa-hospital-user me-1"></i> Hospital Master Settings
+        </span>
+        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+          {{ hospital.name }}
+        </span>
+      </div>
+      <h3 class="fw-bold text-dark mb-0">Hospital Configuration</h3>
+      <p class="text-muted small mb-0 mt-1">Manage Hospital Branches, Clinical Departments, Doctors, Diseases, and Cascading Availability.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-success rounded-pill px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalExcelImport">
+        <i class="fa-solid fa-file-excel me-1"></i> Import Excel / CSV
+      </button>
+      <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm fw-semibold" id="btnAddNewRecord" onclick="openActiveTabModal()">
+        <i class="fa-solid fa-plus me-1"></i> Add Record
+      </button>
+    </div>
+  </div>
+
+<style>
+  .custom-hospital-tab {
+    color: #64748b !important;
+    font-weight: 500;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    transition: all 0.2s ease-in-out;
+  }
+  .custom-hospital-tab:hover {
+    color: #2563eb !important;
+    background: rgba(37, 99, 235, 0.04) !important;
+  }
+  .custom-hospital-tab.active {
+    color: #2563eb !important;
+    font-weight: 700 !important;
+    border-bottom: 3px solid #2563eb !important;
+    background: transparent !important;
+  }
+</style>
+
+  <!-- Main Master Tabs Card -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
+    <div class="card-header bg-white border-bottom pt-2 pb-0 px-4">
+      <ul class="nav nav-tabs border-bottom-0 gap-3" id="hospitalMasterTabs" role="tablist">
+        <!-- 1. Branches Tab -->
+        <li class="nav-item" role="presentation">
+          <a class="nav-link custom-hospital-tab {% if active_tab == 'branches' %}active{% endif %} px-4 py-3" 
+             id="tab-branches-btn" data-bs-toggle="tab" href="#tab-branches" role="tab">
+            <i class="fa-solid fa-code-branch me-2"></i> Hospital Branches
+            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ branches.count }}</span>
+          </a>
+        </li>
+        <!-- 2. Departments Tab -->
+        <li class="nav-item" role="presentation">
+          <a class="nav-link custom-hospital-tab {% if active_tab == 'departments' %}active{% endif %} px-4 py-3" 
+             id="tab-depts-btn" data-bs-toggle="tab" href="#tab-departments" role="tab">
+            <i class="fa-solid fa-building-user me-2"></i> Departments
+            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ departments.count }}</span>
+          </a>
+        </li>
+        <!-- 3. Doctors Tab -->
+        <li class="nav-item" role="presentation">
+          <a class="nav-link custom-hospital-tab {% if active_tab == 'doctors' %}active{% endif %} px-4 py-3" 
+             id="tab-doctors-btn" data-bs-toggle="tab" href="#tab-doctors" role="tab">
+            <i class="fa-solid fa-user-doctor me-2"></i> Doctors
+            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ doctors.count }}</span>
+          </a>
+        </li>
+        <!-- 4. Diseases Tab -->
+        <li class="nav-item" role="presentation">
+          <a class="nav-link custom-hospital-tab {% if active_tab == 'diseases' %}active{% endif %} px-4 py-3" 
+             id="tab-diseases-btn" data-bs-toggle="tab" href="#tab-diseases" role="tab">
+            <i class="fa-solid fa-virus-covid me-2"></i> Diseases / Conditions
+            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ diseases.count }}</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card-body p-4">
+      <div class="tab-content" id="hospitalMasterTabContent">
+        
+        <!-- ==================== 1. BRANCHES TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'branches' %}show active{% endif %}" id="tab-branches" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-dark mb-0">Hospital Branches & Campuses</h6>
+            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAddBranch">
+              <i class="fa-solid fa-plus me-1"></i> Add Branch
+            </button>
+          </div>
+          <div class="table-responsive rounded-3 border">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="border-0 px-3 py-3 text-muted small text-uppercase">Branch Name</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Code / City</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Contact & Address</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Active Depts</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
+                  <th class="border-0 px-3 py-3 text-end text-muted small text-uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in branches %}
+                <tr>
+                  <td class="px-3">
+                    <div class="fw-bold text-dark">{{ b.name }}</div>
+                    {% if b.is_main_branch %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.7rem;"><i class="fa-solid fa-star me-1"></i> Main Branch</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div><span class="badge bg-light text-dark border">{{ b.code|default:"-" }}</span></div>
+                    <small class="text-muted">{{ b.city|default:"-" }}</small>
+                  </td>
+                  <td>
+                    <div class="small fw-semibold text-dark">{{ b.contact_number|default:"-" }}</div>
+                    <small class="text-muted text-truncate d-inline-block" style="max-width: 200px;">{{ b.address|default:"-" }}</small>
+                  </td>
+                  <td>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                      {{ b.departments.count }} Departments
+                    </span>
+                  </td>
+                  <td>
+                    {% if b.is_active %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Active</span>
+                    {% else %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-3 text-end">
+                    <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}">
+                      <i class="fa-solid {% if b.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if b.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </a>
+                    <button class="btn btn-sm btn-light border rounded-pill px-3" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})">
+                      <i class="fa-solid fa-pen text-primary"></i> Edit
+                    </button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">No branches configured yet. Click "Add Branch" above.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== 2. DEPARTMENTS TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'departments' %}show active{% endif %}" id="tab-departments" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-dark mb-0">Clinical Departments & Specialities</h6>
+            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAddDept">
+              <i class="fa-solid fa-plus me-1"></i> Add Department
+            </button>
+          </div>
+          <div class="table-responsive rounded-3 border">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="border-0 px-3 py-3 text-muted small text-uppercase">Department</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Code</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Linked Branches</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Associated Doctors</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Diseases</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
+                  <th class="border-0 px-3 py-3 text-end text-muted small text-uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in departments %}
+                <tr>
+                  <td class="px-3">
+                    <div class="fw-bold text-dark">{{ d.name }}</div>
+                    {% if d.description %}<small class="text-muted">{{ d.description }}</small>{% endif %}
+                  </td>
+                  <td><span class="badge bg-light text-dark border">{{ d.code|default:"-" }}</span></td>
+                  <td>
+                    {% for b in d.branches.all %}
+                      <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 mb-1 d-inline-block">{{ b.name }}</span>
+                    {% empty %}
+                      <span class="text-muted small">All Branches</span>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                      {{ d.doctors.count }} Doctors
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                      {{ d.diseases.count }} Diseases
+                    </span>
+                  </td>
+                  <td>
+                    {% if d.is_active %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Active</span>
+                    {% else %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-3 text-end">
+                    <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="btn btn-sm {% if d.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}">
+                      <i class="fa-solid {% if d.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if d.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </a>
+                    <button class="btn btn-sm btn-light border rounded-pill px-3" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
+                      <i class="fa-solid fa-pen text-primary"></i> Edit
+                    </button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">No departments configured yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== 3. DOCTORS TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'doctors' %}show active{% endif %}" id="tab-doctors" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-dark mb-0">Consulting Doctors & Specialists</h6>
+            <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="openAddDoctorModal()">
+              <i class="fa-solid fa-plus me-1"></i> Add Doctor
+            </button>
+          </div>
+          <div class="table-responsive rounded-3 border">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="border-0 px-3 py-3 text-muted small text-uppercase">Doctor Name</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Department / Specialization</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Branches Available</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Fee</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Linked Diseases</th>
+                  <th class="border-0 px-3 py-3 text-end text-muted small text-uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for doc in doctors %}
+                <tr>
+                  <td class="px-3">
+                    <div class="fw-bold text-dark">Dr. {{ doc.name }}</div>
+                    <small class="text-muted">{{ doc.qualification|default:doc.specialization }}</small>
+                    {% if doc.user %}<span class="badge bg-success bg-opacity-10 text-success border px-2 py-0 ms-1" style="font-size: 0.65rem;">Login Linked</span>{% endif %}
+                  </td>
+                  <td>
+                    {% for d in doc.departments.all %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 fw-semibold me-1 mb-1 d-inline-block">{{ d.name }}</span>
+                    {% empty %}
+                      {% if doc.department %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 fw-semibold">{{ doc.department.name }}</span>
+                      {% else %}
+                        <span class="text-muted small">No Dept</span>
+                      {% endif %}
+                    {% endfor %}
+                    {% if doc.specialization %}<div class="small text-muted mt-1">{{ doc.specialization }}</div>{% endif %}
+                  </td>
+                  <td>
+                    {% for b in doc.branches.all %}
+                      <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 mb-1 d-inline-block">{{ b.name }}</span>
+                    {% empty %}
+                      <span class="text-muted small">All Branches</span>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    <div class="fw-bold text-success">₹{{ doc.consultation_fee|floatformat:0 }}</div>
+                  </td>
+                  <td>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                      {{ doc.associated_diseases.count }} Conditions
+                    </span>
+                  </td>
+                  <td>
+                    {% if doc.is_active %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Active</span>
+                    {% else %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-3 text-end">
+                    <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
+                      <i class="fa-solid {% if doc.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if doc.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </a>
+                    <button class="btn btn-sm btn-light border rounded-pill px-3 btn-edit-doctor" 
+                            data-id="{{ doc.id }}"
+                            data-name="{{ doc.name }}"
+                            data-departments="[{% for d in doc.departments.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% empty %}{% if doc.department %}{{ doc.department.id }}{% endif %}{% endfor %}]"
+                            data-user="{% if doc.user %}{{ doc.user.id }}{% endif %}"
+                            data-qual="{{ doc.qualification|default:'' }}"
+                            data-spec="{{ doc.specialization|default:'' }}"
+                            data-phone="{{ doc.contact_number|default:'' }}"
+                            data-email="{{ doc.email|default:'' }}"
+                            data-fee="{{ doc.consultation_fee|default:0 }}"
+                            data-diseases="[{% for d in doc.associated_diseases.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
+                            data-branches="[{% for b in doc.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
+                            onclick="openEditDoctorModal(this)">
+                      <i class="fa-solid fa-pen text-primary"></i> Edit
+                    </button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">No doctors configured yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==================== 4. DISEASES TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'diseases' %}show active{% endif %}" id="tab-diseases" role="tabpanel">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+              <h6 class="fw-bold text-dark mb-0">Diseases, Symptoms & Medical Conditions</h6>
+              <small class="text-muted">Manage treatable conditions grouped by clinical department</small>
+            </div>
+            <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="openAddDiseaseModal()">
+              <i class="fa-solid fa-plus me-1"></i> Add Disease
+            </button>
+          </div>
+
+          <!-- Grouped by Department Cards & Tables -->
+          <div class="row g-3">
+            {% for d in departments %}
+            <div class="col-lg-6">
+              <div class="card border rounded-4 shadow-none h-100 bg-white">
+                <div class="card-header bg-light bg-opacity-50 py-2 px-3 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-2 py-1">
+                      <i class="fa-solid fa-stethoscope me-1"></i> {{ d.name }}
+                    </span>
+                    <span class="small text-muted">({{ d.diseases.count }} conditions)</span>
+                  </div>
+                  <button class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 small" onclick="openAddDiseaseModalForDept({{ d.id }}, '{{ d.name|escapejs }}')">
+                    <i class="fa-solid fa-plus me-1"></i> Add Under {{ d.name }}
+                  </button>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                      <thead class="bg-light text-muted">
+                        <tr>
+                          <th class="border-0 px-3 py-2">Condition Name</th>
+                          <th class="border-0 py-2">Code</th>
+                          <th class="border-0 py-2">Status</th>
+                          <th class="border-0 px-3 py-2 text-end">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for dis in d.diseases.all %}
+                        <tr>
+                          <td class="px-3 py-2">
+                            <span class="fw-semibold text-dark">{{ dis.name }}</span>
+                            {% if dis.description %}<div class="text-muted" style="font-size: 0.72rem;">{{ dis.description }}</div>{% endif %}
+                          </td>
+                          <td class="py-2">
+                            <span class="badge bg-light text-dark border">{{ dis.code|default:"-" }}</span>
+                          </td>
+                          <td class="py-2">
+                            {% if dis.is_active %}
+                              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-0" style="font-size: 0.65rem;">Active</span>
+                            {% else %}
+                              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle py-0" style="font-size: 0.65rem;">Inactive</span>
+                            {% endif %}
+                          </td>
+                          <td class="px-3 py-2 text-end">
+                            <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="btn btn-sm {% if dis.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-2 py-0 me-1" style="font-size: 0.72rem;" title="{% if dis.is_active %}Deactivate Disease{% else %}Activate Disease{% endif %}">
+                              <i class="fa-solid {% if dis.is_active %}fa-ban{% else %}fa-check{% endif %}"></i> {% if dis.is_active %}Deactivate{% else %}Activate{% endif %}
+                            </a>
+                            <button class="btn btn-sm btn-light border rounded-pill px-2 py-0" 
+                                    data-id="{{ dis.id }}"
+                                    data-name="{{ dis.name }}"
+                                    data-code="{{ dis.code|default:'' }}"
+                                    data-dept="{{ dis.department_id }}"
+                                    data-deptname="{{ dis.department.name }}"
+                                    data-desc="{{ dis.description|default:'' }}"
+                                    onclick="openEditDiseaseModal(this)">
+                              <i class="fa-solid fa-pen text-primary" style="font-size: 0.75rem;"></i> Edit
+                            </button>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                          <td colspan="4" class="text-center py-3 text-muted" style="font-size: 0.8rem;">
+                            No conditions listed for {{ d.name }}.
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5 text-muted">
+              No departments or diseases configured yet.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- 1. Add / Edit Branch Modal -->
+<div class="modal fade" id="modalAddBranch" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form method="post" id="formBranch" action="{% url 'leads:hospital_branch_create' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalBranchTitle">Add Hospital Branch</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Branch Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="branch_name" class="form-control" placeholder="e.g. Main Hospital Campus, City Clinic" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-dark">Branch Code</label>
+              <input type="text" name="code" id="branch_code" class="form-control" placeholder="e.g. BR-01">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-dark">City</label>
+              <input type="text" name="city" id="branch_city" class="form-control" placeholder="e.g. Nagpur">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Contact Number</label>
+            <input type="text" name="contact_number" id="branch_contact" class="form-control" placeholder="e.g. +91 9876543210">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Address</label>
+            <textarea name="address" id="branch_address" class="form-control" rows="2" placeholder="Full street address"></textarea>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="is_main_branch" value="1" id="branch_is_main">
+            <label class="form-check-label small fw-semibold text-dark" for="branch_is_main">
+              Set as Primary / Main Branch
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Branch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Add / Edit Department Modal -->
+<div class="modal fade" id="modalAddDept" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form method="post" id="formDept" action="{% url 'leads:hospital_department_create' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalDeptTitle">Add Clinical Department</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Department Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="dept_name" class="form-control" placeholder="e.g. Gynaecology, Neurology, Pediatrics" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Department Code</label>
+            <input type="text" name="code" id="dept_code" class="form-control" placeholder="e.g. GYN, NEU, PED">
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label small fw-semibold text-dark mb-0">Assign to Branches <span class="text-danger">*</span></label>
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllBranches('dept_branch_cb')">Select All</button>
+            </div>
+            <div class="p-3 border rounded-3 bg-light" style="max-height: 160px; overflow-y: auto;">
+              {% for b in branches %}
+              <div class="form-check mb-2">
+                <input class="form-check-input dept_branch_cb" type="checkbox" name="branches" value="{{ b.id }}" id="dept_b_{{ b.id }}">
+                <label class="form-check-label small fw-medium text-dark cursor-pointer" for="dept_b_{{ b.id }}">
+                  <i class="fa-solid fa-code-branch text-primary me-1 small"></i> {{ b.name }} {% if b.city %}<span class="text-muted">({{ b.city }})</span>{% endif %}
+                </label>
+              </div>
+              {% empty %}
+              <div class="small text-muted">No branches created yet. Please create a branch first.</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Description</label>
+            <textarea name="description" id="dept_desc" class="form-control" rows="2" placeholder="Brief clinical description..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Department</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Add / Edit Doctor Modal -->
+<div class="modal fade" id="modalAddDoctor" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form method="post" id="formDoctor" action="{% url 'leads:hospital_doctor_create' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalDoctorTitle">Register Doctor / Consultant</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Doctor Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" id="doc_name" class="form-control" placeholder="e.g. Dr. Rajesh Sharma" required>
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-semibold text-dark mb-0">Clinical Department(s) <span class="text-danger">*</span></label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllBranches('doc_dept_cb')">Select All</button>
+              </div>
+              <div class="p-3 border rounded-3 bg-light" style="max-height: 140px; overflow-y: auto;">
+                {% for d in departments %}
+                <div class="form-check mb-1">
+                  <input class="form-check-input doc_dept_cb" type="checkbox" name="departments" value="{{ d.id }}" id="doc_dept_{{ d.id }}">
+                  <label class="form-check-label small text-dark cursor-pointer" for="doc_dept_{{ d.id }}">
+                    <i class="fa-solid fa-building-user text-primary me-1 small"></i> {{ d.name }}
+                  </label>
+                </div>
+                {% empty %}
+                <div class="small text-muted">No departments configured yet.</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Link to Registered Doctor Login Account</label>
+              <select name="user" id="doc_user" class="form-select">
+                <option value="">-- No direct login link --</option>
+                {% for u in doctor_users %}
+                  <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.email|default:u.role }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Consultation Fee (₹)</label>
+              <input type="number" step="0.01" name="consultation_fee" id="doc_fee" class="form-control" placeholder="500">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Qualification</label>
+              <input type="text" name="qualification" id="doc_qual" class="form-control" placeholder="e.g. MBBS, MD, MS, DNB">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Specialization</label>
+              <input type="text" name="specialization" id="doc_spec" class="form-control" placeholder="e.g. Neuro Surgeon, Pediatric Cardiologist">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Contact Phone</label>
+              <input type="text" name="contact_number" id="doc_phone" class="form-control" placeholder="+91 9876543210">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Email Address</label>
+              <input type="email" name="email" id="doc_email" class="form-control" placeholder="doctor@hospital.com">
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-semibold text-dark mb-0">Available Branches</label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllBranches('doc_branch_cb')">Select All</button>
+              </div>
+              <div class="p-3 border rounded-3 bg-light" style="max-height: 140px; overflow-y: auto;">
+                {% for b in branches %}
+                <div class="form-check mb-1">
+                  <input class="form-check-input doc_branch_cb" type="checkbox" name="branches" value="{{ b.id }}" id="doc_b_{{ b.id }}">
+                  <label class="form-check-label small text-dark cursor-pointer" for="doc_b_{{ b.id }}">
+                    {{ b.name }} {% if b.city %}<span class="text-muted">({{ b.city }})</span>{% endif %}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-semibold text-dark mb-0">Treatable Diseases / Conditions</label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllBranches('doc_disease_cb')">Select All</button>
+              </div>
+              <div class="p-3 border rounded-3 bg-light" style="max-height: 140px; overflow-y: auto;">
+                {% for dis in diseases %}
+                <div class="form-check mb-1">
+                  <input class="form-check-input doc_disease_cb" type="checkbox" name="associated_diseases" value="{{ dis.id }}" id="doc_d_{{ dis.id }}">
+                  <label class="form-check-label small text-dark cursor-pointer" for="doc_d_{{ dis.id }}">
+                    {{ dis.name }} <span class="text-muted">({{ dis.department.name }})</span>
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Doctor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Add / Edit Disease Modal -->
+<div class="modal fade" id="modalAddDisease" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form method="post" id="formDisease" action="{% url 'leads:hospital_disease_create' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold" id="modalDiseaseTitle">Add Disease / Medical Condition</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Disease / Condition Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" id="dis_name" class="form-control" placeholder="e.g. Migraine, Alzheimer's, Infertility, Kidney Stone" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Disease Code / ICD</label>
+              <input type="text" name="code" id="dis_code" class="form-control" placeholder="e.g. ICD-G43">
+            </div>
+
+            <!-- Department Selection with Radio Cards (100% Reliable & Clear) -->
+            <div class="col-12">
+              <label class="form-label small fw-semibold text-dark mb-1">Select Clinical Department <span class="text-danger">*</span></label>
+              <div class="p-3 border rounded-3 bg-light" style="max-height: 180px; overflow-y: auto;">
+                <div class="row g-2">
+                  {% for d in departments %}
+                  <div class="col-md-6">
+                    <div class="form-check p-2 bg-white border rounded-3">
+                      <input class="form-check-input ms-0 me-2 dis_dept_radio" type="radio" name="department" value="{{ d.id }}" id="dis_dept_radio_{{ d.id }}" required>
+                      <label class="form-check-label small fw-semibold text-dark cursor-pointer w-100" for="dis_dept_radio_{{ d.id }}">
+                        <i class="fa-solid fa-stethoscope text-primary me-1"></i> {{ d.name }}
+                      </label>
+                    </div>
+                  </div>
+                  {% empty %}
+                  <div class="col-12 text-muted small">No departments found. Please create a Department first.</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small fw-semibold text-dark">Description</label>
+              <textarea name="description" id="dis_desc" class="form-control" rows="2" placeholder="Symptoms, common indications..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Disease</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Excel / CSV Bulk Import Master Modal -->
+<div class="modal fade" id="modalExcelImport" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form method="post" action="{% url 'leads:hospital_master_excel_import' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h5 class="modal-title fw-bold text-dark mb-1">
+              <i class="fa-solid fa-file-excel text-success me-2"></i> Bulk Import Hospital Masters
+            </h5>
+            <p class="text-muted small mb-0">Upload an Excel (.xlsx) or CSV (.csv) file containing Branches, Departments, Doctors and Diseases.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- Required Format Alert -->
+          <div class="alert alert-info border-0 rounded-3 mb-3 p-3 small">
+            <div class="fw-bold mb-2 text-primary">
+              <i class="fa-solid fa-table-list me-1"></i> Expected Excel Columns Structure:
+            </div>
+            <div class="table-responsive bg-white rounded-2 border p-1 mb-2">
+              <table class="table table-sm table-bordered mb-0 small text-center">
+                <thead class="bg-light fw-bold">
+                  <tr>
+                    <th>hospital_branch</th>
+                    <th>department</th>
+                    <th>doctor</th>
+                    <th>disease</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Nelson Hospital Dhantoli</td>
+                    <td>Neurology</td>
+                    <td>Dr. Raj ratan</td>
+                    <td>Migraine</td>
+                  </tr>
+                  <tr>
+                    <td>Nelson Hospital Dhantoli</td>
+                    <td>Neurology</td>
+                    <td>Dr. Raj ratan</td>
+                    <td>Stroke</td>
+                  </tr>
+                  <tr>
+                    <td>Nelson Hospital Dhantoli</td>
+                    <td>Neurology</td>
+                    <td>Dr. Raj ratan</td>
+                    <td>Dementia</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted">Rows will automatically create Branches, Departments, Doctors and link Diseases!</span>
+              <a href="{% url 'leads:hospital_master_sample_download' %}" class="btn btn-xs btn-outline-primary rounded-pill px-3 py-1 fw-semibold">
+                <i class="fa-solid fa-download me-1"></i> Download Sample CSV
+              </a>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Select Excel / CSV File <span class="text-danger">*</span></label>
+            <input type="file" name="excel_file" class="form-control" accept=".xlsx, .xls, .csv" required>
+            <div class="form-text small text-muted">Supported formats: .xlsx, .xls, .csv</div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload & Import
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleAllBranches(className) {
+    const cbs = document.querySelectorAll('.' + className);
+    const allChecked = Array.from(cbs).every(cb => cb.checked);
+    cbs.forEach(cb => cb.checked = !allChecked);
+  }
+
+  function openActiveTabModal() {
+    const activeTab = document.querySelector('#hospitalMasterTabs .nav-link.active').getAttribute('href');
+    if (activeTab === '#tab-branches') {
+      document.getElementById('formBranch').action = "{% url 'leads:hospital_branch_create' %}";
+      document.getElementById('modalBranchTitle').innerText = "Add Hospital Branch";
+      document.getElementById('formBranch').reset();
+      new bootstrap.Modal(document.getElementById('modalAddBranch')).show();
+    } else if (activeTab === '#tab-departments') {
+      document.getElementById('formDept').action = "{% url 'leads:hospital_department_create' %}";
+      document.getElementById('modalDeptTitle').innerText = "Add Clinical Department";
+      document.getElementById('formDept').reset();
+      document.querySelectorAll('.dept_branch_cb').forEach(cb => cb.checked = false);
+      new bootstrap.Modal(document.getElementById('modalAddDept')).show();
+    } else if (activeTab === '#tab-doctors') {
+      document.getElementById('formDoctor').action = "{% url 'leads:hospital_doctor_create' %}";
+      document.getElementById('modalDoctorTitle').innerText = "Register Doctor / Consultant";
+      document.getElementById('formDoctor').reset();
+      document.querySelectorAll('.doc_branch_cb').forEach(cb => cb.checked = false);
+      document.querySelectorAll('.doc_disease_cb').forEach(cb => cb.checked = false);
+      new bootstrap.Modal(document.getElementById('modalAddDoctor')).show();
+    } else if (activeTab === '#tab-diseases') {
+      document.getElementById('formDisease').action = "{% url 'leads:hospital_disease_create' %}";
+      document.getElementById('modalDiseaseTitle').innerText = "Add Disease / Medical Condition";
+      document.getElementById('formDisease').reset();
+      new bootstrap.Modal(document.getElementById('modalAddDisease')).show();
+    }
+  }
+
+  function editBranch(id, name, code, city, contact, address, isMain, order) {
+    document.getElementById('formBranch').action = `/leads/hospital-configuration/branch/${id}/save/`;
+    document.getElementById('modalBranchTitle').innerText = "Edit Hospital Branch";
+    document.getElementById('branch_name').value = name;
+    document.getElementById('branch_code').value = code;
+    document.getElementById('branch_city').value = city;
+    document.getElementById('branch_contact').value = contact;
+    document.getElementById('branch_address').value = address;
+    document.getElementById('branch_is_main').checked = isMain;
+    new bootstrap.Modal(document.getElementById('modalAddBranch')).show();
+  }
+
+  function editDept(id, name, code, desc, order, branchIds) {
+    document.getElementById('formDept').action = `/leads/hospital-configuration/department/${id}/save/`;
+    document.getElementById('modalDeptTitle').innerText = "Edit Clinical Department";
+    document.getElementById('dept_name').value = name;
+    document.getElementById('dept_code').value = code;
+    document.getElementById('dept_desc').value = desc;
+    
+    document.querySelectorAll('.dept_branch_cb').forEach(cb => {
+      cb.checked = branchIds.includes(parseInt(cb.value));
+    });
+
+    new bootstrap.Modal(document.getElementById('modalAddDept')).show();
+  }
+
+  function openAddDoctorModal() {
+    document.getElementById('formDoctor').action = "{% url 'leads:hospital_doctor_create' %}";
+    document.getElementById('modalDoctorTitle').innerText = "Register Doctor / Consultant";
+    document.getElementById('formDoctor').reset();
+    document.querySelectorAll('.doc_dept_cb').forEach(cb => cb.checked = false);
+    document.getElementById('doc_user').value = "";
+    document.querySelectorAll('.doc_branch_cb').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.doc_disease_cb').forEach(cb => cb.checked = false);
+    new bootstrap.Modal(document.getElementById('modalAddDoctor')).show();
+  }
+
+  function openEditDoctorModal(btn) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const userId = String(btn.getAttribute('data-user') || '');
+    const qual = btn.getAttribute('data-qual') || '';
+    const spec = btn.getAttribute('data-spec') || '';
+    const phone = btn.getAttribute('data-phone') || '';
+    const email = btn.getAttribute('data-email') || '';
+    const fee = btn.getAttribute('data-fee') || 0;
+    
+    let deptIds = [];
+    let disIds = [];
+    let branchIds = [];
+    try {
+      deptIds = JSON.parse(btn.getAttribute('data-departments') || '[]');
+    } catch(e) {}
+    try {
+      disIds = JSON.parse(btn.getAttribute('data-diseases') || '[]');
+    } catch(e) {}
+    try {
+      branchIds = JSON.parse(btn.getAttribute('data-branches') || '[]');
+    } catch(e) {}
+
+    const form = document.getElementById('formDoctor');
+    form.action = `/leads/hospital-configuration/doctor/${id}/save/`;
+    document.getElementById('modalDoctorTitle').innerText = "Edit Doctor / Consultant";
+    document.getElementById('doc_name').value = name;
+    
+    // Check Department Checkboxes
+    document.querySelectorAll('.doc_dept_cb').forEach(cb => {
+      cb.checked = deptIds.includes(parseInt(cb.value));
+    });
+
+    // Select Linked User
+    const userSelect = document.getElementById('doc_user');
+    if (userSelect) {
+      userSelect.value = userId;
+      for (let i = 0; i < userSelect.options.length; i++) {
+        if (String(userSelect.options[i].value) === userId) {
+          userSelect.options[i].selected = true;
+          break;
+        }
+      }
+    }
+
+    document.getElementById('doc_qual').value = qual;
+    document.getElementById('doc_spec').value = spec;
+    document.getElementById('doc_phone').value = phone;
+    document.getElementById('doc_email').value = email;
+    document.getElementById('doc_fee').value = fee;
+
+    document.querySelectorAll('.doc_disease_cb').forEach(cb => {
+      cb.checked = disIds.includes(parseInt(cb.value));
+    });
+
+    document.querySelectorAll('.doc_branch_cb').forEach(cb => {
+      cb.checked = branchIds.includes(parseInt(cb.value));
+    });
+
+    const modalEl = document.getElementById('modalAddDoctor');
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+  }
+
+  function openAddDiseaseModal() {
+    document.getElementById('formDisease').action = "{% url 'leads:hospital_disease_create' %}";
+    document.getElementById('modalDiseaseTitle').innerText = "Add Disease / Medical Condition";
+    document.getElementById('formDisease').reset();
+    document.querySelectorAll('.dis_dept_radio').forEach(r => r.checked = false);
+    const modalEl = document.getElementById('modalAddDisease');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  function openAddDiseaseModalForDept(deptId, deptName) {
+    document.getElementById('formDisease').action = "{% url 'leads:hospital_disease_create' %}";
+    document.getElementById('modalDiseaseTitle').innerText = `Add Condition under ${deptName}`;
+    document.getElementById('formDisease').reset();
+    document.querySelectorAll('.dis_dept_radio').forEach(r => {
+      r.checked = (String(r.value) === String(deptId));
+    });
+    const modalEl = document.getElementById('modalAddDisease');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  function openEditDiseaseModal(btn) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const code = btn.getAttribute('data-code') || '';
+    const deptId = String(btn.getAttribute('data-dept') || '');
+    const desc = btn.getAttribute('data-desc') || '';
+
+    const form = document.getElementById('formDisease');
+    form.action = `/leads/hospital-configuration/disease/${id}/save/`;
+    document.getElementById('modalDiseaseTitle').innerText = "Edit Disease / Medical Condition";
+    document.getElementById('dis_name').value = name;
+    document.getElementById('dis_code').value = code;
+    document.getElementById('dis_desc').value = desc;
+
+    // Check respective Department Radio Card
+    document.querySelectorAll('.dis_dept_radio').forEach(r => {
+      r.checked = (String(r.value) === String(deptId));
+    });
+
+    const modalEl = document.getElementById('modalAddDisease');
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+  }
+</script>
+{% endblock %}

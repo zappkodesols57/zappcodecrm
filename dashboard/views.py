@@ -1258,15 +1258,17 @@ def telecaller_home(request):
         
     user = request.user
     today_date = timezone.localdate()
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     today_str = today_date.strftime("%Y-%m-%d")
     today_alt_str = today_date.strftime("%d-%m-%Y")
     
-    # 1. Calls Today (Calls made by this user today)
-    # Checked from remarks date or FollowUp objects logged by user
+    # 1. Calls Today (Leads edited/called/interacted by this user today)
     calls_today_count = Lead.objects.filter(
         hospital=user.hospital,
         assigned_to=user,
     ).filter(
+        Q(updated_at__gte=today_start) |
+        Q(custom_data__last_called_date=today_str) |
         Q(custom_data__calling_date_remark_1=today_str) |
         Q(custom_data__calling_date_remark_1=today_alt_str) |
         Q(custom_data__calling_date_remark_2=today_str) |
@@ -1276,38 +1278,45 @@ def telecaller_home(request):
         Q(followups__followup_date=today_date, followups__created_by=user)
     ).distinct().count()
     
-    # 2. Appointments Booked Today by this user
-    appts_today_count = Lead.objects.filter(
-        hospital=user.hospital,
-        assigned_to=user,
-        custom_data__appointment_status="Booked",
-    ).filter(
-        Q(custom_data__appo_booked_date=today_str) |
-        Q(custom_data__appo_booked_date=today_alt_str) |
-        Q(updated_at__date=today_date)
-    ).count()
+    # 2. Appointments Booked / Confirmed by Doctors for this user's leads
+    from leads.models import Appointment, AppointmentStatus
+    appts_today_count = Appointment.objects.filter(
+        lead__hospital=user.hospital,
+        lead__assigned_to=user,
+        status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]
+    ).values('lead').distinct().count()
     
-    # 3. New Hot Leads Today Overall (Received in Hospital today)
+    if appts_today_count == 0:
+        appts_today_count = Lead.objects.filter(
+            hospital=user.hospital,
+            assigned_to=user,
+        ).filter(
+            Q(custom_data__appointment_status__in=['Booked', 'Completed', 'Payment Done']) |
+            Q(custom_data__appointment_confirmed_at__startswith=today_str)
+        ).count()
+    
+    # 3. New Hot Leads Added/Imported Today (Received in Hospital today)
     hot_leads_today_count = Lead.objects.filter(
         hospital=user.hospital,
         is_archived=False,
     ).filter(
-        Q(inquiry_date=today_date) | Q(created_at__date=today_date)
-    ).filter(
-        Q(custom_data__priority__iexact="Hot") | Q(temperature=LeadTemperature.HOT)
+        Q(inquiry_date=today_date) |
+        Q(created_at__gte=today_start)
     ).count()
     
-    # 4. Overdue Follow-ups Remaining for this user
-    overdue_followups_count = Lead.objects.filter(
+    # 4. Overdue & Pending Follow-ups (Pending tasks/follow-ups due today or overdue)
+    pending_followups_count = Lead.objects.filter(
         hospital=user.hospital,
         assigned_to=user,
         is_archived=False,
     ).exclude(
         deal_status__in=['WON', 'LOST']
     ).filter(
-        Q(next_followup_date__lt=today_date) |
-        Q(custom_data__calling_date_remark_1__lt=today_str, custom_data__calling_date_remark_1__gt="")
-    ).count()
+        Q(next_followup_date__lte=today_date) |
+        Q(custom_data__calling_date_remark_1__lte=today_str, custom_data__calling_date_remark_1__gt="") |
+        Q(custom_data__calling_date_remark_2__lte=today_str, custom_data__calling_date_remark_2__gt="") |
+        Q(custom_data__calling_date_remark_3__lte=today_str, custom_data__calling_date_remark_3__gt="")
+    ).distinct().count()
     
     # 5. My Recent Leads (Latest 10 entries assigned to this user)
     my_recent_leads = Lead.objects.filter(
@@ -1329,7 +1338,8 @@ def telecaller_home(request):
         'calls_today_count': calls_today_count,
         'appts_today_count': appts_today_count,
         'hot_leads_today_count': hot_leads_today_count,
-        'overdue_followups_count': overdue_followups_count,
+        'pending_followups_count': pending_followups_count,
+        'overdue_followups_count': pending_followups_count,
         'my_recent_leads': my_recent_leads,
         'todays_tasks': todays_tasks,
         'today_date': today_date,
