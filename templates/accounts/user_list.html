@@ -112,6 +112,11 @@
           </td>
           <td class="text-end">
             <div class="d-inline-flex gap-1">
+              {% if u.role == 'DOCTOR' %}
+              <a href="{% url 'accounts:doctor_schedule_manage' u.pk %}" class="btn btn-sm btn-outline-success py-0 px-2" title="Doctor Calendar & Leaves">
+                <i class="fa-solid fa-calendar-days"></i>
+              </a>
+              {% endif %}
               <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit Employee Details">
                 <i class="fa-solid fa-pen-to-square"></i>
               </a>

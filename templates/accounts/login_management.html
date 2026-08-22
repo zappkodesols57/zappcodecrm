@@ -3,195 +3,445 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Management Login · CRM</title>
+<title>Management Login — Zappcode CRM</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --indigo-600: #4f46e5;
+    --indigo-700: #4338ca;
+    --indigo-50: #eef2ff;
+    --indigo-100: #e0e7ff;
+    --slate-900: #0f172a;
+    --slate-600: #475569;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+    --slate-50: #f8fafc;
+  }
+
   *, *::before, *::after { box-sizing: border-box; }
+
   body {
     min-height: 100vh;
-    background: radial-gradient(ellipse at top left, #1e1b4b 0%, #0f0e2a 65%, #080714 100%);
-    font-family: 'Inter', system-ui, sans-serif;
-    display: flex; align-items: center; justify-content: center;
-    position: relative; overflow: hidden;
+    background-color: var(--slate-50);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    color: var(--slate-900);
+    position: relative;
+    overflow-x: hidden;
   }
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background-image:
-      radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px),
-      radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 70px 70px, 140px 140px;
-    background-position: 0 0, 35px 35px;
+
+  /* Animated Ambient Glowing Orbs */
+  .animated-bg {
+    position: fixed;
+    inset: 0;
     pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
   }
-  .panel-wrap {
-    display: flex; width: min(900px, 95vw); border-radius: 1.5rem;
-    overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
-    position: relative; z-index: 2;
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(85px);
+    opacity: 0.55;
+    animation: floatOrb 24s infinite alternate ease-in-out;
   }
-  .form-panel {
-    flex: 1; background: rgba(255,255,255,0.04);
+
+  .orb-1 {
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, rgba(67, 56, 202, 0.08) 70%);
+    top: -100px; left: -100px;
+  }
+
+  .orb-2 {
+    width: 450px; height: 450px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(147, 51, 234, 0.06) 70%);
+    bottom: -100px; right: -80px;
+    animation-duration: 22s;
+    animation-delay: -7s;
+  }
+
+  @keyframes floatOrb {
+    0% { transform: translate(0px, 0px) scale(1); }
+    50% { transform: translate(50px, -40px) scale(1.06); }
+    100% { transform: translate(-30px, 40px) scale(0.96); }
+  }
+
+  .particle-grid {
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(100, 116, 139, 0.12) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 1;
+    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  }
+
+  .auth-card {
+    display: flex;
+    width: min(940px, 96vw);
+    background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.1);
-    padding: 3rem 2.5rem; display: flex;
-    flex-direction: column; justify-content: center;
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 1.5rem;
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 25px 40px -10px rgba(15, 23, 42, 0.07), 0 10px 15px -3px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    animation: fadeInCard 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  .form-panel h3 { font-size: 1.5rem; font-weight: 800; color: #eef2ff; margin-bottom: 0.3rem; }
-  .form-panel .sub { color: rgba(199,210,254,0.55); font-size: 0.83rem; margin-bottom: 1.8rem; }
-  .form-control {
-    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-    color: #eef2ff; border-radius: 0.6rem; font-size: 0.9rem; padding: 0.65rem 0.9rem;
+
+  @keyframes fadeInCard {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  .form-control::placeholder { color: rgba(199,210,254,0.35); }
-  .form-control:focus {
-    background: rgba(255,255,255,0.1); border-color: rgba(129,140,248,0.6);
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.2); color: #eef2ff; outline: none;
+
+  /* Left Side: Brand Panel */
+  .brand-panel {
+    flex: 0 0 42%;
+    background: linear-gradient(145deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+    padding: 3rem 2.5rem;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
   }
-  .form-label { font-size: 0.8rem; font-weight: 600; color: rgba(199,210,254,0.8); }
-  .input-icon-wrap { position: relative; }
-  .input-icon-wrap i.icon-left {
-    position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
-    color: rgba(199,210,254,0.4); font-size: 0.85rem; pointer-events: none;
+
+  .brand-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('data:image/svg+xml;utf8,<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><g fill="%23ffffff" fill-opacity="0.04" fill-rule="evenodd"><circle cx="20" cy="20" r="2"/></g></svg>');
+    opacity: 0.8;
   }
-  .input-icon-wrap .toggle-password {
-    position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%);
-    color: rgba(199,210,254,0.4); font-size: 0.85rem; cursor: pointer; z-index: 10; padding: 4px;
+
+  .brand-top {
+    position: relative;
+    z-index: 2;
+  }
+
+  .brand-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+  }
+
+  .brand-desc {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+
+  .feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .feature-item i {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  .brand-bottom {
+    position: relative;
+    z-index: 2;
+    padding-top: 2rem;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
     transition: color 0.2s;
   }
-  .input-icon-wrap .toggle-password:hover { color: #818cf8; }
-  .input-icon-wrap .form-control { padding-left: 2.3rem; padding-right: 2.5rem; }
-  .btn-login {
-    background: linear-gradient(135deg, #6366f1, #818cf8);
-    border: none; color: #fff; font-weight: 700;
-    padding: 0.75rem 1.5rem; border-radius: 0.7rem;
-    width: 100%; font-size: 0.95rem; cursor: pointer;
-    transition: opacity 0.2s, transform 0.15s;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+
+  .back-link:hover {
+    color: #ffffff;
   }
-  .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
-  .error-box {
-    background: rgba(239,68,68,0.12); color: #fca5a5;
-    padding: 0.65rem 0.9rem; border-radius: 0.6rem; font-size: 0.83rem;
-    margin-bottom: 1.2rem; border-left: 3px solid #ef4444;
+
+  /* Right Side: Form Panel */
+  .form-panel {
+    flex: 1;
+    padding: 3.5rem 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
-  .side-art {
-    flex: 0 0 40%;
-    background: linear-gradient(160deg, #312e81, #4338ca 40%, #6366f1 100%);
-    padding: 3rem 2rem; display: flex; flex-direction: column;
-    justify-content: center; align-items: center; text-align: center;
-    position: relative; overflow: hidden;
+
+  .form-header {
+    margin-bottom: 2rem;
   }
-  .side-art::before {
-    content: '';
-    position: absolute; width: 300px; height: 300px;
-    background: rgba(255,255,255,0.06); border-radius: 50%;
-    top: -80px; left: -80px;
+
+  .form-header h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--slate-900);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.35rem;
   }
-  .side-art::after {
-    content: '';
-    position: absolute; width: 200px; height: 200px;
-    background: rgba(255,255,255,0.04); border-radius: 50%;
-    bottom: -60px; right: -60px;
+
+  .form-header p {
+    color: var(--slate-600);
+    font-size: 0.88rem;
+    margin: 0;
   }
-  .side-art .art-icon {
-    width: 80px; height: 80px; border-radius: 50%;
-    background: rgba(255,255,255,0.15); display: flex;
-    align-items: center; justify-content: center;
-    font-size: 2rem; color: #fff; margin-bottom: 1.4rem;
-    border: 2px solid rgba(255,255,255,0.25);
-    box-shadow: 0 0 0 12px rgba(255,255,255,0.05);
+
+  .form-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--slate-900);
+    margin-bottom: 0.4rem;
   }
-  .side-art h2 { color: #fff; font-size: 1.4rem; font-weight: 800; margin-bottom: 0.6rem; }
-  .side-art p { color: rgba(255,255,255,0.65); font-size: 0.82rem; line-height: 1.6; margin-bottom: 1.5rem; }
-  .feature-list { list-style: none; padding: 0; margin: 0 0 1.5rem; text-align: left; }
-  .feature-list li { color: rgba(255,255,255,0.7); font-size: 0.78rem; padding: 0.25rem 0; display: flex; align-items: center; gap: 0.5rem; }
-  .feature-list li i { color: #a5b4fc; font-size: 0.7rem; }
-  .side-art .back-link {
-    color: rgba(255,255,255,0.6); font-size: 0.78rem; text-decoration: none;
-    display: flex; align-items: center; gap: 0.3rem; margin-top: auto;
+
+  .input-wrap {
+    position: relative;
   }
-  .side-art .back-link:hover { color: #fff; }
-  @media (max-width: 640px) { .side-art { display: none; } }
+
+  .input-wrap i.input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--slate-400);
+    font-size: 0.9rem;
+    pointer-events: none;
+  }
+
+  .input-wrap .form-control {
+    padding-left: 2.5rem;
+    padding-right: 2.75rem;
+    padding-top: 0.72rem;
+    padding-bottom: 0.72rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--slate-200);
+    font-size: 0.92rem;
+    color: var(--slate-900);
+    background: #ffffff;
+    transition: all 0.2s ease;
+  }
+
+  .input-wrap .form-control:focus {
+    border-color: var(--indigo-600);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+    outline: none;
+  }
+
+  .toggle-pwd {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--slate-400);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+
+  .toggle-pwd:hover {
+    color: var(--indigo-600);
+  }
+
+  .btn-submit {
+    background: var(--indigo-600);
+    color: #ffffff;
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.25);
+  }
+
+  .btn-submit:hover {
+    background: var(--indigo-700);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+  }
+
+  .alert-custom {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .alert-error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  @media (max-width: 768px) {
+    .brand-panel { display: none; }
+    .form-panel { padding: 2.5rem 1.75rem; }
+  }
 </style>
 </head>
 <body>
-<div class="panel-wrap">
-  <div class="form-panel">
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 1.2rem;">
-      <i class="fa-solid fa-shield-halved" style="color: #818cf8; font-size: 1.2rem;"></i>
-      <span style="font-size: 0.72rem; color: rgba(199,210,254,0.5); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">Management Portal</span>
+
+  <!-- Ambient Animated Background -->
+  <div class="animated-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+  <div class="particle-grid"></div>
+
+<div class="auth-card">
+  <!-- Left Side: Brand Panel -->
+  <div class="brand-panel">
+    <div class="brand-top">
+      <span class="brand-tag"><i class="fa-solid fa-shield-halved"></i> Management</span>
+      <h1 class="brand-title">Management<br>Workspace</h1>
+      <p class="brand-desc">Executive access for Super Admins and Managers to control business operations and team governance.</p>
+      
+      <ul class="feature-list">
+        <li class="feature-item"><i class="fa-solid fa-check"></i> High-level performance analytics & conversion rates</li>
+        <li class="feature-item"><i class="fa-solid fa-check"></i> Tenant businesses & multi-hospital administration</li>
+        <li class="feature-item"><i class="fa-solid fa-check"></i> Role permissions, users & audit logs oversight</li>
+      </ul>
     </div>
-    <h3>Welcome Back</h3>
-    <p class="sub">Manager &amp; Super Admin access only</p>
+
+    <div class="brand-bottom">
+      <a href="{% url 'accounts:portal_select' %}" class="back-link">
+        <i class="fa-solid fa-arrow-left"></i> Change Portal
+      </a>
+    </div>
+  </div>
+
+  <!-- Right Side: Form Panel -->
+  <div class="form-panel">
+    <div class="form-header">
+      <h2>Welcome Back</h2>
+      <p>Sign in with your administrator or manager credentials</p>
+    </div>
 
     {% if form.errors %}
-      <div class="error-box"><i class="fa-solid fa-circle-exclamation me-1"></i>
-        {% if form.non_field_errors %}
-          {{ form.non_field_errors.0 }}
-        {% else %}
-          Invalid credentials. This portal is restricted to management accounts.
-        {% endif %}
+      <div class="alert-custom alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>
+          {% if form.non_field_errors %}
+            {{ form.non_field_errors.0 }}
+          {% else %}
+            Invalid username or password. This portal is restricted to management.
+          {% endif %}
+        </span>
       </div>
     {% endif %}
+
     {% for message in messages %}
-      <div class="error-box">
-        <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ message }}
+      <div class="alert-custom" style="background: #fffbeb; color: #92400e; border: 1px solid #fde68a;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>{{ message }}</span>
       </div>
     {% endfor %}
 
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ next }}">
+
       <div class="mb-3">
         <label class="form-label">Username</label>
-        <div class="input-icon-wrap">
-          <i class="fa-solid fa-user icon-left"></i>
-          <input type="text" name="username" class="form-control" required autofocus placeholder="Management username">
+        <div class="input-wrap">
+          <i class="fa-regular fa-user input-icon"></i>
+          <input type="text" name="username" class="form-control" placeholder="Enter management username" required autofocus>
         </div>
       </div>
+
       <div class="mb-4">
         <div class="d-flex justify-content-between align-items-center mb-1">
           <label class="form-label mb-0">Password</label>
-          <a href="{% url 'accounts:forgot_password' %}" class="small text-decoration-none" style="color: #6366f1; font-weight: 600; font-size: 0.78rem;">Forgot Password?</a>
+          <a href="{% url 'accounts:forgot_password' %}" class="text-decoration-none" style="color: var(--indigo-600); font-weight: 600; font-size: 0.8rem;">Forgot Password?</a>
         </div>
-        <div class="input-icon-wrap">
-          <i class="fa-solid fa-lock icon-left"></i>
-          <input type="password" name="password" id="mgmtPassword" class="form-control" required placeholder="••••••••">
-          <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('mgmtPassword', this)" title="Show/Hide Password"></i>
+        <div class="input-wrap">
+          <i class="fa-solid fa-lock input-icon"></i>
+          <input type="password" name="password" id="mgmtPassword" class="form-control" placeholder="••••••••" required>
+          <i class="fa-regular fa-eye toggle-pwd" onclick="togglePasswordVisibility('mgmtPassword', this)" title="Show/Hide Password"></i>
         </div>
       </div>
-      <button type="submit" class="btn-login"><i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Sign In to Management Portal</button>
+
+      <button type="submit" class="btn-submit">
+        <span>Sign In to Management</span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
     </form>
   </div>
-
-  <div class="side-art">
-    <div class="art-icon"><i class="fa-solid fa-shield-halved"></i></div>
-    <h2>Management Portal</h2>
-    <p>Exclusive access for Managers and Super Admins.</p>
-    <ul class="feature-list">
-      <li><i class="fa-solid fa-check-circle"></i> Full team performance dashboard</li>
-      <li><i class="fa-solid fa-check-circle"></i> Lead assignment &amp; transfer</li>
-      <li><i class="fa-solid fa-check-circle"></i> Employee approvals &amp; management</li>
-      <li><i class="fa-solid fa-check-circle"></i> Daily EOD reports review &amp; export</li>
-      <li><i class="fa-solid fa-check-circle"></i> Source, campaign &amp; employee analytics</li>
-    </ul>
-    <a href="{% url 'accounts:portal_select' %}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to portal selection</a>
-  </div>
 </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 <script>
 function togglePasswordVisibility(inputId, icon) {
   const input = document.getElementById(inputId);
   if (input.type === 'password') {
     input.type = 'text';
-    icon.classList.remove('fa-eye');
-    icon.classList.add('fa-eye-slash');
+    icon.classList.remove('fa-eye', 'fa-regular');
+    icon.classList.add('fa-eye-slash', 'fa-solid');
   } else {
     input.type = 'password';
-    icon.classList.remove('fa-eye-slash');
-    icon.classList.add('fa-eye');
+    icon.classList.remove('fa-eye-slash', 'fa-solid');
+    icon.classList.add('fa-eye', 'fa-regular');
   }
 }
 </script>

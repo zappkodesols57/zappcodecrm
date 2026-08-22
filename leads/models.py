@@ -36,6 +36,7 @@ class LeadSource(models.Model):
 
 
 class Campaign(models.Model):
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="campaigns")
     name = models.CharField(max_length=150)
     platform = models.CharField(max_length=100, blank=True)
     campaign_id = models.CharField(max_length=150, blank=True)
@@ -144,8 +145,44 @@ class MasterItem(models.Model):
         verbose_name = "Master Item"
         verbose_name_plural = "Master Items"
 
+class LeadCustomField(models.Model):
+    """
+    Allows Admin to dynamically create, edit, toggle, or delete custom form fields
+    for leads without touching codebase (e.g. Policy No, Blood Group, Guardian Name, etc.).
+    """
+    class FieldType(models.TextChoices):
+        TEXT = "TEXT", "Single Line Text"
+        NUMBER = "NUMBER", "Number / Integer"
+        DECIMAL = "DECIMAL", "Currency / Decimal"
+        DATE = "DATE", "Date Picker"
+        DROPDOWN = "DROPDOWN", "Dropdown (Select List)"
+        TEXTAREA = "TEXTAREA", "Multi-line Text (Textarea)"
+        CHECKBOX = "CHECKBOX", "Checkbox (Yes / No)"
+
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="custom_form_fields")
+    name = models.CharField(max_length=100, help_text="Field Identifier / Slug (e.g. guardian_name)")
+    label = models.CharField(max_length=150, help_text="Label displayed on form (e.g. Guardian Name)")
+    field_type = models.CharField(max_length=20, choices=FieldType.choices, default=FieldType.TEXT)
+    options = models.TextField(blank=True, help_text="Comma-separated options for Dropdown type (e.g. Option 1, Option 2)")
+    placeholder = models.CharField(max_length=255, blank=True)
+    help_text = models.CharField(max_length=255, blank=True)
+    is_required = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+        verbose_name = "Lead Custom Field"
+        verbose_name_plural = "Lead Custom Fields"
+
     def __str__(self):
-        return f"{self.group.name} → {self.name}"
+        return f"{self.label} ({self.field_type})"
+
+    def get_options_list(self):
+        if not self.options:
+            return []
+        return [opt.strip() for opt in self.options.split(",") if opt.strip()]
 
 
 
@@ -368,6 +405,8 @@ class NelsonLeadData(models.Model):
 
 
 class AppointmentStatus(models.TextChoices):
+    PENDING_APPROVAL = "PENDING_APPROVAL", "Pending Approval"
+    APPROVED = "APPROVED", "Approved"
     SCHEDULED = "SCHEDULED", "Scheduled"
     COMPLETED = "COMPLETED", "Completed"
     CANCELLED = "CANCELLED", "Cancelled"
@@ -377,9 +416,11 @@ class Appointment(models.Model):
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="appointments")
     hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="appointments")
     doctor_name = models.CharField(max_length=150)
-    appointment_date = models.DateField()
+    doctor_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="doctor_appointments")
+    appointment_date = models.DateField(db_index=True)
     appointment_time = models.TimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.SCHEDULED)
+    status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.PENDING_APPROVAL, db_index=True)
+    doctor_notes = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -390,5 +431,37 @@ class Appointment(models.Model):
         ordering = ["-appointment_date", "-appointment_time"]
         
     def __str__(self):
-        return f"{self.lead.name} - {self.doctor_name} ({self.appointment_date})"
+        return f"{self.lead.name} - {self.doctor_name} ({self.appointment_date} {self.appointment_time or ''})"
+
+
+class DoctorSchedule(models.Model):
+    doctor = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="doctor_schedule")
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="doctor_schedules")
+    opd_start_time = models.TimeField(default="09:00")
+    opd_end_time = models.TimeField(default="17:00")
+    slot_duration_minutes = models.PositiveIntegerField(default=30)
+    is_available = models.BooleanField(default=True)
+    off_days = models.CharField(max_length=100, blank=True, default="Sunday", help_text="Comma-separated off days (e.g. Sunday)")
+
+    def __str__(self):
+        return f"Schedule for {self.doctor.get_full_name() or self.doctor.username}"
+
+
+class DoctorLeave(models.Model):
+    doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="doctor_leaves")
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="doctor_leaves")
+    start_date = models.DateField(db_index=True)
+    end_date = models.DateField(db_index=True)
+    is_full_day = models.BooleanField(default=True)
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    reason = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-start_date"]
+
+    def __str__(self):
+        return f"{self.doctor.username} on leave: {self.start_date} to {self.end_date}"
 

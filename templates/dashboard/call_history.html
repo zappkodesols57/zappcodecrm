@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Call History & Telecaller Remarks{% endblock %}
+{% block content %}
+
+<!-- Header & Quick Actions -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-primary mb-1"><i class="fa-solid fa-phone-volume me-2"></i> Call History & Remarks</h3>
+        <p class="text-muted mb-0">Detailed chronological log of telecaller patient calls, call dates & times, and recorded remarks.</p>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="GET" action="" class="row g-3 align-items-end">
+            <!-- Search -->
+            <div class="col-md-5 col-12">
+                <label class="form-label small fw-bold text-uppercase text-muted">Search Patient / Remarks / Doctor</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by patient name, mobile, remark text, doctor..." value="{{ q }}">
+                </div>
+            </div>
+
+            <!-- Call Date -->
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label small fw-bold text-uppercase text-muted">Call Date</label>
+                <input type="date" name="call_date" class="form-control rounded-3" value="{{ call_date }}">
+            </div>
+
+            <!-- Call / Appointment Outcome -->
+            <div class="col-md-2 col-sm-6">
+                <label class="form-label small fw-bold text-uppercase text-muted">Outcome</label>
+                <select name="call_status" class="form-select rounded-3">
+                    <option value="">All Outcomes</option>
+                    <option value="Booked" {% if call_status == 'Booked' %}selected{% endif %}>📅 Appointment Booked</option>
+                    <option value="Not Booked" {% if call_status == 'Not Booked' %}selected{% endif %}>Not Booked / Ongoing</option>
+                    <option value="Cancelled" {% if call_status == 'Cancelled' %}selected{% endif %}>❌ Cancelled</option>
+                </select>
+            </div>
+
+            <!-- Actions -->
+            <div class="col-md-2 col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100 rounded-pill shadow-sm"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                <a href="{% url 'dashboard:call_history' %}" class="btn btn-light border rounded-pill px-3" title="Clear Filters"><i class="fa-solid fa-rotate-left"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Card -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient Information</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Doctor / Dept</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase" style="min-width: 320px;">Telecaller Call Remarks & Timestamp</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Appointment / Outcome</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Telecaller Assigned</th>
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr>
+                        <!-- Patient Info -->
+                        <td class="px-4">
+                            <div class="fw-bold text-dark">{{ lead.name }}</div>
+                            <div class="small text-muted"><i class="fa-solid fa-phone me-1 small"></i> {{ lead.mobile }}</div>
+                            {% if lead.custom_data.location or lead.city %}
+                                <div class="small text-muted"><i class="fa-solid fa-location-dot me-1 small"></i> {{ lead.custom_data.location|default:lead.city }}</div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Doctor / Dept -->
+                        <td>
+                            {% if lead.custom_data.doctor %}
+                                <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.custom_data.doctor }}</span></div>
+                            {% endif %}
+                            {% if lead.custom_data.department %}
+                                <div class="mt-1 small fw-semibold text-secondary"><i class="fa-solid fa-hospital-user me-1"></i> {{ lead.custom_data.department }}</div>
+                            {% endif %}
+                            {% if not lead.custom_data.doctor and not lead.custom_data.department %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Call Remarks & History Timeline in Card -->
+                        <td class="py-3">
+                            <div class="d-flex flex-column gap-2">
+                                <!-- Remark 1 -->
+                                {% if lead.custom_data.remark_1 or lead.custom_data.calling_date_remark_1 %}
+                                <div class="p-2 rounded-3 bg-light border border-light-subtle">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.68rem;">Call 1</span>
+                                        {% if lead.custom_data.calling_date_remark_1 %}
+                                            <span class="small text-muted fw-semibold" style="font-size: 0.75rem;"><i class="fa-regular fa-clock me-1"></i>{{ lead.custom_data.calling_date_remark_1 }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="small text-dark fw-medium">{{ lead.custom_data.remark_1|default:"Call logged without text" }}</div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Remark 2 -->
+                                {% if lead.custom_data.remark_2 or lead.custom_data.calling_date_remark_2 %}
+                                <div class="p-2 rounded-3 bg-light border border-light-subtle">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle text-dark" style="font-size: 0.68rem;">Call 2 / Follow-up</span>
+                                        <div class="small text-muted fw-semibold" style="font-size: 0.75rem;">
+                                            {% if lead.custom_data.calling_date_remark_2 %}
+                                                <i class="fa-regular fa-calendar me-1"></i>{{ lead.custom_data.calling_date_remark_2 }}
+                                            {% endif %}
+                                            {% if lead.custom_data.calling_time_remark_2 %}
+                                                {{ lead.custom_data.calling_time_remark_2 }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="small text-dark fw-medium">{{ lead.custom_data.remark_2 }}</div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Remark 3 -->
+                                {% if lead.custom_data.remark_3 or lead.custom_data.calling_date_remark_3 %}
+                                <div class="p-2 rounded-3 bg-light border border-light-subtle">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.68rem;">Call 3 / Further Notes</span>
+                                        {% if lead.custom_data.calling_date_remark_3 %}
+                                            <span class="small text-muted fw-semibold" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i>{{ lead.custom_data.calling_date_remark_3 }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="small text-dark fw-medium">{{ lead.custom_data.remark_3 }}</div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Fallback if no specific remark -->
+                                {% if not lead.custom_data.remark_1 and not lead.custom_data.remark_2 and not lead.custom_data.remark_3 %}
+                                    <div class="small text-muted fst-italic">Last interaction logged on {{ lead.updated_at|date:"d M Y, h:i A" }}</div>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Outcome / Appointment -->
+                        <td>
+                            {% if lead.custom_data.appointment_status == 'Booked' or lead.custom_data.appointment_status == 'Cancelled' %}
+                                <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% else %}bg-danger text-danger border-danger-subtle{% endif %} bg-opacity-10 border px-2 py-1">
+                                    <i class="fa-solid {% if lead.custom_data.appointment_status == 'Booked' %}fa-calendar-check{% else %}fa-calendar-xmark{% endif %} me-1"></i> {{ lead.custom_data.appointment_status }}
+                                </span>
+                                {% if lead.custom_data.appo_booked_date %}
+                                    <div class="small text-muted mt-1">{{ lead.custom_data.appo_booked_date }}</div>
+                                {% endif %}
+                            {% else %}
+                                {% if lead.admission_status == 'ADMISSION_DONE' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Done</span>
+                                {% else %}
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.stage.name|default:lead.get_deal_status_display }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+
+                        <!-- Telecaller Assigned -->
+                        <td>
+                            <div class="small fw-semibold">
+                                {% if lead.assigned_to %}
+                                    <i class="fa-solid fa-user-check text-success me-1"></i> {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+                                {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View Patient Timeline"><i class="fa-solid fa-eye text-primary"></i></a>
+                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand border" title="Log Another Call / Edit"><i class="fa-solid fa-phone text-white"></i> Log Call</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="text-muted mb-3"><i class="fa-solid fa-phone-slash fa-3x opacity-25"></i></div>
+                            <h5 class="fw-bold text-dark">No call history logs found</h5>
+                            <p class="text-muted">Once telecallers make calls and enter remarks in patient lead forms, they will automatically be chronicled here.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Adaptive Responsive Pagination -->
+{% if page_obj.paginator.count > 0 %}
+<div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="small text-muted fw-semibold order-2 order-md-1">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} call log(s) (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    </div>
+    
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-left"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in page_range %}
+                {% if num == page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">…</span></li>
+                {% elif page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-3 border-0 bg-primary text-white px-3 py-2 fw-bold shadow-sm">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 border-0 bg-light text-dark px-3 py-2 fw-semibold" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="order-1 order-md-2">
+        <span class="badge bg-light text-secondary border px-3 py-2 rounded-3 fw-semibold"><i class="fa-solid fa-check-double me-1 text-success"></i> All call records displayed</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

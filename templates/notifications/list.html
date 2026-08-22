@@ -40,6 +40,64 @@
   </div>
 </div>
 
+<!-- Adaptive Responsive Scroller Pagination -->
+{% if page_obj.paginator.count >= 0 %}
+<div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="small text-muted fw-semibold order-2 order-md-1">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} notification(s) (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    </div>
+    
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-left"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in page_range %}
+                {% if num == page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">...</span></li>
+                {% elif page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-3 border-0 bg-primary text-white px-3 py-2 fw-bold shadow-sm">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 border-0 bg-light text-dark px-3 py-2 fw-semibold" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="order-1 order-md-2">
+        <span class="badge bg-light text-secondary border px-3 py-2 rounded-3 fw-semibold"><i class="fa-solid fa-check-double me-1 text-success"></i> All notifications displayed</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
 {% endblock %}
 
 {% block extra_js %}

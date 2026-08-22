@@ -3,157 +3,416 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CRM Portal · Choose Login</title>
+<title>Zappcode CRM — Select Portal</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #e0e7ff;
+    --emerald: #059669;
+    --emerald-light: #d1fae5;
+    --bg-slate: #f8fafc;
+    --card-border: rgba(226, 232, 240, 0.8);
+    --text-heading: #0f172a;
+    --text-muted: #64748b;
+  }
+
   *, *::before, *::after { box-sizing: border-box; }
+
   body {
     min-height: 100vh;
-    background: radial-gradient(ellipse at top left, #1e1b4b 0%, #0f0e2a 60%, #0a0918 100%);
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #f8fafc;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    padding: 2.5rem 1.25rem;
+    color: var(--text-heading);
     position: relative;
+    overflow-x: hidden;
   }
-  /* Animated background stars */
-  body::before {
-    content: '';
+
+  /* Animated Floating Background Orbs */
+  .animated-bg {
     position: fixed;
     inset: 0;
-    background-image:
-      radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px),
-      radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
-    background-size: 60px 60px, 120px 120px;
-    background-position: 0 0, 30px 30px;
     pointer-events: none;
     z-index: 0;
-  }
-  .wrapper {
-    position: relative; z-index: 2;
-    text-align: center; padding: 2rem 1rem;
-  }
-  .logo-area {
-    margin-bottom: 2.5rem;
-  }
-  .logo-area .orb {
-    width: 72px; height: 72px; border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #818cf8);
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 1rem;
-    box-shadow: 0 0 0 12px rgba(99,102,241,0.15), 0 0 0 24px rgba(99,102,241,0.07);
-    animation: pulse-orb 3s ease-in-out infinite;
-  }
-  @keyframes pulse-orb {
-    0%, 100% { box-shadow: 0 0 0 12px rgba(99,102,241,0.15), 0 0 0 24px rgba(99,102,241,0.07); }
-    50% { box-shadow: 0 0 0 18px rgba(99,102,241,0.2), 0 0 0 36px rgba(99,102,241,0.05); }
-  }
-  .logo-area .orb i { font-size: 1.8rem; color: #fff; }
-  .logo-area h1 {
-    font-size: 2.2rem; font-weight: 800;
-    background: linear-gradient(135deg, #c7d2fe, #a5b4fc, #818cf8);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: -0.03em; margin-bottom: 0.4rem;
-  }
-  .logo-area p {
-    color: rgba(199,210,254,0.55); font-size: 0.85rem; font-weight: 500;
-    letter-spacing: 0.12em; text-transform: uppercase;
+    overflow: hidden;
   }
 
-  /* Portal cards */
-  .portals { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; margin-top: 0.5rem; }
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.55;
+    will-change: transform;
+    animation: floatOrb 22s infinite alternate ease-in-out;
+  }
+
+  .orb-1 {
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, rgba(129, 140, 248, 0.1) 70%);
+    top: -100px;
+    left: -100px;
+    animation-duration: 20s;
+  }
+
+  .orb-2 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, rgba(52, 211, 153, 0.08) 70%);
+    bottom: -120px;
+    right: -100px;
+    animation-duration: 25s;
+    animation-delay: -5s;
+  }
+
+  .orb-3 {
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, rgba(244, 114, 182, 0.05) 70%);
+    top: 40%;
+    left: 60%;
+    animation-duration: 28s;
+    animation-delay: -10s;
+  }
+
+  @keyframes floatOrb {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(60px, -40px) scale(1.08); }
+    66% { transform: translate(-40px, 50px) scale(0.95); }
+    100% { transform: translate(30px, -25px) scale(1.04); }
+  }
+
+  /* Subtle floating particles */
+  .particle-grid {
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(100, 116, 139, 0.12) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 1;
+    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  }
+
+  .main-container {
+    width: 100%;
+    max-width: 860px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+    animation: fadeInContainer 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes fadeInContainer {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Header Section */
+  .brand-header {
+    text-align: center;
+    margin-bottom: 2.75rem;
+  }
+
+  .brand-logo-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
+  }
+
+  .brand-logo-wrap:hover {
+    transform: scale(1.03);
+  }
+
+  .brand-logo-img {
+    height: 52px;
+    object-fit: contain;
+  }
+
+  .brand-title {
+    font-size: 2.1rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-heading);
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+  }
+
+  .brand-title .accent {
+    font-family: 'Dancing Script', cursive;
+    color: var(--primary);
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .brand-subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  /* Portals Grid */
+  .portals-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.75rem;
+  }
+
   .portal-card {
-    width: 270px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--card-border);
     border-radius: 1.25rem;
-    padding: 2.2rem 1.8rem 1.8rem;
-    backdrop-filter: blur(14px);
-    transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.28s ease, border-color 0.25s;
+    padding: 2.25rem 2rem;
     text-decoration: none;
-    display: block;
-    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
+    overflow: hidden;
   }
+
+  .portal-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: transparent;
+    transition: background 0.3s ease;
+  }
+
   .portal-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    border-color: rgba(255,255,255,0.2);
-  }
-  .portal-card.employee:hover { box-shadow: 0 24px 48px rgba(16,185,129,0.2); }
-  .portal-card.management:hover { box-shadow: 0 24px 48px rgba(99,102,241,0.25); }
-
-  .portal-card .icon-wrap {
-    width: 56px; height: 56px; border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 1.2rem; font-size: 1.5rem;
-  }
-  .portal-card.employee .icon-wrap {
-    background: rgba(16,185,129,0.15); color: #34d399;
-    border: 1px solid rgba(16,185,129,0.25);
-  }
-  .portal-card.management .icon-wrap {
-    background: rgba(99,102,241,0.15); color: #a5b4fc;
-    border: 1px solid rgba(99,102,241,0.25);
+    transform: translateY(-6px);
+    box-shadow: 0 25px 35px -5px rgba(15, 23, 42, 0.08), 0 10px 15px -3px rgba(15, 23, 42, 0.04);
+    background: rgba(255, 255, 255, 0.95);
   }
 
-  .portal-card h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.4rem; }
-  .portal-card.employee h2 { color: #ecfdf5; }
-  .portal-card.management h2 { color: #eef2ff; }
-  .portal-card p { font-size: 0.8rem; color: rgba(199,210,254,0.5); line-height: 1.5; margin-bottom: 1.5rem; }
-
-  .portal-card .enter-btn {
-    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-    padding: 0.65rem 1.4rem; border-radius: 0.7rem;
-    font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer;
-    width: 100%; text-decoration: none; transition: opacity 0.2s;
+  /* Employee Specific Theme */
+  .portal-card.employee::before {
+    background: linear-gradient(90deg, #10b981, #059669);
   }
-  .portal-card .enter-btn:hover { opacity: 0.88; }
-  .portal-card.employee .enter-btn { background: #10b981; color: #fff; }
-  .portal-card.management .enter-btn { background: linear-gradient(135deg, #6366f1, #818cf8); color: #fff; }
-
-  .badge-role {
-    display: inline-block; font-size: 0.65rem; font-weight: 600;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 0.2rem 0.5rem; border-radius: 99px; margin-bottom: 0.8rem;
+  .portal-card.employee:hover {
+    border-color: rgba(16, 185, 129, 0.45);
   }
-  .portal-card.employee .badge-role { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-  .portal-card.management .badge-role { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+  .portal-card.employee .icon-box {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+  }
+  .portal-card.employee .action-btn {
+    background: #059669;
+    color: #ffffff;
+  }
+  .portal-card.employee .action-btn:hover {
+    background: #047857;
+  }
+  .portal-card.employee .role-badge {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #d1fae5;
+  }
 
-  .footer-note { margin-top: 2rem; color: rgba(199,210,254,0.3); font-size: 0.75rem; }
-  .footer-note a { color: rgba(199,210,254,0.5); text-decoration: none; }
-  .footer-note a:hover { color: #a5b4fc; }
+  /* Management Specific Theme */
+  .portal-card.management::before {
+    background: linear-gradient(90deg, #6366f1, #4f46e5);
+  }
+  .portal-card.management:hover {
+    border-color: rgba(99, 102, 241, 0.45);
+  }
+  .portal-card.management .icon-box {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+  }
+  .portal-card.management .action-btn {
+    background: #4f46e5;
+    color: #ffffff;
+  }
+  .portal-card.management .action-btn:hover {
+    background: #4338ca;
+  }
+  .portal-card.management .role-badge {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #e0e7ff;
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .icon-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    transition: transform 0.25s ease;
+  }
+
+  .portal-card:hover .icon-box {
+    transform: scale(1.08) rotate(3deg);
+  }
+
+  .role-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+  }
+
+  .portal-card h2 {
+    font-size: 1.28rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  .portal-card p {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+    margin-bottom: 1.75rem;
+    flex-grow: 1;
+  }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    width: 100%;
+  }
+
+  .action-btn i {
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
+  }
+
+  .portal-card:hover .action-btn i {
+    transform: translateX(4px);
+  }
+
+  /* Footer */
+  .footer-meta {
+    text-align: center;
+    margin-top: 2.75rem;
+    font-size: 0.82rem;
+    color: #94a3b8;
+  }
+
+  .footer-meta a {
+    color: #64748b;
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .footer-meta a:hover {
+    color: var(--primary);
+  }
+
+  @media (max-width: 768px) {
+    .portals-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    .portal-card {
+      padding: 1.75rem 1.5rem;
+    }
+  }
 </style>
 </head>
 <body>
-  <div class="wrapper">
-    <div class="logo-area">
-      <div class="orb"><i class="fa-solid fa-layer-group"></i></div>
-      <h1>Lead CRM</h1>
-      <p>Choose Your Portal to Continue</p>
+
+  <!-- Dynamic Ambient Background Animation -->
+  <div class="animated-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="particle-grid"></div>
+
+  <div class="main-container">
+    <div class="brand-header">
+
+      <h1 class="brand-title">
+        <span>Zappcode</span>
+        <span class="accent">CRM</span>
+      </h1>
+      <p class="brand-subtitle">Select your work portal to securely access the workspace</p>
     </div>
 
-    <div class="portals">
+    <div class="portals-grid">
       <!-- Employee Portal -->
       <a href="{% url 'accounts:employee_login' %}" class="portal-card employee">
-        <div class="badge-role">Employee Access</div>
-        <div class="icon-wrap"><i class="fa-solid fa-headset"></i></div>
+        <div class="card-top">
+          <div class="icon-box">
+            <i class="fa-solid fa-headset"></i>
+          </div>
+          <span class="role-badge">Employee Access</span>
+        </div>
         <h2>Employee Portal</h2>
-        <p>For Employees to manage leads, follow-ups, and submit daily reports.</p>
-        <span class="enter-btn"><i class="fa-solid fa-arrow-right-to-bracket"></i> Enter Employee Portal</span>
+        <p>Telecallers, Counsellors & Staff workspace to manage daily leads, follow-ups, and log calls.</p>
+        <div class="action-btn">
+          <span>Continue to Portal</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
       </a>
 
       <!-- Management Portal -->
       <a href="{% url 'accounts:management_login' %}" class="portal-card management">
-        <div class="badge-role">Manager &amp; Super Admin</div>
-        <div class="icon-wrap"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="card-top">
+          <div class="icon-box">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <span class="role-badge">Admin & Manager</span>
+        </div>
         <h2>Management Portal</h2>
-        <p>For Managers and Super Admins to oversee performance, assign leads, review reports, and manage the team.</p>
-        <span class="enter-btn"><i class="fa-solid fa-arrow-right-to-bracket"></i> Enter Management Portal</span>
+        <p>Super Admins & Managers dashboard for complete operational control, team assignment, and analytics.</p>
+        <div class="action-btn">
+          <span>Continue to Portal</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
       </a>
     </div>
 
+    <div class="footer-meta">
+      <span>Need help logging in? <a href="{% url 'accounts:forgot_password' %}">Reset Password</a> or contact administrator.</span>
+    </div>
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -55,18 +55,18 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="mb-1 d-flex flex-wrap gap-1">
-                                {% if lead.custom_data.appointment_status == 'Booked' or lead.custom_data.appointment_status == 'Cancelled' %}
-                                    <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% else %}bg-danger text-danger border-danger-subtle{% endif %} bg-opacity-10 border px-2 py-1">
-                                        <i class="fa-solid {% if lead.custom_data.appointment_status == 'Booked' %}fa-calendar-check{% else %}fa-calendar-xmark{% endif %} me-1"></i> {{ lead.custom_data.appointment_status }}
+                            <div class="mb-1 d-flex flex-wrap gap-1 align-items-center">
+                                {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                                        <i class="fa-solid fa-circle-check me-1"></i> Payment Done
+                                    </span>
+                                {% elif lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' and lead.custom_data.appointment_status != '' %}
+                                    <!-- When Appointment Status is active (Booked, Cancelled, Not Interested, etc.), ONLY show this single tag -->
+                                    <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% elif lead.custom_data.appointment_status == 'Cancelled' or lead.custom_data.appointment_status == 'Not Intrested' or lead.custom_data.appointment_status == 'Not Interested' %}bg-danger text-danger border-danger-subtle{% else %}bg-primary text-primary border-primary-subtle{% endif %} bg-opacity-10 border px-2 py-1">
+                                        <i class="fa-solid {% if lead.custom_data.appointment_status == 'Booked' %}fa-calendar-check{% elif lead.custom_data.appointment_status == 'Cancelled' %}fa-calendar-xmark{% elif 'Not Int' in lead.custom_data.appointment_status %}fa-user-xmark{% else %}fa-clock{% endif %} me-1"></i> {{ lead.custom_data.appointment_status }}
                                     </span>
                                 {% else %}
-                                    {% if lead.admission_status == 'ADMISSION_DONE' %}
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Converted</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.get_deal_status_display }}</span>
-                                    {% endif %}
-                                    
+                                    <!-- When Appointment Status is not set, display Priority and Stage/Deal -->
                                     {% if lead.custom_data.priority %}
                                         {% if lead.custom_data.priority == 'Hot' %}
                                             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-fire me-1"></i> Hot</span>
@@ -78,11 +78,13 @@
                                             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ lead.custom_data.priority }}</span>
                                         {% endif %}
                                     {% endif %}
-                                    
-                                    {% if lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' %}
-                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
-                                            <i class="fa-solid fa-calendar me-1"></i> {{ lead.custom_data.appointment_status }}
-                                        </span>
+
+                                    {% if lead.admission_status == 'ADMISSION_DONE' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Converted</span>
+                                    {% elif lead.stage and lead.stage.name != 'New' and lead.stage.name != 'Open' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">{{ lead.stage.name }}</span>
+                                    {% elif not lead.custom_data.priority %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.get_deal_status_display }}</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -110,11 +112,65 @@
                 </tbody>
             </table>
         </div>
-        {% if leads %}
-        <div class="px-4 py-3 border-top bg-light text-muted small rounded-bottom-4">
-            Showing {{ leads|length }} assigned lead(s).
-        </div>
-        {% endif %}
-    </div>
+            </div>
 </div>
+
+
+
+{% if page_obj.paginator.count > 0 %}
+<div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="small text-muted fw-semibold order-2 order-md-1">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} lead(s) (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    </div>
+    
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-left"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in page_range %}
+                {% if num == page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">…</span></li>
+                {% elif page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-3 border-0 bg-primary text-white px-3 py-2 fw-bold shadow-sm">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 border-0 bg-light text-dark px-3 py-2 fw-semibold" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="order-1 order-md-2">
+        <span class="badge bg-light text-secondary border px-3 py-2 rounded-3 fw-semibold"><i class="fa-solid fa-check-double me-1 text-success"></i> All leads shown</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

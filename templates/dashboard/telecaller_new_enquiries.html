@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}New Enquiries | Nelson CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-primary mb-1">
+            <i class="fa-solid fa-envelope-open-text me-2"></i>New Enquiries
+        </h3>
+        <p class="text-muted mb-0">Fresh, uncontacted leads synchronized from Meta API and other sources.</p>
+    </div>
+    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold">
+        <i class="fa-solid fa-bell me-1"></i> {{ total_count }} Fresh Leads
+    </span>
+</div>
+
+<!-- Simple Search Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="" class="row g-2 align-items-center">
+            <div class="col-md-9 col-12">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name, Phone Number, City..." value="{{ q }}">
+                </div>
+            </div>
+            <div class="col-md-3 col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary rounded-pill flex-grow-1"><i class="fa-solid fa-search me-1"></i> Search</button>
+                {% if q %}
+                    <a href="{% url 'dashboard:telecaller_new_enquiries' %}" class="btn btn-light border rounded-pill px-3">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Simple Table View Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient Details</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Contact & City</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Source & Campaign</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Priority / Dept</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">Received Time</th>
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Quick Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr>
+                        <td class="px-4">
+                            <div class="fw-bold text-dark">{{ lead.name }}</div>
+                            <div class="small text-muted">ID: #{{ lead.lead_code|default:lead.pk }}</div>
+                        </td>
+                        <td>
+                            <div><i class="fa-solid fa-phone text-muted me-1 small"></i> <a href="tel:{{ lead.mobile }}" class="text-decoration-none text-dark fw-medium">{{ lead.mobile }}</a></div>
+                            {% if lead.city or lead.location %}
+                                <div class="small text-muted"><i class="fa-solid fa-location-dot text-muted me-1 small"></i> {{ lead.location|default:lead.city }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lead.lead_source or lead.custom_data.lead_source %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-2 py-1 mb-1 d-inline-block" style="font-size: 0.72rem;">
+                                    <i class="fa-solid fa-bullhorn me-1"></i>{{ lead.lead_source.name|default:lead.custom_data.lead_source }}
+                                </span>
+                            {% endif %}
+                            {% if lead.campaign or lead.custom_data.campaign %}
+                                <div class="small text-muted text-truncate" style="max-width: 160px;" title="{{ lead.campaign.name|default:lead.custom_data.campaign }}">
+                                    <i class="fa-solid fa-rectangle-ad me-1 text-muted"></i>{{ lead.campaign.name|default:lead.custom_data.campaign }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
+                                    <i class="fa-solid fa-fire text-danger me-1"></i>{{ lead.custom_data.priority|default:lead.get_temperature_display|default:"Fresh" }}
+                                </span>
+                                {% if lead.custom_data.department %}
+                                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                                        {{ lead.custom_data.department }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small text-muted">
+                                <i class="fa-regular fa-clock me-1 text-muted"></i>{{ lead.created_at|timesince }} ago
+                            </div>
+                            <div class="small text-muted" style="font-size: 0.72rem;">{{ lead.created_at|date:"d M Y, h:i A" }}</div>
+                        </td>
+                        <td class="px-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-light border" title="Call Now">
+                                    <i class="fa-solid fa-phone text-primary"></i>
+                                </a>
+                                <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }}%2C%20Greetings%20from%20{{ request.user.hospital.name|default:'Nelson%20Hospital'|urlencode }}!%20We%20received%20your%20enquiry%20and%20are%20here%20to%20assist%20you%20with%20doctor%20consultations%2C%20appointments%2C%20and%20healthcare%20guidance.%20How%20may%20we%20help%20you%20today%3F" target="_blank" class="btn btn-sm btn-light border text-success" title="WhatsApp Message">
+                                    <i class="fa-brands fa-whatsapp"></i>
+                                </a>
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-primary px-3 fw-semibold">
+                                    <i class="fa-solid fa-eye me-1"></i> Open & Act
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-inbox fa-3x mb-3 opacity-50"></i>
+                            <h5 class="fw-bold">No New Enquiries</h5>
+                            <p class="mb-0">You're all caught up! No fresh uncontacted leads matching your filter.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="pagination-container my-4 p-3 bg-white rounded-4 border border-light-subtle shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="small text-muted fw-semibold order-2 order-md-1">
+        Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} leads (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    </div>
+    
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 4px;">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-left"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in page_range %}
+                {% if num == page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">…</span></li>
+                {% elif page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-3 border-0 bg-primary text-white px-3 py-2 fw-bold shadow-sm">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 border-0 bg-light text-dark px-3 py-2 fw-semibold" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-3 border-0 bg-light px-3 py-2 text-dark fw-bold" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 border-0 bg-light-subtle px-3 py-2 text-muted"><i class="fa-solid fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

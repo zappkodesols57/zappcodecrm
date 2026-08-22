@@ -7,7 +7,7 @@ from django.core.paginator import Paginator
 from audit.models import AuditLog
 from audit.utils import log_action
 from .models import User
-from .forms import CRMUserCreateForm, CRMUserEditForm, CRMUserRegisterForm
+from .forms import CRMUserCreateForm, CRMUserEditForm, CRMUserRegisterForm, CRMUserPasswordResetForm
 
 
 def _is_admin(u):
@@ -27,6 +27,8 @@ def _role_redirect(user):
     if user.hospital:
         if user.role == User.Role.SUPER_ADMIN:
             return redirect("dashboard:superadmin_home")
+        if user.role == User.Role.DOCTOR:
+            return redirect("dashboard:doctor_home")
         if user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_home")
         if user.role == User.Role.MANAGER:
@@ -59,6 +61,7 @@ def employee_login(request):
             return render(request, "accounts/login_employee.html", {"form_error": True})
 
         login(request, user)
+        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
         next_url = request.POST.get("next")
         if next_url:
             return redirect(next_url)
@@ -87,6 +90,7 @@ def management_login(request):
             return render(request, "accounts/login_management.html", {"form_error": True})
 
         login(request, user)
+        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
         next_url = request.POST.get("next")
         if next_url:
             return redirect(next_url)
@@ -97,8 +101,15 @@ def management_login(request):
 
 def custom_logout(request):
     from django.contrib.auth import logout
-    logout(request)
-    messages.info(request, "You have been logged out successfully.")
+    if request.method == "POST":
+        if request.user.is_authenticated:
+            log_action(action="USER_LOGOUT", obj=request.user, new_value=f"User {request.user.username} logged out", user=request.user)
+        logout(request)
+        messages.info(request, "You have been logged out successfully.")
+        return redirect("accounts:portal_select")
+    # If a GET request accidentally hits logout, do not log out unless confirmed
+    if request.user.is_authenticated:
+        return _role_redirect(request.user)
     return redirect("accounts:portal_select")
 
 
@@ -130,6 +141,20 @@ def user_add(request):
             user.is_approved = True
             user.save()
             log_action("Employee Created by Admin", user, user=request.user)
+
+            # Auto-sync DOCTOR role users to MasterItem 'Doctors' group
+            if user.role == User.Role.DOCTOR:
+                from leads.models import MasterGroup, MasterItem
+                doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+                if doc_grp:
+                    name = user.get_full_name() or user.username
+                    MasterItem.objects.get_or_create(
+                        group=doc_grp,
+                        hospital=user.hospital,
+                        name=name,
+                        defaults={"is_active": True}
+                    )
+
             messages.success(request, f"Employee user '{user.username}' created successfully.")
             return redirect("accounts:user_list")
     else:
@@ -155,8 +180,22 @@ def user_edit(request, pk):
     if request.method == "POST":
         form = CRMUserEditForm(request.POST, instance=obj, user=request.user)
         if form.is_valid():
-            form.save()
+            saved_user = form.save()
             log_action("Employee Details Updated", obj, user=request.user)
+
+            # Auto-sync DOCTOR role users to MasterItem 'Doctors' group
+            if saved_user.role == User.Role.DOCTOR:
+                from leads.models import MasterGroup, MasterItem
+                doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+                if doc_grp:
+                    name = saved_user.get_full_name() or saved_user.username
+                    MasterItem.objects.get_or_create(
+                        group=doc_grp,
+                        hospital=saved_user.hospital,
+                        name=name,
+                        defaults={"is_active": True}
+                    )
+
             messages.success(request, f"Employee details for '{obj.username}' updated.")
             return redirect("accounts:user_list")
     else:
@@ -172,6 +211,76 @@ def user_edit(request, pk):
         "mode": "Edit", 
         "obj": obj,
         "user_roles_map": json.dumps(user_roles_map)
+    })
+
+
+@login_required
+def doctor_schedule_manage(request, pk):
+    from leads.models import DoctorSchedule, DoctorLeave, Appointment
+    doctor = get_object_or_404(User, pk=pk)
+    
+    # Check permissions
+    is_self_doctor = (request.user.pk == doctor.pk and request.user.role == User.Role.DOCTOR)
+    is_admin = request.user.can_manage_users or request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN]
+    if not (is_self_doctor or is_admin):
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+        
+    schedule, _ = DoctorSchedule.objects.get_or_create(
+        doctor=doctor,
+        defaults={"hospital": doctor.hospital or request.user.hospital}
+    )
+    
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "update_schedule":
+            schedule.opd_start_time = request.POST.get("opd_start_time", "09:00")
+            schedule.opd_end_time = request.POST.get("opd_end_time", "17:00")
+            schedule.slot_duration_minutes = int(request.POST.get("slot_duration_minutes", 30))
+            schedule.is_available = (request.POST.get("is_available") == "1")
+            schedule.off_days = request.POST.get("off_days", "Sunday")
+            schedule.save()
+            messages.success(request, "Doctor schedule updated successfully.")
+            
+        elif action == "add_leave":
+            start_date = request.POST.get("start_date")
+            end_date = request.POST.get("end_date") or start_date
+            reason = request.POST.get("reason", "")
+            is_full_day = (request.POST.get("is_full_day") == "1")
+            start_time = request.POST.get("start_time") or None
+            end_time = request.POST.get("end_time") or None
+            
+            if start_date:
+                DoctorLeave.objects.create(
+                    doctor=doctor,
+                    hospital=doctor.hospital or request.user.hospital,
+                    start_date=start_date,
+                    end_date=end_date,
+                    is_full_day=is_full_day,
+                    start_time=start_time if not is_full_day else None,
+                    end_time=end_time if not is_full_day else None,
+                    reason=reason,
+                    created_by=request.user
+                )
+                messages.success(request, "Doctor leave/unavailability added.")
+                
+        elif action == "delete_leave":
+            leave_id = request.POST.get("leave_id")
+            DoctorLeave.objects.filter(pk=leave_id, doctor=doctor).delete()
+            messages.success(request, "Leave removed.")
+            
+        return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+        
+    leaves = DoctorLeave.objects.filter(doctor=doctor).order_by("-start_date")
+    appointments = Appointment.objects.filter(doctor_user=doctor).select_related("lead").order_by("-appointment_date")[:50]
+    
+    return render(request, "accounts/doctor_schedule_manage.html", {
+        "doctor": doctor,
+        "schedule": schedule,
+        "leaves": leaves,
+        "appointments": appointments,
+        "active": "users" if is_admin else "doctor_schedule",
+        "is_admin": is_admin,
     })
 
 

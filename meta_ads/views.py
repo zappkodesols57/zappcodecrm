@@ -69,7 +69,9 @@ def meta_webhook(request):
 
 
 def _create_lead_from_meta(connection, meta_lead_id):
-    """Fetch lead data from Meta API and create a Lead record in CRM."""
+    """Fetch lead data from Meta API and create a Lead record in CRM with automatic Source & Campaign discovery."""
+    from leads.models import Lead, LeadStage, LeadSource, SourceCategory, Campaign, LeadTemperature, MasterGroup, MasterItem
+    
     # Prevent duplicates
     if Lead.objects.filter(external_lead_id=meta_lead_id).exists():
         logger.info(f"Duplicate Meta lead skipped: {meta_lead_id}")
@@ -80,26 +82,76 @@ def _create_lead_from_meta(connection, meta_lead_id):
         logger.error(f"Could not fetch Meta lead data for {meta_lead_id}")
         return
 
-    # Get first/default lead stage
-    stage = LeadStage.objects.filter(is_active=True).order_by("order").first()
-    if not stage:
-        logger.error("No LeadStage found. Please create at least one stage in admin.")
-        return
+    # 1. Get first/default lead stage
+    stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.filter(is_active=True).order_by("order").first()
+
+    # 2. Automatically Find or Link Source Category (Digital / Paid Ads / Social Media)
+    source_cat = SourceCategory.objects.filter(name__icontains="Digital").first() or \
+                 SourceCategory.objects.filter(name__icontains="Social").first() or \
+                 SourceCategory.objects.filter(name__icontains="Ads").first()
+    if not source_cat:
+        source_cat = SourceCategory.objects.create(name="Digital Marketing", order=1)
+
+    # 3. Automatically Find or Link Lead Source (Meta Ads / Facebook Ads / Instagram)
+    raw_platform = (data.get("platform") or "Meta Ads").strip()
+    lead_source = LeadSource.objects.filter(name__icontains="Meta").first() or \
+                  LeadSource.objects.filter(name__icontains="Facebook").first()
+    if not lead_source:
+        lead_source = LeadSource.objects.create(name="Meta Ads", category=source_cat, order=1)
+
+    # 4. Automatically Find or Create Campaign from Meta campaign_name
+    campaign_name = (data.get("campaign_name") or "Meta Leads Campaign").strip()
+    campaign_obj = Campaign.objects.filter(name__iexact=campaign_name).first()
+    if not campaign_obj and campaign_name:
+        campaign_obj = Campaign.objects.create(
+            name=campaign_name,
+            platform="FACEBOOK",
+            campaign_id=data.get("campaign_id", ""),
+            is_active=True
+        )
+
+    # Hospital association
+    hospital = getattr(connection, "hospital", None)
+    if not hospital:
+        from accounts.models import Hospital
+        hospital = Hospital.objects.first()
+
+    # Build custom_data JSON for hospital CRM integration
+    custom_data = {
+        "campaign": campaign_name,
+        "lead_source": lead_source.name if lead_source else "Meta Ads",
+        "appointment_status": "Not Booked",
+        "deal_status": "New",
+        "priority": "Hot",  # Meta API direct ad leads start as Hot
+    }
+
+    # Extract location / city if available
+    city_val = data.get("city", "").strip()
 
     lead = Lead.objects.create(
-        name=data.get("name", "Unknown"),
+        name=data.get("name", "Unknown Lead"),
         mobile=data.get("phone", ""),
         email=data.get("email", ""),
-        city=data.get("city", ""),
+        city=city_val,
+        location=city_val,
+        hospital=hospital,
         stage=stage,
+        temperature=LeadTemperature.HOT,
+        source_category=source_cat,
+        lead_source=lead_source,
+        original_lead_source=lead_source,
+        original_source_category=source_cat,
+        campaign=campaign_obj,
+        original_campaign=campaign_obj,
         ad_platform="Meta",
         campaign_id_text=data.get("campaign_id", ""),
-        utm_campaign=data.get("campaign_name", ""),
+        utm_campaign=campaign_name,
         utm_source="facebook",
         utm_medium="paid_social",
         external_lead_id=meta_lead_id,
         raw_source_metadata=data.get("raw", {}),
-        notes=f"Auto-imported from Meta Ads.\nCampaign: {data.get('campaign_name')}\nAd Set: {data.get('ad_set_name')}\nAd: {data.get('ad_name')}",
+        custom_data=custom_data,
+        notes=f"Auto-imported from Meta Ads.\nCampaign: {campaign_name}\nAd Set: {data.get('ad_set_name')}\nAd: {data.get('ad_name')}",
     )
 
     # Update last synced time

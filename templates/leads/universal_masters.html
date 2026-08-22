@@ -79,28 +79,275 @@
   }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+<div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
   <div>
     <h3 class="mb-1 fw-bold text-dark" style="letter-spacing: -0.5px;">
-      <i class="fa-solid fa-layer-group me-2 text-primary"></i>
+      <i class="fa-solid fa-sliders me-2 text-primary"></i>
       {% if request.user.hospital %}
-        {{ request.user.hospital.name }} Master Management
+        {{ request.user.hospital.name }} Master & Form Settings
       {% else %}
-        Universal Master Management
+        Universal Master & Form Settings
       {% endif %}
     </h3>
-    <p class="text-muted mb-0">Seamlessly configure dropdown options and manage master categories.</p>
+    <p class="text-muted mb-0">Seamlessly configure dropdown options and dynamically add or remove lead form fields.</p>
   </div>
   <div class="d-flex gap-2">
-    <button class="btn btn-light btn-premium text-success border" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+    {% if tab == 'custom_fields' %}
+    <button class="btn btn-primary btn-premium text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
+      <i class="fa-solid fa-plus me-2"></i> Add New Form Field
+    </button>
+    {% else %}
+    <button class="btn btn-light btn-premium text-success border shadow-sm" data-bs-toggle="modal" data-bs-target="#importExcelModal">
       <i class="fa-solid fa-file-excel me-2"></i> Import via Excel
     </button>
-    <button class="btn btn-primary btn-premium text-white" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+    <button class="btn btn-primary btn-premium text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
       <i class="fa-solid fa-folder-plus me-2"></i> New Category
     </button>
+    {% endif %}
   </div>
 </div>
 
+<!-- Navigation Tabs for Master Options vs Custom Form Fields Builder -->
+<ul class="nav nav-pills mb-4 gap-2 bg-light p-2 rounded-4 border" style="width: fit-content;">
+  <li class="nav-item">
+    <a class="nav-link rounded-pill px-4 fw-semibold {% if tab != 'custom_fields' %}active shadow-sm{% else %}text-dark{% endif %}" href="?tab=masters">
+      <i class="fa-solid fa-database me-2"></i> Dropdown Masters & Options
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link rounded-pill px-4 fw-semibold {% if tab == 'custom_fields' %}active shadow-sm{% else %}text-dark{% endif %}" href="?tab=custom_fields">
+      <i class="fa-solid fa-pen-ruler me-2"></i> Lead Form Fields Builder <span class="badge bg-white text-primary ms-1">{{ custom_fields|length }}</span>
+    </a>
+  </li>
+</ul>
+
+{% if tab == 'custom_fields' %}
+<!-- ========================================================================= -->
+<!-- TAB: LEAD FORM CUSTOM FIELDS BUILDER -->
+<!-- ========================================================================= -->
+<div class="master-card p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-table-columns text-primary me-2"></i>Dynamic Custom Fields for Lead Form</h5>
+      <p class="text-muted small mb-0">Fields created here will automatically appear on the Lead Add/Edit form and Detail page.</p>
+    </div>
+    <button class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
+      <i class="fa-solid fa-plus me-1"></i> Create Custom Field
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-modern table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width: 70px;">Order</th>
+          <th>Field Label</th>
+          <th>Field Identifier (Code)</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Dropdown Options / Details</th>
+          <th class="text-center" style="width: 120px;">Status</th>
+          <th class="text-center" style="width: 140px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cf in custom_fields %}
+        <tr>
+          <td><span class="badge bg-light text-dark border px-2 py-1">{{ cf.order }}</span></td>
+          <td><strong class="text-dark">{{ cf.label }}</strong></td>
+          <td><code>{{ cf.name }}</code></td>
+          <td>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+              {{ cf.get_field_type_display }}
+            </span>
+          </td>
+          <td>
+            {% if cf.is_required %}
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Yes</span>
+            {% else %}
+            <span class="text-muted small">Optional</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if cf.field_type == 'DROPDOWN' %}
+            <div class="small text-muted text-truncate" style="max-width: 250px;" title="{{ cf.options }}">{{ cf.options|default:"—" }}</div>
+            {% elif cf.placeholder %}
+            <small class="text-muted">Placeholder: "{{ cf.placeholder }}"</small>
+            {% else %}
+            <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if cf.is_active %}
+            <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1"><i class="fa-solid fa-eye me-1"></i> Active</span>
+            {% else %}
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary rounded-pill px-2 py-1"><i class="fa-solid fa-eye-slash me-1"></i> Hidden</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <div class="d-flex gap-2 justify-content-center">
+              <button class="btn btn-light border action-icon-btn text-primary shadow-sm" title="Edit Field" data-bs-toggle="modal" data-bs-target="#editFieldModal{{ cf.id }}">
+                <i class="fa-solid fa-pen" style="font-size: 0.8rem;"></i>
+              </button>
+              <a href="{% url 'leads:custom_field_toggle' cf.id %}" class="btn btn-light border action-icon-btn shadow-sm {% if cf.is_active %}text-warning{% else %}text-success{% endif %}" title="{% if cf.is_active %}Hide from form{% else %}Show on form{% endif %}">
+                <i class="fa-solid {% if cf.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}" style="font-size: 0.8rem;"></i>
+              </a>
+              <form method="post" action="{% url 'leads:custom_field_delete' cf.id %}" class="d-inline" onsubmit="return confirm('Remove field \'{{ cf.label }}\' from lead form?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-light border action-icon-btn text-danger shadow-sm" title="Delete Field">
+                  <i class="fa-solid fa-trash" style="font-size: 0.8rem;"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Edit Field Modal -->
+        <div class="modal fade" id="editFieldModal{{ cf.id }}" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+              <form method="post" action="{% url 'leads:custom_field_edit' cf.id %}">
+                {% csrf_token %}
+                <div class="modal-header border-0 pb-0 pt-4 px-4">
+                  <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Form Field</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body px-4 pt-3">
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-dark mb-1">Field Label <span class="text-danger">*</span></label>
+                    <input type="text" name="label" class="form-control" value="{{ cf.label }}" required>
+                  </div>
+                  <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                      <label class="form-label small fw-semibold text-dark mb-1">Field Type</label>
+                      <select name="field_type" class="form-select">
+                        <option value="TEXT" {% if cf.field_type == 'TEXT' %}selected{% endif %}>Single Line Text</option>
+                        <option value="NUMBER" {% if cf.field_type == 'NUMBER' %}selected{% endif %}>Number (Integer)</option>
+                        <option value="DECIMAL" {% if cf.field_type == 'DECIMAL' %}selected{% endif %}>Decimal / Currency</option>
+                        <option value="DATE" {% if cf.field_type == 'DATE' %}selected{% endif %}>Date Picker</option>
+                        <option value="DROPDOWN" {% if cf.field_type == 'DROPDOWN' %}selected{% endif %}>Dropdown (Select List)</option>
+                        <option value="TEXTAREA" {% if cf.field_type == 'TEXTAREA' %}selected{% endif %}>Textarea (Multi-line)</option>
+                        <option value="CHECKBOX" {% if cf.field_type == 'CHECKBOX' %}selected{% endif %}>Checkbox (Yes / No)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small fw-semibold text-dark mb-1">Sort Order</label>
+                      <input type="number" name="order" class="form-control" value="{{ cf.order }}">
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-dark mb-1">Dropdown Options (Comma-separated)</label>
+                    <textarea name="options" class="form-control" rows="2" placeholder="e.g. Option A, Option B, Option C">{{ cf.options }}</textarea>
+                    <small class="text-muted" style="font-size: 0.72rem;">Only used if Field Type is Dropdown.</small>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-dark mb-1">Placeholder Text</label>
+                    <input type="text" name="placeholder" class="form-control" value="{{ cf.placeholder }}">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label small fw-semibold text-dark mb-1">Help Text / Subtitle</label>
+                    <input type="text" name="help_text" class="form-control" value="{{ cf.help_text }}">
+                  </div>
+                  <div class="d-flex gap-3 pt-2">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" name="is_required" id="req{{ cf.id }}" {% if cf.is_required %}checked{% endif %}>
+                      <label class="form-check-label small fw-semibold text-dark" for="req{{ cf.id }}">Required Field</label>
+                    </div>
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" name="is_active" id="act{{ cf.id }}" {% if cf.is_active %}checked{% endif %}>
+                      <label class="form-check-label small fw-semibold text-dark" for="act{{ cf.id }}">Active (Visible)</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 pb-4 px-4">
+                  <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted">
+            <div class="mb-2"><i class="fa-solid fa-wand-magic-sparkles fa-3x text-secondary opacity-50"></i></div>
+            <h6 class="fw-bold">No custom form fields added yet</h6>
+            <p class="small mb-3">You can add fields like Guardian Name, Policy Number, Blood Group, etc. without any code changes.</p>
+            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
+              <i class="fa-solid fa-plus me-1"></i> Add Your First Custom Field
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Custom Field Modal -->
+<div class="modal fade" id="addCustomFieldModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <form method="post" action="{% url 'leads:custom_field_add' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Add New Lead Form Field</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 pt-3">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Field Label <span class="text-danger">*</span></label>
+            <input type="text" name="label" class="form-control" placeholder="e.g. Guardian Name, Insurance Policy No, Blood Group" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Field Type</label>
+              <select name="field_type" class="form-select">
+                <option value="TEXT" selected>Single Line Text</option>
+                <option value="NUMBER">Number (Integer)</option>
+                <option value="DECIMAL">Decimal / Currency</option>
+                <option value="DATE">Date Picker</option>
+                <option value="DROPDOWN">Dropdown (Select List)</option>
+                <option value="TEXTAREA">Textarea (Multi-line)</option>
+                <option value="CHECKBOX">Checkbox (Yes / No)</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Sort Order</label>
+              <input type="number" name="order" class="form-control" value="0">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Dropdown Options (if Dropdown selected)</label>
+            <textarea name="options" class="form-control" rows="2" placeholder="e.g. O+, A+, B+, AB+, O-, A-, B-, AB-"></textarea>
+            <small class="text-muted" style="font-size: 0.72rem;">Separate options with commas.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Placeholder Text</label>
+            <input type="text" name="placeholder" class="form-control" placeholder="e.g. Enter policy number...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Help Text / Subtitle</label>
+            <input type="text" name="help_text" class="form-control" placeholder="e.g. Mention primary guardian contact">
+          </div>
+          <div class="form-check form-switch pt-2">
+            <input class="form-check-input" type="checkbox" name="is_required" id="addReq">
+            <label class="form-check-label small fw-semibold text-dark" for="addReq">Required Field</label>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 pb-4 px-4">
+          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Add Field to Form</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- ========================================================================= -->
+<!-- TAB: DROPDOWN MASTERS & CATEGORIES -->
+<!-- ========================================================================= -->
 <div class="row g-4">
   <!-- LEFT PANE: Master Categories List -->
   <div class="col-md-4">
@@ -400,6 +647,10 @@
     </div>
   </div>
 </div>
+
+  </div>
+</div>
+{% endif %}
 
 <script>
 function filterCategories() {

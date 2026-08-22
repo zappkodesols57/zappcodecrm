@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Campaign Management | CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h3 class="fw-bold text-primary mb-1"><i class="fa-solid fa-bullseye me-2"></i> Campaign Management</h3>
+    <p class="text-muted mb-0">Create, monitor, and track lead conversion performance across your hospital's marketing campaigns.</p>
+  </div>
+  <div>
+    <button class="btn btn-primary rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#createCampaignModal">
+      <i class="fa-solid fa-plus me-1"></i> Add New Campaign
+    </button>
+  </div>
+</div>
+
+<!-- Campaign Summary KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="small text-muted fw-bold text-uppercase">Total Campaigns</span>
+          <h3 class="fw-bold text-primary mb-0 mt-1">{{ total_campaigns }}</h3>
+        </div>
+        <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-3">
+          <i class="fa-solid fa-bullseye fa-lg"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="small text-muted fw-bold text-uppercase">Active Running</span>
+          <h3 class="fw-bold text-success mb-0 mt-1">{{ active_campaigns_count }}</h3>
+        </div>
+        <div class="rounded-circle bg-success bg-opacity-10 text-success p-3">
+          <i class="fa-solid fa-circle-play fa-lg"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-info border-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="small text-muted fw-bold text-uppercase">Total Leads</span>
+          <h3 class="fw-bold text-info mb-0 mt-1">{{ total_leads_generated }}</h3>
+        </div>
+        <div class="rounded-circle bg-info bg-opacity-10 text-info p-3">
+          <i class="fa-solid fa-users fa-lg"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="small text-muted fw-bold text-uppercase">Appts Booked</span>
+          <h3 class="fw-bold text-warning mb-0 mt-1">{{ total_appts_generated }}</h3>
+        </div>
+        <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3">
+          <i class="fa-solid fa-calendar-check fa-lg"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Campaigns Table Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+  <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-rectangle-list text-primary me-2"></i> All Marketing Campaigns</h5>
+      <small class="text-muted">Manage active campaigns, budget, target platforms and ad groups</small>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="border-0 px-4 py-3 text-muted small text-uppercase">Campaign Name</th>
+            <th class="border-0 py-3 text-muted small text-uppercase">Platform</th>
+            <th class="border-0 py-3 text-muted small text-uppercase">Ad Set / Group</th>
+            <th class="border-0 py-3 text-muted small text-uppercase">Budget / Cost</th>
+            <th class="border-0 py-3 text-muted small text-uppercase text-center">Leads</th>
+            <th class="border-0 py-3 text-muted small text-uppercase text-center">Status</th>
+            <th class="border-0 px-4 py-3 text-muted small text-uppercase text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in campaigns_data %}
+          <tr>
+            <td class="px-4">
+              <div class="fw-bold text-dark">{{ c.obj.name }}</div>
+              {% if c.obj.campaign_id %}
+                <span class="text-muted small" style="font-size: 0.72rem;"><i class="fa-solid fa-tag me-1"></i>ID: {{ c.obj.campaign_id }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if "meta" in c.obj.platform|lower or "facebook" in c.obj.platform|lower or "instagram" in c.obj.platform|lower %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-brands fa-meta me-1"></i>{{ c.obj.platform|default:"Meta Ads" }}</span>
+              {% elif "google" in c.obj.platform|lower %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="fa-brands fa-google me-1"></i>Google Ads</span>
+              {% else %}
+                <span class="badge bg-light text-secondary border px-2 py-1">{{ c.obj.platform|default:"General / Offline" }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="small fw-semibold text-dark">{{ c.obj.ad_set|default:"—" }}</div>
+              {% if c.obj.ad_name %}<div class="small text-muted" style="font-size: 0.72rem;">Ad: {{ c.obj.ad_name }}</div>{% endif %}
+            </td>
+            <td>
+              <div class="small fw-bold text-dark">₹{{ c.obj.cost }}</div>
+              {% if c.obj.start_date %}
+                <span class="text-muted small" style="font-size: 0.7rem;">{{ c.obj.start_date|date:"d M" }}{% if c.obj.end_date %} - {{ c.obj.end_date|date:"d M Y" }}{% endif %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-info text-dark fs-6 px-3 py-1 rounded-pill">{{ c.leads_count }}</span>
+            </td>
+            <td class="text-center">
+              <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle">
+                <input type="hidden" name="campaign_id" value="{{ c.obj.pk }}">
+                {% if c.obj.is_active %}
+                  <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 py-1 text-white border-0" title="Click to Deactivate">
+                    <i class="fa-solid fa-circle-check me-1"></i> Active
+                  </button>
+                {% else %}
+                  <button type="submit" class="btn btn-sm btn-secondary rounded-pill px-3 py-1 text-white border-0" title="Click to Activate">
+                    <i class="fa-solid fa-circle-pause me-1"></i> Inactive
+                  </button>
+                {% endif %}
+              </form>
+            </td>
+            <td class="px-4 text-end">
+              <div class="d-flex justify-content-end gap-1">
+                <button class="btn btn-sm btn-outline-primary rounded-3" data-bs-toggle="modal" data-bs-target="#editModal{{ c.obj.pk }}" title="Edit Campaign">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}" onsubmit="return confirm('Are you sure you want to delete campaign {{ c.obj.name }}?');" style="display:inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="campaign_id" value="{{ c.obj.pk }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="Delete Campaign">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+
+              <!-- Edit Modal -->
+              <div class="modal fade" id="editModal{{ c.obj.pk }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content border-0 shadow rounded-4 text-start">
+                    <div class="modal-header border-0 pb-0">
+                      <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-pen-to-square text-primary me-2"></i> Edit Campaign</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="edit">
+                      <input type="hidden" name="campaign_id" value="{{ c.obj.pk }}">
+                      <div class="modal-body p-4">
+                        <div class="mb-3">
+                          <label class="form-label small fw-bold text-muted text-uppercase">Campaign Name *</label>
+                          <input type="text" name="name" class="form-control" value="{{ c.obj.name }}" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Platform</label>
+                            <input type="text" name="platform" class="form-control" value="{{ c.obj.platform }}" placeholder="e.g. Meta Ads, Google Ads">
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Campaign ID</label>
+                            <input type="text" name="campaign_id_code" class="form-control" value="{{ c.obj.campaign_id }}" placeholder="e.g. CMP-102">
+                          </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Ad Set / Group</label>
+                            <input type="text" name="ad_set" class="form-control" value="{{ c.obj.ad_set }}">
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Ad Name</label>
+                            <input type="text" name="ad_name" class="form-control" value="{{ c.obj.ad_name }}">
+                          </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Budget / Cost (₹)</label>
+                            <input type="number" step="0.01" name="cost" class="form-control" value="{{ c.obj.cost }}">
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Landing Page URL</label>
+                            <input type="text" name="landing_page" class="form-control" value="{{ c.obj.landing_page }}">
+                          </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ c.obj.start_date|date:'Y-m-d' }}">
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
+                            <input type="date" name="end_date" class="form-control" value="{{ c.obj.end_date|date:'Y-m-d' }}">
+                          </div>
+                        </div>
+                        <div class="form-check form-switch mt-2">
+                          <input class="form-check-input" type="checkbox" name="is_active" id="activeCheck{{ c.obj.pk }}" {% if c.obj.is_active %}checked{% endif %}>
+                          <label class="form-check-label small fw-bold" for="activeCheck{{ c.obj.pk }}">Campaign Active</label>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5">
+              <div class="text-muted mb-3"><i class="fa-solid fa-bullseye fa-3x opacity-25"></i></div>
+              <h5 class="fw-bold text-dark">No campaigns registered yet</h5>
+              <p class="text-muted">Click "Add New Campaign" to create your first hospital campaign or connect via Meta Ads.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Campaign Modal -->
+<div class="modal fade" id="createCampaignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-plus text-primary me-2"></i> Add New Campaign</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted text-uppercase">Campaign Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Nelson Pediatric Care Camp 2026" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Platform</label>
+              <input type="text" name="platform" class="form-control" placeholder="Meta Ads, Google, Newspaper">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Campaign ID</label>
+              <input type="text" name="campaign_id_code" class="form-control" placeholder="e.g. CMP-PED-01">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Ad Set / Group</label>
+              <input type="text" name="ad_set" class="form-control" placeholder="e.g. Parents 25-45">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Ad Name</label>
+              <input type="text" name="ad_name" class="form-control" placeholder="e.g. Video Ad 1">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Budget / Cost (₹)</label>
+              <input type="number" step="0.01" name="cost" class="form-control" placeholder="0.00">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Landing Page URL</label>
+              <input type="text" name="landing_page" class="form-control" placeholder="https://...">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
+              <input type="date" name="start_date" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
+              <input type="date" name="end_date" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Create Campaign</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

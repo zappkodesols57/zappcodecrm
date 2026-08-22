@@ -47,32 +47,71 @@
     <table class="table mb-0 align-middle">
       <thead class="table-light">
         <tr>
-          <th>Date</th>
-          <th>Employee</th>
-          <th>Role</th>
-          <th>Calls Attended</th>
-          <th>Cold Leads</th>
-          <th>Calls Not Connected</th>
-          <th>Updates / Summary</th>
+          <th>Date & Employee</th>
+          <th>Reports To</th>
+          <th>Login / Logout</th>
+          <th class="text-center">Leads Assigned</th>
+          <th class="text-center">Calls Made</th>
+          <th class="text-center">Appts Booked</th>
+          <th class="text-center">Freeze Leads</th>
+          <th>Summary / Highlight</th>
         </tr>
       </thead>
       <tbody>
         {% for report in reports %}
         <tr>
-          <td><span class="badge text-bg-light border fw-normal">{{ report.report_date|date:"d-m-Y" }}</span></td>
           <td>
-            <div class="fw-bold">{{ report.user.get_full_name|default:report.user.username }}</div>
-            <div class="text-muted small">@{{ report.user.username }}</div>
+            <span class="badge text-bg-light border fw-bold">{{ report.report_date|date:"d-m-Y" }}</span>
+            <div class="fw-bold text-dark mt-1">{{ report.user.get_full_name|default:report.user.username }}</div>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle small" style="font-size: 0.68rem;">{{ report.user.get_role_display }}</span>
           </td>
-          <td><span class="badge text-bg-light border">{{ report.user.get_role_display }}</span></td>
-          <td><span class="badge text-bg-primary fs-6">{{ report.calls_attended }}</span></td>
-          <td><span class="badge text-bg-secondary fs-6">{{ report.leads_cold }}</span></td>
-          <td><span class="badge text-bg-warning fs-6">{{ report.calls_not_connected }}</span></td>
-          <td style="max-width: 320px;" class="text-truncate" title="{{ report.other_updates }}">{{ report.other_updates|default:"—" }}</td>
+          <td>
+            {% if report.user.reports_to %}
+              <div class="fw-semibold text-secondary small"><i class="fa-solid fa-user-tie me-1 text-muted"></i>{{ report.user.reports_to.get_full_name|default:report.user.reports_to.username }}</div>
+              <span class="badge bg-light text-muted border small" style="font-size: 0.65rem;">{{ report.user.reports_to.get_role_display }}</span>
+            {% else %}
+              <span class="badge bg-light text-secondary border small"><i class="fa-solid fa-user-shield me-1"></i>Admin</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="small text-nowrap">
+              <span class="badge bg-success bg-opacity-15 text-success border border-success px-2 py-1 fw-bold" style="font-size: 0.76rem;">
+                <i class="fa-solid fa-right-to-bracket me-1"></i>In: {% if report.first_login_at %}{{ report.first_login_at|time:"h:i A" }}{% elif report.created_at %}{{ report.created_at|time:"h:i A" }}{% else %}—{% endif %}
+              </span>
+            </div>
+            <div class="small text-nowrap mt-1">
+              <span class="badge bg-secondary bg-opacity-15 text-secondary border border-secondary px-2 py-1 fw-semibold" style="font-size: 0.74rem;">
+                <i class="fa-solid fa-right-from-bracket me-1"></i>Out: {% if report.last_logout_at %}{{ report.last_logout_at|time:"h:i A" }}{% else %}Active / In Session{% endif %}
+              </span>
+            </div>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">{{ report.leads_assigned }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-info text-dark fs-6 px-3 py-2 rounded-pill">{{ report.calls_attended }}</span>
+            <div class="small text-muted mt-1">{{ report.follow_ups_taken }} follow-up(s)</div>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-success fs-6 px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-check me-1"></i>{{ report.appointments_booked }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary fs-6 px-3 py-2 rounded-pill">{{ report.freeze_leads }}</span>
+          </td>
+          <td style="max-width: 280px;">
+            {% if report.key_highlight %}
+              <div class="small fw-semibold text-dark text-truncate" title="{{ report.key_highlight }}"><i class="fa-solid fa-star text-warning me-1"></i>{{ report.key_highlight }}</div>
+            {% endif %}
+            {% if report.other_updates %}
+              <div class="small text-muted text-truncate" title="{{ report.other_updates }}">{{ report.other_updates }}</div>
+            {% elif not report.key_highlight %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7">
+          <td colspan="8">
             <div class="empty-state text-center py-5 text-muted">
               <i class="fa-solid fa-file-circle-question fs-3 mb-2"></i>
               <div>No daily reports found matching the selected filters.</div>

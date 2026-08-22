@@ -1,16 +1,17 @@
 {% extends "base.html" %}
-{% block title %}All Leads</div>
-{% endblock %}
+{% block title %}{% if request.user.hospital %}Patient Leads{% else %}All Leads{% endif %}{% endblock %}
 {% block content %}
-<div class="nelson-dashboard">
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h4 class="mb-0">All Leads</h4>
+    <h4 class="mb-0 fw-bold">{% if request.user.hospital %}Patient Leads{% else %}All Leads{% endif %}</h4>
     <div class="text-muted small">{{ total_count }} lead(s)</div>
   </div>
   <div class="d-flex gap-2">
-    <a href="{% url 'imports:export' %}?{{ request.GET.urlencode }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-file-export"></i> Export</a>
-    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white"><i class="fa-solid fa-user-plus"></i> Add New Lead</a>
+    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="{% if q or request_get.date_from or request_get.date_to or request_get.stage or request_get.campaign or request_get.assigned_to %}true{% else %}false{% endif %}">
+      <i class="fa-solid fa-filter me-1"></i> {% if q or request_get.date_from or request_get.date_to or request_get.stage or request_get.campaign or request_get.assigned_to %}Hide Filters (Active){% else %}Filter Leads{% endif %}
+    </button>
+    <a href="{% url 'imports:export' %}?{{ request.GET.urlencode }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-file-export me-1"></i> Export</a>
+    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white"><i class="fa-solid fa-user-plus me-1"></i> Add New Lead</a>
   </div>
 </div>
 
@@ -23,123 +24,94 @@
 </div>
 {% endif %}
 
-<form method="get" class="card p-4 mb-4 shadow-sm border-0" style="border-radius: 1rem;">
-  <h6 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-filter me-2"></i> Advanced Filters</h6>
-  <div class="row g-3">
-     <!-- Top row: Search, Dates, Assignee -->
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Search Keyword</label>
-       <input type="search" name="q" class="form-control" placeholder="Search name, phone, etc..." value="{{ q }}">
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date From</label>
-       <input type="date" name="date_from" class="form-control" value="{{ request_get.date_from }}">
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date To</label>
-       <input type="date" name="date_to" class="form-control" value="{{ request_get.date_to }}">
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Assigned To</label>
-       <select name="assigned_to" class="form-select">
-         <option value="">All Employees</option>
-         {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-       </select>
-     </div>
+<!-- Collapsible Filter Form (Hidden by default unless search/filter active) -->
+<div class="collapse {% if q or request_get.date_from or request_get.date_to or request_get.stage or request_get.campaign or request_get.assigned_to or request_get.temperature or request_get.deal_status %}show{% endif %} mb-3" id="filterCollapse">
+  <form method="get" class="card p-3 shadow-sm border-0 bg-white" style="border-radius: 0.75rem;">
+    <div class="row g-3">
+       <!-- Top row: Search, Dates, Assignee -->
+       <div class="col-md-3">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Search</label>
+         <input type="search" name="q" class="form-control form-control-sm" placeholder="Search name, phone, etc..." value="{{ q }}">
+       </div>
+       <div class="col-md-3">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date From</label>
+         <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
+       </div>
+       <div class="col-md-3">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date To</label>
+         <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
+       </div>
+       <div class="col-md-3">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Assigned To</label>
+         <select name="assigned_to" class="form-select form-select-sm">
+           <option value="">All Employees</option>
+           {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+         </select>
+       </div>
 
-     <!-- Second row: Campaigns & Sources -->
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Campaign</label>
-       <select name="campaign" class="form-select">
-         <option value="">All Campaigns</option>
-         {% if request.user.hospital %}
-           {% for c in hospital_campaigns %}<option value="{{ c.name }}" {% if request_get.campaign == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-         {% else %}
-           {% for c in campaigns %}<option value="{{ c.id }}" {% if request_get.campaign == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-         {% endif %}
-       </select>
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Source</label>
-       <select name="lead_source" class="form-select">
-         <option value="">All Lead Sources</option>
-         {% if request.user.hospital %}
-           {% for ls in hospital_sources %}<option value="{{ ls.name }}" {% if request_get.lead_source == ls.name %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
-         {% else %}
-           {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
-         {% endif %}
-       </select>
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Source Category</label>
-       <select name="source_category" class="form-select">
-         <option value="">All Source Categories</option>
-         {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
-       </select>
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Location (City)</label>
-       <select name="location" class="form-select">
-         <option value="">All Locations</option>
-         {% for l in locations %}<option value="{{ l }}" {% if request_get.location == l %}selected{% endif %}>{{ l }}</option>{% endfor %}
-       </select>
-     </div>
-     
-     <!-- Third row: Statuses -->
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Stage</label>
-       <select name="stage" class="form-select">
-         <option value="">All Stages</option>
-         {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-       </select>
-     </div>
-     <div class="col-md-2">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Course / Dept</label>
-       <select name="course" class="form-select">
-         <option value="">All Courses</option>
-         {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-       </select>
-     </div>
-     <div class="col-md-2">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Follow-up</label>
-       <select name="followup" class="form-select">
-         <option value="">All Follow-ups</option>
-         <option value="today" {% if request_get.followup == "today" %}selected{% endif %}>Due Today</option>
-         <option value="overdue" {% if request_get.followup == "overdue" %}selected{% endif %}>Overdue</option>
-       </select>
-     </div>
-     <div class="col-md-2">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Temperature</label>
-       <select name="temperature" class="form-select">
-         <option value="">All Temps</option>
-         <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
-         <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
-         <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
-         <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
-         <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
-       </select>
-     </div>
-     <div class="col-md-3">
-       <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Deal Status</label>
-       <select name="deal_status" class="form-select">
-         <option value="">All Deal Statuses</option>
-         {% if request.user.hospital %}
-           {% for ds in hospital_statuses %}<option value="{{ ds.name }}" {% if request_get.deal_status == ds.name %}selected{% endif %}>{{ ds.name }}</option>{% endfor %}
-         {% else %}
-           <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-           <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-           <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-           <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-         {% endif %}
-       </select>
-     </div>
-  </div>
-  
-  <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
-    <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary px-4 rounded-pill fw-bold">Reset Filters</a>
-    <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm fw-bold"><i class="fa-solid fa-filter me-2"></i> Apply Filters</button>
-  </div>
-</form>
+       <!-- Second row: Campaigns & Sources -->
+       <div class="col-md-3">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Campaign</label>
+         <select name="campaign" class="form-select form-select-sm">
+           <option value="">All Campaigns</option>
+           {% if request.user.hospital %}
+             {% for c in hospital_campaigns %}<option value="{{ c.name }}" {% if request_get.campaign == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+           {% else %}
+             {% for c in campaigns %}<option value="{{ c.id }}" {% if request_get.campaign == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+           {% endif %}
+         </select>
+       </div>
+       <div class="col-md-3">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Source</label>
+         <select name="lead_source" class="form-select form-select-sm">
+           <option value="">All Sources</option>
+           {% if request.user.hospital %}
+             {% for s in hospital_sources %}<option value="{{ s.name }}" {% if request_get.lead_source == s.name %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+           {% else %}
+             {% for s in lead_sources %}<option value="{{ s.id }}" {% if request_get.lead_source == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+           {% endif %}
+         </select>
+       </div>
+       <div class="col-md-2">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Stage</label>
+         <select name="stage" class="form-select form-select-sm">
+           <option value="">All Stages</option>
+           {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+         </select>
+       </div>
+       <div class="col-md-2">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Temperature</label>
+         <select name="temperature" class="form-select form-select-sm">
+           <option value="">All Temps</option>
+           <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
+           <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
+           <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
+           <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
+           <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
+         </select>
+       </div>
+       <div class="col-md-2">
+         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Deal Status</label>
+         <select name="deal_status" class="form-select form-select-sm">
+           <option value="">All Statuses</option>
+           {% if request.user.hospital %}
+             {% for ds in hospital_statuses %}<option value="{{ ds.name }}" {% if request_get.deal_status == ds.name %}selected{% endif %}>{{ ds.name }}</option>{% endfor %}
+           {% else %}
+             <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+             <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+             <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+             <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+           {% endif %}
+         </select>
+       </div>
+    </div>
+    
+    <div class="d-flex justify-content-end gap-2 mt-3 pt-2 border-top">
+      <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-secondary px-3">Reset Filters</a>
+      <button type="submit" class="btn btn-sm btn-primary px-3 shadow-sm"><i class="fa-solid fa-filter me-1"></i> Apply Filters</button>
+    </div>
+  </form>
+</div>
 
 <form method="post" action="{% url 'leads:bulk_action' %}">
   {% csrf_token %}
@@ -159,31 +131,60 @@
     <button class="btn btn-sm btn-outline-secondary" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
   </div>
 
-  <div class="card">
+  <div class="card border-0 shadow-sm rounded-4">
     <div class="table-responsive">
-      <table class="table mb-0">
-        <thead><tr>
+      <table class="table align-middle mb-0">
+        <thead class="bg-light"><tr>
           <th><input type="checkbox" onclick="document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked)"></th>
-          <th>Lead ID</th><th>Date</th><th>Name</th><th>Mobile</th><th>Course</th><th>Source</th><th>Stage</th><th>Temp</th><th>Deal</th><th>Assigned</th><th>Next Follow-up</th>
+          <th>Lead ID</th>
+          <th>Date</th>
+          <th>Patient Name</th>
+          <th>Mobile</th>
+          <th>{% if request.user.hospital %}Doctor / Dept{% else %}Course{% endif %}</th>
+          <th>Source</th>
+          <th>Stage</th>
+          <th>Status / Appt</th>
+          <th>Attendant</th>
+          <th>Next Follow-up</th>
         </tr></thead>
         <tbody>
           {% for lead in page_obj %}
           <tr>
             <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-            <td><a href="{% url 'leads:lead_detail' lead.pk %}">{{ lead.lead_code }}</a></td>
-            <td><span class="text-nowrap">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
-            <td>{{ lead.name }}</td>
+            <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold">{{ lead.lead_code }}</a></td>
+            <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
+            <td><strong>{{ lead.name }}</strong></td>
             <td>{{ lead.mobile }}</td>
-            <td>{{ lead.course|default:"—" }}</td>
-            <td>{{ lead.lead_source|default:"—" }}</td>
+            <td>
+              {% if lead.hospital and lead.custom_data.doctor %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i>{{ lead.custom_data.doctor }}</span>
+                {% if lead.custom_data.department %}<div class="small text-muted">{{ lead.custom_data.department }}</div>{% endif %}
+              {% else %}
+                {{ lead.course|default:"—" }}
+              {% endif %}
+            </td>
+            <td><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
             <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
-            <td><span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span></td>
-            <td>{{ lead.get_deal_status_display }}</td>
-            <td>{{ lead.assigned_to|default:"Unassigned" }}</td>
-            <td>{% if lead.next_followup_date %}{{ lead.next_followup_date|date:"d-m-Y" }}{% else %}—{% endif %}</td>
+            <td>
+              {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
+              {% elif lead.custom_data.appointment_status %}
+                {% if lead.custom_data.appointment_status == 'Booked' or lead.custom_data.appointment_status == 'Confirmed' %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Booked</span>
+                {% elif "Awaiting" in lead.custom_data.appointment_status %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-clock me-1"></i>Awaiting</span>
+                {% else %}
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.custom_data.appointment_status }}</span>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
+              {% endif %}
+            </td>
+            <td><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
+            <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="12"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No leads found. Try adjusting filters or add a new lead.</div></td></tr>
+          <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No leads found. Try adjusting filters or add a new lead.</div></td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -249,5 +250,4 @@ function jumpToPage() {
 }
 </script>
 {% endif %}
-</div>
 {% endblock %}

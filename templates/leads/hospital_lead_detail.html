@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} · {{ lead.lead_code|default:lead.pk }}{% endblock %}
+
+{% block content %}
+<!-- Top Header & Actions -->
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
+    <h4 class="mb-1 fw-bold text-dark">{{ lead.name }}
+      {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.total %}
+        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Won (Payment Done)</span>
+        <span class="badge text-bg-success"><i class="fa-solid fa-check-double me-1"></i>Completed</span>
+      {% else %}
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ lead.custom_data.deal_status|default:lead.stage }}</span>
+        {% if lead.custom_data.appointment_status %}
+          {% if "Confirmed" in lead.custom_data.appointment_status or "APPROVED" in lead.custom_data.appointment_status %}
+            <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1"></i>{{ lead.custom_data.appointment_status }}</span>
+          {% elif "Awaiting" in lead.custom_data.appointment_status %}
+            <span class="badge text-bg-warning"><i class="fa-solid fa-clock me-1"></i>{{ lead.custom_data.appointment_status }}</span>
+          {% elif "Reject" in lead.custom_data.appointment_status %}
+            <span class="badge text-bg-danger"><i class="fa-solid fa-ban me-1"></i>{{ lead.custom_data.appointment_status }}</span>
+          {% elif "Complete" in lead.custom_data.appointment_status or "Done" in lead.custom_data.appointment_status %}
+            <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1"></i>Completed</span>
+          {% else %}
+            <span class="badge text-bg-info text-white">{{ lead.custom_data.appointment_status }}</span>
+          {% endif %}
+        {% endif %}
+      {% endif %}
+    </h4>
+    <div class="text-muted small d-flex gap-3 mt-1">
+      <span><i class="fa-solid fa-phone text-secondary me-1"></i><strong>{{ lead.mobile }}</strong></span>
+      {% if lead.city or lead.custom_data.location %}
+        <span><i class="fa-solid fa-location-dot text-danger me-1"></i>{{ lead.custom_data.location|default:lead.city }}</span>
+      {% endif %}
+      {% if lead.custom_data.gender %}
+        <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <!-- 1-Click WhatsApp Confirmation to Patient -->
+    {% if lead.mobile %}
+    <a href="https://wa.me/91{{ lead.clean_mobile }}?text=Hello%20{{ lead.name|urlencode }},%20your%20appointment%20with%20Dr.%20{{ lead.custom_data.doctor|default:'our specialist'|urlencode }}%20at%20{{ request.user.hospital.name|default:'Nelson Hospital'|urlencode }}%20is%20confirmed%20for%20{{ lead.custom_data.appo_booked_date|default:today }}%20at%20{{ lead.custom_data.appointment_time|default:'scheduled time'|urlencode }}.%20Please%20reach%2015%20mins%20prior.%20Thank%20you!" target="_blank" class="btn btn-sm btn-success fw-bold shadow-sm" title="Send WhatsApp Appointment Confirmation to Patient">
+      <i class="fa-brands fa-whatsapp fs-6 me-1"></i> Send WhatsApp to Patient
+    </a>
+    {% endif %}
+    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
+    <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
+      <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Left Column: Patient & Hospital Info -->
+  <div class="col-lg-8">
+
+    <!-- Hospital Consultation & Appointment Info -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-stethoscope text-primary me-2"></i>Consultation & Appointment Details</h6>
+        {% if lead.mobile %}
+        <a href="https://wa.me/91{{ lead.clean_mobile }}?text=Hello%20{{ lead.name|urlencode }},%20your%20appointment%20with%20Dr.%20{{ lead.custom_data.doctor|default:'our specialist'|urlencode }}%20at%20{{ request.user.hospital.name|default:'Nelson Hospital'|urlencode }}%20is%20confirmed%20for%20{{ lead.custom_data.appo_booked_date|default:today }}%20at%20{{ lead.custom_data.appointment_time|default:'scheduled time'|urlencode }}.%20Thank%20you!" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-bold">
+          <i class="fa-brands fa-whatsapp me-1"></i> Quick Message
+        </a>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-3 small">
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">Department / Specialty</span>
+              <strong class="fs-6 text-dark">{{ lead.custom_data.department|default:"—" }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">Consulting Doctor</span>
+              <strong class="fs-6 text-primary"><i class="fa-solid fa-user-doctor me-1"></i>{{ lead.custom_data.doctor|default:"—" }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">Appointment Date & Time</span>
+              <strong class="fs-6 text-dark">
+                {% if lead.custom_data.appo_booked_date %}
+                  {{ lead.custom_data.appo_booked_date }} {{ lead.custom_data.appointment_time|default:"" }}
+                {% else %}
+                  —
+                {% endif %}
+              </strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">Priority</span>
+              <span class="badge bg-secondary">{{ lead.custom_data.priority|default:"Normal" }}</span>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">UHID ID NO</span>
+              <strong class="text-dark">{{ lead.custom_data.uhid_id_no|default:"—" }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">IPD NO</span>
+              <strong class="text-dark">{{ lead.custom_data.ipd_no|default:"—" }}</strong>
+            </div>
+          </div>
+          {% for item in custom_field_data %}
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">{{ item.label }}</span>
+              <strong class="text-dark">{{ item.value }}</strong>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Hospital Billing & Financial Summary -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i>Investigation & Billing Summary</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 small">
+          <div class="col-sm-3">
+            <div class="p-2 border rounded-3 bg-light text-center">
+              <span class="text-muted d-block">Pharmacy Bill</span>
+              <strong>₹{{ lead.custom_data.pharmacy_bill|default:"0.00" }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="p-2 border rounded-3 bg-light text-center">
+              <span class="text-muted d-block">OPD Bill</span>
+              <strong>₹{{ lead.custom_data.opd_bill|default:"0.00" }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="p-2 border rounded-3 bg-light text-center">
+              <span class="text-muted d-block">Investigation</span>
+              <strong>{{ lead.custom_data.investigation|default:"—" }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="p-2 border rounded-3 bg-success-subtle text-center text-success-emphasis border-success">
+              <span class="text-muted d-block">Total Bill</span>
+              <strong class="fs-6">₹{{ lead.custom_data.total|default:"0.00" }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telecaller Calling Remarks History -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-headset text-info me-2"></i>Attendant Calling Remarks</h6>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          {% if lead.custom_data.remark_1 or lead.custom_data.calling_date_remark_1 %}
+          <div class="list-group-item px-0 py-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <strong>Remark 1 (Initial Call)</strong>
+              <span class="text-muted">{{ lead.custom_data.calling_date_remark_1|default:"" }}</span>
+            </div>
+            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_1|default:"No notes recorded" }}</p>
+          </div>
+          {% endif %}
+
+          {% if lead.custom_data.remark_2 or lead.custom_data.calling_date_remark_2 %}
+          <div class="list-group-item px-0 py-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <strong>Remark 2 (Follow-up Call)</strong>
+              <span class="text-muted">{{ lead.custom_data.calling_date_remark_2|default:"" }} {{ lead.custom_data.calling_time_remark_2|default:"" }}</span>
+            </div>
+            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_2|default:"No notes recorded" }}</p>
+          </div>
+          {% endif %}
+
+          {% if lead.custom_data.remark_3 or lead.custom_data.calling_date_remark_3 %}
+          <div class="list-group-item px-0 py-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <strong>Remark 3 (Final Status)</strong>
+              <span class="text-muted">{{ lead.custom_data.calling_date_remark_3|default:"" }}</span>
+            </div>
+            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_3|default:"No notes recorded" }}</p>
+          </div>
+          {% endif %}
+
+          {% if not lead.custom_data.remark_1 and not lead.custom_data.remark_2 and not lead.custom_data.remark_3 %}
+          <div class="text-muted text-center py-2 small">No calling remarks recorded yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Follow-up & Interaction Section -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Add Follow-up</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'leads:add_followup' lead.pk %}">
+          {% csrf_token %}
+          <div class="row g-2 mb-2">
+            <div class="col-md-3">
+              <input type="date" name="followup_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col-md-2">
+              <input type="time" name="followup_time" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+              <select name="followup_mode" class="form-select form-select-sm">
+                {% for val, label in followup_modes %}
+                  <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <select name="followup_status" class="form-select form-select-sm">
+                {% for val, label in followup_statuses %}
+                  <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <input type="date" name="next_followup_date" class="form-control form-control-sm" placeholder="Next Date">
+            </div>
+          </div>
+          <div class="input-group">
+            <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment..." required>
+            <button type="submit" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-plus me-1"></i> Add</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Timeline History -->
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-secondary me-2"></i>Activity Timeline</h6>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for item in timeline %}
+          <div class="timeline-item pb-3 mb-3 border-bottom small">
+            <div class="d-flex justify-content-between text-muted">
+              <span><strong>{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}</strong> — {{ item.get_activity_type_display }}</span>
+              <span>{{ item.created_at|date:"d M Y, h:i A" }}</span>
+            </div>
+            <div class="text-dark mt-1">{{ item.description }}</div>
+          </div>
+          {% empty %}
+          <div class="text-muted text-center py-3 small">No activity recorded yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right Column: Campaign, Source & Owner -->
+  <div class="col-lg-4">
+    <!-- Patient Attribution & Lead Source -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-bullhorn text-primary me-2"></i>Source & Campaign</h6>
+      </div>
+      <div class="card-body small">
+        <div class="mb-2">
+          <span class="text-muted d-block">Lead Source:</span>
+          <strong>{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</strong>
+        </div>
+        <div class="mb-2">
+          <span class="text-muted d-block">Campaign:</span>
+          <strong>{{ lead.custom_data.campaign|default:lead.campaign|default:"—" }}</strong>
+        </div>
+        <div class="mb-2">
+          <span class="text-muted d-block">Lead Owner (Attendant):</span>
+          <span class="badge bg-light text-dark border"><i class="fa-solid fa-user-check text-success me-1"></i>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</span>
+        </div>
+        <div>
+          <span class="text-muted d-block">Created On:</span>
+          <span>{{ lead.created_at|date:"d M Y, h:i A" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Notes -->
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-regular fa-note-sticky text-warning me-2"></i>Internal Notes</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'leads:add_note' lead.pk %}">
+          {% csrf_token %}
+          <textarea name="notes" class="form-control form-control-sm mb-2" rows="3" placeholder="Add confidential notes...">{{ lead.notes }}</textarea>
+          <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-floppy-disk me-1"></i> Save Notes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

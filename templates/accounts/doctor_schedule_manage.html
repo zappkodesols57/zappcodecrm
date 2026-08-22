@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Doctor Schedule - {{ doctor.get_full_name|default:doctor.username }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold text-dark mb-0">
+      <i class="fa-solid fa-calendar-days text-success me-2"></i>Doctor Calendar & Availability
+    </h4>
+    <p class="text-muted small mb-0">
+      Doctor: <strong>{{ doctor.get_full_name|default:doctor.username }}</strong> · Department: {{ doctor.department|default:"General" }}
+    </p>
+  </div>
+  {% if is_admin %}
+  <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="fa-solid fa-arrow-left me-1"></i> Back to User List
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: OPD Schedule Settings -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock text-primary me-2"></i>Regular OPD Working Hours</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_schedule">
+          
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">OPD Start Time</label>
+            <input type="time" name="opd_start_time" class="form-control" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">OPD End Time</label>
+            <input type="time" name="opd_end_time" class="form-control" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">Slot Duration (Minutes)</label>
+            <select name="slot_duration_minutes" class="form-select">
+              <option value="15" {% if schedule.slot_duration_minutes == 15 %}selected{% endif %}>15 Minutes</option>
+              <option value="20" {% if schedule.slot_duration_minutes == 20 %}selected{% endif %}>20 Minutes</option>
+              <option value="30" {% if schedule.slot_duration_minutes == 30 %}selected{% endif %}>30 Minutes</option>
+              <option value="45" {% if schedule.slot_duration_minutes == 45 %}selected{% endif %}>45 Minutes</option>
+              <option value="60" {% if schedule.slot_duration_minutes == 60 %}selected{% endif %}>60 Minutes</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">Weekly Off Days</label>
+            <input type="text" name="off_days" class="form-control" value="{{ schedule.off_days }}" placeholder="e.g. Sunday, Saturday">
+            <div class="form-text small">Comma separated day names when doctor is regularly off.</div>
+          </div>
+
+          <div class="mb-3 form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_available" value="1" id="isAvailCheck" {% if schedule.is_available %}checked{% endif %}>
+            <label class="form-check-label small fw-bold" for="isAvailCheck">Doctor is actively taking appointments</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 fw-bold">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save Working Hours
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Leave / Time-off Modal/Card -->
+    <div class="card shadow-sm border-0 rounded-3">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-danger"><i class="fa-solid fa-plane-departure me-2"></i>Add Leave / Time Off</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_leave">
+          
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted">From Date</label>
+              <input type="date" name="start_date" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-muted">To Date</label>
+              <input type="date" name="end_date" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">Reason / Note</label>
+            <input type="text" name="reason" class="form-control" placeholder="e.g. Medical Conference, Vacation" required>
+          </div>
+
+          <div class="mb-3 form-check">
+            <input class="form-check-input" type="checkbox" name="is_full_day" value="1" id="fullDayCheck" checked onchange="document.getElementById('partialTimeDiv').style.display = this.checked ? 'none' : 'flex';">
+            <label class="form-check-label small" for="fullDayCheck">Full Day Off</label>
+          </div>
+
+          <div class="row g-2 mb-3" id="partialTimeDiv" style="display:none;">
+            <div class="col-6">
+              <label class="form-label small text-muted">From Time</label>
+              <input type="time" name="start_time" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted">To Time</label>
+              <input type="time" name="end_time" class="form-control">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-outline-danger w-100 fw-bold">
+            <i class="fa-solid fa-plus me-1"></i> Block Leave Dates
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Scheduled Leaves & Real-time Doctor Appointments -->
+  <div class="col-lg-7">
+    
+    <!-- Leaves List -->
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-calendar-xmark text-danger me-2"></i>Upcoming & Recorded Leaves</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Dates</th>
+              <th>Type</th>
+              <th>Reason</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in leaves %}
+            <tr>
+              <td>
+                <div class="fw-bold text-dark">{{ l.start_date|date:"d M Y" }}{% if l.start_date != l.end_date %} to {{ l.end_date|date:"d M Y" }}{% endif %}</div>
+              </td>
+              <td>
+                {% if l.is_full_day %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Full Day</span>
+                {% else %}
+                <span class="badge bg-warning bg-opacity-10 text-warning text-dark">{{ l.start_time|time:"h:i A" }} - {{ l.end_time|time:"h:i A" }}</span>
+                {% endif %}
+              </td>
+              <td><span class="small text-muted">{{ l.reason|default:"—" }}</span></td>
+              <td class="text-end">
+                <form method="POST" onsubmit="return confirm('Remove this leave?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_leave">
+                  <input type="hidden" name="leave_id" value="{{ l.pk }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remove Leave">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center py-3 text-muted small">No upcoming leaves logged for this doctor.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Doctor Appointments -->
+    <div class="card shadow-sm border-0 rounded-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-stethoscope text-success me-2"></i>Recent Appointments</h6>
+        <span class="badge text-bg-light border">{{ appointments|length }} Bookings</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Patient</th>
+              <th>Date & Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for apt in appointments %}
+            <tr>
+              <td>
+                <div class="fw-bold">{{ apt.lead.name }}</div>
+                <div class="small text-muted">{{ apt.lead.mobile }}</div>
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ apt.appointment_date|date:"d M Y" }}</div>
+                <div class="small text-muted">{{ apt.appointment_time|time:"h:i A"|default:"Time not set" }}</div>
+              </td>
+              <td>
+                {% if apt.status == 'APPROVED' or apt.status == 'SCHEDULED' %}
+                <span class="badge text-bg-success">Confirmed</span>
+                {% elif apt.status == 'PENDING_APPROVAL' %}
+                <span class="badge text-bg-warning">Pending Approval</span>
+                {% elif apt.status == 'COMPLETED' %}
+                <span class="badge text-bg-primary">Completed</span>
+                {% else %}
+                <span class="badge text-bg-secondary">{{ apt.get_status_display }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" class="text-center py-4 text-muted small">No appointments booked yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
