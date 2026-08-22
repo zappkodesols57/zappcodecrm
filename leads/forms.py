@@ -1,3 +1,5 @@
+from datetime import datetime, date
+from django.utils import timezone
 from django import forms
 from django.db import models
 from accounts.models import User
@@ -149,6 +151,8 @@ class HospitalLeadForm(forms.ModelForm):
     campaign = NonStrictChoiceField(choices=[], required=False)
     lead_source = NonStrictChoiceField(choices=[], required=False)
     
+    cancellation_reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter reason for cancellation / not interested..."}), required=False, label="Reason for Cancellation / Not Interested")
+    
     # Billing & ID
     uhid_id_no = forms.CharField(max_length=100, required=False, label="UHID ID NO")
     ipd_no = forms.CharField(max_length=100, required=False, label="IPD NO")
@@ -183,20 +187,52 @@ class HospitalLeadForm(forms.ModelForm):
         self.current_user = user
         super().__init__(*args, **kwargs)
         
+        cd = (self.instance.custom_data or {}) if (self.instance and self.instance.pk) else {}
         # Load JSON fields into form
         if self.instance and self.instance.pk:
-            cd = self.instance.custom_data or {}
-            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments']:
+            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
                 if field in cd and field in self.fields:
                     self.fields[field].initial = cd[field]
             
+            # Load Campaign from Model ForeignKey or custom_data
+            if not self.fields['campaign'].initial:
+                if self.instance.campaign:
+                    self.fields['campaign'].initial = self.instance.campaign.name
+                elif self.instance.original_campaign:
+                    self.fields['campaign'].initial = self.instance.original_campaign.name
+                elif cd.get('campaign'):
+                    self.fields['campaign'].initial = cd.get('campaign')
+
+            # Load Lead Source from Model ForeignKey or custom_data
+            if not self.fields['lead_source'].initial:
+                if self.instance.lead_source:
+                    self.fields['lead_source'].initial = self.instance.lead_source.name
+                elif self.instance.original_lead_source:
+                    self.fields['lead_source'].initial = self.instance.original_lead_source.name
+                elif cd.get('lead_source'):
+                    self.fields['lead_source'].initial = cd.get('lead_source')
+                elif cd.get('source'):
+                    self.fields['lead_source'].initial = cd.get('source')
+
+            # Load Location from Lead.location / Lead.city if not set
+            if not self.fields['location'].initial:
+                loc_val = self.instance.location or self.instance.city or cd.get('city') or cd.get('location')
+                if loc_val:
+                    self.fields['location'].initial = loc_val
+
             # If comments not in custom_data, load from instance.notes
             if not self.fields['comments'].initial and self.instance.notes:
                 self.fields['comments'].initial = self.instance.notes
             
+            # If appointment is booked/approved/scheduled/completed or payment done, ensure appointment_status reflects Booking
+            curr_st = str(self.fields['appointment_status'].initial or cd.get('appointment_status') or '').strip().upper()
+            from leads.models import Appointment
+            has_appt = Appointment.objects.filter(lead=self.instance).exists()
+            if has_appt or any(k in curr_st for k in ['COMPLET', 'PAYMENT', 'CONFIRM', 'APPROVED', 'SCHEDULED', 'BOOK']):
+                self.fields['appointment_status'].initial = 'Booking'
+
             # If appointment_time is not in custom_data, load from Appointment relation
             if not self.fields['appointment_time'].initial:
-                from leads.models import Appointment
                 apt = Appointment.objects.filter(lead=self.instance).order_by('-id').first()
                 if apt and apt.appointment_time:
                     self.fields['appointment_time'].initial = apt.appointment_time.strftime('%H:%M')
@@ -244,49 +280,126 @@ class HospitalLeadForm(forms.ModelForm):
         try:
             loc_items = list(MasterItem.objects.filter(group__name__iexact="Locations", is_active=True).order_by("name").values_list("name", "name"))
             self.fields["location"].choices = [("", "-- Select Patient Location (City, State) --")] + loc_items
-            self.fields["department"].choices = [("", "-- Select Department --")] + get_tenant_items("Departments")
+            # 1. Departments filtered by Branch if available
+            from leads.models import HospitalDepartment, HospitalDoctor, HospitalBranch, HospitalDisease
+            init_branch = cd.get("hospital_branch") or cd.get("branch")
+            dept_qs = HospitalDepartment.objects.filter(is_active=True)
+            if user and user.hospital:
+                dept_qs = dept_qs.filter(hospital=user.hospital)
+            if init_branch:
+                dept_qs = dept_qs.filter(branches__name__iexact=str(init_branch))
+
+            model_depts = [(d.name, d.name) for d in dept_qs]
+            master_depts = get_tenant_items("Departments") if not init_branch else []
             
-            # Combine Doctors from Master Items AND Registered Doctor Users
-            master_doctors = get_tenant_items("Doctors")
+            all_dept_names = set()
+            combined_depts = []
+            for d_val, d_lbl in (model_depts + master_depts):
+                if d_val and d_val.lower() not in all_dept_names:
+                    all_dept_names.add(d_val.lower())
+                    combined_depts.append((d_val, d_lbl))
+
+            if init_branch:
+                self.fields["department"].choices = [("", "-- Select Department --")] + combined_depts
+            else:
+                self.fields["department"].choices = [("", "-- Select Hospital Branch First --")] + combined_depts
+            
+            # 2. Doctors from HospitalDoctor model filtered by Department
+            init_dept = self.fields.get("department") and self.fields["department"].initial
+            hdoc_qs = HospitalDoctor.objects.filter(is_active=True)
+            if user and user.hospital:
+                hdoc_qs = hdoc_qs.filter(hospital=user.hospital)
+            if init_dept:
+                hdoc_qs = hdoc_qs.filter(models.Q(departments__name__iexact=str(init_dept)) | models.Q(department__name__iexact=str(init_dept)))
+            
+            model_doctors = [(doc.name, f"Dr. {doc.name}" if not doc.name.lower().startswith("dr") else doc.name) for doc in hdoc_qs]
+
             registered_doctor_qs = User.objects.filter(role=User.Role.DOCTOR, is_active=True)
             if user and user.hospital:
                 registered_doctor_qs = registered_doctor_qs.filter(hospital=user.hospital)
-                
             registered_doctors = []
             for doc in registered_doctor_qs:
                 doc_display = doc.get_full_name().strip() or doc.username
-                registered_doctors.append((doc_display, doc_display))
+                registered_doctors.append((doc_display, f"Dr. {doc_display}" if not doc_display.lower().startswith("dr") else doc_display))
+
+            master_doctors = get_tenant_items("Doctors") if not init_dept else []
                 
             # Merge and deduplicate choices preserving order
             all_doc_names = set()
             combined_doctors = []
-            for doc_val, doc_lbl in (registered_doctors + master_doctors):
+            for doc_val, doc_lbl in (model_doctors + (registered_doctors if not init_dept else []) + master_doctors):
                 if doc_val and doc_val.lower() not in all_doc_names:
                     all_doc_names.add(doc_val.lower())
                     combined_doctors.append((doc_val, doc_lbl))
                     
-            self.fields["doctor"].choices = [("", "-- Select Doctor --")] + combined_doctors
-            self.fields["gender"].choices = [("", "-- Select Gender --")] + get_tenant_items("Genders")
-            self.fields["priority"].choices = [("", "-- Select Priority --")] + get_tenant_items("Priorities")
-            self.fields["appointment_status"].choices = [("", "-- Select Appointment Status --")] + get_tenant_items("Appointment Statuses")
-            self.fields["deal_status"].choices = [("", "-- Select Deal Status --")] + get_tenant_items("Deal Statuses")
-            # Merge Campaign choices from Campaign model + MasterItem
-            from leads.models import Campaign
-            camp_qs = Campaign.objects.filter(is_active=True)
-            if user and user.hospital:
-                camp_qs = camp_qs.filter(Q(hospital=user.hospital) | Q(hospital__isnull=True))
-            model_campaigns = [(c.name, c.name) for c in camp_qs]
-            master_campaigns = get_tenant_items("Campaigns")
-            
-            all_camp_names = set()
-            combined_campaigns = []
-            for c_val, c_lbl in (model_campaigns + master_campaigns):
-                if c_val and c_val.lower() not in all_camp_names:
-                    all_camp_names.add(c_val.lower())
-                    combined_campaigns.append((c_val, c_lbl))
+            if init_dept:
+                self.fields["doctor"].choices = [("", "-- Select Doctor --")] + combined_doctors
+            else:
+                self.fields["doctor"].choices = [("", "-- Select Department First --")] + combined_doctors
 
-            self.fields["campaign"].choices = [("", "-- Select Campaign --")] + combined_campaigns
-            self.fields["lead_source"].choices = [("", "-- Select Lead Source --")] + get_tenant_items("Lead Sources")
+            # -------------------------------------------------------------------
+            # UNIFIED OPTIONS RESOLVER:
+            # When options are configured in LeadCustomField (Edit Form Field),
+            # use strictly those options. Falls back to MasterItem only if not configured.
+            # -------------------------------------------------------------------
+            from leads.models import LeadCustomField, Campaign, LeadSource
+            def get_field_options(field_name, master_group_name, fallback_default_prompt):
+                # 1. If configured in Form Field settings, use strictly configured options
+                cf_obj = LeadCustomField.objects.filter(hospital=user.hospital, name=field_name).first() if (user and user.hospital) else None
+                if cf_obj and cf_obj.get_options_list():
+                    results = [(opt.strip(), opt.strip()) for opt in cf_obj.get_options_list() if opt.strip()]
+                    # For campaign & lead source, also include any active model items
+                    if field_name == "campaign":
+                        seen = {r[0].lower() for r in results}
+                        for c in Campaign.objects.filter(hospital=user.hospital, is_active=True):
+                            if c.name.strip() and c.name.strip().lower() not in seen:
+                                seen.add(c.name.strip().lower())
+                                results.append((c.name.strip(), c.name.strip()))
+                    return results
+
+                # 2. Fallback to MasterItem group entries
+                return get_tenant_items(master_group_name)
+
+            self.fields["gender"].choices = [("", "-- Select Gender --")] + get_field_options("gender", "Genders", "-- Select Gender --")
+            self.fields["priority"].choices = [("", "-- Select Priority --")] + get_field_options("priority", "Priorities", "-- Select Priority --")
+            appt_status_options = get_field_options("appointment_status", "Appointment Statuses", "-- Select Appointment Status --")
+            curr_appt = self.fields["appointment_status"].initial
+            if curr_appt:
+                opt_dict = {o[0].lower(): o[0] for o in appt_status_options}
+                if str(curr_appt).lower() not in opt_dict:
+                    # If 'Booked' and 'Booking' is in choices, map initial to 'Booking'
+                    if str(curr_appt).lower() == 'booked' and 'booking' in opt_dict:
+                        self.fields["appointment_status"].initial = opt_dict['booking']
+                    elif str(curr_appt).lower() == 'booking' and 'booked' in opt_dict:
+                        self.fields["appointment_status"].initial = opt_dict['booked']
+                    else:
+                        appt_status_options.insert(0, (str(curr_appt), str(curr_appt)))
+            self.fields["appointment_status"].choices = [("", "-- Select Appointment Status --")] + appt_status_options
+            self.fields["deal_status"].choices = [("", "-- Select Deal Status --")] + get_field_options("deal_status", "Deal Statuses", "-- Select Deal Status --")
+
+            master_campaigns = get_field_options("campaign", "Campaigns", "-- Select Campaign --")
+            master_sources = get_field_options("lead_source", "Lead Sources", "-- Select Lead Source --")
+            
+            # Ensure current initial values are preserved if present
+            curr_camp = self.fields["campaign"].initial
+            camp_dict = {c[0].lower(): c for c in master_campaigns}
+            if curr_camp and str(curr_camp).lower() not in camp_dict:
+                master_campaigns.insert(0, (str(curr_camp), str(curr_camp)))
+
+            curr_src = self.fields["lead_source"].initial
+            src_dict = {s[0].lower(): s for s in master_sources}
+            if curr_src and str(curr_src).lower() not in src_dict:
+                master_sources.insert(0, (str(curr_src), str(curr_src)))
+
+            curr_loc = self.fields["location"].initial
+            loc_options = get_field_options("location", "Locations", "-- Select Patient Location --")
+            loc_names = {l[0].lower() for l in loc_options if l[0]}
+            if curr_loc and str(curr_loc).lower() not in loc_names:
+                loc_options.insert(0, (str(curr_loc), str(curr_loc)))
+
+            self.fields["location"].choices = [("", "-- Select Patient Location (City, State) --")] + loc_options
+            self.fields["campaign"].choices = [("", "-- Select Campaign --")] + master_campaigns
+            self.fields["lead_source"].choices = [("", "-- Select Lead Source --")] + master_sources
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -294,9 +407,9 @@ class HospitalLeadForm(forms.ModelForm):
         if "source_category" in self.fields:
             self.fields["source_category"].queryset = SourceCategory.objects.filter(is_active=True).order_by("order", "name")
             
-        # Dynamically load Admin-Configured Custom Form Fields
+        # Dynamically load Admin-Configured Custom Form Fields (Non-system only)
         from leads.models import LeadCustomField
-        cf_qs = LeadCustomField.objects.filter(is_active=True)
+        cf_qs = LeadCustomField.objects.filter(is_active=True, is_system=False)
         if user and user.hospital:
             cf_qs = cf_qs.filter(hospital=user.hospital)
         
@@ -316,7 +429,25 @@ class HospitalLeadForm(forms.ModelForm):
             elif cf.field_type == LeadCustomField.FieldType.CHECKBOX:
                 self.fields[fname] = forms.BooleanField(required=cf.is_required, label=cf.label, initial=bool(field_initial))
             elif cf.field_type == LeadCustomField.FieldType.DROPDOWN:
-                opts = [("", f"-- Select {cf.label} --")] + [(opt, opt) for opt in cf.get_options_list()]
+                if cf.name == "disease":
+                    from leads.models import HospitalDisease
+                    init_dept = self.fields.get("department") and self.fields["department"].initial
+                    dis_qs = HospitalDisease.objects.filter(is_active=True)
+                    if user and user.hospital:
+                        dis_qs = dis_qs.filter(hospital=user.hospital)
+                    if init_dept:
+                        dis_qs = dis_qs.filter(department__name__iexact=str(init_dept))
+                        opts = [("", "-- Select Disease / Condition --")] + [(dis.name, dis.name) for dis in dis_qs]
+                    else:
+                        opts = [("", "-- Select Department First --")] + [(dis.name, f"{dis.name} ({dis.department.name})") for dis in dis_qs]
+                elif cf.name in ["hospital_branch", "branch"]:
+                    from leads.models import HospitalBranch
+                    b_qs = HospitalBranch.objects.filter(is_active=True)
+                    if user and user.hospital:
+                        b_qs = b_qs.filter(hospital=user.hospital)
+                    opts = [("", f"-- Select {cf.label} --")] + [(b.name, b.name) for b in b_qs]
+                else:
+                    opts = [("", f"-- Select {cf.label} --")] + [(opt, opt) for opt in cf.get_options_list()]
                 self.fields[fname] = NonStrictChoiceField(choices=opts, required=cf.is_required, label=cf.label, initial=field_initial)
             else: # TEXT
                 self.fields[fname] = forms.CharField(max_length=255, required=cf.is_required, label=cf.label, initial=field_initial)
@@ -327,8 +458,84 @@ class HospitalLeadForm(forms.ModelForm):
                 self.fields[fname].help_text = cf.help_text
 
         for name, field in self.fields.items():
-            css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
-            field.widget.attrs.setdefault("class", css)
+            if isinstance(field, forms.BooleanField):
+                field.widget.attrs.setdefault("class", "form-check-input")
+            else:
+                css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+                field.widget.attrs.setdefault("class", css)
+
+        # Attach bound fields to dynamic_custom_fields list for direct template access
+        for cf in self.dynamic_custom_fields:
+            fname = f"dyn_{cf.name}"
+            cf.form_field = self[fname]
+
+        # -----------------------------------------------------------------------
+        # UNIFIED DYNAMIC FORM FIELDS PIPELINE
+        # Reads configuration directly from LeadCustomField DB table
+        # -----------------------------------------------------------------------
+        all_ordered_items = []
+        
+        # Load all active fields for this hospital
+        if user and user.hospital:
+            configured_fields = LeadCustomField.objects.filter(hospital=user.hospital, is_active=True).order_by('order', 'id')
+        else:
+            configured_fields = LeadCustomField.objects.filter(hospital__isnull=True, is_active=True).order_by('order', 'id')
+            
+        for fld in configured_fields:
+            if fld.is_system:
+                # Update standard field label / required / placeholder if overridden
+                if fld.name in self.fields:
+                    if fld.label:
+                        self.fields[fld.name].label = fld.label
+                    self.fields[fld.name].required = fld.is_required
+                    if fld.placeholder and hasattr(self.fields[fld.name].widget, 'attrs'):
+                        self.fields[fld.name].widget.attrs['placeholder'] = fld.placeholder
+                    all_ordered_items.append({
+                        "type": "standard",
+                        "key": fld.name,
+                        "order": fld.order,
+                        "is_required": fld.is_required,
+                    })
+            else:
+                fld.form_field = self[f"dyn_{fld.name}"]
+                all_ordered_items.append({
+                    "type": "custom",
+                    "key": f"dyn_{fld.name}",
+                    "order": fld.order,
+                    "cf": fld,
+                    "is_required": fld.is_required,
+                })
+
+        # Fallback if DB not yet initialized: keep default standard sequence
+        if not all_ordered_items:
+            base_standard_fields = [
+                {"type": "standard", "key": "name", "order": 1},
+                {"type": "standard", "key": "mobile", "order": 2},
+                {"type": "standard", "key": "age", "order": 3},
+                {"type": "standard", "key": "gender", "order": 4},
+                {"type": "standard", "key": "comments", "order": 5},
+                {"type": "standard", "key": "location", "order": 6},
+                {"type": "standard", "key": "doctor", "order": 7},
+                {"type": "standard", "key": "department", "order": 8},
+                {"type": "standard", "key": "lead_source", "order": 9},
+                {"type": "standard", "key": "appointment_status", "order": 10},
+                {"type": "standard", "key": "campaign", "order": 11},
+            ]
+            all_ordered_items = base_standard_fields
+
+        # Group fields into rows (Row-by-Row Pairing) so left and right fields remain strictly aligned
+        self.field_rows = []
+        for i in range(0, len(all_ordered_items), 2):
+            left_item = all_ordered_items[i]
+            right_item = all_ordered_items[i + 1] if i + 1 < len(all_ordered_items) else None
+            self.field_rows.append({
+                "left": left_item,
+                "right": right_item
+            })
+
+        # Backward compatibility
+        self.left_column_fields = [r["left"] for r in self.field_rows if r["left"]]
+        self.right_column_fields = [r["right"] for r in self.field_rows if r["right"]]
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -406,6 +613,58 @@ class HospitalLeadForm(forms.ModelForm):
         pharm_val = float(self.cleaned_data.get('pharmacy_bill') or 0.0)
         has_payment = (total_val > 0) or (opd_val > 0) or (pharm_val > 0)
 
+        is_booking_selected = ("BOOK" in appo_status_upper)
+        is_followup_needed = ("FOLLOW" in appo_status_upper or "WAIT" in appo_status_upper)
+        is_cancelled_or_not_interested = ("CANCEL" in appo_status_upper or "NOT INT" in appo_status_upper)
+
+        # Automatically record interaction / call date
+        today_date_iso = timezone.localdate().isoformat()
+        cd['last_called_date'] = today_date_iso
+        if getattr(self, 'current_user', None):
+            cd['last_called_by'] = self.current_user.pk
+            cd['last_called_by_name'] = self.current_user.get_full_name() or self.current_user.username
+
+        cancel_reason_val = self.cleaned_data.get('cancellation_reason', '').strip()
+        if cancel_reason_val:
+            cd['cancellation_reason'] = cancel_reason_val
+
+        # Multi-Bill & Payment History Tracker
+        billing_action = self.data.get('billing_action', 'edit_last')
+        billing_history = cd.get('billing_history', [])
+        if not isinstance(billing_history, list):
+            billing_history = []
+
+        current_bill_item = {
+            "opd_bill": str(self.cleaned_data.get('opd_bill') or '0'),
+            "pharmacy_bill": str(self.cleaned_data.get('pharmacy_bill') or '0'),
+            "total": str(self.cleaned_data.get('total') or (opd_val + pharm_val)),
+            "uhid_id_no": self.cleaned_data.get('uhid_id_no') or '',
+            "ipd_no": self.cleaned_data.get('ipd_no') or '',
+            "remark": self.cleaned_data.get('remark_1') or '',
+            "date": timezone.now().strftime("%d-%m-%Y %H:%M"),
+        }
+
+        if has_payment:
+            if billing_action == 'add_new':
+                # Append new bill as a separate record in history
+                billing_history.append(current_bill_item)
+            else:
+                # Edit last bill: replace or set last entry in billing_history
+                if billing_history:
+                    billing_history[-1] = current_bill_item
+                else:
+                    billing_history.append(current_bill_item)
+
+            cd['billing_history'] = billing_history
+
+            # Calculate grand total paid across all bills in history
+            total_sum = sum(float(b.get('total') or 0) for b in billing_history if isinstance(b, dict))
+            cd['total_paid'] = f"{total_sum:.2f}"
+            cd['total'] = f"{total_sum:.2f}"
+        elif billing_history:
+            total_sum = sum(float(b.get('total') or 0) for b in billing_history if isinstance(b, dict))
+            cd['total_paid'] = f"{total_sum:.2f}"
+
         if has_payment or is_already_completed:
             from leads.models import DealStatus, AdmissionStatus, LeadStage
             instance.deal_status = DealStatus.WON
@@ -413,30 +672,28 @@ class HospitalLeadForm(forms.ModelForm):
             cd['deal_status'] = 'Won (Payment Done)'
             cd['appointment_status'] = 'Completed'
 
-            # Move to closed stage
-            won_stage = LeadStage.objects.filter(name__iexact='Admission').first() or \
-                        LeadStage.objects.filter(name__iexact='Payment Done').first() or \
-                        LeadStage.objects.filter(name__iexact='Visited').first()
-            if won_stage:
-                instance.stage = won_stage
-
             if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
                 existing_apt.status = AppointmentStatus.COMPLETED
                 existing_apt.save(update_fields=['status'])
 
-        elif "BOOKED" in appo_status_upper or (appo_date and doc_name and not cd.get('appointment_status')):
-            # Only set Awaiting Approval if it's a new booking waiting for doctor's approval
+        elif is_booking_selected or (appo_date and doc_name and not cd.get('appointment_status')):
             cd['appointment_status'] = "Awaiting Approval from Doctor"
             if appo_date and not instance.next_followup_date:
                 instance.next_followup_date = appo_date
 
+        elif is_cancelled_or_not_interested:
+            from leads.models import DealStatus
+            instance.deal_status = DealStatus.LOST
+            cd['deal_status'] = 'Lost'
+            cd['appointment_status'] = appo_status or 'Cancelled'
+
         elif appo_status:
             cd['appointment_status'] = appo_status
 
-        # If Appointment Status is WAITING and followup_date is provided
+        # If Appointment Status is Follow-up Needed / Waiting and followup_date is provided
         fu_date = self.cleaned_data.get('followup_date')
         fu_time = self.cleaned_data.get('followup_time')
-        if "WAITING" in appo_status_upper or fu_date:
+        if is_followup_needed or fu_date:
             if fu_date:
                 instance.next_followup_date = fu_date
                 instance.next_followup_time = fu_time
@@ -451,18 +708,30 @@ class HospitalLeadForm(forms.ModelForm):
 
         instance.custom_data = cd
         def _save_related():
-            # 1. Create FollowUp record if waiting with followup date
+            # 1. Create FollowUp record if Follow-up Needed / Waiting with followup date
             if fu_date:
                 from followups.models import FollowUp, FollowUpStatus, FollowUpMode
-                FollowUp.objects.create(
+                from notifications.models import Notification
+                fu_obj = FollowUp.objects.create(
                     lead=instance,
                     followup_date=fu_date,
                     followup_time=fu_time,
                     followup_mode=FollowUpMode.CALL,
                     followup_status=FollowUpStatus.PENDING,
-                    comment="Appointment in Waiting status. Follow-up scheduled.",
+                    comment=f"Scheduled Follow-up for lead {instance.name}. Status: {appo_status or 'Follow-up Needed'}",
                     created_by=getattr(self, 'current_user', None)
                 )
+
+                # Send Notification to assigned user or creator
+                target_user = instance.assigned_to or getattr(self, 'current_user', None)
+                if target_user:
+                    time_str = f" at {fu_time.strftime('%I:%M %p')}" if fu_time else ""
+                    Notification.objects.create(
+                        user=target_user,
+                        title=f"Follow-up Scheduled: {instance.name}",
+                        message=f"Follow-up scheduled for patient {instance.name} on {fu_date}{time_str}. Mobile: {instance.mobile}",
+                        link=f"/leads/{instance.pk}/"
+                    )
                 
             # 2. Create Appointment record if Booked with appointment date
             appo_date = self.cleaned_data.get('appo_booked_date')

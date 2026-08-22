@@ -115,7 +115,7 @@ class User(AbstractUser):
 
     @property
     def can_import_export(self):
-        return self.has_dynamic_permission("import_export", default=self.role in (self.Role.SUPER_ADMIN, self.Role.MANAGER))
+        return self.has_dynamic_permission("import_export", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER, self.Role.LEAD_ATTENDENT, self.Role.COUNSELLOR))
 
     @property
     def can_view_all_leads(self):

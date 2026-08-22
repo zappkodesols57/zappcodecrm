@@ -71,10 +71,17 @@
     </div>
   </div>
 
-  <!-- Direct Master Settings Link (Single Tab) -->
-  <a class="nav-link {% if active == 'universal_masters' %}active{% endif %}" href="{% url 'leads:universal_masters' %}" title="Master Settings">
-    <i class="fa-solid fa-database"></i> <span class="nav-text">Master Settings</span>
-  </a>
+  <!-- Section: Master Settings -->
+  <div class="nav-section-group">
+    <button class="nav-section-btn {% if active not in 'universal_masters hospital_config' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_masters" aria-expanded="{% if active in 'universal_masters hospital_config' %}true{% else %}false{% endif %}">
+      <span><i class="fa-solid fa-hospital-user section-icon"></i><span class="section-title">Master Settings</span></span>
+      <i class="fa-solid fa-chevron-down section-arrow"></i>
+    </button>
+    <div class="collapse {% if active in 'universal_masters hospital_config' %}show{% endif %} nav-sub-items" id="sec_masters" data-bs-parent="#sidebarAccordion">
+      <a class="nav-link {% if active == 'hospital_config' %}active{% endif %}" href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration"><i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span></a>
+      <a class="nav-link {% if active == 'universal_masters' %}active{% endif %}" href="{% url 'leads:universal_masters' %}" title="Custom Fields & Masters"><i class="fa-solid fa-database"></i> <span class="nav-text">Custom Form Fields</span></a>
+    </div>
+  </div>
 
   {% elif user.role == 'LEAD_ATTENDENT' and user.hospital %}
   {# 🎧 TELECALLER / LEAD ATTENDANT SIDEBAR (Hospital / Nelson Employee) #}
@@ -99,14 +106,13 @@
 
   <!-- Section: Follow-up Management -->
   <div class="nav-section-group">
-    <button class="nav-section-btn {% if active not in 'fu_today fu_upcoming fu_overdue call_history' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_tele_fu" aria-expanded="{% if active in 'fu_today fu_upcoming fu_overdue call_history' %}true{% else %}false{% endif %}">
+    <button class="nav-section-btn {% if active not in 'fu_today fu_upcoming fu_billing call_history' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_tele_fu" aria-expanded="{% if active in 'fu_today fu_upcoming fu_billing call_history' %}true{% else %}false{% endif %}">
       <span><i class="fa-solid fa-phone-volume section-icon"></i><span class="section-title">Follow-ups & Calls</span></span>
       <i class="fa-solid fa-chevron-down section-arrow"></i>
     </button>
-    <div class="collapse {% if active in 'fu_today fu_upcoming fu_overdue fu_billing call_history' %}show{% endif %} nav-sub-items" id="sec_tele_fu" data-bs-parent="#sidebarAccordion">
-      <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}" title="Today's Follow-ups"><i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's Follow-ups</span></a>
+    <div class="collapse {% if active in 'fu_today fu_upcoming fu_billing call_history' %}show{% endif %} nav-sub-items" id="sec_tele_fu" data-bs-parent="#sidebarAccordion">
+      <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}" title="Follow-ups"><i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Follow-ups</span></a>
       <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}" title="Upcoming"><i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming</span></a>
-      <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}" title="Overdue"><i class="fa-solid fa-calendar-xmark"></i> <span class="nav-text">Overdue</span></a>
       <a class="nav-link {% if active == 'fu_billing' %}active{% endif %}" href="{% url 'followups:billing_followup' %}" title="Billing Follow-ups"><i class="fa-solid fa-file-invoice-dollar"></i> <span class="nav-text">Billing Follow-ups</span></a>
       <a class="nav-link {% if active == 'call_history' %}active{% endif %}" href="{% url 'dashboard:call_history' %}" title="Call History"><i class="fa-solid fa-clock-rotate-left"></i> <span class="nav-text">Call History</span></a>
     </div>

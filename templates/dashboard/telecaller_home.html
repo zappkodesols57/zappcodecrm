@@ -68,20 +68,22 @@
         </div>
     </div>
 
-    <!-- 4. Overdue Follow-ups Remaining -->
+    <!-- 4. Pending Follow-ups Remaining -->
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-danger border-4 h-100 position-relative">
-            <div class="position-absolute top-0 end-0 p-3">
-                <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                    <i class="fa-solid fa-clock-rotate-left fs-6"></i>
+        <a href="{% url 'followups:today' %}" class="text-decoration-none">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-danger border-4 h-100 position-relative">
+                <div class="position-absolute top-0 end-0 p-3">
+                    <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="fa-solid fa-clock-rotate-left fs-6"></i>
+                    </div>
+                </div>
+                <div class="pe-4">
+                    <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Pending Follow-ups</span>
+                    <h2 class="fw-bold text-danger mb-0 mt-1">{{ pending_followups_count|default:overdue_followups_count }}</h2>
+                    <span class="small text-muted" style="font-size: 0.72rem;">Scheduled & pending calls</span>
                 </div>
             </div>
-            <div class="pe-4">
-                <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Overdue Follow-ups</span>
-                <h2 class="fw-bold text-danger mb-0 mt-1">{{ overdue_followups_count }}</h2>
-                <span class="small text-muted" style="font-size: 0.72rem;">Pending calls</span>
-            </div>
-        </div>
+        </a>
     </div>
 </div>
 
