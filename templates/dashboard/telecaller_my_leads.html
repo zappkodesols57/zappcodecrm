@@ -1,44 +1,119 @@
 {% extends "base.html" %}
 {% block title %}My Leads{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h3 class="fw-bold text-primary mb-1"><i class="fa-solid fa-users me-2"></i> My Assigned Leads</h3>
-        <p class="text-muted mb-0">Leads assigned specifically to you, ordered by most recently updated.</p>
+        <h4 class="fw-bold text-dark mb-0">My Assigned Leads</h4>
+        <span class="text-muted small">{{ total_count|default:0 }} lead(s)</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-primary rounded-pill px-3 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" type="button" onclick="toggleInlineFilterSidebar()">
+            <i class="fa-solid fa-filter"></i>
+            <span>Filter</span>
+            {% if active_filters_count > 0 %}
+                <span class="badge bg-primary rounded-pill">{{ active_filters_count }}</span>
+            {% endif %}
+        </button>
+
+        {% if active_filters_count > 0 or q %}
+            <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-light border text-danger rounded-pill px-3 shadow-sm" title="Clear all filters">
+                <i class="fa-solid fa-rotate-left me-1"></i> Clear
+            </a>
+        {% endif %}
+
+        <!-- Top Header Export Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm dropdown-toggle fw-semibold" type="button" id="topHeaderExportMyLeadsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-file-export me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportMyLeadsDropdown" style="font-size: 0.85rem; min-width: 170px;">
+                <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export {% if active_filters_count > 0 %}Filtered{% else %}All My{% endif %} Leads</h6></li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{% for key, value in request.GET.items %}{% if key != 'export' %}{{ key }}={{ value }}&{% endif %}{% endfor %}export=excel">
+                        <i class="fa-solid fa-file-excel text-success" style="font-size: 1rem;"></i>
+                        <span>Excel (.xlsx)</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{% for key, value in request.GET.items %}{% if key != 'export' %}{{ key }}={{ value }}&{% endif %}{% endfor %}export=pdf" target="_blank">
+                        <i class="fa-solid fa-file-pdf text-danger" style="font-size: 1rem;"></i>
+                        <span>PDF / Print</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
 </div>
 
+<!-- Split View Container: Left Filter Column + Right Main Content (Zoho CRM Style) -->
+<div class="d-flex align-items-stretch gap-3 w-100">
+    
+    <!-- Left Filter Column -->
+    {% include "includes/leads_side_filter.html" %}
+
+    <!-- Right Main Column -->
+    <div class="flex-grow-1 overflow-hidden">
+
 <!-- Search Card -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-body p-4">
-        <form method="GET" action="" class="row g-3 align-items-end">
-            <div class="col-md-8">
-                <label class="form-label small fw-bold text-uppercase text-muted">Search My Leads</label>
+    <div class="card-body p-3">
+        <form method="GET" action="" class="row g-2 align-items-center">
+            <div class="col-md-9 col-12">
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
                     <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name or Phone Number..." value="{{ q }}">
                 </div>
             </div>
-            <div class="col-md-4 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Search</button>
-                <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-light border w-100">Clear</a>
+            <div class="col-md-3 col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary rounded-pill flex-grow-1"><i class="fa-solid fa-search me-1"></i> Search</button>
+                <button class="btn btn-light border rounded-pill px-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#crmFilterDrawer" title="Open Filter Drawer">
+                    <i class="fa-solid fa-sliders text-primary"></i>
+                </button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Results Card -->
-<div class="card border-0 shadow-sm rounded-4">
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
+        <div class="table-responsive custom-table-scrollbar pb-2">
+            <table class="table table-hover align-middle mb-0" style="min-width: 950px;">
+                <thead class="bg-light border-bottom">
                     <tr>
-                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Last Updated</th>
-                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Actions</th>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">
+                            <div class="d-flex align-items-center justify-content-between gap-1">
+                                <span>Patient Details</span>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-secondary" onclick="applyDrawerSort('name_asc')" title="Sort A-Z" style="font-size: 0.85rem; line-height: 1;">
+                                    <i class="fa-solid fa-bars"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="border-0 py-3 text-muted small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between gap-1">
+                                <span>Contact</span>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-secondary" onclick="toggleInlineFilterSidebar()" title="Filter Location" style="font-size: 0.85rem; line-height: 1;">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="border-0 py-3 text-muted small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between gap-1">
+                                <span>Status</span>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-secondary" onclick="toggleInlineFilterSidebar()" title="Filter Status" style="font-size: 0.85rem; line-height: 1;">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="border-0 py-3 text-muted small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between gap-1">
+                                <span>Last Updated</span>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-secondary" onclick="applyDrawerSort('-updated_at')" title="Sort Recently Updated" style="font-size: 0.85rem; line-height: 1;">
+                                    <i class="fa-solid fa-bars"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -172,5 +247,6 @@
     {% endif %}
 </div>
 {% endif %}
-
+    </div> <!-- /Right Main Column -->
+</div> <!-- /Split View Container -->
 {% endblock %}

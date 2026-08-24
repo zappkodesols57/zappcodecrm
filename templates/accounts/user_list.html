@@ -39,6 +39,11 @@
           <td>{{ u.phone|default:"—" }}</td>
           <td>{{ u.date_joined|date:"d-m-Y H:i" }}</td>
           <td class="text-end">
+            {% if request.user.role == 'MANAGER' and request.user.hospital and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
+            <span class="badge text-bg-light border text-muted py-1 px-2" title="Restricted: Managers can only approve Doctors and Lead Attendants">
+              <i class="fa-solid fa-lock me-1"></i> Locked
+            </span>
+            {% else %}
             <div class="d-inline-flex gap-2">
               <form method="post" action="{% url 'accounts:approve_user' u.pk %}">
                 {% csrf_token %}
@@ -49,6 +54,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i> Reject</button>
               </form>
             </div>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -111,6 +117,11 @@
             {% endif %}
           </td>
           <td class="text-end">
+            {% if request.user.role == 'MANAGER' and request.user.hospital and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
+            <span class="badge text-bg-light border text-muted py-1 px-2" title="Restricted: Managers can only manage Doctors, Lead Attendants and their own profile">
+              <i class="fa-solid fa-lock me-1"></i> Locked
+            </span>
+            {% else %}
             <div class="d-inline-flex gap-1">
               {% if u.role == 'DOCTOR' %}
               <a href="{% url 'accounts:doctor_schedule_manage' u.pk %}" class="btn btn-sm btn-outline-success py-0 px-2" title="Doctor Calendar & Leaves">
@@ -132,6 +143,7 @@
               </form>
               {% endif %}
             </div>
+            {% endif %}
           </td>
         </tr>
         {% empty %}

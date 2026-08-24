@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filtered Leads Report</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      margin: 0;
+      padding: 15px;
+      font-size: 11px;
+    }
+    .header-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .header-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1e3a8a;
+    }
+    .header-meta {
+      font-size: 10px;
+      color: #64748b;
+      text-align: right;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      font-size: 10.5px;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .badge-hot { background: #fee2e2; color: #991b1b; }
+    .badge-warm { background: #fef3c7; color: #92400e; }
+    .badge-cold { background: #e0f2fe; color: #075985; }
+    .print-controls {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+    }
+    @media print {
+      .print-controls {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Print and Save PDF controls for browser -->
+  <div class="print-controls">
+    <button onclick="window.print()" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+      🖨️ Print / Save as PDF
+    </button>
+    <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+      Close
+    </button>
+  </div>
+
+  <div class="header-box">
+    <div>
+      <div class="header-title">Filtered Leads Report</div>
+      <div style="font-size: 11px; color: #475569;">Total Records Exported: <strong>{{ total_count }}</strong></div>
+    </div>
+    <div class="header-meta">
+      <div>Generated On: {{ now|date:"d M Y, h:i A" }}</div>
+      <div>Source: CRM System</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 75px;">Lead ID</th>
+        <th>Patient Name</th>
+        <th>Mobile</th>
+        <th>Department</th>
+        <th>Doctor</th>
+        <th>Source</th>
+        <th>Campaign</th>
+        <th>Priority</th>
+        <th>Status</th>
+        <th>Inquiry Date</th>
+        <th>Assigned To</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lead in leads %}
+      <tr>
+        <td style="font-weight: 600; color: #2563eb;">{{ lead.lead_code|default:lead.pk }}</td>
+        <td style="font-weight: 600;">{{ lead.name|default:"-" }}</td>
+        <td>{{ lead.mobile|default:"-" }}</td>
+        <td>{{ lead.custom_dept|default:"General OPD" }}</td>
+        <td>{% if lead.custom_doctor %}Dr. {{ lead.custom_doctor }}{% else %}-{% endif %}</td>
+        <td>{{ lead.custom_source|default:"-" }}</td>
+        <td>{{ lead.custom_camp|default:"-" }}</td>
+        <td>
+          {% with prio=lead.custom_priority %}
+            {% if prio == 'Hot' or prio == 'HOT' %}<span class="badge-pill badge-hot">Hot</span>
+            {% elif prio == 'Warm' or prio == 'WARM' %}<span class="badge-pill badge-warm">Warm</span>
+            {% else %}<span class="badge-pill badge-cold">{{ prio|default:"Cold" }}</span>{% endif %}
+          {% endwith %}
+        </td>
+        <td>
+          <span style="font-weight: 600;">{{ lead.custom_deal_status|default:"New" }}</span>
+          {% if lead.custom_appointment_status %}
+            <div style="color: #2563eb; font-size: 9.5px;">{{ lead.custom_appointment_status }}</div>
+          {% endif %}
+        </td>
+        <td>{{ lead.inquiry_date|default:lead.created_at|date:"d-m-Y" }}</td>
+        <td>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}<span style="color: #ef4444; font-weight: 600;">Unassigned</span>{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="11" style="text-align: center; padding: 20px; color: #94a3b8;">No leads found for the selected filter criteria.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    // Auto trigger print dialog if requested
+    window.addEventListener('DOMContentLoaded', () => {
+      // Optional: window.print();
+    });
+  </script>
+</body>
+</html>

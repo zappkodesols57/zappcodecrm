@@ -18,12 +18,18 @@ class CRMUserCreateForm(UserCreationForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         if self.user and self.user.hospital:
-            self.fields["role"].choices = [
-                (User.Role.ADMIN, "Admin"),
-                (User.Role.MANAGER, "Manager"),
-                (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
-                (User.Role.DOCTOR, "Doctor"),
-            ]
+            if self.user.role == User.Role.MANAGER:
+                self.fields["role"].choices = [
+                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
+                    (User.Role.DOCTOR, "Doctor"),
+                ]
+            else:
+                self.fields["role"].choices = [
+                    (User.Role.ADMIN, "Admin"),
+                    (User.Role.MANAGER, "Manager"),
+                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
+                    (User.Role.DOCTOR, "Doctor"),
+                ]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
             if "reports_to" in self.fields:
@@ -68,12 +74,18 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["can_import_export"].initial = self.instance.can_import_export
 
         if self.user and self.user.hospital:
-            self.fields["role"].choices = [
-                (User.Role.ADMIN, "Admin"),
-                (User.Role.MANAGER, "Manager"),
-                (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
-                (User.Role.DOCTOR, "Doctor"),
-            ]
+            if self.user.role == User.Role.MANAGER:
+                self.fields["role"].choices = [
+                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
+                    (User.Role.DOCTOR, "Doctor"),
+                ]
+            else:
+                self.fields["role"].choices = [
+                    (User.Role.ADMIN, "Admin"),
+                    (User.Role.MANAGER, "Manager"),
+                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
+                    (User.Role.DOCTOR, "Doctor"),
+                ]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
             if "reports_to" in self.fields:
@@ -164,3 +176,11 @@ class UserProfileForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'profile_picture': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
+
+    def clean_profile_picture(self):
+        picture = self.cleaned_data.get('profile_picture')
+        if picture:
+            max_size = 5 * 1024 * 1024  # 5MB in bytes
+            if picture.size > max_size:
+                raise forms.ValidationError("Image file size must be less than 5 MB.")
+        return picture

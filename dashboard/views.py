@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Sum, Q
 from django.db.models.functions import TruncMonth
+from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
@@ -29,7 +30,7 @@ def home(request):
         elif request.user.role == User.Role.SUPER_ADMIN:
             return redirect("dashboard:superadmin_home")
         elif request.user.role == User.Role.MANAGER:
-            return redirect("dashboard:management_home")
+            return redirect("dashboard:superadmin_home")
 
     from django.db.models import Q
     from leads.models import SourceCategory, Course, LeadStage, LeadSource, Campaign
@@ -425,6 +426,8 @@ def nelson_module_view(request, module_name):
     hospital = request.user.hospital
 
     if module_name == 'hospital-profile':
+        if not request.user.can_manage_hospital_profile:
+            raise PermissionDenied('Permission denied for hospital profile.')
         if not hospital:
             messages.error(request, "No hospital associated with your account.")
             return redirect('dashboard:home')
@@ -560,6 +563,8 @@ def nelson_module_view(request, module_name):
         })
 
     elif module_name == 'financial-overview':
+        if not request.user.can_view_financials:
+            raise PermissionDenied('Permission denied for financial overview.')
         from leads.models import Campaign, Lead, Appointment
         from admissions.models import Admission
         from payments.models import Payment, PaymentStatus
@@ -1354,11 +1359,12 @@ def placeholder_view(request, module_name):
 @login_required
 def telecaller_search(request):
     from accounts.models import User
-    from leads.models import Lead, DealStatus, AdmissionStatus
+    from leads.models import Lead, DealStatus, AdmissionStatus, MasterGroup, HospitalDepartment, HospitalDoctor
     from django.db.models import Q
     import csv
     from django.http import HttpResponse
     from django.core.paginator import Paginator
+    from datetime import datetime
 
     if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
         messages.error(request, "Access denied.")
@@ -1368,70 +1374,184 @@ def telecaller_search(request):
 
     from leads.models import LeadStage
     
-    # Get Filter Parameters
+    # Get Multi-select & single-value filter parameters
     q = request.GET.get('q', '').strip()
-    date_filter = request.GET.get('date', '')
-    status_filter = request.GET.get('status', '').strip()
-    assigned_filter = request.GET.get('assigned', '').strip()
-    appointment_filter = request.GET.get('appointment_status', '').strip()
-    converted_filter = request.GET.get('converted', '')
-    doctor_filter = request.GET.get('doctor', '').strip()
-    disease_filter = request.GET.get('disease', '').strip()
-    priority_filter = request.GET.get('priority', '').strip()
+    selected_campaigns = request.GET.getlist("campaign")
+    selected_sources = request.GET.getlist("lead_source")
+    selected_departments = request.GET.getlist("department")
+    selected_doctors = request.GET.getlist("doctor")
+    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("assigned")
+    selected_deal_statuses = request.GET.getlist("deal_status") or request.GET.getlist("status")
+    selected_appointment_statuses = request.GET.getlist("appointment_status")
+    selected_priorities = request.GET.getlist("priority")
+    selected_temperatures = request.GET.getlist("temperature")
+    selected_locations = request.GET.getlist("location")
 
-    # Apply Filters
+    # Search
     if q:
         leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q) | Q(lead_code__icontains=q))
-    if date_filter:
-        leads = leads.filter(inquiry_date=date_filter)
-    
-    # Status / Assigned Filter logic
-    if status_filter:
-        if status_filter.lower() == 'assigned':
-            leads = leads.filter(assigned_to__isnull=False)
-        elif status_filter.lower() in ['unassigned', 'new']:
-            leads = leads.filter(assigned_to__isnull=True)
-        else:
-            leads = leads.filter(Q(stage__name__iexact=status_filter) | Q(deal_status__iexact=status_filter))
-            
-    if assigned_filter:
-        if assigned_filter == 'assigned':
-            leads = leads.filter(assigned_to__isnull=False)
-        elif assigned_filter == 'unassigned':
-            leads = leads.filter(assigned_to__isnull=True)
-        elif assigned_filter == 'my_leads':
-            leads = leads.filter(assigned_to=request.user)
-        else:
-            # Specific user ID
-            leads = leads.filter(assigned_to_id=assigned_filter)
-    if appointment_filter:
-        leads = leads.filter(custom_data__appointment_status=appointment_filter)
+
+    # Date Filter
+    def _parse_date(val):
+        if not val:
+            return None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(val.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    date_from = _parse_date(request.GET.get("date_from") or request.GET.get("date"))
+    date_to = _parse_date(request.GET.get("date_to"))
+    if date_from:
+        leads = leads.filter(inquiry_date__gte=date_from)
+    if date_to:
+        leads = leads.filter(inquiry_date__lte=date_to)
+
+    # 1. Campaigns
+    if selected_campaigns:
+        camp_q = Q()
+        for c_val in selected_campaigns:
+            if c_val:
+                camp_q |= Q(custom_data__campaign__iexact=c_val) | Q(campaign__name__iexact=c_val)
+                if c_val.isdigit():
+                    camp_q |= Q(campaign_id=int(c_val))
+        leads = leads.filter(camp_q)
+
+    # 2. Lead Sources
+    if selected_sources:
+        src_q = Q()
+        for s_val in selected_sources:
+            if s_val:
+                src_q |= Q(custom_data__lead_source__iexact=s_val) | Q(lead_source__name__iexact=s_val)
+                if s_val.isdigit():
+                    src_q |= Q(lead_source_id=int(s_val))
+        leads = leads.filter(src_q)
+
+    # 3. Department
+    if selected_departments:
+        dept_q = Q()
+        for d_val in selected_departments:
+            if d_val:
+                dept_q |= Q(custom_data__department__icontains=d_val) | Q(custom_data__disease__icontains=d_val)
+        leads = leads.filter(dept_q)
+    elif request.GET.get('disease'):
+        leads = leads.filter(custom_data__disease__icontains=request.GET.get('disease').strip())
+
+    # 4. Doctor
+    if selected_doctors:
+        doc_q = Q()
+        for doc_val in selected_doctors:
+            if doc_val:
+                doc_q |= Q(custom_data__doctor__icontains=doc_val)
+        leads = leads.filter(doc_q)
+    elif request.GET.get('doctor'):
+        leads = leads.filter(custom_data__doctor__icontains=request.GET.get('doctor').strip())
+
+    # 5. Assigned To
+    if selected_assigned:
+        emp_q = Q()
+        for emp_val in selected_assigned:
+            if emp_val == "unassigned" or emp_val.lower() in ['unassigned', 'new']:
+                emp_q |= Q(assigned_to__isnull=True)
+            elif emp_val == "assigned":
+                emp_q |= Q(assigned_to__isnull=False)
+            elif emp_val == "my_leads":
+                emp_q |= Q(assigned_to=request.user)
+            elif emp_val and emp_val.isdigit():
+                emp_q |= Q(assigned_to_id=int(emp_val))
+        leads = leads.filter(emp_q)
+
+    # 6. Status & Deal Status
+    if selected_deal_statuses:
+        st_q = Q()
+        for ds_val in selected_deal_statuses:
+            if ds_val.lower() == 'assigned':
+                st_q |= Q(assigned_to__isnull=False)
+            elif ds_val.lower() in ['unassigned', 'new']:
+                st_q |= Q(assigned_to__isnull=True)
+            else:
+                st_q |= Q(stage__name__iexact=ds_val) | Q(deal_status__iexact=ds_val) | Q(custom_data__deal_status__iexact=ds_val)
+        leads = leads.filter(st_q)
+
+    # 7. Appointment Status
+    if selected_appointment_statuses:
+        apt_q = Q()
+        for apt_val in selected_appointment_statuses:
+            if apt_val:
+                apt_q |= Q(custom_data__appointment_status__icontains=apt_val)
+        leads = leads.filter(apt_q)
+
+    # 8. Priority & Temperature
+    if selected_priorities or selected_temperatures:
+        prio_q = Q()
+        for p_val in (selected_priorities + selected_temperatures):
+            if p_val:
+                prio_q |= Q(custom_data__priority__iexact=p_val) | Q(temperature__iexact=p_val)
+        leads = leads.filter(prio_q)
+
+    # 9. Location / City
+    if selected_locations:
+        loc_q = Q()
+        for loc_val in selected_locations:
+            if loc_val:
+                loc_q |= Q(location__iexact=loc_val) | Q(city__iexact=loc_val) | Q(custom_data__location__iexact=loc_val)
+        leads = leads.filter(loc_q)
+
+    # Conversion status
+    converted_filter = request.GET.get('converted', '')
     if converted_filter == 'yes':
         leads = leads.filter(admission_status=AdmissionStatus.ADMISSION_DONE)
     elif converted_filter == 'no':
         leads = leads.exclude(admission_status=AdmissionStatus.ADMISSION_DONE)
-    
-    # Custom Data JSON Filters
-    if doctor_filter:
-        leads = leads.filter(custom_data__doctor__icontains=doctor_filter)
-    if disease_filter:
-        leads = leads.filter(custom_data__disease__icontains=disease_filter)
-    if priority_filter:
-        leads = leads.filter(custom_data__priority=priority_filter)
 
-    # Handle Export
-    if 'export' in request.GET:
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="leads_search_export.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Patient Name', 'Mobile', 'Doctor', 'Disease', 'Priority', 'Status', 'Inquiry Date', 'Assigned To'])
+    # Handle Export (Excel & PDF)
+    export_format = request.GET.get('export', '').lower()
+    if export_format in ('1', 'excel', 'xlsx', 'csv'):
+        import pandas as pd
+        rows = []
         for lead in leads:
-            doctor = lead.custom_data.get('doctor', '') if lead.custom_data else ''
-            disease = lead.custom_data.get('disease', '') if lead.custom_data else ''
-            priority = lead.custom_data.get('priority', '') if lead.custom_data else ''
-            assigned = lead.assigned_to.get_full_name() if lead.assigned_to else 'Unassigned'
-            writer.writerow([lead.name, lead.mobile, doctor, disease, priority, lead.get_deal_status_display(), lead.inquiry_date, assigned])
+            cd = lead.custom_data or {}
+            rows.append({
+                "Lead Code": lead.lead_code,
+                "Patient Name": lead.name,
+                "Mobile": lead.mobile,
+                "Doctor": cd.get('doctor', ''),
+                "Department": cd.get('department', '') or cd.get('disease', ''),
+                "Priority": cd.get('priority', '') or lead.get_temperature_display(),
+                "Lead Status": cd.get('deal_status', '') or lead.get_deal_status_display(),
+                "Appointment Status": cd.get('appointment_status', ''),
+                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
+                "Assigned Staff": lead.assigned_to.get_full_name() if lead.assigned_to else 'Unassigned',
+                "Location": lead.location or lead.city or '',
+            })
+        df = pd.DataFrame(rows)
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response['Content-Disposition'] = f'attachment; filename="leads_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        df.to_excel(response, index=False, sheet_name="Leads")
         return response
+    elif export_format == "pdf":
+        return render(request, "leads/leads_print_pdf.html", {
+            "leads": leads[:500],
+            "total_count": leads.count(),
+            "now": timezone.now(),
+            "active_filters_count": active_filters_count,
+        })
+    # Sorting logic
+    sort_by = request.GET.get("sort", "-created_at")
+    sort_mapping = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "-updated_at": "-updated_at",
+        "updated_at": "updated_at",
+        "name_asc": "name",
+        "name_desc": "-name",
+        "-inquiry_date": "-inquiry_date",
+        "inquiry_date": "inquiry_date",
+    }
+    order_field = sort_mapping.get(sort_by, "-created_at")
+    leads = leads.order_by(order_field)
 
     paginator = Paginator(leads, 25)
     page_number = request.GET.get('page', 1)
@@ -1442,8 +1562,32 @@ def telecaller_search(request):
     if 'page' in query_params:
         del query_params['page']
 
-    all_stages = LeadStage.objects.filter(is_active=True).order_by('order')
-    
+    # Filter choices extraction for Nelson Hospital
+    filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
+    filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
+    if not filter_departments:
+        filter_departments = list(MasterGroup.get_active_choices("Departments").filter(hospital=request.user.hospital).values_list("name", flat=True))
+    if not filter_doctors:
+        filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=request.user.hospital).values_list("name", flat=True))
+    if not filter_departments:
+        filter_departments = ["Gynaecology", "Paediatrics", "NICU / PICU", "Obstetrics", "General OPD"]
+
+    hospital_campaigns = MasterGroup.get_active_choices("Campaigns").filter(hospital=request.user.hospital)
+    hospital_sources = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
+    hospital_statuses = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
+    employees = User.objects.filter(hospital=request.user.hospital, is_active=True, is_approved=True)
+
+    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
+    filter_priorities = ["Hot", "Warm", "Cold"]
+    filter_locations = sorted(list(set(Lead.objects.filter(hospital=request.user.hospital).exclude(location="").values_list("location", flat=True))))
+
+    active_filters_count = (
+        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_doctors) + len(selected_assigned) + len(selected_deal_statuses) +
+        len(selected_appointment_statuses) + len(selected_priorities) + len(selected_temperatures) +
+        len(selected_locations) + (1 if (date_from or date_to) else 0)
+    )
+
     context = {
         'page_obj': page_obj,
         'leads': page_obj,
@@ -1451,15 +1595,30 @@ def telecaller_search(request):
         'total_count': paginator.count,
         'query_params': query_params.urlencode(),
         'q': q,
-        'date_filter': date_filter,
-        'status_filter': status_filter,
-        'assigned_filter': assigned_filter,
-        'appointment_filter': appointment_filter,
-        'converted_filter': converted_filter,
-        'doctor_filter': doctor_filter,
-        'disease_filter': disease_filter,
-        'priority_filter': priority_filter,
-        'all_stages': all_stages,
+        'hospital_campaigns': hospital_campaigns,
+        'hospital_sources': hospital_sources,
+        'hospital_statuses': hospital_statuses,
+        'employees': employees,
+        'filter_departments': filter_departments,
+        'filter_doctors': filter_doctors,
+        'filter_appointment_statuses': filter_appointment_statuses,
+        'filter_priorities': filter_priorities,
+        'filter_locations': filter_locations,
+        'selected_campaigns': selected_campaigns,
+        'selected_sources': selected_sources,
+        'selected_departments': selected_departments,
+        'selected_doctors': selected_doctors,
+        'selected_assigned': selected_assigned,
+        'selected_deal_statuses': selected_deal_statuses,
+        'selected_appointment_statuses': selected_appointment_statuses,
+        'selected_priorities': selected_priorities,
+        'selected_temperatures': selected_temperatures,
+        'selected_locations': selected_locations,
+        'date_from_val': request.GET.get('date_from', '') or request.GET.get('date', ''),
+        'date_to_val': request.GET.get('date_to', ''),
+        'current_sort': sort_by,
+        'active_filters_count': active_filters_count,
+        'request_get': request.GET,
         'active': 'search_filter',
     }
     return render(request, "dashboard/telecaller_search.html", context)
@@ -1882,9 +2041,10 @@ def telecaller_appointments(request):
 @login_required
 def telecaller_my_leads(request):
     from accounts.models import User
-    from leads.models import Lead
+    from leads.models import Lead, MasterGroup, HospitalDepartment, HospitalDoctor
     from django.db.models import Q
     from django.core.paginator import Paginator
+    from datetime import datetime
     
     if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
         messages.error(request, "Access denied.")
@@ -1897,17 +2057,175 @@ def telecaller_my_leads(request):
     q = request.GET.get('q', '').strip()
     if q:
         leads = leads.filter(Q(name__icontains=q) | Q(mobile__icontains=q) | Q(lead_code__icontains=q))
-        
+
+    # Multi-select & single-value filter parameters
+    selected_campaigns = request.GET.getlist("campaign")
+    selected_sources = request.GET.getlist("lead_source")
+    selected_departments = request.GET.getlist("department")
+    selected_doctors = request.GET.getlist("doctor")
+    selected_deal_statuses = request.GET.getlist("deal_status") or request.GET.getlist("status")
+    selected_appointment_statuses = request.GET.getlist("appointment_status")
+    selected_priorities = request.GET.getlist("priority")
+    selected_temperatures = request.GET.getlist("temperature")
+    selected_locations = request.GET.getlist("location")
+
+    def _parse_date(val):
+        if not val:
+            return None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(val.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    date_from = _parse_date(request.GET.get("date_from") or request.GET.get("date"))
+    date_to = _parse_date(request.GET.get("date_to"))
+    if date_from:
+        leads = leads.filter(inquiry_date__gte=date_from)
+    if date_to:
+        leads = leads.filter(inquiry_date__lte=date_to)
+
+    if selected_campaigns:
+        camp_q = Q()
+        for c_val in selected_campaigns:
+            if c_val:
+                camp_q |= Q(custom_data__campaign__iexact=c_val) | Q(campaign__name__iexact=c_val)
+                if c_val.isdigit():
+                    camp_q |= Q(campaign_id=int(c_val))
+        leads = leads.filter(camp_q)
+
+    if selected_sources:
+        src_q = Q()
+        for s_val in selected_sources:
+            if s_val:
+                src_q |= Q(custom_data__lead_source__iexact=s_val) | Q(lead_source__name__iexact=s_val)
+                if s_val.isdigit():
+                    src_q |= Q(lead_source_id=int(s_val))
+        leads = leads.filter(src_q)
+
+    if selected_departments:
+        dept_q = Q()
+        for d_val in selected_departments:
+            if d_val:
+                dept_q |= Q(custom_data__department__icontains=d_val) | Q(custom_data__disease__icontains=d_val)
+        leads = leads.filter(dept_q)
+
+    if selected_doctors:
+        doc_q = Q()
+        for doc_val in selected_doctors:
+            if doc_val:
+                doc_q |= Q(custom_data__doctor__icontains=doc_val)
+        leads = leads.filter(doc_q)
+
+    if selected_deal_statuses:
+        st_q = Q()
+        for ds_val in selected_deal_statuses:
+            if ds_val:
+                st_q |= Q(stage__name__iexact=ds_val) | Q(deal_status__iexact=ds_val) | Q(custom_data__deal_status__iexact=ds_val)
+        leads = leads.filter(st_q)
+
+    if selected_appointment_statuses:
+        apt_q = Q()
+        for apt_val in selected_appointment_statuses:
+            if apt_val:
+                apt_q |= Q(custom_data__appointment_status__icontains=apt_val)
+        leads = leads.filter(apt_q)
+
+    if selected_priorities or selected_temperatures:
+        prio_q = Q()
+        for p_val in (selected_priorities + selected_temperatures):
+            if p_val:
+                prio_q |= Q(custom_data__priority__iexact=p_val) | Q(temperature__iexact=p_val)
+        leads = leads.filter(prio_q)
+
+    if selected_locations:
+        loc_q = Q()
+        for loc_val in selected_locations:
+            if loc_val:
+                loc_q |= Q(location__iexact=loc_val) | Q(city__iexact=loc_val) | Q(custom_data__location__iexact=loc_val)
+        leads = leads.filter(loc_q)
+
+    # Dynamic Sorting Logic
+    sort_by = request.GET.get("sort", "-created_at")
+    sort_mapping = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "-updated_at": "-updated_at",
+        "updated_at": "updated_at",
+        "name_asc": "name",
+        "name_desc": "-name",
+        "-inquiry_date": "-inquiry_date",
+        "inquiry_date": "inquiry_date",
+    }
+    order_field = sort_mapping.get(sort_by, "-created_at")
+    leads = leads.order_by(order_field)
+
+    # Handle Export (Excel & PDF)
+    export_format = request.GET.get('export', '').lower()
+    if export_format in ('1', 'excel', 'xlsx', 'csv'):
+        import pandas as pd
+        rows = []
+        for lead in leads:
+            cd = lead.custom_data or {}
+            rows.append({
+                "Lead Code": lead.lead_code,
+                "Patient Name": lead.name,
+                "Mobile": lead.mobile,
+                "Doctor": cd.get('doctor', ''),
+                "Department": cd.get('department', '') or cd.get('disease', ''),
+                "Priority": cd.get('priority', '') or lead.get_temperature_display(),
+                "Lead Status": cd.get('deal_status', '') or lead.get_deal_status_display(),
+                "Appointment Status": cd.get('appointment_status', ''),
+                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
+                "Location": lead.location or lead.city or '',
+            })
+        df = pd.DataFrame(rows)
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response['Content-Disposition'] = f'attachment; filename="my_leads_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        df.to_excel(response, index=False, sheet_name="My Leads")
+        return response
+    elif export_format == "pdf":
+        return render(request, "leads/leads_print_pdf.html", {
+            "leads": leads[:500],
+            "total_count": leads.count(),
+            "now": timezone.now(),
+            "active_filters_count": len(selected_campaigns) + len(selected_sources) + (1 if (date_from or date_to) else 0),
+        })
+
     paginator = Paginator(leads, 25)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
-    
-    # Calculate custom dynamic range for nice scroller
     page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
     
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
+
+    # Filter choices for Nelson Hospital
+    filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
+    filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
+    if not filter_departments:
+        filter_departments = list(MasterGroup.get_active_choices("Departments").filter(hospital=request.user.hospital).values_list("name", flat=True))
+    if not filter_doctors:
+        filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=request.user.hospital).values_list("name", flat=True))
+    if not filter_departments:
+        filter_departments = ["Gynaecology", "Paediatrics", "NICU / PICU", "Obstetrics", "General OPD"]
+
+    hospital_campaigns = MasterGroup.get_active_choices("Campaigns").filter(hospital=request.user.hospital)
+    hospital_sources = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
+    hospital_statuses = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
+
+    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
+    filter_priorities = ["Hot", "Warm", "Cold"]
+    filter_locations = sorted(list(set(Lead.objects.filter(hospital=request.user.hospital).exclude(location="").values_list("location", flat=True))))
+
+    active_filters_count = (
+        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_doctors) + len(selected_deal_statuses) +
+        len(selected_appointment_statuses) + len(selected_priorities) + len(selected_temperatures) +
+        len(selected_locations) + (1 if (date_from or date_to) else 0)
+    )
         
     context = {
         'page_obj': page_obj,
@@ -1916,6 +2234,25 @@ def telecaller_my_leads(request):
         'q': q,
         'query_params': query_params.urlencode(),
         'total_count': paginator.count,
+        'hospital_campaigns': hospital_campaigns,
+        'hospital_sources': hospital_sources,
+        'hospital_statuses': hospital_statuses,
+        'filter_departments': filter_departments,
+        'filter_doctors': filter_doctors,
+        'filter_appointment_statuses': filter_appointment_statuses,
+        'filter_priorities': filter_priorities,
+        'filter_locations': filter_locations,
+        'selected_campaigns': selected_campaigns,
+        'selected_sources': selected_sources,
+        'selected_departments': selected_departments,
+        'selected_doctors': selected_doctors,
+        'selected_priorities': selected_priorities,
+        'selected_temperatures': selected_temperatures,
+        'selected_locations': selected_locations,
+        'date_from_val': request.GET.get('date_from', '') or request.GET.get('date', ''),
+        'date_to_val': request.GET.get('date_to', ''),
+        'active_filters_count': active_filters_count,
+        'request_get': request.GET,
         'active': 'my_leads',
     }
     return render(request, "dashboard/telecaller_my_leads.html", context)
@@ -1926,7 +2263,7 @@ from django.shortcuts import get_object_or_404
 
 @login_required
 def roles_permissions_view(request):
-    if not request.user.can_manage_users:
+    if not (request.user.role == 'SUPER_ADMIN' and request.user.can_manage_users):
         raise PermissionDenied("You do not have permission to manage roles and permissions.")
         
     hospital = request.user.hospital
@@ -1935,6 +2272,11 @@ def roles_permissions_view(request):
         return redirect("dashboard:home")
 
     available_permissions = [
+        {"key": "view_admin_dashboard", "label": "View Admin Dashboard", "type": "data"},
+        {"key": "manage_campaigns", "label": "Manage Campaigns & Meta Ads", "type": "action"},
+        {"key": "view_financials", "label": "View Financial Overview", "type": "data"},
+        {"key": "manage_hospital_profile", "label": "Manage Hospital Profile", "type": "action"},
+        {"key": "view_reports", "label": "View Reports", "type": "data"},
         {"key": "view_all_leads", "label": "View All Hospital Leads", "type": "data"},
         {"key": "view_team_leads", "label": "View Team Leads", "type": "data"},
         {"key": "view_assigned_leads", "label": "View Only Own/Assigned Leads", "type": "data"},
@@ -2022,9 +2364,10 @@ def roles_permissions_view(request):
 @login_required
 def telecaller_new_enquiries(request):
     from accounts.models import User
-    from leads.models import Lead
+    from leads.models import Lead, MasterGroup, HospitalDepartment, HospitalDoctor
     from django.db.models import Q
     from django.core.paginator import Paginator
+    from datetime import datetime
     
     if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
         messages.error(request, "Access denied.")
@@ -2044,7 +2387,139 @@ def telecaller_new_enquiries(request):
             Q(name__icontains=q) | Q(mobile__icontains=q) | 
             Q(city__icontains=q) | Q(email__icontains=q)
         )
-        
+
+    # Multi-select & single-value filter parameters
+    selected_campaigns = request.GET.getlist("campaign")
+    selected_sources = request.GET.getlist("lead_source")
+    selected_departments = request.GET.getlist("department")
+    selected_doctors = request.GET.getlist("doctor")
+    selected_priorities = request.GET.getlist("priority")
+    selected_temperatures = request.GET.getlist("temperature")
+    selected_locations = request.GET.getlist("location")
+
+    def _parse_date(val):
+        if not val:
+            return None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(val.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    date_from = _parse_date(request.GET.get("date_from") or request.GET.get("date"))
+    date_to = _parse_date(request.GET.get("date_to"))
+    if date_from:
+        leads = leads.filter(inquiry_date__gte=date_from)
+    if date_to:
+        leads = leads.filter(inquiry_date__lte=date_to)
+
+    if selected_campaigns:
+        camp_q = Q()
+        for c_val in selected_campaigns:
+            if c_val:
+                camp_q |= Q(custom_data__campaign__iexact=c_val) | Q(campaign__name__iexact=c_val)
+                if c_val.isdigit():
+                    camp_q |= Q(campaign_id=int(c_val))
+        leads = leads.filter(camp_q)
+
+    if selected_sources:
+        src_q = Q()
+        for s_val in selected_sources:
+            if s_val:
+                src_q |= Q(custom_data__lead_source__iexact=s_val) | Q(lead_source__name__iexact=s_val)
+                if s_val.isdigit():
+                    src_q |= Q(lead_source_id=int(s_val))
+        leads = leads.filter(src_q)
+
+    if selected_departments:
+        dept_q = Q()
+        for d_val in selected_departments:
+            if d_val:
+                dept_q |= Q(custom_data__department__icontains=d_val) | Q(custom_data__disease__icontains=d_val)
+        leads = leads.filter(dept_q)
+
+    if selected_doctors:
+        doc_q = Q()
+        for doc_val in selected_doctors:
+            if doc_val:
+                doc_q |= Q(custom_data__doctor__icontains=doc_val)
+        leads = leads.filter(doc_q)
+
+    if selected_priorities or selected_temperatures:
+        prio_q = Q()
+        for p_val in (selected_priorities + selected_temperatures):
+            if p_val:
+                prio_q |= Q(custom_data__priority__iexact=p_val) | Q(temperature__iexact=p_val)
+    if selected_locations:
+        loc_q = Q()
+        for loc_val in selected_locations:
+            if loc_val:
+                loc_q |= Q(location__iexact=loc_val) | Q(city__iexact=loc_val) | Q(custom_data__location__iexact=loc_val)
+        leads = leads.filter(loc_q)
+
+    # Dynamic Sorting Logic
+    sort_by = request.GET.get("sort", "-created_at")
+    sort_mapping = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "-updated_at": "-updated_at",
+        "updated_at": "updated_at",
+        "name_asc": "name",
+        "name_desc": "-name",
+        "-inquiry_date": "-inquiry_date",
+        "inquiry_date": "inquiry_date",
+    }
+    order_field = sort_mapping.get(sort_by, "-created_at")
+    leads = leads.order_by(order_field)
+
+    # Calculate active filters count
+    active_filters_count = (
+        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_doctors) + len(selected_priorities) +
+        len(selected_temperatures) + len(selected_locations) +
+        (1 if (date_from or date_to) else 0) + (1 if q else 0)
+    )
+
+    # Handle Export (Excel & PDF)
+    export_format = request.GET.get('export', '').lower()
+    if export_format in ('1', 'excel', 'xlsx', 'csv'):
+        import pandas as pd
+        rows = []
+        for lead in leads:
+            cd = lead.custom_data or {}
+            lead_stat = cd.get('deal_status', '') or (lead.stage.name if lead.stage else '')
+            if not lead_stat:
+                lead_stat = "New" if (not lead.assigned_to_id and (not lead.temperature or lead.temperature == 'UNCONTACTED')) else lead.get_temperature_display()
+            
+            rows.append({
+                "Lead Code": lead.lead_code,
+                "Patient Name": lead.name,
+                "Mobile": lead.mobile,
+                "Department": cd.get('department', '') or cd.get('disease', '') or 'General OPD',
+                "Doctor": cd.get('doctor', '') or '-',
+                "Lead Source": cd.get('lead_source', '') or (lead.lead_source.name if lead.lead_source else '-'),
+                "Campaign": cd.get('campaign', '') or (lead.campaign.name if lead.campaign else '-'),
+                "Priority": cd.get('priority', '') or lead.get_temperature_display(),
+                "Lead Status": lead_stat,
+                "Appointment Status": cd.get('appointment_status', '') or '-',
+                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
+                "City / Location": lead.location or lead.city or '',
+                "Assigned Staff": lead.assigned_to.get_full_name() if lead.assigned_to else "Unassigned",
+            })
+        df = pd.DataFrame(rows)
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response['Content-Disposition'] = f'attachment; filename="new_enquiries_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        df.to_excel(response, index=False, sheet_name="New Enquiries")
+        return response
+    elif export_format == "pdf":
+        return render(request, "leads/leads_print_pdf.html", {
+            "leads": leads[:500],
+            "total_count": leads.count(),
+            "now": timezone.now(),
+            "active_filters_count": len(selected_campaigns) + len(selected_sources) + (1 if (date_from or date_to) else 0),
+        })
+
     paginator = Paginator(leads, 24)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
@@ -2054,6 +2529,28 @@ def telecaller_new_enquiries(request):
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
+
+    # Filter choices for Nelson Hospital
+    filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
+    filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
+    if not filter_departments:
+        filter_departments = list(MasterGroup.get_active_choices("Departments").filter(hospital=request.user.hospital).values_list("name", flat=True))
+    if not filter_doctors:
+        filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=request.user.hospital).values_list("name", flat=True))
+    if not filter_departments:
+        filter_departments = ["Gynaecology", "Paediatrics", "NICU / PICU", "Obstetrics", "General OPD"]
+
+    hospital_campaigns = MasterGroup.get_active_choices("Campaigns").filter(hospital=request.user.hospital)
+    hospital_sources = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
+
+    filter_priorities = ["Hot", "Warm", "Cold"]
+    filter_locations = sorted(list(set(Lead.objects.filter(hospital=request.user.hospital).exclude(location="").values_list("location", flat=True))))
+
+    active_filters_count = (
+        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_doctors) + len(selected_priorities) + len(selected_temperatures) +
+        len(selected_locations) + (1 if (date_from or date_to) else 0)
+    )
         
     context = {
         'leads': page_obj,
@@ -2062,6 +2559,22 @@ def telecaller_new_enquiries(request):
         'query_params': query_params.urlencode(),
         'total_count': paginator.count,
         'q': q,
+        'hospital_campaigns': hospital_campaigns,
+        'hospital_sources': hospital_sources,
+        'filter_departments': filter_departments,
+        'filter_doctors': filter_doctors,
+        'filter_priorities': filter_priorities,
+        'filter_locations': filter_locations,
+        'selected_campaigns': selected_campaigns,
+        'selected_sources': selected_sources,
+        'selected_departments': selected_departments,
+        'selected_doctors': selected_doctors,
+        'selected_priorities': selected_priorities,
+        'selected_temperatures': selected_temperatures,
+        'date_from_val': request.GET.get('date_from', '') or request.GET.get('date', ''),
+        'date_to_val': request.GET.get('date_to', ''),
+        'active_filters_count': active_filters_count,
+        'request_get': request.GET,
         'active': 'new_enquiries',
     }
     return render(request, "dashboard/telecaller_new_enquiries.html", context)

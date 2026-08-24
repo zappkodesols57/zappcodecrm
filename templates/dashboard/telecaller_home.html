@@ -2,11 +2,11 @@
 {% block title %}Telecaller Dashboard{% endblock %}
 {% block content %}
 
-<!-- Dashboard Greeting & Quick Actions -->
+<!-- Simple Dashboard Header -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
-        <h3 class="fw-bold text-primary mb-1">Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h3>
-        <p class="text-muted mb-0">Here is your daily calling performance overview & action items for {{ today_date|date:"l, d M Y" }}.</p>
+        <h4 class="fw-bold text-dark mb-0">Dashboard</h4>
+        <span class="text-muted small">Welcome, {{ request.user.get_full_name|default:request.user.username }}</span>
     </div>
     <div class="d-flex gap-2">
         <a href="{% url 'dashboard:tasks' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm">

@@ -149,6 +149,27 @@ class User(AbstractUser):
     def is_read_only(self):
         return self.has_dynamic_permission("read_only", default=False)
 
+    @property
+    def can_view_admin_dashboard(self):
+        return self.has_dynamic_permission("view_admin_dashboard", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+    @property
+    def can_manage_campaigns(self):
+        return self.has_dynamic_permission("manage_campaigns", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+    @property
+    def can_view_financials(self):
+        return self.has_dynamic_permission("view_financials", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+    @property
+    def can_manage_hospital_profile(self):
+        return self.has_dynamic_permission("manage_hospital_profile", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+    @property
+    def can_view_reports(self):
+        return self.has_dynamic_permission("view_reports", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+
 class HospitalRolePermission(models.Model):
     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name="role_permissions")
     role = models.CharField(max_length=50, choices=User.Role.choices)

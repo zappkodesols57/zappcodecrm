@@ -1,117 +1,111 @@
 {% extends "base.html" %}
 {% block title %}{% if request.user.hospital %}Patient Leads{% else %}All Leads{% endif %}{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h4 class="mb-0 fw-bold">{% if request.user.hospital %}Patient Leads{% else %}All Leads{% endif %}</h4>
-    <div class="text-muted small">{{ total_count }} lead(s)</div>
+<!-- Zoho CRM Style Top Title Bar with View Filter Switcher & Action Tools -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <!-- View Switcher Dropdown (Zoho CRM 'All Leads ▾' / 'Patient Leads ▾' title filter) -->
+    <div class="dropdown">
+      <button class="btn btn-link text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2" type="button" id="listViewFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.25rem;">
+        <span>{% if active == 'telecaller_my_leads' %}My Leads{% elif active == 'telecaller_new_enquiries' %}New Enquiries{% elif request.user.hospital %}Patient Leads{% else %}All Leads{% endif %}</span>
+        <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.8rem;"></i>
+      </button>
+      <ul class="dropdown-menu shadow border-0 py-2" aria-labelledby="listViewFilterDropdown" style="min-width: 240px; font-size: 0.88rem; z-index: 1060;">
+        <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Switch Lead View</h6></li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'leads_all' %}active fw-bold{% endif %}" href="{% url 'leads:lead_list' %}">
+            <span><i class="fa-solid fa-list-ul me-2 text-primary"></i> {% if request.user.hospital %}All Patient Leads{% else %}All Leads{% endif %}</span>
+            <span class="badge bg-light text-secondary border rounded-pill">{{ total_count|default:0 }}</span>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'telecaller_my_leads' %}active fw-bold{% endif %}" href="{% url 'dashboard:telecaller_my_leads' %}">
+            <span><i class="fa-solid fa-user-check me-2 text-success"></i> My Assigned Leads</span>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'telecaller_new_enquiries' %}active fw-bold{% endif %}" href="{% url 'dashboard:telecaller_new_enquiries' %}">
+            <span><i class="fa-solid fa-bell me-2 text-warning"></i> Fresh / New Enquiries</span>
+          </a>
+        </li>
+        <li><hr class="dropdown-divider my-1"></li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center py-2 text-primary" href="{% url 'leads:lead_list' %}?sort=-inquiry_date">
+            <i class="fa-regular fa-calendar-check me-2"></i> Recently Created / Inquired
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Count Badge -->
+    <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">{{ total_count }} records</span>
   </div>
-  <div class="d-flex gap-2">
-    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="{% if q or request_get.date_from or request_get.date_to or request_get.stage or request_get.campaign or request_get.assigned_to %}true{% else %}false{% endif %}">
-      <i class="fa-solid fa-filter me-1"></i> {% if q or request_get.date_from or request_get.date_to or request_get.stage or request_get.campaign or request_get.assigned_to %}Hide Filters (Active){% else %}Filter Leads{% endif %}
+
+  <div class="d-flex align-items-center gap-2">
+    <!-- Inline Filter Toggle Button (Zoho Toolbar Style) -->
+    <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill" type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Sidebar Filters">
+      <i class="fa-solid fa-sliders text-primary"></i>
+      <span>Filter</span>
+      {% if active_filters_count > 0 %}
+        <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ active_filters_count }}</span>
+      {% endif %}
     </button>
-    <a href="{% url 'imports:export' %}?{{ request.GET.urlencode }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-file-export me-1"></i> Export</a>
-    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white"><i class="fa-solid fa-user-plus me-1"></i> Add New Lead</a>
+
+    <!-- Sort Dropdown Trigger -->
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 fw-semibold px-3 shadow-sm rounded-pill dropdown-toggle" type="button" id="titleSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
+        <i class="fa-solid fa-arrow-down-short-wide text-primary"></i>
+        <span>Sort</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="titleSortDropdown" style="font-size: 0.82rem; min-width: 200px;">
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-created_at')">Newest First</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('created_at')">Oldest First</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_asc')">Patient Name (A → Z)</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_desc')">Patient Name (Z → A)</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
+      </ul>
+    </div>
+
+    {% if active_filters_count > 0 %}
+      <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-3" title="Clear all applied filters">
+        <i class="fa-solid fa-rotate-left me-1"></i> Clear
+      </a>
+    {% endif %}
+
+    <!-- Top Header Export Dropdown -->
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle shadow-sm" type="button" id="topHeaderExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fa-solid fa-file-export me-1"></i> Export
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportDropdown" style="font-size: 0.85rem; min-width: 170px;">
+        <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export {% if active_filters_count > 0 %}Filtered{% else %}All{% endif %} Leads</h6></li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=excel">
+            <i class="fa-solid fa-file-excel text-success" style="font-size: 1rem;"></i>
+            <span>Excel (.xlsx)</span>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=pdf" target="_blank">
+            <i class="fa-solid fa-file-pdf text-danger" style="font-size: 1rem;"></i>
+            <span>PDF / Print</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3"><i class="fa-solid fa-user-plus me-1"></i> Add New Lead</a>
   </div>
 </div>
 
-{% if selected_import_job %}
-<div class="alert alert-info d-flex justify-content-between align-items-center py-2 px-3 mb-3 border-info">
-  <div>
-    <i class="fa-solid fa-file-excel me-2 text-primary"></i> Showing leads imported from file: <strong>{{ selected_import_job.original_filename }}</strong> (Sheet: {{ selected_import_job.sheet_name }}) — <strong>{{ total_count }}</strong> lead(s)
-  </div>
-  <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-xmark me-1"></i> Clear Filter</a>
-</div>
-{% endif %}
+<!-- Split View Container: Left Filter Column + Right Main Table (Zoho CRM Style) -->
+<div class="d-flex align-items-stretch gap-3 w-100">
+  
+  <!-- Left Side Filter Panel (Inline, No Overlay) -->
+  {% include "includes/leads_side_filter.html" %}
 
-<!-- Collapsible Filter Form (Hidden by default unless search/filter active) -->
-<div class="collapse {% if q or request_get.date_from or request_get.date_to or request_get.stage or request_get.campaign or request_get.assigned_to or request_get.temperature or request_get.deal_status %}show{% endif %} mb-3" id="filterCollapse">
-  <form method="get" class="card p-3 shadow-sm border-0 bg-white" style="border-radius: 0.75rem;">
-    <div class="row g-3">
-       <!-- Top row: Search, Dates, Assignee -->
-       <div class="col-md-3">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Search</label>
-         <input type="search" name="q" class="form-control form-control-sm" placeholder="Search name, phone, etc..." value="{{ q }}">
-       </div>
-       <div class="col-md-3">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date From</label>
-         <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
-       </div>
-       <div class="col-md-3">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Date To</label>
-         <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
-       </div>
-       <div class="col-md-3">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Assigned To</label>
-         <select name="assigned_to" class="form-select form-select-sm">
-           <option value="">All Employees</option>
-           {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-         </select>
-       </div>
-
-       <!-- Second row: Campaigns & Sources -->
-       <div class="col-md-3">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Campaign</label>
-         <select name="campaign" class="form-select form-select-sm">
-           <option value="">All Campaigns</option>
-           {% if request.user.hospital %}
-             {% for c in hospital_campaigns %}<option value="{{ c.name }}" {% if request_get.campaign == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-           {% else %}
-             {% for c in campaigns %}<option value="{{ c.id }}" {% if request_get.campaign == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-           {% endif %}
-         </select>
-       </div>
-       <div class="col-md-3">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Source</label>
-         <select name="lead_source" class="form-select form-select-sm">
-           <option value="">All Sources</option>
-           {% if request.user.hospital %}
-             {% for s in hospital_sources %}<option value="{{ s.name }}" {% if request_get.lead_source == s.name %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-           {% else %}
-             {% for s in lead_sources %}<option value="{{ s.id }}" {% if request_get.lead_source == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-           {% endif %}
-         </select>
-       </div>
-       <div class="col-md-2">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Lead Stage</label>
-         <select name="stage" class="form-select form-select-sm">
-           <option value="">All Stages</option>
-           {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-         </select>
-       </div>
-       <div class="col-md-2">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Temperature</label>
-         <select name="temperature" class="form-select form-select-sm">
-           <option value="">All Temps</option>
-           <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
-           <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
-           <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
-           <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
-           <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
-         </select>
-       </div>
-       <div class="col-md-2">
-         <label class="form-label small fw-bold text-muted mb-1 text-uppercase" style="letter-spacing: 0.5px;">Deal Status</label>
-         <select name="deal_status" class="form-select form-select-sm">
-           <option value="">All Statuses</option>
-           {% if request.user.hospital %}
-             {% for ds in hospital_statuses %}<option value="{{ ds.name }}" {% if request_get.deal_status == ds.name %}selected{% endif %}>{{ ds.name }}</option>{% endfor %}
-           {% else %}
-             <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-             <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-             <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-             <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-           {% endif %}
-         </select>
-       </div>
-    </div>
-    
-    <div class="d-flex justify-content-end gap-2 mt-3 pt-2 border-top">
-      <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-secondary px-3">Reset Filters</a>
-      <button type="submit" class="btn btn-sm btn-primary px-3 shadow-sm"><i class="fa-solid fa-filter me-1"></i> Apply Filters</button>
-    </div>
-  </form>
-</div>
+  <!-- Right Side Main Content & Table -->
+  <div class="flex-grow-1 overflow-hidden">
 
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
 <form method="post" action="{% url 'leads:bulk_action' %}">
@@ -133,22 +127,196 @@
   </div>
 {% endif %}
 
-  <div class="card border-0 shadow-sm rounded-4">
-    <div class="table-responsive">
-      <table class="table align-middle mb-0">
-        <thead class="bg-light"><tr>
-          <th><input type="checkbox" onclick="document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked)"></th>
-          <th>Lead ID</th>
-          <th>Date</th>
-          <th>Patient Name</th>
-          <th>Mobile</th>
-          <th>{% if request.user.hospital %}Doctor / Dept{% else %}Course{% endif %}</th>
-          <th>Source</th>
-          <th>Stage</th>
-          <th>Status / Appt</th>
-          <th>Attendant</th>
-          <th>Next Follow-up</th>
-        </tr></thead>
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive custom-table-scrollbar pb-2">
+      <table class="table align-middle mb-0" style="min-width: 1100px;">
+        <thead class="bg-light border-bottom">
+          <tr>
+            <th style="width: 40px;"><input type="checkbox" onclick="document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked)"></th>
+            
+            <!-- 1. Lead ID -->
+            <th class="position-relative py-2 px-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('drawerQuickSearch')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(1)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Lead ID</span>
+              </div>
+            </th>
+
+            <!-- 2. Date -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('inquiry_date')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc (Oldest)</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-inquiry_date')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc (Latest)</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subDateRange')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(2)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Date</span>
+              </div>
+            </th>
+
+            <!-- 3. Patient Name -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_asc')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc (A-Z)</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_desc')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc (Z-A)</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('drawerQuickSearch')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(3)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Patient Name</span>
+              </div>
+            </th>
+
+            <!-- 4. Phone / Mobile -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_asc')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_desc')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('drawerQuickSearch')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(4)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Phone</span>
+              </div>
+            </th>
+
+            <!-- 5. Doctor / Dept -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-updated_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subDept')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(5)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">{% if request.user.hospital %}Doctor / Dept{% else %}Course{% endif %}</span>
+              </div>
+            </th>
+
+            <!-- 6. Source -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-created_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subSources')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(6)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Source</span>
+              </div>
+            </th>
+
+            <!-- 7. Stage -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-updated_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subDealStatus')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(7)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Stage</span>
+              </div>
+            </th>
+
+            <!-- 8. Status / Appt -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-updated_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subApptStatus')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(8)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Status / Appt</span>
+              </div>
+            </th>
+
+            <!-- 9. Attendant -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 24px; height: 24px; background: rgba(0,0,0,0.04);" title="Column Options">
+                    <i class="fa-solid fa-bars" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_asc')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_desc')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subAssigned')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(9)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                  </ul>
+                </div>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Attendant</span>
+              </div>
+            </th>
+
+            <th class="py-2 px-3 text-uppercase small text-muted" style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
+          </tr>
+        </thead>
         <tbody>
           {% for lead in page_obj %}
           <tr>
@@ -254,4 +422,6 @@ function jumpToPage() {
 }
 </script>
 {% endif %}
+  </div> <!-- /Right Side Main Content -->
+</div> <!-- /Split View Container -->
 {% endblock %}
