@@ -242,6 +242,7 @@
     <form method="POST" id="nelsonLeadForm" class="needs-validation">
       {% csrf_token %}
       {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
+      {% if cancel_url %}<input type="hidden" name="return_to" value="{{ cancel_url }}">{% endif %}
 
       <!-- Section: Lead Information -->
       <div class="crm-section-header">
@@ -677,9 +678,15 @@
 
       <!-- Footer Buttons -->
       <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-        <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="crm-btn-cancel">
-          Cancel
-        </a>
+        {% if cancel_url %}
+          <a href="{{ cancel_url }}" class="crm-btn-cancel">
+            Cancel
+          </a>
+        {% else %}
+          <button type="button" onclick="history.back()" class="crm-btn-cancel">
+            Cancel
+          </button>
+        {% endif %}
         <button type="submit" class="crm-btn-save">
           <i class="fa-solid fa-check me-1"></i> Save Lead
         </button>

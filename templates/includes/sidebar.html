@@ -22,8 +22,8 @@
 
   <div class="sidebar-nav-container" id="sidebarAccordion">
 
-  {% if user.hospital and user.role == 'SUPER_ADMIN' %}
-  {# 🏥 HOSPITAL SUPER ADMIN SIDEBAR (Nelson Admin) #}
+  {% if user.hospital and user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+  {# 🏥 HOSPITAL SUPER ADMIN & MANAGER SIDEBAR (Nelson Admin) #}
 
   <!-- Direct Dashboard Link -->
   <a class="nav-link {% if active == 'superadmin_home' %}active{% endif %}" href="{% url 'dashboard:superadmin_home' %}" title="Dashboard" style="margin-top: 4px;">
@@ -38,7 +38,9 @@
     </button>
     <div class="collapse {% if active in 'users roles_permissions' %}show{% endif %} nav-sub-items" id="sec_people" data-bs-parent="#sidebarAccordion">
       <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}" title="User Management"><i class="fa-solid fa-user-gear"></i> <span class="nav-text">User Management</span></a>
+      {% if user.role == 'SUPER_ADMIN' %}
       <a class="nav-link {% if active == 'roles_permissions' %}active{% endif %}" href="{% url 'dashboard:roles_permissions' %}" title="Roles & Permissions"><i class="fa-solid fa-user-shield"></i> <span class="nav-text">Roles & Permissions</span></a>
+      {% endif %}
     </div>
   </div>
 
@@ -50,8 +52,8 @@
     </button>
     <div class="collapse {% if active in 'leads_all meta_ads campaign-management' %}show{% endif %} nav-sub-items" id="sec_leads" data-bs-parent="#sidebarAccordion">
       <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}" title="Lead Management"><i class="fa-solid fa-users"></i> <span class="nav-text">Lead Management</span></a>
-      <a class="nav-link {% if active == 'meta_ads' %}active{% endif %}" href="{% url 'meta_ads:dashboard' %}" title="Meta Ads Dashboard"><i class="fa-brands fa-meta"></i> <span class="nav-text">Meta Ads</span></a>
-      <a class="nav-link {% if active == 'campaign-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'campaign-management' %}" title="Campaign Management"><i class="fa-solid fa-bullseye"></i> <span class="nav-text">Campaigns</span></a>
+      <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}" href="{% url 'meta_ads:dashboard' %}" title="Meta Ads Dashboard"><i class="fa-brands fa-meta"></i> <span class="nav-text">Meta Ads</span> {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+      <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'campaign-management' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'campaign-management' %}" title="Campaign Management"><i class="fa-solid fa-bullseye"></i> <span class="nav-text">Campaigns</span> {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
     </div>
   </div>
 
@@ -63,7 +65,7 @@
     </button>
     <div class="collapse {% if active in 'reports financial-overview notifications tasks audit export' %}show{% endif %} nav-sub-items" id="sec_ops" data-bs-parent="#sidebarAccordion">
       <a class="nav-link {% if active == 'reports' %}active{% endif %}" href="{% url 'dashboard:admin_reports' %}" title="Reports"><i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Reports</span></a>
-      <a class="nav-link {% if active == 'financial-overview' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'financial-overview' %}" title="Financial Overview"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Financial Overview</span></a>
+      <a class="nav-link {% if not request.user.can_view_financials %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_financials %}opacity-50 pe-none{% endif %} {% if active == 'financial-overview' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'financial-overview' %}" title="Financial Overview"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Financial Overview</span> {% if not request.user.can_view_financials %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_financials %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
       <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}" title="Notifications"><i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span></a>
       <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}" title="Tasks"><i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks</span></a>
       <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}" title="Audit Logs"><i class="fa-solid fa-shield-halved"></i> <span class="nav-text">Audit Logs</span></a>
@@ -78,8 +80,8 @@
       <i class="fa-solid fa-chevron-down section-arrow"></i>
     </button>
     <div class="collapse {% if active in 'universal_masters hospital_config' %}show{% endif %} nav-sub-items" id="sec_masters" data-bs-parent="#sidebarAccordion">
-      <a class="nav-link {% if active == 'hospital_config' %}active{% endif %}" href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration"><i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span></a>
-      <a class="nav-link {% if active == 'universal_masters' %}active{% endif %}" href="{% url 'leads:universal_masters' %}" title="Custom Fields & Masters"><i class="fa-solid fa-database"></i> <span class="nav-text">Custom Form Fields</span></a>
+      <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'hospital_config' %}active{% endif %}" href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration"><i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span>{% if not request.user.can_manage_masters %} <i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+      <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'universal_masters' %}active{% endif %}" href="{% url 'leads:universal_masters' %}" title="Custom Fields & Masters"><i class="fa-solid fa-database"></i> <span class="nav-text">Custom Form Fields</span>{% if not request.user.can_manage_masters %} <i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
     </div>
   </div>
 
@@ -125,7 +127,7 @@
       <i class="fa-solid fa-chevron-down section-arrow"></i>
     </button>
     <div class="collapse {% if active in 'tasks notifications daily_report_submit' %}show{% endif %} nav-sub-items" id="sec_tele_tools" data-bs-parent="#sidebarAccordion">
-      <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}" href="{% url 'dashboard:submit_daily_report' %}" title="Daily EOD Report"><i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span></a>
+      <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'daily_report_submit' %}active{% endif %}" href="{% url 'dashboard:submit_daily_report' %}" title="Daily EOD Report"><i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
       <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}" title="Tasks / Reminders"><i class="fa-solid fa-square-check"></i> <span class="nav-text">Tasks / Reminders</span></a>
       <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}" title="Notifications"><i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span></a>
     </div>
@@ -176,17 +178,17 @@
       <i class="fa-solid fa-chevron-down section-arrow"></i>
     </button>
     <div class="collapse {% if active in 'reports_daily reports_employee reports_source reports_campaign' %}show{% endif %} nav-sub-items" id="sec_mgmt_reports" data-bs-parent="#sidebarAccordion">
-      <a class="nav-link {% if active == 'reports_daily' %}active{% endif %}" href="{% url 'dashboard:management_daily_reports' %}" title="Daily EOD Reports"><i class="fa-solid fa-file-lines"></i> <span class="nav-text">Daily EOD Reports</span></a>
-      <a class="nav-link {% if active == 'reports_employee' %}active{% endif %}" href="{% url 'dashboard:employee_report' %}" title="Employee Performance"><i class="fa-solid fa-user-tie"></i> <span class="nav-text">Employee Performance</span></a>
-      <a class="nav-link {% if active == 'reports_source' %}active{% endif %}" href="{% url 'dashboard:source_report' %}" title="Source Performance"><i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Source Performance</span></a>
-      <a class="nav-link {% if active == 'reports_campaign' %}active{% endif %}" href="{% url 'dashboard:campaign_report' %}" title="Campaign Performance"><i class="fa-solid fa-bullhorn"></i> <span class="nav-text">Campaign Performance</span></a>
+      <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_daily' %}active{% endif %}" href="{% url 'dashboard:management_daily_reports' %}" title="Daily EOD Reports"><i class="fa-solid fa-file-lines"></i> <span class="nav-text">Daily EOD Reports</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+      <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_employee' %}active{% endif %}" href="{% url 'dashboard:employee_report' %}" title="Employee Performance"><i class="fa-solid fa-user-tie"></i> <span class="nav-text">Employee Performance</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+      <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_source' %}active{% endif %}" href="{% url 'dashboard:source_report' %}" title="Source Performance"><i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Source Performance</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+      <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_campaign' %}active{% endif %}" href="{% url 'dashboard:campaign_report' %}" title="Campaign Performance"><i class="fa-solid fa-bullhorn"></i> <span class="nav-text">Campaign Performance</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
     </div>
   </div>
 
   <!-- Section: Meta Integration (Single Tab) -->
-  <a class="nav-link {% if active == 'meta_ads' %}active{% endif %}" href="{% url 'meta_ads:dashboard' %}" title="Meta Ads Dashboard">
+  <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}" href="{% url 'meta_ads:dashboard' %}" title="Meta Ads Dashboard">
     <i class="fa-brands fa-meta"></i> <span class="nav-text">Meta Ads</span>
-  </a>
+   {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
 
   <!-- Section: Lead Management -->
   <div class="nav-section-group">
@@ -215,7 +217,8 @@
     </div>
   </div>
 
-  <!-- Section: Admissions & Payments -->
+  {% if not request.user.hospital %}
+<!-- Section: Admissions & Payments -->
   <div class="nav-section-group">
     <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_mgmt_adm" aria-expanded="{% if active in 'admissions payments' %}true{% else %}false{% endif %}">
       <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">Admissions & Billing</span></span>
@@ -226,6 +229,7 @@
       <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'payments:list' %}" title="Payments"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments</span></a>
     </div>
   </div>
+{% endif %}
 
   <!-- Section: Excel Operations -->
   <div class="nav-section-group">
@@ -285,9 +289,9 @@
   </a>
 
   <!-- Submit Daily Report (Single Tab) -->
-  <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}" href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
+  <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'daily_report_submit' %}active{% endif %}" href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
     <i class="fa-solid fa-pen-to-square"></i> <span class="nav-text">Submit EOD Report</span>
-  </a>
+   {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
 
   <!-- Section: Lead Management -->
   <div class="nav-section-group">
@@ -315,7 +319,8 @@
     </div>
   </div>
 
-  <!-- Section: Admissions & Payments -->
+  {% if not request.user.hospital %}
+<!-- Section: Admissions & Payments -->
   <div class="nav-section-group">
     <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_adm" aria-expanded="{% if active in 'admissions payments' %}true{% else %}false{% endif %}">
       <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">Admissions & Billing</span></span>
@@ -326,14 +331,15 @@
       <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'payments:list' %}" title="Payments"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments</span></a>
     </div>
   </div>
+{% endif %}
 
   {% endif %}
 
   {% if user.hospital and user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' and user.hospital %}
   <!-- Direct Hospital Profile Link (Placed with Profile tab at the bottom) -->
-  <a class="nav-link {% if active == 'hospital-profile' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
+  <a class="nav-link {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if active == 'hospital-profile' %}active{% endif %}" href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
     <i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Profile</span>
-  </a>
+   {% if not request.user.can_manage_hospital_profile %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %} {% if not request.user.can_manage_hospital_profile %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
   {% endif %}
 
   <!-- Direct Profile & Logout Link (Clean Nav Link) -->

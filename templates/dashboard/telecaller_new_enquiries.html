@@ -2,20 +2,52 @@
 {% block title %}New Enquiries | Nelson CRM{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h3 class="fw-bold text-primary mb-1">
-            <i class="fa-solid fa-envelope-open-text me-2"></i>New Enquiries
-        </h3>
-        <p class="text-muted mb-0">Fresh, uncontacted leads synchronized from Meta API and other sources.</p>
+        <h4 class="fw-bold text-dark mb-0">New Enquiries</h4>
+        <span class="text-muted small">{{ total_count|default:0 }} fresh lead(s)</span>
     </div>
     <div class="d-flex align-items-center gap-2">
+        <!-- Inline Filter Button -->
+        <button class="btn btn-outline-primary rounded-pill px-3 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" type="button" onclick="toggleInlineFilterSidebar()">
+            <i class="fa-solid fa-filter"></i>
+            <span>Filter</span>
+            {% if active_filters_count > 0 %}
+                <span class="badge bg-primary rounded-pill">{{ active_filters_count }}</span>
+            {% endif %}
+        </button>
+
+        {% if active_filters_count > 0 or q %}
+            <a href="{% url 'dashboard:telecaller_new_enquiries' %}" class="btn btn-light border text-danger rounded-pill px-3 shadow-sm" title="Clear all filters">
+                <i class="fa-solid fa-rotate-left me-1"></i> Clear
+            </a>
+        {% endif %}
+
+        <!-- Top Header Export Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm dropdown-toggle fw-semibold" type="button" id="topHeaderExportNewEnqDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-file-export me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportNewEnqDropdown" style="font-size: 0.85rem; min-width: 170px;">
+                <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export {% if active_filters_count > 0 %}Filtered{% else %}All Fresh{% endif %} Leads</h6></li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{% for key, value in request.GET.items %}{% if key != 'export' %}{{ key }}={{ value }}&{% endif %}{% endfor %}export=excel">
+                        <i class="fa-solid fa-file-excel text-success" style="font-size: 1rem;"></i>
+                        <span>Excel (.xlsx)</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{% for key, value in request.GET.items %}{% if key != 'export' %}{{ key }}={{ value }}&{% endif %}{% endfor %}export=pdf" target="_blank">
+                        <i class="fa-solid fa-file-pdf text-danger" style="font-size: 1rem;"></i>
+                        <span>PDF / Print</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
         {% if user.can_import_export %}
         <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-semibold">
             <i class="fa-solid fa-file-excel me-1"></i> Import Excel
-        </a>
-        <a href="{% url 'imports:export' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm">
-            <i class="fa-solid fa-file-export me-1"></i> Export
         </a>
         {% endif %}
         <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold">
@@ -23,6 +55,15 @@
         </span>
     </div>
 </div>
+
+<!-- Split View Container: Left Filter Column + Right Main Content (Zoho CRM Style) -->
+<div class="d-flex align-items-stretch gap-3 w-100">
+    
+    <!-- Left Filter Column -->
+    {% include "includes/leads_side_filter.html" %}
+
+    <!-- Right Main Column -->
+    <div class="flex-grow-1 overflow-hidden">
 
 <!-- Simple Search Card -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -36,27 +77,123 @@
             </div>
             <div class="col-md-3 col-12 d-flex gap-2">
                 <button type="submit" class="btn btn-primary rounded-pill flex-grow-1"><i class="fa-solid fa-search me-1"></i> Search</button>
-                {% if q %}
-                    <a href="{% url 'dashboard:telecaller_new_enquiries' %}" class="btn btn-light border rounded-pill px-3">Clear</a>
-                {% endif %}
+                <button class="btn btn-light border rounded-pill px-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#crmFilterDrawer" title="Open Filter Drawer">
+                    <i class="fa-solid fa-sliders text-primary"></i>
+                </button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Simple Table View Card -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
+<div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
+        <div class="table-responsive custom-table-scrollbar pb-2">
+            <table class="table table-hover align-middle mb-0" style="min-width: 1000px;">
+                <thead class="bg-light border-bottom">
                     <tr>
-                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient Details</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Contact & City</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Source & Campaign</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Priority / Dept</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Received Time</th>
-                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Quick Actions</th>
+                        <!-- 1. Patient Details -->
+                        <th class="border-0 px-3 py-2 text-muted small text-uppercase position-relative">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 26px; height: 26px; background: rgba(0,0,0,0.04);" title="Column Options">
+                                        <i class="fa-solid fa-bars" style="font-size: 0.78rem;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_asc')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_desc')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('drawerQuickSearch')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(0)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                                    </ul>
+                                </div>
+                                <span class="ms-2 fw-bold text-dark">Patient Details</span>
+                            </div>
+                        </th>
+
+                        <!-- 2. Contact & City -->
+                        <th class="border-0 py-2 px-3 text-muted small text-uppercase position-relative" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 26px; height: 26px; background: rgba(0,0,0,0.04);" title="Column Options">
+                                        <i class="fa-solid fa-bars" style="font-size: 0.78rem;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_asc')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('name_desc')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subLocation')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(1)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                                    </ul>
+                                </div>
+                                <span class="ms-2 fw-bold text-dark">Phone / City</span>
+                            </div>
+                        </th>
+
+                        <!-- 3. Source & Campaign -->
+                        <th class="border-0 py-2 px-3 text-muted small text-uppercase position-relative" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 26px; height: 26px; background: rgba(0,0,0,0.04);" title="Column Options">
+                                        <i class="fa-solid fa-bars" style="font-size: 0.78rem;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-created_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subCampaigns')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(2)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                                    </ul>
+                                </div>
+                                <span class="ms-2 fw-bold text-dark">Lead Source</span>
+                            </div>
+                        </th>
+
+                        <!-- 4. Priority / Dept -->
+                        <th class="border-0 py-2 px-3 text-muted small text-uppercase position-relative" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 26px; height: 26px; background: rgba(0,0,0,0.04);" title="Column Options">
+                                        <i class="fa-solid fa-bars" style="font-size: 0.78rem;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-updated_at')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('created_at')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc</span></button></li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subPriority')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(3)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                                    </ul>
+                                </div>
+                                <span class="ms-2 fw-bold text-dark">Priority / Dept</span>
+                            </div>
+                        </th>
+
+                        <!-- 5. Received Time -->
+                        <th class="border-0 py-2 px-3 text-muted small text-uppercase position-relative" style="border-left: 1px solid #e2e8f0 !important;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border-0 rounded-circle p-1 d-inline-flex align-items-center justify-content-center text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 26px; height: 26px; background: rgba(0,0,0,0.04);" title="Column Options">
+                                        <i class="fa-solid fa-bars" style="font-size: 0.78rem;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow border-0 py-1" style="font-size: 0.82rem; min-width: 175px; z-index: 1070;">
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('-inquiry_date')"><i class="fa-solid fa-arrow-up text-muted"></i> <span>Asc (Latest)</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="applyDrawerSort('inquiry_date')"><i class="fa-solid fa-arrow-down text-muted"></i> <span>Desc (Oldest)</span></button></li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark" onclick="toggleColumnPin(this)"><i class="fa-solid fa-thumbtack text-muted"></i> <span>Pin Column</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" onclick="openDrawerSection('subDateRange')"><i class="fa-solid fa-filter text-primary"></i> <span>Filter by</span></button></li>
+                                        <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(4)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
+                                    </ul>
+                                </div>
+                                <span class="ms-2 fw-bold text-dark">Received Time</span>
+                            </div>
+                        </th>
+
+                        <!-- 6. Quick Actions -->
+                        <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Quick Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,8 +247,8 @@
                                 <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }}%2C%20Greetings%20from%20{{ request.user.hospital.name|default:'Nelson%20Hospital'|urlencode }}!%20We%20received%20your%20enquiry%20and%20are%20here%20to%20assist%20you%20with%20doctor%20consultations%2C%20appointments%2C%20and%20healthcare%20guidance.%20How%20may%20we%20help%20you%20today%3F" target="_blank" class="btn btn-sm btn-light border text-success" title="WhatsApp Message">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </a>
-                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-primary px-3 fw-semibold">
-                                    <i class="fa-solid fa-pen-to-square me-1"></i> Open & Act
+                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-primary" title="Open & Edit Lead">
+                                    <i class="fa-solid fa-pen-to-square"></i>
                                 </a>
                             </div>
                         </td>
@@ -181,5 +318,6 @@
     </div>
 </div>
 {% endif %}
-
+    </div> <!-- /Right Main Column -->
+</div> <!-- /Split View Container -->
 {% endblock %}

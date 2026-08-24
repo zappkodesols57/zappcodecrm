@@ -471,19 +471,52 @@ class Lead(models.Model):
 
     @property
     def custom_dept(self):
-        return self.get_custom("department")
+        dept = self.get_custom("department") or self.get_custom("disease")
+        if not dept and self.course_id and self.course:
+            return self.course.name
+        return dept or ""
+
+    @property
+    def custom_doctor(self):
+        return self.get_custom("doctor")
 
     @property
     def custom_source(self):
-        return self.get_custom("lead_source") or self.get_custom("source")
+        src = self.get_custom("lead_source") or self.get_custom("source")
+        if not src and self.lead_source_id and self.lead_source:
+            return self.lead_source.name
+        return src or ""
 
     @property
     def custom_priority(self):
-        return self.get_custom("priority")
+        return self.get_custom("priority") or self.temperature or ""
 
     @property
     def custom_camp(self):
-        return self.get_custom("campaign")
+        camp = self.get_custom("campaign")
+        if not camp and self.campaign_id and self.campaign:
+            return self.campaign.name
+        return camp or ""
+
+    @property
+    def custom_deal_status(self):
+        status = self.get_custom("deal_status") or (self.stage.name if self.stage_id and self.stage else "")
+        if not status:
+            temp = (self.temperature or "").upper()
+            if temp in ("UNCONTACTED", "") and not self.assigned_to_id:
+                return "New"
+            elif self.temperature:
+                return self.get_temperature_display()
+            return "New"
+        return status
+
+    @property
+    def custom_status_display(self):
+        return self.custom_deal_status
+
+    @property
+    def custom_appointment_status(self):
+        return self.get_custom("appointment_status") or ""
 
     def save(self, *args, **kwargs):
         if not self.lead_code:

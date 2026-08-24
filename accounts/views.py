@@ -32,7 +32,7 @@ def _role_redirect(user):
         if user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_home")
         if user.role == User.Role.MANAGER:
-            return redirect("dashboard:management_home")
+            return redirect("dashboard:superadmin_home")
         return redirect("dashboard:home")
     if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         return redirect("dashboard:management_home")
@@ -177,6 +177,10 @@ def user_add(request):
 @user_passes_test(_is_admin)
 def user_edit(request, pk):
     obj = get_object_or_404(User, pk=pk)
+    if request.user.role == User.Role.MANAGER and request.user.hospital:
+        if request.user.pk != obj.pk and obj.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
+            messages.error(request, "Managers can only edit Doctors, Lead Attendants, or their own profile.")
+            return redirect("accounts:user_list")
     if request.method == "POST":
         form = CRMUserEditForm(request.POST, instance=obj, user=request.user)
         if form.is_valid():
@@ -288,6 +292,10 @@ def doctor_schedule_manage(request, pk):
 @user_passes_test(_is_admin)
 def user_reset_password(request, pk):
     target_user = get_object_or_404(User, pk=pk)
+    if request.user.role == User.Role.MANAGER and request.user.hospital:
+        if request.user.pk != target_user.pk and target_user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
+            messages.error(request, "Managers can only reset passwords for Doctors, Lead Attendants, or their own account.")
+            return redirect("accounts:user_list")
     if request.method == "POST":
         form = CRMUserPasswordResetForm(request.POST)
         if form.is_valid():
@@ -311,6 +319,11 @@ def user_delete(request, pk):
     if request.user.pk == target_user.pk:
         messages.error(request, "You cannot delete your own account.")
         return redirect("accounts:user_list")
+
+    if request.user.role == User.Role.MANAGER and request.user.hospital:
+        if target_user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
+            messages.error(request, "Managers can only delete Doctor and Lead Attendant accounts.")
+            return redirect("accounts:user_list")
 
     if request.method == "POST":
         username = target_user.username
@@ -359,8 +372,12 @@ def register(request):
 @login_required
 @user_passes_test(_is_admin)
 def approve_user(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    if request.user.role == User.Role.MANAGER and request.user.hospital:
+        if user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
+            messages.error(request, "Managers can only approve Doctor and Lead Attendant accounts.")
+            return redirect("accounts:user_list")
     if request.method == "POST":
-        user = get_object_or_404(User, pk=pk)
         user.is_approved = True
         user.is_active = True
         user.save()
@@ -372,6 +389,11 @@ def approve_user(request, pk):
 @login_required
 @user_passes_test(_is_admin)
 def reject_user(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    if request.user.role == User.Role.MANAGER and request.user.hospital:
+        if user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
+            messages.error(request, "Managers can only reject Doctor and Lead Attendant accounts.")
+            return redirect("accounts:user_list")
     if request.method == "POST":
         user = get_object_or_404(User, pk=pk)
         username = user.username

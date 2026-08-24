@@ -1,0 +1,601 @@
+{% comment %}
+  Clean, Modern Side Drawer Filter Component (Zoho / Salesforce Style)
+  Features:
+  - Header with Filter & Sort tabs
+  - Search bar
+  - Structured "System Defined Filters" & "Filter By Fields" sections with clean toggle & checkboxes
+  - Instant live filter search
+  - Compact, high-productivity aesthetic matching image #2
+{% endcomment %}
+
+<!-- Inline Split-View Filter Sidebar (Zoho CRM Style - Resizable, No overlapping popup/modal) -->
+<div id="crmFilterSidebarCol" class="{% if active_filters_count > 0 or request.GET.filter_open == '1' %}d-flex{% else %}d-none{% endif %}" style="width: 270px; min-width: 200px; max-width: 500px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #e2e8f0; border-radius: 0.75rem 0 0 0.75rem; position: relative;">
+  
+  <div class="d-flex flex-column h-100 flex-grow-1 overflow-hidden" style="position: sticky; top: 75px; max-height: calc(100vh - 90px);">
+  
+  <!-- Top Bar: Filter / Sort tabs & Close -->
+  <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="background-color: #f8fafc;">
+    <div class="d-flex align-items-center gap-2">
+      <!-- Filter Active Tab Indicator -->
+      <span class="btn btn-sm btn-white border px-3 py-1 fw-bold text-primary d-inline-flex align-items-center gap-1 shadow-xs" style="border-radius: 6px; font-size: 0.82rem; background: #ffffff;">
+        <i class="fa-solid fa-filter" style="font-size: 0.75rem;"></i> Filter
+      </span>
+
+      <!-- Sort Options Dropdown -->
+      <div class="dropdown">
+        <button class="btn btn-sm btn-light border px-2 py-1 text-dark d-inline-flex align-items-center gap-1 dropdown-toggle fw-semibold" type="button" id="crmSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 6px; font-size: 0.82rem;" title="Sort leads by...">
+          <i class="fa-solid fa-arrow-down-short-wide text-primary" style="font-size: 0.75rem;"></i>
+          <span>Sort: </span>
+          <span class="text-primary" style="font-size: 0.78rem;">
+            {% if current_sort == 'created_at' %}Oldest First
+            {% elif current_sort == '-updated_at' %}Recently Updated
+            {% elif current_sort == 'name_asc' %}Name (A-Z)
+            {% elif current_sort == 'name_desc' %}Name (Z-A)
+            {% elif current_sort == '-inquiry_date' %}Inquiry Date (New-Old)
+            {% elif current_sort == 'inquiry_date' %}Inquiry Date (Old-New)
+            {% else %}Newest First{% endif %}
+          </span>
+        </button>
+        <ul class="dropdown-menu shadow-sm border-0 py-1" aria-labelledby="crmSortDropdown" style="font-size: 0.82rem; min-width: 220px; z-index: 1070;">
+          <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Sort Leads By</h6></li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if not current_sort or current_sort == '-created_at' %}active fw-bold{% endif %}" onclick="applyDrawerSort('-created_at')">
+              <span><i class="fa-solid fa-clock me-2 text-muted"></i> Newest First (Created)</span>
+              {% if not current_sort or current_sort == '-created_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+            </button>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'created_at' %}active fw-bold{% endif %}" onclick="applyDrawerSort('created_at')">
+              <span><i class="fa-regular fa-clock me-2 text-muted"></i> Oldest First</span>
+              {% if current_sort == 'created_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+            </button>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == '-updated_at' %}active fw-bold{% endif %}" onclick="applyDrawerSort('-updated_at')">
+              <span><i class="fa-solid fa-rotate me-2 text-muted"></i> Recently Updated</span>
+              {% if current_sort == '-updated_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+            </button>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == '-inquiry_date' %}active fw-bold{% endif %}" onclick="applyDrawerSort('-inquiry_date')">
+              <span><i class="fa-regular fa-calendar-days me-2 text-muted"></i> Inquiry Date (Latest)</span>
+              {% if current_sort == '-inquiry_date' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+            </button>
+          </li>
+          <li><hr class="dropdown-divider my-1"></li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'name_asc' %}active fw-bold{% endif %}" onclick="applyDrawerSort('name_asc')">
+              <span><i class="fa-solid fa-arrow-down-a-z me-2 text-muted"></i> Patient Name (A → Z)</span>
+              {% if current_sort == 'name_asc' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+            </button>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'name_desc' %}active fw-bold{% endif %}" onclick="applyDrawerSort('name_desc')">
+              <span><i class="fa-solid fa-arrow-down-z-a me-2 text-muted"></i> Patient Name (Z → A)</span>
+              {% if current_sort == 'name_desc' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+            </button>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+    <button type="button" class="btn-close text-reset" onclick="toggleInlineFilterSidebar()" aria-label="Close" style="font-size: 0.75rem;"></button>
+  </div>
+
+  <form method="GET" action="" id="crmDrawerFilterForm" class="d-flex flex-column h-100 overflow-hidden m-0">
+    
+    <!-- Title & Search Header -->
+    <div class="px-3 pt-3 pb-2">
+      <h6 class="fw-bold text-dark mb-2" style="font-size: 0.95rem; letter-spacing: -0.2px;">Filter Leads by</h6>
+      <div class="input-group input-group-sm mb-1">
+        <span class="input-group-text bg-white border-end-0 text-muted" style="border-radius: 6px 0 0 6px; border-color: #e2e8f0;"><i class="fa-solid fa-search" style="font-size: 0.8rem;"></i></span>
+        <input type="text" name="q" id="drawerQuickSearch" class="form-control border-start-0 ps-0" placeholder="Search" value="{{ q }}" style="border-radius: 0 6px 6px 0; border-color: #e2e8f0; font-size: 0.85rem;" onkeyup="filterDrawerOptions(this.value)">
+      </div>
+    </div>
+
+    <!-- Scrollable Filter Body -->
+    <div class="px-3 py-1 overflow-y-auto flex-grow-1 custom-filter-scroll">
+      
+      <!-- ================= SECTION 1: SYSTEM DEFINED FILTERS ================= -->
+      <div class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer" data-bs-toggle="collapse" data-bs-target="#groupSystemFilters" aria-expanded="true" style="font-size: 0.88rem; cursor: pointer; user-select: none;">
+        <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> System Defined Filters</span>
+      </div>
+      <div class="collapse show" id="groupSystemFilters">
+        <div class="ps-2 mb-2">
+          
+          <!-- Date Range (Collapsible or Direct) -->
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDateRange" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-regular fa-calendar me-2 text-muted"></i> Date Period</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if date_from_val or date_to_val %}show{% endif %} ps-3 pe-1 py-1" id="subDateRange">
+              <div class="mb-2">
+                <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">From Date</label>
+                <input type="date" name="date_from" id="drawerDateFrom" class="form-control form-control-sm py-0 px-2" value="{{ date_from_val }}" max="{% now 'Y-m-d' %}" style="font-size: 0.8rem;">
+              </div>
+              <div>
+                <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">To Date</label>
+                <input type="date" name="date_to" id="drawerDateTo" class="form-control form-control-sm py-0 px-2" value="{{ date_to_val }}" max="{% now 'Y-m-d' %}" style="font-size: 0.8rem;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Campaigns Checkboxes -->
+          {% if hospital_campaigns or campaigns %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subCampaigns" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-bullseye me-2 text-muted"></i> Campaigns</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_campaigns %}show{% endif %} ps-3 pe-1 py-1" id="subCampaigns">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% if hospital_campaigns %}
+                  {% for c in hospital_campaigns %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.name }}" id="camp_{{ forloop.counter }}" {% if c.name in selected_campaigns %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="camp_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ c.name }}</label>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  {% for c in campaigns %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.id }}" id="camp_std_{{ c.id }}" {% if c.id|stringformat:'s' in selected_campaigns or c.name in selected_campaigns %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="camp_std_{{ c.id }}" style="font-size: 0.82rem;">{{ c.name }}</label>
+                  </div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Lead Source Checkboxes -->
+          {% if hospital_sources or lead_sources %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subSources" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-share-nodes me-2 text-muted"></i> Lead Sources</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_sources %}show{% endif %} ps-3 pe-1 py-1" id="subSources">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% if hospital_sources %}
+                  {% for s in hospital_sources %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.name }}" id="src_{{ forloop.counter }}" {% if s.name in selected_sources %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="src_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ s.name }}</label>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  {% for s in lead_sources %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.id }}" id="src_std_{{ s.id }}" {% if s.id|stringformat:'s' in selected_sources or s.name in selected_sources %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="src_std_{{ s.id }}" style="font-size: 0.82rem;">{{ s.name }}</label>
+                  </div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Assigned User Checkboxes -->
+          {% if employees %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subAssigned" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-user-check me-2 text-muted"></i> Assigned To</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_assigned %}show{% endif %} ps-3 pe-1 py-1" id="subAssigned">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="emp_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
+                  <label class="form-check-label text-danger filter-label fw-semibold" for="emp_unassigned" style="font-size: 0.82rem;">Unassigned Leads</label>
+                </div>
+                {% for emp in employees %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ emp.id }}" id="emp_{{ emp.id }}" {% if emp.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="emp_{{ emp.id }}" style="font-size: 0.82rem;">{{ emp.get_full_name|default:emp.username }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <hr class="my-2" style="border-color: #f1f5f9;">
+
+      <!-- ================= SECTION 2: FILTER BY FIELDS ================= -->
+      <div class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer" data-bs-toggle="collapse" data-bs-target="#groupFieldFilters" aria-expanded="true" style="font-size: 0.88rem; cursor: pointer; user-select: none;">
+        <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> Filter By Fields</span>
+      </div>
+      <div class="collapse show" id="groupFieldFilters">
+        <div class="ps-2 mb-3">
+
+          <!-- Departments -->
+          {% if filter_departments %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDept" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-hospital me-2 text-muted"></i> Department</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_departments %}show{% endif %} ps-3 pe-1 py-1" id="subDept">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for dept in filter_departments %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="department" value="{{ dept }}" id="dept_{{ forloop.counter }}" {% if dept in selected_departments %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="dept_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ dept }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Doctors -->
+          {% if filter_doctors %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDoctors" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-user-doctor me-2 text-muted"></i> Doctor</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_doctors %}show{% endif %} ps-3 pe-1 py-1" id="subDoctors">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for doc in filter_doctors %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="doctor" value="{{ doc }}" id="doc_{{ forloop.counter }}" {% if doc in selected_doctors %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="doc_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ doc }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Lead Status -->
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-list-check me-2 text-muted"></i> Lead Status</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_deal_statuses or selected_stages %}show{% endif %} ps-3 pe-1 py-1" id="subLeadStatus">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% if hospital_statuses %}
+                  {% for ds in hospital_statuses %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ ds.name }}" id="ds_{{ forloop.counter }}" {% if ds.name in selected_deal_statuses %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="ds_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ ds.name }}</label>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  {% for s_val, s_lbl in deal_status_choices %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ s_val }}" id="ds_{{ s_val }}" {% if s_val in selected_deal_statuses %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="ds_{{ s_val }}" style="font-size: 0.82rem;">{{ s_lbl }}</label>
+                  </div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Appointment Status -->
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subApptStatus" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-regular fa-calendar-check me-2 text-muted"></i> Appointment Status</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_appointment_statuses %}show{% endif %} ps-3 pe-1 py-1" id="subApptStatus">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for st in filter_appointment_statuses %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="appointment_status" value="{{ st }}" id="apt_{{ forloop.counter }}" {% if st in selected_appointment_statuses %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="apt_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ st }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Priority / Temperature -->
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subPriority" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-fire me-2 text-muted"></i> Priority / Temperature</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_priorities or selected_temperatures %}show{% endif %} ps-3 pe-1 py-1" id="subPriority">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for prio in filter_priorities %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="priority" value="{{ prio }}" id="prio_{{ forloop.counter }}" {% if prio in selected_priorities or prio in selected_temperatures %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="prio_{{ forloop.counter }}" style="font-size: 0.82rem;">
+                    {% if prio == 'Hot' %}<span class="text-danger fw-semibold">🔥 Hot</span>
+                    {% elif prio == 'Warm' %}<span class="text-warning fw-semibold">⚡ Warm</span>
+                    {% else %}<span class="text-info fw-semibold">❄️ Cold</span>{% endif %}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <!-- City / Location -->
+          {% if filter_locations %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subLocation" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-location-dot me-2 text-muted"></i> City / Location</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_locations %}show{% endif %} ps-3 pe-1 py-1" id="subLocation">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for loc in filter_locations %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="location" value="{{ loc }}" id="loc_{{ forloop.counter }}" {% if loc in selected_locations %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="loc_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ loc }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Hidden Sort Input -->
+    <input type="hidden" name="sort" id="drawerSortInput" value="{{ current_sort|default:'-created_at' }}">
+
+    <!-- Bottom Action Bar (Apply Filter, Export & Clear) -->
+    <div class="p-3 bg-white border-top d-flex gap-2 align-items-center">
+      <button type="submit" class="btn btn-primary flex-grow-1 fw-bold shadow-sm" style="border-radius: 6px; font-size: 0.88rem; background-color: #2563eb; border-color: #2563eb;">
+        Apply Filter
+      </button>
+
+      <!-- Export Dropdown Button -->
+      <div class="dropdown">
+        <button class="btn btn-outline-success dropdown-toggle fw-semibold px-2" type="button" id="drawerExportDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 6px; font-size: 0.85rem;" title="Export filtered leads">
+          <i class="fa-solid fa-file-export me-1"></i> Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="drawerExportDropdown" style="font-size: 0.82rem; min-width: 160px; z-index: 1080;">
+          <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export Filtered Data</h6></li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('excel')">
+              <i class="fa-solid fa-file-excel text-success" style="font-size: 0.95rem;"></i>
+              <span>Excel (.xlsx)</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('pdf')">
+              <i class="fa-solid fa-file-pdf text-danger" style="font-size: 0.95rem;"></i>
+              <span>PDF / Print</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <a href="{{ request.path }}" class="btn btn-light border px-2 text-secondary fw-semibold" style="border-radius: 6px; font-size: 0.85rem;" title="Clear filters">
+        Clear
+      </a>
+    </div>
+  </form>
+  </div> <!-- /Inner Form Container -->
+
+  <!-- Draggable Resizer Handle on Right Edge of Filter Column -->
+  <div class="filter-resizer-handle" id="filterSidebarResizer" title="Drag to resize filter panel"></div>
+</div> <!-- /#crmFilterSidebarCol -->
+
+<style>
+  .custom-filter-scroll::-webkit-scrollbar,
+  .filter-options-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-filter-scroll::-webkit-scrollbar-thumb,
+  .filter-options-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .form-check-input {
+    width: 15px;
+    height: 15px;
+    margin-top: 2px;
+    border-color: #cbd5e1;
+    border-radius: 3px;
+  }
+  .form-check-input:checked {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+  .form-check-label {
+    cursor: pointer;
+  }
+  .filter-item-row:hover {
+    background-color: #f8fafc;
+    border-radius: 4px;
+  }
+  .dropdown-item.active, .dropdown-item:active {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+  }
+</style>
+
+<script>
+  function applyDrawerSort(sortVal) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sortVal);
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
+  function exportFilteredLeads(format) {
+    const form = document.getElementById('crmDrawerFilterForm');
+    if (!form) return;
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    for (const [key, val] of formData.entries()) {
+      if (val) {
+        params.append(key, val);
+      }
+    }
+    params.set('export', format);
+    const targetUrl = `${window.location.pathname}?${params.toString()}`;
+    if (format === 'pdf') {
+      window.open(targetUrl, '_blank');
+    } else {
+      window.location.href = targetUrl;
+    }
+  }
+
+  function filterDrawerOptions(query) {
+    const q = (query || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('.filter-item-row');
+    rows.forEach(row => {
+      const text = (row.textContent || '').toLowerCase();
+      if (!q || text.includes(q)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  function toggleInlineFilterSidebar() {
+    const col = document.getElementById('crmFilterSidebarCol');
+    if (!col) return;
+    if (col.classList.contains('d-none')) {
+      col.classList.remove('d-none');
+      col.classList.add('d-flex');
+      sessionStorage.setItem('crmFilterSidebarOpen', 'true');
+    } else {
+      col.classList.remove('d-flex');
+      col.classList.add('d-none');
+      sessionStorage.setItem('crmFilterSidebarOpen', 'false');
+    }
+  }
+
+  function openDrawerSection(sectionId) {
+    const col = document.getElementById('crmFilterSidebarCol');
+    if (col && col.classList.contains('d-none')) {
+      toggleInlineFilterSidebar();
+    }
+    if (sectionId) {
+      const target = document.getElementById(sectionId);
+      if (target) {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+        bsCollapse.show();
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (target.tagName === 'INPUT') {
+          target.focus();
+        }
+      }
+    }
+  }
+
+  function toggleColumnPin(btn) {
+    const th = btn.closest('th');
+    if (!th) return;
+    const isPinned = th.style.position === 'sticky';
+    if (isPinned) {
+      th.style.position = '';
+      th.style.left = '';
+      th.style.zIndex = '';
+      th.style.backgroundColor = '';
+      btn.querySelector('span').textContent = 'Pin Column';
+    } else {
+      th.style.position = 'sticky';
+      th.style.left = '0px';
+      th.style.zIndex = '1020';
+      th.style.backgroundColor = '#f8fafc';
+      btn.querySelector('span').textContent = 'Unpin Column';
+    }
+  }
+
+  function hideColumnByIndex(colIdx) {
+    const table = document.querySelector('table');
+    if (!table) return;
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(r => {
+      const cells = r.children;
+      if (cells[colIdx]) {
+        cells[colIdx].style.display = 'none';
+      }
+    });
+  }
+
+  // Auto restore sidebar & filter state
+  document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateFrom = document.getElementById('drawerDateFrom');
+    const dateTo = document.getElementById('drawerDateTo');
+    
+    if (dateFrom) {
+      dateFrom.setAttribute('max', today);
+      dateFrom.addEventListener('change', function() {
+        if (dateTo && this.value) {
+          dateTo.setAttribute('min', this.value);
+        }
+      });
+    }
+    if (dateTo) {
+      dateTo.setAttribute('max', today);
+      dateTo.addEventListener('change', function() {
+        if (dateFrom && this.value) {
+          dateFrom.setAttribute('max', this.value);
+        }
+      });
+    }
+
+    const col = document.getElementById('crmFilterSidebarCol');
+    if (col) {
+      const isStoredOpen = sessionStorage.getItem('crmFilterSidebarOpen') === 'true';
+      const hasActiveFilters = {{ active_filters_count|default:0 }} > 0;
+      if (isStoredOpen || hasActiveFilters) {
+        col.classList.remove('d-none');
+        col.classList.add('d-flex');
+      }
+    }
+
+    // Filter Sidebar Interactive Width Resizer
+    const resizer = document.getElementById('filterSidebarResizer');
+    const filterCol = document.getElementById('crmFilterSidebarCol');
+    if (resizer && filterCol) {
+      const savedFilterWidth = localStorage.getItem('crmFilterSidebarCustomWidth');
+      if (savedFilterWidth) {
+        filterCol.style.width = savedFilterWidth + 'px';
+      }
+
+      let isResizingFilter = false;
+
+      resizer.addEventListener('mousedown', function(e) {
+        isResizingFilter = true;
+        resizer.classList.add('resizing');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (!isResizingFilter) return;
+        const rect = filterCol.getBoundingClientRect();
+        let newWidth = e.clientX - rect.left;
+        if (newWidth < 220) newWidth = 220;
+        if (newWidth > 550) newWidth = 550;
+
+        filterCol.style.width = newWidth + 'px';
+        localStorage.setItem('crmFilterSidebarCustomWidth', newWidth);
+      });
+
+      document.addEventListener('mouseup', function() {
+        if (isResizingFilter) {
+          isResizingFilter = false;
+          resizer.classList.remove('resizing');
+          document.body.style.userSelect = '';
+          document.body.style.cursor = '';
+        }
+      });
+    }
+  });
+</script>

@@ -249,12 +249,73 @@
     .sidebar.show{ transform: translateX(0); }
     .main-wrap{ margin-left:0; }
   }
+
+  /* Sidebar Resizer Handle */
+  .sidebar-resizer-handle {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-w);
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 1035;
+    background: transparent;
+    transition: background 0.15s ease;
+  }
+  .sidebar-resizer-handle:hover,
+  .sidebar-resizer-handle.resizing {
+    background: #6366f1;
+  }
+
+  /* Filter Panel Resizer Handle */
+  .filter-resizer-handle {
+    width: 6px;
+    cursor: col-resize;
+    background: #e2e8f0;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+    border-radius: 3px;
+    margin: 0 -3px;
+    z-index: 10;
+  }
+  .filter-resizer-handle:hover,
+  .filter-resizer-handle.resizing {
+    background: #3b82f6;
+  }
+
+  /* Zoho-style Horizontal Table Scrollbar (Thick, Distinct, User-Friendly) */
+  .custom-table-scrollbar {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-color: #94a3b8 #f1f5f9;
+    scrollbar-width: auto;
+  }
+  .custom-table-scrollbar::-webkit-scrollbar {
+    height: 12px;
+    width: 10px;
+  }
+  .custom-table-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+  .custom-table-scrollbar::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 6px;
+    border: 2px solid #f1f5f9;
+  }
+  .custom-table-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
 </style>
 {% block extra_head %}{% endblock %}
 </head>
 <body>
 
 {% include "includes/sidebar.html" %}
+
+<!-- Draggable Sidebar Resizer Handle -->
+<div class="sidebar-resizer-handle d-none d-lg-block" id="sidebarResizer"></div>
 
 <div class="main-wrap">
   {% include "includes/header.html" %}
@@ -267,6 +328,53 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+  // Sidebar Draggable Width Resizer
+  document.addEventListener('DOMContentLoaded', function() {
+    const resizer = document.getElementById('sidebarResizer');
+    const sidebar = document.getElementById('sidebar');
+    const mainWrap = document.querySelector('.main-wrap');
+    if (!resizer || !sidebar || !mainWrap) return;
+
+    // Load saved width from localStorage
+    const savedWidth = localStorage.getItem('crmSidebarCustomWidth');
+    if (savedWidth && window.innerWidth >= 992) {
+      document.documentElement.style.setProperty('--sidebar-w', savedWidth + 'px');
+      resizer.style.left = savedWidth + 'px';
+    }
+
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', function(e) {
+      isResizing = true;
+      resizer.classList.add('resizing');
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isResizing) return;
+      let newWidth = e.clientX;
+      if (newWidth < 180) newWidth = 180;
+      if (newWidth > 450) newWidth = 450;
+
+      document.documentElement.style.setProperty('--sidebar-w', newWidth + 'px');
+      resizer.style.left = newWidth + 'px';
+      localStorage.setItem('crmSidebarCustomWidth', newWidth);
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (isResizing) {
+        isResizing = false;
+        resizer.classList.remove('resizing');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      }
+    });
+  });
+</script>
+
 {% include "includes/footer.html" %}
 {% block extra_js %}{% endblock %}
 </body>
