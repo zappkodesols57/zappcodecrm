@@ -2579,6 +2579,105 @@ def telecaller_new_enquiries(request):
     }
     return render(request, "dashboard/telecaller_new_enquiries.html", context)
 
+
+@login_required
+def telecaller_today_team_activity(request):
+    """
+    Lead Management Section for Lead Attendants:
+    Shows leads contacted today by other team members/users in the hospital.
+    """
+    from accounts.models import User
+    from leads.models import Lead
+    from followups.models import FollowUp
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    from django.utils import timezone
+
+    if request.user.role != User.Role.LEAD_ATTENDENT or not request.user.hospital:
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:home")
+
+    today = timezone.localdate()
+    
+    # Query followups made today in the same hospital by other users (excluding current user or optionally all team members)
+    followups = FollowUp.objects.filter(
+        lead__hospital=request.user.hospital,
+        followup_date=today
+    ).select_related('lead', 'created_by', 'lead__lead_source', 'lead__campaign').order_by('-created_at', '-id')
+
+    # Filter: Other users vs specific user
+    user_filter = request.GET.get('user_id', '').strip()
+    if user_filter:
+        followups = followups.filter(created_by_id=user_filter)
+    else:
+        # Default: show activities done by other users
+        include_me = request.GET.get('include_me', '0')
+        if include_me != '1':
+            followups = followups.exclude(created_by=request.user)
+
+    # Search logic (patient name, phone, code, comment)
+    q = request.GET.get('q', '').strip()
+    if q:
+        followups = followups.filter(
+            Q(lead__name__icontains=q) |
+            Q(lead__mobile__icontains=q) |
+            Q(lead__lead_code__icontains=q) |
+            Q(comment__icontains=q)
+        )
+
+    # Filter by Follow-up Mode / Outcome
+    status_filter = request.GET.get('status', '').strip()
+    if status_filter:
+        followups = followups.filter(followup_status=status_filter)
+
+    mode_filter = request.GET.get('mode', '').strip()
+    if mode_filter:
+        followups = followups.filter(followup_mode=mode_filter)
+
+    # Active team members in hospital for filter dropdown
+    team_members = User.objects.filter(
+        hospital=request.user.hospital,
+        is_active=True
+    ).exclude(id=request.user.id).order_by('first_name', 'username')
+
+    # Dynamic Page Size
+    page_size = request.GET.get('page_size', '20').strip()
+    try:
+        page_size = int(page_size)
+        if page_size not in [10, 20, 50, 100]:
+            page_size = 20
+    except ValueError:
+        page_size = 20
+
+    total_count = followups.count()
+    paginator = Paginator(followups, page_size)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+
+    context = {
+        'followups': page_obj,
+        'page_obj': page_obj,
+        'page_range': page_range,
+        'query_params': query_params.urlencode(),
+        'page_size': page_size,
+        'total_count': total_count,
+        'today': today,
+        'team_members': team_members,
+        'selected_user_id': user_filter,
+        'q': q,
+        'status_filter': status_filter,
+        'mode_filter': mode_filter,
+        'include_me': request.GET.get('include_me', '0'),
+        'active': 'team_today_activity',
+    }
+    return render(request, "dashboard/telecaller_today_team_activity.html", context)
+
+
 from .models import TaskReminder
 from leads.models import Lead
 
@@ -2619,8 +2718,16 @@ def task_list_view(request):
     completed_tasks = tasks.filter(status=TaskReminder.Status.COMPLETED).count()
     urgent_tasks = tasks.filter(priority__in=[TaskReminder.Priority.HIGH, TaskReminder.Priority.URGENT], status__in=[TaskReminder.Status.PENDING, TaskReminder.Status.IN_PROGRESS]).count()
     
-    # Pagination
-    paginator = Paginator(tasks, 20)
+    # Pagination with dynamic page_size
+    page_size = request.GET.get('page_size', '20').strip()
+    try:
+        page_size = int(page_size)
+        if page_size not in [10, 20, 50, 100]:
+            page_size = 20
+    except ValueError:
+        page_size = 20
+
+    paginator = Paginator(tasks, page_size)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
@@ -2637,6 +2744,18 @@ def task_list_view(request):
         user_leads = user_leads.filter(assigned_to=user)
     user_leads = user_leads.order_by('-updated_at')[:50]
 
+    # Allowed assignment roles for tasks
+    allowed_roles = [User.Role.MANAGER, User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]
+
+    # Eligible assignable users for Admin/Manager
+    assignable_users = User.objects.filter(is_active=True, is_approved=True, role__in=allowed_roles)
+    if user.hospital:
+        assignable_users = assignable_users.filter(hospital=user.hospital)
+    assignable_users = assignable_users.order_by('role', 'first_name', 'username')
+
+    # Available role choices for filter buttons
+    role_choices = [(r.value, r.label) for r in User.Role if r in allowed_roles]
+
     context = {
         'page_obj': page_obj,
         'tasks': page_obj,
@@ -2650,6 +2769,9 @@ def task_list_view(request):
         'priority_filter': priority_filter,
         'q': q,
         'user_leads': user_leads,
+        'assignable_users': assignable_users,
+        'role_choices': role_choices,
+        'page_size': page_size,
         'active': 'tasks',
     }
     return render(request, "dashboard/tasks.html", context)
@@ -2660,31 +2782,69 @@ def task_create_view(request):
     if request.method == "POST":
         title = request.POST.get('title', '').strip()
         description = request.POST.get('description', '').strip()
-        due_date = request.POST.get('due_date') or timezone.localdate()
-        due_time = request.POST.get('due_time') or None
         priority = request.POST.get('priority', TaskReminder.Priority.MEDIUM)
         lead_id = request.POST.get('lead_id')
         sync_to_followup = bool(request.POST.get('sync_to_followup'))
         
+        # Timeline handling
+        timeline_option = request.POST.get('timeline_option', 'today_eod')
+        today = timezone.localdate()
+        
+        if timeline_option == 'today_eod':
+            due_date = today
+            due_time = "18:30:00"
+        elif timeline_option == 'tomorrow_eod':
+            due_date = today + timedelta(days=1)
+            due_time = "18:30:00"
+        else: # custom
+            due_date = request.POST.get('custom_due_date') or today
+            due_time = request.POST.get('custom_due_time') or None
+
         lead = None
         if lead_id:
             try:
                 lead = Lead.objects.get(pk=lead_id)
             except Lead.DoesNotExist:
                 lead = None
-                
-        task = TaskReminder.objects.create(
-            user=request.user,
-            title=title,
-            description=description,
-            due_date=due_date,
-            due_time=due_time if due_time else None,
-            priority=priority,
-            lead=lead,
-            sync_to_followup=sync_to_followup,
-            status=TaskReminder.Status.PENDING,
-        )
+
+        # User assignment handling (Multiple selection supported)
+        selected_user_ids = request.POST.getlist('assigned_users')
+        target_users = []
+        if selected_user_ids:
+            target_users = list(User.objects.filter(id__in=selected_user_ids, is_active=True))
         
+        if not target_users:
+            target_users = [request.user]
+
+        created_count = 0
+        for target_user in target_users:
+            TaskReminder.objects.create(
+                user=target_user,
+                title=title,
+                description=description,
+                due_date=due_date,
+                due_time=due_time if due_time else None,
+                priority=priority,
+                lead=lead,
+                sync_to_followup=sync_to_followup,
+                status=TaskReminder.Status.PENDING,
+            )
+            created_count += 1
+            
+            # Send Notification if assigned to someone else
+            if target_user != request.user:
+                try:
+                    from notifications.models import Notification
+                    Notification.objects.create(
+                        recipient=target_user,
+                        title="New Task Assigned",
+                        message=f"{request.user.get_full_name() or request.user.username} assigned you task: '{title}'",
+                        notification_type="SYSTEM",
+                        link_url="/dashboard/tasks/"
+                    )
+                except Exception:
+                    pass
+
         # If synced to followup, update lead's next followup
         if sync_to_followup and lead:
             lead.next_followup_date = due_date
@@ -2692,7 +2852,10 @@ def task_create_view(request):
                 lead.next_followup_time = due_time
             lead.save(update_fields=['next_followup_date', 'next_followup_time'])
             
-        messages.success(request, f"Task '{title}' created successfully!")
+        if created_count > 1:
+            messages.success(request, f"Task '{title}' created and assigned to {created_count} users successfully!")
+        else:
+            messages.success(request, f"Task '{title}' created successfully!")
     return redirect("dashboard:tasks")
 
 

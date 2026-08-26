@@ -39,11 +39,9 @@ def _role_redirect(user):
     return redirect("dashboard:home")
 
 
-# ─── EMPLOYEE LOGIN (Counsellor / HR) ─────────────────────────────────────────
+# ─── UNIFIED LOGIN ─────────────────────────────────────────────────────────────
 
-# ─── EMPLOYEE LOGIN (Counsellor / HR) ─────────────────────────────────────────
-
-def employee_login(request):
+def crm_login(request):
     if request.user.is_authenticated:
         return _role_redirect(request.user)
 
@@ -54,11 +52,11 @@ def employee_login(request):
 
         if user is None:
             messages.error(request, "Invalid username or password.")
-            return render(request, "accounts/login_employee.html", {"form_error": True})
+            return render(request, "accounts/login.html", {"form_error": True})
 
         if not user.is_approved or not user.is_active:
-            messages.error(request, "Your account is pending approval. Please wait for an admin to activate your account.")
-            return render(request, "accounts/login_employee.html", {"form_error": True})
+            messages.error(request, "Your account is pending approval or inactive. Please contact an admin.")
+            return render(request, "accounts/login.html", {"form_error": True})
 
         login(request, user)
         log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
@@ -67,36 +65,13 @@ def employee_login(request):
             return redirect(next_url)
         return _role_redirect(user)
 
-    return render(request, "accounts/login_employee.html")
+    return render(request, "accounts/login.html")
 
 
-# ─── MANAGEMENT LOGIN (Manager / Super Admin) ─────────────────────────────────
-
-def management_login(request):
-    if request.user.is_authenticated:
-        return _role_redirect(request.user)
-
-    if request.method == "POST":
-        username = request.POST.get("username", "").strip()
-        password = request.POST.get("password", "")
-        user = authenticate(request, username=username, password=password)
-
-        if user is None:
-            messages.error(request, "Invalid username or password.")
-            return render(request, "accounts/login_management.html", {"form_error": True})
-
-        if not user.is_active or not user.is_approved:
-            messages.error(request, "This account is inactive or pending approval.")
-            return render(request, "accounts/login_management.html", {"form_error": True})
-
-        login(request, user)
-        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
-        next_url = request.POST.get("next")
-        if next_url:
-            return redirect(next_url)
-        return _role_redirect(user)
-
-    return render(request, "accounts/login_management.html")
+# Aliases for backwards-compatibility
+employee_login = crm_login
+management_login = crm_login
+portal_select = crm_login
 
 
 def custom_logout(request):
@@ -106,11 +81,10 @@ def custom_logout(request):
             log_action(action="USER_LOGOUT", obj=request.user, new_value=f"User {request.user.username} logged out", user=request.user)
         logout(request)
         messages.info(request, "You have been logged out successfully.")
-        return redirect("accounts:portal_select")
-    # If a GET request accidentally hits logout, do not log out unless confirmed
+        return redirect("accounts:login")
     if request.user.is_authenticated:
         return _role_redirect(request.user)
-    return redirect("accounts:portal_select")
+    return redirect("accounts:login")
 
 
 
