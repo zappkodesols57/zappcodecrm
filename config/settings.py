@@ -147,9 +147,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = 'accounts:portal_select'
+LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'dashboard:home'
-LOGOUT_REDIRECT_URL = 'accounts:portal_select'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 
 # Excel import file size / row safety limits
 MAX_IMPORT_FILE_MB = 15

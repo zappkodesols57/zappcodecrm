@@ -95,13 +95,14 @@
 
   <!-- Section: Lead Management -->
   <div class="nav-section-group">
-    <button class="nav-section-btn {% if active not in 'my_leads new_enquiries search_filter' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_tele_leads" aria-expanded="{% if active in 'my_leads new_enquiries search_filter' %}true{% else %}false{% endif %}">
+    <button class="nav-section-btn {% if active not in 'my_leads new_enquiries team_today_activity search_filter' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#sec_tele_leads" aria-expanded="{% if active in 'my_leads new_enquiries team_today_activity search_filter' %}true{% else %}false{% endif %}">
       <span><i class="fa-solid fa-user-tag section-icon"></i><span class="section-title">Lead Management</span></span>
       <i class="fa-solid fa-chevron-down section-arrow"></i>
     </button>
-    <div class="collapse {% if active in 'my_leads new_enquiries search_filter' %}show{% endif %} nav-sub-items" id="sec_tele_leads" data-bs-parent="#sidebarAccordion">
+    <div class="collapse {% if active in 'my_leads new_enquiries team_today_activity search_filter' %}show{% endif %} nav-sub-items" id="sec_tele_leads" data-bs-parent="#sidebarAccordion">
       <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'dashboard:telecaller_my_leads' %}" title="My Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">My Leads</span></a>
       <a class="nav-link {% if active == 'new_enquiries' %}active{% endif %}" href="{% url 'dashboard:telecaller_new_enquiries' %}" title="New Enquiries"><i class="fa-solid fa-envelope-open-text"></i> <span class="nav-text">New Enquiries</span></a>
+      <a class="nav-link {% if active == 'team_today_activity' %}active{% endif %}" href="{% url 'dashboard:telecaller_today_team_activity' %}" title="Team Activity"><i class="fa-solid fa-user-clock"></i> <span class="nav-text">Team Activity</span></a>
       <a class="nav-link {% if active == 'search_filter' %}active{% endif %}" href="{% url 'dashboard:telecaller_search' %}" title="All Leads"><i class="fa-solid fa-list-ul"></i> <span class="nav-text">All Leads</span></a>
     </div>
   </div>

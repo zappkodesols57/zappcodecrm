@@ -5,12 +5,11 @@ from . import views
 app_name = "accounts"
 
 urlpatterns = [
-    # Portal selection landing
-    path("portal/", views.portal_select, name="portal_select"),
-    # Dual login portals
-    path("login/", views.employee_login, name="login"),          # default / fallback
-    path("login/employee/", views.employee_login, name="employee_login"),
-    path("login/management/", views.management_login, name="management_login"),
+    # Single Unified Login
+    path("login/", views.crm_login, name="login"),
+    path("portal/", views.crm_login, name="portal_select"),          # compatibility redirect
+    path("login/employee/", views.crm_login, name="employee_login"), # compatibility redirect
+    path("login/management/", views.crm_login, name="management_login"), # compatibility redirect
     path("logout/", views.custom_logout, name="logout"),
     path("register/", views.register, name="register"),
     path("profile/", views.user_profile, name="profile"),
