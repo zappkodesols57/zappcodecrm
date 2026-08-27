@@ -22,20 +22,23 @@
             <div class="col-lg-4 col-md-12">
                 <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">SEARCH</label>
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
-                    <input type="text" name="q" class="form-control form-control-sm border-start-0 ps-0" placeholder="Search patient, phone, notes..." value="{{ q }}">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i
+                            class="fa-solid fa-search"></i></span>
+                    <input type="text" name="q" class="form-control form-control-sm border-start-0 ps-0"
+                        placeholder="Search patient, phone, notes..." value="{{ q }}">
                 </div>
             </div>
 
             <!-- Team Member / User Filter -->
             <div class="col-lg-3 col-md-4 col-sm-6">
-                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">CONTACTED BY (STAFF)</label>
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">CONTACTED BY
+                    (STAFF)</label>
                 <select name="user_id" class="form-select form-select-sm w-100">
                     <option value="">All Other Team Members</option>
                     {% for m in team_members %}
-                        <option value="{{ m.id }}" {% if selected_user_id == m.id|stringformat:"s" %}selected{% endif %}>
-                            {{ m.get_full_name|default:m.username }} ({{ m.get_role_display }})
-                        </option>
+                    <option value="{{ m.id }}" {% if selected_user_id == m.id|stringformat:"s" %}selected{% endif %}>
+                        {{ m.get_full_name|default:m.username }} ({{ m.get_role_display }})
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -46,8 +49,10 @@
                 <select name="mode" class="form-select form-select-sm w-100">
                     <option value="">All Modes</option>
                     <option value="CALL" {% if mode_filter == 'CALL' %}selected{% endif %}>Call</option>
-                    <option value="CALL_OUTGOING" {% if mode_filter == 'CALL_OUTGOING' %}selected{% endif %}>Outgoing Call</option>
-                    <option value="CALL_INCOMING" {% if mode_filter == 'CALL_INCOMING' %}selected{% endif %}>Incoming Call</option>
+                    <option value="CALL_OUTGOING" {% if mode_filter == 'CALL_OUTGOING' %}selected{% endif %}>Outgoing Call
+                    </option>
+                    <option value="CALL_INCOMING" {% if mode_filter == 'CALL_INCOMING' %}selected{% endif %}>Incoming Call
+                    </option>
                     <option value="WHATSAPP" {% if mode_filter == 'WHATSAPP' %}selected{% endif %}>WhatsApp</option>
                     <option value="VISIT" {% if mode_filter == 'VISIT' %}selected{% endif %}>Visit</option>
                 </select>
@@ -59,17 +64,23 @@
                 <select name="status" class="form-select form-select-sm w-100">
                     <option value="">All Outcomes</option>
                     <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option>
-                    <option value="INTERESTED" {% if status_filter == 'INTERESTED' %}selected{% endif %}>Interested</option>
-                    <option value="NOT_INTERESTED" {% if status_filter == 'NOT_INTERESTED' %}selected{% endif %}>Not Interested</option>
-                    <option value="NOT_CONNECTED" {% if status_filter == 'NOT_CONNECTED' %}selected{% endif %}>Not Connected</option>
-                    <option value="RESCHEDULED" {% if status_filter == 'RESCHEDULED' %}selected{% endif %}>Rescheduled</option>
+                    <option value="INTERESTED" {% if status_filter == 'INTERESTED' %}selected{% endif %}>Interested
+                    </option>
+                    <option value="NOT_INTERESTED" {% if status_filter == 'NOT_INTERESTED' %}selected{% endif %}>Not
+                        Interested</option>
+                    <option value="NOT_CONNECTED" {% if status_filter == 'NOT_CONNECTED' %}selected{% endif %}>Not
+                        Connected</option>
+                    <option value="RESCHEDULED" {% if status_filter == 'RESCHEDULED' %}selected{% endif %}>Rescheduled
+                    </option>
                 </select>
             </div>
 
             <!-- Actions -->
             <div class="col-lg-1 col-md-12 col-12 d-flex gap-1">
                 <button type="submit" class="btn btn-sm btn-dark flex-fill shadow-none">Filter</button>
-                <a href="{% url 'dashboard:telecaller_today_team_activity' %}" class="btn btn-sm btn-light border px-2 text-center" title="Reset"><i class="fa-solid fa-rotate-left"></i></a>
+                <a href="{% url 'dashboard:telecaller_today_team_activity' %}"
+                    class="btn btn-sm btn-light border px-2 text-center" title="Reset"><i
+                        class="fa-solid fa-rotate-left"></i></a>
             </div>
         </form>
     </div>
@@ -82,13 +93,21 @@
             <table class="table table-hover align-middle mb-0" style="font-size: 0.84rem;">
                 <thead class="bg-light">
                     <tr>
-                        <th class="border-bottom px-3 py-2 text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;">Lead / Patient</th>
-                        <th class="border-bottom py-2 text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;">Contacted By (Staff)</th>
-                        <th class="border-bottom py-2 text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;">Mode</th>
-                        <th class="border-bottom py-2 text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;" style="min-width: 250px;">Recorded Remarks / Details</th>
-                        <th class="border-bottom py-2 text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;">Outcome Status</th>
-                        <th class="border-bottom py-2 text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;">Time / Next Follow-up</th>
-                        <th class="border-bottom px-3 py-2 text-end text-muted fw-semibold" style="font-size: 0.75rem; text-transform: uppercase;">Action</th>
+                        <th class="border-bottom px-3 py-2 text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;">Lead / Patient</th>
+                        <th class="border-bottom py-2 text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;">Contacted By (Staff)</th>
+                        <th class="border-bottom py-2 text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;">Mode</th>
+                        <th class="border-bottom py-2 text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;" style="min-width: 250px;">Recorded
+                            Remarks / Details</th>
+                        <th class="border-bottom py-2 text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;">Outcome Status</th>
+                        <th class="border-bottom py-2 text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;">Time / Next Follow-up</th>
+                        <th class="border-bottom px-3 py-2 text-end text-muted fw-semibold"
+                            style="font-size: 0.75rem; text-transform: uppercase;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,7 +116,8 @@
                         <!-- Patient Info -->
                         <td class="px-3">
                             <div>
-                                <a href="{% url 'leads:lead_detail' item.lead.pk %}" class="fw-semibold text-dark text-decoration-none">
+                                <a href="{% url 'leads:lead_detail' item.lead.pk %}"
+                                    class="fw-semibold text-dark text-decoration-none">
                                     {{ item.lead.name }}
                                 </a>
                             </div>
@@ -105,9 +125,9 @@
                                 <i class="fa-solid fa-phone me-1 text-muted"></i> {{ item.lead.mobile }}
                             </div>
                             {% if item.lead.custom_data.doctor %}
-                                <div class="text-muted" style="font-size: 0.7rem;">
-                                    <i class="fa-solid fa-user-doctor me-1"></i> {{ item.lead.custom_data.doctor }}
-                                </div>
+                            <div class="text-muted" style="font-size: 0.7rem;">
+                                <i class="fa-solid fa-user-doctor me-1"></i> {{ item.lead.custom_data.doctor }}
+                            </div>
                             {% endif %}
                         </td>
 
@@ -125,7 +145,8 @@
 
                         <!-- Mode -->
                         <td>
-                            <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">
+                            <span class="badge bg-light text-dark border px-2 py-1"
+                                style="font-size: 0.7rem; font-weight: 500;">
                                 {{ item.get_followup_mode_display }}
                             </span>
                         </td>
@@ -133,36 +154,43 @@
                         <!-- Recorded Remarks -->
                         <td>
                             {% if item.comment %}
-                                <div class="text-dark" style="font-size: 0.78rem; max-width: 320px; word-break: break-word;">
-                                    {{ item.comment }}
-                                </div>
+                            <div class="text-dark"
+                                style="font-size: 0.78rem; max-width: 320px; word-break: break-word;">
+                                {{ item.comment }}
+                            </div>
                             {% else %}
-                                <span class="text-muted small" style="font-size: 0.74rem;">-- No remarks entered --</span>
+                            <span class="text-muted small" style="font-size: 0.74rem;">-- No remarks entered --</span>
                             {% endif %}
                         </td>
 
                         <!-- Outcome Status -->
                         <td>
                             {% if item.followup_status == 'COMPLETED' or item.followup_status == 'INTERESTED' %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">
-                                    {{ item.get_followup_status_display }}
-                                </span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"
+                                style="font-size: 0.7rem; font-weight: 500;">
+                                {{ item.get_followup_status_display }}
+                            </span>
                             {% elif item.followup_status == 'NOT_INTERESTED' or item.followup_status == 'CANCELLED' %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">
-                                    {{ item.get_followup_status_display }}
-                                </span>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"
+                                style="font-size: 0.7rem; font-weight: 500;">
+                                {{ item.get_followup_status_display }}
+                            </span>
                             {% elif item.followup_status == 'NOT_CONNECTED' %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">
-                                    {{ item.get_followup_status_display }}
-                                </span>
+                            <span
+                                class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"
+                                style="font-size: 0.7rem; font-weight: 500;">
+                                {{ item.get_followup_status_display }}
+                            </span>
                             {% elif item.followup_status == 'RESCHEDULED' %}
-                                <span class="badge bg-info-subtle text-primary border border-info-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">
-                                    Rescheduled
-                                </span>
+                            <span class="badge bg-info-subtle text-primary border border-info-subtle px-2 py-1"
+                                style="font-size: 0.7rem; font-weight: 500;">
+                                Rescheduled
+                            </span>
                             {% else %}
-                                <span class="badge bg-light text-muted border px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">
-                                    {{ item.get_followup_status_display }}
-                                </span>
+                            <span class="badge bg-light text-muted border px-2 py-1"
+                                style="font-size: 0.7rem; font-weight: 500;">
+                                {{ item.get_followup_status_display }}
+                            </span>
                             {% endif %}
                         </td>
 
@@ -172,15 +200,19 @@
                                 <i class="fa-regular fa-clock me-1 text-muted"></i> {{ item.created_at|time:"h:i A" }}
                             </div>
                             {% if item.next_followup_date %}
-                                <div class="text-muted mt-1" style="font-size: 0.7rem;">
-                                    Next: {{ item.next_followup_date|date:"d M Y" }}{% if item.next_followup_time %} {{ item.next_followup_time|time:"h:i A" }}{% endif %}
-                                </div>
+                            <div class="text-muted mt-1" style="font-size: 0.7rem;">
+                                Next: {{ item.next_followup_date|date:"d M Y" }}{% if item.next_followup_time %} {{
+                                item.next_followup_time|time:"h:i A" }}{% endif %}
+                            </div>
                             {% endif %}
                         </td>
 
                         <!-- Actions -->
                         <td class="px-3 text-end">
-                            <a href="{% url 'leads:lead_detail' item.lead.pk %}" class="btn btn-sm btn-light border px-2 py-0" style="font-size: 0.75rem; height: 26px; line-height: 24px;" title="View Full Lead Details">
+                            <a href="{% url 'leads:lead_detail' item.lead.pk %}"
+                                class="btn btn-sm btn-light border px-2 py-0"
+                                style="font-size: 0.75rem; height: 26px; line-height: 24px;"
+                                title="View Full Lead Details">
                                 <i class="fa-solid fa-arrow-up-right-from-square text-muted"></i>
                             </a>
                         </td>
@@ -190,7 +222,8 @@
                         <td colspan="7" class="text-center py-4">
                             <div class="text-muted mb-2"><i class="fa-solid fa-user-clock fa-2x opacity-25"></i></div>
                             <h6 class="text-dark mb-1">No contact activities recorded by other team members today</h6>
-                            <p class="text-muted small mb-0">When other telecallers, doctors, or staff record calls or follow-ups today, they will appear here in real-time.</p>
+                            <p class="text-muted small mb-0">When other telecallers, doctors, or staff record calls or
+                                follow-ups today, they will appear here in real-time.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -202,62 +235,72 @@
 
 <!-- Adaptive Pagination with Page Size Options -->
 {% if page_obj.paginator.count >= 0 %}
-<div class="pagination-container my-3 p-2 bg-white rounded-2 border d-flex flex-column flex-md-row justify-content-between align-items-center gap-2" style="font-size: 0.8rem;">
+<div class="pagination-container my-3 p-2 bg-white rounded-2 border d-flex flex-column flex-md-row justify-content-between align-items-center gap-2"
+    style="font-size: 0.8rem;">
     <div class="d-flex align-items-center gap-3 order-2 order-md-1 flex-wrap">
         <div class="text-muted fw-normal">
-            Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} activity record(s)
+            Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} activity
+            record(s)
         </div>
         <!-- Page Size Selector -->
         <div class="d-flex align-items-center gap-1">
             <span class="text-muted small" style="font-size: 0.75rem;">Show:</span>
-            <select class="form-select form-select-sm py-0 px-2 border rounded-1" style="width: 70px; height: 24px; font-size: 0.75rem;" onchange="location.href='?{{ query_params }}&page=1&page_size=' + this.value;">
-                <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
-                <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
-                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+            <select class="form-select form-select-sm py-0 px-2 border rounded-1"
+                style="width: 70px; height: 24px; font-size: 0.75rem;"
+                onchange="location.href='?{{ query_params }}&page=1&page_size=' + this.value;">
+                <option value="10" {% if page_size == 10 or page_size == '10' %}selected{% endif %}>10</option>
+                <option value="20" {% if page_size == 20 or page_size == '20' %}selected{% endif %}>20</option>
+                <option value="50" {% if page_size == 50 or page_size == '50' %}selected{% endif %}>50</option>
+                <option value="100" {% if page_size == 100 or page_size == '100' %}selected{% endif %}>100</option>
             </select>
         </div>
     </div>
-    
+
     {% if page_obj.paginator.num_pages > 1 %}
     <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; padding: 2px;">
         <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 2px;">
             {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link border bg-white px-2 py-1 text-dark" href="?{{ query_params }}&page_size={{ page_size }}&page={{ page_obj.previous_page_number }}">
-                        <i class="fa-solid fa-chevron-left" style="font-size: 0.7rem;"></i>
-                    </a>
-                </li>
+            <li class="page-item">
+                <a class="page-link border bg-white px-2 py-1 text-dark"
+                    href="?{{ query_params }}&page_size={{ page_size }}&page={{ page_obj.previous_page_number }}">
+                    <i class="fa-solid fa-chevron-left" style="font-size: 0.7rem;"></i>
+                </a>
+            </li>
             {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link border bg-light px-2 py-1 text-muted"><i class="fa-solid fa-chevron-left" style="font-size: 0.7rem;"></i></span>
-                </li>
+            <li class="page-item disabled">
+                <span class="page-link border bg-light px-2 py-1 text-muted"><i class="fa-solid fa-chevron-left"
+                        style="font-size: 0.7rem;"></i></span>
+            </li>
             {% endif %}
 
             {% for num in page_range %}
-                {% if num == page_obj.paginator.ELLIPSIS %}
-                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">...</span></li>
-                {% elif page_obj.number == num %}
-                    <li class="page-item active">
-                        <span class="page-link border-dark bg-dark text-white px-2 py-1">{{ num }}</span>
-                    </li>
-                {% else %}
-                    <li class="page-item">
-                        <a class="page-link border bg-white text-dark px-2 py-1" href="?{{ query_params }}&page_size={{ page_size }}&page={{ num }}">{{ num }}</a>
-                    </li>
-                {% endif %}
+            {% if num == page_obj.paginator.ELLIPSIS %}
+            <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">...</span>
+            </li>
+            {% elif page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link border-dark bg-dark text-white px-2 py-1">{{ num }}</span>
+            </li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link border bg-white text-dark px-2 py-1"
+                    href="?{{ query_params }}&page_size={{ page_size }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
-                <li class="page-item">
-                    <a class="page-link border bg-white px-2 py-1 text-dark" href="?{{ query_params }}&page_size={{ page_size }}&page={{ page_obj.next_page_number }}">
-                        <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem;"></i>
-                    </a>
-                </li>
+            <li class="page-item">
+                <a class="page-link border bg-white px-2 py-1 text-dark"
+                    href="?{{ query_params }}&page_size={{ page_size }}&page={{ page_obj.next_page_number }}">
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem;"></i>
+                </a>
+            </li>
             {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link border bg-light px-2 py-1 text-muted"><i class="fa-solid fa-chevron-right" style="font-size: 0.7rem;"></i></span>
-                </li>
+            <li class="page-item disabled">
+                <span class="page-link border bg-light px-2 py-1 text-muted"><i class="fa-solid fa-chevron-right"
+                        style="font-size: 0.7rem;"></i></span>
+            </li>
             {% endif %}
         </ul>
     </div>

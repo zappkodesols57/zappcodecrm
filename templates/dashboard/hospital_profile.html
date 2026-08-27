@@ -162,7 +162,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Primary Phone</label>
-                            <input type="text" name="phone" class="form-control" value="{{ hospital.phone }}">
+                            <input type="text" name="phone" class="form-control" value="{{ hospital.phone }}" maxlength="10" minlength="10" pattern="^[0-9]{10}$" inputmode="numeric" placeholder="10-digit phone number" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)">
                         </div>
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Address</label>
@@ -209,7 +209,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label"><i class="fa-brands fa-whatsapp text-success me-2"></i>Official WhatsApp No.</label>
-                            <input type="text" name="whatsapp_number" class="form-control" value="{{ hospital.settings.whatsapp_number|default:'' }}" placeholder="+91 9876543210">
+                            <input type="text" name="whatsapp_number" class="form-control" value="{{ hospital.settings.whatsapp_number|default:'' }}" maxlength="10" minlength="10" pattern="^[0-9]{10}$" inputmode="numeric" placeholder="10-digit WhatsApp number" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label"><i class="fa-brands fa-facebook text-primary me-2"></i>Facebook Page URL</label>

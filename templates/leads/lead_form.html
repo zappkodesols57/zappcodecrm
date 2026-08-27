@@ -101,6 +101,20 @@
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   var mobileInput = document.querySelector('input[name="mobile"]');
+  var altMobileInput = document.querySelector('input[name="alternate_mobile"]');
+
+  [mobileInput, altMobileInput].forEach(function(inp) {
+    if (inp) {
+      inp.setAttribute('maxlength', '10');
+      inp.setAttribute('minlength', '10');
+      inp.setAttribute('inputmode', 'numeric');
+      inp.setAttribute('pattern', '^[0-9]{10}$');
+      inp.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+      });
+    }
+  });
+
   if (!mobileInput) return;
 
   var statusDiv = document.createElement('div');

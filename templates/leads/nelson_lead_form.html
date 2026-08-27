@@ -233,7 +233,7 @@
 
             <div class="form-group">
                 <label>MOBILE NO</label>
-                <input type="text" id="MOBILE NO" name="MOBILE NO" placeholder="Mobile Number" required>
+                <input type="text" id="MOBILE NO" name="MOBILE NO" placeholder="10-digit Mobile Number" maxlength="10" minlength="10" pattern="^[0-9]{10}$" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)" required>
             </div>
 
             <div class="form-group">

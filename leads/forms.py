@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, date
 from django.utils import timezone
 from django import forms
@@ -21,6 +22,24 @@ class LeadForm(forms.ModelForm):
         ]
         widgets = {
             "inquiry_date": forms.DateInput(attrs={"type": "date"}),
+            "mobile": forms.TextInput(attrs={
+                "class": "form-control",
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            }),
+            "alternate_mobile": forms.TextInput(attrs={
+                "class": "form-control",
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit alternate mobile",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            }),
             "notes": forms.Textarea(attrs={"rows": 3}),
             "referral_notes": forms.Textarea(attrs={"rows": 2}),
             "tags": forms.SelectMultiple(),
@@ -75,6 +94,51 @@ class LeadForm(forms.ModelForm):
         required = {"name", "mobile", "stage", "inquiry_date"}
         for name in required:
             self.fields[name].required = True
+
+        if "mobile" in self.fields:
+            self.fields["mobile"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+        if "alternate_mobile" in self.fields:
+            self.fields["alternate_mobile"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit alternate mobile",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+    def clean_mobile(self):
+        mobile = self.cleaned_data.get("mobile", "")
+        if mobile:
+            digits = re.sub(r"\D", "", str(mobile))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            return digits
+        return mobile
+
+    def clean_alternate_mobile(self):
+        alt = self.cleaned_data.get("alternate_mobile", "")
+        if alt:
+            digits = re.sub(r"\D", "", str(alt))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Alternate mobile number must be exactly 10 digits.")
+            return digits
+        return alt
 
 
 class QuickImportRow:
@@ -179,6 +243,15 @@ class HospitalLeadForm(forms.ModelForm):
             "source_category", "assigned_to", "notes"
         ]
         widgets = {
+            "mobile": forms.TextInput(attrs={
+                "class": "form-control",
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            }),
             "notes": forms.Textarea(attrs={"rows": 2}),
         }
 
@@ -536,6 +609,29 @@ class HospitalLeadForm(forms.ModelForm):
         # Backward compatibility
         self.left_column_fields = [r["left"] for r in self.field_rows if r["left"]]
         self.right_column_fields = [r["right"] for r in self.field_rows if r["right"]]
+
+        if "mobile" in self.fields:
+            self.fields["mobile"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+    def clean_mobile(self):
+        mobile = self.cleaned_data.get("mobile", "")
+        if mobile:
+            digits = re.sub(r"\D", "", str(mobile))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            return digits
+        return mobile
 
     def save(self, commit=True):
         instance = super().save(commit=False)
