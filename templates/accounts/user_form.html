@@ -52,6 +52,19 @@
     const hospDiv = document.getElementById("div_id_hospital");
     const reportsToSelect = document.getElementById("id_reports_to");
 
+    // Enforce 10-digit phone input
+    const phoneInput = document.getElementById("id_phone") || document.querySelector('input[name="phone"]');
+    if (phoneInput) {
+      phoneInput.setAttribute("maxlength", "10");
+      phoneInput.setAttribute("minlength", "10");
+      phoneInput.setAttribute("inputmode", "numeric");
+      phoneInput.setAttribute("pattern", "^[0-9]{10}$");
+      phoneInput.setAttribute("placeholder", "10-digit mobile number");
+      phoneInput.addEventListener("input", function() {
+        this.value = this.value.replace(/[^0-9]/g, "").slice(0, 10);
+      });
+    }
+
     // Backup original options
     if (reportsToSelect) {
       originalReportsToOptions = Array.from(reportsToSelect.options).map(opt => ({

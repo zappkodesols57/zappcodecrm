@@ -107,12 +107,17 @@ document.addEventListener("DOMContentLoaded", function() {
   // 1. Live Mobile Duplicate Check
   var mobileInput = document.querySelector('input[name="mobile"]');
   if (mobileInput) {
+    mobileInput.setAttribute('maxlength', '10');
+    mobileInput.setAttribute('minlength', '10');
+    mobileInput.setAttribute('inputmode', 'numeric');
+    mobileInput.setAttribute('pattern', '^[0-9]{10}$');
     var statusDiv = document.createElement('div');
     statusDiv.className = 'mt-1 small';
     mobileInput.parentNode.appendChild(statusDiv);
 
     var timer = null;
     mobileInput.addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
       clearTimeout(timer);
       var val = mobileInput.value.trim();
       if (val.length < 8) {

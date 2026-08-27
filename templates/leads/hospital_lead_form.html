@@ -1244,6 +1244,19 @@
             }
         }
 
+        // Enforce 10-digit mobile number constraint
+        const mobileInput = document.getElementById('id_mobile') || document.querySelector('input[name="mobile"]');
+        if (mobileInput) {
+            mobileInput.setAttribute('maxlength', '10');
+            mobileInput.setAttribute('minlength', '10');
+            mobileInput.setAttribute('inputmode', 'numeric');
+            mobileInput.setAttribute('pattern', '^[0-9]{10}$');
+            mobileInput.setAttribute('placeholder', '10-digit mobile number');
+            mobileInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+            });
+        }
+
         // Run on initial load
         setTimeout(function() {
             if (bSelect) {

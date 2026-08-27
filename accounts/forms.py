@@ -1,3 +1,4 @@
+import re
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User
@@ -44,6 +45,29 @@ class CRMUserCreateForm(UserCreationForm):
             else:
                 css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
                 field.widget.attrs.setdefault("class", css)
+
+        if "phone" in self.fields:
+            self.fields["phone"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone", "")
+        if phone:
+            digits = re.sub(r"\D", "", str(phone))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            return digits
+        return phone
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -101,6 +125,29 @@ class CRMUserEditForm(forms.ModelForm):
                 css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
                 field.widget.attrs.setdefault("class", css)
 
+        if "phone" in self.fields:
+            self.fields["phone"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone", "")
+        if phone:
+            digits = re.sub(r"\D", "", str(phone))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            return digits
+        return phone
+
     def save(self, commit=True):
         user = super().save(commit=False)
         if self.user and self.user.hospital:
@@ -154,6 +201,29 @@ class CRMUserRegisterForm(UserCreationForm):
         for name, field in self.fields.items():
             css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
             field.widget.attrs.setdefault("class", css)
+        if "phone" in self.fields:
+            self.fields["phone"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit mobile number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone", "")
+        if phone:
+            digits = re.sub(r"\D", "", str(phone))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            return digits
+        return phone
+
 
 from .models import Hospital
 class BusinessForm(forms.ModelForm):
@@ -164,6 +234,29 @@ class BusinessForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
+        if "phone" in self.fields:
+            self.fields["phone"].widget.attrs.update({
+                "maxlength": "10",
+                "minlength": "10",
+                "pattern": "^[0-9]{10}$",
+                "inputmode": "numeric",
+                "placeholder": "10-digit phone number",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone", "")
+        if phone:
+            digits = re.sub(r"\D", "", str(phone))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Phone number must be exactly 10 digits.")
+            return digits
+        return phone
+
 
 class UserProfileForm(forms.ModelForm):
     class Meta:
@@ -173,9 +266,30 @@ class UserProfileForm(forms.ModelForm):
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'maxlength': '10',
+                'minlength': '10',
+                'pattern': '^[0-9]{10}$',
+                'inputmode': 'numeric',
+                'placeholder': '10-digit mobile number',
+                'oninput': "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            }),
             'profile_picture': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone", "")
+        if phone:
+            digits = re.sub(r"\D", "", str(phone))
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10:
+                raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            return digits
+        return phone
 
     def clean_profile_picture(self):
         picture = self.cleaned_data.get('profile_picture')
