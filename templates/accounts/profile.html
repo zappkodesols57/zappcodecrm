@@ -214,14 +214,15 @@
                             <div class="col-12">
                                 <label class="form-label fw-bold text-secondary small text-uppercase tracking-wide">Profile Picture</label>
                                 {{ profile_form.profile_picture }}
+                                <div id="client_image_error" class="text-danger small mt-1 fw-semibold" style="display:none;"></div>
                                 {% if profile_form.profile_picture.errors %}
-                                    <div class="text-danger small mt-1">{{ profile_form.profile_picture.errors.0 }}</div>
+                                    <div class="text-danger small mt-1 fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ profile_form.profile_picture.errors.0 }}</div>
                                 {% endif %}
-                                <div class="form-text mt-2"><i class="fa-solid fa-circle-info me-1"></i> Upload image up to 5 MB. (Square image recommended, e.g. 500x500 px).</div>
+                                <div class="form-text mt-2"><i class="fa-solid fa-circle-info me-1"></i> Allowed formats: JPG, PNG, WEBP. Maximum file size: <strong>2 MB</strong>.</div>
                             </div>
                         </div>
                         <div class="mt-5 text-end">
-                            <button type="submit" name="update_profile" class="btn btn-premium">
+                            <button type="submit" id="profileSaveBtn" name="update_profile" class="btn btn-premium">
                                 <i class="fa-solid fa-floppy-disk me-2"></i> Save Changes
                             </button>
                         </div>
@@ -285,6 +286,44 @@
             phoneInput.setAttribute('inputmode', 'numeric');
             phoneInput.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+            });
+        }
+
+        // Real-time client-side image validation to prevent Nginx/Server 413 error
+        const picInput = document.getElementById('id_profile_picture') || document.querySelector('input[type="file"][name="profile_picture"]');
+        const errDiv = document.getElementById('client_image_error');
+        const saveBtn = document.getElementById('profileSaveBtn');
+
+        if (picInput) {
+            picInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    const maxBytes = 5 * 1024 * 1024; // 5MB Limit
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+
+                    // 1. Format / Type check
+                    if (!allowedExts.includes(ext) || (file.type && !allowedTypes.includes(file.type.toLowerCase()))) {
+                        errDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i> <strong>Invalid format:</strong> Please select an image file (JPG, JPEG, PNG, or WEBP).';
+                        errDiv.style.display = 'block';
+                        this.value = '';
+                        return;
+                    }
+
+                    // 2. Size check
+                    if (file.size > maxBytes) {
+                        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+                        errDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>File too large (${sizeMb} MB):</strong> Image size must be less than 5 MB. Please choose a compressed photo.`;
+                        errDiv.style.display = 'block';
+                        this.value = '';
+                        return;
+                    }
+
+                    // Valid
+                    errDiv.style.display = 'none';
+                    errDiv.innerHTML = '';
+                }
             });
         }
         

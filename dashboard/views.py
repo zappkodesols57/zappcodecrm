@@ -2273,10 +2273,10 @@ def roles_permissions_view(request):
 
     available_permissions = [
         {"key": "view_admin_dashboard", "label": "View Admin Dashboard", "type": "data"},
+        {"key": "view_reports", "label": "View Team Reports & EOD Reports", "type": "data"},
         {"key": "manage_campaigns", "label": "Manage Campaigns & Meta Ads", "type": "action"},
         {"key": "view_financials", "label": "View Financial Overview", "type": "data"},
         {"key": "manage_hospital_profile", "label": "Manage Hospital Profile", "type": "action"},
-        {"key": "view_reports", "label": "View Reports", "type": "data"},
         {"key": "view_all_leads", "label": "View All Hospital Leads", "type": "data"},
         {"key": "view_team_leads", "label": "View Team Leads", "type": "data"},
         {"key": "view_assigned_leads", "label": "View Only Own/Assigned Leads", "type": "data"},

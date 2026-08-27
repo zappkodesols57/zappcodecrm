@@ -294,7 +294,21 @@ class UserProfileForm(forms.ModelForm):
     def clean_profile_picture(self):
         picture = self.cleaned_data.get('profile_picture')
         if picture:
+            # 1. Size Validation (Max 5MB)
             max_size = 5 * 1024 * 1024  # 5MB in bytes
             if picture.size > max_size:
-                raise forms.ValidationError("Image file size must be less than 5 MB.")
+                raise forms.ValidationError("Image file size must be less than 5 MB. Please choose a smaller photo.")
+            
+            # 2. File Type / Extension Validation
+            valid_extensions = ('.jpg', '.jpeg', '.png', '.webp')
+            import os
+            ext = os.path.splitext(picture.name)[1].lower()
+            if ext not in valid_extensions:
+                raise forms.ValidationError("Invalid image format! Only JPG, JPEG, PNG, and WEBP formats are allowed.")
+                
+            # 3. Content Type Validation
+            if hasattr(picture, 'content_type') and picture.content_type:
+                valid_content_types = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/pjpeg']
+                if picture.content_type.lower() not in valid_content_types:
+                    raise forms.ValidationError("Invalid file type! Please upload a valid image file.")
         return picture
