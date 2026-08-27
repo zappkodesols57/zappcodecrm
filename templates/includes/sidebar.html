@@ -39,6 +39,12 @@
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
+    <!-- Submit Daily Report (Manager / Admin) -->
+    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
+      href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
+      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
+    </a>
+
     <!-- Section: People Management (Multiple Tabs) -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'users roles_permissions' %}collapsed{% endif %}" type="button"
@@ -97,8 +103,10 @@
       <div
         class="collapse {% if active in 'reports financial-overview notifications tasks audit export' %}show{% endif %} nav-sub-items"
         id="sec_ops" data-bs-parent="#sidebarAccordion">
+        {% if request.user.can_view_reports %}
         <a class="nav-link {% if active == 'reports' %}active{% endif %}" href="{% url 'dashboard:admin_reports' %}"
-          title="Reports"><i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Reports</span></a>
+          title="Reports"><i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Reports & EOD Logs</span></a>
+        {% endif %}
         <a class="nav-link {% if not request.user.can_view_financials %}opacity-50 pe-none{% endif %} {% if active == 'financial-overview' %}active{% endif %}"
           href="{% url 'dashboard:nelson_module' 'financial-overview' %}" title="Financial Overview"><i
             class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Financial Overview</span> {% if not request.user.can_view_financials %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
@@ -206,9 +214,9 @@
       </button>
       <div class="collapse {% if active in 'tasks notifications daily_report_submit' %}show{% endif %} nav-sub-items"
         id="sec_tele_tools" data-bs-parent="#sidebarAccordion">
-        <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'daily_report_submit' %}active{% endif %}"
+        <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
           href="{% url 'dashboard:submit_daily_report' %}" title="Daily EOD Report"><i
-            class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+            class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span></a>
         <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"
           title="Tasks / Reminders"><i class="fa-solid fa-square-check"></i> <span class="nav-text">Tasks /
             Reminders</span></a>
@@ -240,14 +248,17 @@
 
     <!-- Section: Productivity (Single Instance) -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'tasks notifications' %}collapsed{% endif %}" type="button"
+      <button class="nav-section-btn {% if active not in 'tasks notifications daily_report_submit' %}collapsed{% endif %}" type="button"
         data-bs-toggle="collapse" data-bs-target="#sec_doc_prod"
-        aria-expanded="{% if active in 'tasks notifications' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'tasks notifications daily_report_submit' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-list-check section-icon"></i><span class="section-title">Productivity</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'tasks notifications' %}show{% endif %} nav-sub-items" id="sec_doc_prod"
+      <div class="collapse {% if active in 'tasks notifications daily_report_submit' %}show{% endif %} nav-sub-items" id="sec_doc_prod"
         data-bs-parent="#sidebarAccordion">
+        <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
+          href="{% url 'dashboard:submit_daily_report' %}" title="Daily EOD Report"><i
+            class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span></a>
         <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"
           title="Tasks"><i class="fa-solid fa-square-check"></i> <span class="nav-text">Tasks / Reminders</span></a>
         <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
@@ -264,6 +275,13 @@
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
+    <!-- Submit Daily Report (Manager) -->
+    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
+      href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
+      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
+    </a>
+
+    {% if user.can_view_reports %}
     <!-- Section: Team Reports -->
     <div class="nav-section-group">
       <button
@@ -277,20 +295,21 @@
       <div
         class="collapse {% if active in 'reports_daily reports_employee reports_source reports_campaign' %}show{% endif %} nav-sub-items"
         id="sec_mgmt_reports" data-bs-parent="#sidebarAccordion">
-        <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_daily' %}active{% endif %}"
+        <a class="nav-link {% if active == 'reports_daily' %}active{% endif %}"
           href="{% url 'dashboard:management_daily_reports' %}" title="Daily EOD Reports"><i
-            class="fa-solid fa-file-lines"></i> <span class="nav-text">Daily EOD Reports</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
-        <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_employee' %}active{% endif %}"
+            class="fa-solid fa-file-lines"></i> <span class="nav-text">Daily EOD Reports</span></a>
+        <a class="nav-link {% if active == 'reports_employee' %}active{% endif %}"
           href="{% url 'dashboard:employee_report' %}" title="Employee Performance"><i class="fa-solid fa-user-tie"></i>
-          <span class="nav-text">Employee Performance</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
-        <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_source' %}active{% endif %}"
+          <span class="nav-text">Employee Performance</span></a>
+        <a class="nav-link {% if active == 'reports_source' %}active{% endif %}"
           href="{% url 'dashboard:source_report' %}" title="Source Performance"><i class="fa-solid fa-chart-pie"></i>
-          <span class="nav-text">Source Performance</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
-        <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'reports_campaign' %}active{% endif %}"
+          <span class="nav-text">Source Performance</span></a>
+        <a class="nav-link {% if active == 'reports_campaign' %}active{% endif %}"
           href="{% url 'dashboard:campaign_report' %}" title="Campaign Performance"><i class="fa-solid fa-bullhorn"></i>
-          <span class="nav-text">Campaign Performance</span> {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+          <span class="nav-text">Campaign Performance</span></a>
       </div>
     </div>
+    {% endif %}
 
     <!-- Section: Meta Integration (Single Tab) -->
     <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}"
@@ -528,10 +547,9 @@
       <i class="fa-solid fa-user-circle"></i> <span class="nav-text">Profile</span>
     </a>
 
-    <form method="post" action="{% url 'accounts:logout' %}" style="margin: 0; padding: 0;">
+    <form method="post" action="{% url 'accounts:logout' %}" class="m-0 p-0">
       {% csrf_token %}
-      <button type="submit" class="nav-link text-danger w-100 text-start border-0 bg-transparent" title="Logout"
-        style="cursor: pointer;">
+      <button type="submit" class="nav-link text-danger" title="Logout">
         <i class="fa-solid fa-right-from-bracket text-danger"></i> <span class="nav-text">Logout</span>
       </button>
     </form>
