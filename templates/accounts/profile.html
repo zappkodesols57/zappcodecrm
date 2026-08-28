@@ -211,14 +211,26 @@
                                     <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ profile_form.phone.errors.0 }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-12">
+                            <div class="col-12" id="div_id_profile_picture">
                                 <label class="form-label fw-bold text-secondary small text-uppercase tracking-wide">Profile Picture</label>
-                                {{ profile_form.profile_picture }}
-                                <div id="client_image_error" class="text-danger small mt-1 fw-semibold" style="display:none;"></div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div id="avatar_preview_container" style="width: 52px; height: 52px; border-radius: 50%; overflow: hidden; border: 2px solid #e2e8f0; flex-shrink: 0; background: #f8fafc; display: flex; align-items: center; justify-content: center;">
+                                        {% if request.user.profile_picture %}
+                                            <img id="avatar_live_preview" src="{{ request.user.profile_picture.url }}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                                        {% else %}
+                                            <img id="avatar_live_preview" src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                            <i id="avatar_preview_placeholder_icon" class="fa-solid fa-user text-secondary fs-5"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        {{ profile_form.profile_picture }}
+                                    </div>
+                                </div>
+                                <div id="client_image_error" class="text-danger small mt-2 fw-semibold" style="display:none;"></div>
                                 {% if profile_form.profile_picture.errors %}
-                                    <div class="text-danger small mt-1 fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ profile_form.profile_picture.errors.0 }}</div>
+                                    <div class="text-danger small mt-2 fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ profile_form.profile_picture.errors.0 }}</div>
                                 {% endif %}
-                                <div class="form-text mt-2"><i class="fa-solid fa-circle-info me-1"></i> Allowed formats: JPG, PNG, WEBP. Maximum file size: <strong>2 MB</strong>.</div>
+                                <div class="form-text mt-2"><i class="fa-solid fa-circle-info me-1"></i> Allowed formats: JPG, JPEG, PNG, WEBP. Maximum file size: <strong>5 MB</strong>.</div>
                             </div>
                         </div>
                         <div class="mt-5 text-end">
@@ -248,9 +260,17 @@
                                 {% for field in password_form %}
                                     <div class="mb-4">
                                         <label class="form-label fw-bold text-secondary small text-uppercase tracking-wide">{{ field.label }}</label>
-                                        {{ field }}
+                                        <div class="input-group">
+                                            {{ field }}
+                                            <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('{{ field.id_for_label }}', this)" title="Show / Hide Password" tabindex="-1">
+                                                <i class="fa-regular fa-eye text-secondary"></i>
+                                            </button>
+                                        </div>
+                                        {% if field.name == 'new_password2' %}
+                                        <div id="password_match_feedback_profile" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;"></div>
+                                        {% endif %}
                                         {% if field.help_text %}
-                                            <div class="form-text small opacity-75">{{ field.help_text|safe }}</div>
+                                            <div class="form-text small opacity-75 mt-1">{{ field.help_text|safe }}</div>
                                         {% endif %}
                                         {% for error in field.errors %}
                                             <div class="text-danger small fw-semibold mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ error }}</div>
@@ -289,10 +309,13 @@
             });
         }
 
-        // Real-time client-side image validation to prevent Nginx/Server 413 error
+        // Strict real-time client-side image validation and form submit protection
         const picInput = document.getElementById('id_profile_picture') || document.querySelector('input[type="file"][name="profile_picture"]');
         const errDiv = document.getElementById('client_image_error');
         const saveBtn = document.getElementById('profileSaveBtn');
+        const liveImg = document.getElementById('avatar_live_preview');
+        const placeholderIcon = document.getElementById('avatar_preview_placeholder_icon');
+        let isImageValid = true;
 
         if (picInput) {
             picInput.addEventListener('change', function() {
@@ -303,28 +326,91 @@
                     const ext = file.name.split('.').pop().toLowerCase();
                     const allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
 
-                    // 1. Format / Type check
+                    // 1. Format / Extension check
                     if (!allowedExts.includes(ext) || (file.type && !allowedTypes.includes(file.type.toLowerCase()))) {
-                        errDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i> <strong>Invalid format:</strong> Please select an image file (JPG, JPEG, PNG, or WEBP).';
+                        isImageValid = false;
+                        errDiv.innerHTML = '<i class="fa-solid fa-circle-exclamation me-1"></i> <strong>Invalid format:</strong> Please select an image file (JPG, JPEG, PNG, or WEBP). Form submission is blocked until a valid image is selected.';
                         errDiv.style.display = 'block';
-                        this.value = '';
+                        picInput.classList.remove('is-valid');
+                        picInput.classList.add('is-invalid');
+                        if (saveBtn) saveBtn.classList.add('disabled');
                         return;
                     }
 
                     // 2. Size check
                     if (file.size > maxBytes) {
+                        isImageValid = false;
                         const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-                        errDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>File too large (${sizeMb} MB):</strong> Image size must be less than 5 MB. Please choose a compressed photo.`;
+                        errDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>File too large (${sizeMb} MB):</strong> Image size must be less than 5 MB. Form submission is blocked until a smaller image is selected.`;
                         errDiv.style.display = 'block';
-                        this.value = '';
+                        picInput.classList.remove('is-valid');
+                        picInput.classList.add('is-invalid');
+                        if (saveBtn) saveBtn.classList.add('disabled');
                         return;
                     }
 
-                    // Valid
+                    // 3. Valid Image - Read Preview
+                    isImageValid = true;
+                    picInput.classList.remove('is-invalid');
+                    picInput.classList.add('is-valid');
                     errDiv.style.display = 'none';
                     errDiv.innerHTML = '';
+                    if (saveBtn) saveBtn.classList.remove('disabled');
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (liveImg) {
+                            liveImg.src = e.target.result;
+                            liveImg.style.display = 'block';
+                        }
+                        if (placeholderIcon) {
+                            placeholderIcon.style.display = 'none';
+                        }
+                        const topAvatar = document.querySelector('.profile-avatar');
+                        if (topAvatar) {
+                            topAvatar.src = e.target.result;
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    isImageValid = true;
+                    picInput.classList.remove('is-invalid', 'is-valid');
+                    errDiv.style.display = 'none';
+                    errDiv.innerHTML = '';
+                    if (saveBtn) saveBtn.classList.remove('disabled');
                 }
             });
+
+            // Prevent form submit if file is invalid
+            const profileForm = picInput.closest('form');
+            if (profileForm) {
+                profileForm.addEventListener('submit', function(e) {
+                    if (!isImageValid || picInput.classList.contains('is-invalid')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        errDiv.style.display = 'block';
+                        picInput.classList.add('is-invalid');
+                        picInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        picInput.focus();
+                        return false;
+                    }
+                    if (picInput.files && picInput.files[0]) {
+                        const file = picInput.files[0];
+                        const maxBytes = 5 * 1024 * 1024;
+                        if (file.size > maxBytes) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+                            errDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>File too large (${sizeMb} MB):</strong> Image size must be less than 5 MB. Please select a smaller photo.`;
+                            errDiv.style.display = 'block';
+                            picInput.classList.add('is-invalid');
+                            picInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            picInput.focus();
+                            return false;
+                        }
+                    }
+                });
+            }
         }
         
         // If there are errors in the password form, switch to the security tab automatically
@@ -333,7 +419,61 @@
             var securityTab = new bootstrap.Tab(document.querySelector('#security-tab'));
             securityTab.show();
         }
+
+        // Live Password Match Indicator for Profile Password Change
+        const newPass1 = document.getElementById("id_new_password1");
+        const newPass2 = document.getElementById("id_new_password2");
+        const profileMatchFeedback = document.getElementById("password_match_feedback_profile");
+
+        function checkProfilePasswordMatch() {
+            if (!newPass1 || !newPass2 || !profileMatchFeedback) return;
+            const v1 = newPass1.value;
+            const v2 = newPass2.value;
+
+            if (!v2) {
+                profileMatchFeedback.style.display = "none";
+                newPass2.classList.remove("is-valid", "is-invalid");
+                return;
+            }
+
+            profileMatchFeedback.style.display = "block";
+            if (v1 === v2) {
+                newPass2.classList.remove("is-invalid");
+                newPass2.classList.add("is-valid");
+                profileMatchFeedback.className = "mt-1 small fw-semibold text-success";
+                profileMatchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+            } else {
+                newPass2.classList.remove("is-valid");
+                newPass2.classList.add("is-invalid");
+                profileMatchFeedback.className = "mt-1 small fw-semibold text-danger";
+                profileMatchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+            }
+        }
+
+        if (newPass1 && newPass2) {
+            newPass1.addEventListener("input", checkProfilePasswordMatch);
+            newPass2.addEventListener("input", checkProfilePasswordMatch);
+        }
     });
+
+    function togglePasswordVisibility(fieldId, btn) {
+        const input = document.getElementById(fieldId) || (btn ? btn.parentElement.querySelector('input') : null);
+        if (!input) return;
+        const icon = btn ? btn.querySelector('i') : null;
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+    }
 </script>
 
 {% endblock %}

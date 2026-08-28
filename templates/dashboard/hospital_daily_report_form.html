@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% block title %}Hospital Daily EOD Report · CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+  .crm-report-container {
+    max-width: 1000px;
+    margin: 0 auto 3rem auto;
+  }
+  .crm-form-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .crm-section-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .crm-section-header i {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+  }
+  .crm-card-body {
+    padding: 1.25rem 1.5rem;
+  }
+  .form-label-custom {
+    font-size: 0.82rem;
+    font-weight: 650;
+    color: #334155;
+    margin-bottom: 0.35rem;
+    display: block;
+    letter-spacing: 0.1px;
+  }
+  .crm-form-card .form-control,
+  .crm-form-card .form-select {
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    padding: 0.45rem 0.75rem;
+    color: #1e293b;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  .crm-form-card .form-control:focus,
+  .crm-form-card .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  }
+  .stat-preview-box {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .stat-chip-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .mood-pills {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .mood-pill-input {
+    display: none;
+  }
+  .mood-pill-label {
+    cursor: pointer;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.15s ease-in-out;
+    user-select: none;
+  }
+  .mood-pill-input:checked + .mood-pill-label {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+  .mood-pill-label:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crm-report-container">
+
+  <!-- Header Section -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+          <i class="fa-solid fa-hospital-user me-1"></i> Hospital Medical EOD
+        </span>
+        {% if user.hospital %}
+        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+          {{ user.hospital.name }}
+        </span>
+        {% endif %}
+      </div>
+      <h4 class="mb-0 fw-bold text-dark">Submit Hospital Daily EOD Report</h4>
+      <p class="text-muted small mb-0">{{ report_date|date:"l, d F Y" }}</p>
+    </div>
+    <div>
+      {% if existing %}
+        <span class="badge text-bg-warning fs-6 me-2"><i class="fa-solid fa-edit me-1"></i> Editing today's report</span>
+      {% endif %}
+      {% if user.role == 'LEAD_ATTENDENT' %}
+        <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Cancel</a>
+      {% elif user.role == 'DOCTOR' %}
+        <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Cancel</a>
+      {% else %}
+        <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Cancel</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recipient Dispatch Card -->
+  <div class="card border-0 shadow-xs mb-3 p-3 rounded-3" style="background: #ffffff; border: 1px solid #e2e8f0;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center;">
+          <i class="fa-solid fa-paper-plane text-primary"></i>
+        </div>
+        <div>
+          <div class="small fw-bold text-dark mb-0">Report Recipient & Dispatch Route</div>
+          <div class="text-muted" style="font-size: 0.76rem;">
+            {% if reports_to_user %}
+              Directly sending to Manager: <strong class="text-primary">{{ reports_to_user.get_full_name|default:reports_to_user.username }}</strong> & Hospital Administration
+            {% else %}
+              Directly sending to: <strong class="text-primary">Hospital Administration / Super Admin</strong>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill" style="font-size: 0.72rem;">
+        <i class="fa-solid fa-bell text-warning me-1"></i> Instant Live Notification on Submit
+      </span>
+    </div>
+  </div>
+
+  <!-- Auto-computed Stats Quick Preview -->
+  {% if suggestions %}
+  <div class="p-3 mb-3 rounded-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6 !important;">
+    <div class="fw-bold text-primary small mb-2"><i class="fa-solid fa-chart-line me-1"></i> Pre-filled from today's Hospital CRM activity</div>
+    <div class="stat-preview-box">
+      <div class="stat-chip-box"><i class="fa-solid fa-user-plus text-primary"></i> Assigned: {{ suggestions.leads_assigned }}</div>
+      <div class="stat-chip-box"><i class="fa-solid fa-circle-check text-success"></i> Appts Booked: {{ suggestions.appointments_booked }}</div>
+      <div class="stat-chip-box"><i class="fa-solid fa-snowflake text-danger"></i> Freeze Leads: {{ suggestions.freeze_leads }}</div>
+      <div class="stat-chip-box"><i class="fa-solid fa-phone-volume text-primary"></i> Total Calls: {{ suggestions.calls_attended }}</div>
+      <div class="stat-chip-box"><i class="fa-solid fa-calendar-check text-success"></i> Follow-ups: {{ suggestions.follow_ups_taken }}</div>
+      <div class="stat-chip-box"><i class="fa-solid fa-right-to-bracket text-secondary"></i> First Login: {{ suggestions.first_login_time|date:"h:i A"|default:"Today" }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Main Report Form -->
+  <form method="post" id="dailyReportForm">
+    {% csrf_token %}
+
+    <!-- Section 1: Overview & Patient Milestones (2 Fields Per Row) -->
+    <div class="crm-form-card">
+      <div class="crm-section-header">
+        <i style="background: #eff6ff; color: #2563eb;" class="fa-solid fa-chart-pie"></i>
+        <span>Today's Overview & Patient Consultations</span>
+      </div>
+      <div class="crm-card-body">
+        
+        <!-- Row 1: 2 fields -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Patient Leads Assigned Today</label>
+            {{ form.leads_assigned }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Appointments Booked / Approved</label>
+            {{ form.appointments_booked }}
+          </div>
+        </div>
+
+        <!-- Row 2: 2 fields -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Follow-ups Taken Today</label>
+            {{ form.follow_ups_taken }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Follow-ups Pending</label>
+            {{ form.follow_ups_pending }}
+          </div>
+        </div>
+
+        <!-- Row 3: 2 fields -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Interested / Consultation Leads</label>
+            {{ form.leads_interested }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Cold / Not Interested Leads</label>
+            {{ form.leads_cold }}
+          </div>
+        </div>
+
+        <!-- Row 4: 2 fields -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Freeze Leads (Cancelled / Cold)</label>
+            {{ form.freeze_leads }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Patients Who Visited Hospital</label>
+            {{ form.leads_visited }}
+          </div>
+        </div>
+
+        <!-- Row 5: 2 fields -->
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Admissions / Procedures Done</label>
+            {{ form.admissions_done }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Total Calls Attended Today</label>
+            {{ form.calls_attended }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 2: Call Activity & Outreach (2 Fields Per Row) -->
+    <div class="crm-form-card">
+      <div class="crm-section-header">
+        <i style="background: #f0fdf4; color: #16a34a;" class="fa-solid fa-phone-volume"></i>
+        <span>Call Activity & Patient Outreach</span>
+      </div>
+      <div class="crm-card-body">
+        
+        <!-- Row 1: 2 fields -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Outgoing Calls Made</label>
+            {{ form.outgoing_calls }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Incoming Calls Received</label>
+            {{ form.incoming_calls }}
+          </div>
+        </div>
+
+        <!-- Row 2: 2 fields -->
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Calls Not Connected</label>
+            {{ form.calls_not_connected }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Energy / Mood Rating</label>
+            <div class="mood-pills mt-1">
+              {% for value, label in form.mood_rating.field.choices %}
+              <div>
+                <input type="radio" name="mood_rating" id="mood_{{ value }}" value="{{ value }}" class="mood-pill-input"
+                  {% if form.mood_rating.value|stringformat:"s" == value|stringformat:"s" %}checked{% elif not form.mood_rating.value and value == 3 %}checked{% endif %}>
+                <label for="mood_{{ value }}" class="mood-pill-label">
+                  {% if value == 1 %}😞{% elif value == 2 %}😕{% elif value == 3 %}😐{% elif value == 4 %}🙂{% elif value == 5 %}😄{% endif %}
+                  <span>{{ label|slice:"2:" }}</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: Daily Hospital Notes (2 Fields Per Row) -->
+    <div class="crm-form-card">
+      <div class="crm-section-header">
+        <i style="background: #fefce8; color: #ca8a04;" class="fa-solid fa-pen-to-square"></i>
+        <span>Daily Hospital Notes & Summary</span>
+      </div>
+      <div class="crm-card-body">
+        
+        <!-- Row 1: 2 fields -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">⭐ Key Highlight / Achievement Today</label>
+            {{ form.key_highlight }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">🚧 Challenges Faced</label>
+            {{ form.challenges_faced }}
+          </div>
+        </div>
+
+        <!-- Row 2: 2 fields -->
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">📋 Tomorrow's Priority / Plan</label>
+            {{ form.tomorrow_priority }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">📝 Other Updates / Remarks</label>
+            {{ form.other_updates }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {% if form.errors %}
+    <div class="alert alert-danger rounded-3 py-2 px-3 small mb-3">
+      <strong><i class="fa-solid fa-circle-exclamation me-1"></i> Please fix the errors below:</strong>
+      {{ form.errors }}
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="d-flex gap-2 justify-content-end align-items-center mb-5">
+      {% if user.role == 'LEAD_ATTENDENT' %}
+        <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+      {% elif user.role == 'DOCTOR' %}
+        <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+      {% else %}
+        <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+      {% endif %}
+      <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm">
+        <i class="fa-solid fa-paper-plane me-2"></i>
+        {% if existing %}Update & Resend EOD Report{% else %}Send EOD Report to Hospital Admin{% endif %}
+      </button>
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Sanitize all integer number inputs to strictly positive integers
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value === '') {
+                this.value = 0;
+            }
+        });
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            const sanitized = pasteData.replace(/[^0-9]/g, '');
+            this.value = sanitized || 0;
+        });
+    });
+});
+</script>
+{% endblock %}

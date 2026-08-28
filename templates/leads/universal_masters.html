@@ -1,69 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Universal Masters{% endblock %}
+{% block title %}Custom Lead Form & Fields · CRM{% endblock %}
 {% block content %}
 
-<!-- Custom Styling for Premium Look -->
+<!-- Custom Styling matching Nelson Hospital Master Design Layout -->
 <style>
-  .master-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  .custom-header-card {
     background: #ffffff;
-    transition: all 0.3s ease;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
   }
-  .master-header-gradient {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 12px 12px 0 0;
-  }
-  .category-pill {
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    margin-bottom: 6px;
-    border: 1px solid transparent;
-  }
-  .category-pill:hover {
-    background-color: #f1f3f5;
-    transform: translateX(4px);
-  }
-  .category-pill.active {
-    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
-    color: white !important;
-    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2);
-    border: none;
-  }
-  .category-pill.active .fw-semibold {
-    color: white !important;
-  }
-  .category-pill.active .text-muted {
-    color: rgba(255,255,255,0.8) !important;
-  }
-  .category-pill.active .badge {
-    background-color: white !important;
-    color: #0d6efd !important;
-  }
-  .btn-premium {
-    border-radius: 20px;
-    padding: 8px 20px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-  .btn-premium:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
-  .table-modern th {
+
+  .table-custom-field th {
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     letter-spacing: 0.5px;
-    color: #6c757d;
-    border-bottom: 2px solid #f1f3f5;
+    color: #64748b;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
-  .table-modern td {
+
+  .table-custom-field td {
     vertical-align: middle;
-    border-bottom: 1px solid #f8f9fa;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
   }
+
   .action-icon-btn {
     width: 32px;
     height: 32px;
@@ -71,233 +37,387 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 8px;
     transition: all 0.2s ease;
   }
   .action-icon-btn:hover {
-    transform: scale(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  .form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
   }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-2">
-  <div>
-    <h3 class="mb-1 fw-bold text-dark" style="letter-spacing: -0.5px;">
-      <i class="fa-solid fa-pen-ruler me-2 text-primary"></i>
-      {% if request.user.hospital %}
-        {{ request.user.hospital.name }} - Lead Form Layout & Fields
-      {% else %}
-        Universal Lead Form Layout & Fields Manager
-      {% endif %}
-    </h3>
-    <p class="text-muted mb-0">View, customize, reorder, edit, or add fields to the dynamic lead capture form.</p>
+<div class="container-fluid px-0 px-md-2">
+  <!-- Page Header (Compact & Clean Nelson-style Layout) -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3 custom-header-card p-3 p-md-4">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+          <i class="fa-solid fa-pen-ruler me-1"></i> Form Customization
+        </span>
+        {% if request.user.hospital %}
+        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+          {{ request.user.hospital.name }}
+        </span>
+        {% else %}
+        <span class="badge bg-info bg-opacity-10 text-info px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+          Zappcode Universal
+        </span>
+        {% endif %}
+      </div>
+      <h5 class="fw-bold text-dark mb-0">Custom Lead Form</h5>
+      <p class="text-muted small mb-0 mt-1">Configure, reorder, and manage dynamic input fields for the lead capture form.</p>
+    </div>
+    
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm fw-semibold d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
+        <i class="fa-solid fa-plus"></i> Add New Field
+      </button>
+    </div>
   </div>
-  <div class="d-flex gap-2">
-    <button class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
-      <i class="fa-solid fa-plus me-1"></i> Add New Form Field
-    </button>
-  </div>
-</div>
 
-<!-- ========================================================================= -->
-<!-- SINGLE UNIFIED LEAD FORM FIELDS MANAGER -->
-<!-- ========================================================================= -->
-<div class="master-card p-4">
-  <div class="mb-4">
-    <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-table-columns text-primary me-2"></i>Form Fields & Layout Order</h5>
-    <p class="text-muted small mb-0">Fields created and arranged here automatically appear on the Lead Add/Edit form and Detail page in their exact order.</p>
-  </div>
+  <!-- Form Fields Table Card -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fa-solid fa-table-columns text-primary fs-6"></i>
+        <h6 class="fw-bold text-dark mb-0">Form Fields & Display Order</h6>
+      </div>
+      <span class="badge bg-light text-muted border px-2 py-1 rounded-pill small">
+        Total Fields: {{ all_fields|length }}
+      </span>
+    </div>
 
-  <div class="table-responsive">
-    <table class="table table-modern table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th style="width: 70px;">Order</th>
-          <th>Field Label</th>
-          <th>Field Identifier (Code)</th>
-          <th style="width: 130px;">Type</th>
-          <th>Required</th>
-          <th>Dropdown Options / Details</th>
-          <th class="text-center" style="width: 120px;">Status</th>
-          <th class="text-center" style="width: 140px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for field in all_fields %}
-        <tr>
-          <td><span class="badge bg-light text-dark border px-2 py-1 fw-bold">{{ field.order }}</span></td>
-          <td>
-            <strong class="text-dark">{{ field.label }}</strong>
-            {% if field.is_system %}
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle ms-1" style="font-size: 0.68rem;">Core Field</span>
-            {% else %}
-            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle ms-1" style="font-size: 0.68rem;">Custom Field</span>
-            {% endif %}
-          </td>
-          <td><code>{{ field.name }}</code></td>
-          <td>
-            {% if field.field_type == 'TEXT' %}
-              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1" title="Single Line Text">
-                <i class="fa-solid fa-font me-1"></i> <strong>T</strong> <span class="d-none d-lg-inline small">(Text)</span>
-              </span>
-            {% elif field.field_type == 'DROPDOWN' %}
-              <span class="badge bg-purple bg-opacity-10 text-dark border border-purple-subtle px-2 py-1" style="background-color: #f3e8ff; color: #7e22ce !important;" title="Dropdown (Select List)">
-                <i class="fa-solid fa-list-check me-1"></i> <strong>D</strong> <span class="d-none d-lg-inline small">(Dropdown)</span>
-              </span>
-            {% elif field.field_type == 'NUMBER' %}
-              <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1" title="Number / Integer">
-                <i class="fa-solid fa-hashtag me-1"></i> <strong>N</strong> <span class="d-none d-lg-inline small">(Number)</span>
-              </span>
-            {% elif field.field_type == 'TEXTAREA' %}
-              <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1" title="Multi-line Text / Textarea">
-                <i class="fa-regular fa-file-lines me-1"></i> <strong>Tx</strong> <span class="d-none d-lg-inline small">(Textarea)</span>
-              </span>
-            {% elif field.field_type == 'DATE' %}
-              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1" title="Date Picker">
-                <i class="fa-regular fa-calendar me-1"></i> <strong>Dt</strong> <span class="d-none d-lg-inline small">(Date)</span>
-              </span>
-            {% elif field.field_type == 'CHECKBOX' %}
-              <span class="badge bg-secondary bg-opacity-10 text-dark border border-secondary-subtle px-2 py-1" title="Checkbox / Toggle">
-                <i class="fa-regular fa-square-check me-1"></i> <strong>Cb</strong> <span class="d-none d-lg-inline small">(Checkbox)</span>
-              </span>
-            {% elif field.field_type == 'DECIMAL' %}
-              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1" title="Currency / Decimal">
-                <i class="fa-solid fa-dollar-sign me-1"></i> <strong>Dec</strong> <span class="d-none d-lg-inline small">(Decimal)</span>
-              </span>
-            {% else %}
-              <span class="badge bg-light text-dark border px-2 py-1">
-                <strong>{{ field.get_type_code|default:"T" }}</strong>
-              </span>
-            {% endif %}
-          </td>
-          <td>
-            {% if field.is_required %}
-            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Required</span>
-            {% else %}
-            <span class="text-muted small">Optional</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if field.field_type == 'DROPDOWN' %}
-            <div class="small text-muted text-truncate" style="max-width: 250px;" title="{{ field.options }}">{{ field.options|default:"Dynamic Master List" }}</div>
-            {% elif field.placeholder %}
-            <small class="text-muted text-truncate d-block" style="max-width: 250px;">Placeholder: "{{ field.placeholder }}"</small>
-            {% else %}
-            <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if field.is_active %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1"><i class="fa-solid fa-eye me-1"></i> Active</span>
-            {% else %}
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary rounded-pill px-2 py-1"><i class="fa-solid fa-eye-slash me-1"></i> Hidden</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            <div class="d-flex gap-2 justify-content-center">
-              <button class="btn btn-light border action-icon-btn text-primary shadow-sm" title="Edit Field" data-bs-toggle="modal" data-bs-target="#editFieldModal{{ field.id }}">
-                <i class="fa-solid fa-pen" style="font-size: 0.8rem;"></i>
-              </button>
-              <a href="{% url 'leads:custom_field_toggle' field.id %}" class="btn btn-light border action-icon-btn shadow-sm {% if field.is_active %}text-warning{% else %}text-success{% endif %}" title="{% if field.is_active %}Hide from form{% else %}Show on form{% endif %}">
-                <i class="fa-solid {% if field.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}" style="font-size: 0.8rem;"></i>
-              </a>
-              {% if not field.is_system %}
-              <form method="post" action="{% url 'leads:custom_field_delete' field.id %}" class="d-inline" onsubmit="return confirm('Remove custom field \'{{ field.label }}\' from lead form?');">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-light border action-icon-btn text-danger shadow-sm" title="Delete Field">
-                  <i class="fa-solid fa-trash" style="font-size: 0.8rem;"></i>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-custom-field table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 75px;" class="ps-4">Order</th>
+              <th>Field Label</th>
+              <th>Identifier (Slug)</th>
+              <th style="width: 140px;">Field Type</th>
+              <th style="width: 110px;">Mandatory</th>
+              <th>Options / Placeholder</th>
+              <th class="text-center" style="width: 120px;">Visibility</th>
+              <th class="text-end pe-4" style="width: 130px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for field in all_fields %}
+            <tr>
+              <td class="ps-4">
+                <span class="badge bg-light text-dark border px-2 py-1 fw-bold">{{ field.order }}</span>
+              </td>
+              <td>
+                <strong class="text-dark">{{ field.label }}</strong>
+                {% if field.is_system %}
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle ms-1" style="font-size: 0.68rem;">Core</span>
+                {% else %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-1" style="font-size: 0.68rem;">Custom</span>
+                {% endif %}
+              </td>
+              <td><code>{{ field.name }}</code></td>
+              <td>
+                {% if field.field_type == 'TEXT' %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                    <i class="fa-solid fa-font me-1"></i> Text (Single Line)
+                  </span>
+                {% elif field.field_type == 'DROPDOWN' %}
+                  <span class="badge bg-purple-subtle text-purple border border-purple-subtle px-2 py-1" style="background: #f3e8ff; color: #7e22ce;">
+                    <i class="fa-solid fa-list-check me-1"></i> Dropdown
+                  </span>
+                {% elif field.field_type == 'NUMBER' %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                    <i class="fa-solid fa-hashtag me-1"></i> Number
+                  </span>
+                {% elif field.field_type == 'TEXTAREA' %}
+                  <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1">
+                    <i class="fa-regular fa-file-lines me-1"></i> Textarea
+                  </span>
+                {% elif field.field_type == 'DATE' %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                    <i class="fa-regular fa-calendar me-1"></i> Date Picker
+                  </span>
+                {% elif field.field_type == 'CHECKBOX' %}
+                  <span class="badge bg-secondary bg-opacity-10 text-dark border border-secondary-subtle px-2 py-1">
+                    <i class="fa-regular fa-square-check me-1"></i> Checkbox
+                  </span>
+                {% elif field.field_type == 'DECIMAL' %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                    <i class="fa-solid fa-indian-rupee-sign me-1"></i> Currency/Decimal
+                  </span>
+                {% else %}
+                  <span class="badge bg-light text-dark border px-2 py-1">{{ field.field_type }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if field.is_required %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">Required</span>
+                {% else %}
+                  <span class="text-muted small">Optional</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if field.field_type == 'DROPDOWN' %}
+                  <div class="small text-muted text-truncate" style="max-width: 260px;" title="{{ field.options }}">
+                    {{ field.options|default:"Dynamic list configured" }}
+                  </div>
+                {% elif field.placeholder %}
+                  <small class="text-muted text-truncate d-block" style="max-width: 260px;">Placeholder: "{{ field.placeholder }}"</small>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if field.is_active %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1"><i class="fa-solid fa-eye me-1"></i> Active</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2 py-1"><i class="fa-solid fa-eye-slash me-1"></i> Hidden</span>
+                {% endif %}
+              </td>
+              <td class="text-end pe-4">
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-light border action-icon-btn text-primary" title="Edit Field" data-bs-toggle="modal" data-bs-target="#editFieldModal{{ field.id }}">
+                    <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <a href="{% url 'leads:custom_field_toggle' field.id %}" class="btn btn-light border action-icon-btn {% if field.is_active %}text-warning{% else %}text-success{% endif %}" title="{% if field.is_active %}Hide from lead form{% else %}Show on lead form{% endif %}">
+                    <i class="fa-solid {% if field.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}" style="font-size: 0.75rem;"></i>
+                  </a>
+                  {% if not field.is_system %}
+                  <form method="post" action="{% url 'leads:custom_field_delete' field.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete custom field \'{{ field.label }}\'?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light border action-icon-btn text-danger" title="Delete Field">
+                      <i class="fa-solid fa-trash-can" style="font-size: 0.75rem;"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-pen-ruler fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                <h6 class="fw-bold">No custom fields configured</h6>
+                <button class="btn btn-sm btn-primary rounded-pill px-4 mt-2" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
+                  <i class="fa-solid fa-plus me-1"></i> Add First Field
                 </button>
-              </form>
-              {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="8" class="text-center py-5 text-muted">
-            <div class="mb-2"><i class="fa-solid fa-wand-magic-sparkles fa-3x text-secondary opacity-50"></i></div>
-            <h6 class="fw-bold">No form fields configured</h6>
-            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
-              <i class="fa-solid fa-plus me-1"></i> Add New Field
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Edit Field Modals (Rendered for ALL fields) -->
+<!-- ========================================================================= -->
+<!-- ADD CUSTOM FIELD MODAL (Matching Nelson Modal Design & Layout) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="addCustomFieldModal" tabindex="-1" aria-labelledby="addCustomFieldModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:custom_field_add' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <div class="d-flex align-items-center gap-2">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+              <i class="fa-solid fa-pen-ruler"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0" id="addCustomFieldModalLabel">Add New Form Field</h5>
+              <p class="text-muted small mb-0">Create a new input element for the lead creation and edit form.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="row g-3">
+            
+            <!-- Field Label -->
+            <div class="col-md-8">
+              <label class="form-label small fw-semibold text-dark mb-1">Field Label <span class="text-danger">*</span></label>
+              <input type="text" name="label" class="form-control" placeholder="Field name" required>
+            </div>
+
+            <!-- Position / Order -->
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold text-dark mb-1">Position / Order</label>
+              <input type="number" name="order" class="form-control" placeholder="Optional" min="1">
+            </div>
+
+            <!-- Field Type -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Field Input Type <span class="text-danger">*</span></label>
+              <select name="field_type" id="addCustomFieldType" class="form-select no-tom-select" onchange="toggleCustomFieldOptions(this, 'addOptionsContainer')">
+                <option value="TEXT" selected>Text (Single Line)</option>
+                <option value="DROPDOWN">Dropdown (Select List)</option>
+                <option value="TEXTAREA">Textarea (Multi-line)</option>
+                <option value="NUMBER">Number</option>
+                <option value="DECIMAL">Decimal / Amount</option>
+                <option value="DATE">Date Picker</option>
+                <option value="CHECKBOX">Checkbox (Yes / No)</option>
+              </select>
+            </div>
+
+            <!-- Placeholder -->
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Placeholder Text</label>
+              <input type="text" name="placeholder" class="form-control" placeholder="e.g. Enter details">
+            </div>
+
+            <!-- Dropdown Options (Conditional) -->
+            <div class="col-12" id="addOptionsContainer" style="display: none;">
+              <div class="p-3 rounded-3 border bg-light-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                  <label class="form-label small fw-bold text-primary mb-0">
+                    Dropdown Options (Comma-separated) <span class="text-danger">*</span>
+                  </label>
+                  <label class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-semibold shadow-xs" style="font-size: 0.75rem; cursor: pointer;">
+                    <i class="fa-solid fa-file-excel me-1"></i> Import Excel / CSV
+                    <input type="file" accept=".xlsx,.xls,.csv,.txt" style="display: none;" onchange="handleExcelImport(this, 'addOptionsTextarea')">
+                  </label>
+                </div>
+                <textarea name="options" id="addOptionsTextarea" class="form-control" rows="3" placeholder="Option 1, Option 2, Option 3"></textarea>
+                <small class="text-muted d-block mt-1" style="font-size: 0.74rem;">
+                  Enter options separated by comma, or upload an Excel/CSV file.
+                </small>
+              </div>
+            </div>
+
+            <!-- Help Text -->
+            <div class="col-md-8">
+              <label class="form-label small fw-semibold text-dark mb-1">Help Text</label>
+              <input type="text" name="help_text" class="form-control" placeholder="Optional hint">
+            </div>
+
+            <!-- Required Switch -->
+            <div class="col-md-4 d-flex align-items-center pt-md-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_required" id="addReq" style="cursor: pointer; width: 2.2em; height: 1.2em;">
+                <label class="form-check-label small fw-semibold text-dark ms-2" for="addReq" style="cursor: pointer;">
+                  Required
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0 pb-4 px-4">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="fa-solid fa-check me-1"></i> Save Field
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- EDIT FIELD MODALS (Clean Layout) -->
+<!-- ========================================================================= -->
 {% for cf in all_fields %}
-<div class="modal fade" id="editFieldModal{{ cf.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg rounded-4">
+<div class="modal fade" id="editFieldModal{{ cf.id }}" tabindex="-1" aria-labelledby="editModalLabel{{ cf.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
       <form method="post" action="{% url 'leads:custom_field_edit' cf.id %}">
         {% csrf_token %}
         <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Form Field</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body px-4 pt-3">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Field Label <span class="text-danger">*</span></label>
-            <input type="text" name="label" class="form-control" value="{{ cf.label }}" required>
+          <div class="d-flex align-items-center gap-2">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0" id="editModalLabel{{ cf.id }}">Edit Form Field</h5>
+              <p class="text-muted small mb-0">Modify configuration for <strong>{{ cf.label }}</strong></p>
+            </div>
           </div>
-          <div class="row g-2 mb-3">
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="row g-3">
+            
+            <div class="col-md-8">
+              <label class="form-label small fw-semibold text-dark mb-1">Field Label <span class="text-danger">*</span></label>
+              <input type="text" name="label" class="form-control" value="{{ cf.label }}" required>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold text-dark mb-1">Position / Order</label>
+              <input type="number" name="order" class="form-control" value="{{ cf.order }}" min="1">
+            </div>
+
             <div class="col-md-6">
               <label class="form-label small fw-semibold text-dark mb-1">Field Type</label>
               <select name="field_type" class="form-select no-tom-select" onchange="toggleCustomFieldOptions(this, 'editOptionsContainer{{ cf.id }}')">
-                <option value="TEXT" {% if cf.field_type == 'TEXT' %}selected{% endif %}>📝 Single Line Text</option>
-                <option value="DROPDOWN" {% if cf.field_type == 'DROPDOWN' %}selected{% endif %}>📋 Dropdown (Select List with Options)</option>
-                <option value="TEXTAREA" {% if cf.field_type == 'TEXTAREA' %}selected{% endif %}>📑 Multi-line Text (Textarea / Notes)</option>
-                <option value="NUMBER" {% if cf.field_type == 'NUMBER' %}selected{% endif %}>🔢 Number (Integer)</option>
-                <option value="DECIMAL" {% if cf.field_type == 'DECIMAL' %}selected{% endif %}>💰 Currency / Decimal Amount</option>
-                <option value="DATE" {% if cf.field_type == 'DATE' %}selected{% endif %}>📅 Date Picker</option>
-                <option value="CHECKBOX" {% if cf.field_type == 'CHECKBOX' %}selected{% endif %}>☑️ Checkbox (Yes / No Toggle)</option>
+                <option value="TEXT" {% if cf.field_type == 'TEXT' %}selected{% endif %}>Text (Single Line)</option>
+                <option value="DROPDOWN" {% if cf.field_type == 'DROPDOWN' %}selected{% endif %}>Dropdown (Select List)</option>
+                <option value="TEXTAREA" {% if cf.field_type == 'TEXTAREA' %}selected{% endif %}>Textarea (Multi-line)</option>
+                <option value="NUMBER" {% if cf.field_type == 'NUMBER' %}selected{% endif %}>Number</option>
+                <option value="DECIMAL" {% if cf.field_type == 'DECIMAL' %}selected{% endif %}>Decimal / Amount</option>
+                <option value="DATE" {% if cf.field_type == 'DATE' %}selected{% endif %}>Date Picker</option>
+                <option value="CHECKBOX" {% if cf.field_type == 'CHECKBOX' %}selected{% endif %}>Checkbox (Yes / No)</option>
               </select>
             </div>
+
             <div class="col-md-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Sort Order / Position</label>
-              <input type="number" name="order" class="form-control" value="{{ cf.order }}">
+              <label class="form-label small fw-semibold text-dark mb-1">Placeholder Text</label>
+              <input type="text" name="placeholder" class="form-control" value="{{ cf.placeholder }}" placeholder="Optional">
             </div>
-          </div>
-          <div class="mb-3 p-3 rounded-3 border bg-light-subtle" id="editOptionsContainer{{ cf.id }}" style="{% if cf.field_type != 'DROPDOWN' %}display: none;{% endif %}">
-            <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
-              <label class="form-label small fw-bold text-primary mb-0">
-                <i class="fa-solid fa-list-check me-1"></i> Dropdown Options (Comma-separated)
-              </label>
-              <label class="btn btn-sm btn-outline-success rounded-pill px-2 py-0" style="font-size: 0.72rem; cursor: pointer;">
-                <i class="fa-solid fa-file-excel me-1"></i> Import from Excel / CSV
-                <input type="file" accept=".xlsx,.xls,.csv,.txt" style="display: none;" onchange="handleExcelImport(this, 'editOptionsTextarea{{ cf.id }}')">
-              </label>
+
+            <!-- Dropdown Options (Conditional) -->
+            <div class="col-12" id="editOptionsContainer{{ cf.id }}" style="{% if cf.field_type != 'DROPDOWN' %}display: none;{% endif %}">
+              <div class="p-3 rounded-3 border bg-light-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                  <label class="form-label small fw-bold text-primary mb-0">
+                    Dropdown Options (Comma-separated)
+                  </label>
+                  <label class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-semibold shadow-xs" style="font-size: 0.75rem; cursor: pointer;">
+                    <i class="fa-solid fa-file-excel me-1"></i> Import Excel / CSV
+                    <input type="file" accept=".xlsx,.xls,.csv,.txt" style="display: none;" onchange="handleExcelImport(this, 'editOptionsTextarea{{ cf.id }}')">
+                  </label>
+                </div>
+                <textarea name="options" id="editOptionsTextarea{{ cf.id }}" class="form-control" rows="3">{{ cf.options }}</textarea>
+                <small class="text-muted d-block mt-1" style="font-size: 0.74rem;">
+                  Enter options separated by comma, or upload an Excel/CSV file.
+                </small>
+              </div>
             </div>
-            <textarea name="options" id="editOptionsTextarea{{ cf.id }}" class="form-control" rows="3" placeholder="e.g. Option A, Option B, Option C (or upload Excel file to populate automatically)">{{ cf.options }}</textarea>
-            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
-              <i class="fa-solid fa-circle-info text-primary me-1"></i>Enter options separated by comma, OR upload an Excel/CSV file to load options in 1-click.
-            </small>
-          </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Placeholder Text</label>
-            <input type="text" name="placeholder" class="form-control" value="{{ cf.placeholder }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Help Text / Subtitle</label>
-            <input type="text" name="help_text" class="form-control" value="{{ cf.help_text }}">
-          </div>
-          <div class="d-flex gap-3 pt-2">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" name="is_required" id="req{{ cf.id }}" {% if cf.is_required %}checked{% endif %}>
-              <label class="form-check-label small fw-semibold text-dark" for="req{{ cf.id }}">Required Field</label>
+
+            <div class="col-md-8">
+              <label class="form-label small fw-semibold text-dark mb-1">Help Text</label>
+              <input type="text" name="help_text" class="form-control" value="{{ cf.help_text }}" placeholder="Optional hint">
             </div>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" name="is_active" id="act{{ cf.id }}" {% if cf.is_active %}checked{% endif %}>
-              <label class="form-check-label small fw-semibold text-dark" for="act{{ cf.id }}">Active (Visible)</label>
+
+            <div class="col-md-4 d-flex align-items-center pt-md-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_required" id="editReq{{ cf.id }}" {% if cf.is_required %}checked{% endif %} style="cursor: pointer; width: 2.2em; height: 1.2em;">
+                <label class="form-check-label small fw-semibold text-dark ms-2" for="editReq{{ cf.id }}" style="cursor: pointer;">
+                  Required
+                </label>
+              </div>
             </div>
+
           </div>
         </div>
+
         <div class="modal-footer border-0 pt-0 pb-4 px-4">
-          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Changes</button>
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">Save Changes</button>
         </div>
       </form>
     </div>
@@ -305,78 +425,7 @@
 </div>
 {% endfor %}
 
-<!-- Add Custom Field Modal -->
-<div class="modal fade" id="addCustomFieldModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg rounded-4">
-      <form method="post" action="{% url 'leads:custom_field_add' %}">
-        {% csrf_token %}
-        <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Add New Lead Form Field</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body px-4 pt-3">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Field Label <span class="text-danger">*</span></label>
-            <input type="text" name="label" class="form-control" placeholder="e.g. Guardian Name, Insurance Policy No, Blood Group" required>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Field Type <span class="text-danger">*</span></label>
-              <select name="field_type" id="addCustomFieldType" class="form-select no-tom-select" onchange="toggleCustomFieldOptions(this, 'addOptionsContainer')">
-                <option value="TEXT" selected>📝 Single Line Text</option>
-                <option value="DROPDOWN">📋 Dropdown (Select List with Options)</option>
-                <option value="TEXTAREA">📑 Multi-line Text (Textarea / Notes)</option>
-                <option value="NUMBER">🔢 Number (Integer)</option>
-                <option value="DECIMAL">💰 Currency / Decimal Amount</option>
-                <option value="DATE">📅 Date Picker</option>
-                <option value="CHECKBOX">☑️ Checkbox (Yes / No Toggle)</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Position / Order</label>
-              <input type="number" name="order" class="form-control" placeholder="Leave empty for last" min="1">
-              <small class="text-muted" style="font-size: 0.72rem;">Leave empty to add to the end. Or specify (e.g. 1, 2) to insert & auto-shift.</small>
-            </div>
-          </div>
-          <div class="mb-3 p-3 rounded-3 border bg-light-subtle" id="addOptionsContainer" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
-              <label class="form-label small fw-bold text-primary mb-0">
-                <i class="fa-solid fa-list-check me-1"></i> Dropdown Options (Comma-separated) <span class="text-danger">*</span>
-              </label>
-              <label class="btn btn-sm btn-outline-success rounded-pill px-2 py-0" style="font-size: 0.72rem; cursor: pointer;">
-                <i class="fa-solid fa-file-excel me-1"></i> Import from Excel / CSV
-                <input type="file" accept=".xlsx,.xls,.csv,.txt" style="display: none;" onchange="handleExcelImport(this, 'addOptionsTextarea')">
-              </label>
-            </div>
-            <textarea name="options" id="addOptionsTextarea" class="form-control" rows="3" placeholder="e.g. Option 1, Option 2, Option 3 (or upload Excel file to populate automatically)"></textarea>
-            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
-              <i class="fa-solid fa-circle-info text-primary me-1"></i>Enter options separated by comma, OR upload an Excel/CSV file to load options in 1-click.
-            </small>
-          </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Placeholder Text</label>
-            <input type="text" name="placeholder" class="form-control" placeholder="e.g. Select option or enter note...">
-          </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Help Text / Subtitle</label>
-            <input type="text" name="help_text" class="form-control" placeholder="e.g. Patient preferred option">
-          </div>
-          <div class="form-check form-switch pt-2">
-            <input class="form-check-input" type="checkbox" name="is_required" id="addReq">
-            <label class="form-check-label small fw-semibold text-dark" for="addReq">Required Field</label>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0 pb-4 px-4">
-          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save and Add Field</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Include SheetJS (xlsx parser) for client-side Excel/CSV reading -->
+<!-- Include SheetJS for 1-Click Excel/CSV dropdown options reading -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
@@ -435,28 +484,11 @@ function handleExcelImport(fileInput, targetTextareaId) {
     } else {
       alert("No readable values found in the uploaded file.");
     }
-    fileInput.value = ""; // Reset input
+    fileInput.value = "";
   };
 
   reader.readAsArrayBuffer(file);
 }
-
-document.addEventListener("DOMContentLoaded", function() {
-  document.querySelectorAll('select[name="field_type"]').forEach(function(sel) {
-    sel.addEventListener('change', function() {
-      var modal = sel.closest('.modal');
-      if (!modal) return;
-      var container = modal.querySelector('[id^="addOptionsContainer"], [id^="editOptionsContainer"]');
-      if (container) {
-        if (sel.value === 'DROPDOWN') {
-          container.style.display = 'block';
-        } else {
-          container.style.display = 'none';
-        }
-      }
-    });
-  });
-});
 </script>
 
 {% endblock %}

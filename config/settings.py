@@ -159,8 +159,8 @@ MAX_IMPORT_ROWS = 50000
 
 # Session & Cookie Persistence Settings
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 86400 * 30  # Keep session active for 30 days
-SESSION_SAVE_EVERY_REQUEST = True  # Automatically refresh session timer on every user request
+SESSION_COOKIE_AGE = 604800  # Keep session active for 7 days (604800 seconds)
+SESSION_SAVE_EVERY_REQUEST = True  # Automatically refresh session timer on every user request/activity
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False

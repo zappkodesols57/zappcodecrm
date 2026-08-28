@@ -20,8 +20,9 @@ class DailyReport(models.Model):
     freeze_leads = models.PositiveIntegerField(default=0, verbose_name="Freeze Leads (Cancelled / Not Interested)")
     leads_cold = models.PositiveIntegerField(default=0, verbose_name="Cold Leads (Not Interested)")
     leads_interested = models.PositiveIntegerField(default=0, verbose_name="Interested Leads")
-    leads_visited = models.PositiveIntegerField(default=0, verbose_name="Leads Who Visited")
-    admissions_done = models.PositiveIntegerField(default=0, verbose_name="Admissions Done Today")
+    leads_visited = models.PositiveIntegerField(default=0, verbose_name="Student Visits (Leads Visited)")
+    admissions_done = models.PositiveIntegerField(default=0, verbose_name="Admissions Completed Today")
+    fees_collected = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Fees Payments Collected (₹)")
     follow_ups_pending = models.PositiveIntegerField(default=0, verbose_name="Follow-ups Pending")
     follow_ups_taken = models.PositiveIntegerField(default=0, verbose_name="Follow-ups Taken Today")
 

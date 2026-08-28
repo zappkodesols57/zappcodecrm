@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import zappcode_views
 
 app_name = "dashboard"
 
@@ -15,7 +16,7 @@ urlpatterns = [
 
     path("", views.home, name="home"),
     path("superadmin/", views.superadmin_home, name="superadmin_home"),
-    path("management/", views.management_home, name="management_home"),
+    path("management/", zappcode_views.management_home, name="management_home"),
     path("nelson/roles-permissions/", views.roles_permissions_view, name="roles_permissions"),
     path("nelson/module/<str:module_name>/", views.nelson_module_view, name="nelson_module"),
     path("reports/source/", views.source_report, name="source_report"),

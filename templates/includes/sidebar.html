@@ -39,11 +39,13 @@
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
-    <!-- Submit Daily Report (Manager / Admin) -->
+    {% if user.role == 'MANAGER' %}
+    <!-- Submit Daily Report (Manager Only) -->
     <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
       href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
       <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
     </a>
+    {% endif %}
 
     <!-- Section: People Management (Multiple Tabs) -->
     <div class="nav-section-group">
@@ -55,7 +57,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'users roles_permissions' %}show{% endif %} nav-sub-items" id="sec_people"
-        data-bs-parent="#sidebarAccordion">
+       >
         <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"
           title="User Management"><i class="fa-solid fa-user-gear"></i> <span class="nav-text">User
             Management</span></a>
@@ -78,7 +80,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'leads_all meta_ads campaign-management' %}show{% endif %} nav-sub-items"
-        id="sec_leads" data-bs-parent="#sidebarAccordion">
+        id="sec_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="Lead Management"><i class="fa-solid fa-users"></i> <span class="nav-text">Lead Management</span></a>
         <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}"
@@ -102,7 +104,7 @@
       </button>
       <div
         class="collapse {% if active in 'reports financial-overview notifications tasks audit export' %}show{% endif %} nav-sub-items"
-        id="sec_ops" data-bs-parent="#sidebarAccordion">
+        id="sec_ops">
         {% if request.user.can_view_reports %}
         <a class="nav-link {% if active == 'reports' %}active{% endif %}" href="{% url 'dashboard:admin_reports' %}"
           title="Reports"><i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Reports & EOD Logs</span></a>
@@ -131,13 +133,14 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'universal_masters hospital_config' %}show{% endif %} nav-sub-items"
-        id="sec_masters" data-bs-parent="#sidebarAccordion">
+        id="sec_masters">
         <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'hospital_config' %}active{% endif %}"
           href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration"><i
             class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span>{% if not request.user.can_manage_masters %} <i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
         <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'universal_masters' %}active{% endif %}"
-          href="{% url 'leads:universal_masters' %}" title="Custom Fields & Masters"><i
-            class="fa-solid fa-database"></i> <span class="nav-text">Custom Form Fields</span>{% if not request.user.can_manage_masters %} <i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+          href="{% url 'leads:universal_masters' %}" title="Custom Lead Form"><i
+            class="fa-solid fa-pen-ruler"></i> <span class="nav-text">Custom Lead Form</span>
+          {% if not request.user.can_manage_masters %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
       </div>
     </div>
 
@@ -161,7 +164,7 @@
       </button>
       <div
         class="collapse {% if active in 'my_leads new_enquiries team_today_activity search_filter' %}show{% endif %} nav-sub-items"
-        id="sec_tele_leads" data-bs-parent="#sidebarAccordion">
+        id="sec_tele_leads">
         <a class="nav-link {% if active == 'my_leads' %}active{% endif %}"
           href="{% url 'dashboard:telecaller_my_leads' %}" title="My Leads"><i class="fa-solid fa-users"></i> <span
             class="nav-text">My Leads</span></a>
@@ -189,7 +192,7 @@
       </button>
       <div
         class="collapse {% if active in 'fu_today fu_upcoming fu_billing call_history' %}show{% endif %} nav-sub-items"
-        id="sec_tele_fu" data-bs-parent="#sidebarAccordion">
+        id="sec_tele_fu">
         <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"
           title="Follow-ups"><i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Follow-ups</span></a>
         <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"
@@ -213,7 +216,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'tasks notifications daily_report_submit' %}show{% endif %} nav-sub-items"
-        id="sec_tele_tools" data-bs-parent="#sidebarAccordion">
+        id="sec_tele_tools">
         <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
           href="{% url 'dashboard:submit_daily_report' %}" title="Daily EOD Report"><i
             class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span></a>
@@ -255,7 +258,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'tasks notifications daily_report_submit' %}show{% endif %} nav-sub-items" id="sec_doc_prod"
-        data-bs-parent="#sidebarAccordion">
+       >
         <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
           href="{% url 'dashboard:submit_daily_report' %}" title="Daily EOD Report"><i
             class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span></a>
@@ -275,12 +278,6 @@
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
-    <!-- Submit Daily Report (Manager) -->
-    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
-      href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
-      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
-    </a>
-
     {% if user.can_view_reports %}
     <!-- Section: Team Reports -->
     <div class="nav-section-group">
@@ -294,7 +291,7 @@
       </button>
       <div
         class="collapse {% if active in 'reports_daily reports_employee reports_source reports_campaign' %}show{% endif %} nav-sub-items"
-        id="sec_mgmt_reports" data-bs-parent="#sidebarAccordion">
+        id="sec_mgmt_reports">
         <a class="nav-link {% if active == 'reports_daily' %}active{% endif %}"
           href="{% url 'dashboard:management_daily_reports' %}" title="Daily EOD Reports"><i
             class="fa-solid fa-file-lines"></i> <span class="nav-text">Daily EOD Reports</span></a>
@@ -319,45 +316,19 @@
 
     <!-- Section: Lead Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all leads_add leads_dup' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all leads_dup' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_mgmt_leads"
-        aria-expanded="{% if active in 'leads_all' or active in 'leads_add' or active in 'leads_dup' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'leads_all' or active in 'leads_dup' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all leads_add leads_dup' %}show{% endif %} nav-sub-items"
-        id="sec_mgmt_leads" data-bs-parent="#sidebarAccordion">
+      <div class="collapse {% if active in 'leads_all leads_dup' %}show{% endif %} nav-sub-items"
+        id="sec_mgmt_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
-        <a class="nav-link {% if active == 'leads_add' %}active{% endif %}" href="{% url 'leads:lead_add' %}"
-          title="Add New Lead"><i class="fa-solid fa-user-plus"></i> <span class="nav-text">Add New Lead</span></a>
         <a class="nav-link {% if active == 'leads_dup' %}active{% endif %}" href="{% url 'leads:duplicates' %}"
           title="Duplicate Management"><i class="fa-solid fa-clone"></i> <span class="nav-text">Duplicate
             Management</span></a>
-      </div>
-    </div>
-
-    <!-- Section: Follow-up Management -->
-    <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'fu_today fu_upcoming fu_overdue' %}collapsed{% endif %}"
-        type="button" data-bs-toggle="collapse" data-bs-target="#sec_mgmt_fu"
-        aria-expanded="{% if active in 'fu_today fu_upcoming fu_overdue' %}true{% else %}false{% endif %}">
-        <span><i class="fa-solid fa-calendar-check section-icon"></i><span
-            class="section-title">Follow-ups</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div class="collapse {% if active in 'fu_today fu_upcoming fu_overdue fu_billing' %}show{% endif %} nav-sub-items"
-        id="sec_mgmt_fu" data-bs-parent="#sidebarAccordion">
-        <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"
-          title="Today's Follow-ups"><i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's
-            Follow-ups</span></a>
-        <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"
-          title="Upcoming"><i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming</span></a>
-        <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}"
-          title="Overdue"><i class="fa-solid fa-calendar-xmark"></i> <span class="nav-text">Overdue</span></a>
-        <a class="nav-link {% if active == 'fu_billing' %}active{% endif %}"
-          href="{% url 'followups:billing_followup' %}" title="Billing Follow-ups"><i
-            class="fa-solid fa-file-invoice-dollar"></i> <span class="nav-text">Billing Follow-ups</span></a>
       </div>
     </div>
 
@@ -372,7 +343,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'admissions payments' %}show{% endif %} nav-sub-items" id="sec_mgmt_adm"
-        data-bs-parent="#sidebarAccordion">
+       >
         <a class="nav-link {% if active == 'admissions' %}active{% endif %}" href="{% url 'admissions:list' %}"
           title="Admissions"><i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions</span></a>
         <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'payments:list' %}"
@@ -391,7 +362,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'import import_history export' %}show{% endif %} nav-sub-items"
-        id="sec_mgmt_excel" data-bs-parent="#sidebarAccordion">
+        id="sec_mgmt_excel">
         <a class="nav-link {% if active == 'import' %}active{% endif %}" href="{% url 'imports:upload' %}"
           title="Import Leads"><i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span></a>
         <a class="nav-link {% if active == 'import_history' %}active{% endif %}" href="{% url 'imports:history' %}"
@@ -413,15 +384,15 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'settings course_master universal_masters' %}show{% endif %} nav-sub-items"
-        id="sec_mgmt_settings" data-bs-parent="#sidebarAccordion">
+        id="sec_mgmt_settings">
         <a class="nav-link {% if active == 'settings' %}active{% endif %}" href="{% url 'leads:masters' %}"
           title="Master Data"><i class="fa-solid fa-database"></i> <span class="nav-text">Master Data</span></a>
         <a class="nav-link {% if active == 'course_master' %}active{% endif %}" href="{% url 'leads:course_master' %}"
           title="Course Master"><i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Course
             Master</span></a>
         <a class="nav-link {% if active == 'universal_masters' %}active{% endif %}"
-          href="{% url 'leads:universal_masters' %}" title="Universal Masters"><i class="fa-solid fa-layer-group"></i>
-          <span class="nav-text">Universal Masters</span></a>
+          href="{% url 'leads:universal_masters' %}" title="Custom Lead Form"><i class="fa-solid fa-pen-ruler"></i>
+          <span class="nav-text">Custom Lead Form</span></a>
       </div>
     </div>
     {% endif %}
@@ -445,7 +416,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'users audit' %}show{% endif %} nav-sub-items" id="sec_mgmt_team"
-        data-bs-parent="#sidebarAccordion">
+       >
         <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"
           title="Users & Approvals"><i class="fa-solid fa-users-gear"></i> <span class="nav-text">Users &
             Approvals</span></a>
@@ -465,10 +436,10 @@
     </a>
 
     <!-- Submit Daily Report (Single Tab) -->
-    <a class="nav-link {% if not request.user.can_view_reports %}opacity-50 pe-none{% endif %} {% if active == 'daily_report_submit' %}active{% endif %}"
+    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
       href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
-      <i class="fa-solid fa-pen-to-square"></i> <span class="nav-text">Submit EOD Report</span>
-      {% if not request.user.can_view_reports %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
+    </a>
 
     <!-- Section: Lead Management -->
     <div class="nav-section-group">
@@ -479,7 +450,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'leads_all leads_add leads_dup' %}show{% endif %} nav-sub-items"
-        id="sec_emp_leads" data-bs-parent="#sidebarAccordion">
+        id="sec_emp_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
         <a class="nav-link {% if active == 'leads_add' %}active{% endif %}" href="{% url 'leads:lead_add' %}"
@@ -500,7 +471,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'fu_today fu_upcoming fu_overdue' %}show{% endif %} nav-sub-items"
-        id="sec_emp_fu" data-bs-parent="#sidebarAccordion">
+        id="sec_emp_fu">
         <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"
           title="Today's Follow-ups"><i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's
             Follow-ups</span></a>
@@ -522,7 +493,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'admissions payments' %}show{% endif %} nav-sub-items" id="sec_emp_adm"
-        data-bs-parent="#sidebarAccordion">
+       >
         <a class="nav-link {% if active == 'admissions' %}active{% endif %}" href="{% url 'admissions:list' %}"
           title="Admissions"><i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions</span></a>
         <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'payments:list' %}"
@@ -541,7 +512,10 @@
       {% if not request.user.can_manage_hospital_profile %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
     {% endif %}
 
-    <!-- Direct Profile & Logout Link (Clean Nav Link) -->
+  </div>
+
+  <!-- Pinned Very Bottom Footer Section (Profile & Logout for all users) -->
+  <div class="sidebar-footer-box">
     <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}"
       title="Profile">
       <i class="fa-solid fa-user-circle"></i> <span class="nav-text">Profile</span>
@@ -553,7 +527,6 @@
         <i class="fa-solid fa-right-from-bracket text-danger"></i> <span class="nav-text">Logout</span>
       </button>
     </form>
-
   </div>
 </nav>
 {% endif %}

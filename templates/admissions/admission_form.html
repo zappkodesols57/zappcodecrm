@@ -2,101 +2,132 @@
 {% block title %}Direct Student Admission{% endblock %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
-    <h4 class="mb-0 fw-bold"><i class="fa-solid fa-user-graduate text-brand me-2"></i>Direct Student Admission</h4>
-    <p class="text-muted small mb-0">Directly register and enroll a new student for training & courses.</p>
+    <h4 class="mb-0 fw-bold"><i class="fa-solid fa-user-graduate text-brand me-2"></i>Add New / Old Student / Direct Admission</h4>
+    <p class="text-muted small mb-0">Directly register and enroll a new or existing student for training & courses.</p>
   </div>
   <a href="{% url 'admissions:list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back to Admissions</a>
 </div>
 
-<div class="card shadow-sm border-0" style="max-width: 800px;">
-  <div class="card-body p-4">
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-4 p-lg-5">
     <form method="post">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
-      <div class="alert alert-danger py-2 small mb-3">
+      <div class="alert alert-danger py-2 small mb-4">
         {% for error in form.non_field_errors %}{{ error }}{% endfor %}
       </div>
       {% endif %}
 
-      <h6 class="text-uppercase small text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-user me-1 text-brand"></i> Student Information</h6>
+      <!-- Section 1: Student Information -->
+      <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+          <i class="fa-solid fa-user"></i>
+        </div>
+        <h6 class="text-uppercase mb-0 fw-bold text-dark" style="letter-spacing: 0.5px;">Student Basic Information</h6>
+      </div>
+
       <div class="row g-3 mb-4">
-        <div class="col-md-6">
+        <div class="col-12 col-md-4 col-lg-3">
           <label class="form-label small fw-semibold">Student Full Name *</label>
           {{ form.student_name }}
           {% if form.student_name.errors %}<div class="text-danger small mt-1">{{ form.student_name.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-6">
+        <div class="col-12 col-md-4 col-lg-3">
           <label class="form-label small fw-semibold">Mobile Number *</label>
           {{ form.mobile }}
           {% if form.mobile.errors %}<div class="text-danger small mt-1">{{ form.mobile.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-6">
+        <div class="col-12 col-md-4 col-lg-3">
           <label class="form-label small fw-semibold">Email Address</label>
           {{ form.email }}
           {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">City</label>
+        <div class="col-12 col-md-4 col-lg-3">
+          <label class="form-label small fw-semibold">City / Location</label>
           {{ form.city }}
           {% if form.city.errors %}<div class="text-danger small mt-1">{{ form.city.errors.0 }}</div>{% endif %}
         </div>
       </div>
 
-      <h6 class="text-uppercase small text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-graduation-cap me-1 text-brand"></i> Course & Fees Details</h6>
+      <!-- Section 2: Course & Fee Details -->
+      <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom mt-4 flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: #dbeafe; color: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <h6 class="text-uppercase mb-0 fw-bold text-dark" style="letter-spacing: 0.5px;">Course Enrollment & Financial Details</h6>
+        </div>
+        <div class="form-check form-switch bg-light border px-3 py-1 rounded-pill d-flex align-items-center gap-2 m-0 shadow-xs">
+          {{ form.is_existing_student }}
+          <label class="form-check-label small fw-semibold text-dark user-select-none" for="{{ form.is_existing_student.id_for_label }}">
+            <i class="fa-solid fa-user-check text-primary me-1"></i> Already Enrolled Student
+          </label>
+        </div>
+      </div>
+
       <div class="row g-3 mb-4">
-        <div class="col-md-6">
+        <div class="col-12 col-md-6 col-lg-4">
           <label class="form-label small fw-semibold">Course Enrolled *</label>
           {{ form.course }}
           {% if form.course.errors %}<div class="text-danger small mt-1">{{ form.course.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-6">
+        <div class="col-12 col-md-6 col-lg-4">
           <label class="form-label small fw-semibold">Admission Date *</label>
           {{ form.admission_date }}
           {% if form.admission_date.errors %}<div class="text-danger small mt-1">{{ form.admission_date.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-4">
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label small fw-semibold">Payment Plan Structure</label>
+          {{ form.payment_plan }}
+          {% if form.payment_plan.errors %}<div class="text-danger small mt-1">{{ form.payment_plan.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
           <label class="form-label small fw-semibold">Total Course Fee (₹) *</label>
           {{ form.total_fee }}
           {% if form.total_fee.errors %}<div class="text-danger small mt-1">{{ form.total_fee.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-4">
+        <div class="col-12 col-md-6 col-lg-4">
           <label class="form-label small fw-semibold">Discount Allowed (₹)</label>
           {{ form.discount }}
           {% if form.discount.errors %}<div class="text-danger small mt-1">{{ form.discount.errors.0 }}</div>{% endif %}
         </div>
-        <div class="col-md-4">
-          <label class="form-label small fw-semibold">Payment Plan</label>
-          {{ form.payment_plan }}
-          {% if form.payment_plan.errors %}<div class="text-danger small mt-1">{{ form.payment_plan.errors.0 }}</div>{% endif %}
-        </div>
-        <div class="col-md-12">
-          <label class="form-label small fw-semibold">Discount Reason / Notes</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label small fw-semibold">Discount Reason / Approval Notes</label>
           {{ form.extra_discount_reason }}
         </div>
       </div>
 
-      <h6 class="text-uppercase small text-muted fw-bold border-bottom pb-2 mb-3"><i class="fa-solid fa-user-tie me-1 text-brand"></i> Status & Counselor Assignment</h6>
+      <!-- Section 3: Status & Assignment -->
+      <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom mt-4">
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: #dcfce7; color: #166534; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+          <i class="fa-solid fa-user-tie"></i>
+        </div>
+        <h6 class="text-uppercase mb-0 fw-bold text-dark" style="letter-spacing: 0.5px;">Course Status & Assignment</h6>
+      </div>
+
       <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Course Status</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label small fw-semibold">Course Progress Status</label>
           {{ form.course_status }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Assigned Counselor / Employee</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label small fw-semibold">Assigned Counselor / Manager</label>
           {{ form.assigned_counselor }}
         </div>
-        <div class="col-md-12">
-          <label class="form-label small fw-semibold">Additional Admission Notes</label>
+        <div class="col-12 col-lg-4">
+          <label class="form-label small fw-semibold">Additional Admission Remarks</label>
           {{ form.notes }}
         </div>
       </div>
 
-      <div class="d-flex gap-2 pt-3 border-top">
-        <button type="submit" class="btn btn-brand text-white"><i class="fa-solid fa-user-check me-1"></i> Register Student Admission</button>
-        <a href="{% url 'admissions:list' %}" class="btn btn-outline-secondary">Cancel</a>
+      <div class="d-flex gap-3 pt-3 border-top justify-content-end align-items-center mt-4">
+        <a href="{% url 'admissions:list' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+        <button type="submit" class="btn btn-brand text-white px-4 py-2 fw-semibold shadow-sm">
+          <i class="fa-solid fa-user-check me-1"></i> Register Student Admission
+        </button>
       </div>
     </form>
   </div>
@@ -138,24 +169,86 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // 2. Real-time Final Fee Calculator
+  // 2. Real-time Course Auto-fill & Max Discount Validation
+  var courseData = JSON.parse('{{ course_data_json|escapejs }}' || '{}');
+  var courseSelect = document.querySelector('select[name="course"]');
   var totalFeeInput = document.querySelector('input[name="total_fee"]');
   var discountInput = document.querySelector('input[name="discount"]');
-  if (totalFeeInput && discountInput) {
-    var calcDiv = document.createElement('div');
-    calcDiv.className = 'mt-1 small fw-bold text-success';
-    discountInput.parentNode.appendChild(calcDiv);
 
-    function updateCalculatedFee() {
-      var tf = parseFloat(totalFeeInput.value) || 0;
-      var disc = parseFloat(discountInput.value) || 0;
-      var finalFee = Math.max(0, tf - disc);
-      calcDiv.innerHTML = 'Net Final Payable Fee: ₹' + finalFee.toLocaleString('en-IN');
+  if (discountInput) {
+    var feeStatusDiv = document.createElement('div');
+    feeStatusDiv.className = 'mt-1 small';
+    discountInput.parentNode.appendChild(feeStatusDiv);
+
+    function updateFeeAndDiscountLogic() {
+      var selectedCourseId = courseSelect ? courseSelect.value : null;
+      var cInfo = selectedCourseId && courseData[selectedCourseId] ? courseData[selectedCourseId] : null;
+
+      var currentTf = parseFloat(totalFeeInput.value) || 0;
+      var currentDisc = parseFloat(discountInput.value) || 0;
+
+      var warningHtml = '';
+      var maxAllowed = cInfo ? cInfo.max_discount : 0;
+
+      if (cInfo && maxAllowed > 0 && currentDisc > maxAllowed) {
+        warningHtml = '<div class="text-danger fw-bold mt-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Limit Exceeded! Max allowed discount for ' + cInfo.name + ' is ₹' + maxAllowed.toLocaleString('en-IN') + '</div>';
+        discountInput.classList.add('is-invalid');
+      } else {
+        discountInput.classList.remove('is-invalid');
+      }
+
+      var finalFee = Math.max(0, currentTf - currentDisc);
+      feeStatusDiv.innerHTML = '<span class="fw-bold text-success"><i class="fa-solid fa-calculator me-1"></i> Net Final Payable Fee: ₹' + finalFee.toLocaleString('en-IN') + '</span>' + warningHtml;
     }
 
-    totalFeeInput.addEventListener('input', updateCalculatedFee);
-    discountInput.addEventListener('input', updateCalculatedFee);
-    updateCalculatedFee();
+    if (courseSelect) {
+      courseSelect.addEventListener('change', function() {
+        var selectedCourseId = this.value;
+        if (selectedCourseId && courseData[selectedCourseId]) {
+          var cInfo = courseData[selectedCourseId];
+          totalFeeInput.value = cInfo.base_price;
+        }
+        updateFeeAndDiscountLogic();
+      });
+    }
+
+    if (totalFeeInput) totalFeeInput.addEventListener('input', updateFeeAndDiscountLogic);
+    if (discountInput) discountInput.addEventListener('input', updateFeeAndDiscountLogic);
+    updateFeeAndDiscountLogic();
+  }
+
+  // 3. Dynamic Admission Date Constraints
+  var existingStudentCheckbox = document.querySelector('input[name="is_existing_student"]');
+  var admissionDateInput = document.querySelector('input[name="admission_date"]');
+  var todayDateStr = new Date().toISOString().split('T')[0];
+
+  if (existingStudentCheckbox && admissionDateInput) {
+    function toggleDateMinConstraint(isInitialLoad) {
+      var currentVal = admissionDateInput.value;
+
+      if (existingStudentCheckbox.checked) {
+        // Already enrolled student -> past dates only (max is today)
+        admissionDateInput.removeAttribute('min');
+        admissionDateInput.setAttribute('max', todayDateStr);
+        // If user had selected a future date earlier, reset it
+        if (!isInitialLoad && currentVal && currentVal > todayDateStr) {
+          admissionDateInput.value = todayDateStr;
+        }
+      } else {
+        // New admission -> today & future dates only (min is today)
+        admissionDateInput.removeAttribute('max');
+        admissionDateInput.setAttribute('min', todayDateStr);
+        // If user had selected a past date earlier, reset it to today
+        if (!isInitialLoad && currentVal && currentVal < todayDateStr) {
+          admissionDateInput.value = todayDateStr;
+        }
+      }
+    }
+
+    existingStudentCheckbox.addEventListener('change', function() {
+      toggleDateMinConstraint(false);
+    });
+    toggleDateMinConstraint(true);
   }
 });
 </script>

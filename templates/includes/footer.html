@@ -6,10 +6,73 @@
 
   function confirmAction(msg){ return confirm(msg || 'Are you sure?'); }
 
-  // Auto-initialize Tom Select on all form selects across the app
+  // Auto-initialize Tom Select & Email Validation on all forms across the app
   document.addEventListener("DOMContentLoaded", function() {
     initTomSelects();
+    initEmailValidation();
   });
+
+  function initEmailValidation(container) {
+    var root = container || document;
+    var emailInputs = root.querySelectorAll('input[type="email"], input[name="email"], input[name$="_email"], input[id$="_email"], input[id="id_email"]');
+    var emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
+    emailInputs.forEach(function(input) {
+      if (input.dataset.emailValidated) return;
+      input.dataset.emailValidated = "true";
+      
+      input.setAttribute('type', 'email');
+      input.setAttribute('pattern', '[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$');
+      input.setAttribute('title', "Please enter a valid email address containing '@' (e.g. name@example.com)");
+      if (!input.getAttribute('placeholder')) {
+        input.setAttribute('placeholder', 'name@example.com');
+      }
+
+      function validateField() {
+        var val = input.value.trim();
+        if (val === '') {
+          input.setCustomValidity('');
+          input.classList.remove('is-invalid');
+          return true;
+        }
+        if (!val.includes('@') || !emailRegex.test(val)) {
+          input.setCustomValidity("Please enter a valid email address containing '@' (e.g. name@example.com)");
+          input.classList.add('is-invalid');
+          return false;
+        } else {
+          input.setCustomValidity('');
+          input.classList.remove('is-invalid');
+          return true;
+        }
+      }
+
+      input.addEventListener('input', validateField);
+      input.addEventListener('blur', validateField);
+      input.addEventListener('change', validateField);
+    });
+
+    // Form submit validation guard
+    var forms = root.querySelectorAll('form');
+    forms.forEach(function(form) {
+      if (form.dataset.emailGuardAdded) return;
+      form.dataset.emailGuardAdded = "true";
+      form.addEventListener('submit', function(e) {
+        var formEmailInputs = form.querySelectorAll('input[type="email"], input[name="email"], input[name$="_email"], input[id$="_email"], input[id="id_email"]');
+        for (var i = 0; i < formEmailInputs.length; i++) {
+          var inp = formEmailInputs[i];
+          var val = inp.value.trim();
+          if (val !== '' && (!val.includes('@') || !emailRegex.test(val))) {
+            e.preventDefault();
+            e.stopPropagation();
+            inp.classList.add('is-invalid');
+            inp.focus();
+            inp.reportValidity();
+            return false;
+          }
+        }
+      });
+    });
+  }
 
   function initTomSelects(container) {
     var root = container || document;

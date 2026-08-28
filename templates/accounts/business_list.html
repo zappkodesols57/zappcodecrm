@@ -1,43 +1,132 @@
 {% extends "base.html" %}
-{% block title %}Manage Businesses{% endblock %}
+{% block title %}Manage Businesses · Zappcode CRM{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <div>
-    <h4 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-building me-2 text-brand"></i>Manage Businesses</h4>
+    <h4 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-building-circle-check me-2 text-brand"></i>Manage Businesses</h4>
+    <p class="text-muted small mb-0">Create, configure, activate/deactivate, or delete hospital & enterprise tenants.</p>
   </div>
-  <a href="{% url 'accounts:business_add' %}" class="btn btn-brand text-white">
+  <a href="{% url 'accounts:business_add' %}" class="btn btn-brand text-white rounded-pill px-4 shadow-sm">
     <i class="fa-solid fa-plus me-1"></i> Add New Business
   </a>
 </div>
 
-<div class="card shadow-sm border-0">
+<div class="card shadow-sm border-0" style="border-radius: 14px;">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th>Name</th>
+          <th>Business / Hospital Name</th>
+          <th>Status</th>
           <th>Contact Email</th>
           <th>Phone</th>
-          <th>Created At</th>
+          <th>Created Date</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for b in businesses %}
-        <tr>
-          <td><strong>{{ b.name }}</strong></td>
-          <td>{{ b.contact_email|default:"-" }}</td>
-          <td>{{ b.phone|default:"-" }}</td>
+        <tr class="{% if not b.is_active %}table-light opacity-75{% endif %}">
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div style="width: 36px; height: 36px; border-radius: 8px; background: {% if b.is_active %}#eff6ff{% else %}#f1f5f9{% endif %}; display: flex; align-items: center; justify-content: center; font-weight: bold; color: {% if b.is_active %}#4f46e5{% else %}#94a3b8{% endif %};">
+                <i class="fa-solid fa-building"></i>
+              </div>
+              <div>
+                <strong class="text-dark d-block">{{ b.name }}</strong>
+                {% if b.registration_no %}
+                  <span class="text-muted small" style="font-size: 0.72rem;">Reg: {{ b.registration_no }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if b.is_active %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                <i class="fa-solid fa-circle-check me-1"></i> Active
+              </span>
+            {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">
+                <i class="fa-solid fa-circle-pause me-1"></i> Deactivated
+              </span>
+            {% endif %}
+          </td>
+          <td>{{ b.contact_email|default:"—" }}</td>
+          <td>{{ b.phone|default:"—" }}</td>
           <td>{{ b.created_at|date:"d M Y" }}</td>
           <td class="text-end">
-            <a href="{% url 'accounts:business_edit' b.pk %}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square"></i></a>
+            <div class="d-flex align-items-center justify-content-end gap-1">
+              <!-- Edit -->
+              <a href="{% url 'accounts:business_edit' b.pk %}" class="btn btn-sm btn-outline-primary" title="Edit Business Details">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </a>
+
+              <!-- Activate / Deactivate Toggle -->
+              <form method="post" action="{% url 'accounts:business_toggle_active' b.pk %}" class="d-inline m-0 p-0"
+                    onsubmit="return confirm('Are you sure you want to {% if b.is_active %}deactivate{% else %}activate{% endif %} {{ b.name }}?');">
+                {% csrf_token %}
+                {% if b.is_active %}
+                  <button type="submit" class="btn btn-sm btn-outline-warning text-dark" title="Deactivate Business">
+                    <i class="fa-solid fa-pause"></i>
+                  </button>
+                {% else %}
+                  <button type="submit" class="btn btn-sm btn-outline-success" title="Activate Business">
+                    <i class="fa-solid fa-play"></i>
+                  </button>
+                {% endif %}
+              </form>
+
+              <!-- Delete / Remove Button -->
+              <button type="button" class="btn btn-sm btn-outline-danger" title="Remove Business"
+                      data-bs-toggle="modal" data-bs-target="#deleteBizModal{{ b.pk }}">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="text-center py-4">No businesses found.</td></tr>
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="fa-solid fa-building-slash fs-2 d-block mb-2 text-secondary"></i>
+            <h6>No businesses found.</h6>
+            <a href="{% url 'accounts:business_add' %}" class="btn btn-sm btn-primary mt-2">Add First Business</a>
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- ─── Modals Placed Outside Table to Prevent Overlay / Backdrop Z-Index Issues ─── -->
+{% for b in businesses %}
+<div class="modal fade" id="deleteBizModal{{ b.pk }}" tabindex="-1" aria-labelledby="modalLabel{{ b.pk }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-danger" id="modalLabel{{ b.pk }}">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i> Delete Business
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-3 text-start">
+        <p class="mb-2">Are you sure you want to remove <strong>{{ b.name }}</strong>?</p>
+        <div class="alert alert-warning small mb-0">
+          <i class="fa-solid fa-info-circle me-1"></i> Removing a business will detach its associated users and configurations. If you only want to temporarily stop access, consider <strong>Deactivating</strong> it instead.
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'accounts:business_delete' b.pk %}" class="d-inline m-0">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-danger px-3">
+            <i class="fa-solid fa-trash-can me-1"></i> Yes, Delete Business
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
 {% endblock %}

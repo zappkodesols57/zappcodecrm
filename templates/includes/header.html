@@ -39,7 +39,9 @@
       </div>
     </div>
 
-    <span class="badge text-bg-light border me-1">{{ user.get_role_display }}</span>
+    <span class="badge bg-light text-secondary border me-1 fw-semibold">
+      {{ user.get_role_display }}
+    </span>
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 rounded-pill" data-bs-toggle="dropdown" style="background: #ffffff;">
         {% if user.profile_picture %}
@@ -62,7 +64,7 @@
           {% endif %}
           <div class="overflow-hidden">
             <div class="fw-bold text-dark text-truncate">{{ user.get_full_name|default:user.username }}</div>
-            <div class="small text-muted text-truncate" style="font-size: 0.75rem;">{{ user.email|default:user.get_role_display }}</div>
+            <div class="small text-muted text-truncate" style="font-size: 0.75rem;">{{ user.get_role_display }}</div>
           </div>
         </li>
         <li>

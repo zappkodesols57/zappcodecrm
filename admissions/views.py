@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.db.models import Sum, Q, F, DecimalField
 from django.db.models.functions import Coalesce
 from .models import Admission, Installment, PaymentPlan, CourseStatus
+from leads.models import Course
 
 
 @login_required
@@ -15,6 +16,11 @@ def admission_list(request):
     admissions = Admission.objects.select_related("lead", "course", "assigned_counselor").annotate(
         total_collected=Coalesce(Sum('payments__amount', filter=Q(payments__payment_status='SUCCESS')), Decimal('0.00'), output_field=DecimalField())
     )
+
+    if request.user.hospital:
+        admissions = admissions.filter(lead__hospital=request.user.hospital)
+    else:
+        admissions = admissions.filter(lead__hospital__isnull=True)
 
     # Dynamic Dashboard Stats (calculated before filters are applied)
     stats_all = admissions
@@ -132,7 +138,7 @@ def add_admission(request):
     from leads.models import Lead, LeadStage, AdmissionStatus, DealStatus, LeadTemperature
 
     if request.method == "POST":
-        form = DirectAdmissionForm(request.POST)
+        form = DirectAdmissionForm(request.POST, user=request.user)
         if form.is_valid():
             student_name = form.cleaned_data["student_name"]
             mobile = form.cleaned_data["mobile"]
@@ -214,9 +220,21 @@ def add_admission(request):
             messages.success(request, f"Student admission for '{student_name}' recorded successfully.")
             return redirect("admissions:list")
     else:
-        form = DirectAdmissionForm()
+        form = DirectAdmissionForm(user=request.user)
+
+    import json
+    courses_qs = Course.objects.filter(is_active=True, hospital=request.user.hospital) if request.user.hospital else Course.objects.filter(is_active=True, hospital__isnull=True)
+    course_data = {
+        str(c.id): {
+            "name": c.name,
+            "base_price": float(c.base_price),
+            "max_discount": float(c.max_discount),
+        }
+        for c in courses_qs
+    }
 
     return render(request, "admissions/admission_form.html", {
         "active": "admissions",
         "form": form,
+        "course_data_json": json.dumps(course_data),
     })

@@ -55,7 +55,22 @@
       {% for field in form %}
         <div class="mb-3" id="div_id_{{ field.name }}">
           <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
+          {% if 'password' in field.name %}
+            <div class="input-group">
+              {{ field }}
+              <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('{{ field.id_for_label }}', this)" title="Show / Hide Password" tabindex="-1">
+                <i class="fa-regular fa-eye text-secondary"></i>
+              </button>
+            </div>
+            {% if field.name == 'password2' or field.name == 'confirm_password' %}
+              <div id="password_match_feedback" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;"></div>
+            {% endif %}
+          {% else %}
+            {{ field }}
+          {% endif %}
+          {% if field.name == 'username' %}
+            <div id="username_feedback_box" class="mt-1" style="display: none;"></div>
+          {% endif %}
           {% if field.help_text %}
             <div class="form-text small" style="font-size: 0.75rem;">{{ field.help_text|safe }}</div>
           {% endif %}
@@ -76,6 +91,109 @@
     const deptDiv = document.getElementById("div_id_department");
     const specDiv = document.getElementById("div_id_speciality");
 
+    // Real-time Username Duplicity & Suggestions
+    const usernameInput = document.getElementById("id_username");
+    const usernameFeedback = document.getElementById("username_feedback_box");
+    let usernameTimeout = null;
+
+    if (usernameInput) {
+      usernameInput.setAttribute("autocomplete", "off");
+      
+      function checkUsername(val) {
+        if (!val || val.trim().length < 2) {
+          if (usernameFeedback) usernameFeedback.style.display = "none";
+          usernameInput.classList.remove("is-invalid", "is-valid");
+          return;
+        }
+        
+        fetch(`{% url 'accounts:check_username' %}?username=${encodeURIComponent(val.trim())}`)
+          .then(res => res.json())
+          .then(data => {
+            if (!usernameFeedback) return;
+            usernameFeedback.style.display = "block";
+            
+            if (data.available) {
+              usernameInput.classList.remove("is-invalid");
+              usernameInput.classList.add("is-valid");
+              usernameFeedback.innerHTML = `
+                <div class="small text-success fw-medium">
+                  <i class="fa-solid fa-circle-check me-1"></i> Username <strong>@${data.username}</strong> is available!
+                </div>`;
+            } else {
+              usernameInput.classList.remove("is-valid");
+              usernameInput.classList.add("is-invalid");
+              let suggestionsHtml = "";
+              if (data.suggestions && data.suggestions.length > 0) {
+                suggestionsHtml = `
+                  <div class="mt-1">
+                    <span class="text-muted small me-1">Suggested usernames:</span>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                      ${data.suggestions.map(s => `
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-none" onclick="applyUsernameSuggestion('${s}')" style="font-size: 0.75rem;">
+                          <i class="fa-solid fa-plus me-1 small"></i>${s}
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>`;
+              }
+              usernameFeedback.innerHTML = `
+                <div class="small text-danger fw-semibold">
+                  <i class="fa-solid fa-triangle-exclamation me-1"></i> ${data.message}
+                </div>
+                ${suggestionsHtml}`;
+            }
+          })
+          .catch(err => {
+            console.error("Username check error", err);
+          });
+      }
+
+      usernameInput.addEventListener("input", function() {
+        clearTimeout(usernameTimeout);
+        const val = this.value;
+        usernameTimeout = setTimeout(() => { checkUsername(val); }, 300);
+      });
+
+      usernameInput.addEventListener("blur", function() {
+        checkUsername(this.value);
+      });
+    }
+
+    // Real-time Password Confirmation Matching
+    const p1 = document.getElementById("id_password1") || document.querySelector('input[name="password1"]') || document.querySelector('input[name="password"]');
+    const p2 = document.getElementById("id_password2") || document.querySelector('input[name="password2"]') || document.querySelector('input[name="confirm_password"]');
+    const matchFeedback = document.getElementById("password_match_feedback");
+
+    function checkPasswordMatch() {
+      if (!p1 || !p2 || !matchFeedback) return;
+      const v1 = p1.value;
+      const v2 = p2.value;
+
+      if (!v2) {
+        matchFeedback.style.display = "none";
+        p2.classList.remove("is-valid", "is-invalid");
+        return;
+      }
+
+      matchFeedback.style.display = "block";
+      if (v1 === v2) {
+        p2.classList.remove("is-invalid");
+        p2.classList.add("is-valid");
+        matchFeedback.className = "mt-1 small fw-semibold text-success";
+        matchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+      } else {
+        p2.classList.remove("is-valid");
+        p2.classList.add("is-invalid");
+        matchFeedback.className = "mt-1 small fw-semibold text-danger";
+        matchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+      }
+    }
+
+    if (p1 && p2) {
+      p1.addEventListener("input", checkPasswordMatch);
+      p2.addEventListener("input", checkPasswordMatch);
+    }
+
     function toggleFields() {
       if (!roleField) return;
       const isDoctor = roleField.value === "DOCTOR";
@@ -95,6 +213,33 @@
       toggleFields(); // Initial call
     }
   });
+
+  window.applyUsernameSuggestion = function(suggestedVal) {
+    const uInput = document.getElementById("id_username");
+    if (uInput) {
+      uInput.value = suggestedVal;
+      uInput.dispatchEvent(new Event('input'));
+    }
+  };
+
+  window.togglePasswordVisibility = function(fieldId, btn) {
+    const input = document.getElementById(fieldId) || (btn ? btn.parentElement.querySelector('input') : null);
+    if (!input) return;
+    const icon = btn ? btn.querySelector('i') : null;
+    if (input.type === 'password') {
+      input.type = 'text';
+      if (icon) {
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      }
+    } else {
+      input.type = 'password';
+      if (icon) {
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+  };
 </script>
 </body>
 </html>

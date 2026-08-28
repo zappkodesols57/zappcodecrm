@@ -25,15 +25,13 @@ def portal_select(request):
 def _role_redirect(user):
     """Return a redirect response based on user role."""
     if user.hospital:
-        if user.role == User.Role.SUPER_ADMIN:
+        if user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
             return redirect("dashboard:superadmin_home")
         if user.role == User.Role.DOCTOR:
             return redirect("dashboard:doctor_home")
         if user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_home")
-        if user.role == User.Role.MANAGER:
-            return redirect("dashboard:superadmin_home")
-        return redirect("dashboard:home")
+        return redirect("dashboard:superadmin_home")
     if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         return redirect("dashboard:management_home")
     return redirect("dashboard:home")
@@ -59,6 +57,7 @@ def crm_login(request):
             return render(request, "accounts/login.html", {"form_error": True})
 
         login(request, user)
+        request.session.set_expiry(604800)  # 7 Days active persistent session
         log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
         next_url = request.POST.get("next")
         if next_url:
@@ -91,17 +90,147 @@ def custom_logout(request):
 @login_required
 @user_passes_test(_is_admin)
 def user_list(request):
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+
+    q = request.GET.get("q", "").strip()
+    role_filter = request.GET.get("role", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+    page_number = request.GET.get("page", 1)
+    
+    try:
+        page_size = int(request.GET.get("page_size", 10))
+    except (ValueError, TypeError):
+        page_size = 10
+    if page_size not in [10, 25, 50, 100]:
+        page_size = 10
+
     pending_users = User.objects.filter(is_approved=False).order_by("-date_joined")
-    approved_users = User.objects.filter(is_approved=True).order_by("-date_joined")
+    users_qs = User.objects.filter(is_approved=True).order_by("-date_joined")
     
     if request.user.hospital:
         pending_users = pending_users.filter(hospital=request.user.hospital)
-        approved_users = approved_users.filter(hospital=request.user.hospital)
+        users_qs = users_qs.filter(hospital=request.user.hospital)
+
+    # Search keyword filter
+    if q:
+        users_qs = users_qs.filter(
+            Q(username__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(email__icontains=q) |
+            Q(phone__icontains=q) |
+            Q(department__icontains=q) |
+            Q(speciality__icontains=q)
+        )
+
+    # Role filter
+    if role_filter:
+        users_qs = users_qs.filter(role=role_filter)
+
+    # Status filter
+    if status_filter == "active":
+        users_qs = users_qs.filter(is_active=True)
+    elif status_filter == "inactive":
+        users_qs = users_qs.filter(is_active=False)
+
+    total_count = users_qs.count()
+
+    # Roles for dropdown filter
+    if request.user.hospital:
+        if request.user.role == User.Role.MANAGER:
+            available_roles = [
+                (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+                (User.Role.DOCTOR, "Doctor"),
+            ]
+        else:
+            available_roles = [
+                (User.Role.ADMIN, "Admin"),
+                (User.Role.MANAGER, "Manager"),
+                (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+                (User.Role.DOCTOR, "Doctor"),
+            ]
+    else:
+        available_roles = User.Role.choices
+
+    paginator = Paginator(users_qs, page_size)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, "accounts/user_list.html", {
         "active": "users",
-        "users": approved_users,
-        "pending_users": pending_users
+        "users": page_obj,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "total_count": total_count,
+        "pending_users": pending_users,
+        "q": q,
+        "role_filter": role_filter,
+        "status_filter": status_filter,
+        "page_size": page_size,
+        "available_roles": available_roles,
     })
+
+
+import re
+
+def sync_doctor_profile(user):
+    """
+    Syncs a User (with role DOCTOR) to HospitalDoctor and MasterItem (Doctors).
+    """
+    if not user or user.role != User.Role.DOCTOR or not user.hospital:
+        return None
+    from leads.models import HospitalDoctor, HospitalDepartment, MasterGroup, MasterItem
+    
+    doc_name = user.get_full_name().strip() or user.username
+    # Clean redundant 'Dr.' or 'Doctor' prefixes
+    clean_name = re.sub(r"^(dr\.?|doctor)\s+", "", doc_name, flags=re.IGNORECASE).strip()
+    if not clean_name:
+        clean_name = doc_name
+
+    doc, created = HospitalDoctor.objects.get_or_create(
+        hospital=user.hospital,
+        user=user,
+        defaults={
+            "name": clean_name,
+            "contact_number": user.phone or "",
+            "email": user.email or "",
+            "specialization": user.speciality or "",
+            "is_active": user.is_active and user.is_active_employee,
+        }
+    )
+    if not created:
+        doc.name = clean_name
+        if user.phone:
+            doc.contact_number = user.phone
+        if user.email:
+            doc.email = user.email
+        if user.speciality:
+            doc.specialization = user.speciality
+        doc.is_active = (user.is_active and user.is_active_employee)
+        doc.save()
+
+    # Link department if available in hospital masters
+    if user.department:
+        dept = HospitalDepartment.objects.filter(
+            hospital=user.hospital,
+            name__iexact=user.department
+        ).first()
+        if dept:
+            if not doc.department:
+                doc.department = dept
+            doc.departments.add(dept)
+            doc.save()
+
+    # Auto-sync DOCTOR role users to MasterItem 'Doctors' group
+    doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+    if doc_grp:
+        MasterItem.objects.get_or_create(
+            group=doc_grp,
+            hospital=user.hospital,
+            name=clean_name,
+            defaults={"is_active": True}
+        )
+    return doc
 
 
 @login_required
@@ -116,18 +245,9 @@ def user_add(request):
             user.save()
             log_action("Employee Created by Admin", user, user=request.user)
 
-            # Auto-sync DOCTOR role users to MasterItem 'Doctors' group
+            # Auto-sync DOCTOR role users to HospitalDoctor and MasterItem
             if user.role == User.Role.DOCTOR:
-                from leads.models import MasterGroup, MasterItem
-                doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
-                if doc_grp:
-                    name = user.get_full_name() or user.username
-                    MasterItem.objects.get_or_create(
-                        group=doc_grp,
-                        hospital=user.hospital,
-                        name=name,
-                        defaults={"is_active": True}
-                    )
+                sync_doctor_profile(user)
 
             messages.success(request, f"Employee user '{user.username}' created successfully.")
             return redirect("accounts:user_list")
@@ -161,18 +281,9 @@ def user_edit(request, pk):
             saved_user = form.save()
             log_action("Employee Details Updated", obj, user=request.user)
 
-            # Auto-sync DOCTOR role users to MasterItem 'Doctors' group
+            # Auto-sync DOCTOR role users to HospitalDoctor and MasterItem
             if saved_user.role == User.Role.DOCTOR:
-                from leads.models import MasterGroup, MasterItem
-                doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
-                if doc_grp:
-                    name = saved_user.get_full_name() or saved_user.username
-                    MasterItem.objects.get_or_create(
-                        group=doc_grp,
-                        hospital=saved_user.hospital,
-                        name=name,
-                        defaults={"is_active": True}
-                    )
+                sync_doctor_profile(saved_user)
 
             messages.success(request, f"Employee details for '{obj.username}' updated.")
             return redirect("accounts:user_list")
@@ -189,6 +300,55 @@ def user_edit(request, pk):
         "mode": "Edit", 
         "obj": obj,
         "user_roles_map": json.dumps(user_roles_map)
+    })
+
+
+def check_username_availability(request):
+    """Check username duplicity in background and return suggestions if taken."""
+    import random
+    import re
+    from django.http import JsonResponse
+
+    username = request.GET.get("username", "").strip()
+    exclude_id = request.GET.get("exclude_id", None)
+
+    if not username:
+        return JsonResponse({"available": True, "message": "", "suggestions": []})
+
+    base_cleaned = re.sub(r"[^a-zA-Z0-9._-]", "", username).lower()
+    if not base_cleaned:
+        base_cleaned = "user"
+
+    qs = User.objects.filter(username__iexact=username)
+    if exclude_id and str(exclude_id).isdigit():
+        qs = qs.exclude(pk=int(exclude_id))
+
+    is_taken = qs.exists()
+
+    suggestions = []
+    if is_taken:
+        # Generate 4-5 unique available username suggestions
+        candidates = [
+            f"{base_cleaned}{random.randint(10, 99)}",
+            f"{base_cleaned}_{random.randint(10, 999)}",
+            f"{base_cleaned}.{random.randint(10, 99)}",
+            f"{base_cleaned}_crm",
+            f"{base_cleaned}{random.randint(100, 999)}",
+            f"{base_cleaned}2026",
+            f"user_{base_cleaned}" if not base_cleaned.startswith("user") else f"{base_cleaned}_pro",
+        ]
+        for cand in candidates:
+            if cand != username.lower() and not User.objects.filter(username__iexact=cand).exists():
+                if cand not in suggestions:
+                    suggestions.append(cand)
+            if len(suggestions) >= 4:
+                break
+
+    return JsonResponse({
+        "available": not is_taken,
+        "username": username,
+        "suggestions": suggestions,
+        "message": f"Username '@{username}' is available!" if not is_taken else f"Username '@{username}' is already taken.",
     })
 
 
@@ -220,27 +380,95 @@ def doctor_schedule_manage(request, pk):
             schedule.save()
             messages.success(request, "Doctor schedule updated successfully.")
             
-        elif action == "add_leave":
-            start_date = request.POST.get("start_date")
-            end_date = request.POST.get("end_date") or start_date
-            reason = request.POST.get("reason", "")
+        elif action in ["add_leave", "edit_leave"]:
+            from datetime import datetime
+            from django.utils import timezone
+            from django.db.models import Q
+
+            leave_id = request.POST.get("leave_id")
+            start_date_str = request.POST.get("start_date")
+            end_date_str = request.POST.get("end_date") or start_date_str
+            reason = request.POST.get("reason", "").strip()
             is_full_day = (request.POST.get("is_full_day") == "1")
             start_time = request.POST.get("start_time") or None
             end_time = request.POST.get("end_time") or None
-            
-            if start_date:
+
+            if not start_date_str:
+                messages.error(request, "Start date is required.")
+                return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+            try:
+                today = timezone.localdate()
+                s_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                e_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+
+                if s_date < today:
+                    messages.error(request, "Leave date cannot be in the past. Please select today or a future date.")
+                    return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+                if e_date < s_date:
+                    messages.error(request, "End date cannot be earlier than start date.")
+                    return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+                # 1. If explicit edit/extend of an existing leave record
+                if leave_id and str(leave_id).isdigit():
+                    existing_leave = DoctorLeave.objects.filter(pk=int(leave_id), doctor=doctor).first()
+                    if existing_leave:
+                        existing_leave.start_date = s_date
+                        existing_leave.end_date = e_date
+                        existing_leave.is_full_day = is_full_day
+                        existing_leave.start_time = start_time if not is_full_day else None
+                        existing_leave.end_time = end_time if not is_full_day else None
+                        if reason:
+                            existing_leave.reason = reason
+                        existing_leave.save()
+                        # Cleanup any duplicate/redundant overlapping leaves
+                        DoctorLeave.objects.filter(doctor=doctor, start_date=s_date, end_date=e_date).exclude(pk=existing_leave.pk).delete()
+                        messages.success(request, f"Leave record updated successfully ({s_date.strftime('%d-%m-%Y')} to {e_date.strftime('%d-%m-%Y')}).")
+                        return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+                # 2. Check if a leave with SAME start_date already exists -> EXTEND/UPDATE IT!
+                same_start_leave = DoctorLeave.objects.filter(doctor=doctor, start_date=s_date).first()
+                if same_start_leave:
+                    same_start_leave.end_date = max(same_start_leave.end_date, e_date)
+                    same_start_leave.is_full_day = is_full_day
+                    same_start_leave.start_time = start_time if not is_full_day else None
+                    same_start_leave.end_time = end_time if not is_full_day else None
+                    if reason:
+                        same_start_leave.reason = reason
+                    same_start_leave.save()
+                    # Delete any other exact duplicates
+                    DoctorLeave.objects.filter(doctor=doctor, start_date=s_date).exclude(pk=same_start_leave.pk).delete()
+                    messages.success(request, f"Existing leave extended/updated from {s_date.strftime('%d-%m-%Y')} to {same_start_leave.end_date.strftime('%d-%m-%Y')}.")
+                    return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+                # 3. Check if exact (start_date, end_date) or overlapping range already exists
+                exact_leave = DoctorLeave.objects.filter(doctor=doctor, start_date=s_date, end_date=e_date).first()
+                if exact_leave:
+                    exact_leave.is_full_day = is_full_day
+                    exact_leave.start_time = start_time if not is_full_day else None
+                    exact_leave.end_time = end_time if not is_full_day else None
+                    if reason:
+                        exact_leave.reason = reason
+                    exact_leave.save()
+                    DoctorLeave.objects.filter(doctor=doctor, start_date=s_date, end_date=e_date).exclude(pk=exact_leave.pk).delete()
+                    messages.info(request, f"Leave for {s_date.strftime('%d-%m-%Y')} to {e_date.strftime('%d-%m-%Y')} was updated.")
+                    return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+                # 4. Otherwise create new leave record
                 DoctorLeave.objects.create(
                     doctor=doctor,
                     hospital=doctor.hospital or request.user.hospital,
-                    start_date=start_date,
-                    end_date=end_date,
+                    start_date=s_date,
+                    end_date=e_date,
                     is_full_day=is_full_day,
                     start_time=start_time if not is_full_day else None,
                     end_time=end_time if not is_full_day else None,
-                    reason=reason,
+                    reason=reason or "Personal Leave",
                     created_by=request.user
                 )
-                messages.success(request, "Doctor leave/unavailability added.")
+                messages.success(request, f"Doctor leave successfully scheduled from {s_date.strftime('%d-%m-%Y')} to {e_date.strftime('%d-%m-%Y')}.")
+            except ValueError:
+                messages.error(request, "Invalid date format provided.")
                 
         elif action == "delete_leave":
             leave_id = request.POST.get("leave_id")
@@ -249,9 +477,21 @@ def doctor_schedule_manage(request, pk):
             
         return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
         
+    # Auto-cleanup historic duplicate rows in database
+    seen_leave_keys = set()
+    for l in DoctorLeave.objects.filter(doctor=doctor).order_by("id"):
+        key = (l.start_date, l.end_date, l.is_full_day, l.start_time, l.end_time)
+        if key in seen_leave_keys:
+            l.delete()
+        else:
+            seen_leave_keys.add(key)
+
     leaves = DoctorLeave.objects.filter(doctor=doctor).order_by("-start_date")
     appointments = Appointment.objects.filter(doctor_user=doctor).select_related("lead").order_by("-appointment_date")[:50]
     
+    from django.utils import timezone
+    today = timezone.localdate()
+
     return render(request, "accounts/doctor_schedule_manage.html", {
         "doctor": doctor,
         "schedule": schedule,
@@ -259,6 +499,7 @@ def doctor_schedule_manage(request, pk):
         "appointments": appointments,
         "active": "users" if is_admin else "doctor_schedule",
         "is_admin": is_admin,
+        "today": today,
     })
 
 
@@ -356,6 +597,8 @@ def approve_user(request, pk):
         user.is_active = True
         user.save()
         log_action("Employee Approved", user, user=request.user)
+        if user.role == User.Role.DOCTOR:
+            sync_doctor_profile(user)
         messages.success(request, f"User {user.username} approved successfully.")
     return redirect("accounts:user_list")
 
@@ -540,11 +783,43 @@ def business_edit(request, pk):
         form = BusinessForm(request.POST, instance=business)
         if form.is_valid():
             form.save()
-            messages.success(request, "Business updated successfully.")
+            messages.success(request, f"Business '{business.name}' updated successfully.")
             return redirect("accounts:business_list")
     else:
         form = BusinessForm(instance=business)
     return render(request, "accounts/business_form.html", {"form": form, "mode": "Edit"})
+
+@login_required
+def business_toggle_active(request, pk):
+    """Activate or Deactivate a Business/Tenant."""
+    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("dashboard:home")
+    if request.method == "POST":
+        business = get_object_or_404(Hospital, pk=pk)
+        business.is_active = not business.is_active
+        business.save(update_fields=['is_active'])
+        status_text = "activated" if business.is_active else "deactivated"
+        messages.success(request, f"Business '{business.name}' has been {status_text} successfully.")
+    return redirect("accounts:business_list")
+
+@login_required
+def business_delete(request, pk):
+    """Safely remove a business. Protects from accidental deletion if critical data exists."""
+    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("dashboard:home")
+    if request.method == "POST":
+        business = get_object_or_404(Hospital, pk=pk)
+        name = business.name
+        try:
+            # Delete associated users or unassign them first if any
+            User.objects.filter(hospital=business).update(hospital=None, is_active=False)
+            business.delete()
+            messages.success(request, f"Business '{name}' and associated configuration have been removed.")
+        except Exception as e:
+            messages.error(request, f"Could not delete business '{name}': {e}. You can deactivate it instead.")
+    return redirect("accounts:business_list")
 
 @login_required
 def user_profile(request):
@@ -560,6 +835,8 @@ def user_profile(request):
                 profile_form.save()
                 messages.success(request, 'Your profile has been updated successfully!')
                 return redirect('accounts:profile')
+            else:
+                messages.error(request, 'Profile update failed. Please check and correct the errors below.')
         elif 'update_password' in request.POST:
             profile_form = UserProfileForm(instance=request.user)
             password_form = PasswordChangeForm(request.user, request.POST)

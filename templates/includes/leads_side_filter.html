@@ -96,6 +96,148 @@
     <!-- Scrollable Filter Body -->
     <div class="px-3 py-1 overflow-y-auto flex-grow-1 custom-filter-scroll">
       
+      {% if request.user.role == 'LEAD_ATTENDENT' %}
+      <!-- ================= SIMPLE LEAD ATTENDANT FILTERS ================= -->
+      <div class="ps-1 pe-1 py-1">
+
+        <!-- 1. Status / Deal Status -->
+        <div class="py-2 border-bottom">
+          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attStatusFilter" role="button" style="font-size: 0.86rem;">
+            <span><i class="fa-solid fa-list-check me-2 text-primary"></i> Status / Stage</span>
+            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+          </a>
+          <div class="collapse show ps-2 pe-1 pt-2" id="attStatusFilter">
+            <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+              {% if hospital_statuses %}
+                {% for ds in hospital_statuses %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ ds.name }}" id="att_ds_{{ forloop.counter }}" {% if ds.name in selected_deal_statuses %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_ds_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ ds.name }}</label>
+                </div>
+                {% endfor %}
+              {% elif stages %}
+                {% for stg in stages %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="stage" value="{{ stg.id }}" id="att_stg_{{ stg.id }}" {% if stg.id|stringformat:'s' in selected_stages or stg.name in selected_stages %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_stg_{{ stg.id }}" style="font-size: 0.82rem;">{{ stg.name }}</label>
+                </div>
+                {% endfor %}
+              {% elif deal_status_choices %}
+                {% for s_val, s_lbl in deal_status_choices %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ s_val }}" id="att_ds_{{ s_val }}" {% if s_val in selected_deal_statuses %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_ds_{{ s_val }}" style="font-size: 0.82rem;">{{ s_lbl }}</label>
+                </div>
+                {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Assigned To (My Leads vs Unassigned) -->
+        <div class="py-2 border-bottom">
+          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attAssignedFilter" role="button" style="font-size: 0.86rem;">
+            <span><i class="fa-solid fa-user-check me-2 text-primary"></i> Assigned To</span>
+            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+          </a>
+          <div class="collapse show ps-2 pe-1 pt-2" id="attAssignedFilter">
+            <div class="form-check mb-1 filter-item-row">
+              <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ request.user.id }}" id="att_assigned_me" {% if request.user.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
+              <label class="form-check-label text-primary fw-semibold filter-label" for="att_assigned_me" style="font-size: 0.82rem;">
+                <i class="fa-solid fa-user me-1"></i> My Leads (Assigned to Me)
+              </label>
+            </div>
+            <div class="form-check mb-1 filter-item-row">
+              <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="att_assigned_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
+              <label class="form-check-label text-danger fw-semibold filter-label" for="att_assigned_unassigned" style="font-size: 0.82rem;">
+                <i class="fa-solid fa-circle-question me-1"></i> Unassigned / Open Leads
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Lead Source -->
+        {% if hospital_sources or lead_sources %}
+        <div class="py-2 border-bottom">
+          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attSourcesFilter" role="button" style="font-size: 0.86rem;">
+            <span><i class="fa-solid fa-share-nodes me-2 text-primary"></i> Lead Source</span>
+            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+          </a>
+          <div class="collapse show ps-2 pe-1 pt-2" id="attSourcesFilter">
+            <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+              {% if hospital_sources %}
+                {% for s in hospital_sources %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.name }}" id="att_src_{{ forloop.counter }}" {% if s.name in selected_sources %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_src_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ s.name }}</label>
+                </div>
+                {% endfor %}
+              {% else %}
+                {% for s in lead_sources %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.id }}" id="att_src_std_{{ s.id }}" {% if s.id|stringformat:'s' in selected_sources or s.name in selected_sources %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_src_std_{{ s.id }}" style="font-size: 0.82rem;">{{ s.name }}</label>
+                </div>
+                {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- 4. Campaign -->
+        {% if hospital_campaigns or campaigns %}
+        <div class="py-2 border-bottom">
+          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attCampaignsFilter" role="button" style="font-size: 0.86rem;">
+            <span><i class="fa-solid fa-bullseye me-2 text-primary"></i> Campaign</span>
+            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+          </a>
+          <div class="collapse show ps-2 pe-1 pt-2" id="attCampaignsFilter">
+            <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+              {% if hospital_campaigns %}
+                {% for c in hospital_campaigns %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.name }}" id="att_camp_{{ forloop.counter }}" {% if c.name in selected_campaigns %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_camp_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ c.name }}</label>
+                </div>
+                {% endfor %}
+              {% else %}
+                {% for c in campaigns %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.id }}" id="att_camp_std_{{ c.id }}" {% if c.id|stringformat:'s' in selected_campaigns or c.name in selected_campaigns %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_camp_std_{{ c.id }}" style="font-size: 0.82rem;">{{ c.name }}</label>
+                </div>
+                {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- 5. Department -->
+        {% if filter_departments %}
+        <div class="py-2">
+          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attDeptFilter" role="button" style="font-size: 0.86rem;">
+            <span><i class="fa-solid fa-stethoscope me-2 text-primary"></i> Department</span>
+            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+          </a>
+          <div class="collapse show ps-2 pe-1 pt-2" id="attDeptFilter">
+            <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+              {% for dept in filter_departments %}
+              <div class="form-check mb-1 filter-item-row">
+                <input class="form-check-input filter-checkbox" type="checkbox" name="department" value="{{ dept }}" id="att_dept_{{ forloop.counter }}" {% if dept in selected_departments %}checked{% endif %}>
+                <label class="form-check-label text-dark filter-label" for="att_dept_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ dept }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+      {% else %}
+      <!-- ================= FULL ADMIN FILTERS (SUPER ADMIN / ADMIN / MANAGER) ================= -->
+      
       <!-- ================= SECTION 1: SYSTEM DEFINED FILTERS ================= -->
       <div class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer" data-bs-toggle="collapse" data-bs-target="#groupSystemFilters" aria-expanded="true" style="font-size: 0.88rem; cursor: pointer; user-select: none;">
         <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> System Defined Filters</span>
@@ -215,8 +357,48 @@
       <div class="collapse show" id="groupFieldFilters">
         <div class="ps-2 mb-3">
 
-          <!-- Departments -->
-          {% if filter_departments %}
+          <!-- Courses (For Zappcode / Academy Users) -->
+          {% if not request.user.hospital and courses %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subCourse" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-graduation-cap me-2 text-muted"></i> Course Interested</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_courses %}show{% endif %} ps-3 pe-1 py-1" id="subCourse">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for crs in courses %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="course" value="{{ crs.id }}" id="crs_{{ crs.id }}" {% if crs.id|stringformat:'s' in request_get.course or crs.name in request_get.course %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="crs_{{ crs.id }}" style="font-size: 0.82rem;">{{ crs.name }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Lead Stages (For Zappcode / Academy Users) -->
+          {% if not request.user.hospital and stages %}
+          <div class="py-1">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subStages" role="button" style="font-size: 0.84rem;">
+              <span><i class="fa-solid fa-diagram-project me-2 text-muted"></i> Lead Stage</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if selected_stages %}show{% endif %} ps-3 pe-1 py-1" id="subStages">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% for stg in stages %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="stage" value="{{ stg.id }}" id="stg_{{ stg.id }}" {% if stg.id|stringformat:'s' in selected_stages or stg.name in selected_stages %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="stg_{{ stg.id }}" style="font-size: 0.82rem;">{{ stg.name }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Departments (Only for Hospital Users) -->
+          {% if request.user.hospital and filter_departments %}
           <div class="py-1">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDept" role="button" style="font-size: 0.84rem;">
               <span><i class="fa-solid fa-hospital me-2 text-muted"></i> Department</span>
@@ -235,8 +417,8 @@
           </div>
           {% endif %}
 
-          <!-- Doctors -->
-          {% if filter_doctors %}
+          <!-- Doctors (Only for Hospital Users) -->
+          {% if request.user.hospital and filter_doctors %}
           <div class="py-1">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDoctors" role="button" style="font-size: 0.84rem;">
               <span><i class="fa-solid fa-user-doctor me-2 text-muted"></i> Doctor</span>
@@ -282,7 +464,8 @@
             </div>
           </div>
 
-          <!-- Appointment Status -->
+          <!-- Appointment Status (Only for Hospital Users) -->
+          {% if request.user.hospital and filter_appointment_statuses %}
           <div class="py-1">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subApptStatus" role="button" style="font-size: 0.84rem;">
               <span><i class="fa-regular fa-calendar-check me-2 text-muted"></i> Appointment Status</span>
@@ -299,6 +482,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
 
           <!-- Priority / Temperature -->
           <div class="py-1">
@@ -344,6 +528,7 @@
 
         </div>
       </div>
+      {% endif %}
 
     </div>
 

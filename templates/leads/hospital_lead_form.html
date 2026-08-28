@@ -175,19 +175,46 @@
   <div class="d-flex justify-content-between align-items-center mb-3" style="max-width: 1100px; margin: 0 auto;">
     <div>
       <h5 class="fw-bold text-dark mb-0">
-        {% if obj %}<i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Lead{% else %}<i class="fa-solid fa-user-plus text-primary me-2"></i>Create Lead{% endif %}
+        {% if is_view_only or is_doctor %}
+          <i class="fa-solid fa-file-medical text-primary me-2"></i>Patient Details (Read-Only)
+        {% elif obj %}
+          <i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Lead
+        {% else %}
+          <i class="fa-solid fa-user-plus text-primary me-2"></i>Create Lead
+        {% endif %}
       </h5>
       <span class="text-muted small">{% if user.hospital %}{{ user.hospital.name }}{% endif %}</span>
     </div>
     <div class="d-flex gap-2">
-      <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="crm-btn-cancel">
-        Cancel
-      </a>
-      <button type="submit" form="nelsonLeadForm" class="crm-btn-save">
-        Save Lead
-      </button>
+      {% if is_view_only or is_doctor %}
+        <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-sm btn-primary rounded-pill px-3 shadow-none">
+          <i class="fa-solid fa-arrow-left me-1"></i> Back to Appointments
+        </a>
+      {% else %}
+        <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="crm-btn-cancel">
+          Cancel
+        </a>
+        <button type="submit" form="nelsonLeadForm" class="crm-btn-save">
+          Save Lead
+        </button>
+      {% endif %}
     </div>
   </div>
+
+  {% if is_view_only or is_doctor %}
+  <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between rounded-3 border-0 shadow-sm" style="max-width: 1100px; margin: 0 auto 1.5rem auto; background: #eff6ff; color: #1d4ed8; border-left: 4px solid #3b82f6 !important;">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa-solid fa-lock text-primary fs-5"></i>
+      <div>
+        <div class="fw-bold mb-0">Read-Only View Mode (Doctor)</div>
+        <div class="small text-muted" style="font-size: 0.78rem;">You can view and review all patient details. Editing is disabled for Doctor role.</div>
+      </div>
+    </div>
+    <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+      Back to Appointments
+    </a>
+  </div>
+  {% endif %}
 
   {% if duplicates %}
   <div class="card mb-3 border-warning shadow-sm rounded-3" style="max-width: 1100px; margin: 0 auto 1.5rem auto;">
@@ -678,18 +705,24 @@
 
       <!-- Footer Buttons -->
       <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-        {% if cancel_url %}
-          <a href="{{ cancel_url }}" class="crm-btn-cancel">
-            Cancel
+        {% if is_view_only or is_doctor %}
+          <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-secondary rounded-pill px-4">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Appointments
           </a>
         {% else %}
-          <button type="button" onclick="history.back()" class="crm-btn-cancel">
-            Cancel
+          {% if cancel_url %}
+            <a href="{{ cancel_url }}" class="crm-btn-cancel">
+              Cancel
+            </a>
+          {% else %}
+            <button type="button" onclick="history.back()" class="crm-btn-cancel">
+              Cancel
+            </button>
+          {% endif %}
+          <button type="submit" class="crm-btn-save">
+            <i class="fa-solid fa-check me-1"></i> Save Lead
           </button>
         {% endif %}
-        <button type="submit" class="crm-btn-save">
-          <i class="fa-solid fa-check me-1"></i> Save Lead
-        </button>
       </div>
 
     </form>
@@ -1065,15 +1098,44 @@
             lockSelectedSlot(appoTimeInput.value, appoTimeInput.value);
         }
 
-        // Auto calculate total
+        // Auto calculate non-negative total
         const pharmacy = document.querySelector('input[name="pharmacy_bill"]');
         const opd = document.querySelector('input[name="opd_bill"]');
         const total = document.querySelector('input[name="total"]');
+        const headerTotalBadge = document.getElementById('headerTotalPaidBadge');
         
+        function sanitizePositive(inputEl) {
+            if (!inputEl) return 0;
+            let val = parseFloat(inputEl.value);
+            if (isNaN(val) || val < 0) {
+                if (inputEl.value.includes('-')) {
+                    inputEl.value = inputEl.value.replace(/-/g, '');
+                    val = parseFloat(inputEl.value) || 0;
+                } else if (val < 0) {
+                    val = 0;
+                    inputEl.value = '0';
+                }
+            }
+            return Math.max(0, val || 0);
+        }
+
         function calcTotal() {
-            let p = parseFloat(pharmacy?.value) || 0;
-            let o = parseFloat(opd?.value) || 0;
-            if (total) total.value = (p + o).toFixed(2);
+            let p = sanitizePositive(pharmacy);
+            let o = sanitizePositive(opd);
+            let sum = (p + o).toFixed(2);
+            if (total) total.value = sum;
+            if (headerTotalBadge) {
+                headerTotalBadge.textContent = `Total Paid: ₹${sum}`;
+            }
+        }
+
+        if (pharmacy) {
+            pharmacy.addEventListener('input', calcTotal);
+            pharmacy.addEventListener('change', calcTotal);
+        }
+        if (opd) {
+            opd.addEventListener('input', calcTotal);
+            opd.addEventListener('change', calcTotal);
         }
         
         // =========================================================================
@@ -1094,8 +1156,10 @@
             return null;
         }
 
-        function setSelectOptions(el, optionsList, placeholderText, preselectedVal) {
+        function setSelectOptions(el, optionsList, placeholderText, preselectedVal, isDisabled) {
             if (!el) return;
+            
+            el.disabled = !!isDisabled;
             
             // 1. If TomSelect instance exists on element
             if (el.tomselect) {
@@ -1106,14 +1170,22 @@
                 if (placeholderText) {
                     ts.settings.placeholder = placeholderText;
                     ts.input.setAttribute('placeholder', placeholderText);
-                    ts.control_input.setAttribute('placeholder', placeholderText);
+                    if (ts.control_input) {
+                        ts.control_input.setAttribute('placeholder', placeholderText);
+                    }
+                }
+                
+                if (isDisabled) {
+                    ts.disable();
+                } else {
+                    ts.enable();
                 }
                 
                 optionsList.forEach(opt => {
                     ts.addOption({ value: opt.value, text: opt.text });
                 });
                 
-                if (preselectedVal && optionsList.some(o => o.value.toLowerCase() === preselectedVal.toLowerCase())) {
+                if (!isDisabled && preselectedVal && optionsList.some(o => o.value.toLowerCase() === preselectedVal.toLowerCase())) {
                     ts.setValue(preselectedVal, true);
                 } else {
                     ts.setValue('', true);
@@ -1124,10 +1196,12 @@
 
             // 2. Fallback plain standard <select>
             let html = `<option value="">${placeholderText || '-- Select --'}</option>`;
-            optionsList.forEach(opt => {
-                const isSel = (preselectedVal && opt.value.toLowerCase() === preselectedVal.toLowerCase()) ? 'selected' : '';
-                html += `<option value="${opt.value}" ${isSel}>${opt.text}</option>`;
-            });
+            if (!isDisabled) {
+                optionsList.forEach(opt => {
+                    const isSel = (preselectedVal && opt.value.toLowerCase() === preselectedVal.toLowerCase()) ? 'selected' : '';
+                    html += `<option value="${opt.value}" ${isSel}>${opt.text}</option>`;
+                });
+            }
             el.innerHTML = html;
         }
 
@@ -1146,24 +1220,28 @@
             const branchVal = (bSelect && bSelect.tomselect ? bSelect.tomselect.getValue() : (bSelect ? bSelect.value : '')).trim();
             const deptToRestore = targetDeptVal || (dSelect && dSelect.tomselect ? dSelect.tomselect.getValue() : (dSelect ? dSelect.value : '')) || initialSavedDept;
             
-            // If branch is empty, reset child dropdowns
-            if (!branchVal) {
-                setSelectOptions(dSelect, [], '-- Select Hospital Branch First --', '');
-                setSelectOptions(docSelect, [], '-- Select Department First --', '');
-                setSelectOptions(disSelect, [], '-- Select Department First --', '');
+            // If branch field exists and is empty, lock department, doctor, and disease with guiding placeholders
+            if (bSelect && !branchVal) {
+                setSelectOptions(dSelect, [], 'Select Hospital / Branch first...', '', true);
+                setSelectOptions(docSelect, [], 'Select Department first...', '', true);
+                setSelectOptions(disSelect, [], 'Select Department first...', '', true);
+                if (bookingDoctorSelect) {
+                    setSelectOptions(bookingDoctorSelect, [], 'Select Department first...', '', true);
+                }
                 return;
             }
 
             // Fetch departments for this specific branch
-            fetch(`/leads/api/cascading-hospital-data/?branch_id=${encodeURIComponent(branchVal)}`)
+            const url = branchVal ? `/leads/api/cascading-hospital-data/?branch_id=${encodeURIComponent(branchVal)}` : `/leads/api/cascading-hospital-data/`;
+            fetch(url)
                 .then(r => r.json())
                 .then(data => {
                     let deptList = [];
                     if (data.departments && data.departments.length > 0) {
                         deptList = data.departments.map(d => ({ value: d.name, text: d.name }));
-                        setSelectOptions(dSelect, deptList, '-- Select Department --', deptToRestore);
+                        setSelectOptions(dSelect, deptList, '-- Select Department --', deptToRestore, false);
                     } else {
-                        setSelectOptions(dSelect, [], '-- No Departments in this Branch --', '');
+                        setSelectOptions(dSelect, [], '-- No Departments in this Branch --', '', true);
                     }
                     // Trigger department change to refresh doctors & diseases
                     onDepartmentChanged(initialSavedDoc, initialSavedDisease);
@@ -1176,8 +1254,11 @@
             const deptVal = (dSelect && dSelect.tomselect ? dSelect.tomselect.getValue() : (dSelect ? dSelect.value : '')).trim();
 
             if (!deptVal) {
-                setSelectOptions(docSelect, [], '-- Select Department First --', '');
-                setSelectOptions(disSelect, [], '-- Select Department First --', '');
+                setSelectOptions(docSelect, [], 'Select Department first...', '', true);
+                setSelectOptions(disSelect, [], 'Select Department first...', '', true);
+                if (bookingDoctorSelect) {
+                    setSelectOptions(bookingDoctorSelect, [], 'Select Department first...', '', true);
+                }
                 return;
             }
 
@@ -1191,17 +1272,17 @@
                     let docList = [];
                     if (data.doctors && data.doctors.length > 0) {
                         docList = data.doctors.map(d => ({ value: d.name, text: d.display_name || d.name }));
-                        setSelectOptions(docSelect, docList, '-- Select Doctor --', docToRestore);
+                        setSelectOptions(docSelect, docList, '-- Select Doctor / Consultant --', docToRestore, false);
                         if (bookingDoctorSelect) {
-                            setSelectOptions(bookingDoctorSelect, docList, '-- Select Doctor --', docToRestore);
+                            setSelectOptions(bookingDoctorSelect, docList, '-- Select Doctor / Consultant --', docToRestore, false);
                         }
                         if (docSelect && (docSelect.value || (docSelect.tomselect && docSelect.tomselect.getValue()))) {
                             fetchDoctorSlots();
                         }
                     } else {
-                        setSelectOptions(docSelect, [], '-- No Doctors in this Department --', '');
+                        setSelectOptions(docSelect, [], '-- No Doctors in this Department --', '', true);
                         if (bookingDoctorSelect) {
-                            setSelectOptions(bookingDoctorSelect, [], '-- No Doctors in this Department --', '');
+                            setSelectOptions(bookingDoctorSelect, [], '-- No Doctors in this Department --', '', true);
                         }
                     }
 
@@ -1209,9 +1290,9 @@
                     let disList = [];
                     if (data.diseases && data.diseases.length > 0) {
                         disList = data.diseases.map(d => ({ value: d.name, text: d.name }));
-                        setSelectOptions(disSelect, disList, '-- Select Disease / Condition --', diseaseToRestore);
+                        setSelectOptions(disSelect, disList, '-- Select Disease / Medical Condition --', diseaseToRestore, false);
                     } else {
-                        setSelectOptions(disSelect, [], '-- No Conditions in this Department --', '');
+                        setSelectOptions(disSelect, [], '-- No Diseases in this Department --', '', true);
                     }
                 })
                 .catch(e => console.error('Error fetching department data:', e));
@@ -1257,6 +1338,23 @@
             });
         }
 
+        // Enforce positive integer age constraint
+        const ageInput = document.getElementById('id_age') || document.querySelector('input[name="age"]');
+        if (ageInput) {
+            ageInput.setAttribute('type', 'number');
+            ageInput.setAttribute('min', '0');
+            ageInput.setAttribute('max', '125');
+            ageInput.setAttribute('step', '1');
+            ageInput.setAttribute('inputmode', 'numeric');
+            ageInput.setAttribute('placeholder', 'e.g. 35');
+            ageInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 3);
+                if (parseInt(this.value, 10) > 125) {
+                    this.value = '125';
+                }
+            });
+        }
+
         // Run on initial load
         setTimeout(function() {
             if (bSelect) {
@@ -1269,14 +1367,37 @@
                         bSelect.tomselect.setValue(initialSavedBranch, true);
                     }
                     onBranchChanged(initialSavedDept);
-                } else if (initialSavedDept) {
-                    onDepartmentChanged(initialSavedDoc, initialSavedDisease);
+                } else {
+                    onBranchChanged('');
                 }
             } else if (dSelect) {
                 const dVal = (dSelect.tomselect ? dSelect.tomselect.getValue() : dSelect.value) || initialSavedDept;
-                if (dVal) onDepartmentChanged(initialSavedDoc, initialSavedDisease);
+                if (dVal) {
+                    onDepartmentChanged(initialSavedDoc, initialSavedDisease);
+                } else {
+                    onDepartmentChanged('', '');
+                }
             }
         }, 300);
+
+        {% if is_view_only or is_doctor %}
+        // Read-only View Mode: Disable all form controls for Doctor
+        setTimeout(function() {
+            document.querySelectorAll('#nelsonLeadForm input, #nelsonLeadForm select, #nelsonLeadForm textarea').forEach(el => {
+                el.disabled = true;
+                el.readOnly = true;
+                el.style.backgroundColor = '#f8fafc';
+                el.style.cursor = 'default';
+            });
+            document.querySelectorAll('.ts-control, .tomselect').forEach(el => {
+                el.style.backgroundColor = '#f8fafc';
+                el.style.pointerEvents = 'none';
+            });
+            document.querySelectorAll('#billingFieldsInputsWrap button, #appointmentBookingSection button').forEach(btn => {
+                btn.style.display = 'none';
+            });
+        }, 350);
+        {% endif %}
     });
 </script>
 {% endblock %}

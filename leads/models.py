@@ -56,13 +56,15 @@ class Campaign(models.Model):
 
 
 class Course(models.Model):
-    name = models.CharField(max_length=150, unique=True)
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="courses")
+    name = models.CharField(max_length=150)
     base_price = models.PositiveIntegerField(default=0, help_text="Base course fee in Rupees")
     max_discount = models.PositiveIntegerField(default=0, help_text="Maximum allowed discount in Rupees")
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["name"]
+        unique_together = ("hospital", "name")
 
     def __str__(self):
         return self.name
@@ -500,7 +502,11 @@ class Lead(models.Model):
 
     @property
     def custom_deal_status(self):
-        status = self.get_custom("deal_status") or (self.stage.name if self.stage_id and self.stage else "")
+        cd = self.custom_data or {}
+        status = cd.get("deal_status") or (self.stage.name if self.stage_id and self.stage else "")
+        if self.hospital:
+            if str(status).strip().lower() in ("admission", "admission done", "won", "won (payment done)"):
+                return "Payment Done"
         if not status:
             temp = (self.temperature or "").upper()
             if temp in ("UNCONTACTED", "") and not self.assigned_to_id:
@@ -509,6 +515,10 @@ class Lead(models.Model):
                 return self.get_temperature_display()
             return "New"
         return status
+
+    @property
+    def display_status(self):
+        return self.custom_deal_status
 
     @property
     def custom_status_display(self):

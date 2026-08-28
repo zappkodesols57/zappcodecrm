@@ -40,6 +40,12 @@ class LeadForm(forms.ModelForm):
                 "placeholder": "10-digit alternate mobile",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             }),
+            "email": forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "name@example.com",
+                "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+            }),
             "notes": forms.Textarea(attrs={"rows": 3}),
             "referral_notes": forms.Textarea(attrs={"rows": 2}),
             "tags": forms.SelectMultiple(),
@@ -47,17 +53,40 @@ class LeadForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
+        self.current_user = user
         super().__init__(*args, **kwargs)
         
-        if user and not user.can_assign_leads:
+        if user and user.role == User.Role.LEAD_ATTENDENT:
+            if "assigned_to" in self.fields:
+                self.fields["assigned_to"].queryset = User.objects.filter(pk=user.pk)
+                self.fields["assigned_to"].empty_label = None
+                self.fields["assigned_to"].initial = user
+            if "assigned_manager" in self.fields:
+                self.fields.pop("assigned_manager")
+        elif user and not user.can_assign_leads:
             if "assigned_to" in self.fields:
                 self.fields.pop("assigned_to")
             if "assigned_manager" in self.fields:
                 self.fields.pop("assigned_manager")
+        else:
+            # Filter assigned_to and assigned_manager by hospital / entity
+            if "assigned_to" in self.fields:
+                if user and getattr(user, "hospital", None):
+                    self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
+                else:
+                    self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True)
+            if "assigned_manager" in self.fields:
+                if user and getattr(user, "hospital", None):
+                    self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+                else:
+                    self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
 
         # Filter master choice fields to active options from Master Data
         if "course" in self.fields:
-            qs = Course.objects.filter(is_active=True)
+            if user and getattr(user, "hospital", None):
+                qs = Course.objects.filter(is_active=True, hospital=user.hospital)
+            else:
+                qs = Course.objects.filter(is_active=True, hospital__isnull=True)
             if self.instance and self.instance.pk and self.instance.course:
                 qs = qs | Course.objects.filter(pk=self.instance.course.pk)
             self.fields["course"].queryset = qs.distinct().order_by("name")
@@ -75,7 +104,10 @@ class LeadForm(forms.ModelForm):
             self.fields["lead_source"].queryset = qs.distinct().order_by("order", "name")
 
         if "campaign" in self.fields:
-            qs = Campaign.objects.filter(is_active=True)
+            if user and getattr(user, "hospital", None):
+                qs = Campaign.objects.filter(is_active=True, hospital=user.hospital)
+            else:
+                qs = Campaign.objects.filter(is_active=True, hospital__isnull=True)
             if self.instance and self.instance.pk and self.instance.campaign:
                 qs = qs | Campaign.objects.filter(pk=self.instance.campaign.pk)
             self.fields["campaign"].queryset = qs.distinct().order_by("-id")
@@ -87,10 +119,19 @@ class LeadForm(forms.ModelForm):
             self.fields["stage"].queryset = qs.distinct().order_by("order", "name")
 
         for name, field in self.fields.items():
-            if name == "tags":
-                continue
             css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
             field.widget.attrs.setdefault("class", css)
+            field.widget.attrs.setdefault("placeholder", field.label or name.replace("_", " ").title())
+            field.widget.attrs.update({
+                "id": f"id_{name}",
+                "name": name,
+            })
+        
+        if "tags" in self.fields:
+            self.fields["tags"].widget.attrs.update({
+                "class": "form-select tags-input",
+                "placeholder": "Type or select tags...",
+            })
         required = {"name", "mobile", "stage", "inquiry_date"}
         for name in required:
             self.fields[name].required = True
@@ -113,6 +154,19 @@ class LeadForm(forms.ModelForm):
                 "placeholder": "10-digit alternate mobile",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
+        if "email" in self.fields:
+            self.fields["email"].widget.attrs.update({
+                "placeholder": "name@example.com",
+                "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+            })
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip()
+        if email:
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
+        return email
 
     def clean_mobile(self):
         mobile = self.cleaned_data.get("mobile", "")
@@ -139,6 +193,27 @@ class LeadForm(forms.ModelForm):
                 raise forms.ValidationError("Alternate mobile number must be exactly 10 digits.")
             return digits
         return alt
+
+    def clean_tags(self):
+        """Allows users to enter new tag strings directly and automatically creates Tag instances."""
+        raw_tags = self.data.getlist("tags")
+        if not raw_tags and self.data.get("tags"):
+            raw_tags = [self.data.get("tags")]
+        
+        tag_objects = []
+        for item in raw_tags:
+            item_str = str(item).strip()
+            if not item_str:
+                continue
+            if item_str.isdigit():
+                tag = Tag.objects.filter(pk=int(item_str)).first()
+                if tag:
+                    tag_objects.append(tag)
+                    continue
+            # If string tag name, get_or_create
+            tag, _ = Tag.objects.get_or_create(name=item_str)
+            tag_objects.append(tag)
+        return tag_objects
 
 
 class QuickImportRow:
@@ -196,7 +271,20 @@ class NonStrictChoiceField(forms.ChoiceField):
 class HospitalLeadForm(forms.ModelForm):
     # Medical & Demographic Fields - using NonStrictChoiceField so choices render in <select> dropdowns and any custom/dynamic value is accepted
     gender = NonStrictChoiceField(choices=[], required=False)
-    age = forms.IntegerField(required=False)
+    age = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=125,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "min": "0",
+            "max": "125",
+            "step": "1",
+            "inputmode": "numeric",
+            "placeholder": "e.g. 35",
+            "oninput": "this.value=this.value.replace(/[^0-9]/g,'')",
+        })
+    )
     department = NonStrictChoiceField(choices=[], required=False)
     doctor = NonStrictChoiceField(choices=[], required=False)
     appointment_status = NonStrictChoiceField(choices=[], required=False)
@@ -220,10 +308,37 @@ class HospitalLeadForm(forms.ModelForm):
     # Billing & ID
     uhid_id_no = forms.CharField(max_length=100, required=False, label="UHID ID NO")
     ipd_no = forms.CharField(max_length=100, required=False, label="IPD NO")
-    pharmacy_bill = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
-    opd_bill = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+    pharmacy_bill = forms.DecimalField(
+        max_digits=10, decimal_places=2, required=False, min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "min": "0",
+            "step": "0.01",
+            "placeholder": "0.00",
+            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+        })
+    )
+    opd_bill = forms.DecimalField(
+        max_digits=10, decimal_places=2, required=False, min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "min": "0",
+            "step": "0.01",
+            "placeholder": "0.00",
+            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+        })
+    )
     investigation = forms.CharField(max_length=255, required=False)
-    total = forms.DecimalField(max_digits=12, decimal_places=2, required=False)
+    total = forms.DecimalField(
+        max_digits=12, decimal_places=2, required=False, min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control fw-bold text-success",
+            "min": "0",
+            "step": "0.01",
+            "placeholder": "0.00",
+            "readonly": "readonly",
+        })
+    )
     
     # Remarks Tracking
     calling_date_remark_1 = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
@@ -479,6 +594,18 @@ class HospitalLeadForm(forms.ModelForm):
 
         if "source_category" in self.fields:
             self.fields["source_category"].queryset = SourceCategory.objects.filter(is_active=True).order_by("order", "name")
+
+        if "assigned_to" in self.fields:
+            if user and user.role == User.Role.LEAD_ATTENDENT:
+                self.fields["assigned_to"].queryset = User.objects.filter(pk=user.pk)
+                self.fields["assigned_to"].empty_label = None
+                self.fields["assigned_to"].initial = user
+            elif user and user.hospital:
+                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
+                self.fields["assigned_to"].empty_label = "-- Select Attendant / Staff --"
+            else:
+                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True)
+                self.fields["assigned_to"].empty_label = "-- Select Attendant / Staff --"
             
         # Dynamically load Admin-Configured Custom Form Fields (Non-system only)
         from leads.models import LeadCustomField
@@ -632,6 +759,31 @@ class HospitalLeadForm(forms.ModelForm):
                 raise forms.ValidationError("Mobile number must be exactly 10 digits.")
             return digits
         return mobile
+
+    def clean_age(self):
+        age = self.cleaned_data.get("age")
+        if age is not None:
+            if age < 0 or age > 125:
+                raise forms.ValidationError("Please enter a valid positive age (0-125).")
+        return age
+
+    def clean_opd_bill(self):
+        val = self.cleaned_data.get("opd_bill")
+        if val is not None and val < 0:
+            raise forms.ValidationError("OPD Bill cannot be negative.")
+        return val
+
+    def clean_pharmacy_bill(self):
+        val = self.cleaned_data.get("pharmacy_bill")
+        if val is not None and val < 0:
+            raise forms.ValidationError("Pharmacy Bill cannot be negative.")
+        return val
+
+    def clean_total(self):
+        val = self.cleaned_data.get("total")
+        if val is not None and val < 0:
+            raise forms.ValidationError("Total Bill cannot be negative.")
+        return val
 
     def save(self, commit=True):
         instance = super().save(commit=False)

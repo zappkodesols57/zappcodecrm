@@ -16,6 +16,7 @@ urlpatterns = [
     path("users/", views.user_list, name="user_list"),
     path("users/add/", views.user_add, name="user_add"),
     path("users/<int:pk>/edit/", views.user_edit, name="user_edit"),
+    path("api/check-username/", views.check_username_availability, name="check_username"),
     path("users/<int:pk>/doctor-schedule/", views.doctor_schedule_manage, name="doctor_schedule_manage"),
     path("users/<int:pk>/reset-password/", views.user_reset_password, name="user_reset_password"),
     path("users/<int:pk>/delete/", views.user_delete, name="user_delete"),
@@ -26,6 +27,8 @@ urlpatterns = [
     path("businesses/", views.business_list, name="business_list"),
     path("businesses/add/", views.business_add, name="business_add"),
     path("businesses/<int:pk>/edit/", views.business_edit, name="business_edit"),
+    path("businesses/<int:pk>/toggle-active/", views.business_toggle_active, name="business_toggle_active"),
+    path("businesses/<int:pk>/delete/", views.business_delete, name="business_delete"),
 
 
     # Single-Page 6-Digit OTP Password Reset

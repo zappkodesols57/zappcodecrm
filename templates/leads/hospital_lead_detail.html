@@ -209,28 +209,25 @@
         <form method="post" action="{% url 'leads:add_followup' lead.pk %}">
           {% csrf_token %}
           <div class="row g-2 mb-2">
-            <div class="col-md-3">
-              <input type="date" name="followup_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" required>
+            <div class="col-md-4">
+              <input type="date" name="followup_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
             </div>
             <div class="col-md-2">
               <input type="time" name="followup_time" class="form-control form-control-sm">
             </div>
             <div class="col-md-3">
-              <select name="followup_mode" class="form-select form-select-sm">
+              <select name="followup_mode" class="form-select form-select-sm no-tom-select">
                 {% for val, label in followup_modes %}
                   <option value="{{ val }}">{{ label }}</option>
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-2">
-              <select name="followup_status" class="form-select form-select-sm">
+            <div class="col-md-3">
+              <select name="followup_status" class="form-select form-select-sm no-tom-select">
                 {% for val, label in followup_statuses %}
                   <option value="{{ val }}">{{ label }}</option>
                 {% endfor %}
               </select>
-            </div>
-            <div class="col-md-2">
-              <input type="date" name="next_followup_date" class="form-control form-control-sm" placeholder="Next Date">
             </div>
           </div>
           <div class="input-group">

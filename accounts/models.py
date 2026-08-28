@@ -11,7 +11,16 @@ class Hospital(models.Model):
     address = models.TextField(blank=True)
     registration_no = models.CharField(max_length=100, blank=True)
     settings = models.JSONField(default=dict, blank=True)
+    allowed_roles = models.JSONField(default=list, blank=True, help_text="List of roles enabled for this business/tenant (e.g. ['ADMIN', 'MANAGER', 'LEAD_ATTENDENT', 'DOCTOR'])")
+    is_active = models.BooleanField(default=True, db_index=True, help_text="Active status of this business/tenant")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def get_allowed_roles(self):
+        """Returns list of allowed role keys for this business. Defaults to all roles if not customized."""
+        if self.allowed_roles and isinstance(self.allowed_roles, list) and len(self.allowed_roles) > 0:
+            return self.allowed_roles
+        # Default all active choices
+        return [r[0] for r in User.Role.choices]
 
     def __str__(self):
         return self.name
@@ -24,7 +33,7 @@ class User(AbstractUser):
         SUPER_ADMIN = "SUPER_ADMIN", "Super Admin"
         ADMIN = "ADMIN", "Admin"
         MANAGER = "MANAGER", "Manager"
-        LEAD_ATTENDENT = "LEAD_ATTENDENT", "Lead Attendent"
+        LEAD_ATTENDENT = "LEAD_ATTENDENT", "Lead Attendant"
         DOCTOR = "DOCTOR", "Doctor"
         HR = "HR", "HR"
         COUNSELLOR = "COUNSELLOR", "Counsellor"
@@ -80,6 +89,27 @@ class User(AbstractUser):
     
     # Store individual permission overrides here
     custom_permissions = models.JSONField(default=dict, blank=True)
+
+    @property
+    def is_hospital_user(self):
+        return bool(self.hospital)
+
+    @property
+    def is_zappcode_user(self):
+        return not bool(self.hospital)
+
+    @property
+    def custom_role_display(self):
+        prefix = "hospital-user" if self.hospital else "zappcode-user"
+        if self.role == self.Role.SUPER_ADMIN:
+            role_name = "Hospital Super Admin" if self.hospital else "Zappcode Super Admin"
+        elif self.role == self.Role.ADMIN:
+            role_name = "Hospital Admin" if self.hospital else "Zappcode Admin"
+        elif self.role == self.Role.MANAGER:
+            role_name = "Hospital Manager" if self.hospital else "Zappcode Manager"
+        else:
+            role_name = self.get_role_display()
+        return f"{prefix} ({role_name})"
 
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"
