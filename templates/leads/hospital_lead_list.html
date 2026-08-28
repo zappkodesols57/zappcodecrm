@@ -114,7 +114,9 @@
     <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px;">
       <option value="assign">Assign to...</option>
       <option value="stage">Change Stage to...</option>
+      {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
       <option value="archive">Archive</option>
+      {% endif %}
     </select>
     <select name="assign_to" class="form-select form-select-sm" style="max-width:200px;">
       <option value="">Hospital Attendant / User</option>

@@ -19,9 +19,11 @@
     {% if not admission %}
       <button class="btn btn-sm btn-brand text-white" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap"></i> Convert to Admission</button>
     {% endif %}
+    {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
     <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
       <i class="fa-solid fa-box-archive"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
     </a>
+    {% endif %}
   </div>
 </div>
 

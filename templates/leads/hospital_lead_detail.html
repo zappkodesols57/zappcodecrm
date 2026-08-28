@@ -9,22 +9,22 @@
     <h4 class="mb-1 fw-bold text-dark">{{ lead.name }}
       {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.total %}
         <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Won (Payment Done)</span>
-        <span class="badge text-bg-success"><i class="fa-solid fa-check-double me-1"></i>Completed</span>
-      {% else %}
-        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ lead.custom_data.deal_status|default:lead.stage }}</span>
-        {% if lead.custom_data.appointment_status %}
-          {% if "Confirmed" in lead.custom_data.appointment_status or "APPROVED" in lead.custom_data.appointment_status %}
-            <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1"></i>{{ lead.custom_data.appointment_status }}</span>
-          {% elif "Awaiting" in lead.custom_data.appointment_status %}
-            <span class="badge text-bg-warning"><i class="fa-solid fa-clock me-1"></i>{{ lead.custom_data.appointment_status }}</span>
-          {% elif "Reject" in lead.custom_data.appointment_status %}
-            <span class="badge text-bg-danger"><i class="fa-solid fa-ban me-1"></i>{{ lead.custom_data.appointment_status }}</span>
-          {% elif "Complete" in lead.custom_data.appointment_status or "Done" in lead.custom_data.appointment_status %}
-            <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1"></i>Completed</span>
-          {% else %}
-            <span class="badge text-bg-info text-white">{{ lead.custom_data.appointment_status }}</span>
-          {% endif %}
+      {% elif lead.custom_data.appointment_status %}
+        {% if "Confirmed" in lead.custom_data.appointment_status or "APPROVED" in lead.custom_data.appointment_status %}
+          <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1"></i>{{ lead.custom_data.appointment_status }}</span>
+        {% elif "Awaiting" in lead.custom_data.appointment_status or "Pending" in lead.custom_data.appointment_status %}
+          <span class="badge text-bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>{{ lead.custom_data.appointment_status }}</span>
+        {% elif "Reject" in lead.custom_data.appointment_status or "Cancel" in lead.custom_data.appointment_status %}
+          <span class="badge text-bg-danger"><i class="fa-solid fa-ban me-1"></i>{{ lead.custom_data.appointment_status }}</span>
+        {% elif "Complete" in lead.custom_data.appointment_status or "Done" in lead.custom_data.appointment_status %}
+          <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1"></i>Completed</span>
+        {% else %}
+          <span class="badge text-bg-info text-white">{{ lead.custom_data.appointment_status }}</span>
         {% endif %}
+      {% elif lead.custom_data.deal_status %}
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ lead.custom_data.deal_status }}</span>
+      {% else %}
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ lead.stage.name|default:"New" }}</span>
       {% endif %}
     </h4>
     <div class="text-muted small d-flex gap-3 mt-1">
@@ -45,9 +45,11 @@
     </a>
     {% endif %}
     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
+    {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
     <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
       <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
     </a>
+    {% endif %}
   </div>
 </div>
 

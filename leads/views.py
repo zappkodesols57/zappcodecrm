@@ -620,7 +620,7 @@ def lead_edit(request, pk):
                 cd.get('remark_1') or cd.get('calling_date_remark_1') or 
                 cd.get('remark_2') or cd.get('calling_date_remark_2') or 
                 cd.get('remark_3') or cd.get('calling_date_remark_3') or
-                cd.get('appointment_status') in ['Booked', 'Cancelled']
+                cd.get('appointment_status') in ['Booked', 'Cancelled', 'Confirmed', 'Completed', 'Visited']
             )
             
             try:
@@ -637,6 +637,16 @@ def lead_edit(request, pk):
                         cd['deal_status'] = 'Won (Payment Done)'
                         cd['appointment_status'] = 'Payment Done'
                         saved_lead.custom_data = cd
+                elif cd.get('appointment_status'):
+                    apt_st = cd.get('appointment_status')
+                    cd['deal_status'] = apt_st
+                    stage_match = LeadStage.objects.filter(name__iexact=apt_st).first()
+                    if stage_match:
+                        saved_lead.stage = stage_match
+                    elif has_call_interaction:
+                        contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+                        if contacted_stage:
+                            saved_lead.stage = contacted_stage
                 elif has_call_interaction:
                     contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
                     saved_lead.stage = contacted_stage
@@ -807,6 +817,16 @@ def lead_detail(request, pk):
     })
 
 
+def _can_archive_lead(user):
+    if user.is_superuser:
+        return True
+    if user.role == User.Role.SUPER_ADMIN:
+        return True
+    if user.hospital and user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]:
+        return True
+    return False
+
+
 @login_required
 def lead_archive(request, pk):
     lead = _get_lead_or_redirect(request, pk)
@@ -815,6 +835,9 @@ def lead_archive(request, pk):
     if not _can_access_lead(request.user, lead):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
+    if not _can_archive_lead(request.user):
+        messages.error(request, "Only Hospital Admins and Zappcode Admins can archive or restore leads.")
+        return redirect("leads:lead_detail", pk=pk)
     lead.is_archived = not lead.is_archived
     lead.save(update_fields=["is_archived"])
     messages.success(request, f"Lead {'archived' if lead.is_archived else 'restored'}.")
@@ -959,6 +982,9 @@ def bulk_action(request):
         leads.update(stage_id=stage_id)
         messages.success(request, f"{leads.count()} lead(s) updated.")
     elif action == "archive":
+        if not _can_archive_lead(request.user):
+            messages.error(request, "Only Hospital Admins and Zappcode Super Admins can archive leads.")
+            return redirect("leads:lead_list")
         leads.update(is_archived=True)
         messages.success(request, f"{leads.count()} lead(s) archived.")
     return redirect("leads:lead_list")
