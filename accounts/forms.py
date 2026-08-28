@@ -19,23 +19,22 @@ class CRMUserCreateForm(UserCreationForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         if self.user and self.user.hospital:
+            allowed = self.user.hospital.get_allowed_roles()
             if self.user.role == User.Role.MANAGER:
-                self.fields["role"].choices = [
-                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
-                    (User.Role.DOCTOR, "Doctor"),
-                ]
-            else:
-                self.fields["role"].choices = [
-                    (User.Role.ADMIN, "Admin"),
-                    (User.Role.MANAGER, "Manager"),
-                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
-                    (User.Role.DOCTOR, "Doctor"),
-                ]
+                allowed = [r for r in allowed if r not in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]]
+            self.fields["role"].choices = [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
             if "reports_to" in self.fields:
                 self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
         
+        if "reports_to" in self.fields:
+            self.fields["reports_to"].empty_label = "Select Reporting Manager"
+            self.fields["reports_to"].widget.attrs.update({
+                "placeholder": "Select Reporting Manager",
+                "data-placeholder": "Select Reporting Manager",
+            })
+
         if "hospital" in self.fields:
             self.fields["hospital"].label = "Business"
             
@@ -55,6 +54,21 @@ class CRMUserCreateForm(UserCreationForm):
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
+
+        if "email" in self.fields:
+            self.fields["email"].widget = forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "name@example.com",
+                "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+            })
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip()
+        if email:
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
+        return email
 
     def clean_phone(self):
         phone = self.cleaned_data.get("phone", "")
@@ -98,23 +112,22 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["can_import_export"].initial = self.instance.can_import_export
 
         if self.user and self.user.hospital:
+            allowed = self.user.hospital.get_allowed_roles()
             if self.user.role == User.Role.MANAGER:
-                self.fields["role"].choices = [
-                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
-                    (User.Role.DOCTOR, "Doctor"),
-                ]
-            else:
-                self.fields["role"].choices = [
-                    (User.Role.ADMIN, "Admin"),
-                    (User.Role.MANAGER, "Manager"),
-                    (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
-                    (User.Role.DOCTOR, "Doctor"),
-                ]
+                allowed = [r for r in allowed if r not in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]]
+            self.fields["role"].choices = [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
             if "reports_to" in self.fields:
                 self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
                 
+        if "reports_to" in self.fields:
+            self.fields["reports_to"].empty_label = "Select Reporting Manager"
+            self.fields["reports_to"].widget.attrs.update({
+                "placeholder": "Select Reporting Manager",
+                "data-placeholder": "Select Reporting Manager",
+            })
+
         if "hospital" in self.fields:
             self.fields["hospital"].label = "Business"
             
@@ -134,6 +147,21 @@ class CRMUserEditForm(forms.ModelForm):
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
+
+        if "email" in self.fields:
+            self.fields["email"].widget = forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "name@example.com",
+                "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+            })
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip()
+        if email:
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
+        return email
 
     def clean_phone(self):
         phone = self.cleaned_data.get("phone", "")
@@ -188,7 +216,7 @@ class CRMUserRegisterForm(UserCreationForm):
     role = forms.ChoiceField(choices=[
         (User.Role.ADMIN, "Admin"),
         (User.Role.MANAGER, "Manager"),
-        (User.Role.LEAD_ATTENDENT, "Lead Attendent"),
+        (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
         (User.Role.DOCTOR, "Doctor"),
     ], initial=User.Role.LEAD_ATTENDENT, required=True)
 
@@ -211,6 +239,21 @@ class CRMUserRegisterForm(UserCreationForm):
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
 
+        if "email" in self.fields:
+            self.fields["email"].widget = forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "name@example.com",
+                "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+            })
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip()
+        if email:
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
+        return email
+
     def clean_phone(self):
         phone = self.cleaned_data.get("phone", "")
         if phone:
@@ -227,13 +270,27 @@ class CRMUserRegisterForm(UserCreationForm):
 
 from .models import Hospital
 class BusinessForm(forms.ModelForm):
+    allowed_roles = forms.MultipleChoiceField(
+        choices=User.Role.choices,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Allowed Roles for this Business"
+    )
+
     class Meta:
         model = Hospital
-        fields = ("name", "contact_email", "phone", "address")
+        fields = ("name", "contact_email", "phone", "address", "allowed_roles", "is_active")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.allowed_roles:
+            self.initial["allowed_roles"] = self.instance.get_allowed_roles()
+        else:
+            self.initial["allowed_roles"] = [User.Role.ADMIN, User.Role.MANAGER, User.Role.LEAD_ATTENDENT, User.Role.DOCTOR]
+
         for name, field in self.fields.items():
-            field.widget.attrs.setdefault("class", "form-control")
+            if name != "allowed_roles" and not isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault("class", "form-control")
         if "phone" in self.fields:
             self.fields["phone"].widget.attrs.update({
                 "maxlength": "10",
@@ -243,6 +300,20 @@ class BusinessForm(forms.ModelForm):
                 "placeholder": "10-digit phone number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
+        if "contact_email" in self.fields:
+            self.fields["contact_email"].widget = forms.EmailInput(attrs={
+                "class": "form-control",
+                "placeholder": "contact@business.com",
+                "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                "title": "Please enter a valid email address containing '@' (e.g. contact@business.com)",
+            })
+
+    def clean_contact_email(self):
+        email = (self.cleaned_data.get("contact_email") or "").strip()
+        if email:
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                raise forms.ValidationError("Please enter a valid contact email with '@' (e.g. contact@business.com).")
+        return email
 
     def clean_phone(self):
         phone = self.cleaned_data.get("phone", "")
@@ -265,7 +336,12 @@ class UserProfileForm(forms.ModelForm):
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'name@example.com',
+                'pattern': r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+                'title': "Please enter a valid email address containing '@' (e.g. name@example.com)",
+            }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
                 'maxlength': '10',
@@ -277,6 +353,13 @@ class UserProfileForm(forms.ModelForm):
             }),
             'profile_picture': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip()
+        if email:
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
+        return email
 
     def clean_phone(self):
         phone = self.cleaned_data.get("phone", "")

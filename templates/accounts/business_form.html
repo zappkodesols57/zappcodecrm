@@ -8,22 +8,75 @@
   <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
 </div>
 
-<div class="card shadow-sm border-0" style="max-width: 650px;">
+<div class="card shadow-sm border-0 rounded-3" style="max-width: 750px;">
   <div class="card-body p-4">
     <form method="post">
       {% csrf_token %}
+      
       <div class="row g-3">
-        {% for field in form %}
+        <!-- Business Name -->
         <div class="col-md-12">
-          <label class="form-label small fw-semibold text-dark">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
+          <label class="form-label small fw-bold text-dark">Business / Hospital / Organization Name <span class="text-danger">*</span></label>
+          {{ form.name }}
+          {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors|striptags }}</div>{% endif %}
         </div>
-        {% endfor %}
+
+        <!-- Contact Email & Phone -->
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-dark">Contact Email</label>
+          {{ form.contact_email }}
+          {% if form.contact_email.errors %}<div class="text-danger small mt-1">{{ form.contact_email.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-dark">Contact Phone</label>
+          {{ form.phone }}
+          {% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <!-- Address -->
+        <div class="col-md-12">
+          <label class="form-label small fw-semibold text-dark">Address / Location</label>
+          {{ form.address }}
+          {% if form.address.errors %}<div class="text-danger small mt-1">{{ form.address.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <!-- Allowed Roles for this Business -->
+        <div class="col-md-12 mt-3">
+          <div class="card bg-light border p-3 rounded-3">
+            <label class="form-label small fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+              <i class="fa-solid fa-users-gear text-primary"></i>
+              <span>Allowed Roles for this Business</span>
+            </label>
+            <p class="text-muted small mb-2" style="font-size: 0.78rem;">Select which employee roles are enabled and can be assigned to users in this organization.</p>
+            
+            <div class="row g-2 pt-1">
+              {% for choice in form.allowed_roles %}
+              <div class="col-md-4 col-sm-6">
+                <div class="form-check p-2 bg-white rounded border d-flex align-items-center gap-2">
+                  {{ choice.tag }}
+                  <label class="form-check-label small fw-semibold text-dark m-0 cursor-pointer" for="{{ choice.id_for_label }}">
+                    {{ choice.choice_label }}
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% if form.allowed_roles.errors %}<div class="text-danger small mt-1">{{ form.allowed_roles.errors|striptags }}</div>{% endif %}
+          </div>
+        </div>
+
+        <!-- Is Active Checkbox -->
+        <div class="col-md-12">
+          <div class="form-check form-switch mt-2">
+            {{ form.is_active }}
+            <label class="form-check-label fw-semibold small text-dark" for="{{ form.is_active.id_for_label }}">Active Status (Enable login & leads for this business)</label>
+          </div>
+        </div>
       </div>
-      <div class="d-flex gap-2 mt-4 pt-2 border-top">
-        <button type="submit" class="btn btn-brand text-white"><i class="fa-solid fa-check me-1"></i> Save Business</button>
-        <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary">Cancel</a>
+
+      <div class="d-flex gap-2 mt-4 pt-3 border-top">
+        <button type="submit" class="btn btn-brand text-white fw-bold px-4"><i class="fa-solid fa-check me-1"></i> Save Business</button>
+        <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary px-3">Cancel</a>
       </div>
     </form>
   </div>

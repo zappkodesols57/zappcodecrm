@@ -1,14 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Management Dashboard · CRM{% endblock %}
+{% block title %}Business Analytics & Comparison · Zappcode CRM{% endblock %}
 {% block extra_head %}
 <style>
+  /* Modern Dashboard Tokens */
+  .biz-header-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  }
+
+  .biz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+
+  .biz-dropdown-menu {
+    min-width: 290px;
+    max-height: 360px;
+    overflow-y: auto;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    border: 1px solid #e2e8f0;
+  }
+
   .kpi-link {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 12px;
   }
   .kpi-link:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
   }
+
+  /* Comparison pill badge inside KPI Cards */
+  .kpi-breakdown-row {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .kpi-breakdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.73rem;
+    font-weight: 600;
+  }
+
+  .kpi-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+  }
+
   .btn-outline-brand {
     color: var(--brand);
     border-color: var(--brand);
@@ -17,232 +73,459 @@
     background-color: var(--brand);
     color: #fff;
   }
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+  
+  .filter-drawer {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
   }
-  .animate-pulse {
-    animation: pulse 2s infinite ease-in-out;
+  
+  .chart-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    transition: all 0.2s ease;
+  }
+  .chart-card:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0 fw-bold">Management Dashboard</h4>
-  {% if pending_approvals_count > 0 %}
-    <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse">
-      <i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s) Pending
-    </a>
-  {% endif %}
-</div>
 
-<!-- Filters Bar -->
-<form method="get" class="card p-3 mb-3">
-  <div class="row g-2">
-    <div class="col-md-2">
-      <input type="search" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ request_get.q }}">
-    </div>
-    <div class="col-md-2">
-      <select name="city" class="form-select form-select-sm">
-        <option value="">All Cities</option>
-        {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="source_category" class="form-select form-select-sm">
-        <option value="">All Source Categories</option>
-        {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="lead_source" class="form-select form-select-sm">
-        <option value="">All Lead Sources</option>
-        {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="course" class="form-select form-select-sm">
-        <option value="">All Courses</option>
-        {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-1">
-      <select name="stage" class="form-select form-select-sm">
-        <option value="">All Stages</option>
-        {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-1">
-      <select name="temperature" class="form-select form-select-sm">
-        <option value="">All Temps</option>
-        <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
-        <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
-        <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
-        <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
-        <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
-      </select>
+<!-- ─── TOP BUSINESS SELECTOR & HEADER BAR (Replaced text line with dynamic filter) ─── -->
+<form id="dashboardFilterForm" method="GET" action="{% url 'dashboard:management_home' %}">
+  <div class="biz-header-card p-3 mb-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      
+      <!-- Business Multi-Select Dropdown -->
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <div class="dropdown">
+          <button class="btn btn-white border shadow-xs dropdown-toggle px-3 py-2 fw-bold text-dark d-flex align-items-center gap-2" 
+                  type="button" id="bizDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                  style="border-radius: 10px; background: #f8fafc;">
+            <i class="fa-solid fa-building text-primary"></i>
+            <span id="bizSelectedLabel">
+              {% if selected_businesses|length == business_options|length %}
+                All Businesses Selected ({{ selected_businesses|length }})
+              {% elif selected_businesses|length == 1 %}
+                {{ selected_businesses.0.name }}
+              {% else %}
+                {{ selected_businesses|length }} Businesses Selected
+              {% endif %}
+            </span>
+          </button>
+
+          <div class="dropdown-menu biz-dropdown-menu p-3" aria-labelledby="bizDropdownBtn">
+            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+              <span class="small fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">Filter by Businesses</span>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-link btn-sm p-0 text-primary text-decoration-none fw-semibold" style="font-size: 0.72rem;" onclick="toggleAllBusinesses(true)">Select All</button>
+                <span class="text-muted small">|</span>
+                <button type="button" class="btn btn-link btn-sm p-0 text-secondary text-decoration-none fw-semibold" style="font-size: 0.72rem;" onclick="toggleAllBusinesses(false)">Clear</button>
+              </div>
+            </div>
+            
+            <div class="biz-list-container">
+              {% for b in business_options %}
+              <div class="form-check py-1">
+                <input class="form-check-input biz-checkbox" type="checkbox" name="business" value="{{ b.id }}" id="biz_{{ b.id }}"
+                       {% if b.id in selected_business_ids %}checked{% endif %} onchange="updateBizCount()">
+                <label class="form-check-label small fw-semibold text-dark" for="biz_{{ b.id }}" style="cursor: pointer;">
+                  {{ b.name }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div class="mt-3 pt-2 border-top text-end">
+              <button type="submit" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold">
+                <i class="fa-solid fa-check me-1"></i> Apply Business Filter
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compare Button / Toggle (When 2+ Businesses Selected) -->
+        {% if selected_businesses|length > 1 %}
+        <div class="d-inline-flex align-items-center">
+          <input type="hidden" name="compare" id="compareInput" value="{% if is_comparison_mode %}1{% else %}0{% endif %}">
+          {% if is_comparison_mode %}
+            <button type="button" class="btn btn-sm btn-primary px-3 py-2 rounded-pill fw-bold shadow-xs d-flex align-items-center gap-2"
+                    onclick="setCompareMode(0)" title="Click to view unified combined total data">
+              <i class="fa-solid fa-code-compare"></i> Compare: ON
+              <span class="badge bg-white text-primary rounded-pill px-2 py-0" style="font-size: 0.7rem;">{{ selected_businesses|length }}</span>
+            </button>
+          {% else %}
+            <button type="button" class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill fw-bold shadow-xs d-flex align-items-center gap-2"
+                    onclick="setCompareMode(1)" title="Click to compare these businesses side-by-side">
+              <i class="fa-solid fa-code-compare"></i> Compare Businesses
+            </button>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Selected Business Badges & Overview Status -->
+        <div class="d-flex flex-wrap align-items-center gap-1">
+          {% if is_all_businesses and not is_comparison_mode %}
+            <span class="biz-chip" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; border-color: #c7d2fe;">
+              <i class="fa-solid fa-layer-group me-1"></i> Unified Overview (All Businesses Combined)
+            </span>
+          {% else %}
+            {% for b in selected_businesses %}
+              <span class="biz-chip" style="background: {{ b.bg }}; color: {{ b.color }}; border-color: {{ b.color }};">
+                <span class="kpi-dot" style="background: {{ b.color }};"></span> {{ b.name }}
+              </span>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Right Actions: Pending Approvals & More Filters -->
+      <div class="d-flex align-items-center gap-2">
+        {% if pending_approvals_count > 0 %}
+          <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse rounded-pill px-3">
+            <i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s)
+          </a>
+        {% endif %}
+
+        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFiltersCollapse" aria-expanded="false">
+          <i class="fa-solid fa-sliders me-1"></i> More Filters
+        </button>
+      </div>
+
     </div>
   </div>
-  <div class="row g-2 mt-1">
-    <div class="col-md-2">
-      <select name="deal_status" class="form-select form-select-sm">
-        <option value="">All Deal Statuses</option>
-        <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-        <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-        <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-        <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="assigned_to" class="form-select form-select-sm">
-        <option value="">All Assigned Employees</option>
-        {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
-    </div>
-    <div class="col-md-2">
-      <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
-    </div>
-    <div class="col-md-4">
-      <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
-        <a href="{% url 'dashboard:management_home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
+
+  <!-- ─── ADVANCED FILTERS COLLAPSIBLE DRAWER ─── -->
+  <div class="collapse {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.date_from or request_get.date_to %}show{% endif %}" id="advancedFiltersCollapse">
+    <div class="card filter-drawer p-3 mb-3 shadow-2xs">
+      <div class="row g-2">
+        <div class="col-md-2">
+          <input type="search" name="q" class="form-control form-control-sm" placeholder="Search name/mobile/email..." value="{{ request_get.q }}">
+        </div>
+        <div class="col-md-2">
+          <select name="city" class="form-select form-select-sm">
+            <option value="">All Cities</option>
+            {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select name="source_category" class="form-select form-select-sm">
+            <option value="">All Source Categories</option>
+            {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select name="lead_source" class="form-select form-select-sm">
+            <option value="">All Lead Sources</option>
+            {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select name="course" class="form-select form-select-sm">
+            <option value="">All Courses</option>
+            {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-1">
+          <select name="stage" class="form-select form-select-sm">
+            <option value="">All Stages</option>
+            {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-1">
+          <select name="temperature" class="form-select form-select-sm">
+            <option value="">All Temps</option>
+            <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
+            <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Not Picked</option>
+            <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
+            <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
+            <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-2 mt-1">
+        <div class="col-md-2">
+          <select name="deal_status" class="form-select form-select-sm">
+            <option value="">All Deal Statuses</option>
+            <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+            <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+            <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+            <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select name="assigned_to" class="form-select form-select-sm">
+            <option value="">All Assigned Employees</option>
+            {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}" placeholder="From Date">
+        </div>
+        <div class="col-md-2">
+          <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}" placeholder="To Date">
+        </div>
+        <div class="col-md-4">
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-brand text-white w-50" type="submit"><i class="fa-solid fa-filter me-1"></i> Apply Filters</button>
+            <a href="{% url 'dashboard:management_home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Reset All</a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </form>
 
-<!-- Vibrant KPI Cards Row 1 -->
-<div class="row g-3 mb-2">
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="kpi-card kpi-1 text-decoration-none d-block kpi-link">
+<!-- ─── EXACT 5 REQUESTED KPI CARDS (Single Row Grid) ─── -->
+<div class="row g-3 mb-4">
+  
+  <!-- 1. Total Leads -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100">
       <div class="label">Total Leads</div>
       <div class="value">{{ kpis.total_leads }}</div>
-    </a>
+      {% if is_comparison_mode %}
+      <div class="kpi-breakdown-row">
+        {% for b in business_comparisons %}
+        <div class="kpi-breakdown-item">
+          <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
+          <span style="color: {{ b.color }}; font-weight: 700;">{{ b.total_leads }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="kpi-card kpi-7 text-decoration-none d-block kpi-link">
+
+  <!-- 2. Uncontacted -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100">
       <div class="label">Uncontacted</div>
       <div class="value">{{ kpis.uncontacted }}</div>
-    </a>
+      {% if is_comparison_mode %}
+      <div class="kpi-breakdown-row">
+        {% for b in business_comparisons %}
+        <div class="kpi-breakdown-item">
+          <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
+          <span style="color: {{ b.color }}; font-weight: 700;">{{ b.uncontacted }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=NOT_PICKED" class="kpi-card kpi-8 text-decoration-none d-block kpi-link">
-      <div class="label">Call Not Picked</div>
-      <div class="value">{{ kpis.not_picked }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=HOT" class="kpi-card kpi-3 text-decoration-none d-block kpi-link">
-      <div class="label">Hot Leads</div>
-      <div class="value">{{ kpis.hot }}</div>
-    </a>
-  </div>
-</div>
 
-<!-- Vibrant KPI Cards Row 2 -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=WARM" class="kpi-card kpi-4 text-decoration-none d-block kpi-link">
-      <div class="label">Warm Leads</div>
-      <div class="value">{{ kpis.warm }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=COLD" class="kpi-card kpi-6 text-decoration-none d-block kpi-link">
-      <div class="label">Cold (Not Interested)</div>
-      <div class="value">{{ kpis.cold }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'followups:today' %}" class="kpi-card kpi-2 text-decoration-none d-block kpi-link">
-      <div class="label">Today's Follow-ups</div>
-      <div class="value">{{ kpis.followups_today }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'followups:overdue' %}" class="kpi-card kpi-3 text-decoration-none d-block kpi-link">
-      <div class="label">Overdue Follow-ups</div>
-      <div class="value">{{ kpis.overdue }}</div>
-    </a>
-  </div>
-</div>
-
-<!-- Vibrant KPI Cards Row 3 -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-4">
-    <a href="{% url 'admissions:list' %}" class="kpi-card kpi-5 text-decoration-none d-block kpi-link">
+  <!-- 3. Conversion Rate -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100">
       <div class="label">Conversion Rate</div>
       <div class="value">{{ kpis.conversion_rate }}%</div>
-    </a>
+      {% if is_comparison_mode %}
+      <div class="kpi-breakdown-row">
+        {% for b in business_comparisons %}
+        <div class="kpi-breakdown-item">
+          <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
+          <span style="color: {{ b.color }}; font-weight: 700;">{{ b.conversion_rate }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </div>
-  <div class="col-6 col-md-4">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&q=visit" class="kpi-card kpi-1 text-decoration-none d-block kpi-link">
-      <div class="label">Visits</div>
-      <div class="value">{{ kpis.visits }}</div>
-    </a>
+
+  <!-- 4. Overdue Follow-ups -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100">
+      <div class="label">Overdue Follow-ups</div>
+      <div class="value">{{ kpis.overdue }}</div>
+      {% if is_comparison_mode %}
+      <div class="kpi-breakdown-row">
+        {% for b in business_comparisons %}
+        <div class="kpi-breakdown-item">
+          <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
+          <span style="color: {{ b.color }}; font-weight: 700;">{{ b.overdue }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </div>
-  <div class="col-12 col-md-4">
-    <a href="{% url 'payments:list' %}" class="kpi-card kpi-2 text-decoration-none d-block kpi-link">
+
+  <!-- 5. Total Revenue -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100">
       <div class="label">Total Revenue</div>
       <div class="value">₹{{ kpis.total_revenue|floatformat:0 }}</div>
-    </a>
+      {% if is_comparison_mode %}
+      <div class="kpi-breakdown-row">
+        {% for b in business_comparisons %}
+        <div class="kpi-breakdown-item">
+          <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
+          <span style="color: {{ b.color }}; font-weight: 700;">₹{{ b.revenue|floatformat:0 }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </div>
+
 </div>
 
-<!-- 2x2 Graphs Section -->
+
+<!-- ─── COMPARATIVE BAR / FUNNEL CHARTS (With Distinct Business Legends & Colors) ─── -->
 <div class="row g-3 mb-4">
+  
+  <!-- Lead Stage Funnel Comparison -->
   <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="text-muted text-uppercase small font-weight-bold">Lead Source Distribution</h6>
-      <div style="height: 220px; position: relative;"><canvas id="sourceChart"></canvas></div>
+    <div class="card chart-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>Lead Stage Funnel Comparison</h6>
+        <span class="badge bg-light text-muted border small">Multi-Entity Bars</span>
+      </div>
+      <div style="height: 250px; position: relative;">
+        <canvas id="funnelComparisonChart"></canvas>
+      </div>
     </div>
   </div>
+
+  <!-- Leads per Employee Comparison -->
   <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="text-muted text-uppercase small font-weight-bold">Lead Stage Funnel</h6>
-      <div style="height: 220px; position: relative;"><canvas id="funnelChart"></canvas></div>
+    <div class="card chart-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-users me-2 text-success"></i>Leads Assigned per Employee</h6>
+        <span class="badge bg-light text-muted border small">Team Distribution</span>
+      </div>
+      <div style="height: 250px; position: relative;">
+        <canvas id="employeeComparisonChart"></canvas>
+      </div>
     </div>
   </div>
+
+</div>
+
+
+<!-- ─── DOUGHNUT / PIE CHARTS (Side-by-Side when Compare OFF, Stacked Section Rows when Compare ON) ─── -->
+{% if not is_comparison_mode %}
+<!-- Compare OFF: Both Unified Charts in a Single Side-by-Side Row -->
+<div class="row g-3 mb-4">
+  <!-- 1. Source & Channel Distribution -->
   <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="text-muted text-uppercase small font-weight-bold">Leads per Employee</h6>
-      <div style="height: 220px; position: relative;"><canvas id="employeeChart"></canvas></div>
+    <div class="card chart-card p-3 h-100" style="border-top: 3px solid #6366f1;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0">
+          <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source & Channel Distribution
+        </h6>
+        <span class="badge bg-light text-muted border small">Total: {{ business_source_charts.0.total }}</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="sourceChart_1"></canvas>
+      </div>
     </div>
   </div>
+
+  <!-- 2. Course & Department Distribution -->
   <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="text-muted text-uppercase small font-weight-bold">Course-wise Leads</h6>
-      <div style="height: 220px; position: relative;"><canvas id="courseChart"></canvas></div>
+    <div class="card chart-card p-3 h-100" style="border-top: 3px solid #4f46e5;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0">
+          <i class="fa-solid fa-graduation-cap me-2 text-indigo"></i>Course & Department Distribution
+        </h6>
+        <span class="badge bg-light text-muted border small">Total: {{ business_course_charts.0.total }}</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="courseChart_1"></canvas>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Team Activity Today Table -->
-<div class="card mb-4 shadow-sm border-0">
+{% else %}
+<!-- Compare ON: Stacked Section Rows (Each business gets its own chart) -->
+<div class="mb-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="fw-bold text-dark mb-0">
+      <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source & Channel Distribution per Business
+    </h5>
+    <span class="badge bg-white border text-muted small">Distinct Doughnut per Business</span>
+  </div>
+
+  <div class="row g-3">
+    {% for sc in business_source_charts %}
+    <div class="{% if business_source_charts|length == 1 %}col-md-12{% elif business_source_charts|length == 2 %}col-md-6{% else %}col-md-4{% endif %}">
+      <div class="card chart-card p-3 h-100" style="border-top: 3px solid {{ sc.color }};">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold text-dark small" title="{{ sc.business_name }}">
+            <span class="kpi-dot" style="background: {{ sc.color }};"></span>{{ sc.business_name|truncatechars:24 }}
+          </span>
+          <span class="badge rounded-pill" style="background: {{ sc.color }}20; color: {{ sc.color }};">Total: {{ sc.total }}</span>
+        </div>
+        <div style="height: 210px; position: relative;">
+          <canvas id="sourceChart_{{ forloop.counter }}"></canvas>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="mb-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="fw-bold text-dark mb-0">
+      <i class="fa-solid fa-graduation-cap me-2 text-indigo"></i>Course & Department Distribution per Business
+    </h5>
+    <span class="badge bg-white border text-muted small">Distinct Pie per Business</span>
+  </div>
+
+  <div class="row g-3">
+    {% for cc in business_course_charts %}
+    <div class="{% if business_course_charts|length == 1 %}col-md-12{% elif business_course_charts|length == 2 %}col-md-6{% else %}col-md-4{% endif %}">
+      <div class="card chart-card p-3 h-100" style="border-top: 3px solid {{ cc.color }};">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold text-dark small" title="{{ cc.business_name }}">
+            <span class="kpi-dot" style="background: {{ cc.color }};"></span>{{ cc.business_name|truncatechars:24 }}
+          </span>
+          <span class="badge rounded-pill" style="background: {{ cc.color }}20; color: {{ cc.color }};">Total: {{ cc.total }}</span>
+        </div>
+        <div style="height: 210px; position: relative;">
+          <canvas id="courseChart_{{ forloop.counter }}"></canvas>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ─── TEAM ACTIVITY TODAY ─── -->
+<div class="card mb-4 shadow-sm border-0" style="border-radius: 14px;">
   <div class="card-header bg-white py-3 border-0 d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center gap-2">
       <i class="fa-solid fa-users-gear text-primary fs-5"></i>
       <h5 class="card-title mb-0 fw-bold">Team Activity Today — {{ today|date:"d M Y" }}</h5>
     </div>
-    <a href="{% url 'dashboard:management_daily_reports' %}?date_from={{ today|date:'Y-m-d' }}&date_to={{ today|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary fw-semibold">View EOD Reports Log</a>
+    <a href="{% url 'dashboard:management_daily_reports' %}?date_from={{ today|date:'Y-m-d' }}&date_to={{ today|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3">
+      View EOD Reports Log
+    </a>
   </div>
   <div class="table-responsive">
     <table class="table mb-0 align-middle">
       <thead class="table-light">
         <tr>
           <th>Employee Name</th>
+          <th>Entity / Business</th>
           <th>Role</th>
           <th>Outgoing Calls</th>
           <th>Incoming Calls</th>
-          <th>WhatsApp Sent</th>
-          <th>SMS Sent</th>
-          <th>Email Sent</th>
-          <th>Total Entries Today</th>
+          <th>WhatsApp</th>
+          <th>SMS</th>
+          <th>Email</th>
+          <th>Total Activity Entries</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
@@ -253,6 +536,7 @@
             <div class="fw-semibold text-dark">{{ stat.member.get_full_name|default:stat.member.username }}</div>
             <div class="text-muted small">@{{ stat.member.username }}</div>
           </td>
+          <td><span class="badge bg-light text-dark border">{{ stat.business_name }}</span></td>
           <td><span class="badge text-bg-light border">{{ stat.member.get_role_display }}</span></td>
           <td><span class="badge text-bg-success px-2 py-1">{{ stat.outgoing_calls }}</span></td>
           <td><span class="badge text-bg-info px-2 py-1">{{ stat.incoming_calls }}</span></td>
@@ -261,13 +545,13 @@
           <td>{{ stat.email }}</td>
           <td><strong class="text-dark">{{ stat.total_entries }}</strong></td>
           <td class="text-end">
-            <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}" class="btn btn-sm btn-outline-secondary">View Activity Log</a>
+            <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">View Log</a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="9" class="text-center text-muted py-4">
-            <i class="fa-solid fa-users-slash fs-4 d-block mb-2"></i> No active Counselor or HR members found.
+          <td colspan="10" class="text-center text-muted py-4">
+            <i class="fa-solid fa-users-slash fs-4 d-block mb-2"></i> No active team activity found for selected business filter.
           </td>
         </tr>
         {% endfor %}
@@ -275,45 +559,157 @@
     </table>
   </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Business multi-select helper functions
+function setCompareMode(val) {
+  const input = document.getElementById('compareInput');
+  if (input) {
+    input.value = val;
+  }
+  document.getElementById('dashboardFilterForm').submit();
+}
+
+function toggleAllBusinesses(check) {
+  const cbs = document.querySelectorAll('.biz-checkbox');
+  cbs.forEach(cb => cb.checked = check);
+  updateBizCount();
+}
+
+function updateBizCount() {
+  const checked = document.querySelectorAll('.biz-checkbox:checked');
+  const label = document.getElementById('bizSelectedLabel');
+  const total = document.querySelectorAll('.biz-checkbox').length;
+  
+  if (checked.length === total) {
+    label.innerText = `All Businesses Selected (${total})`;
+  } else if (checked.length === 1) {
+    label.innerText = checked[0].nextElementSibling.innerText.trim();
+  } else if (checked.length === 0) {
+    label.innerText = "No Business Selected";
+  } else {
+    label.innerText = `${checked.length} Businesses Selected`;
+  }
+}
+
 document.addEventListener("DOMContentLoaded", function() {
-  const chartData = {{ chart_data|safe }};
-  const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#64748b','#eab308','#14b8a6'];
+  const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#8b5cf6','#eab308','#14b8a6','#f43f5e'];
 
-  if (document.getElementById('sourceChart')) {
-    new Chart(document.getElementById('sourceChart'), {
-      type: 'doughnut',
-      data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
-    });
-  }
-
-  if (document.getElementById('funnelChart')) {
-    new Chart(document.getElementById('funnelChart'), {
+  // 1. Funnel Comparison Bar Chart
+  const funnelData = {{ funnel_chart_data|safe }};
+  if (document.getElementById('funnelComparisonChart')) {
+    new Chart(document.getElementById('funnelComparisonChart'), {
       type: 'bar',
-      data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#4f46e5' }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      data: funnelData,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: {{ is_comparison_mode|yesno:"true,false" }},
+            position: 'top',
+            labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,0.04)' } },
+          y: { grid: { display: false } }
+        }
+      }
     });
   }
 
-  if (document.getElementById('employeeChart')) {
-    new Chart(document.getElementById('employeeChart'), {
+  // 2. Employee Leads Comparison Bar Chart
+  const empData = {{ employee_chart_data|safe }};
+  if (document.getElementById('employeeComparisonChart')) {
+    new Chart(document.getElementById('employeeComparisonChart'), {
       type: 'bar',
-      data: { labels: chartData.employee.labels, datasets: [{ label: 'Leads', data: chartData.employee.counts, backgroundColor: '#10b981' }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      data: empData,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: {{ is_comparison_mode|yesno:"true,false" }},
+            position: 'top',
+            labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,0.04)' } },
+          y: { grid: { display: false } }
+        }
+      }
     });
   }
 
-  if (document.getElementById('courseChart')) {
-    new Chart(document.getElementById('courseChart'), {
-      type: 'pie',
-      data: { labels: chartData.course.labels, datasets: [{ data: chartData.course.counts, backgroundColor: palette }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
-    });
-  }
+  // 3. Source Doughnut Charts per Business
+  const sourceCharts = {{ business_source_charts_json|safe }};
+  sourceCharts.forEach((item, idx) => {
+    const canvasId = `sourceChart_${idx + 1}`;
+    const el = document.getElementById(canvasId);
+    if (el) {
+      new Chart(el, {
+        type: 'doughnut',
+        data: {
+          labels: item.labels,
+          datasets: [{
+            data: item.counts,
+            backgroundColor: palette,
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { boxWidth: 10, font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+  });
+
+  // 4. Course / Category Pie Charts per Business
+  const courseCharts = {{ business_course_charts_json|safe }};
+  courseCharts.forEach((item, idx) => {
+    const canvasId = `courseChart_${idx + 1}`;
+    const el = document.getElementById(canvasId);
+    if (el) {
+      new Chart(el, {
+        type: 'pie',
+        data: {
+          labels: item.labels,
+          datasets: [{
+            data: item.counts,
+            backgroundColor: palette,
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { boxWidth: 10, font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+  });
+
 });
 </script>
 {% endblock %}

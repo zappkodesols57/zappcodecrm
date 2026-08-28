@@ -70,29 +70,58 @@
     </div>
 
     <!-- Add Leave / Time-off Modal/Card -->
-    <div class="card shadow-sm border-0 rounded-3">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-danger"><i class="fa-solid fa-plane-departure me-2"></i>Add Leave / Time Off</h6>
+    <div class="card shadow-sm border-0 rounded-3" id="leaveFormCard">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-danger d-flex align-items-center gap-2">
+          <i class="fa-solid fa-plane-departure"></i>
+          <span id="leaveCardTitle">Add Leave / Time Off</span>
+          <span id="leaveEditBadge" class="badge bg-danger text-white rounded-pill px-2" style="display:none; font-size: 0.7rem;">Editing</span>
+        </h6>
+        <button type="button" id="cancelEditBtn" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill small" style="display:none;" onclick="cancelEditLeave()">
+          <i class="fa-solid fa-xmark me-1"></i> Cancel
+        </button>
       </div>
       <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="leaveForm">
           {% csrf_token %}
-          <input type="hidden" name="action" value="add_leave">
+          <input type="hidden" name="action" id="leave_form_action" value="add_leave">
+          <input type="hidden" name="leave_id" id="leave_id_input" value="">
           
-          <div class="row g-2 mb-3">
+          <div class="row g-2 mb-2">
             <div class="col-6">
-              <label class="form-label small fw-bold text-muted">From Date</label>
-              <input type="date" name="start_date" class="form-control" required>
+              <label class="form-label small fw-bold text-muted">From Date <span class="text-danger">*</span></label>
+              <input type="date" name="start_date" id="leave_start_date" class="form-control" min="{% now 'Y-m-d' %}" required onchange="updateLeaveEndDateMin(this.value); checkLeaveDateConflicts();" oninput="checkLeaveDateConflicts();">
             </div>
             <div class="col-6">
-              <label class="form-label small fw-bold text-muted">To Date</label>
-              <input type="date" name="end_date" class="form-control" required>
+              <label class="form-label small fw-bold text-muted">To Date <span class="text-danger">*</span></label>
+              <input type="date" name="end_date" id="leave_end_date" class="form-control" min="{% now 'Y-m-d' %}" required onchange="checkLeaveDateConflicts();" oninput="checkLeaveDateConflicts();">
+            </div>
+          </div>
+
+          <!-- Leave Date Conflict & Smart Suggestion Box -->
+          <div id="leave_conflict_suggestion" class="alert alert-warning border border-warning-subtle rounded-3 p-2 mb-3 shadow-sm" style="display:none; font-size: 0.82rem;">
+            <div class="d-flex align-items-start gap-2">
+              <i class="fa-solid fa-triangle-exclamation text-warning mt-1"></i>
+              <div class="flex-grow-1">
+                <div class="fw-bold text-dark mb-1" id="conflictMessageTitle">A leave is already recorded for this date!</div>
+                <div class="text-muted small mb-2">
+                  Existing Leave: <span class="fw-semibold text-dark" id="conflictDatesText"></span> · <span id="conflictReasonText"></span>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-sm btn-primary py-1 px-2 fw-semibold" id="btnExtendExisting" onclick="triggerExtendFromSuggestion()">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Extend / Edit This Leave
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="clearConflictingDate()">
+                    <i class="fa-solid fa-rotate-left me-1"></i> Select Another Date
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-muted">Reason / Note</label>
-            <input type="text" name="reason" class="form-control" placeholder="e.g. Medical Conference, Vacation" required>
+            <input type="text" name="reason" id="leave_reason" class="form-control" placeholder="e.g. Medical Conference, Vacation" required>
           </div>
 
           <div class="mb-3 form-check">
@@ -103,16 +132,16 @@
           <div class="row g-2 mb-3" id="partialTimeDiv" style="display:none;">
             <div class="col-6">
               <label class="form-label small text-muted">From Time</label>
-              <input type="time" name="start_time" class="form-control">
+              <input type="time" name="start_time" id="leave_start_time" class="form-control">
             </div>
             <div class="col-6">
               <label class="form-label small text-muted">To Time</label>
-              <input type="time" name="end_time" class="form-control">
+              <input type="time" name="end_time" id="leave_end_time" class="form-control">
             </div>
           </div>
 
-          <button type="submit" class="btn btn-outline-danger w-100 fw-bold">
-            <i class="fa-solid fa-plus me-1"></i> Block Leave Dates
+          <button type="submit" id="leaveSubmitBtn" class="btn btn-outline-danger w-100 fw-bold">
+            <i class="fa-solid fa-plus me-1" id="leaveSubmitIcon"></i> <span id="leaveSubmitText">Block Leave Dates</span>
           </button>
         </form>
       </div>
@@ -124,8 +153,9 @@
     
     <!-- Leaves List -->
     <div class="card shadow-sm border-0 rounded-3 mb-4">
-      <div class="card-header bg-white py-3 border-bottom">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-calendar-xmark text-danger me-2"></i>Upcoming & Recorded Leaves</h6>
+        <span class="badge text-bg-light border">{{ leaves|length }} Recorded</span>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -152,14 +182,25 @@
               </td>
               <td><span class="small text-muted">{{ l.reason|default:"—" }}</span></td>
               <td class="text-end">
-                <form method="POST" onsubmit="return confirm('Remove this leave?');">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="delete_leave">
-                  <input type="hidden" name="leave_id" value="{{ l.pk }}">
-                  <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remove Leave">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
-                </form>
+                {% if l.end_date < today %}
+                  <span class="badge text-bg-light border text-muted py-1 px-2" title="Past leave record cannot be edited">
+                    <i class="fa-solid fa-clock-rotate-left me-1"></i> Past
+                  </span>
+                {% else %}
+                  <div class="d-inline-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" title="Extend / Edit Leave Dates" onclick="editLeave('{{ l.pk }}', '{{ l.start_date|date:'Y-m-d' }}', '{{ l.end_date|date:'Y-m-d' }}', '{{ l.reason|default:''|escapejs }}', {{ l.is_full_day|yesno:'true,false' }}, '{{ l.start_time|time:'H:i'|default:'' }}', '{{ l.end_time|time:'H:i'|default:'' }}')">
+                      <i class="fa-solid fa-pen-to-square me-1 small"></i>Extend / Edit
+                    </button>
+                    <form method="POST" onsubmit="return confirm('Remove this leave?');" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_leave">
+                      <input type="hidden" name="leave_id" value="{{ l.pk }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remove Leave">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                {% endif %}
               </td>
             </tr>
             {% empty %}
@@ -222,4 +263,178 @@
 
   </div>
 </div>
+
+<script>
+  const existingLeaves = [
+    {% for l in leaves %}
+    {
+      id: "{{ l.pk }}",
+      startDate: "{{ l.start_date|date:'Y-m-d' }}",
+      endDate: "{{ l.end_date|date:'Y-m-d' }}",
+      startFormatted: "{{ l.start_date|date:'d M Y' }}",
+      endFormatted: "{{ l.end_date|date:'d M Y' }}",
+      reason: "{{ l.reason|default:'Personal Leave'|escapejs }}",
+      isFullDay: {{ l.is_full_day|yesno:'true,false' }},
+      startTime: "{{ l.start_time|time:'H:i'|default:'' }}",
+      endTime: "{{ l.end_time|time:'H:i'|default:'' }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  let matchedConflictLeave = null;
+
+  function checkLeaveDateConflicts() {
+    const currentAction = document.getElementById("leave_form_action").value;
+    const currentLeaveId = document.getElementById("leave_id_input").value;
+    const startVal = document.getElementById("leave_start_date").value;
+    const endVal = document.getElementById("leave_end_date").value || startVal;
+    const suggestionBox = document.getElementById("leave_conflict_suggestion");
+
+    if (!startVal) {
+      if (suggestionBox) suggestionBox.style.display = "none";
+      matchedConflictLeave = null;
+      return;
+    }
+
+    // Check if entered date range overlaps with any recorded leave
+    const conflict = existingLeaves.find(l => {
+      if (currentAction === "edit_leave" && String(l.id) === String(currentLeaveId)) {
+        return false; // Skip itself while editing
+      }
+      return (startVal <= l.endDate && endVal >= l.startDate);
+    });
+
+    if (conflict) {
+      matchedConflictLeave = conflict;
+      const formattedRange = (conflict.startDate === conflict.endDate) ? conflict.startFormatted : `${conflict.startFormatted} to ${conflict.endFormatted}`;
+      document.getElementById("conflictDatesText").innerText = formattedRange;
+      document.getElementById("conflictReasonText").innerText = conflict.reason || "Leave";
+      
+      if (startVal === conflict.startDate) {
+        document.getElementById("conflictMessageTitle").innerText = "Same leave start date already exists!";
+      } else {
+        document.getElementById("conflictMessageTitle").innerText = "This date overlaps with an existing leave!";
+      }
+      if (suggestionBox) suggestionBox.style.display = "block";
+    } else {
+      matchedConflictLeave = null;
+      if (suggestionBox) suggestionBox.style.display = "none";
+    }
+  }
+
+  function triggerExtendFromSuggestion() {
+    if (matchedConflictLeave) {
+      editLeave(
+        matchedConflictLeave.id,
+        matchedConflictLeave.startDate,
+        matchedConflictLeave.endDate,
+        matchedConflictLeave.reason,
+        matchedConflictLeave.isFullDay,
+        matchedConflictLeave.startTime,
+        matchedConflictLeave.endTime
+      );
+      const suggestionBox = document.getElementById("leave_conflict_suggestion");
+      if (suggestionBox) suggestionBox.style.display = "none";
+    }
+  }
+
+  function clearConflictingDate() {
+    const startInput = document.getElementById("leave_start_date");
+    const endInput = document.getElementById("leave_end_date");
+    if (startInput) startInput.value = "";
+    if (endInput) endInput.value = "";
+    const suggestionBox = document.getElementById("leave_conflict_suggestion");
+    if (suggestionBox) suggestionBox.style.display = "none";
+    matchedConflictLeave = null;
+    if (startInput) startInput.focus();
+  }
+
+  function updateLeaveEndDateMin(val) {
+    const endInput = document.getElementById("leave_end_date");
+    if (endInput && val) {
+      endInput.min = val;
+      if (endInput.value && endInput.value < val) {
+        endInput.value = val;
+      }
+    }
+  }
+
+  function editLeave(id, startDate, endDate, reason, isFullDay, startTime, endTime) {
+    document.getElementById("leave_form_action").value = "edit_leave";
+    document.getElementById("leave_id_input").value = id;
+    
+    document.getElementById("leaveCardTitle").innerText = "Extend / Edit Leave";
+    document.getElementById("leaveEditBadge").style.display = "inline-block";
+    document.getElementById("cancelEditBtn").style.display = "inline-block";
+    
+    const startInput = document.getElementById("leave_start_date");
+    const endInput = document.getElementById("leave_end_date");
+    const reasonInput = document.getElementById("leave_reason");
+    const fullDayCheck = document.getElementById("fullDayCheck");
+    const partialDiv = document.getElementById("partialTimeDiv");
+    const startTimeInput = document.getElementById("leave_start_time");
+    const endTimeInput = document.getElementById("leave_end_time");
+    
+    if (startInput) startInput.value = startDate;
+    if (endInput) {
+      endInput.min = startDate;
+      endInput.value = endDate;
+    }
+    if (reasonInput) reasonInput.value = reason;
+    if (fullDayCheck) {
+      fullDayCheck.checked = isFullDay;
+      if (partialDiv) partialDiv.style.display = isFullDay ? "none" : "flex";
+    }
+    if (startTimeInput) startTimeInput.value = startTime || "";
+    if (endTimeInput) endTimeInput.value = endTime || "";
+    
+    const submitBtn = document.getElementById("leaveSubmitBtn");
+    const submitText = document.getElementById("leaveSubmitText");
+    const submitIcon = document.getElementById("leaveSubmitIcon");
+    if (submitBtn) submitBtn.className = "btn btn-primary w-100 fw-bold";
+    if (submitText) submitText.innerText = "Update / Extend Leave Dates";
+    if (submitIcon) submitIcon.className = "fa-solid fa-floppy-disk me-1";
+    
+    // Hide suggestion box when in edit mode
+    const suggestionBox = document.getElementById("leave_conflict_suggestion");
+    if (suggestionBox) suggestionBox.style.display = "none";
+
+    // Smooth scroll to form
+    document.getElementById("leaveFormCard").scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEditLeave() {
+    document.getElementById("leave_form_action").value = "add_leave";
+    document.getElementById("leave_id_input").value = "";
+    
+    document.getElementById("leaveCardTitle").innerText = "Add Leave / Time Off";
+    document.getElementById("leaveEditBadge").style.display = "none";
+    document.getElementById("cancelEditBtn").style.display = "none";
+    
+    document.getElementById("leaveForm").reset();
+    const todayStr = new Date().toISOString().split("T")[0];
+    const startInput = document.getElementById("leave_start_date");
+    const endInput = document.getElementById("leave_end_date");
+    if (startInput) startInput.min = todayStr;
+    if (endInput) endInput.min = todayStr;
+    
+    const submitBtn = document.getElementById("leaveSubmitBtn");
+    const submitText = document.getElementById("leaveSubmitText");
+    const submitIcon = document.getElementById("leaveSubmitIcon");
+    if (submitBtn) submitBtn.className = "btn btn-outline-danger w-100 fw-bold";
+    if (submitText) submitText.innerText = "Block Leave Dates";
+    if (submitIcon) submitIcon.className = "fa-solid fa-plus me-1";
+
+    const suggestionBox = document.getElementById("leave_conflict_suggestion");
+    if (suggestionBox) suggestionBox.style.display = "none";
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const startInput = document.getElementById("leave_start_date");
+    const endInput = document.getElementById("leave_end_date");
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (startInput && !startInput.min) startInput.min = todayStr;
+    if (endInput && !endInput.min) endInput.min = todayStr;
+  });
+</script>
 {% endblock %}

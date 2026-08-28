@@ -233,31 +233,51 @@
 
         <!-- ==================== 3. DOCTORS TAB ==================== -->
         <div class="tab-pane fade {% if active_tab == 'doctors' %}show active{% endif %}" id="tab-doctors" role="tabpanel">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="fw-bold text-dark mb-0">Consulting Doctors & Specialists</h6>
-            <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="openAddDoctorModal()">
-              <i class="fa-solid fa-plus me-1"></i> Add Doctor
-            </button>
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+              <h6 class="fw-bold text-dark mb-0">Consulting Doctors & Specialists</h6>
+              <small class="text-muted">Doctors linked with registered user logins and assigned to departments/branches</small>
+            </div>
+            <div class="d-flex gap-2">
+              <div class="input-group input-group-sm" style="max-width: 280px;">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                <input type="text" id="docSearchInput" class="form-control form-control-sm border-start-0" placeholder="Search doctor, dept, user..." onkeyup="filterDoctorTable()">
+              </div>
+              <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="openAddDoctorModal()">
+                <i class="fa-solid fa-plus me-1"></i> Add Doctor
+              </button>
+            </div>
           </div>
           <div class="table-responsive rounded-3 border">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="doctorMasterTable">
               <thead class="bg-light">
                 <tr>
-                  <th class="border-0 px-3 py-3 text-muted small text-uppercase">Doctor Name</th>
+                  <th class="border-0 px-3 py-3 text-muted small text-uppercase">Doctor Name & Login</th>
                   <th class="border-0 py-3 text-muted small text-uppercase">Department / Specialization</th>
                   <th class="border-0 py-3 text-muted small text-uppercase">Branches Available</th>
                   <th class="border-0 py-3 text-muted small text-uppercase">Fee</th>
                   <th class="border-0 py-3 text-muted small text-uppercase">Linked Diseases</th>
+                  <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
                   <th class="border-0 px-3 py-3 text-end text-muted small text-uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {% for doc in doctors %}
-                <tr>
+                <tr class="doctor-row">
                   <td class="px-3">
                     <div class="fw-bold text-dark">Dr. {{ doc.name }}</div>
-                    <small class="text-muted">{{ doc.qualification|default:doc.specialization }}</small>
-                    {% if doc.user %}<span class="badge bg-success bg-opacity-10 text-success border px-2 py-0 ms-1" style="font-size: 0.65rem;">Login Linked</span>{% endif %}
+                    {% if doc.qualification or doc.specialization %}
+                      <small class="text-muted d-block">{{ doc.qualification|default:doc.specialization }}</small>
+                    {% endif %}
+                    {% if doc.user %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-0 mt-1" style="font-size: 0.7rem;" title="Linked Login Account">
+                        <i class="fa-solid fa-user-doctor me-1"></i> @{{ doc.user.username }}
+                      </span>
+                    {% else %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-0 mt-1" style="font-size: 0.7rem;">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> No Login Linked
+                      </span>
+                    {% endif %}
                   </td>
                   <td>
                     {% for d in doc.departments.all %}
@@ -294,6 +314,11 @@
                     {% endif %}
                   </td>
                   <td class="px-3 text-end">
+                    {% if doc.user %}
+                    <a href="{% url 'accounts:doctor_schedule_manage' doc.user.id %}" class="btn btn-sm btn-light border rounded-pill px-2 me-1" title="Manage Schedule / Leave Calendar">
+                      <i class="fa-solid fa-calendar-days text-success"></i>
+                    </a>
+                    {% endif %}
                     <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
                       <i class="fa-solid {% if doc.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if doc.is_active %}Deactivate{% else %}Activate{% endif %}
                     </a>
@@ -316,7 +341,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="7" class="text-center py-4 text-muted">No doctors configured yet.</td>
+                  <td colspan="7" class="text-center py-4 text-muted">No doctors configured yet. Click "Add Doctor" above.</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -536,19 +561,67 @@
         </div>
         <div class="modal-body p-4">
           <div class="row g-3">
+            
+            <!-- 1. Mandatory Doctor User Login Account Selection -->
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label small fw-semibold text-dark mb-0">
+                  <i class="fa-solid fa-user-doctor text-primary me-1"></i> Link to Registered Doctor Login Account <span class="text-danger">* (Required)</span>
+                </label>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.7rem;">
+                  <i class="fa-solid fa-arrows-rotate me-1"></i> Bi-directional Auto-Map
+                </span>
+              </div>
+              <select name="user" id="doc_user" class="form-select border-primary no-tom-select" required onchange="onDoctorUserSelected(this)" style="font-size: 0.88rem; position: relative; z-index: 1060;">
+                <option value="">-- Select Registered Doctor Account from User Management --</option>
+                {% for u in doctor_users %}
+                  <option value="{{ u.id }}" 
+                          data-name="{{ u.get_full_name|default:u.username }}"
+                          data-username="{{ u.username }}"
+                          data-email="{{ u.email|default:'' }}"
+                          data-phone="{{ u.phone|default:'' }}"
+                          data-spec="{{ u.speciality|default:'' }}"
+                          data-dept="{{ u.department|default:'' }}"
+                          data-profile-id="{% if u.doctor_profile %}{{ u.doctor_profile.id }}{% endif %}">
+                    {{ u.get_full_name|default:u.username }} (@{{ u.username }}){% if u.speciality %} - {{ u.speciality }}{% endif %}{% if u.doctor_profile %} [Configured]{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              <div id="doc_user_sync_hint" class="small mt-1" style="display: none;"></div>
+              <div class="form-text small text-muted">
+                Select doctor login profile OR type doctor name below to auto-map. You can change profile anytime.
+              </div>
+              {% if not doctor_users %}
+              <div class="alert alert-warning py-2 px-3 small mt-2 mb-0 rounded-3">
+                <i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>No Doctor users found.</strong> Please first create a Doctor user in <a href="{% url 'accounts:user_add' %}" target="_blank" class="alert-link fw-bold">User Management</a>.
+              </div>
+              {% endif %}
+            </div>
+
             <div class="col-md-6">
               <label class="form-label small fw-semibold text-dark">Doctor Name <span class="text-danger">*</span></label>
-              <input type="text" name="name" id="doc_name" class="form-control" placeholder="e.g. Dr. Rajesh Sharma" required>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted small fw-semibold">Dr.</span>
+                <input type="text" name="name" id="doc_name" class="form-control" placeholder="Type or select doctor name..." list="doctor_user_names_list" autocomplete="off" oninput="onDoctorNameInput(this.value)" onchange="onDoctorNameInput(this.value)" required>
+              </div>
+              <datalist id="doctor_user_names_list">
+                {% for u in doctor_users %}
+                  <option value="{{ u.get_full_name|default:u.username }}">{{ u.get_full_name|default:u.username }} (@{{ u.username }}){% if u.speciality %} - {{ u.speciality }}{% endif %}</option>
+                  <option value="Dr. {{ u.get_full_name|default:u.username }}">Dr. {{ u.get_full_name|default:u.username }} (@{{ u.username }})</option>
+                {% endfor %}
+              </datalist>
+              <div id="doc_name_match_hint" class="small mt-1" style="display: none;"></div>
             </div>
+
             <div class="col-md-6">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="form-label small fw-semibold text-dark mb-0">Clinical Department(s) <span class="text-danger">*</span></label>
-                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllBranches('doc_dept_cb')">Select All</button>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllDeptsAndFilterDiseases()">Select All</button>
               </div>
               <div class="p-3 border rounded-3 bg-light" style="max-height: 140px; overflow-y: auto;">
                 {% for d in departments %}
                 <div class="form-check mb-1">
-                  <input class="form-check-input doc_dept_cb" type="checkbox" name="departments" value="{{ d.id }}" id="doc_dept_{{ d.id }}">
+                  <input class="form-check-input doc_dept_cb" type="checkbox" name="departments" value="{{ d.id }}" id="doc_dept_{{ d.id }}" onchange="filterDoctorDiseasesBySelectedDepartments()">
                   <label class="form-check-label small text-dark cursor-pointer" for="doc_dept_{{ d.id }}">
                     <i class="fa-solid fa-building-user text-primary me-1 small"></i> {{ d.name }}
                   </label>
@@ -558,35 +631,32 @@
                 {% endfor %}
               </div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold text-dark">Link to Registered Doctor Login Account</label>
-              <select name="user" id="doc_user" class="form-select">
-                <option value="">-- No direct login link --</option>
-                {% for u in doctor_users %}
-                  <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.email|default:u.role }})</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold text-dark">Consultation Fee (₹)</label>
-              <input type="number" step="0.01" name="consultation_fee" id="doc_fee" class="form-control" placeholder="500">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold text-dark">Qualification</label>
-              <input type="text" name="qualification" id="doc_qual" class="form-control" placeholder="e.g. MBBS, MD, MS, DNB">
-            </div>
+
             <div class="col-md-6">
               <label class="form-label small fw-semibold text-dark">Specialization</label>
               <input type="text" name="specialization" id="doc_spec" class="form-control" placeholder="e.g. Neuro Surgeon, Pediatric Cardiologist">
             </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Qualification</label>
+              <input type="text" name="qualification" id="doc_qual" class="form-control" placeholder="e.g. MBBS, MD, MS, DNB">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark">Consultation Fee (₹)</label>
+              <input type="number" step="0.01" name="consultation_fee" id="doc_fee" class="form-control" placeholder="500">
+            </div>
+
             <div class="col-md-6">
               <label class="form-label small fw-semibold text-dark">Contact Phone</label>
               <input type="text" name="contact_number" id="doc_phone" class="form-control" placeholder="+91 9876543210">
             </div>
+
             <div class="col-md-6">
               <label class="form-label small fw-semibold text-dark">Email Address</label>
-              <input type="email" name="email" id="doc_email" class="form-control" placeholder="doctor@hospital.com">
+              <input type="email" name="email" id="doc_email" class="form-control" placeholder="doctor@hospital.com" pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address containing '@' (e.g. doctor@hospital.com)">
             </div>
+
             <div class="col-md-6">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="form-label small fw-semibold text-dark mb-0">Available Branches</label>
@@ -603,27 +673,45 @@
                 {% endfor %}
               </div>
             </div>
-            <div class="col-md-6">
+
+            <div class="col-12">
               <div class="d-flex justify-content-between align-items-center mb-1">
-                <label class="form-label small fw-semibold text-dark mb-0">Treatable Diseases / Conditions</label>
-                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllBranches('doc_disease_cb')">Select All</button>
+                <label class="form-label small fw-semibold text-dark mb-0">
+                  <i class="fa-solid fa-virus-covid text-info me-1"></i> Treatable Diseases / Conditions (Filtered by Department)
+                </label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllVisibleDiseases()">Select All Visible</button>
               </div>
-              <div class="p-3 border rounded-3 bg-light" style="max-height: 140px; overflow-y: auto;">
-                {% for dis in diseases %}
-                <div class="form-check mb-1">
-                  <input class="form-check-input doc_disease_cb" type="checkbox" name="associated_diseases" value="{{ dis.id }}" id="doc_d_{{ dis.id }}">
-                  <label class="form-check-label small text-dark cursor-pointer" for="doc_d_{{ dis.id }}">
-                    {{ dis.name }} <span class="text-muted">({{ dis.department.name }})</span>
-                  </label>
+              <div class="p-3 border rounded-3 bg-light" style="max-height: 160px; overflow-y: auto;">
+                <div class="row g-1" id="doctor_disease_container">
+                  <div id="no_disease_dept_msg" class="col-12 text-muted small py-3 text-center" style="display: none;">
+                    <i class="fa-solid fa-layer-group text-primary me-1"></i> Please check one or more Clinical Departments above to view diseases.
+                  </div>
+                  {% for dis in diseases %}
+                  <div class="col-md-6 doc_disease_item" data-dept-id="{{ dis.department_id }}" style="display: none;">
+                    <div class="form-check mb-1">
+                      <input class="form-check-input doc_disease_cb" type="checkbox" name="associated_diseases" value="{{ dis.id }}" data-dept-id="{{ dis.department_id }}" id="doc_d_{{ dis.id }}">
+                      <label class="form-check-label small text-dark cursor-pointer text-truncate" for="doc_d_{{ dis.id }}" title="{{ dis.name }} ({{ dis.department.name }})">
+                        {{ dis.name }} <span class="text-muted" style="font-size: 0.72rem;">({{ dis.department.name }})</span>
+                      </label>
+                    </div>
+                  </div>
+                  {% empty %}
+                  <div class="col-12 text-muted small py-2 text-center">No diseases configured in this hospital yet.</div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
+              </div>
+              <div class="form-text small text-muted mt-1">
+                <i class="fa-solid fa-circle-check text-success me-1"></i> <strong>Automatic Assignment:</strong> If no specific conditions are checked, <strong>all conditions of the selected department(s)</strong> will automatically be available for this doctor.
               </div>
             </div>
+
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Doctor</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="fa-solid fa-check me-1"></i> Save Doctor
+          </button>
         </div>
       </form>
     </div>
@@ -826,6 +914,200 @@
     new bootstrap.Modal(document.getElementById('modalAddDept')).show();
   }
 
+  function filterDoctorTable() {
+    const input = document.getElementById("docSearchInput");
+    if (!input) return;
+    const filter = input.value.toLowerCase().trim();
+    const rows = document.querySelectorAll("#doctorMasterTable tbody tr.doctor-row");
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      if (text.includes(filter)) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+  }
+
+  function filterDoctorDiseasesBySelectedDepartments() {
+    const checkedDeptCbs = document.querySelectorAll('.doc_dept_cb:checked');
+    const checkedDeptIds = Array.from(checkedDeptCbs).map(cb => parseInt(cb.value));
+    const diseaseItems = document.querySelectorAll('.doc_disease_item');
+    const noDeptMsg = document.getElementById('no_disease_dept_msg');
+
+    if (checkedDeptIds.length === 0) {
+      diseaseItems.forEach(item => {
+        item.style.display = "none";
+        const cb = item.querySelector('.doc_disease_cb');
+        if (cb) cb.checked = false;
+      });
+      if (noDeptMsg) {
+        noDeptMsg.style.display = "block";
+        noDeptMsg.innerHTML = `<i class="fa-solid fa-layer-group text-primary me-1"></i> Please check one or more Clinical Departments above to view and assign diseases.`;
+      }
+    } else {
+      let visibleCount = 0;
+      diseaseItems.forEach(item => {
+        const deptId = parseInt(item.getAttribute('data-dept-id') || '0');
+        if (checkedDeptIds.includes(deptId)) {
+          item.style.display = "";
+          visibleCount++;
+        } else {
+          item.style.display = "none";
+          const cb = item.querySelector('.doc_disease_cb');
+          if (cb) cb.checked = false;
+        }
+      });
+      if (noDeptMsg) {
+        if (visibleCount === 0) {
+          noDeptMsg.style.display = "block";
+          noDeptMsg.innerHTML = `<i class="fa-solid fa-circle-info text-info me-1"></i> No specific condition items configured under the selected department(s). All general department cases will be covered automatically.`;
+        } else {
+          noDeptMsg.style.display = "none";
+        }
+      }
+    }
+  }
+
+  function toggleAllDeptsAndFilterDiseases() {
+    const cbs = document.querySelectorAll('.doc_dept_cb');
+    const allChecked = Array.from(cbs).every(cb => cb.checked);
+    cbs.forEach(cb => cb.checked = !allChecked);
+    filterDoctorDiseasesBySelectedDepartments();
+  }
+
+  function toggleAllVisibleDiseases() {
+    const visibleCbs = Array.from(document.querySelectorAll('.doc_disease_item'))
+      .filter(item => item.style.display !== "none")
+      .map(item => item.querySelector('.doc_disease_cb'))
+      .filter(cb => cb !== null);
+    
+    if (visibleCbs.length === 0) return;
+    const allChecked = visibleCbs.every(cb => cb.checked);
+    visibleCbs.forEach(cb => cb.checked = !allChecked);
+  }
+
+  function onDoctorNameInput(typedVal) {
+    const hintEl = document.getElementById("doc_name_match_hint");
+    const userSelect = document.getElementById("doc_user");
+    if (!typedVal || !typedVal.trim()) {
+      if (hintEl) hintEl.style.display = "none";
+      return;
+    }
+
+    const cleanTyped = typedVal.replace(/^(dr\.?|doctor)\s+/i, '').trim().toLowerCase();
+    if (!cleanTyped) {
+      if (hintEl) hintEl.style.display = "none";
+      return;
+    }
+
+    let matchedOption = null;
+    if (userSelect && userSelect.options) {
+      for (let i = 1; i < userSelect.options.length; i++) {
+        const opt = userSelect.options[i];
+        const optName = (opt.getAttribute("data-name") || '').replace(/^(dr\.?|doctor)\s+/i, '').trim().toLowerCase();
+        const optUser = (opt.getAttribute("data-username") || '').toLowerCase();
+        const optPhone = (opt.getAttribute("data-phone") || '').trim().toLowerCase();
+        const optEmail = (opt.getAttribute("data-email") || '').trim().toLowerCase();
+
+        if (optName === cleanTyped || optUser === cleanTyped || optName.startsWith(cleanTyped) || cleanTyped.startsWith(optName) || (optPhone && optPhone.includes(cleanTyped)) || (optEmail && optEmail.includes(cleanTyped))) {
+          matchedOption = opt;
+          break;
+        }
+      }
+    }
+
+    if (matchedOption) {
+      userSelect.value = matchedOption.value;
+      const rawName = matchedOption.getAttribute('data-name') || '';
+      const email = matchedOption.getAttribute('data-email') || '';
+      const phone = matchedOption.getAttribute('data-phone') || '';
+      const spec = matchedOption.getAttribute('data-spec') || '';
+      const dept = matchedOption.getAttribute('data-dept') || '';
+      const username = matchedOption.getAttribute('data-username') || '';
+
+      const emailInput = document.getElementById('doc_email');
+      const phoneInput = document.getElementById('doc_phone');
+      const specInput = document.getElementById('doc_spec');
+
+      if (emailInput && !emailInput.value && email) emailInput.value = email;
+      if (phoneInput && !phoneInput.value && phone) phoneInput.value = phone;
+      if (specInput && !specInput.value && spec) specInput.value = spec;
+
+      if (dept) {
+        document.querySelectorAll('.doc_dept_cb').forEach(cb => {
+          const labelText = cb.nextElementSibling ? cb.nextElementSibling.innerText.toLowerCase() : '';
+          if (labelText.includes(dept.toLowerCase()) || dept.toLowerCase().includes(labelText)) {
+            cb.checked = true;
+          }
+        });
+      }
+      filterDoctorDiseasesBySelectedDepartments();
+
+      if (hintEl) {
+        hintEl.style.display = "block";
+        hintEl.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-link me-1"></i> Auto-mapped to Profile: <strong>@${username}</strong> (${rawName})</span>`;
+      }
+    } else {
+      if (userSelect && userSelect.value) {
+        const selOpt = userSelect.options[userSelect.selectedIndex];
+        const uName = selOpt ? selOpt.getAttribute("data-username") : "";
+        if (hintEl && uName) {
+          hintEl.style.display = "block";
+          hintEl.innerHTML = `<span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-user-check me-1"></i> Linked with: <strong>@${uName}</strong></span>`;
+        }
+      } else if (hintEl) {
+        hintEl.style.display = "none";
+      }
+    }
+  }
+
+  function onDoctorUserSelected(selectEl) {
+    const hintEl = document.getElementById("doc_name_match_hint");
+    if (!selectEl || !selectEl.value) {
+      if (hintEl) hintEl.style.display = "none";
+      return;
+    }
+    const selectedOption = selectEl.options[selectEl.selectedIndex];
+    if (!selectedOption) return;
+
+    const rawName = selectedOption.getAttribute('data-name') || '';
+    const email = selectedOption.getAttribute('data-email') || '';
+    const phone = selectedOption.getAttribute('data-phone') || '';
+    const spec = selectedOption.getAttribute('data-spec') || '';
+    const dept = selectedOption.getAttribute('data-dept') || '';
+    const username = selectedOption.getAttribute('data-username') || '';
+
+    // Strip "Dr." prefix for clean name input
+    const cleanName = rawName.replace(/^(dr\.?|doctor)\s+/i, '').trim();
+    
+    const nameInput = document.getElementById('doc_name');
+    const emailInput = document.getElementById('doc_email');
+    const phoneInput = document.getElementById('doc_phone');
+    const specInput = document.getElementById('doc_spec');
+
+    if (nameInput) nameInput.value = cleanName || rawName;
+    if (emailInput && email) emailInput.value = email;
+    if (phoneInput && phone) phoneInput.value = phone;
+    if (specInput && spec) specInput.value = spec;
+
+    // Auto-check corresponding department if user profile has department specified
+    if (dept) {
+      document.querySelectorAll('.doc_dept_cb').forEach(cb => {
+        const labelText = cb.nextElementSibling ? cb.nextElementSibling.innerText.toLowerCase() : '';
+        if (labelText.includes(dept.toLowerCase()) || dept.toLowerCase().includes(labelText)) {
+          cb.checked = true;
+        }
+      });
+    }
+    filterDoctorDiseasesBySelectedDepartments();
+
+    if (hintEl) {
+      hintEl.style.display = "block";
+      hintEl.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i> Profile selected: <strong>@${username}</strong> (${rawName})</span>`;
+    }
+  }
+
   function openAddDoctorModal() {
     document.getElementById('formDoctor').action = "{% url 'leads:hospital_doctor_create' %}";
     document.getElementById('modalDoctorTitle').innerText = "Register Doctor / Consultant";
@@ -834,6 +1116,9 @@
     document.getElementById('doc_user').value = "";
     document.querySelectorAll('.doc_branch_cb').forEach(cb => cb.checked = false);
     document.querySelectorAll('.doc_disease_cb').forEach(cb => cb.checked = false);
+    filterDoctorDiseasesBySelectedDepartments();
+    const hintEl = document.getElementById("doc_name_match_hint");
+    if (hintEl) hintEl.style.display = "none";
     new bootstrap.Modal(document.getElementById('modalAddDoctor')).show();
   }
 
@@ -863,12 +1148,18 @@
     const form = document.getElementById('formDoctor');
     form.action = `/leads/hospital-configuration/doctor/${id}/save/`;
     document.getElementById('modalDoctorTitle').innerText = "Edit Doctor / Consultant";
-    document.getElementById('doc_name').value = name;
+    
+    // Strip "Dr." prefix if in data-name
+    const cleanName = name.replace(/^(dr\.?|doctor)\s+/i, '').trim();
+    document.getElementById('doc_name').value = cleanName || name;
     
     // Check Department Checkboxes
     document.querySelectorAll('.doc_dept_cb').forEach(cb => {
       cb.checked = deptIds.includes(parseInt(cb.value));
     });
+
+    // Filter diseases according to selected departments
+    filterDoctorDiseasesBySelectedDepartments();
 
     // Select Linked User
     const userSelect = document.getElementById('doc_user');
@@ -888,6 +1179,7 @@
     document.getElementById('doc_email').value = email;
     document.getElementById('doc_fee').value = fee;
 
+    // Check disease checkboxes for visible diseases
     document.querySelectorAll('.doc_disease_cb').forEach(cb => {
       cb.checked = disIds.includes(parseInt(cb.value));
     });
@@ -895,6 +1187,16 @@
     document.querySelectorAll('.doc_branch_cb').forEach(cb => {
       cb.checked = branchIds.includes(parseInt(cb.value));
     });
+
+    const hintEl = document.getElementById("doc_name_match_hint");
+    if (hintEl && userSelect && userSelect.value) {
+      const selOpt = userSelect.options[userSelect.selectedIndex];
+      const uName = selOpt ? selOpt.getAttribute("data-username") : "";
+      if (uName) {
+        hintEl.style.display = "block";
+        hintEl.innerHTML = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-link me-1"></i> Linked with Login: <strong>@${uName}</strong></span>`;
+      }
+    }
 
     const modalEl = document.getElementById('modalAddDoctor');
     const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);

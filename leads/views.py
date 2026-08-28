@@ -25,16 +25,41 @@ from .forms import (
 
 
 def _can_edit_lead(user, lead):
+    # 1. Multi-Tenant Business Alignment Check
+    if user.hospital:
+        if lead.hospital != user.hospital:
+            return False
+    else:
+        if lead.hospital is not None:
+            if not (user.role == User.Role.SUPER_ADMIN or user.is_superuser):
+                return False
+
+    # 2. Within-Business Edit Permission Check
     if user.can_edit_any_lead:
         return True
     if user.can_edit_own_leads and lead.assigned_to == user:
         return True
-    # Allow hospital users to edit unassigned leads in their hospital
     if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
+        return True
+    if not user.hospital and lead.hospital is None and lead.assigned_to is None:
         return True
     return False
 
 def _can_access_lead(user, lead):
+    # 1. Multi-Tenant Business Alignment Check
+    if user.hospital:
+        if lead.hospital != user.hospital:
+            return False
+    else:
+        if lead.hospital is not None:
+            if not (user.role == User.Role.SUPER_ADMIN or user.is_superuser):
+                return False
+
+    # 2. Doctor within same hospital can view patient leads
+    if user.role == User.Role.DOCTOR:
+        return True
+
+    # 3. Within-Business Access Permission Check
     if user.can_view_all_leads:
         return True
     if user.can_view_team_leads:
@@ -43,8 +68,9 @@ def _can_access_lead(user, lead):
             return True
     if user.can_view_assigned_leads and lead.assigned_to == user:
         return True
-    # Allow hospital users to view unassigned leads in their hospital (like New Enquiries)
     if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
+        return True
+    if not user.hospital and lead.hospital is None and lead.assigned_to is None:
         return True
     return False
 
@@ -75,6 +101,19 @@ def lead_list(request):
                 leads = leads.filter(assigned_to=request.user)
             else:
                 leads = leads.none()
+    else:
+        # Zappcode users -> strictly only show Zappcode leads (hospital__isnull=True)
+        leads = leads.filter(hospital__isnull=True)
+
+        # Only Zappcode Admin / Super Admin can view ALL leads
+        is_zappcode_admin = request.user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN) or request.user.is_superuser
+        if not is_zappcode_admin:
+            if request.user.role == User.Role.MANAGER or request.user.can_view_team_leads:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+            else:
+                # Counsellors, HR, and other employees only see their own assigned leads
+                leads = leads.filter(assigned_to=request.user)
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -337,6 +376,9 @@ def lead_list(request):
     active_leads = Lead.objects.filter(is_archived=False)
     if request.user.hospital:
         active_leads = active_leads.filter(hospital=request.user.hospital)
+    else:
+        active_leads = active_leads.filter(hospital__isnull=True)
+
     if request.user.role in ('COUNSELLOR', 'HR'):
         active_leads = active_leads.filter(assigned_to=request.user)
     
@@ -350,9 +392,12 @@ def lead_list(request):
     distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
     distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
     
-    # Extract departments and doctors from models and custom_data
+    # Extract departments and doctors only for hospital users
     filter_departments = []
     filter_doctors = []
+    filter_appointment_statuses = []
+    filter_priorities = ["Hot", "Warm", "Cold"]
+
     if request.user.hospital:
         filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
         filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
@@ -360,14 +405,11 @@ def lead_list(request):
             filter_departments = list(MasterGroup.get_active_choices("Departments").filter(hospital=request.user.hospital).values_list("name", flat=True))
         if not filter_doctors:
             filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=request.user.hospital).values_list("name", flat=True))
-
-    if not filter_departments:
-        filter_departments = ["Gynaecology", "Paediatrics", "NICU / PICU", "Obstetrics", "General OPD"]
-    if not filter_doctors:
-        filter_doctors = list(User.objects.filter(hospital=request.user.hospital, role=User.Role.DOCTOR, is_active=True).values_list("first_name", flat=True)) if request.user.hospital else []
-
-    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
-    filter_priorities = ["Hot", "Warm", "Cold"]
+        if not filter_departments:
+            filter_departments = ["Gynaecology", "Paediatrics", "NICU / PICU", "Obstetrics", "General OPD"]
+        if not filter_doctors:
+            filter_doctors = list(User.objects.filter(hospital=request.user.hospital, role=User.Role.DOCTOR, is_active=True).values_list("first_name", flat=True))
+        filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
 
     active_filters_count = (
         len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
@@ -425,7 +467,8 @@ def lead_list(request):
         context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
         context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
 
-    return render(request, "leads/lead_list.html", context)
+    template_name = "leads/hospital_lead_list.html" if request.user.hospital else "leads/academy_lead_list.html"
+    return render(request, template_name, context)
 
 
 @login_required
@@ -436,7 +479,7 @@ def lead_add(request):
         
     duplicates = None
     FormClass = HospitalLeadForm if request.user.hospital else LeadForm
-    template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/lead_form.html"
+    template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/academy_lead_form.html"
     
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
@@ -454,8 +497,8 @@ def lead_add(request):
             if request.user.hospital:
                 lead.hospital = request.user.hospital
                 
-            # If creator is a Lead Attendant and assigned_to wasn't set, assign to them
-            if request.user.role == User.Role.LEAD_ATTENDENT and not lead.assigned_to:
+            # If creator is a Lead Attendant, always assign to themselves
+            if request.user.role == User.Role.LEAD_ATTENDENT:
                 lead.assigned_to = request.user
             
             # Ensure defaults
@@ -536,18 +579,31 @@ def _get_lead_or_redirect(request, pk):
 def lead_edit(request, pk):
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
+        if request.user.role == User.Role.DOCTOR:
+            return redirect("dashboard:doctor_appointments")
         if request.user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_my_leads")
         return redirect("leads:lead_list")
 
-    if not _can_edit_lead(request.user, lead):
+    is_doctor = (request.user.role == User.Role.DOCTOR)
+    is_view_only = is_doctor or (not _can_edit_lead(request.user, lead) and _can_access_lead(request.user, lead))
+
+    if not is_view_only and not _can_edit_lead(request.user, lead):
         messages.error(request, "You do not have permission to edit this lead.")
+        if is_doctor:
+            return redirect("dashboard:doctor_appointments")
         return redirect("leads:lead_list")
         
-    FormClass = HospitalLeadForm if request.user.hospital else LeadForm
-    template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/lead_form.html"
+    FormClass = HospitalLeadForm if lead.hospital else LeadForm
+    template = "leads/hospital_lead_form.html" if lead.hospital else "leads/academy_lead_form.html"
     
     if request.method == "POST":
+        if is_view_only:
+            messages.error(request, "Doctors and view-only users cannot modify lead details.")
+            if is_doctor:
+                return redirect("dashboard:doctor_appointments")
+            return redirect("leads:lead_detail", pk=pk)
+
         form = FormClass(request.POST, instance=lead, user=request.user)
         if form.is_valid():
             saved_lead = form.save(commit=False)
@@ -681,7 +737,9 @@ def lead_edit(request, pk):
         if ref and f"/leads/{lead.pk}/edit/" not in ref:
             cancel_url = ref
     if not cancel_url:
-        if request.user.role == User.Role.LEAD_ATTENDENT:
+        if is_doctor:
+            cancel_url = "/dashboard/doctor/appointments/"
+        elif request.user.role == User.Role.LEAD_ATTENDENT:
             cancel_url = "/dashboard/telecaller/my-leads/"
         elif request.user.hospital:
             cancel_url = "/leads/"
@@ -694,6 +752,8 @@ def lead_edit(request, pk):
         "mode": "Edit",
         "obj": lead,
         "cancel_url": cancel_url,
+        "is_view_only": is_view_only,
+        "is_doctor": is_doctor,
         "is_appointment_completed": is_appointment_completed,
         "is_appointment_confirmed": is_appointment_confirmed,
         "is_payment_done": is_payment_done,
@@ -735,7 +795,7 @@ def lead_detail(request, pk):
             if cf.name in cd and cd[cf.name] != "":
                 custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
         
-    template = "leads/hospital_lead_detail.html" if request.user.hospital else "leads/lead_detail.html"
+    template = "leads/hospital_lead_detail.html" if request.user.hospital else "leads/academy_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
         "latest_appointment": latest_appointment,
@@ -787,14 +847,40 @@ def add_followup(request, pk):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
     if request.method == "POST":
+        today = timezone.localdate()
+        fu_date_raw = request.POST.get("followup_date")
+        next_fu_date_raw = request.POST.get("next_followup_date")
+
+        fu_date = today
+        if fu_date_raw:
+            try:
+                parsed_fu = datetime.strptime(fu_date_raw, "%Y-%m-%d").date()
+                if parsed_fu < today:
+                    messages.error(request, "Follow-up date cannot be in the past.")
+                    return redirect("leads:lead_detail", pk=pk)
+                fu_date = parsed_fu
+            except ValueError:
+                fu_date = today
+
+        next_fu_date = None
+        if next_fu_date_raw:
+            try:
+                parsed_next = datetime.strptime(next_fu_date_raw, "%Y-%m-%d").date()
+                if parsed_next < today:
+                    messages.error(request, "Next follow-up date cannot be in the past.")
+                    return redirect("leads:lead_detail", pk=pk)
+                next_fu_date = parsed_next
+            except ValueError:
+                next_fu_date = None
+
         FollowUp.objects.create(
             lead=lead,
-            followup_date=request.POST.get("followup_date") or timezone.localdate(),
+            followup_date=fu_date,
             followup_time=request.POST.get("followup_time") or None,
             followup_mode=request.POST.get("followup_mode", FollowUpMode.CALL),
             followup_status=request.POST.get("followup_status", FollowUpStatus.COMPLETED),
             comment=request.POST.get("comment", ""),
-            next_followup_date=request.POST.get("next_followup_date") or None,
+            next_followup_date=next_fu_date,
             next_followup_time=request.POST.get("next_followup_time") or None,
             created_by=request.user,
         )
@@ -1746,13 +1832,12 @@ def hospital_configuration_view(request):
 
     active_tab = request.GET.get("tab", "branches")
 
-    # Doctor login users eligible for linking
+    # Doctor login users eligible for linking (strictly active DOCTOR role accounts in this hospital)
     doctor_users = User.objects.filter(
-        models.Q(role=User.Role.DOCTOR) | models.Q(hospital=hospital, is_active=True),
+        hospital=hospital,
+        role=User.Role.DOCTOR,
         is_active=True
-    ).distinct()
-    if hospital:
-        doctor_users = User.objects.filter(hospital=hospital, is_active=True).distinct()
+    ).select_related("doctor_profile").order_by("first_name", "username")
 
     context = {
         "active": "hospital_config",
@@ -1901,8 +1986,8 @@ def hospital_disease_save(request, pk=None):
 def hospital_doctor_save(request, pk=None):
     hospital = request.user.hospital
     if request.method == "POST":
+        user_id = request.POST.get("user", "").strip()
         name = request.POST.get("name", "").strip()
-        user_id = request.POST.get("user")
         department_ids = request.POST.getlist("departments")
         if not department_ids and request.POST.get("department"):
             department_ids = [request.POST.get("department")]
@@ -1916,13 +2001,48 @@ def hospital_doctor_save(request, pk=None):
         disease_ids = request.POST.getlist("associated_diseases")
         branch_ids = request.POST.getlist("branches")
 
-        if not name or not department_ids:
-            messages.error(request, "Doctor name and at least one Clinical Department are required.")
+        if not user_id:
+            messages.error(request, "Link to a registered Doctor user login profile is mandatory. Unregistered doctors cannot be created.")
+            return redirect("/leads/hospital-configuration/?tab=doctors")
+
+        doc_user = User.objects.filter(pk=user_id, hospital=hospital, role=User.Role.DOCTOR, is_active=True).first()
+        if not doc_user:
+            messages.error(request, "Selected user is not a valid active Doctor account in this hospital.")
+            return redirect("/leads/hospital-configuration/?tab=doctors")
+
+        # Ensure no other HospitalDoctor profile is linked to this user
+        existing_doc = HospitalDoctor.objects.filter(hospital=hospital, user=doc_user)
+        if pk:
+            existing_doc = existing_doc.exclude(pk=pk)
+        if existing_doc.exists():
+            messages.error(request, f"Doctor user '{doc_user.get_full_name() or doc_user.username}' is already linked to another doctor profile.")
+            return redirect("/leads/hospital-configuration/?tab=doctors")
+
+        if not name:
+            name = doc_user.get_full_name().strip() or doc_user.username
+        # Clean 'Dr.' prefix if manually typed in name field
+        import re
+        name = re.sub(r"^(dr\.?|doctor)\s+", "", name, flags=re.IGNORECASE).strip() or name
+
+        if not email and doc_user.email:
+            email = doc_user.email
+        if email:
+            email = email.strip()
+            if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
+                messages.error(request, "Please enter a valid Doctor email address containing '@' (e.g. doctor@hospital.com).")
+                return redirect("/leads/hospital-configuration/?tab=doctors")
+
+        if not contact_number and doc_user.phone:
+            contact_number = doc_user.phone
+        if not specialization and doc_user.speciality:
+            specialization = doc_user.speciality
+
+        if not department_ids:
+            messages.error(request, "Please assign at least one Clinical Department to the doctor.")
             return redirect("/leads/hospital-configuration/?tab=doctors")
 
         selected_depts = HospitalDepartment.objects.filter(id__in=department_ids, hospital=hospital)
         primary_dept = selected_depts.first()
-        doc_user = User.objects.filter(pk=user_id, hospital=hospital).first() if user_id else None
 
         if pk:
             doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
@@ -1937,7 +2057,12 @@ def hospital_doctor_save(request, pk=None):
             doc.order = order
             doc.save()
             doc.departments.set(selected_depts)
-            doc.associated_diseases.set(HospitalDisease.objects.filter(id__in=disease_ids, hospital=hospital))
+            if disease_ids:
+                doc.associated_diseases.set(HospitalDisease.objects.filter(id__in=disease_ids, hospital=hospital))
+            else:
+                # If no specific disease is chosen, automatically assign all diseases belonging to the selected department(s)
+                all_dept_diseases = HospitalDisease.objects.filter(department__in=selected_depts, hospital=hospital, is_active=True)
+                doc.associated_diseases.set(all_dept_diseases)
             
             # Sync Branch availabilities
             selected_branches = HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital)
@@ -1961,11 +2086,29 @@ def hospital_doctor_save(request, pk=None):
                 is_active=True,
             )
             doc.departments.set(selected_depts)
-            doc.associated_diseases.set(HospitalDisease.objects.filter(id__in=disease_ids, hospital=hospital))
-            for b in HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital):
+            if disease_ids:
+                doc.associated_diseases.set(HospitalDisease.objects.filter(id__in=disease_ids, hospital=hospital))
+            else:
+                # If no specific disease is chosen, automatically assign all diseases belonging to the selected department(s)
+                all_dept_diseases = HospitalDisease.objects.filter(department__in=selected_depts, hospital=hospital, is_active=True)
+                doc.associated_diseases.set(all_dept_diseases)
+            
+            selected_branches = HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital)
+            for b in selected_branches:
                 DoctorBranchAvailability.objects.create(doctor=doc, branch=b, is_active=True)
 
             messages.success(request, f"Doctor 'Dr. {name}' registered successfully.")
+
+        # Sync MasterItem 'Doctors'
+        from leads.models import MasterGroup, MasterItem
+        doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+        if doc_grp:
+            MasterItem.objects.get_or_create(
+                group=doc_grp,
+                hospital=hospital,
+                name=name,
+                defaults={"is_active": True}
+            )
 
     return redirect("/leads/hospital-configuration/?tab=doctors")
 

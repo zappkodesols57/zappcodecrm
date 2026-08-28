@@ -11,31 +11,107 @@
   <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back to Users</a>
 </div>
 
-<div class="card shadow-sm border-0" style="max-width: 650px;">
+<div class="card shadow-sm border-0 rounded-4 w-100 mb-4 bg-white">
+  <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+    <div class="d-flex align-items-center gap-2">
+      <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-id-card text-primary me-2"></i>{{ mode }} Employee User</h5>
+    </div>
+    <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold">{{ mode }} Mode</span>
+  </div>
   <div class="card-body p-4">
     <form method="post">
       {% csrf_token %}
       
       {% if form.non_field_errors %}
-      <div class="alert alert-danger py-2 small mb-3">
+      <div class="alert alert-danger py-2 small mb-3 rounded-3">
         {% for error in form.non_field_errors %}{{ error }}{% endfor %}
       </div>
       {% endif %}
 
+      <!-- 1. Main Account Details (3 Fields Per Row) -->
       <div class="row g-3">
         {% for field in form %}
-        <div id="div_id_{{ field.name }}" class="{% if field.name == 'is_active_employee' or field.name == 'is_active' %}col-md-6{% elif field.name == 'first_name' or field.name == 'last_name' %}col-md-6{% else %}col-md-12{% endif %}">
-          <label class="form-label small fw-semibold text-dark">{{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}</label>
-          {{ field }}
-          {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
-          {% if field.help_text %}<div class="form-text small">{{ field.help_text|striptags }}</div>{% endif %}
-        </div>
+          {% if field.field.widget.input_type != 'checkbox' and field.name != 'password1' and field.name != 'password2' %}
+          <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold text-dark mb-1">
+              {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.name == 'username' %}
+              <div id="username_feedback_box" class="mt-1" style="display: none;"></div>
+            {% endif %}
+            {% if field.errors %}<div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ field.errors|striptags }}</div>{% endif %}
+            {% if field.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ field.help_text|striptags }}</div>{% endif %}
+          </div>
+          {% endif %}
         {% endfor %}
       </div>
 
-      <div class="d-flex gap-2 mt-4 pt-2 border-top">
-        <button type="submit" class="btn btn-brand text-white"><i class="fa-solid fa-check me-1"></i> Save Employee</button>
-        <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary">Cancel</a>
+      <!-- 2. Password & Confirm Password (Side-by-Side in 2 Equal Columns with Eye Toggle) -->
+      {% if form.password1 or form.password2 %}
+      <div class="row g-3 mt-1">
+        {% if form.password1 %}
+        <div id="div_id_password1" class="col-md-6">
+          <label class="form-label small fw-semibold text-dark mb-1">
+            {{ form.password1.label }} <span class="text-danger">*</span>
+          </label>
+          <div class="input-group">
+            {{ form.password1 }}
+            <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('id_password1', this)" title="Show / Hide Password" tabindex="-1">
+              <i class="fa-regular fa-eye text-secondary"></i>
+            </button>
+          </div>
+          {% if form.password1.errors %}<div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ form.password1.errors|striptags }}</div>{% endif %}
+          {% if form.password1.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password1.help_text|striptags }}</div>{% endif %}
+        </div>
+        {% endif %}
+        {% if form.password2 %}
+        <div id="div_id_password2" class="col-md-6">
+          <label class="form-label small fw-semibold text-dark mb-1">
+            {{ form.password2.label }} <span class="text-danger">*</span>
+          </label>
+          <div class="input-group">
+            {{ form.password2 }}
+            <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('id_password2', this)" title="Show / Hide Password" tabindex="-1">
+              <i class="fa-regular fa-eye text-secondary"></i>
+            </button>
+          </div>
+          <div id="password_match_feedback" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;"></div>
+          {% if form.password2.errors %}<div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ form.password2.errors|striptags }}</div>{% endif %}
+          {% if form.password2.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password2.help_text|striptags }}</div>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- 3. Permissions & Status Checkboxes (Placed Right Before Save Button) -->
+      <div class="row g-3 mt-1">
+        {% for field in form %}
+          {% if field.field.widget.input_type == 'checkbox' %}
+          <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
+            <div class="form-check p-3 bg-light rounded-3 border h-100 d-flex align-items-center gap-3">
+              {{ field }}
+              <div>
+                <label class="form-check-label small fw-semibold text-dark mb-0 cursor-pointer" for="{{ field.id_for_label }}">
+                  {{ field.label }}
+                </label>
+                {% if field.help_text %}
+                  <div class="text-muted" style="font-size: 0.72rem;">{{ field.help_text|striptags }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top justify-content-between align-items-center">
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-light rounded-pill px-4 border">
+          <i class="fa-solid fa-arrow-left me-1"></i> Cancel & Return
+        </a>
+        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+          <i class="fa-solid fa-check me-1"></i> Save Employee User
+        </button>
       </div>
     </form>
   </div>
@@ -69,7 +145,7 @@
     if (reportsToSelect) {
       originalReportsToOptions = Array.from(reportsToSelect.options).map(opt => ({
         value: opt.value,
-        text: opt.text,
+        text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Reporting Manager" : opt.text,
         selected: opt.selected
       }));
     }
@@ -124,7 +200,7 @@
         // Re-populate native select with allowed options
         originalReportsToOptions.forEach(optData => {
             if (optData.value === "") {
-                const opt = new Option(optData.text, optData.value);
+                const opt = new Option(optData.text || "Select Reporting Manager", optData.value);
                 reportsToSelect.add(opt);
                 return;
             }
@@ -149,10 +225,114 @@
                 create: false,
                 maxOptions: 100,
                 allowEmptyOption: true,
-                placeholder: reportsToSelect.getAttribute('placeholder') || 'Type to search...'
+                placeholder: 'Select Reporting Manager'
             });
         }
       }
+    }
+
+    // Real-time Username Duplicity & Suggestions
+    const usernameInput = document.getElementById("id_username");
+    const usernameFeedback = document.getElementById("username_feedback_box");
+    let usernameTimeout = null;
+
+    if (usernameInput) {
+      usernameInput.setAttribute("autocomplete", "off");
+      
+      function checkUsername(val) {
+        if (!val || val.trim().length < 2) {
+          if (usernameFeedback) usernameFeedback.style.display = "none";
+          usernameInput.classList.remove("is-invalid", "is-valid");
+          return;
+        }
+        
+        const currentUserId = "{% if obj %}{{ obj.id }}{% endif %}";
+        fetch(`{% url 'accounts:check_username' %}?username=${encodeURIComponent(val.trim())}&exclude_id=${currentUserId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (!usernameFeedback) return;
+            usernameFeedback.style.display = "block";
+            
+            if (data.available) {
+              usernameInput.classList.remove("is-invalid");
+              usernameInput.classList.add("is-valid");
+              usernameFeedback.innerHTML = `
+                <div class="small text-success fw-medium">
+                  <i class="fa-solid fa-circle-check me-1"></i> Username <strong>@${data.username}</strong> is available!
+                </div>`;
+            } else {
+              usernameInput.classList.remove("is-valid");
+              usernameInput.classList.add("is-invalid");
+              let suggestionsHtml = "";
+              if (data.suggestions && data.suggestions.length > 0) {
+                suggestionsHtml = `
+                  <div class="mt-1">
+                    <span class="text-muted small me-1">Suggested usernames:</span>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                      ${data.suggestions.map(s => `
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-none" onclick="applyUsernameSuggestion('${s}')" style="font-size: 0.75rem;">
+                          <i class="fa-solid fa-plus me-1 small"></i>${s}
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>`;
+              }
+              usernameFeedback.innerHTML = `
+                <div class="small text-danger fw-semibold">
+                  <i class="fa-solid fa-triangle-exclamation me-1"></i> ${data.message}
+                </div>
+                ${suggestionsHtml}`;
+            }
+          })
+          .catch(err => {
+            console.error("Username check error", err);
+          });
+      }
+
+      usernameInput.addEventListener("input", function() {
+        clearTimeout(usernameTimeout);
+        const val = this.value;
+        usernameTimeout = setTimeout(() => { checkUsername(val); }, 300);
+      });
+
+      usernameInput.addEventListener("blur", function() {
+        checkUsername(this.value);
+      });
+    }
+
+    // Real-time Password Confirmation Matching
+    const p1 = document.getElementById("id_password1");
+    const p2 = document.getElementById("id_password2");
+    const matchFeedback = document.getElementById("password_match_feedback");
+
+    function checkPasswordMatch() {
+      if (!p1 || !p2 || !matchFeedback) return;
+      const v1 = p1.value;
+      const v2 = p2.value;
+
+      if (!v2) {
+        matchFeedback.style.display = "none";
+        p2.classList.remove("is-valid", "is-invalid");
+        return;
+      }
+
+      matchFeedback.style.display = "block";
+      if (v1 === v2) {
+        p2.classList.remove("is-invalid");
+        p2.classList.add("is-valid");
+        matchFeedback.className = "mt-1 small fw-semibold text-success";
+        matchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+      } else {
+        p2.classList.remove("is-valid");
+        p2.classList.add("is-invalid");
+        matchFeedback.className = "mt-1 small fw-semibold text-danger";
+        matchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+      }
+    }
+
+    if (p1 && p2) {
+      p1.addEventListener("input", checkPasswordMatch);
+      p2.addEventListener("input", checkPasswordMatch);
     }
 
     if (roleField) {
@@ -172,6 +352,33 @@
       toggleFields(); // Initial call
     }
   });
+
+  window.applyUsernameSuggestion = function(suggestedVal) {
+    const uInput = document.getElementById("id_username");
+    if (uInput) {
+      uInput.value = suggestedVal;
+      uInput.dispatchEvent(new Event('input'));
+    }
+  };
+
+  window.togglePasswordVisibility = function(fieldId, btn) {
+    const input = document.getElementById(fieldId) || (btn ? btn.parentElement.querySelector('input') : null);
+    if (!input) return;
+    const icon = btn ? btn.querySelector('i') : null;
+    if (input.type === 'password') {
+      input.type = 'text';
+      if (icon) {
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      }
+    } else {
+      input.type = 'password';
+      if (icon) {
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+  };
 </script>
 
 </div>

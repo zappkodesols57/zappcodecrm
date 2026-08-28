@@ -50,10 +50,10 @@
           <th>Date & Employee</th>
           <th>Reports To</th>
           <th>Login / Logout</th>
-          <th class="text-center">Leads Assigned</th>
-          <th class="text-center">Calls Made</th>
-          <th class="text-center">Appts Booked</th>
-          <th class="text-center">Freeze Leads</th>
+          <th class="text-center">Leads Attended</th>
+          <th class="text-center">Student Visits</th>
+          <th class="text-center">Admissions</th>
+          <th class="text-center">Fees Collected</th>
           <th>Summary / Highlight</th>
         </tr>
       </thead>
@@ -86,17 +86,17 @@
             </div>
           </td>
           <td class="text-center">
-            <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">{{ report.leads_assigned }}</span>
-          </td>
-          <td class="text-center">
             <span class="badge bg-info text-dark fs-6 px-3 py-2 rounded-pill">{{ report.calls_attended }}</span>
             <div class="small text-muted mt-1">{{ report.follow_ups_taken }} follow-up(s)</div>
           </td>
           <td class="text-center">
-            <span class="badge bg-success fs-6 px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-check me-1"></i>{{ report.appointments_booked }}</span>
+            <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill"><i class="fa-solid fa-person-walking me-1"></i>{{ report.leads_visited }}</span>
           </td>
           <td class="text-center">
-            <span class="badge bg-secondary fs-6 px-3 py-2 rounded-pill">{{ report.freeze_leads }}</span>
+            <span class="badge bg-success fs-6 px-3 py-2 rounded-pill"><i class="fa-solid fa-graduation-cap me-1"></i>{{ report.admissions_done }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-emerald text-success border border-success-subtle fs-6 px-2 py-1" style="background:#ecfdf5;">₹{{ report.fees_collected|floatformat:0 }}</span>
           </td>
           <td style="max-width: 280px;">
             {% if report.key_highlight %}

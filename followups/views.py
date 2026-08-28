@@ -89,7 +89,7 @@ def today(request):
     ).select_related("assigned_to", "stage").order_by("next_followup_date", "-updated_at")
     
     leads = _filter_by_role(request.user, leads)
-    return _board(request, leads, "fu_today", "Follow-ups (Pending & Today's Schedule)", d)
+    return _board(request, leads, "fu_today", "Today's Follow-ups", d)
 
 
 @login_required
@@ -108,7 +108,7 @@ def upcoming(request):
     ).select_related("assigned_to", "stage").order_by("next_followup_date")
     
     leads = _filter_by_role(request.user, leads)
-    return _board(request, leads, "fu_upcoming", "Upcoming Follow-ups & Appointments", d)
+    return _board(request, leads, "fu_upcoming", "Upcoming Follow-ups", d)
 
 
 @login_required
@@ -129,7 +129,7 @@ def overdue(request):
     ).select_related("assigned_to", "stage").order_by("-updated_at")
     
     leads = _filter_by_role(request.user, leads)
-    return _board(request, leads, "fu_overdue", "Overdue Follow-ups & Pending Calls", d)
+    return _board(request, leads, "fu_overdue", "Overdue Follow-ups", d)
 
 
 @login_required
@@ -152,7 +152,7 @@ def billing_followup(request):
     ).select_related("assigned_to", "stage").distinct().order_by("-updated_at")
     
     leads = _filter_by_role(request.user, leads)
-    return _board(request, leads, "fu_billing", "Billing Follow-ups (Doctor Completed)", None)
+    return _board(request, leads, "fu_billing", "Billing Follow-ups", None)
 
 
 @login_required

@@ -136,7 +136,7 @@
                                     {% elif lead.appt_status == 'Cancelled' %}
                                         <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">Cancelled</span>
                                     {% else %}
-                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ lead.stage.name|default:lead.deal_status }}</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ lead.display_status }}</span>
                                     {% endif %}
                                 </td>
                                 <td style="max-width: 180px;">

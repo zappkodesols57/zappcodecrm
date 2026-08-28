@@ -83,8 +83,8 @@
                 </div>
             </div>
             <div class="col-lg-3 col-md-4 col-sm-6">
-                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">STATUS</label>
-                <select name="status" class="form-select form-select-sm w-100">
+                <label class="form-label small fw-semibold text-muted mb-1 d-block" style="font-size: 0.72rem;">STATUS</label>
+                <select name="status" class="form-select form-select-sm w-100 no-tom-select">
                     <option value="">All Statuses</option>
                     <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
                     <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
@@ -93,8 +93,8 @@
                 </select>
             </div>
             <div class="col-lg-2 col-md-4 col-sm-6">
-                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">PRIORITY</label>
-                <select name="priority" class="form-select form-select-sm w-100">
+                <label class="form-label small fw-semibold text-muted mb-1 d-block" style="font-size: 0.72rem;">PRIORITY</label>
+                <select name="priority" class="form-select form-select-sm w-100 no-tom-select">
                     <option value="">All Priorities</option>
                     <option value="URGENT" {% if priority_filter == 'URGENT' %}selected{% endif %}>Urgent</option>
                     <option value="HIGH" {% if priority_filter == 'HIGH' %}selected{% endif %}>High</option>
@@ -174,7 +174,7 @@
                         <td>
                             <form method="POST" action="{% url 'dashboard:task_update_status' task.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <select name="status" class="form-select form-select-sm border rounded-1 py-0 px-2 fw-medium {% if task.status == 'COMPLETED' %}bg-success-subtle text-success border-success-subtle{% elif task.status == 'IN_PROGRESS' %}bg-info-subtle text-primary border-info-subtle{% elif task.status == 'CANCELLED' %}bg-light text-muted border{% else %}bg-light text-dark border{% endif %}" onchange="this.form.submit()" style="width: 105px; font-size: 0.75rem; height: 26px;">
+                                <select name="status" class="form-select form-select-sm no-tom-select border rounded-1 py-1 px-2 fw-medium {% if task.status == 'COMPLETED' %}bg-success-subtle text-success border-success-subtle{% elif task.status == 'IN_PROGRESS' %}bg-info-subtle text-primary border-info-subtle{% elif task.status == 'CANCELLED' %}bg-light text-muted border{% else %}bg-light text-dark border{% endif %}" onchange="this.form.submit()" style="width: 115px; font-size: 0.75rem; height: 28px;">
                                     <option value="PENDING" {% if task.status == 'PENDING' %}selected{% endif %}>Pending</option>
                                     <option value="IN_PROGRESS" {% if task.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
                                     <option value="COMPLETED" {% if task.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
@@ -215,7 +215,7 @@
         <!-- Page Size Selector -->
         <div class="d-flex align-items-center gap-1">
             <span class="text-muted small" style="font-size: 0.75rem;">Show:</span>
-            <select class="form-select form-select-sm py-0 px-2 border rounded-1" style="width: 70px; height: 24px; font-size: 0.75rem;" onchange="location.href='?{{ query_params }}&page=1&page_size=' + this.value;">
+            <select class="form-select form-select-sm no-tom-select py-0 px-2 border rounded-1" style="width: 75px; height: 26px; font-size: 0.75rem;" onchange="location.href='?{{ query_params }}&page=1&page_size=' + this.value;">
                 <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
                 <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
                 <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
@@ -415,8 +415,8 @@
 
                     <!-- Link to Patient / Lead -->
                     <div class="mb-2">
-                        <label class="form-label small fw-semibold text-muted mb-1">Link to Lead / Patient (Optional)</label>
-                        <select name="lead_id" class="form-select form-select-sm">
+                        <label class="form-label small fw-semibold text-muted mb-1 d-block">Link to Lead / Patient (Optional)</label>
+                        <select name="lead_id" class="form-select form-select-sm no-tom-select">
                             <option value="">-- None (General Task) --</option>
                             {% for lead in user_leads %}
                                 <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.mobile }})</option>

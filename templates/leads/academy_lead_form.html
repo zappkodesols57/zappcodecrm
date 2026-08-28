@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ mode }} Lead{% endblock %}
+{% block title %}{{ mode }} Academy Lead{% endblock %}
 {% block content %}
 <h4 class="mb-3">{{ mode }} New Lead</h4>
 
@@ -100,6 +100,27 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+  // Enhanced dynamic Tags input with creation support
+  var tagsSelect = document.querySelector('select[name="tags"]');
+  if (tagsSelect && typeof TomSelect !== 'undefined') {
+    if (tagsSelect.tomselect) {
+      tagsSelect.tomselect.destroy();
+    }
+    new TomSelect(tagsSelect, {
+      plugins: ['remove_button'],
+      create: true,
+      persist: false,
+      createOnBlur: true,
+      placeholder: 'Type tag and press Enter...',
+      maxItems: null,
+      render: {
+        item: function(data, escape) {
+          return '<div class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 me-1 mb-1">' + escape(data.text) + '</div>';
+        }
+      }
+    });
+  }
+
   var mobileInput = document.querySelector('input[name="mobile"]');
   var altMobileInput = document.querySelector('input[name="alternate_mobile"]');
 

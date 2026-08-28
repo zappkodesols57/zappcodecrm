@@ -90,24 +90,43 @@ def home(request):
     if date_to:
         leads = leads.filter(inquiry_date__lte=date_to)
 
-    # 2. Compute KPIs based on filtered leads
+    # 2. Compute KPIs based on user filtered leads matching exact requirements
     total_leads = leads.count()
-    new_leads = leads.filter(inquiry_date__gte=today - timedelta(days=7)).count()
-    uncontacted = leads.filter(temperature="UNCONTACTED").count()
-    not_picked = leads.filter(temperature="NOT_PICKED").count()
-    hot = leads.filter(temperature="HOT").count()
-    warm = leads.filter(temperature="WARM").count()
-    cold = leads.filter(temperature="COLD").count()
-    followups_today = leads.filter(next_followup_date=today).count()
-    overdue = leads.filter(next_followup_date__lt=today).count()
-    visits = leads.filter(stage__name__icontains="visit").count()
     
+    # 1. Uncontacted: Today's new leads jo abhi tak contact/edit nahi hui (created today & uncontacted/no followups)
+    uncontacted_today = leads.filter(
+        Q(created_at__date=today) | Q(inquiry_date=today),
+        temperature="UNCONTACTED",
+        followup_count=0
+    ).count()
+
+    # 2. Contacted: Aaj ki contacted ya edited leads count
+    from followups.models import FollowUp
+    contacted_lead_ids = set(FollowUp.objects.filter(lead__in=leads, created_at__date=today).values_list("lead_id", flat=True))
+    # also include leads edited/updated today that are not uncontacted
+    edited_today_ids = set(leads.filter(updated_at__date=today).exclude(temperature="UNCONTACTED").values_list("id", flat=True))
+    contacted_today = len(contacted_lead_ids.union(edited_today_ids))
+
+    # 3. Booked: Aaj ki booked leads
+    booked_today = leads.filter(
+        Q(deal_status="WON") | 
+        Q(admission_status="ADMISSION_DONE") |
+        Q(admission__admission_date=today) |
+        Q(custom_data__appo_booked_date=str(today)) |
+        Q(custom_data__appointment_status__icontains="Booked")
+    ).filter(
+        Q(updated_at__date=today) | Q(created_at__date=today) | Q(admission__created_at__date=today)
+    ).distinct().count()
+
+    # 4. Overdue: Vo leads jinka followup time aaj ya aaj se pehle tha (<= today) and pending
+    overdue_leads_count = leads.filter(
+        next_followup_date__lte=today
+    ).count()
+
     admissions_qs = Admission.objects.filter(lead__in=leads)
     admissions = admissions_qs.count()
     conversion_rate = round((admissions / total_leads * 100), 1) if total_leads else 0
     revenue = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS, admission__lead__in=leads).aggregate(s=Sum("amount"))["s"] or 0
-    total_fee_value = admissions_qs.aggregate(s=Sum("final_fee"))["s"] or 0
-    pending_revenue = float(total_fee_value) - float(revenue)
 
     # 3. Chart Data (Source Distribution)
     source_data = list(
@@ -199,12 +218,14 @@ def home(request):
     context = {
         "active": "dashboard",
         "kpis": {
-            "total_leads": total_leads, "new_leads": new_leads,
-            "uncontacted": uncontacted, "not_picked": not_picked,
-            "hot": hot, "warm": warm, "cold": cold,
-            "followups_today": followups_today, "overdue": overdue, "visits": visits,
-            "admissions": admissions, "conversion_rate": conversion_rate,
-            "revenue": revenue, "pending_revenue": pending_revenue,
+            "total_leads": total_leads,
+            "uncontacted": uncontacted_today,
+            "contacted_today": contacted_today,
+            "booked_today": booked_today,
+            "overdue": overdue_leads_count,
+            "admissions": admissions,
+            "conversion_rate": conversion_rate,
+            "revenue": revenue,
         },
         "chart_data": json.dumps({
             "source": {"labels": source_labels, "counts": source_counts},
@@ -235,8 +256,8 @@ def superadmin_home(request):
     from django.db.models import Count, Sum
     import json
 
-    if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
-        raise PermissionDenied("This dashboard is restricted to Super Admins.")
+    if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
+        raise PermissionDenied("This dashboard is restricted to Business Admins & Managers.")
     
     # If the user is a tenant, they must have a hospital.
     # Zappcode admins (no hospital) are also allowed to view this as an aggregated dashboard.
@@ -980,7 +1001,7 @@ def employee_detail_activity(request, emp_id):
 
 @login_required
 def submit_daily_report(request):
-    from .forms import DailyReportForm
+    from .forms import AcademyDailyReportForm, HospitalDailyReportForm, DailyReportForm
     from .models import DailyReport
     from followups.models import FollowUp
     from datetime import datetime
@@ -1060,6 +1081,16 @@ def submit_daily_report(request):
     ).order_by("-created_at").first()
     last_logout_time = last_logout_log.created_at if last_logout_log else None
     
+    # 6. Auto-calculate academic metrics: Admissions Done today and Fees Payments Collected today
+    from admissions.models import Admission
+    from payments.models import Payment, PaymentStatus
+    admissions_today_cnt = Admission.objects.filter(lead__assigned_to=request.user, admission_date=report_date).count()
+    fees_today_sum = Payment.objects.filter(
+        admission__lead__assigned_to=request.user,
+        payment_date=report_date,
+        payment_status=PaymentStatus.SUCCESS
+    ).aggregate(s=Sum("amount"))["s"] or 0
+
     # Determine who this report will be sent to
     reports_to_user = request.user.reports_to
     admin_qs = User.objects.filter(role__in=['SUPER_ADMIN', 'ADMIN', 'MANAGER'], is_active=True)
@@ -1082,9 +1113,14 @@ def submit_daily_report(request):
         "appointments_booked": appointments_booked_cnt,
         "freeze_leads": freeze_leads_cnt,
         "follow_ups_taken": follow_ups_taken_cnt,
+        "admissions_done": admissions_today_cnt,
+        "fees_collected": fees_today_sum,
         "first_login_time": first_login_time,
         "last_logout_time": last_logout_time,
     }
+
+    FormClass = HospitalDailyReportForm if request.user.hospital else AcademyDailyReportForm
+    template_name = "dashboard/hospital_daily_report_form.html" if request.user.hospital else "dashboard/academy_reports_form.html"
 
     if request.method == "POST":
         from django.db import IntegrityError, transaction
@@ -1093,7 +1129,7 @@ def submit_daily_report(request):
             messages.warning(request, "Report already submitted for today.")
             return redirect("dashboard:submit_daily_report")
 
-        form = DailyReportForm(request.POST)
+        form = FormClass(request.POST)
         if form.is_valid():
             try:
                 with transaction.atomic():
@@ -1113,7 +1149,8 @@ def submit_daily_report(request):
                         leads_cold=cleaned.get("leads_cold", 0),
                         leads_interested=cleaned.get("leads_interested", 0),
                         leads_visited=cleaned.get("leads_visited", 0),
-                        admissions_done=cleaned.get("admissions_done", 0),
+                        admissions_done=cleaned.get("admissions_done", admissions_today_cnt),
+                        fees_collected=cleaned.get("fees_collected", fees_today_sum),
                         key_highlight=cleaned.get("key_highlight", ""),
                         challenges_faced=cleaned.get("challenges_faced", ""),
                         tomorrow_priority=cleaned.get("tomorrow_priority", ""),
@@ -1129,7 +1166,7 @@ def submit_daily_report(request):
                         Notification.objects.create(
                             user=r_user,
                             title=f"EOD Report from {request.user.get_full_name() or request.user.username}",
-                            message=f"{request.user.get_full_name() or request.user.username} submitted Daily EOD Report for {report_date.strftime('%d %b %Y')}. (Assigned: {report.leads_assigned}, Appts: {report.appointments_booked}, Freeze: {report.freeze_leads}, Calls: {report.calls_attended})",
+                            message=f"{request.user.get_full_name() or request.user.username} submitted Daily EOD Report for {report_date.strftime('%d %b %Y')}. (Assigned: {report.leads_assigned}, Admissions: {report.admissions_done}, Calls: {report.calls_attended})",
                             link="/dashboard/reports/admin/",
                         )
 
@@ -1139,18 +1176,23 @@ def submit_daily_report(request):
                 messages.warning(request, "Report already submitted for today.")
                 return redirect("dashboard:submit_daily_report")
     else:
-        form = DailyReportForm(initial={
+        init_data = {
             "leads_assigned": suggestions["leads_assigned"],
-            "appointments_booked": suggestions["appointments_booked"],
-            "freeze_leads": suggestions["freeze_leads"],
             "calls_attended": suggestions["calls_attended"],
             "outgoing_calls": suggestions["outgoing_calls"],
             "incoming_calls": suggestions["incoming_calls"],
             "calls_not_connected": suggestions["calls_not_connected"],
             "follow_ups_taken": suggestions["follow_ups_taken"],
-        })
+            "admissions_done": suggestions["admissions_done"],
+            "fees_collected": suggestions["fees_collected"],
+        }
+        if request.user.hospital:
+            init_data["appointments_booked"] = suggestions["appointments_booked"]
+            init_data["freeze_leads"] = suggestions["freeze_leads"]
 
-    return render(request, "dashboard/daily_report_form.html", {
+        form = FormClass(initial=init_data)
+
+    return render(request, template_name, {
         "active": "daily_report_submit",
         "form": form,
         "suggestions": suggestions,

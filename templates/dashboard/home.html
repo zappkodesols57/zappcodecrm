@@ -51,7 +51,8 @@
   {% endif %}
 {% endif %}
 
-<form method="get" class="card p-3 mb-3">
+{% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
+<form method="get" class="card p-3 mb-3" style="display: none;">
   <div class="row g-2">
     <div class="col-md-2">
       <input type="search" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ request_get.q }}">
@@ -98,138 +99,129 @@
     </div>
   </div>
   <div class="row g-2 mt-1">
-    {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
-      <div class="col-md-2">
-        <select name="deal_status" class="form-select form-select-sm">
-          <option value="">All Deal Statuses</option>
-          <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-          <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-          <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-          <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-        </select>
+    <div class="col-md-2">
+      <select name="deal_status" class="form-select form-select-sm">
+        <option value="">All Deal Statuses</option>
+        <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+        <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+        <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+        <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="assigned_to" class="form-select form-select-sm">
+        <option value="">All Assigned Employees</option>
+        {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
+    </div>
+    <div class="col-md-2">
+      <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
+        <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
       </div>
-      <div class="col-md-2">
-        <select name="assigned_to" class="form-select form-select-sm">
-          <option value="">All Assigned Employees</option>
-          {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
-      </div>
-      <div class="col-md-2">
-        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
-      </div>
-      <div class="col-md-4">
-        <div class="d-flex gap-1">
-          <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
-          <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
-        </div>
-      </div>
-    {% else %}
-      <div class="col-md-3">
-        <select name="deal_status" class="form-select form-select-sm">
-          <option value="">All Deal Statuses</option>
-          <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-          <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-          <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-          <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
-      </div>
-      <div class="col-md-2">
-        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
-      </div>
-      <div class="col-md-5">
-        <div class="d-flex gap-1">
-          <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
-          <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
-        </div>
-      </div>
-    {% endif %}
+    </div>
   </div>
 </form>
+{% endif %}
 
-<div class="row g-3 mb-2">
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="kpi-card kpi-1 text-decoration-none d-block kpi-link">
+<!-- ─── EXACT 5 KPI CARDS (Total Leads, Uncontacted, Contacted, Booked, Overdue) ─── -->
+<div class="row g-3 mb-4">
+  
+  <!-- 1. Total Leads -->
+  <div class="col-12 col-sm-6 col-lg">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100">
       <div class="label">Total Leads</div>
       <div class="value">{{ kpis.total_leads }}</div>
     </a>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="kpi-card kpi-7 text-decoration-none d-block kpi-link">
-      <div class="label">Uncontacted</div>
+
+  <!-- 2. Uncontacted (Today's New Uncontacted Leads) -->
+  <div class="col-12 col-sm-6 col-lg">
+    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100">
+      <div class="label">Uncontacted (Today's New)</div>
       <div class="value">{{ kpis.uncontacted }}</div>
     </a>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=NOT_PICKED" class="kpi-card kpi-8 text-decoration-none d-block kpi-link">
-      <div class="label">Call Not Picked</div>
-      <div class="value">{{ kpis.not_picked }}</div>
-    </a>
+
+  <!-- 3. Contacted Leads (Today's Contacted / Edited) -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100">
+      <div class="label">Contacted (Today)</div>
+      <div class="value">{{ kpis.contacted_today }}</div>
+    </div>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=HOT" class="kpi-card kpi-3 text-decoration-none d-block kpi-link">
-      <div class="label">Hot Leads</div>
-      <div class="value">{{ kpis.hot }}</div>
-    </a>
+
+  <!-- 4. Booked Leads (Today's Booked Deals) -->
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100">
+      <div class="label">Booked (Today)</div>
+      <div class="value">{{ kpis.booked_today }}</div>
+    </div>
   </div>
-</div>
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=WARM" class="kpi-card kpi-4 text-decoration-none d-block kpi-link">
-      <div class="label">Warm Leads</div>
-      <div class="value">{{ kpis.warm }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=COLD" class="kpi-card kpi-6 text-decoration-none d-block kpi-link">
-      <div class="label">Cold (Not Interested)</div>
-      <div class="value">{{ kpis.cold }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'followups:today' %}" class="kpi-card kpi-2 text-decoration-none d-block kpi-link">
-      <div class="label">Today's Follow-ups</div>
-      <div class="value">{{ kpis.followups_today }}</div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'followups:overdue' %}" class="kpi-card kpi-3 text-decoration-none d-block kpi-link">
+
+  <!-- 5. Overdue (Followup time today or past) -->
+  <div class="col-12 col-sm-6 col-lg">
+    <a href="{% url 'followups:overdue' %}" class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100">
       <div class="label">Overdue Follow-ups</div>
       <div class="value">{{ kpis.overdue }}</div>
     </a>
   </div>
-  <div class="col-6 col-md-3">
-    <a href="{% url 'admissions:list' %}" class="kpi-card kpi-4 text-decoration-none d-block kpi-link">
-      <div class="label">Admissions</div>
-      <div class="value">{{ kpis.admissions }}</div>
-    </a>
-  </div>
+
 </div>
+
+<!-- ─── CHARTS SECTION (Side-by-Side Modern Clean Layout) ─── -->
 <div class="row g-3 mb-4">
-  <div class="col-6 col-md-6">
-    <a href="{% url 'admissions:list' %}" class="kpi-card kpi-5 text-decoration-none d-block kpi-link">
-      <div class="label">Conversion Rate</div>
-      <div class="value">{{ kpis.conversion_rate }}%</div>
-    </a>
+  <!-- Lead Stage Funnel -->
+  <div class="col-md-6">
+    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>My Lead Stage Funnel</h6>
+        <span class="badge bg-light text-muted border small">Funnel</span>
+      </div>
+      <div style="height: 240px; position: relative;"><canvas id="funnelChart"></canvas></div>
+    </div>
   </div>
-  <div class="col-6 col-md-6">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&q=visit" class="kpi-card kpi-1 text-decoration-none d-block kpi-link">
-      <div class="label">Visits</div>
-      <div class="value">{{ kpis.visits }}</div>
-    </a>
+
+  <!-- Monthly Lead Trend -->
+  <div class="col-md-6">
+    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up me-2 text-info"></i>Monthly Activity Trend</h6>
+        <span class="badge bg-light text-muted border small">Timeline</span>
+      </div>
+      <div style="height: 240px; position: relative;"><canvas id="trendChart"></canvas></div>
+    </div>
   </div>
 </div>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-6"><div class="card p-3"><h6 class="text-muted text-uppercase small">Lead Source Distribution</h6><div style="height: 220px; position: relative;"><canvas id="sourceChart"></canvas></div></div></div>
-  <div class="col-md-6"><div class="card p-3"><h6 class="text-muted text-uppercase small">Lead Stage Funnel</h6><div style="height: 220px; position: relative;"><canvas id="funnelChart"></canvas></div></div></div>
-  <div class="col-md-6"><div class="card p-3"><h6 class="text-muted text-uppercase small">Monthly Lead Trend</h6><div style="height: 220px; position: relative;"><canvas id="trendChart"></canvas></div></div></div>
-  <div class="col-md-6"><div class="card p-3"><h6 class="text-muted text-uppercase small">Course-wise Leads</h6><div style="height: 220px; position: relative;"><canvas id="courseChart"></canvas></div></div></div>
+  <!-- Lead Source Distribution -->
+  <div class="col-md-6">
+    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px; border-top: 3px solid #6366f1 !important;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source Distribution</h6>
+        <span class="badge bg-light text-muted border small">Channels</span>
+      </div>
+      <div style="height: 240px; position: relative;"><canvas id="sourceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Course-wise Leads -->
+  <div class="col-md-6">
+    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px; border-top: 3px solid #10b981 !important;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-graduation-cap me-2 text-success"></i>Course-wise Distribution</h6>
+        <span class="badge bg-light text-muted border small">Courses</span>
+      </div>
+      <div style="height: 240px; position: relative;"><canvas id="courseChart"></canvas></div>
+    </div>
+  </div>
 </div>
 
 {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}

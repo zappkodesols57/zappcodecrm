@@ -125,8 +125,8 @@
           </td>
           <td class="pe-4 text-end">
             <div class="d-inline-flex gap-2 justify-content-end">
-              <!-- 1. View Detail -->
-              <a href="{% url 'leads:lead_detail' apt.lead.pk %}" target="_blank" class="btn btn-sm btn-light border shadow-sm" title="View Patient Profile">
+              <!-- 1. View Patient Form (Read-Only) -->
+              <a href="{% url 'leads:lead_edit' apt.lead.pk %}" class="btn btn-sm btn-light border shadow-sm" title="View Patient Details">
                 <i class="fa-solid fa-eye text-primary"></i>
               </a>
 
@@ -320,8 +320,8 @@
                         </div>
                         <div class="modal-body px-4 pt-3">
                           <div class="mb-3">
-                            <label class="form-label small fw-bold text-dark mb-1">Appointment Status</label>
-                            <select name="new_status" class="form-select">
+                            <label class="form-label small fw-bold text-dark mb-1 d-block">Appointment Status</label>
+                            <select name="new_status" class="form-select no-tom-select">
                               <option value="APPROVED" {% if apt.status == 'APPROVED' %}selected{% endif %}>Approved / Confirmed</option>
                               <option value="SCHEDULED" {% if apt.status == 'SCHEDULED' %}selected{% endif %}>Scheduled</option>
                               <option value="COMPLETED" {% if apt.status == 'COMPLETED' %}selected{% endif %}>Completed (Unlocks Billing)</option>
