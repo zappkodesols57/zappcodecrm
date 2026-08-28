@@ -536,36 +536,43 @@
     <input type="hidden" name="sort" id="drawerSortInput" value="{{ current_sort|default:'-created_at' }}">
 
     <!-- Bottom Action Bar (Apply Filter, Export & Clear) -->
-    <div class="p-3 bg-white border-top d-flex gap-2 align-items-center">
-      <button type="submit" class="btn btn-primary flex-grow-1 fw-bold shadow-sm" style="border-radius: 6px; font-size: 0.88rem; background-color: #2563eb; border-color: #2563eb;">
-        Apply Filter
-      </button>
-
-      <!-- Export Dropdown Button -->
-      <div class="dropdown">
-        <button class="btn btn-outline-success dropdown-toggle fw-semibold px-2" type="button" id="drawerExportDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 6px; font-size: 0.85rem;" title="Export filtered leads">
-          <i class="fa-solid fa-file-export me-1"></i> Export
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="drawerExportDropdown" style="font-size: 0.82rem; min-width: 160px; z-index: 1080;">
-          <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export Filtered Data</h6></li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('excel')">
-              <i class="fa-solid fa-file-excel text-success" style="font-size: 0.95rem;"></i>
-              <span>Excel (.xlsx)</span>
+    <div class="p-3 bg-white border-top shadow-sm">
+      <div class="row g-2 align-items-center">
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2 fw-bold text-nowrap shadow-sm" style="height: 38px; border-radius: 7px; font-size: 0.88rem; background-color: #2563eb; border-color: #2563eb;">
+            <i class="fa-solid fa-filter small"></i>
+            <span>Apply Filters</span>
+          </button>
+        </div>
+        <div class="col-7">
+          <div class="dropdown w-100">
+            <button class="btn btn-outline-success dropdown-toggle w-100 d-inline-flex align-items-center justify-content-center gap-1 fw-semibold text-nowrap" type="button" id="drawerExportDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="height: 34px; border-radius: 7px; font-size: 0.82rem;" title="Export filtered leads">
+              <i class="fa-solid fa-file-export small"></i>
+              <span>Export</span>
             </button>
-          </li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('pdf')">
-              <i class="fa-solid fa-file-pdf text-danger" style="font-size: 0.95rem;"></i>
-              <span>PDF / Print</span>
-            </button>
-          </li>
-        </ul>
+            <ul class="dropdown-menu dropdown-menu-start shadow border-0 py-1" aria-labelledby="drawerExportDropdown" style="font-size: 0.82rem; min-width: 160px; z-index: 1080;">
+              <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export Filtered Data</h6></li>
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('excel')">
+                  <i class="fa-solid fa-file-excel text-success" style="font-size: 0.95rem;"></i>
+                  <span>Excel (.xlsx)</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('pdf')">
+                  <i class="fa-solid fa-file-pdf text-danger" style="font-size: 0.95rem;"></i>
+                  <span>PDF / Print</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-5">
+          <a href="{{ request.path }}" class="btn btn-light border w-100 d-inline-flex align-items-center justify-content-center text-secondary fw-semibold text-nowrap" style="height: 34px; border-radius: 7px; font-size: 0.82rem;" title="Clear filters">
+            Clear
+          </a>
+        </div>
       </div>
-
-      <a href="{{ request.path }}" class="btn btn-light border px-2 text-secondary fw-semibold" style="border-radius: 6px; font-size: 0.85rem;" title="Clear filters">
-        Clear
-      </a>
     </div>
   </form>
   </div> <!-- /Inner Form Container -->
