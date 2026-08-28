@@ -312,8 +312,28 @@
     border-radius: 6px;
     border: 2px solid #f1f5f9;
   }
-  .custom-table-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+  /* TomSelect & Modal Dropdown Stacking Context Fix */
+  .ts-dropdown {
+    z-index: 2060 !important;
+  }
+  .modal .ts-dropdown,
+  .modal-dialog .ts-dropdown {
+    z-index: 2070 !important;
+  }
+  .modal-content {
+    overflow: visible !important;
+  }
+  .modal-body {
+    overflow-y: visible !important;
+  }
+  .ts-wrapper.form-select, .ts-wrapper.form-select-sm {
+    padding: 0 !important;
+    border: none !important;
+  }
+  .ts-control {
+    border-radius: 6px !important;
+    border-color: #cbd5e1 !important;
+    min-height: 34px !important;
   }
 </style>
 {% block extra_head %}{% endblock %}

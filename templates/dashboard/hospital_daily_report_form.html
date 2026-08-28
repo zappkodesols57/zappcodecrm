@@ -117,19 +117,9 @@
 <div class="crm-report-container">
 
   <!-- Header Section -->
-  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
     <div>
-      <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
-          <i class="fa-solid fa-hospital-user me-1"></i> Hospital Medical EOD
-        </span>
-        {% if user.hospital %}
-        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
-          {{ user.hospital.name }}
-        </span>
-        {% endif %}
-      </div>
-      <h4 class="mb-0 fw-bold text-dark">Submit Hospital Daily EOD Report</h4>
+      <h4 class="mb-0 fw-bold text-dark">Submit Daily EOD Report</h4>
       <p class="text-muted small mb-0">{{ report_date|date:"l, d F Y" }}</p>
     </div>
     <div>
@@ -145,45 +135,6 @@
       {% endif %}
     </div>
   </div>
-
-  <!-- Recipient Dispatch Card -->
-  <div class="card border-0 shadow-xs mb-3 p-3 rounded-3" style="background: #ffffff; border: 1px solid #e2e8f0;">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <div style="width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center;">
-          <i class="fa-solid fa-paper-plane text-primary"></i>
-        </div>
-        <div>
-          <div class="small fw-bold text-dark mb-0">Report Recipient & Dispatch Route</div>
-          <div class="text-muted" style="font-size: 0.76rem;">
-            {% if reports_to_user %}
-              Directly sending to Manager: <strong class="text-primary">{{ reports_to_user.get_full_name|default:reports_to_user.username }}</strong> & Hospital Administration
-            {% else %}
-              Directly sending to: <strong class="text-primary">Hospital Administration / Super Admin</strong>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-      <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill" style="font-size: 0.72rem;">
-        <i class="fa-solid fa-bell text-warning me-1"></i> Instant Live Notification on Submit
-      </span>
-    </div>
-  </div>
-
-  <!-- Auto-computed Stats Quick Preview -->
-  {% if suggestions %}
-  <div class="p-3 mb-3 rounded-3" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6 !important;">
-    <div class="fw-bold text-primary small mb-2"><i class="fa-solid fa-chart-line me-1"></i> Pre-filled from today's Hospital CRM activity</div>
-    <div class="stat-preview-box">
-      <div class="stat-chip-box"><i class="fa-solid fa-user-plus text-primary"></i> Assigned: {{ suggestions.leads_assigned }}</div>
-      <div class="stat-chip-box"><i class="fa-solid fa-circle-check text-success"></i> Appts Booked: {{ suggestions.appointments_booked }}</div>
-      <div class="stat-chip-box"><i class="fa-solid fa-snowflake text-danger"></i> Freeze Leads: {{ suggestions.freeze_leads }}</div>
-      <div class="stat-chip-box"><i class="fa-solid fa-phone-volume text-primary"></i> Total Calls: {{ suggestions.calls_attended }}</div>
-      <div class="stat-chip-box"><i class="fa-solid fa-calendar-check text-success"></i> Follow-ups: {{ suggestions.follow_ups_taken }}</div>
-      <div class="stat-chip-box"><i class="fa-solid fa-right-to-bracket text-secondary"></i> First Login: {{ suggestions.first_login_time|date:"h:i A"|default:"Today" }}</div>
-    </div>
-  </div>
-  {% endif %}
 
   <!-- Main Report Form -->
   <form method="post" id="dailyReportForm">
@@ -349,13 +300,13 @@
     {% endif %}
 
     <!-- Action Buttons -->
-    <div class="d-flex gap-2 justify-content-end align-items-center mb-5">
+    <div class="d-flex gap-3 justify-content-end align-items-center mt-4 pt-3 mb-5">
       {% if user.role == 'LEAD_ATTENDENT' %}
-        <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+        <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-outline-secondary rounded-pill px-4 py-2">Cancel</a>
       {% elif user.role == 'DOCTOR' %}
-        <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+        <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-outline-secondary rounded-pill px-4 py-2">Cancel</a>
       {% else %}
-        <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+        <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-secondary rounded-pill px-4 py-2">Cancel</a>
       {% endif %}
       <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm">
         <i class="fa-solid fa-paper-plane me-2"></i>
@@ -369,22 +320,128 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Sanitize all integer number inputs to strictly positive integers
+    const form = document.getElementById('dailyReportForm');
+    const draftKey = "eod_draft_{{ user.id }}_{{ report_date|date:'Y-m-d' }}";
+    const draftStatusEl = document.getElementById('draftStatusIndicator');
+
+    // 1. Sanitize and optimize all integer number inputs
     const numberInputs = document.querySelectorAll('input[type="number"]');
     numberInputs.forEach(input => {
-        input.addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value === '') {
-                this.value = 0;
+        // Auto-select text on focus/click so typing immediately replaces default 0
+        input.addEventListener('focus', function() {
+            if (this.value === '0' || this.value === 0) {
+                this.select();
             }
         });
+        input.addEventListener('click', function() {
+            if (this.value === '0' || this.value === 0) {
+                this.select();
+            }
+        });
+
+        // Replace 0 immediately on first digit keypress
+        input.addEventListener('keydown', function(e) {
+            if ((this.value === '0' || this.value === 0) && e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                this.value = '';
+            }
+        });
+
+        // Strip non-digits and prevent 0-prepending (e.g. 01 -> 1)
+        input.addEventListener('input', function() {
+            let val = this.value.replace(/[^0-9]/g, '');
+            if (val.length > 1 && val.startsWith('0')) {
+                val = val.replace(/^0+/, '') || '0';
+            }
+            this.value = val;
+            saveDraft();
+        });
+
+        // Reset to 0 only when user leaves field completely empty
+        input.addEventListener('blur', function() {
+            if (this.value.trim() === '') {
+                this.value = 0;
+            }
+            saveDraft();
+        });
+
         input.addEventListener('paste', function(e) {
             e.preventDefault();
             const pasteData = (e.clipboardData || window.clipboardData).getData('text');
-            const sanitized = pasteData.replace(/[^0-9]/g, '');
-            this.value = sanitized || 0;
+            let sanitized = pasteData.replace(/[^0-9]/g, '');
+            if (sanitized.length > 1 && sanitized.startsWith('0')) {
+                sanitized = sanitized.replace(/^0+/, '') || '0';
+            }
+            this.value = sanitized !== '' ? sanitized : 0;
+            saveDraft();
         });
     });
+
+    // 2. Silent Background Autosave & Restore logic
+    let saveTimeout = null;
+    function saveDraft() {
+        if (!form) return;
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            const data = {};
+            const elements = form.querySelectorAll('input, select, textarea');
+            elements.forEach(el => {
+                if (el.name && el.name !== 'csrfmiddlewaretoken') {
+                    if (el.type === 'radio') {
+                        if (el.checked) data[el.name] = el.value;
+                    } else if (el.type === 'checkbox') {
+                        data[el.name] = el.checked;
+                    } else {
+                        let v = el.value;
+                        if (el.type === 'number' && typeof v === 'string' && v.length > 1 && v.startsWith('0')) {
+                            v = v.replace(/^0+/, '') || '0';
+                        }
+                        data[el.name] = v;
+                    }
+                }
+            });
+            localStorage.setItem(draftKey, JSON.stringify(data));
+        }, 300);
+    }
+
+    // Attach change listeners to textareas and selects for autosave
+    if (form) {
+        form.querySelectorAll('textarea, select, input[type="text"]').forEach(el => {
+            el.addEventListener('input', saveDraft);
+            el.addEventListener('change', saveDraft);
+        });
+
+        // 3. Silent Restore draft on load if available
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+            try {
+                const data = JSON.parse(savedDraft);
+                Object.keys(data).forEach(name => {
+                    const el = form.elements[name];
+                    if (el) {
+                        let val = data[name];
+                        if (el.type === 'number' && typeof val === 'string' && val.length > 1 && val.startsWith('0')) {
+                            val = val.replace(/^0+/, '') || '0';
+                        }
+                        if (el.type === 'radio') {
+                            const radio = form.querySelector(`input[name="${name}"][value="${val}"]`);
+                            if (radio) radio.checked = true;
+                        } else if (el.type === 'checkbox') {
+                            el.checked = val;
+                        } else {
+                            el.value = val;
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Error restoring draft:", e);
+            }
+        }
+
+        // Clear draft on successful form submit
+        form.addEventListener('submit', function() {
+            localStorage.removeItem(draftKey);
+        });
+    }
 });
 </script>
 {% endblock %}

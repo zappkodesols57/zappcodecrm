@@ -620,7 +620,7 @@ def lead_edit(request, pk):
                 cd.get('remark_1') or cd.get('calling_date_remark_1') or 
                 cd.get('remark_2') or cd.get('calling_date_remark_2') or 
                 cd.get('remark_3') or cd.get('calling_date_remark_3') or
-                cd.get('appointment_status') in ['Booked', 'Cancelled']
+                cd.get('appointment_status') in ['Booked', 'Cancelled', 'Confirmed', 'Completed', 'Visited']
             )
             
             try:
@@ -637,6 +637,16 @@ def lead_edit(request, pk):
                         cd['deal_status'] = 'Won (Payment Done)'
                         cd['appointment_status'] = 'Payment Done'
                         saved_lead.custom_data = cd
+                elif cd.get('appointment_status'):
+                    apt_st = cd.get('appointment_status')
+                    cd['deal_status'] = apt_st
+                    stage_match = LeadStage.objects.filter(name__iexact=apt_st).first()
+                    if stage_match:
+                        saved_lead.stage = stage_match
+                    elif has_call_interaction:
+                        contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+                        if contacted_stage:
+                            saved_lead.stage = contacted_stage
                 elif has_call_interaction:
                     contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
                     saved_lead.stage = contacted_stage
@@ -807,6 +817,16 @@ def lead_detail(request, pk):
     })
 
 
+def _can_archive_lead(user):
+    if user.is_superuser:
+        return True
+    if user.role == User.Role.SUPER_ADMIN:
+        return True
+    if user.hospital and user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]:
+        return True
+    return False
+
+
 @login_required
 def lead_archive(request, pk):
     lead = _get_lead_or_redirect(request, pk)
@@ -815,6 +835,9 @@ def lead_archive(request, pk):
     if not _can_access_lead(request.user, lead):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
+    if not _can_archive_lead(request.user):
+        messages.error(request, "Only Hospital Admins and Zappcode Admins can archive or restore leads.")
+        return redirect("leads:lead_detail", pk=pk)
     lead.is_archived = not lead.is_archived
     lead.save(update_fields=["is_archived"])
     messages.success(request, f"Lead {'archived' if lead.is_archived else 'restored'}.")
@@ -959,6 +982,9 @@ def bulk_action(request):
         leads.update(stage_id=stage_id)
         messages.success(request, f"{leads.count()} lead(s) updated.")
     elif action == "archive":
+        if not _can_archive_lead(request.user):
+            messages.error(request, "Only Hospital Admins and Zappcode Super Admins can archive leads.")
+            return redirect("leads:lead_list")
         leads.update(is_archived=True)
         messages.success(request, f"{leads.count()} lead(s) archived.")
     return redirect("leads:lead_list")
@@ -1869,6 +1895,18 @@ def hospital_branch_save(request, pk=None):
             messages.error(request, "Branch name is required.")
             return redirect(f"/leads/hospital-configuration/?tab=branches")
 
+        if contact_number:
+            import re
+            digits = re.sub(r"\D", "", contact_number)
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10 or digits[0] not in '6789':
+                messages.error(request, "Branch contact number must be a valid 10-digit number starting with 6, 7, 8, or 9.")
+                return redirect("/leads/hospital-configuration/?tab=branches")
+            contact_number = digits
+
         if is_main:
             # Only one main branch per hospital
             HospitalBranch.objects.filter(hospital=hospital).update(is_main_branch=False)
@@ -1993,9 +2031,11 @@ def hospital_doctor_save(request, pk=None):
             department_ids = [request.POST.get("department")]
         qualification = request.POST.get("qualification", "").strip()
         specialization = request.POST.get("specialization", "").strip()
-        contact_number = request.POST.get("contact_number", "").strip()
-        email = request.POST.get("email", "").strip()
-        consultation_fee = float(request.POST.get("consultation_fee", 0.0) or 0.0)
+        raw_fee = request.POST.get("consultation_fee", "0").strip()
+        try:
+            consultation_fee = max(0, int(round(float(raw_fee or 0))))
+        except (ValueError, TypeError):
+            consultation_fee = 0
         order = int(request.POST.get("order", 0) or 0)
 
         disease_ids = request.POST.getlist("associated_diseases")

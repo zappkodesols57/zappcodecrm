@@ -10,33 +10,107 @@
   </button>
 </div>
 
-<div class="card shadow-sm border-0 rounded-4">
-  <div class="card-header bg-white fw-bold py-3 px-4 border-bottom">
-    <i class="fa-solid fa-clock-rotate-left me-2"></i> Last 30 Days
-  </div>
-  <div class="card-body p-0">
-    <div class="list-group list-group-flush rounded-bottom-4">
-      {% for n in notifications %}
-      <a href="{% if n.link %}{{ n.link }}{% else %}#{% endif %}" onclick="if(!{{ n.is_read|lower }}) { markRead({{ n.id }}); }" class="list-group-item list-group-item-action p-4 {% if not n.is_read %}bg-light border-start border-primary border-4{% endif %}">
-        <div class="d-flex w-100 justify-content-between align-items-center">
-          <h6 class="mb-1 fw-bold {% if not n.is_read %}text-dark{% else %}text-secondary{% endif %}">
-            {{ n.title }}
-            {% if not n.is_read %}
-            <span class="badge bg-danger ms-2 rounded-pill" id="badge-{{ n.id }}">New</span>
-            {% endif %}
-          </h6>
-          <small class="text-muted"><i class="fa-regular fa-clock me-1"></i> {{ n.created_at|naturaltime }}</small>
-        </div>
-        <p class="mb-0 text-muted mt-2">{{ n.message }}</p>
-      </a>
-      {% empty %}
-      <div class="p-5 text-center text-muted">
-        <i class="fa-regular fa-bell-slash fs-1 mb-3 text-light"></i>
-        <h5>No Notifications</h5>
-        <p class="small">You're all caught up for the last 30 days.</p>
-      </div>
-      {% endfor %}
+<style>
+.notif-card {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  text-decoration: none !important;
+  color: inherit;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+.notif-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+.notif-card.is-unread {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  border-left: 3.5px solid #3b82f6;
+}
+.notif-card.is-unread:hover {
+  background: #f1f5f9;
+}
+.notif-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+</style>
+
+<div class="card shadow-xs border-0 rounded-4 p-3 bg-transparent">
+  <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+    <div class="small fw-semibold text-muted">
+      <i class="fa-solid fa-clock-rotate-left me-1"></i> Activity History (Last 30 Days)
     </div>
+  </div>
+
+  <div class="notifications-stream">
+    {% for n in notifications %}
+    <a href="{% if n.link %}{{ n.link }}{% else %}#{% endif %}" 
+       onclick="if(!{{ n.is_read|lower }}) { markRead({{ n.id }}); }" 
+       class="notif-card {% if not n.is_read %}is-unread{% endif %}">
+      <div class="d-flex align-items-start gap-3">
+        
+        <!-- Subtle Icon Avatar -->
+        <div class="notif-icon-box {% if not n.is_read %}bg-primary bg-opacity-10 text-primary{% else %}bg-light text-secondary{% endif %}">
+          {% if 'appointment' in n.title|lower or 'slot' in n.title|lower %}
+            <i class="fa-regular fa-calendar-check"></i>
+          {% elif 'report' in n.title|lower or 'eod' in n.title|lower %}
+            <i class="fa-solid fa-file-invoice"></i>
+          {% elif 'lead' in n.title|lower or 'patient' in n.title|lower %}
+            <i class="fa-solid fa-user-tag"></i>
+          {% elif 'task' in n.title|lower or 'reminder' in n.title|lower %}
+            <i class="fa-solid fa-list-check"></i>
+          {% else %}
+            <i class="fa-solid fa-bell"></i>
+          {% endif %}
+        </div>
+
+        <!-- Content -->
+        <div class="flex-grow-1 min-w-0">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-semibold {% if not n.is_read %}text-dark{% else %}text-secondary{% endif %}" style="font-size: 0.95rem;">
+                {{ n.title }}
+              </span>
+              {% if not n.is_read %}
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0" style="font-size: 0.68rem;" id="badge-{{ n.id }}">
+                New
+              </span>
+              {% endif %}
+            </div>
+            <span class="text-muted" style="font-size: 0.76rem;">
+              <i class="fa-regular fa-clock me-1 text-muted opacity-75"></i>{{ n.created_at|naturaltime }}
+            </span>
+          </div>
+          <p class="mb-0 text-muted" style="font-size: 0.85rem; line-height: 1.45;">
+            {{ n.message }}
+          </p>
+        </div>
+
+      </div>
+    </a>
+    {% empty %}
+    <div class="card border-0 bg-white rounded-4 p-5 text-center shadow-xs">
+      <div class="text-muted">
+        <i class="fa-regular fa-bell-slash fs-1 mb-3 text-secondary opacity-50"></i>
+        <h6 class="fw-bold text-dark mb-1">No Notifications Found</h6>
+        <p class="small text-muted mb-0">You're all caught up for the last 30 days.</p>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 

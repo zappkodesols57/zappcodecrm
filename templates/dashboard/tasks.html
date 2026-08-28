@@ -416,7 +416,7 @@
                     <!-- Link to Patient / Lead -->
                     <div class="mb-2">
                         <label class="form-label small fw-semibold text-muted mb-1 d-block">Link to Lead / Patient (Optional)</label>
-                        <select name="lead_id" class="form-select form-select-sm no-tom-select">
+                        <select name="lead_id" id="task_lead_select" class="form-select form-select-sm" placeholder="Search Patient / Lead...">
                             <option value="">-- None (General Task) --</option>
                             {% for lead in user_leads %}
                                 <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.mobile }})</option>
@@ -491,6 +491,22 @@ function initCustomDateTime() {
 document.addEventListener("DOMContentLoaded", function() {
     initCustomDateTime();
     handleRoleFilterChange();
+
+    const taskModal = document.getElementById('createTaskModal');
+    if (taskModal) {
+        taskModal.addEventListener('shown.bs.modal', function () {
+            const leadSelect = document.getElementById('task_lead_select');
+            if (leadSelect && !leadSelect.tomselect && typeof TomSelect !== 'undefined') {
+                new TomSelect(leadSelect, {
+                    create: false,
+                    maxOptions: 200,
+                    placeholder: 'Search Patient / Lead...',
+                    allowEmptyOption: true,
+                    dropdownParent: taskModal
+                });
+            }
+        });
+    }
 });
 
 function toggleTimelineInput() {

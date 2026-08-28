@@ -207,6 +207,7 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-secondary small text-uppercase tracking-wide">Mobile Number</label>
                                 {{ profile_form.phone }}
+                                <div id="profile_phone_feedback" class="mt-1 small fw-semibold d-none"></div>
                                 {% if profile_form.phone.errors %}
                                     <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ profile_form.phone.errors.0 }}</div>
                                 {% endif %}
@@ -453,6 +454,74 @@
         if (newPass1 && newPass2) {
             newPass1.addEventListener("input", checkProfilePasswordMatch);
             newPass2.addEventListener("input", checkProfilePasswordMatch);
+        }
+
+        // Real-time Mobile Number Validation & Sanitization
+        const phoneInput = document.querySelector('input[name="phone"]');
+        const phoneFeedback = document.getElementById('profile_phone_feedback');
+        const profileForm = phoneInput ? phoneInput.closest('form') : null;
+
+        function validatePhoneNumber() {
+            if (!phoneInput || !phoneFeedback) return true;
+            
+            // Clean up: digits only, handle paste with country code (+91 / 0)
+            let val = phoneInput.value.replace(/\D/g, '');
+            if (val.length === 12 && val.startsWith('91')) {
+                val = val.substring(2);
+            } else if (val.length === 11 && val.startsWith('0')) {
+                val = val.substring(1);
+            }
+            if (val.length > 10) {
+                val = val.substring(0, 10);
+            }
+            phoneInput.value = val;
+
+            if (val.length === 0) {
+                phoneFeedback.classList.add('d-none');
+                phoneInput.classList.remove('is-invalid', 'is-valid');
+                return true;
+            }
+
+            phoneFeedback.classList.remove('d-none');
+            if (val.length < 10) {
+                phoneInput.classList.remove('is-valid');
+                phoneInput.classList.add('is-invalid');
+                phoneFeedback.className = "mt-1 small fw-semibold text-danger";
+                phoneFeedback.innerHTML = `<i class="fa-solid fa-circle-exclamation me-1"></i> Mobile number must be 10 digits (${val.length}/10)`;
+                return false;
+            } else if (!/^[6-9]/.test(val)) {
+                phoneInput.classList.remove('is-valid');
+                phoneInput.classList.add('is-invalid');
+                phoneFeedback.className = "mt-1 small fw-semibold text-danger";
+                phoneFeedback.innerHTML = `<i class="fa-solid fa-circle-exclamation me-1"></i> Mobile number must start with 6, 7, 8, or 9`;
+                return false;
+            } else {
+                phoneInput.classList.remove('is-invalid');
+                phoneInput.classList.add('is-valid');
+                phoneFeedback.className = "mt-1 small fw-semibold text-success";
+                phoneFeedback.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Valid 10-digit mobile number`;
+                return true;
+            }
+        }
+
+        if (phoneInput) {
+            phoneInput.setAttribute('maxlength', '10');
+            phoneInput.setAttribute('minlength', '10');
+            phoneInput.setAttribute('pattern', '^[6-9][0-9]{9}$');
+            phoneInput.addEventListener('input', validatePhoneNumber);
+            phoneInput.addEventListener('blur', validatePhoneNumber);
+            phoneInput.addEventListener('paste', function(e) {
+                setTimeout(validatePhoneNumber, 50);
+            });
+
+            if (profileForm) {
+                profileForm.addEventListener('submit', function(e) {
+                    if (!validatePhoneNumber()) {
+                        e.preventDefault();
+                        phoneInput.focus();
+                    }
+                });
+            }
         }
     });
 

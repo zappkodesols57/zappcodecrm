@@ -57,7 +57,7 @@ def crm_login(request):
             return render(request, "accounts/login.html", {"form_error": True})
 
         login(request, user)
-        request.session.set_expiry(604800)  # 7 Days active persistent session
+        request.session.set_expiry(21600)  # 6 Hours automatic logout session timer (21600s)
         log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
         next_url = request.POST.get("next")
         if next_url:
