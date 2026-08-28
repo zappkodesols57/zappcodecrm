@@ -102,7 +102,7 @@ if USE_MYSQL:
             'NAME': os.environ.get('DB_NAME', 'leadcrm'),
             'USER': os.environ.get('DB_USER', 'root'),
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
             'PORT': os.environ.get('DB_PORT', '3306'),
             'CONN_MAX_AGE': 0,
             'OPTIONS': {
@@ -159,7 +159,7 @@ MAX_IMPORT_ROWS = 50000
 
 # Session & Cookie Persistence Settings
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 604800  # Keep session active for 7 days (604800 seconds)
+SESSION_COOKIE_AGE = 21600  # 6 Hours automatic logout (21600 seconds = 6 * 60 * 60)
 SESSION_SAVE_EVERY_REQUEST = True  # Automatically refresh session timer on every user request/activity
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_HTTPONLY = True

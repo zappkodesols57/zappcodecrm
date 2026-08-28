@@ -364,23 +364,31 @@ class UserProfileForm(forms.ModelForm):
     def clean_phone(self):
         phone = self.cleaned_data.get("phone", "")
         if phone:
-            digits = re.sub(r"\D", "", str(phone))
+            digits = re.sub(r"\D", "", str(phone).strip())
             if len(digits) == 12 and digits.startswith("91"):
                 digits = digits[2:]
             elif len(digits) == 11 and digits.startswith("0"):
                 digits = digits[1:]
             if len(digits) != 10:
                 raise forms.ValidationError("Mobile number must be exactly 10 digits.")
+            if digits[0] not in '6789':
+                raise forms.ValidationError("Mobile number must start with 6, 7, 8, or 9.")
             return digits
         return phone
 
     def clean_profile_picture(self):
+        from django.core.files.uploadedfile import UploadedFile
         picture = self.cleaned_data.get('profile_picture')
-        if picture:
+        
+        # Only perform size and format validation when a NEW file is actively uploaded
+        if picture and isinstance(picture, UploadedFile):
             # 1. Size Validation (Max 5MB)
             max_size = 5 * 1024 * 1024  # 5MB in bytes
-            if picture.size > max_size:
-                raise forms.ValidationError("Image file size must be less than 5 MB. Please choose a smaller photo.")
+            try:
+                if picture.size > max_size:
+                    raise forms.ValidationError("Image file size must be less than 5 MB. Please choose a smaller photo.")
+            except (FileNotFoundError, OSError, ValueError):
+                pass
             
             # 2. File Type / Extension Validation
             valid_extensions = ('.jpg', '.jpeg', '.png', '.webp')
@@ -394,4 +402,5 @@ class UserProfileForm(forms.ModelForm):
                 valid_content_types = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/pjpeg']
                 if picture.content_type.lower() not in valid_content_types:
                     raise forms.ValidationError("Invalid file type! Please upload a valid image file.")
+                    
         return picture

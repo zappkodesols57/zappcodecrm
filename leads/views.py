@@ -1895,6 +1895,18 @@ def hospital_branch_save(request, pk=None):
             messages.error(request, "Branch name is required.")
             return redirect(f"/leads/hospital-configuration/?tab=branches")
 
+        if contact_number:
+            import re
+            digits = re.sub(r"\D", "", contact_number)
+            if len(digits) == 12 and digits.startswith("91"):
+                digits = digits[2:]
+            elif len(digits) == 11 and digits.startswith("0"):
+                digits = digits[1:]
+            if len(digits) != 10 or digits[0] not in '6789':
+                messages.error(request, "Branch contact number must be a valid 10-digit number starting with 6, 7, 8, or 9.")
+                return redirect("/leads/hospital-configuration/?tab=branches")
+            contact_number = digits
+
         if is_main:
             # Only one main branch per hospital
             HospitalBranch.objects.filter(hospital=hospital).update(is_main_branch=False)
@@ -2019,9 +2031,11 @@ def hospital_doctor_save(request, pk=None):
             department_ids = [request.POST.get("department")]
         qualification = request.POST.get("qualification", "").strip()
         specialization = request.POST.get("specialization", "").strip()
-        contact_number = request.POST.get("contact_number", "").strip()
-        email = request.POST.get("email", "").strip()
-        consultation_fee = float(request.POST.get("consultation_fee", 0.0) or 0.0)
+        raw_fee = request.POST.get("consultation_fee", "0").strip()
+        try:
+            consultation_fee = max(0, int(round(float(raw_fee or 0))))
+        except (ValueError, TypeError):
+            consultation_fee = 0
         order = int(request.POST.get("order", 0) or 0)
 
         disease_ids = request.POST.getlist("associated_diseases")

@@ -1017,16 +1017,17 @@ def submit_daily_report(request):
 
     # ── Check if already submitted today ──────────────────────────────────────
     report_instance = DailyReport.objects.filter(user=request.user, report_date=report_date).first()
+    is_editing = request.GET.get('edit') == '1'
 
-    if report_instance:
-        # Already submitted → show locked confirmation page, no form
+    if report_instance and not is_editing and request.method != "POST":
+        # Already submitted → show confirmation page with option to edit
         return render(request, "dashboard/daily_report_done.html", {
             "active": "daily_report_submit",
             "report": report_instance,
             "report_date": report_date,
         })
 
-    # ── Not yet submitted → compute suggestions from today's actions ─────────────
+    # ── Compute suggestions from today's actions ─────────────
     day_followups = FollowUp.objects.filter(created_by=request.user, followup_date=report_date)
     
     # 1. Calls & Follow-ups
@@ -1041,10 +1042,35 @@ def submit_daily_report(request):
 
     # 3. Appointments Booked / Approved today
     from leads.models import Appointment, AppointmentStatus
-    appointments_booked_cnt = Appointment.objects.filter(
+    report_date_str = report_date.strftime("%Y-%m-%d")
+    report_date_alt_str = report_date.strftime("%d-%m-%Y")
+    
+    appts_model_cnt = Appointment.objects.filter(
         lead__assigned_to=request.user,
-        appointment_date=report_date
-    ).filter(status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.PENDING_APPROVAL]).count()
+    ).filter(
+        Q(appointment_date=report_date) |
+        Q(created_at__date=report_date)
+    ).filter(
+        status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.PENDING_APPROVAL, AppointmentStatus.COMPLETED]
+    ).values('lead').distinct().count()
+
+    appts_leads_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False,
+    ).filter(
+        Q(custom_data__appo_booked_date=report_date_str) |
+        Q(custom_data__appo_booked_date=report_date_alt_str) |
+        Q(custom_data__appointment_date=report_date_str) |
+        Q(custom_data__appointment_date=report_date_alt_str) |
+        Q(custom_data__appointment_confirmed_at__startswith=report_date_str)
+    ).filter(
+        Q(custom_data__appointment_status__icontains='Book') |
+        Q(custom_data__appointment_status__icontains='Confirm') |
+        Q(custom_data__appointment_status__icontains='Complete') |
+        Q(custom_data__appointment_status__icontains='Done')
+    ).distinct().count()
+
+    appointments_booked_cnt = max(appts_model_cnt, appts_leads_cnt)
 
     # 4. Freeze Leads (Cancelled / Not Interested / Cold)
     freeze_leads_cnt = Lead.objects.filter(
@@ -1057,7 +1083,36 @@ def submit_daily_report(request):
         Q(custom_data__appointment_status__icontains="Not Interested")
     ).count()
 
-    # 5. Login / Logout times from AuditLog (with smart fallback to activity timestamps)
+    # 5. Pending Follow-ups, Interested, Cold, Visited
+    follow_ups_pending_cnt = FollowUp.objects.filter(
+        lead__assigned_to=request.user,
+        followup_date__lte=report_date,
+        followup_status__in=["PENDING", "MISSED", "SCHEDULED"]
+    ).count()
+
+    leads_interested_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        temperature__in=["WARM", "HOT"],
+        updated_at__date=report_date
+    ).count()
+
+    leads_cold_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        temperature="COLD",
+        updated_at__date=report_date
+    ).count()
+
+    leads_visited_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        updated_at__date=report_date
+    ).filter(
+        Q(custom_data__appointment_status__icontains="Visit") |
+        Q(custom_data__appointment_status__icontains="Arrived") |
+        Q(custom_data__appointment_status__icontains="Completed") |
+        Q(custom_data__status__icontains="Visit")
+    ).count()
+
+    # 6. Login / Logout times from AuditLog (with smart fallback to activity timestamps)
     from audit.models import AuditLog
     first_login_log = AuditLog.objects.filter(
         user=request.user, 
@@ -1070,7 +1125,6 @@ def submit_daily_report(request):
     elif request.user.last_login and request.user.last_login.date() == report_date:
         first_login_time = request.user.last_login
     else:
-        # Check earliest action of the day
         earliest_log = AuditLog.objects.filter(user=request.user, created_at__date=report_date).order_by("created_at").first()
         first_login_time = earliest_log.created_at if earliest_log else timezone.now()
 
@@ -1081,7 +1135,7 @@ def submit_daily_report(request):
     ).order_by("-created_at").first()
     last_logout_time = last_logout_log.created_at if last_logout_log else None
     
-    # 6. Auto-calculate academic metrics: Admissions Done today and Fees Payments Collected today
+    # 7. Auto-calculate academic metrics: Admissions Done today and Fees Payments Collected today
     from admissions.models import Admission
     from payments.models import Payment, PaymentStatus
     admissions_today_cnt = Admission.objects.filter(lead__assigned_to=request.user, admission_date=report_date).count()
@@ -1113,6 +1167,10 @@ def submit_daily_report(request):
         "appointments_booked": appointments_booked_cnt,
         "freeze_leads": freeze_leads_cnt,
         "follow_ups_taken": follow_ups_taken_cnt,
+        "follow_ups_pending": follow_ups_pending_cnt,
+        "leads_interested": leads_interested_cnt,
+        "leads_cold": leads_cold_cnt,
+        "leads_visited": leads_visited_cnt,
         "admissions_done": admissions_today_cnt,
         "fees_collected": fees_today_sum,
         "first_login_time": first_login_time,
@@ -1125,70 +1183,102 @@ def submit_daily_report(request):
     if request.method == "POST":
         from django.db import IntegrityError, transaction
         from notifications.models import Notification
-        if DailyReport.objects.filter(user=request.user, report_date=report_date).exists():
-            messages.warning(request, "Report already submitted for today.")
-            return redirect("dashboard:submit_daily_report")
 
         form = FormClass(request.POST)
         if form.is_valid():
             try:
                 with transaction.atomic():
                     cleaned = form.cleaned_data
-                    report = DailyReport.objects.create(
+                    
+                    # Store exact values entered/edited by user
+                    report_data = {
+                        "leads_assigned": cleaned.get("leads_assigned") if cleaned.get("leads_assigned") is not None else leads_assigned_cnt,
+                        "appointments_booked": cleaned.get("appointments_booked") if cleaned.get("appointments_booked") is not None else appointments_booked_cnt,
+                        "freeze_leads": cleaned.get("freeze_leads") if cleaned.get("freeze_leads") is not None else freeze_leads_cnt,
+                        "calls_attended": cleaned.get("calls_attended") if cleaned.get("calls_attended") is not None else calls_attended_cnt,
+                        "outgoing_calls": cleaned.get("outgoing_calls") if cleaned.get("outgoing_calls") is not None else outgoing_calls_cnt,
+                        "incoming_calls": cleaned.get("incoming_calls") if cleaned.get("incoming_calls") is not None else incoming_calls_cnt,
+                        "calls_not_connected": cleaned.get("calls_not_connected") if cleaned.get("calls_not_connected") is not None else calls_not_connected_cnt,
+                        "follow_ups_taken": cleaned.get("follow_ups_taken") if cleaned.get("follow_ups_taken") is not None else follow_ups_taken_cnt,
+                        "follow_ups_pending": cleaned.get("follow_ups_pending") if cleaned.get("follow_ups_pending") is not None else follow_ups_pending_cnt,
+                        "leads_cold": cleaned.get("leads_cold") if cleaned.get("leads_cold") is not None else leads_cold_cnt,
+                        "leads_interested": cleaned.get("leads_interested") if cleaned.get("leads_interested") is not None else leads_interested_cnt,
+                        "leads_visited": cleaned.get("leads_visited") if cleaned.get("leads_visited") is not None else leads_visited_cnt,
+                        "admissions_done": cleaned.get("admissions_done") if cleaned.get("admissions_done") is not None else admissions_today_cnt,
+                        "fees_collected": cleaned.get("fees_collected") if cleaned.get("fees_collected") is not None else fees_today_sum,
+                        "key_highlight": cleaned.get("key_highlight") or "",
+                        "challenges_faced": cleaned.get("challenges_faced") or "",
+                        "tomorrow_priority": cleaned.get("tomorrow_priority") or "",
+                        "other_updates": cleaned.get("other_updates") or "",
+                        "mood_rating": cleaned.get("mood_rating") or 3,
+                        "first_login_at": first_login_time,
+                        "last_logout_at": last_logout_time,
+                    }
+                    
+                    report, created = DailyReport.objects.update_or_create(
                         user=request.user,
                         report_date=report_date,
-                        leads_assigned=cleaned.get("leads_assigned", leads_assigned_cnt),
-                        appointments_booked=cleaned.get("appointments_booked", appointments_booked_cnt),
-                        freeze_leads=cleaned.get("freeze_leads", freeze_leads_cnt),
-                        calls_attended=cleaned.get("calls_attended", 0),
-                        outgoing_calls=cleaned.get("outgoing_calls", 0),
-                        incoming_calls=cleaned.get("incoming_calls", 0),
-                        calls_not_connected=cleaned.get("calls_not_connected", 0),
-                        follow_ups_taken=cleaned.get("follow_ups_taken", follow_ups_taken_cnt),
-                        follow_ups_pending=cleaned.get("follow_ups_pending", 0),
-                        leads_cold=cleaned.get("leads_cold", 0),
-                        leads_interested=cleaned.get("leads_interested", 0),
-                        leads_visited=cleaned.get("leads_visited", 0),
-                        admissions_done=cleaned.get("admissions_done", admissions_today_cnt),
-                        fees_collected=cleaned.get("fees_collected", fees_today_sum),
-                        key_highlight=cleaned.get("key_highlight", ""),
-                        challenges_faced=cleaned.get("challenges_faced", ""),
-                        tomorrow_priority=cleaned.get("tomorrow_priority", ""),
-                        other_updates=cleaned.get("other_updates", ""),
-                        mood_rating=cleaned.get("mood_rating", 3),
-                        first_login_at=first_login_time,
-                        last_logout_at=last_logout_time,
+                        defaults=report_data
                     )
                     
                     # Send Notifications to recipient (Reports To / Admin)
                     target_recipients = recipients if recipients else admin_qs
+                    action_word = "submitted" if created else "updated"
                     for r_user in target_recipients:
                         Notification.objects.create(
                             user=r_user,
-                            title=f"EOD Report from {request.user.get_full_name() or request.user.username}",
-                            message=f"{request.user.get_full_name() or request.user.username} submitted Daily EOD Report for {report_date.strftime('%d %b %Y')}. (Assigned: {report.leads_assigned}, Admissions: {report.admissions_done}, Calls: {report.calls_attended})",
+                            title=f"EOD Report ({action_word.capitalize()}) from {request.user.get_full_name() or request.user.username}",
+                            message=f"{request.user.get_full_name() or request.user.username} {action_word} Daily EOD Report for {report_date.strftime('%d %b %Y')}. (Assigned: {report.leads_assigned}, Appts: {report.appointments_booked}, Calls: {report.calls_attended})",
                             link="/dashboard/reports/admin/",
                         )
 
-                messages.success(request, f"Daily report for {report_date.strftime('%d-%m-%Y')} submitted and sent to Administration/Manager successfully! ✅")
+                messages.success(request, f"Daily report for {report_date.strftime('%d-%m-%Y')} {'submitted' if created else 'updated'} successfully! ✅")
                 return redirect("dashboard:submit_daily_report")
-            except IntegrityError:
-                messages.warning(request, "Report already submitted for today.")
+            except Exception as e:
+                messages.error(request, f"Error saving report: {str(e)}")
                 return redirect("dashboard:submit_daily_report")
     else:
-        init_data = {
-            "leads_assigned": suggestions["leads_assigned"],
-            "calls_attended": suggestions["calls_attended"],
-            "outgoing_calls": suggestions["outgoing_calls"],
-            "incoming_calls": suggestions["incoming_calls"],
-            "calls_not_connected": suggestions["calls_not_connected"],
-            "follow_ups_taken": suggestions["follow_ups_taken"],
-            "admissions_done": suggestions["admissions_done"],
-            "fees_collected": suggestions["fees_collected"],
-        }
-        if request.user.hospital:
-            init_data["appointments_booked"] = suggestions["appointments_booked"]
-            init_data["freeze_leads"] = suggestions["freeze_leads"]
+        if report_instance:
+            init_data = {
+                "leads_assigned": report_instance.leads_assigned,
+                "calls_attended": report_instance.calls_attended,
+                "outgoing_calls": report_instance.outgoing_calls,
+                "incoming_calls": report_instance.incoming_calls,
+                "calls_not_connected": report_instance.calls_not_connected,
+                "follow_ups_taken": report_instance.follow_ups_taken,
+                "follow_ups_pending": report_instance.follow_ups_pending,
+                "leads_cold": report_instance.leads_cold,
+                "leads_interested": report_instance.leads_interested,
+                "leads_visited": report_instance.leads_visited,
+                "admissions_done": report_instance.admissions_done,
+                "fees_collected": report_instance.fees_collected,
+                "key_highlight": report_instance.key_highlight,
+                "challenges_faced": report_instance.challenges_faced,
+                "tomorrow_priority": report_instance.tomorrow_priority,
+                "other_updates": report_instance.other_updates,
+                "mood_rating": report_instance.mood_rating,
+            }
+            if request.user.hospital:
+                init_data["appointments_booked"] = report_instance.appointments_booked
+                init_data["freeze_leads"] = report_instance.freeze_leads
+        else:
+            init_data = {
+                "leads_assigned": suggestions["leads_assigned"],
+                "calls_attended": suggestions["calls_attended"],
+                "outgoing_calls": suggestions["outgoing_calls"],
+                "incoming_calls": suggestions["incoming_calls"],
+                "calls_not_connected": suggestions["calls_not_connected"],
+                "follow_ups_taken": suggestions["follow_ups_taken"],
+                "follow_ups_pending": suggestions["follow_ups_pending"],
+                "leads_interested": suggestions["leads_interested"],
+                "leads_cold": suggestions["leads_cold"],
+                "leads_visited": suggestions["leads_visited"],
+                "admissions_done": suggestions["admissions_done"],
+                "fees_collected": suggestions["fees_collected"],
+            }
+            if request.user.hospital:
+                init_data["appointments_booked"] = suggestions["appointments_booked"]
+                init_data["freeze_leads"] = suggestions["freeze_leads"]
 
         form = FormClass(initial=init_data)
 
@@ -1199,6 +1289,7 @@ def submit_daily_report(request):
         "report_date": report_date,
         "reports_to_user": reports_to_user,
         "recipients": recipients,
+        "existing": report_instance is not None,
     })
 
 
@@ -1325,22 +1416,36 @@ def telecaller_home(request):
         Q(followups__followup_date=today_date, followups__created_by=user)
     ).distinct().count()
     
-    # 2. Appointments Booked / Confirmed by Doctors for this user's leads
+    # 2. Today's Appointments Booked / Confirmed for this user's leads
     from leads.models import Appointment, AppointmentStatus
-    appts_today_count = Appointment.objects.filter(
+    appts_model_cnt = Appointment.objects.filter(
         lead__hospital=user.hospital,
         lead__assigned_to=user,
-        status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]
+    ).filter(
+        Q(appointment_date=today_date) |
+        Q(created_at__date=today_date)
+    ).filter(
+        status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
     ).values('lead').distinct().count()
-    
-    if appts_today_count == 0:
-        appts_today_count = Lead.objects.filter(
-            hospital=user.hospital,
-            assigned_to=user,
-        ).filter(
-            Q(custom_data__appointment_status__in=['Booked', 'Completed', 'Payment Done']) |
-            Q(custom_data__appointment_confirmed_at__startswith=today_str)
-        ).count()
+
+    appts_leads_cnt = Lead.objects.filter(
+        hospital=user.hospital,
+        assigned_to=user,
+        is_archived=False,
+    ).filter(
+        Q(custom_data__appo_booked_date=today_str) |
+        Q(custom_data__appo_booked_date=today_alt_str) |
+        Q(custom_data__appointment_date=today_str) |
+        Q(custom_data__appointment_date=today_alt_str) |
+        Q(custom_data__appointment_confirmed_at__startswith=today_str)
+    ).filter(
+        Q(custom_data__appointment_status__icontains='Book') |
+        Q(custom_data__appointment_status__icontains='Confirm') |
+        Q(custom_data__appointment_status__icontains='Complete') |
+        Q(custom_data__appointment_status__icontains='Done')
+    ).distinct().count()
+
+    appts_today_count = max(appts_model_cnt, appts_leads_cnt)
     
     # 3. New Hot Leads Added/Imported Today (Received in Hospital today)
     hot_leads_today_count = Lead.objects.filter(
@@ -1831,9 +1936,14 @@ def doctor_home(request):
         Q(doctor_name__icontains=doctor.get_full_name() or doctor.username)
     ).select_related('lead').order_by('-appointment_date', 'appointment_time')
     
-    today_apts = doctor_apts.filter(appointment_date=today)
+    today_apts = doctor_apts.filter(appointment_date=today).exclude(
+        status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
+    )
     pending_apts = doctor_apts.filter(status=AppointmentStatus.PENDING_APPROVAL)
-    upcoming_apts = doctor_apts.filter(appointment_date__gt=today).exclude(status=AppointmentStatus.CANCELLED)
+    upcoming_apts = doctor_apts.filter(appointment_date__gt=today).exclude(
+        status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
+    )
+    completed_today_apts = doctor_apts.filter(appointment_date=today, status=AppointmentStatus.COMPLETED)
     
     schedule, _ = DoctorSchedule.objects.get_or_create(doctor=doctor, defaults={"hospital": doctor.hospital})
     leaves = DoctorLeave.objects.filter(doctor=doctor, end_date__gte=today).order_by("start_date")
@@ -2017,8 +2127,12 @@ def doctor_appointments(request):
         )
 
     pending_apts = doctor_apts.filter(status=AppointmentStatus.PENDING_APPROVAL)
-    today_apts = doctor_apts.filter(appointment_date=today).exclude(status=AppointmentStatus.CANCELLED)
-    upcoming_apts = doctor_apts.filter(appointment_date__gt=today).exclude(status=AppointmentStatus.CANCELLED)
+    today_apts = doctor_apts.filter(appointment_date=today).exclude(
+        status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
+    )
+    upcoming_apts = doctor_apts.filter(appointment_date__gt=today).exclude(
+        status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
+    )
     completed_apts = doctor_apts.filter(status=AppointmentStatus.COMPLETED)
     cancelled_apts = doctor_apts.filter(status=AppointmentStatus.CANCELLED)
 
