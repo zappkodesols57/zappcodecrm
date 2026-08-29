@@ -26,5 +26,5 @@ jobs:
             pip install -r requirements.txt
             python manage.py migrate --noinput
             python manage.py collectstatic --noinput
-            systemctl restart gunicorn
+            systemctl restart zappcodecrm
             echo "✅ Deployment complete!"
