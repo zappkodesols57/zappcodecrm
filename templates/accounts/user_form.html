@@ -1,5 +1,57 @@
 {% extends "base.html" %}
 {% block title %}{{ mode }} Employee User{% endblock %}
+{% block extra_head %}
+<style>
+  /* Enforce exact uniform height, border, font-size and alignment for ALL form fields */
+  .nelson-dashboard .form-control,
+  .nelson-dashboard .form-select,
+  .nelson-dashboard .custom-select-wrapper select,
+  .nelson-dashboard .ts-control,
+  .nelson-dashboard .input-group .form-control {
+    border: 1px solid rgba(79, 70, 229, 0.2) !important;
+    border-radius: 0.6rem !important;
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    padding: 0.45rem 0.85rem !important;
+    font-size: 0.875rem !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    line-height: 1.5 !important;
+    box-sizing: border-box !important;
+    color: #1e293b !important;
+    box-shadow: none !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .nelson-dashboard .input-group .form-control {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  .nelson-dashboard .input-group .btn {
+    height: 42px !important;
+    border: 1px solid rgba(79, 70, 229, 0.2) !important;
+    border-left: none !important;
+    border-top-right-radius: 0.6rem !important;
+    border-bottom-right-radius: 0.6rem !important;
+  }
+  .nelson-dashboard .form-control:focus,
+  .nelson-dashboard .form-select:focus,
+  .nelson-dashboard .custom-select-wrapper select:focus,
+  .nelson-dashboard .ts-control.focus {
+    background-color: #ffffff !important;
+    border-color: #818cf8 !important;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15) !important;
+  }
+  .nelson-dashboard .ts-dropdown {
+    border: 1px solid rgba(79, 70, 229, 0.2) !important;
+    border-radius: 0.6rem !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+    z-index: 1050 !important;
+    background: #ffffff !important;
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="nelson-dashboard">
 
@@ -36,7 +88,13 @@
             <label class="form-label small fw-semibold text-dark mb-1">
               {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
             </label>
-            {{ field }}
+            {% if field.name == 'role' or field.name == 'reports_to' or field.name == 'department' or field.name == 'speciality' %}
+              <div class="custom-select-wrapper">
+                {{ field }}
+              </div>
+            {% else %}
+              {{ field }}
+            {% endif %}
             {% if field.name == 'username' %}
               <div id="username_feedback_box" class="mt-1" style="display: none;"></div>
             {% endif %}
@@ -127,6 +185,19 @@
     const specDiv = document.getElementById("div_id_speciality");
     const hospDiv = document.getElementById("div_id_hospital");
     const reportsToSelect = document.getElementById("id_reports_to");
+
+    // Clear initial role pre-selection if mode is Add Mode
+    {% if not obj %}
+    if (roleField && roleField.value === "LEAD_ATTENDENT" && !roleField.dataset.userSelected) {
+      const hasEmptyOpt = Array.from(roleField.options).some(o => o.value === "");
+      if (hasEmptyOpt) {
+        roleField.value = "";
+        if (roleField.tomselect) {
+          roleField.tomselect.clear();
+        }
+      }
+    }
+    {% endif %}
 
     // Enforce 10-digit phone input
     const phoneInput = document.getElementById("id_phone") || document.querySelector('input[name="phone"]');

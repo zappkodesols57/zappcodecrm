@@ -112,7 +112,9 @@
         <th>Doctor</th>
         <th>Source</th>
         <th>Campaign</th>
+        {% if not request.user.hospital and request.user.role != 'LEAD_ATTENDENT' %}
         <th>Priority</th>
+        {% endif %}
         <th>Status</th>
         <th>Inquiry Date</th>
         <th>Assigned To</th>
@@ -128,17 +130,28 @@
         <td>{% if lead.custom_doctor %}Dr. {{ lead.custom_doctor }}{% else %}-{% endif %}</td>
         <td>{{ lead.custom_source|default:"-" }}</td>
         <td>{{ lead.custom_camp|default:"-" }}</td>
+        {% if not request.user.hospital and request.user.role != 'LEAD_ATTENDENT' %}
         <td>
           {% with prio=lead.custom_priority %}
             {% if prio == 'Hot' or prio == 'HOT' %}<span class="badge-pill badge-hot">Hot</span>
             {% elif prio == 'Warm' or prio == 'WARM' %}<span class="badge-pill badge-warm">Warm</span>
-            {% else %}<span class="badge-pill badge-cold">{{ prio|default:"Cold" }}</span>{% endif %}
+            {% elif prio == 'Cold' or prio == 'COLD' %}<span class="badge-pill badge-cold">Cold</span>
+            {% elif prio == 'Uncontacted' or prio == 'UNCONTACTED' %}<span class="badge-pill badge-cold" style="background: #f1f5f9; color: #64748b;">Uncontacted</span>
+            {% else %}<span class="badge-pill badge-cold">{{ prio|default:"Normal" }}</span>{% endif %}
           {% endwith %}
         </td>
+        {% endif %}
         <td>
-          <span style="font-weight: 600;">{{ lead.custom_deal_status|default:"New" }}</span>
-          {% if lead.custom_appointment_status %}
-            <div style="color: #2563eb; font-size: 9.5px;">{{ lead.custom_appointment_status }}</div>
+          {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total or lead.custom_data.total_paid %}
+            <span style="font-weight: 600; color: #16a34a;">Payment Done{% if lead.custom_data.total_paid or lead.custom_data.total %}: ₹{{ lead.custom_data.total_paid|default:lead.custom_data.total }}{% endif %}</span>
+          {% elif lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' and lead.custom_data.appointment_status != '' %}
+            <span style="font-weight: 600; color: {% if lead.custom_data.appointment_status == 'Booked' %}#16a34a{% elif 'Cancel' in lead.custom_data.appointment_status or 'Not Int' in lead.custom_data.appointment_status %}#dc2626{% else %}#2563eb{% endif %};">
+              {{ lead.custom_data.appointment_status }}
+            </span>
+          {% elif lead.stage and lead.stage.name != 'New' and lead.stage.name != 'Open' %}
+            <span style="font-weight: 600; color: #0284c7;">{{ lead.stage.name }}</span>
+          {% else %}
+            <span style="font-weight: 600;">{{ lead.custom_deal_status|default:"New" }}</span>
           {% endif %}
         </td>
         <td>{{ lead.inquiry_date|default:lead.created_at|date:"d-m-Y" }}</td>
@@ -146,7 +159,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="11" style="text-align: center; padding: 20px; color: #94a3b8;">No leads found for the selected filter criteria.</td>
+        <td colspan="{% if not request.user.hospital and request.user.role != 'LEAD_ATTENDENT' %}11{% else %}10{% endif %}" style="text-align: center; padding: 20px; color: #94a3b8;">No leads found for the selected filter criteria.</td>
       </tr>
       {% endfor %}
     </tbody>

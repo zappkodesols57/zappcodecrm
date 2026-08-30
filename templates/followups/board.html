@@ -3,28 +3,27 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h3 class="fw-bold text-primary mb-1">
+        <h4 class="fw-bold text-dark mb-1">
             <i class="fa-solid {% if active == 'fu_today' %}fa-calendar-day text-primary{% elif active == 'fu_upcoming' %}fa-calendar-plus text-info{% else %}fa-calendar-xmark text-danger{% endif %} me-2"></i>
             {{ title }}
-        </h3>
-        <p class="text-muted mb-0">Track and manage patient follow-ups, scheduled callback remarks, and appointments.</p>
+        </h4>
+        <p class="text-muted small mb-0">Track and manage patient follow-ups, scheduled callback remarks, and appointments.</p>
     </div>
 </div>
 
 <!-- Search & Stats Filter Card -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-body p-4">
-        <form method="GET" action="" class="row g-3 align-items-end">
-            <div class="col-md-9">
-                <label class="form-label small fw-bold text-uppercase text-muted">Search Patients / Remarks / Doctor</label>
+    <div class="card-body p-3">
+        <form method="GET" action="" class="row g-2 align-items-center">
+            <div class="col-md-9 col-12">
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
                     <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name, Mobile, Doctor, or Department..." value="{{ q }}">
                 </div>
             </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Search</button>
-                <a href="{% if active == 'fu_today' %}{% url 'followups:today' %}{% elif active == 'fu_upcoming' %}{% url 'followups:upcoming' %}{% else %}{% url 'followups:overdue' %}{% endif %}" class="btn btn-light border w-100">Clear</a>
+            <div class="col-md-3 col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary rounded-pill flex-grow-1 shadow-sm"><i class="fa-solid fa-search me-1"></i> Search</button>
+                <a href="{% if active == 'fu_today' %}{% url 'followups:today' %}{% elif active == 'fu_upcoming' %}{% url 'followups:upcoming' %}{% else %}{% url 'followups:overdue' %}{% endif %}" class="btn btn-light border rounded-pill px-3">Clear</a>
             </div>
         </form>
     </div>
@@ -71,43 +70,49 @@
                                 <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <div class="mb-1 d-flex flex-wrap gap-1">
-                                {% if lead.appt_status == 'Completed' %}
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1">
-                                        <i class="fa-solid fa-circle-check me-1"></i> Doctor Completed
-                                    </span>
-                                {% elif lead.appt_status == 'Booked' or lead.appt_status == 'Cancelled' %}
-                                    <span class="badge {% if lead.appt_status == 'Booked' %}bg-success text-success border-success-subtle{% else %}bg-danger text-danger border-danger-subtle{% endif %} bg-opacity-10 border px-2 py-1">
-                                        <i class="fa-solid {% if lead.appt_status == 'Booked' %}fa-calendar-check{% else %}fa-calendar-xmark{% endif %} me-1"></i> {{ lead.appt_status }}
-                                    </span>
-                                {% else %}
-                                    {% if lead.admission_status == 'ADMISSION_DONE' %}
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> Done</span>
+                        <td style="min-width: 250px;">
+                            <div class="d-flex align-items-center gap-1 flex-nowrap">
+                                <!-- Fixed Width Slot for Main Status -->
+                                <div style="min-width: 140px; flex-shrink: 0;">
+                                    {% if lead.appt_status == 'Completed' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;">
+                                            <i class="fa-solid fa-circle-check me-1"></i> Doctor Completed
+                                        </span>
+                                    {% elif lead.appt_status == 'Booked' or lead.appt_status == 'Cancelled' %}
+                                        <span class="badge {% if lead.appt_status == 'Booked' %}bg-success text-success border-success-subtle{% else %}bg-danger text-danger border-danger-subtle{% endif %} bg-opacity-10 border px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;">
+                                            <i class="fa-solid {% if lead.appt_status == 'Booked' %}fa-calendar-check{% else %}fa-calendar-xmark{% endif %} me-1"></i> {{ lead.appt_status }}
+                                        </span>
                                     {% else %}
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.stage.name|default:lead.get_deal_status_display }}</span>
+                                        {% if lead.admission_status == 'ADMISSION_DONE' %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;"><i class="fa-solid fa-check me-1"></i> Done</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100 text-truncate" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;">{{ lead.stage.name|default:lead.get_deal_status_display }}</span>
+                                        {% endif %}
                                     {% endif %}
-                                {% endif %}
+                                </div>
 
+                                <!-- Fixed Width Slot for Billing Amount / Pending -->
                                 {% if active == 'fu_billing' %}
+                                <div style="min-width: 105px; flex-shrink: 0;">
                                     {% if lead.is_billing_filled %}
-                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;">
                                             <i class="fa-solid fa-file-invoice me-1"></i> Bill: ₹{{ lead.total_bill }}
                                         </span>
                                     {% else %}
-                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2 py-1">
-                                            <i class="fa-solid fa-hourglass-half me-1"></i> Billing Pending
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;">
+                                            <i class="fa-solid fa-hourglass-half me-1"></i> Bill Pending
                                         </span>
                                     {% endif %}
+                                </div>
                                 {% endif %}
                                     
                                 {% if lead.lead_priority %}
                                     {% if lead.lead_priority == 'Hot' %}
-                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-fire me-1"></i> Hot</span>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1 d-inline-flex align-items-center" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;"><i class="fa-solid fa-fire me-1"></i> Hot</span>
                                     {% elif lead.lead_priority == 'Warm' %}
-                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-temperature-half me-1"></i> Warm</span>
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1 d-inline-flex align-items-center" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;"><i class="fa-solid fa-temperature-half me-1"></i> Warm</span>
                                     {% elif lead.lead_priority == 'Cold' %}
-                                        <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-snowflake me-1"></i> Cold</span>
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1 d-inline-flex align-items-center" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;"><i class="fa-solid fa-snowflake me-1"></i> Cold</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -142,14 +147,14 @@
                             </div>
                         </td>
                         <td class="px-4 text-end">
-                            <div class="btn-group shadow-sm">
-                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border" title="View Patient"><i class="fa-solid fa-eye text-primary"></i></a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-light border py-1 px-2" title="View Patient" style="font-size: 0.78rem; height: 28px; line-height: 18px;"><i class="fa-solid fa-eye text-primary"></i></a>
                                 {% if active == 'fu_billing' %}
-                                    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-success text-white border" title="Add / Update Bill & UHID">
-                                        <i class="fa-solid fa-file-invoice-dollar me-1"></i> {% if lead.is_billing_filled %}Edit Bill{% else %}+ Add Bill{% endif %}
+                                    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-success text-white border py-1 px-2 fw-medium" title="Add / Update Bill & UHID" style="font-size: 0.78rem; height: 28px; line-height: 18px;">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i> {% if lead.is_billing_filled %}Edit Bill{% else %}+ Add Bill{% endif %}
                                     </a>
                                 {% else %}
-                                    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand border" title="Update Follow-up"><i class="fa-solid fa-pen text-white"></i> Edit</a>
+                                    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-brand border py-1 px-2" title="Update Follow-up" style="font-size: 0.78rem; height: 28px; line-height: 18px;"><i class="fa-solid fa-pen text-white"></i> Edit</a>
                                 {% endif %}
                             </div>
                         </td>

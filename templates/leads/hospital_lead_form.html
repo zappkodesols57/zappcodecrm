@@ -575,7 +575,10 @@
           <div class="col-md-6">
             <label class="form-label small fw-bold text-dark">Follow-up Time</label>
             {{ form.followup_time }}
-            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Notification reminder will be sent</small>
+            <div id="fuTimeErrorMsg" class="text-danger small mt-1 d-none fw-semibold" style="font-size: 0.75rem;">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Follow-up time cannot be in the past for today's date.
+            </div>
+            <small id="fuTimeHelperText" class="text-muted d-block mt-1" style="font-size: 0.75rem;">Notification reminder will be sent</small>
           </div>
         </div>
       </div>
@@ -939,6 +942,9 @@
             // 2. Follow-up Needed Box
             if (waitingContainer) {
                 waitingContainer.style.display = isFollowup ? 'block' : 'none';
+                if (isFollowup && typeof updateFollowupTimeConstraints === 'function') {
+                    updateFollowupTimeConstraints();
+                }
             }
 
             // 3. Reason for Cancellation / Not Interested Box
@@ -1353,6 +1359,60 @@
                     this.value = '125';
                 }
             });
+        }
+
+        // Dynamic validation and min constraints for Follow-up Date and Time
+        const fuDateInput = document.getElementById('id_followup_date') || document.querySelector('input[name="followup_date"]');
+        const fuTimeInput = document.getElementById('id_followup_time') || document.querySelector('input[name="followup_time"]');
+        const fuTimeErrorMsg = document.getElementById('fuTimeErrorMsg');
+
+        function updateFollowupTimeConstraints() {
+            if (!fuDateInput || !fuTimeInput) return;
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+
+            fuDateInput.min = todayStr;
+
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const currentTimeStr = `${hours}:${minutes}`;
+
+            if (fuDateInput.value === todayStr) {
+                fuTimeInput.min = currentTimeStr;
+                if (fuTimeInput.value && fuTimeInput.value < currentTimeStr) {
+                    fuTimeInput.setCustomValidity(`Please select an upcoming time after ${currentTimeStr}`);
+                    fuTimeInput.classList.add('is-invalid');
+                    if (fuTimeErrorMsg) {
+                        fuTimeErrorMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Please choose upcoming time after ${currentTimeStr} for today.`;
+                        fuTimeErrorMsg.classList.remove('d-none');
+                    }
+                } else {
+                    fuTimeInput.setCustomValidity('');
+                    fuTimeInput.classList.remove('is-invalid');
+                    if (fuTimeErrorMsg) {
+                        fuTimeErrorMsg.classList.add('d-none');
+                    }
+                }
+            } else {
+                fuTimeInput.removeAttribute('min');
+                fuTimeInput.setCustomValidity('');
+                fuTimeInput.classList.remove('is-invalid');
+                if (fuTimeErrorMsg) {
+                    fuTimeErrorMsg.classList.add('d-none');
+                }
+            }
+        }
+
+        if (fuDateInput && fuTimeInput) {
+            updateFollowupTimeConstraints();
+            fuDateInput.addEventListener('change', updateFollowupTimeConstraints);
+            fuDateInput.addEventListener('input', updateFollowupTimeConstraints);
+            fuTimeInput.addEventListener('change', updateFollowupTimeConstraints);
+            fuTimeInput.addEventListener('input', updateFollowupTimeConstraints);
         }
 
         // Run on initial load

@@ -93,16 +93,12 @@
       
       el.setAttribute('placeholder', placeholderText);
 
-      var modalParent = el.closest('.modal');
-      var dropdownParent = modalParent ? modalParent : 'body';
-
       new TomSelect(el, {
         create: false,
         plugins: isMultiple ? ['remove_button'] : [],
         maxOptions: 100,
         placeholder: placeholderText,
-        allowEmptyOption: false,
-        dropdownParent: dropdownParent
+        allowEmptyOption: false
       });
     });
   }

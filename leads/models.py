@@ -491,7 +491,16 @@ class Lead(models.Model):
 
     @property
     def custom_priority(self):
-        return self.get_custom("priority") or self.temperature or ""
+        prio = self.get_custom("priority")
+        if prio:
+            return prio
+        temp = (self.temperature or "").strip()
+        if temp and temp.upper() != 'UNCONTACTED':
+            return self.get_temperature_display()
+        # If assigned or updated, it is no longer uncontacted
+        if self.assigned_to_id or self.stage_id or (self.custom_data and (self.custom_data.get('appointment_status') or self.custom_data.get('deal_status'))):
+            return "Medium" if self.hospital else "Normal"
+        return "Uncontacted"
 
     @property
     def custom_camp(self):

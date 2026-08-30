@@ -208,14 +208,14 @@
         <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Add Follow-up</h6>
       </div>
       <div class="card-body">
-        <form method="post" action="{% url 'leads:add_followup' lead.pk %}">
+        <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
           {% csrf_token %}
           <div class="row g-2 mb-2">
             <div class="col-md-4">
-              <input type="date" name="followup_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
+              <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
             </div>
             <div class="col-md-2">
-              <input type="time" name="followup_time" class="form-control form-control-sm">
+              <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
             </div>
             <div class="col-md-3">
               <select name="followup_mode" class="form-select form-select-sm no-tom-select">
@@ -232,13 +232,83 @@
               </select>
             </div>
           </div>
+          <!-- Real-time time error alert -->
+          <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.78rem;">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
+          </div>
           <div class="input-group">
             <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment..." required>
-            <button type="submit" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-plus me-1"></i> Add</button>
+            <button type="submit" class="btn btn-sm btn-brand text-white" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Add</button>
           </div>
         </form>
       </div>
     </div>
+    <script>
+      (function() {
+        const dInput = document.getElementById('hosp_detail_fu_date');
+        const tInput = document.getElementById('hosp_detail_fu_time');
+        const errBox = document.getElementById('hosp_detail_time_error');
+        const errText = document.getElementById('hosp_detail_time_error_text');
+        const submitBtn = document.getElementById('hosp_detail_fu_submit');
+
+        function syncMinTime() {
+          if (!dInput || !tInput) return;
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayStr = `${year}-${month}-${day}`;
+          dInput.min = todayStr;
+
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const curTime = `${hours}:${minutes}`;
+
+          if (dInput.value === todayStr) {
+            tInput.min = curTime;
+            if (tInput.value && tInput.value < curTime) {
+              tInput.classList.add('is-invalid');
+              if (errBox) {
+                errBox.classList.remove('d-none');
+                if (errText) errText.textContent = `Invalid Time: Selected time (${tInput.value}) has already passed. Please select a time after ${curTime}.`;
+              }
+              if (submitBtn) submitBtn.disabled = true;
+              tInput.setCustomValidity(`Please select an upcoming time after ${curTime}`);
+            } else {
+              tInput.classList.remove('is-invalid');
+              if (errBox) errBox.classList.add('d-none');
+              if (submitBtn) submitBtn.disabled = false;
+              tInput.setCustomValidity('');
+            }
+          } else {
+            tInput.removeAttribute('min');
+            tInput.classList.remove('is-invalid');
+            if (errBox) errBox.classList.add('d-none');
+            if (submitBtn) submitBtn.disabled = false;
+            tInput.setCustomValidity('');
+          }
+        }
+
+        if (dInput && tInput) {
+          syncMinTime();
+          dInput.addEventListener('change', syncMinTime);
+          dInput.addEventListener('input', syncMinTime);
+          tInput.addEventListener('change', syncMinTime);
+          tInput.addEventListener('input', syncMinTime);
+        }
+
+        const fuForm = document.getElementById('addFollowupForm');
+        if (fuForm) {
+          fuForm.addEventListener('submit', function(e) {
+            syncMinTime();
+            if (tInput && tInput.classList.contains('is-invalid')) {
+              e.preventDefault();
+              tInput.focus();
+            }
+          });
+        }
+      })();
+    </script>
 
     <!-- Timeline History -->
     <div class="card border-0 shadow-sm rounded-4">

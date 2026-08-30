@@ -351,32 +351,99 @@ def superadmin_home(request):
     ).count()
     conv_rate = round(appts_booked / total_leads, 2) if total_leads > 0 else 0.0
 
-    # Calculate total revenue from both custom_data and nelson_data
+    # Calculate total revenue and extract distributions in a single fast optimized pass
     total_rev_calc = 0.0
-    for l in base_leads:
+    gender_dist = {}
+    priority_dist = {}
+    campaign_dist = {}
+    source_dist = {}
+
+    # Fast optimized pass with only required fields to prevent N+1 queries & heavy model hydration
+    fast_leads = base_leads.select_related('lead_source', 'campaign', 'nelson_data').only(
+        'id', 'custom_data', 'temperature', 'campaign__name', 'lead_source__name',
+        'nelson_data__gender', 'nelson_data__priority', 'nelson_data__total'
+    )
+
+    # Robust Distribution Extractors for custom_data + nelson_data + direct models
+    gender_dist = {}
+    priority_dist = {}
+    campaign_dist = {}
+    source_dist = {}
+    department_metrics = {
+        "leads": {},
+        "appointments": {},
+        "revenue": {}
+    }
+
+    for l in fast_leads:
         cd = l.custom_data or {}
-        tot = cd.get('total')
+        nd = getattr(l, 'nelson_data', None)
+
+        # Revenue
+        tot = cd.get('total') or (nd.total if nd and hasattr(nd, 'total') else 0)
+        tot_val = 0.0
         if tot:
             try:
-                total_rev_calc += float(tot)
+                tot_val = float(tot)
+                total_rev_calc += tot_val
             except (ValueError, TypeError):
                 pass
+
+        # 1. Gender
+        g = cd.get('gender') or (nd.gender if nd and hasattr(nd, 'gender') else '')
+        if g:
+            g_str = str(g).strip().title()
+            if g_str and g_str.lower() not in ['unknown', 'none', 'null', 'nan', '']:
+                gender_dist[g_str] = gender_dist.get(g_str, 0) + 1
+
+        # 2. Priority
+        p = cd.get('priority') or (nd.priority if nd and hasattr(nd, 'priority') else '') or l.temperature
+        if p:
+            p_str = str(p).strip().title()
+            if p_str and p_str.lower() not in ['unknown', 'none', 'null', 'nan', '']:
+                priority_dist[p_str] = priority_dist.get(p_str, 0) + 1
+
+        # 3. Campaign
+        c = (l.campaign.name if l.campaign else '') or cd.get('campaign')
+        if c:
+            c_str = str(c).strip()
+            if c_str and c_str.lower() not in ['unknown', 'none', 'null', 'nan', '']:
+                campaign_dist[c_str] = campaign_dist.get(c_str, 0) + 1
+
+        # 4. Source
+        s = (l.lead_source.name if l.lead_source else '') or cd.get('lead_source')
+        if s:
+            s_str = str(s).strip()
+            if s_str and s_str.lower() not in ['unknown', 'none', 'null', 'nan', '']:
+                source_dist[s_str] = source_dist.get(s_str, 0) + 1
+
+        # 5. Department Metrics (Leads, Appointments, Revenue)
+        dept = cd.get('department') or cd.get('disease') or (nd.department if nd and hasattr(nd, 'department') else '')
+        if not dept:
+            dept = "General OPD"
+        dept_str = str(dept).strip().title()
+        if dept_str and dept_str.lower() not in ['unknown', 'none', 'null', 'nan', '']:
+            # Leads count
+            department_metrics["leads"][dept_str] = department_metrics["leads"].get(dept_str, 0) + 1
+
+            # Appointment Booked
+            is_appt_booked = False
+            appt_stat = str(cd.get('appointment_status', '')).lower()
+            if 'book' in appt_stat or 'complete' in appt_stat or 'done' in appt_stat:
+                is_appt_booked = True
+            elif nd and hasattr(nd, 'appo_book') and str(nd.appo_book).upper() == 'YES':
+                is_appt_booked = True
+
+            if is_appt_booked:
+                department_metrics["appointments"][dept_str] = department_metrics["appointments"].get(dept_str, 0) + 1
+
+            # Revenue by department
+            if tot_val > 0:
+                department_metrics["revenue"][dept_str] = round(department_metrics["revenue"].get(dept_str, 0.0) + tot_val, 2)
+
     nelson_rev = float(base_leads.aggregate(s=Sum('nelson_data__total'))['s'] or 0.0)
     total_revenue = total_rev_calc + nelson_rev
     new_leads_month = base_leads.filter(created_at__year=today.year, created_at__month=today.month).count()
-
-    def get_dist(field_name):
-        qs = base_leads.values(field_name).annotate(c=Count('id'))
-        dist = {}
-        for row in qs:
-            k = row[field_name]
-            if not k: 
-                continue
-            k_str = str(k).strip()
-            if not k_str or k_str.lower() in ['unknown', 'none', 'null', 'nan']:
-                continue
-            dist[k_str] = row['c']
-        return dist
 
     import calendar
     month_wise_leads = {}
@@ -401,17 +468,18 @@ def superadmin_home(request):
         "conversion_rate": conv_rate,
         "total_revenue": float(total_revenue),
         "new_leads_this_month": new_leads_month,
-        "gender_distribution": get_dist('nelson_data__gender'),
-        "source_distribution": get_dist('lead_source__name'),
-        "priority_distribution": get_dist('nelson_data__priority'),
-        "campaign_distribution": get_dist('campaign__name'),
+        "gender_distribution": gender_dist,
+        "source_distribution": source_dist,
+        "priority_distribution": priority_dist,
+        "campaign_distribution": campaign_dist,
+        "department_metrics": department_metrics,
         "funnel_data": {
             "Leads": base_leads.count(),
-            "Contacted": base_leads.exclude(nelson_data__remark_1='').count(),
-            "Follow-up": base_leads.exclude(nelson_data__remark_2='').count(),
-            "Appointments": base_leads.filter(nelson_data__appo_book__iexact='YES').count(),
-            "Visits Completed": base_leads.filter(nelson_data__done__iexact='YES').count(),
-            "Active Patients": base_leads.exclude(nelson_data__uhid_id_no='').count(),
+            "Contacted": base_leads.filter(Q(custom_data__remark_1__isnull=False, custom_data__remark_1__gt="") | Q(nelson_data__remark_1__isnull=False, nelson_data__remark_1__gt="") | Q(followups__isnull=False)).distinct().count(),
+            "Follow-up": base_leads.filter(Q(custom_data__remark_2__isnull=False, custom_data__remark_2__gt="") | Q(nelson_data__remark_2__isnull=False, nelson_data__remark_2__gt="") | Q(followups__isnull=False)).distinct().count(),
+            "Appointments": base_leads.filter(Q(custom_data__appointment_status__icontains='Book') | Q(nelson_data__appo_book__iexact='YES')).distinct().count(),
+            "Visits Completed": base_leads.filter(Q(custom_data__appointment_status__icontains='Complete') | Q(custom_data__appointment_status__icontains='Done') | Q(nelson_data__done__iexact='YES')).distinct().count(),
+            "Active Patients": base_leads.filter(Q(custom_data__uhid_no__isnull=False, custom_data__uhid_no__gt="") | Q(nelson_data__uhid_id_no__isnull=False, nelson_data__uhid_id_no__gt="")).distinct().count(),
             "Revenue": float(total_revenue)
         },
         "month_wise_leads": month_wise_leads,
@@ -1400,19 +1468,19 @@ def telecaller_home(request):
     today_str = today_date.strftime("%Y-%m-%d")
     today_alt_str = today_date.strftime("%d-%m-%Y")
     
-    # 1. Calls Today (Leads edited/called/interacted by this user today)
+    # 1. Calls Today (Leads with remarks/followups/interactions recorded today)
     calls_today_count = Lead.objects.filter(
         hospital=user.hospital,
         assigned_to=user,
     ).filter(
-        Q(updated_at__gte=today_start) |
-        Q(custom_data__last_called_date=today_str) |
         Q(custom_data__calling_date_remark_1=today_str) |
         Q(custom_data__calling_date_remark_1=today_alt_str) |
         Q(custom_data__calling_date_remark_2=today_str) |
         Q(custom_data__calling_date_remark_2=today_alt_str) |
         Q(custom_data__calling_date_remark_3=today_str) |
         Q(custom_data__calling_date_remark_3=today_alt_str) |
+        Q(custom_data__last_called_date=today_str) |
+        Q(custom_data__last_called_date=today_alt_str) |
         Q(followups__followup_date=today_date, followups__created_by=user)
     ).distinct().count()
     
@@ -1658,21 +1726,26 @@ def telecaller_search(request):
     if export_format in ('1', 'excel', 'xlsx', 'csv'):
         import pandas as pd
         rows = []
+        is_hospital = bool(user.hospital or user.role == 'LEAD_ATTENDENT')
         for lead in leads:
             cd = lead.custom_data or {}
-            rows.append({
+            row_dict = {
                 "Lead Code": lead.lead_code,
                 "Patient Name": lead.name,
                 "Mobile": lead.mobile,
                 "Doctor": cd.get('doctor', ''),
                 "Department": cd.get('department', '') or cd.get('disease', ''),
-                "Priority": cd.get('priority', '') or lead.get_temperature_display(),
+            }
+            if not is_hospital:
+                row_dict["Priority"] = cd.get('priority', '') or lead.get_temperature_display()
+            row_dict.update({
                 "Lead Status": cd.get('deal_status', '') or lead.get_deal_status_display(),
                 "Appointment Status": cd.get('appointment_status', ''),
                 "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
                 "Assigned Staff": lead.assigned_to.get_full_name() if lead.assigned_to else 'Unassigned',
                 "Location": lead.location or lead.city or '',
             })
+            rows.append(row_dict)
         df = pd.DataFrame(rows)
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response['Content-Disposition'] = f'attachment; filename="leads_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
@@ -2656,7 +2729,6 @@ def telecaller_new_enquiries(request):
                 "Doctor": cd.get('doctor', '') or '-',
                 "Lead Source": cd.get('lead_source', '') or (lead.lead_source.name if lead.lead_source else '-'),
                 "Campaign": cd.get('campaign', '') or (lead.campaign.name if lead.campaign else '-'),
-                "Priority": cd.get('priority', '') or lead.get_temperature_display(),
                 "Lead Status": lead_stat,
                 "Appointment Status": cd.get('appointment_status', '') or '-',
                 "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
@@ -3084,7 +3156,7 @@ def call_history_view(request):
         elif user.can_view_assigned_leads:
             leads = leads.filter(assigned_to=user)
             
-    # Filter leads that have any telecaller remarks or call logs
+    # Filter leads that have any telecaller remarks, call logs, or recorded interactions
     leads = leads.filter(
         Q(custom_data__remark_1__isnull=False, custom_data__remark_1__gt="") |
         Q(custom_data__remark_2__isnull=False, custom_data__remark_2__gt="") |
@@ -3092,6 +3164,7 @@ def call_history_view(request):
         Q(custom_data__calling_date_remark_1__isnull=False, custom_data__calling_date_remark_1__gt="") |
         Q(custom_data__calling_date_remark_2__isnull=False, custom_data__calling_date_remark_2__gt="") |
         Q(custom_data__calling_date_remark_3__isnull=False, custom_data__calling_date_remark_3__gt="") |
+        Q(custom_data__last_called_date__isnull=False, custom_data__last_called_date__gt="") |
         Q(followups__isnull=False)
     ).distinct().select_related('assigned_to', 'stage').order_by('-updated_at')
     
@@ -3112,12 +3185,29 @@ def call_history_view(request):
     # Date Filter
     call_date = request.GET.get('call_date', '').strip()
     if call_date:
-        leads = leads.filter(
+        call_date_alt = ""
+        try:
+            from datetime import datetime as dt
+            dt_obj = dt.strptime(call_date, "%Y-%m-%d")
+            call_date_alt = dt_obj.strftime("%d-%m-%Y")
+        except Exception:
+            pass
+
+        date_q = (
             Q(custom_data__calling_date_remark_1=call_date) |
             Q(custom_data__calling_date_remark_2=call_date) |
             Q(custom_data__calling_date_remark_3=call_date) |
+            Q(custom_data__last_called_date=call_date) |
             Q(followups__followup_date=call_date)
         )
+        if call_date_alt:
+            date_q |= (
+                Q(custom_data__calling_date_remark_1=call_date_alt) |
+                Q(custom_data__calling_date_remark_2=call_date_alt) |
+                Q(custom_data__calling_date_remark_3=call_date_alt) |
+                Q(custom_data__last_called_date=call_date_alt)
+            )
+        leads = leads.filter(date_q)
         
     # Call Status / Appointment filter
     call_status = request.GET.get('call_status', '').strip()
