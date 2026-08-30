@@ -16,11 +16,17 @@ class Hospital(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def get_allowed_roles(self):
-        """Returns list of allowed role keys for this business. Defaults to all roles if not customized."""
+        """Returns list of allowed role keys for this business. Excludes Super Admin & Zappcode internal roles for hospitals."""
         if self.allowed_roles and isinstance(self.allowed_roles, list) and len(self.allowed_roles) > 0:
             return self.allowed_roles
-        # Default all active choices
-        return [r[0] for r in User.Role.choices]
+        # Hospital Roles: only Admin, Manager, Lead Attendant, and Doctor
+        hospital_default_roles = [
+            User.Role.ADMIN,
+            User.Role.MANAGER,
+            User.Role.LEAD_ATTENDENT,
+            User.Role.DOCTOR,
+        ]
+        return [r for r in hospital_default_roles if r in [c[0] for c in User.Role.choices]]
 
     def __str__(self):
         return self.name

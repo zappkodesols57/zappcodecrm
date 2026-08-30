@@ -785,6 +785,22 @@ class HospitalLeadForm(forms.ModelForm):
             raise forms.ValidationError("Total Bill cannot be negative.")
         return val
 
+    def clean(self):
+        cleaned_data = super().clean()
+        fu_date = cleaned_data.get("followup_date")
+        fu_time = cleaned_data.get("followup_time")
+
+        if fu_date:
+            today = timezone.localdate()
+            if fu_date < today:
+                self.add_error("followup_date", "Follow-up date cannot be in the past.")
+            elif fu_date == today and fu_time:
+                now_time = timezone.localtime().time()
+                if fu_time < now_time:
+                    self.add_error("followup_time", f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
+
+        return cleaned_data
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         cd = instance.custom_data or {}

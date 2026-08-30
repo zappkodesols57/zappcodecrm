@@ -168,6 +168,14 @@
         border-radius: 4px;
     }
 
+    .custom-campaign-scroll::-webkit-scrollbar {
+        width: 5px;
+    }
+    .custom-campaign-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.18);
+        border-radius: 4px;
+    }
+
     .funnel-stage {
         display: flex;
         align-items: center;
@@ -244,36 +252,24 @@
 {% endblock %}
 
 {% block content %}
-<div class="nelson-dashboard">
+<div class="nelson-dashboard" style="background: transparent; border: none; padding: 0;">
     <!-- Top Header & Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-3">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-3">
         <div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <h4 class="fw-bold mb-0 text-dark">Overall Analytics</h4>
-                {% if filter_label != "All Time" %}
-                <div class="d-inline-flex align-items-center gap-2 ms-2">
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.8rem;">
-                        <i class="ph ph-calendar-blank me-1"></i> {{ filter_label }}
-                    </span>
-                    <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-2 py-1 small fw-semibold text-decoration-none" title="Clear filter">
-                        <i class="ph ph-x"></i> Reset
-                    </a>
-                </div>
-                {% endif %}
-            </div>
+            <h4 class="fw-bold mb-0 text-dark">Overall Analytics</h4>
             <p class="text-muted mb-0 mt-1" style="font-size: 0.88rem;">Comprehensive 360° Overview for {{ request.user.hospital.name|default:'Hospital' }}</p>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-            <!-- Simple, Clean Date Filter Dropdown -->
-            <div class="dropdown position-relative" style="z-index: 1050;">
-                <button class="btn {% if filter_label != 'All Time' %}btn-primary text-white shadow-sm{% else %}btn-outline-secondary bg-white text-dark{% endif %} dropdown-toggle d-flex align-items-center gap-2 rounded-pill px-3 py-2 fw-semibold" type="button" id="periodFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.85rem;">
-                    <i class="ph ph-calendar text-primary"></i> <span>{% if filter_label != "All Time" %}{{ filter_label }}{% else %}Filter by Date{% endif %}</span>
+            <!-- Date Filter Dropdown -->
+            <div class="dropdown">
+                <button class="btn {% if filter_label != 'All Time' %}btn-primary text-white shadow-sm{% else %}btn-outline-secondary bg-white text-dark border{% endif %} dropdown-toggle d-flex align-items-center gap-2 rounded-pill px-3 py-2 fw-semibold" type="button" id="periodFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.85rem;">
+                    <i class="ph ph-calendar {% if filter_label == 'All Time' %}text-primary{% endif %}"></i> <span>{% if filter_label != "All Time" %}{{ filter_label }}{% else %}Filter by Date{% endif %}</span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-end shadow-lg border rounded-4 p-3 mt-1" style="min-width: 290px; z-index: 9999; right: 0; left: auto;" aria-labelledby="periodFilterDropdown">
+                <div class="dropdown-menu dropdown-menu-end shadow-lg border rounded-4 p-3 mt-2" style="min-width: 290px; right: 0; left: auto; z-index: 1060;" aria-labelledby="periodFilterDropdown">
                     <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                         <span class="small fw-bold text-dark text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">Select Date Range</span>
                         {% if filter_label != "All Time" %}
-                        <a href="{% url 'dashboard:superadmin_home' %}" class="small text-danger text-decoration-none fw-semibold" style="font-size: 0.72rem;">Clear</a>
+                        <a href="{% url 'dashboard:superadmin_home' %}" class="small text-danger text-decoration-none fw-semibold" style="font-size: 0.72rem;">Clear Filter</a>
                         {% endif %}
                     </div>
                     
@@ -326,6 +322,12 @@
                     </div>
                 </div>
             </div>
+
+            {% if filter_label != "All Time" %}
+            <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-danger d-flex align-items-center gap-1 rounded-pill px-3 py-2 fw-semibold text-decoration-none" style="font-size: 0.85rem;" title="Reset Date Filter">
+                <i class="ph ph-x"></i> Reset Filter
+            </a>
+            {% endif %}
 
             <a href="{% url 'meta_ads:dashboard' %}" class="btn btn-outline-primary {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %}"
                 style="border-radius: 50px; font-weight: 600;">
@@ -428,9 +430,17 @@
             </div>
         </div>
         <div class="chart-card">
-            <h4 class="mb-3 fs-6 fw-bold">Lead Priority Distribution</h4>
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h4 class="mb-0 fs-6 fw-bold">Department Performance</h4>
+                <!-- Dynamic Filter Switcher for Leads / Appointments / Revenue -->
+                <div class="btn-group btn-group-sm" role="group" id="deptMetricButtonGroup">
+                    <button type="button" class="btn btn-primary btn-sm fw-semibold active" data-metric="leads" style="font-size: 0.72rem; padding: 2px 8px;">Leads</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" data-metric="appointments" style="font-size: 0.72rem; padding: 2px 8px;">Appointments</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" data-metric="revenue" style="font-size: 0.72rem; padding: 2px 8px;">Revenue</button>
+                </div>
+            </div>
             <div style="position: relative; height: 260px; width: 100%;">
-                <canvas id="priorityChart"></canvas>
+                <canvas id="departmentChart"></canvas>
             </div>
         </div>
         <div class="chart-card">
@@ -461,7 +471,9 @@
     Chart.defaults.font.family = "'Outfit', sans-serif";
 
     function renderChart(canvasId, type, dataObj, customColors = null) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
         const labels = Object.keys(dataObj || {});
         const values = Object.values(dataObj || {});
 
@@ -470,6 +482,16 @@
             const sorted = labels.map((l, i) => ({ l, v: values[i] })).sort((a, b) => b.v - a.v);
             labels.length = 0; values.length = 0;
             sorted.forEach(item => { labels.push(item.l); values.push(item.v); });
+        }
+
+        // For Campaign Chart, ensure dynamic height so each bar is clearly visible with scrolling
+        if (canvasId === 'campaignChart') {
+            const container = document.getElementById('campaignChartContainer');
+            if (container && labels.length > 0) {
+                // Ensure at least 38px height per campaign bar if more than 5 campaigns
+                const dynamicHeight = Math.max(labels.length * 40, 250);
+                container.style.height = `${dynamicHeight}px`;
+            }
         }
 
         new Chart(ctx, {
@@ -481,13 +503,48 @@
                     data: values,
                     backgroundColor: customColors || [
                         '#4F46E5', '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'
-                    ]
+                    ],
+                    borderRadius: 4,
+                    barPercentage: 0.65
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 indexAxis: type === 'bar' ? 'y' : 'x',
+                layout: {
+                    padding: {
+                        left: type === 'bar' ? 10 : 0,
+                        right: type === 'bar' ? 15 : 0
+                    }
+                },
+                scales: type === 'bar' ? {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false,
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                const label = this.getLabelForValue(value);
+                                if (typeof label === 'string') {
+                                    // Always show starting of the name; truncate only at the end with ellipsis
+                                    if (label.length > 15) {
+                                        return label.substring(0, 13) + '...';
+                                    }
+                                    return label;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                } : undefined,
                 onClick: (e, elements) => {
                     if (elements.length > 0) {
                         const idx = elements[0].index;
@@ -510,6 +567,14 @@
                     legend: {
                         position: type === 'bar' ? 'none' : 'bottom',
                         display: type !== 'bar'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const idx = tooltipItems[0].dataIndex;
+                                return labels[idx] || '';
+                            }
+                        }
                     }
                 }
             }
@@ -599,8 +664,7 @@
         renderChart('sourceChart', 'doughnut', insights.source_distribution, 
             ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#14B8A6']);
             
-        renderChart('priorityChart', 'bar', insights.priority_distribution, 
-            ['#EF4444', '#F59E0B', '#3B82F6', '#10B981']);
+        renderDepartmentPerformanceChart(insights.department_metrics);
             
         renderChart('campaignChart', 'bar', insights.campaign_distribution, 
             ['#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B']);
@@ -610,5 +674,148 @@
         renderChart('monthWiseChart', 'bar', insights.month_wise_leads, 
             ['#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#0ea5e9'], false);
     });
+
+    let deptChartInstance = null;
+    function renderDepartmentPerformanceChart(deptMetrics) {
+        const canvas = document.getElementById('departmentChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const metrics = deptMetrics || { leads: {}, appointments: {}, revenue: {} };
+
+        let currentMetric = 'leads';
+
+        function getChartData(metricType) {
+            const dataObj = metrics[metricType] || {};
+            const labels = Object.keys(dataObj);
+            const values = Object.values(dataObj);
+
+            // Sort descending by value
+            const sorted = labels.map((l, i) => ({ l, v: values[i] })).sort((a, b) => b.v - a.v);
+            return {
+                labels: sorted.map(item => item.l),
+                values: sorted.map(item => item.v)
+            };
+        }
+
+        const initial = getChartData('leads');
+
+        deptChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: initial.labels,
+                datasets: [{
+                    label: 'Leads Count',
+                    data: initial.values,
+                    backgroundColor: [
+                        '#4F46E5', '#10B981', '#3B82F6', '#F59E0B', '#EF4444',
+                        '#8B5CF6', '#EC4899', '#06B6D4', '#EAB308', '#2563EB'
+                    ],
+                    borderRadius: 4,
+                    barPercentage: 0.65
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 15
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            callback: function(value) {
+                                if (currentMetric === 'revenue') {
+                                    return '₹' + value.toLocaleString('en-IN');
+                                }
+                                return value;
+                            }
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false,
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                const label = this.getLabelForValue(value);
+                                if (typeof label === 'string' && label.length > 15) {
+                                    return label.substring(0, 13) + '...';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                if (currentMetric === 'revenue') {
+                                    return ' Revenue: ₹' + val.toLocaleString('en-IN');
+                                } else if (currentMetric === 'appointments') {
+                                    return ' Appointments Booked: ' + val.toLocaleString('en-IN');
+                                } else {
+                                    return ' Total Leads: ' + val.toLocaleString('en-IN');
+                                }
+                            },
+                            title: function(tooltipItems) {
+                                return tooltipItems[0].label || '';
+                            }
+                        }
+                    }
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const idx = elements[0].index;
+                        const clickedLabel = deptChartInstance.data.labels[idx];
+                        const urlParams = new URLSearchParams(window.location.search);
+                        urlParams.set('department', clickedLabel);
+                        window.location.search = urlParams.toString();
+                    }
+                }
+            }
+        });
+
+        // Interactive Button Switcher logic
+        const btnGroup = document.getElementById('deptMetricButtonGroup');
+        if (btnGroup) {
+            const buttons = btnGroup.querySelectorAll('button[data-metric]');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const metric = this.getAttribute('data-metric');
+                    if (metric === currentMetric) return;
+
+                    currentMetric = metric;
+
+                    // Update button styling
+                    buttons.forEach(b => {
+                        b.classList.remove('btn-primary', 'active');
+                        b.classList.add('btn-outline-primary');
+                    });
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('btn-primary', 'active');
+
+                    // Update dataset and labels
+                    const freshData = getChartData(currentMetric);
+                    deptChartInstance.data.labels = freshData.labels;
+                    deptChartInstance.data.datasets[0].data = freshData.values;
+                    deptChartInstance.data.datasets[0].label = currentMetric === 'revenue' ? 'Total Revenue (₹)' : (currentMetric === 'appointments' ? 'Appointments Booked' : 'Leads Count');
+
+                    deptChartInstance.update();
+                });
+            });
+        }
+    }
 </script>
 {% endblock %}

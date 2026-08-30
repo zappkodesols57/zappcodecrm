@@ -22,11 +22,25 @@ class CRMUserCreateForm(UserCreationForm):
             allowed = self.user.hospital.get_allowed_roles()
             if self.user.role == User.Role.MANAGER:
                 allowed = [r for r in allowed if r not in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]]
-            self.fields["role"].choices = [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
+            self.fields["role"].choices = [("", "Select Employee Role")] + [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
             if "reports_to" in self.fields:
                 self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
+        else:
+            self.fields["role"].choices = [("", "Select Employee Role")] + list(self.fields["role"].choices)
+
+        if not (self.instance and self.instance.pk):
+            self.initial['role'] = ""
+            if "role" in self.fields:
+                self.fields["role"].initial = ""
+
+        if "role" in self.fields:
+            self.fields["role"].empty_label = "Select Employee Role"
+            self.fields["role"].widget.attrs.update({
+                "placeholder": "Select Employee Role",
+                "data-placeholder": "Select Employee Role",
+            })
         
         if "reports_to" in self.fields:
             self.fields["reports_to"].empty_label = "Select Reporting Manager"
@@ -115,11 +129,20 @@ class CRMUserEditForm(forms.ModelForm):
             allowed = self.user.hospital.get_allowed_roles()
             if self.user.role == User.Role.MANAGER:
                 allowed = [r for r in allowed if r not in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]]
-            self.fields["role"].choices = [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
+            self.fields["role"].choices = [("", "Select Employee Role")] + [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
             if "reports_to" in self.fields:
                 self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
+        else:
+            self.fields["role"].choices = [("", "Select Employee Role")] + list(self.fields["role"].choices)
+
+        if "role" in self.fields:
+            self.fields["role"].empty_label = "Select Employee Role"
+            self.fields["role"].widget.attrs.update({
+                "placeholder": "Select Employee Role",
+                "data-placeholder": "Select Employee Role",
+            })
                 
         if "reports_to" in self.fields:
             self.fields["reports_to"].empty_label = "Select Reporting Manager"

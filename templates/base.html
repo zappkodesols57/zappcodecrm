@@ -9,15 +9,45 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   :root{
     --sidebar-w: 265px;
     --sidebar-collapsed-w: 70px;
     --brand: #4f46e5;
     --brand-dark: #3730a3;
+    --brand-blue: #4f46e5;
     --bg: #f8fafc;
     --card-border: #e2e8f0;
   }
-  body{ background: var(--bg); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  body{ background: var(--bg); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; }
+  h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    color: #0f172a;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.01em;
+  }
+  .page-title {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+  }
+  .btn-primary {
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+    color: #ffffff !important;
+  }
+  .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: var(--brand-dark) !important;
+    border-color: var(--brand-dark) !important;
+    color: #ffffff !important;
+  }
+  .btn-outline-primary {
+    color: var(--brand) !important;
+    border-color: var(--brand) !important;
+  }
+  .btn-outline-primary:hover, .btn-outline-primary:focus, .btn-outline-primary:active {
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+    color: #ffffff !important;
+  }
   .sidebar{
     position: fixed; top:0; left:0; bottom:0; width: var(--sidebar-w);
     background: linear-gradient(180deg, #1E1B4B, #0F172A); color:#cfd0e6; overflow-y:auto; overflow-x:hidden; z-index:1030;
@@ -314,11 +344,11 @@
   }
   /* TomSelect & Modal Dropdown Stacking Context Fix */
   .ts-dropdown {
-    z-index: 2060 !important;
+    z-index: 9999 !important;
   }
   .modal .ts-dropdown,
   .modal-dialog .ts-dropdown {
-    z-index: 2070 !important;
+    z-index: 9999 !important;
   }
   .modal-content {
     overflow: visible !important;
@@ -329,11 +359,26 @@
   .ts-wrapper.form-select, .ts-wrapper.form-select-sm {
     padding: 0 !important;
     border: none !important;
+    background: transparent !important;
   }
   .ts-control {
-    border-radius: 6px !important;
-    border-color: #cbd5e1 !important;
-    min-height: 34px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+    min-height: 38px !important;
+    padding: 0.375rem 0.75rem !important;
+    background-color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .ts-control input {
+    font-size: 0.875rem !important;
+  }
+  .nelson-dashboard .ts-control {
+    border: 1px solid rgba(79, 70, 229, 0.2) !important;
+    border-radius: 0.6rem !important;
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    min-height: 42px !important;
+    padding: 0.5rem 0.85rem !important;
   }
 </style>
 {% block extra_head %}{% endblock %}

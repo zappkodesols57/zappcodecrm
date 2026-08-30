@@ -328,7 +328,6 @@ def lead_list(request):
                     "Campaign": cd.get("campaign", "") or (l.campaign.name if l.campaign else ""),
                     "Lead Status": cd.get("deal_status", "") or (l.stage.name if l.stage else ""),
                     "Appointment Status": cd.get("appointment_status", ""),
-                    "Priority": cd.get("priority", "") or l.get_temperature_display(),
                     "Inquiry Date": str(l.inquiry_date) if l.inquiry_date else "",
                     "Assigned Staff": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
                     "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
@@ -896,10 +895,23 @@ def add_followup(request, pk):
             except ValueError:
                 next_fu_date = None
 
+        fu_time_raw = request.POST.get("followup_time") or None
+        fu_time = None
+        if fu_time_raw:
+            try:
+                fu_time = datetime.strptime(fu_time_raw, "%H:%M").time()
+                if fu_date == today:
+                    now_time = timezone.localtime().time()
+                    if fu_time < now_time:
+                        messages.error(request, f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
+                        return redirect("leads:lead_detail", pk=pk)
+            except ValueError:
+                fu_time = None
+
         FollowUp.objects.create(
             lead=lead,
             followup_date=fu_date,
-            followup_time=request.POST.get("followup_time") or None,
+            followup_time=fu_time,
             followup_mode=request.POST.get("followup_mode", FollowUpMode.CALL),
             followup_status=request.POST.get("followup_status", FollowUpStatus.COMPLETED),
             comment=request.POST.get("comment", ""),
