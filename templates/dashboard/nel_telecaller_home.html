@@ -1,0 +1,1318 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Lead Attendant Dashboard | {{ request.user.hospital.name|default:'Nelson Hospital' }}{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+<style>
+    :root {
+        --primary: #4f46e5;
+        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --bg-color: #f8fafc;
+        --surface: #ffffff;
+        --border: rgba(99, 102, 241, 0.12);
+        --radius-lg: 18px;
+        --radius-md: 12px;
+        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+    }
+
+    .nelson-dashboard {
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-main);
+    }
+
+    .stats-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 115px;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card.c-leads { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+    .stat-card.c-callnotdone { background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); }
+    .stat-card.c-appo { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+    .stat-card.c-followup { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); }
+    .stat-card.c-walkin { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+    .stat-card.c-target { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .stat-title {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #475569;
+        margin-bottom: 0.35rem;
+    }
+
+    .stat-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        color: white;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    .stat-sub {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    /* Drilldown Calendar & Pill Styles */
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+    }
+    .cal-header-cell {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        padding-bottom: 4px;
+    }
+    .cal-day-cell {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        padding: 6px 2px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        min-height: 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .cal-day-cell:hover {
+        border-color: #4f46e5;
+        background: #f5f3ff;
+        transform: translateY(-2px);
+    }
+    .cal-day-cell.active-day {
+        border-color: #4f46e5;
+        background: #4f46e5 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
+    }
+    .cal-day-cell.active-day .cal-day-num,
+    .cal-day-cell.active-day .cal-day-count {
+        color: #ffffff !important;
+    }
+    .cal-day-cell.has-leads {
+        border-color: #c7d2fe;
+        background: #eef2ff;
+    }
+    .cal-day-num {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1;
+    }
+    .cal-day-count {
+        font-size: 0.68rem;
+        font-weight: 800;
+        margin-top: 3px;
+        padding: 1px 4px;
+        border-radius: 10px;
+        line-height: 1;
+    }
+    .nav-time-pill {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 50rem;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .nav-time-pill:hover, .nav-time-pill.active {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #ffffff;
+    }
+    .cal-day-cell.disabled-day {
+        opacity: 0.35 !important;
+        cursor: not-allowed !important;
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+        pointer-events: none !important;
+    }
+    .nav-time-pill.disabled-pill {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+        color: #94a3b8 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nelson-dashboard">
+
+    <!-- Dashboard Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h3 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                <i class="ph-bold ph-squares-four text-primary"></i>
+                Lead Attendant Dashboard
+            </h3>
+            <span class="text-muted small">Welcome back, <strong class="text-dark">{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; {{ today_date|date:"l, d F Y" }}</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'dashboard:tasks' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm d-flex align-items-center gap-2">
+                <i class="ph-bold ph-list-checks"></i> Manage Tasks
+            </a>
+            <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-primary rounded-pill px-4 shadow-sm d-flex align-items-center gap-2" style="background: var(--primary-gradient); border: none;">
+                <i class="ph-bold ph-address-book"></i> My Leads
+            </a>
+        </div>
+    </div>
+
+    <!-- 6 REDESIGNED KPI CARDS -->
+    <div class="stats-kpi-grid">
+        
+        <!-- CARD 1: Today's New Leads -->
+        <div class="stat-card c-leads" onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'bg-primary')" title="Click to view full records & calendar breakdown">
+            <div class="stat-header">
+                <span class="stat-title">Today's New Leads</span>
+                <div class="stat-icon bg-primary shadow-sm">
+                    <i class="ph-bold ph-user-plus"></i>
+                </div>
+            </div>
+            <div class="stat-value text-primary">{{ todays_new_leads_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center justify-content-between">
+                <span>Received Today</span>
+                <i class="ph-bold ph-arrow-up-right text-primary"></i>
+            </div>
+        </div>
+
+        <!-- CARD 2: Call Not Done -->
+        <div class="stat-card c-callnotdone" onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done Leads', 'bg-danger')" title="Click to view pending calling queue">
+            <div class="stat-header">
+                <span class="stat-title">Call Not Done</span>
+                <div class="stat-icon bg-danger shadow-sm">
+                    <i class="ph-bold ph-phone-x"></i>
+                </div>
+            </div>
+            <div class="stat-value text-danger">{{ call_not_done_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center justify-content-between">
+                <span>Pending Calling</span>
+                <i class="ph-bold ph-arrow-up-right text-danger"></i>
+            </div>
+        </div>
+
+        <!-- CARD 3: Today's OPD Booked -->
+        <div class="stat-card c-appo" onclick="openUniversalCardDrilldown('opd_booked', 'Today\'s OPD Booked', 'bg-warning')" title="Click to view OPD appointments">
+            <div class="stat-header">
+                <span class="stat-title">Today's OPD Booked</span>
+                <div class="stat-icon bg-warning shadow-sm">
+                    <i class="ph-bold ph-calendar-check"></i>
+                </div>
+            </div>
+            <div class="stat-value text-dark">{{ todays_opd_booked_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center justify-content-between">
+                <span>Booked by You</span>
+                <i class="ph-bold ph-arrow-up-right text-warning"></i>
+            </div>
+        </div>
+
+        <!-- CARD 4: Today's Follow-ups -->
+        <div class="stat-card c-followup" onclick="openUniversalCardDrilldown('followups', 'Today\'s Follow-ups', 'bg-purple')" title="Click to view today's follow-up list">
+            <div class="stat-header">
+                <span class="stat-title">Today's Follow-ups</span>
+                <div class="stat-icon shadow-sm" style="background: #8b5cf6;">
+                    <i class="ph-bold ph-clock-countdown"></i>
+                </div>
+            </div>
+            <div class="stat-value" style="color: #6b21a8;">{{ todays_followups_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center justify-content-between">
+                <span>Due Today</span>
+                <i class="ph-bold ph-arrow-up-right" style="color: #8b5cf6;"></i>
+            </div>
+        </div>
+
+        <!-- CARD 5: Today's Walk-in -->
+        <div class="stat-card c-walkin" onclick="openUniversalCardDrilldown('walkin', 'Today\'s Walk-in Leads', 'bg-success')" title="Click to view walk-in patients">
+            <div class="stat-header">
+                <span class="stat-title">Today's Walk-in</span>
+                <div class="stat-icon bg-success shadow-sm">
+                    <i class="ph-bold ph-person-simple-walk"></i>
+                </div>
+            </div>
+            <div class="stat-value text-success">{{ todays_walkin_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center justify-content-between">
+                <span>Direct Walk-in</span>
+                <i class="ph-bold ph-arrow-up-right text-success"></i>
+            </div>
+        </div>
+
+        <!-- CARD 6: Today's Target (Remaining Countdown) -->
+        <div class="stat-card c-target" onclick="location.href='{% url 'dashboard:call_history' %}?call_date={{ today_date|date:'Y-m-d' }}'" title="Target: {{ daily_target }} calls | Completed: {{ calls_completed_today }} calls | Click to view call history">
+            <div class="stat-header">
+                <span class="stat-title">Today's Target</span>
+                <div class="stat-icon shadow-sm" style="background: #059669;">
+                    <i class="ph-bold ph-target"></i>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <div class="stat-value text-success">{{ target_remaining|intcomma }}</div>
+                <span class="small text-muted fw-bold">left</span>
+            </div>
+            <div class="stat-sub d-flex align-items-center justify-content-between">
+                <span>{{ calls_completed_today }} / {{ daily_target }} Calls Done</span>
+                <i class="ph-bold ph-phone-call text-success"></i>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MAIN BODY: My Recent Leads & Today's Tasks -->
+    <div class="row g-4">
+        
+        <!-- Left Column: My Recent Leads (Latest 10 Entries) -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-user-circle-gear text-primary"></i>
+                            My Recent Leads
+                        </h5>
+                        <small class="text-muted">Latest patient records updated in your active calling queue</small>
+                    </div>
+                    <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold d-flex align-items-center gap-1">
+                        <span>View All My Leads</span>
+                        <i class="ph ph-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold text-center">Status</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Recent Remark</th>
+                                    <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lead in my_recent_leads %}
+                                <tr>
+                                    <td class="px-4">
+                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                                            {{ lead.name }}
+                                        </a>
+                                        <div class="small text-muted d-flex align-items-center gap-1">
+                                            <i class="ph ph-phone text-secondary"></i> {{ lead.mobile }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if lead.custom_doctor %}
+                                            <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-stethoscope me-1"></i> {{ lead.custom_doctor }}</span></div>
+                                        {% endif %}
+                                        {% if lead.custom_dept %}
+                                            <div class="small fw-semibold text-secondary mt-1">{{ lead.custom_dept }}</div>
+                                        {% elif not lead.custom_doctor %}
+                                            <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if lead.custom_deal_status == 'Payment Done' %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="ph-bold ph-check-circle me-1"></i>Payment Done</span>
+                                        {% elif lead.custom_deal_status == 'Booked' %}
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booked</span>
+                                        {% elif lead.custom_deal_status == 'Payment Pending' %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Payment Pending</span>
+                                        {% elif lead.custom_deal_status == 'Assigned' %}
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="ph-bold ph-user-check me-1"></i>Assigned</span>
+                                        {% elif lead.custom_deal_status == 'Lost' or lead.custom_deal_status == 'Cancelled' %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="ph-bold ph-prohibit me-1"></i>{{ lead.custom_deal_status }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.custom_deal_status|default:'Open' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="max-width: 180px;">
+                                        <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.custom_data.remark_1|default:lead.notes|default:'No remarks recorded' }}">
+                                            {{ lead.custom_data.remark_1|default:lead.notes|default:'—' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 text-end text-nowrap">
+                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                                            <i class="ph ph-eye"></i>
+                                        </a>
+                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Edit & Call Lead">
+                                            <i class="ph ph-pencil-simple"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted mb-2"><i class="ph ph-tray fs-1 opacity-25"></i></div>
+                                        <h6 class="fw-bold text-dark">No assigned leads in your queue yet</h6>
+                                        <p class="text-muted small mb-0">Open <strong>Call Not Done</strong> or <strong>New Enquiries</strong> to pick leads and start calling.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Today's Tasks -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-list-checks text-warning"></i>
+                            Today's Tasks
+                        </h5>
+                        <small class="text-muted">Assigned by Management or Self</small>
+                    </div>
+                    <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
+                        <i class="ph-bold ph-plus text-primary"></i>
+                    </a>
+                </div>
+                <div class="card-body p-4">
+                    {% if todays_tasks %}
+                        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
+                            {% for task in todays_tasks %}
+                            <li class="p-3 rounded-3 bg-light border border-light-subtle position-relative d-flex align-items-start gap-3">
+                                <div class="mt-1">
+                                    {% if task.priority == 'URGENT' %}
+                                        <i class="ph-fill ph-warning-circle text-danger fs-5"></i>
+                                    {% elif task.priority == 'HIGH' %}
+                                        <i class="ph-fill ph-lightning text-warning fs-5"></i>
+                                    {% else %}
+                                        <i class="ph-fill ph-check-circle text-primary fs-5"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ task.title }}</span>
+                                        {% if task.due_time %}
+                                            <span class="badge bg-white text-muted border small" style="font-size: 0.7rem;"><i class="ph ph-clock me-1"></i>{{ task.due_time|time:"h:i A" }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if task.description %}
+                                        <p class="small text-muted mb-2" style="font-size: 0.8rem;">{{ task.description }}</p>
+                                    {% endif %}
+
+                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light-subtle">
+                                        {% if task.lead %}
+                                            <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="small fw-semibold text-primary text-decoration-none" style="font-size: 0.75rem;">
+                                                <i class="ph ph-user me-1"></i>{{ task.lead.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="small text-muted" style="font-size: 0.75rem;">General Task</span>
+                                        {% endif %}
+
+                                        {% if task.user != request.user %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">By {{ task.user.get_full_name|default:task.user.username }}</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Self</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="ph ph-calendar-check fs-2 mb-2 opacity-50 text-success d-block"></i>
+                            <p class="text-muted small mb-0">No pending tasks for today. Click <strong>+</strong> above to add a task.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- ROW 2: Upcoming OPD / Appointments & Pending Follow-ups -->
+    <div class="row g-4 mt-1">
+        
+        <!-- Left Column: Upcoming OPD / Appointments Booked -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <span class="badge p-2 rounded-3 bg-warning bg-opacity-10 text-warning border border-warning-subtle">
+                                <i class="ph-bold ph-calendar-check fs-5"></i>
+                            </span>
+                            Upcoming OPD / Appointments
+                            <span class="badge bg-warning text-dark rounded-pill px-2 py-1 ms-1" style="font-size: 0.8rem;">
+                                {{ upcoming_opd_count }}
+                            </span>
+                        </h5>
+                        <small class="text-muted">Confirmed future consultations & visits scheduled ahead of today</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" onclick="openUniversalCardDrilldown('opd_booked', 'OPD Booked', 'bg-warning')">
+                        <span>Calendar View</span>
+                        <i class="ph ph-calendar-blank"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">OPD Date & Time</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
+                                    <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lead in upcoming_opd_leads %}
+                                <tr>
+                                    <td class="px-4">
+                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                                            {{ lead.name }}
+                                        </a>
+                                        <div class="small text-muted d-flex align-items-center gap-1">
+                                            <i class="ph ph-phone text-secondary"></i> {{ lead.mobile }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">
+                                            <i class="ph ph-calendar text-primary me-1"></i>
+                                            {{ lead.booking_scheduled_date|date:"d M Y"|default:lead.custom_data.appo_booked_date }}
+                                        </div>
+                                        <div class="small text-muted">
+                                            <i class="ph ph-clock me-1"></i>{{ lead.booking_scheduled_time|default:'Scheduled Slot' }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if lead.custom_doctor %}
+                                            <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-stethoscope me-1"></i> {{ lead.custom_doctor }}</span></div>
+                                        {% endif %}
+                                        {% if lead.custom_dept %}
+                                            <div class="small fw-semibold text-secondary mt-1">{{ lead.custom_dept }}</div>
+                                        {% elif not lead.custom_doctor %}
+                                            <span class="text-muted small">General OPD</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 text-end text-nowrap">
+                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                                            <i class="ph ph-eye"></i>
+                                        </a>
+                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Edit & Call Patient">
+                                            <i class="ph ph-pencil-simple"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="text-muted mb-2"><i class="ph ph-calendar-blank fs-1 opacity-25"></i></div>
+                                        <h6 class="fw-bold text-dark">No upcoming OPD appointments booked</h6>
+                                        <p class="text-muted small mb-0">Book appointments through lead profile or calling queue to see them here.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Pending & Upcoming Follow-ups -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <span class="badge p-2 rounded-3 bg-purple bg-opacity-10 text-purple border border-purple-subtle" style="color: #7c3aed; background: rgba(124, 58, 237, 0.1);">
+                                <i class="ph-bold ph-clock-countdown fs-5"></i>
+                            </span>
+                            Follow-ups Queue
+                            <span class="badge rounded-pill px-2 py-1 ms-1 text-white" style="font-size: 0.8rem; background: #7c3aed;">
+                                {{ pending_and_upcoming_followups_count }}
+                            </span>
+                        </h5>
+                        <small class="text-muted">All active follow-ups: Billing, Call, & Appointments</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" onclick="openUniversalCardDrilldown('followups', 'Follow-ups', 'bg-purple')">
+                        <span>Calendar View</span>
+                        <i class="ph ph-calendar-blank"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Category</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Due Date</th>
+                                    <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lead in pending_and_upcoming_followups %}
+                                <tr>
+                                    <td class="px-4">
+                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                                            {{ lead.name }}
+                                        </a>
+                                        <div class="small text-muted d-flex align-items-center gap-1">
+                                            <i class="ph ph-phone text-secondary"></i> {{ lead.mobile }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if lead.followup_category == 'Billing Follow-up' %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
+                                                <i class="ph-bold ph-currency-inr me-1"></i>Billing
+                                            </span>
+                                        {% elif lead.followup_category == 'Appointment Follow-up' %}
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                                                <i class="ph-bold ph-calendar-check me-1"></i>Appointment
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                                <i class="ph-bold ph-phone-call me-1"></i>Call
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold {% if lead.is_overdue %}text-danger{% elif lead.next_followup_date == today_date %}text-success{% else %}text-dark{% endif %}">
+                                            <i class="ph ph-calendar me-1"></i>
+                                            {{ lead.next_followup_date|date:"d M Y" }}
+                                        </div>
+                                        {% if lead.is_overdue %}
+                                            <span class="badge bg-danger text-white" style="font-size: 0.65rem;">Overdue</span>
+                                        {% elif lead.next_followup_date == today_date %}
+                                            <span class="badge bg-success text-white" style="font-size: 0.65rem;">Today</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Upcoming</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 text-end text-nowrap">
+                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                                            <i class="ph ph-eye"></i>
+                                        </a>
+                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Record Follow-up Interaction">
+                                            <i class="ph ph-phone-call"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="text-muted mb-2"><i class="ph ph-check-circle fs-1 opacity-25"></i></div>
+                                        <h6 class="fw-bold text-dark">No pending or upcoming follow-ups</h6>
+                                        <p class="text-muted small mb-0">Schedule next follow-up dates while editing leads to keep track here.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- UNIVERSAL CARD DRILLDOWN MODAL -->
+<div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            
+            <!-- Modal Header -->
+            <div class="modal-header border-bottom px-4 py-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <span id="drilldownCardBadgeIcon" class="badge p-2 rounded-3 fs-6 bg-primary">
+                        <i class="ph ph-squares-four"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="universalCardModalTitle">Metrics Breakdown</h5>
+                        <div class="d-flex align-items-center gap-2 mt-1">
+                            <span class="badge bg-light text-dark border px-2 py-1" id="drilldownActiveDateLabel">{{ today_date|date:"d F Y" }}</span>
+                            <span class="badge bg-primary px-2 py-1" id="drilldownTotalBadge">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls -->
+                <div class="d-flex align-items-center gap-1 flex-wrap ms-auto">
+                    <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')" title="Previous Day">
+                        <i class="ph ph-caret-left me-1"></i> Prev Day
+                    </button>
+                    <button type="button" class="nav-time-pill active" id="pillToday" onclick="drilldownSetMode('today')" title="Today">
+                        Today
+                    </button>
+                    <button type="button" class="nav-time-pill" id="pillNext" onclick="drilldownSetMode('next')" title="Next Day">
+                        Next Day <i class="ph ph-caret-right ms-1"></i>
+                    </button>
+                    <button type="button" class="nav-time-pill" id="pillAll" onclick="drilldownSetMode('all')" title="All Time Leads">
+                        <i class="ph ph-database me-1"></i> All
+                    </button>
+                    <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()" title="Pick Any Specific Date with Live Count">
+                        <i class="ph ph-calendar me-1"></i> Custom Date <i class="ph ph-caret-down ms-1"></i>
+                    </button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4 bg-light bg-opacity-25">
+                
+                <!-- Custom Interactive Calendar Heatmap Picker -->
+                <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3" style="display: none; background: #ffffff;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                <i class="ph ph-calendar text-primary"></i>
+                                Select Any Date (<span id="calMonthTitle">September 2026</span>)
+                            </h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
+                                    <i class="ph ph-caret-left"></i> Prev Month
+                                </button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
+                                    Next Month <i class="ph ph-caret-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 7 Column Calendar Days Grid -->
+                        <div class="cal-grid mb-2">
+                            <div class="cal-header-cell">Sun</div>
+                            <div class="cal-header-cell">Mon</div>
+                            <div class="cal-header-cell">Tue</div>
+                            <div class="cal-header-cell">Wed</div>
+                            <div class="cal-header-cell">Thu</div>
+                            <div class="cal-header-cell">Fri</div>
+                            <div class="cal-header-cell">Sat</div>
+                        </div>
+                        <div id="calDaysContainer" class="cal-grid">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campaign Wise Filter Bar (Active Campaigns & Counts) -->
+                <div id="drilldownCampaignBarWrapper" class="card shadow-sm border-0 mb-3 bg-white rounded-3" style="display: none;">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary bg-opacity-10 text-primary p-1 rounded">
+                                    <i class="ph-bold ph-megaphone"></i>
+                                </span>
+                                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Campaign-wise Records</span>
+                                <span class="badge bg-light text-muted border rounded-pill" id="campaignsTotalCountBadge">0 Campaigns</span>
+                            </div>
+                            <span class="text-muted small" style="font-size: 0.75rem;">Click any campaign to filter records</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap" id="drilldownCampaignPillsContainer">
+                            <!-- Populated dynamically with active campaigns and counts -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leads Table Section -->
+                <div class="card shadow-sm border-0 bg-white rounded-3">
+                    <div class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold text-dark" id="leadsTableHeading">Patient Records</span>
+                            <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0 Leads</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="text" id="drilldownSearchInput" class="form-control form-control-sm rounded-pill" placeholder="Search in this list..." style="width: 220px;" oninput="filterDrilldownTable()">
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable" style="font-size: 0.85rem;">
+                            <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
+                                <tr>
+                                    <th class="py-2 px-3">Patient Name</th>
+                                    <th class="py-2">Contact</th>
+                                    <th class="py-2">Source / Campaign</th>
+                                    <th class="py-2">Doctor / Dept</th>
+                                    <th class="py-2 text-center">Temperature</th>
+                                    <th class="py-2 text-center">Status</th>
+                                    <th class="py-2 text-center">Attendant</th>
+                                    <th class="py-2 px-3 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drilldownTableBody">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="drilldownEmptyState" class="text-center py-5 text-muted" style="display: none;">
+                        <i class="ph ph-tray fs-1 opacity-25 d-block mb-2"></i>
+                        <h6 class="fw-bold text-dark">No Leads Found For This Date / Mode</h6>
+                        <p class="small text-muted mb-0">Try picking another date from the calendar or click 'All' to view all records.</p>
+                    </div>
+
+                    <div id="drilldownLoadingState" class="text-center py-5 text-primary" style="display: none;">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span class="fw-semibold">Loading live lead metrics...</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer border-top px-4 py-2 bg-white d-flex justify-content-between align-items-center">
+                <small class="text-muted"><i class="ph ph-info me-1"></i>Click any row action button to view or edit patient profile instantly.</small>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}<script>
+    // Universal Drilldown Engine for Telecaller Dashboard
+    let currentDrilldownCard = 'new_leads';
+    let currentDrilldownCardTitle = "Leads";
+    let currentDrilldownMode = 'today';
+    const todayStrGlobal = '{{ today_date|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
+    let currentDrilldownDate = todayStrGlobal;
+    let currentCalYear = new Date().getFullYear();
+    let currentCalMonth = new Date().getMonth() + 1;
+    let cachedLeadItems = [];
+
+    const cardBaseNameMap = {
+        'new_leads': 'Total Leads',
+        'call_not_done': 'Call Not Done Leads',
+        'opd_booked': 'OPD / Appointments',
+        'followups': 'Follow-ups Queue',
+        'walkin': 'Walk-in Leads',
+    };
+
+    const cardIconMap = {
+        'new_leads': { icon: 'ph-user-plus', colorClass: 'bg-primary' },
+        'call_not_done': { icon: 'ph-phone-x', colorClass: 'bg-danger' },
+        'opd_booked': { icon: 'ph-calendar-check', colorClass: 'bg-warning' },
+        'followups': { icon: 'ph-clock-countdown', colorClass: 'bg-purple' },
+        'walkin': { icon: 'ph-person-simple-walk', colorClass: 'bg-success' },
+    };
+
+    function isFutureDateAllowed() {
+        return currentDrilldownCard === 'opd_booked' || currentDrilldownCard === 'followups';
+    }
+
+    function updateModalDynamicTitle(dateDisplay) {
+        const baseName = cardBaseNameMap[currentDrilldownCard] || 'Leads';
+        const modalTitleEl = document.getElementById('universalCardModalTitle');
+        const leadsTableHeading = document.getElementById('leadsTableHeading');
+        
+        if (modalTitleEl) {
+            if (dateDisplay && dateDisplay.toLowerCase() !== 'all time') {
+                modalTitleEl.innerText = `${baseName} for ${dateDisplay}`;
+            } else if (dateDisplay && dateDisplay.toLowerCase() === 'all time') {
+                modalTitleEl.innerText = `All ${baseName}`;
+            } else {
+                modalTitleEl.innerText = `${baseName} Breakdown`;
+            }
+        }
+        if (leadsTableHeading) {
+            leadsTableHeading.innerText = `${baseName} Records`;
+        }
+    }
+
+    function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
+        currentDrilldownCard = cardType;
+        currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
+        currentDrilldownMode = 'today';
+        currentDrilldownDate = todayStrGlobal;
+        currentCalYear = new Date().getFullYear();
+        currentCalMonth = new Date().getMonth() + 1;
+
+        // Set Initial Title & Badge
+        updateModalDynamicTitle('Today');
+        const iconConfig = cardIconMap[cardType] || { icon: 'ph-squares-four', colorClass: 'bg-primary' };
+        const badgeEl = document.getElementById('drilldownCardBadgeIcon');
+        if (badgeEl) {
+            badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
+            badgeEl.innerHTML = `<i class="ph ${iconConfig.icon}"></i>`;
+        }
+
+        // Configure Next Day Pill (Only enabled for opd_booked & followups)
+        const pillNext = document.getElementById('pillNext');
+        if (pillNext) {
+            if (isFutureDateAllowed()) {
+                pillNext.classList.remove('disabled-pill');
+                pillNext.disabled = false;
+                pillNext.title = 'Next Day';
+            } else {
+                pillNext.classList.add('disabled-pill');
+                pillNext.disabled = true;
+                pillNext.title = 'Future dates are only available for OPD Booked & Follow-ups';
+            }
+        }
+
+        // Reset Pills
+        updatePillUI('today');
+        document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+        document.getElementById('drilldownSearchInput').value = '';
+
+        // Show Modal & Fetch
+        const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
+        modal.show();
+
+        fetchDrilldownData();
+    }
+
+    function drilldownSetMode(mode) {
+        if (mode === 'next' && !isFutureDateAllowed()) {
+            return;
+        }
+        currentDrilldownMode = mode;
+        updatePillUI(mode);
+        if (mode !== 'custom') {
+            document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+        }
+        fetchDrilldownData();
+    }
+
+    function drilldownToggleCalendar() {
+        const calWrapper = document.getElementById('drilldownCalendarWrapper');
+        if (calWrapper.style.display === 'none') {
+            calWrapper.style.display = 'block';
+            updatePillUI('custom');
+            currentDrilldownMode = 'custom';
+            fetchDrilldownData();
+        } else {
+            calWrapper.style.display = 'none';
+        }
+    }
+
+    function updatePillUI(mode) {
+        ['pillPrev', 'pillToday', 'pillNext', 'pillAll', 'pillCustom'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active');
+        });
+
+        const pillNext = document.getElementById('pillNext');
+        if (pillNext) {
+            if (isFutureDateAllowed()) {
+                pillNext.classList.remove('disabled-pill');
+                pillNext.disabled = false;
+            } else {
+                pillNext.classList.add('disabled-pill');
+                pillNext.disabled = true;
+            }
+        }
+
+        if (mode === 'today') document.getElementById('pillToday')?.classList.add('active');
+        else if (mode === 'previous') document.getElementById('pillPrev')?.classList.add('active');
+        else if (mode === 'next' && isFutureDateAllowed()) document.getElementById('pillNext')?.classList.add('active');
+        else if (mode === 'all') document.getElementById('pillAll')?.classList.add('active');
+        else if (mode === 'custom') document.getElementById('pillCustom')?.classList.add('active');
+    }
+
+    function changeCalMonth(delta) {
+        const now = new Date();
+        const currentRealYear = now.getFullYear();
+        const currentRealMonth = now.getMonth() + 1;
+
+        if (delta > 0 && !isFutureDateAllowed()) {
+            if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
+                return;
+            }
+        }
+
+        currentCalMonth += delta;
+        if (currentCalMonth > 12) {
+            currentCalMonth = 1;
+            currentCalYear += 1;
+        } else if (currentCalMonth < 1) {
+            currentCalMonth = 12;
+            currentCalYear -= 1;
+        }
+        fetchDrilldownData();
+    }
+
+    function selectCalendarDate(dateStr) {
+        if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
+            return;
+        }
+        currentDrilldownDate = dateStr;
+        currentDrilldownMode = 'custom';
+        updatePillUI('custom');
+        fetchDrilldownData();
+    }
+
+    let cachedHospitalName = "{{ request.user.hospital.name|default:'Nelson Mother & Child Care Hospital'|escapejs }}";
+    let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Patient Care Team'|escapejs }}";
+
+    let selectedCampaignFilter = null;
+
+    function fetchDrilldownData() {
+        const loadingEl = document.getElementById('drilldownLoadingState');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        const tbody = document.getElementById('drilldownTableBody');
+        
+        loadingEl.style.display = 'block';
+        emptyEl.style.display = 'none';
+        tbody.innerHTML = '';
+        selectedCampaignFilter = null;
+
+        const url = `/dashboard/superadmin/card-drilldown-api/?card_type=${currentDrilldownCard}&mode=${currentDrilldownMode}&target_date=${currentDrilldownDate}&year=${currentCalYear}&month=${currentCalMonth}`;
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                loadingEl.style.display = 'none';
+                if (data.status === 'success') {
+                    cachedLeadItems = data.lead_items || [];
+                    if (data.hospital_name) cachedHospitalName = data.hospital_name;
+                    if (data.agent_name) cachedAgentName = data.agent_name;
+                    
+                    if (data.selected_date !== 'all') {
+                        currentDrilldownDate = data.selected_date;
+                    }
+                    
+                    // Dynamically update Modal Title & Labels for specific date
+                    updateModalDynamicTitle(data.selected_date_display);
+
+                    document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
+                    document.getElementById('drilldownTotalBadge').innerText = data.total_count;
+                    document.getElementById('leadsTableCountBadge').innerText = `${data.total_count} Leads`;
+                    document.getElementById('calMonthTitle').innerText = data.cal_month_name;
+
+                    // Render Campaign Wise Breakdown Pills Bar
+                    renderCampaignPills(data.campaign_breakdown || [], data.total_count);
+
+                    renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
+                    renderDrilldownTable(cachedLeadItems);
+                }
+            })
+            .catch(err => {
+                loadingEl.style.display = 'none';
+                console.error("Failed to load drilldown data:", err);
+            });
+    }
+
+    function renderCampaignPills(campaignList, totalCount) {
+        const wrapper = document.getElementById('drilldownCampaignBarWrapper');
+        const container = document.getElementById('drilldownCampaignPillsContainer');
+        const countBadge = document.getElementById('campaignsTotalCountBadge');
+
+        if (!wrapper || !container) return;
+
+        if (!campaignList || campaignList.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+
+        wrapper.style.display = 'block';
+        countBadge.innerText = `${campaignList.length} Active Campaigns`;
+        container.innerHTML = '';
+
+        // "All Campaigns" Master Pill
+        const allPill = document.createElement('button');
+        allPill.type = 'button';
+        allPill.className = `btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 ${!selectedCampaignFilter ? 'btn-primary text-white shadow-xs' : 'btn-light border text-dark'}`;
+        allPill.style.fontSize = '0.78rem';
+        allPill.innerHTML = `<span>All Campaigns</span> <span class="badge ${!selectedCampaignFilter ? 'bg-white text-primary' : 'bg-secondary bg-opacity-25 text-dark'} rounded-pill">${totalCount}</span>`;
+        allPill.onclick = () => selectCampaignFilter(null);
+        container.appendChild(allPill);
+
+        // Individual Campaign Pills
+        campaignList.forEach(camp => {
+            const isSelected = selectedCampaignFilter === camp.campaign_name;
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = `btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 ${isSelected ? 'btn-primary text-white shadow-xs' : 'btn-light border text-dark'}`;
+            pill.style.fontSize = '0.78rem';
+            pill.innerHTML = `<span>${camp.campaign_name}</span> <span class="badge ${isSelected ? 'bg-white text-primary' : 'bg-primary bg-opacity-10 text-primary'} rounded-pill">${camp.count}</span>`;
+            pill.onclick = () => selectCampaignFilter(camp.campaign_name);
+            container.appendChild(pill);
+        });
+    }
+
+    function selectCampaignFilter(campName) {
+        selectedCampaignFilter = campName;
+        
+        // Re-highlight campaign pills
+        const pills = document.querySelectorAll('#drilldownCampaignPillsContainer button');
+        pills.forEach(btn => {
+            const btnText = btn.querySelector('span').innerText.trim();
+            const isAll = (campName === null && btnText === 'All Campaigns');
+            const isMatch = (campName !== null && btnText === campName);
+
+            if (isAll || isMatch) {
+                btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-primary text-white shadow-xs';
+                const badge = btn.querySelector('.badge');
+                if (badge) badge.className = 'badge bg-white text-primary rounded-pill';
+            } else {
+                btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-light border text-dark';
+                const badge = btn.querySelector('.badge');
+                if (badge) badge.className = 'badge bg-primary bg-opacity-10 text-primary rounded-pill';
+            }
+        });
+
+        // Filter lead items by selected campaign
+        let filtered = cachedLeadItems;
+        if (selectedCampaignFilter) {
+            filtered = cachedLeadItems.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+        }
+
+        // Apply quick search if typed
+        const query = (document.getElementById('drilldownSearchInput').value || '').toLowerCase().trim();
+        if (query) {
+            filtered = filtered.filter(l =>
+                l.name.toLowerCase().includes(query) ||
+                l.mobile.toLowerCase().includes(query) ||
+                l.doctor.toLowerCase().includes(query) ||
+                l.department.toLowerCase().includes(query) ||
+                l.campaign.toLowerCase().includes(query) ||
+                l.lead_source.toLowerCase().includes(query)
+            );
+        }
+
+        document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
+        renderDrilldownTable(filtered);
+    }
+
+    function renderCalendarGrid(year, month, countsMap, activeDate) {
+        const container = document.getElementById('calDaysContainer');
+        container.innerHTML = '';
+
+        const firstDayIdx = new Date(year, month - 1, 1).getDay();
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const allowFuture = isFutureDateAllowed();
+
+        for (let i = 0; i < firstDayIdx; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'cal-day-cell text-muted opacity-25';
+            emptyCell.style.background = '#f8fafc';
+            container.appendChild(emptyCell);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const mm = String(month).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            const dateStr = `${year}-${mm}-${dd}`;
+            const count = countsMap[dateStr] || 0;
+            const isFuture = dateStr > todayStrGlobal;
+            const isDisabled = isFuture && !allowFuture;
+
+            const dayCell = document.createElement('div');
+            
+            if (isDisabled) {
+                dayCell.className = 'cal-day-cell disabled-day';
+                dayCell.title = 'Future dates are disabled for this metric';
+            } else {
+                dayCell.className = `cal-day-cell ${dateStr === activeDate ? 'active-day' : ''} ${count > 0 ? 'has-leads' : ''}`;
+                dayCell.title = `Click to view ${count} records for ${dateStr}`;
+                dayCell.onclick = () => selectCalendarDate(dateStr);
+            }
+
+            const countBadgeClass = count > 0 
+                ? (currentDrilldownCard === 'call_not_done' ? 'bg-danger text-white' : 'bg-primary text-white')
+                : 'text-muted';
+
+            dayCell.innerHTML = `
+                <span class="cal-day-num">${day}</span>
+                <span class="cal-day-count badge ${isDisabled ? 'text-muted' : countBadgeClass}">${count}</span>
+            `;
+            container.appendChild(dayCell);
+        }
+    }
+
+    function renderDrilldownTable(leads) {
+        const tbody = document.getElementById('drilldownTableBody');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        tbody.innerHTML = '';
+
+        if (!leads || leads.length === 0) {
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+
+        leads.forEach(lead => {
+            const tr = document.createElement('tr');
+            
+            let tempBadge = `<span class="badge bg-secondary">WARM</span>`;
+            if (lead.temperature === 'HOT') {
+                tempBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="ph-bold ph-fire me-1"></i>HOT</span>`;
+            } else if (lead.temperature === 'WARM') {
+                tempBadge = `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">WARM</span>`;
+            } else if (lead.temperature === 'COLD') {
+                tempBadge = `<span class="badge bg-secondary bg-opacity-10 text-secondary border">COLD</span>`;
+            }
+
+            let statusBadge = `<span class="badge bg-light text-dark border">${lead.appointment_status || lead.status}</span>`;
+            const stLower = (lead.appointment_status || lead.status).toLowerCase();
+            if (stLower.includes('book') || stLower.includes('complete') || stLower.includes('won')) {
+                statusBadge = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="ph ph-check me-1"></i>${lead.appointment_status}</span>`;
+            } else if (stLower.includes('assign')) {
+                statusBadge = `<span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
+            } else if (stLower.includes('new') || stLower.includes('open')) {
+                statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${lead.appointment_status}</span>`;
+            }
+
+            // Direct Voice Call & Dynamic WhatsApp Message
+            let directCallBtn = '';
+            let whatsappBtn = '';
+
+            if (lead.clean_mobile && lead.clean_mobile.length >= 10) {
+                const phoneDigits = lead.clean_mobile;
+                const patientName = encodeURIComponent(lead.name || 'Valued Patient');
+                const hospName = encodeURIComponent(cachedHospitalName || 'Nelson Mother & Child Care Hospital');
+                const agentName = encodeURIComponent(cachedAgentName || 'Patient Care Team');
+                const docName = encodeURIComponent(lead.doctor || 'our specialist');
+                const apptDate = lead.appointment_date ? encodeURIComponent(lead.appointment_date) : '';
+                const apptTime = lead.appointment_time ? encodeURIComponent(lead.appointment_time) : '';
+                
+                let waText = lead.whatsapp_message;
+                if (!waText) {
+                    if (lead.is_booked) {
+                        const datePart = apptDate ? `%20for%20${apptDate}` : '';
+                        const timePart = apptTime ? `%20at%20${apptTime}` : '';
+                        waText = `Hello%20${patientName},%20Greetings%20from%20${hospName}!%0A%0AYour%20appointment%20with%20Dr.%20${docName}%20at%20${hospName}%20is%20confirmed${datePart}${timePart}.%0A%0APlease%20reach%2015%20minutes%20prior%20to%20your%20scheduled%20slot.%20Thank%20you!%0A%0AWarm%20Regards,%0A${hospName}`;
+                    } else {
+                        waText = `Hello%20${patientName},%20Greetings%20from%20${hospName}!%0A%0AThank%20you%20for%20connecting%20with%20us.%20We%20are%20pleased%20to%20assist%20you%20with%20your%20healthcare%20and%20doctor%20consultation%20inquiry.%0A%0APlease%20let%20us%20know%20how%20we%20may%20best%20assist%20you%20today.%0A%0AWarm%20Regards,%0A${agentName}%20-%20${hospName}`;
+                    }
+                }
+                
+                directCallBtn = `
+                    <a href="tel:${phoneDigits}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="Direct Call to ${lead.mobile}">
+                        <i class="ph-bold ph-phone-call me-1"></i> Call
+                    </a>
+                `;
+
+                const btnTitle = lead.is_booked ? 'Send WhatsApp Appointment Confirmation' : `Send WhatsApp Welcome Message from ${cachedHospitalName}`;
+                const btnLabel = lead.is_booked ? 'WhatsApp (Booking)' : 'WhatsApp';
+
+                whatsappBtn = `
+                    <a href="https://wa.me/91${phoneDigits}?text=${waText}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="${btnTitle}">
+                        <i class="ph-bold ph-whatsapp-logo me-1 text-success"></i> ${btnLabel}
+                    </a>
+                `;
+            }
+
+            tr.innerHTML = `
+                <td class="px-3">
+                    <a href="${lead.detail_url}" class="fw-bold text-dark text-decoration-none hover-primary">
+                        ${lead.name}
+                    </a>
+                    <div class="text-muted small" style="font-size: 0.72rem;">Added: ${lead.created_date}</div>
+                </td>
+                <td>
+                    <div class="text-dark fw-semibold">${lead.mobile}</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">${lead.email !== '-' ? lead.email : ''}</div>
+                </td>
+                <td>
+                    <span class="badge bg-light text-secondary border">${lead.lead_source}</span>
+                    <div class="text-muted small mt-1" style="font-size: 0.72rem;">${lead.campaign}</div>
+                </td>
+                <td>
+                    <div class="text-dark fw-semibold"><i class="ph ph-stethoscope text-primary me-1"></i>${lead.doctor}</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">${lead.department}</div>
+                </td>
+                <td class="text-center">${tempBadge}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-center">
+                    <span class="badge bg-light text-dark border">${lead.assigned_to}</span>
+                </td>
+                <td class="px-3 text-end text-nowrap">
+                    ${directCallBtn}
+                    ${whatsappBtn}
+                    <a href="${lead.detail_url}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Profile">
+                        <i class="ph ph-eye me-1"></i> View
+                    </a>
+                    <a href="${lead.edit_url}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="font-size: 0.75rem; background: var(--primary-gradient); border: none;" title="Edit Lead Form">
+                        <i class="ph ph-pencil-simple me-1"></i> Edit
+                    </a>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterDrilldownTable() {
+        const query = document.getElementById('drilldownSearchInput').value.toLowerCase().trim();
+        let filtered = cachedLeadItems;
+
+        if (selectedCampaignFilter) {
+            filtered = filtered.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+        }
+
+        if (query) {
+            filtered = filtered.filter(l =>
+                l.name.toLowerCase().includes(query) ||
+                l.mobile.toLowerCase().includes(query) ||
+                l.doctor.toLowerCase().includes(query) ||
+                l.department.toLowerCase().includes(query) ||
+                l.campaign.toLowerCase().includes(query) ||
+                l.lead_source.toLowerCase().includes(query)
+            );
+        }
+        document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
+        renderDrilldownTable(filtered);
+    }
+</script>
+{% endblock %}

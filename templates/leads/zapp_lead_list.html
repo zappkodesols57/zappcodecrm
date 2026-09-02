@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Patient Leads · Nelson Hospital{% endblock %}
+{% block title %}All Leads · Zappcode Academy{% endblock %}
 {% block content %}
 <!-- Zoho CRM Style Top Title Bar with View Filter Switcher & Action Tools -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -7,25 +7,20 @@
     <!-- View Switcher Dropdown -->
     <div class="dropdown">
       <button class="btn btn-link text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2" type="button" id="listViewFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.25rem;">
-        <span><i class="fa-solid fa-hospital-user me-2 text-info"></i>All Patient Leads</span>
+        <span><i class="fa-solid fa-graduation-cap me-2 text-primary"></i>All Student Leads</span>
         <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.8rem;"></i>
       </button>
       <ul class="dropdown-menu shadow border-0 py-2" aria-labelledby="listViewFilterDropdown" style="min-width: 240px; font-size: 0.88rem; z-index: 1060;">
         <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Switch Lead View</h6></li>
         <li>
           <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'leads_all' %}active fw-bold{% endif %}" href="{% url 'leads:lead_list' %}">
-            <span><i class="fa-solid fa-list-ul me-2 text-primary"></i> All Patient Leads</span>
+            <span><i class="fa-solid fa-list-ul me-2 text-primary"></i> All Student Leads</span>
             <span class="badge bg-light text-secondary border rounded-pill">{{ total_count|default:0 }}</span>
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'telecaller_my_leads' %}active fw-bold{% endif %}" href="{% url 'dashboard:telecaller_my_leads' %}">
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2" href="{% url 'leads:lead_list' %}?assigned_to={{ request.user.id }}">
             <span><i class="fa-solid fa-user-check me-2 text-success"></i> My Assigned Leads</span>
-          </a>
-        </li>
-        <li>
-          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'telecaller_new_enquiries' %}active fw-bold{% endif %}" href="{% url 'dashboard:telecaller_new_enquiries' %}">
-            <span><i class="fa-solid fa-bell me-2 text-warning"></i> Fresh / New Enquiries</span>
           </a>
         </li>
         <li><hr class="dropdown-divider my-1"></li>
@@ -60,8 +55,8 @@
       <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="titleSortDropdown" style="font-size: 0.82rem; min-width: 200px;">
         <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-created_at')">Newest First</button></li>
         <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('created_at')">Oldest First</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_asc')">Patient Name (A → Z)</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_desc')">Patient Name (Z → A)</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_asc')">Student Name (A → Z)</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_desc')">Student Name (Z → A)</button></li>
         <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
       </ul>
     </div>
@@ -93,8 +88,6 @@
         </li>
       </ul>
     </div>
-
-    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3"><i class="fa-solid fa-user-plus me-1"></i> Add Patient Lead</a>
   </div>
 </div>
 
@@ -107,7 +100,7 @@
   <!-- Right Side Main Content & Table -->
   <div class="flex-grow-1 overflow-hidden">
 
-{% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
+{% if request.user.can_edit_any_lead %}
 <form method="post" action="{% url 'leads:bulk_action' %}">
   {% csrf_token %}
   <div class="card mb-2 p-2 d-flex flex-row gap-2 align-items-center">
@@ -119,7 +112,7 @@
       {% endif %}
     </select>
     <select name="assign_to" class="form-select form-select-sm" style="max-width:200px;">
-      <option value="">Hospital Attendant / User</option>
+      <option value="">Counselor / HR</option>
       {% for e in employees %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
     </select>
     <select name="stage" class="form-select form-select-sm" style="max-width:180px;">
@@ -135,15 +128,70 @@
         <thead class="bg-light border-bottom">
           <tr>
             <th style="width: 40px;"><input type="checkbox" onclick="document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked)"></th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase">Lead ID</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Date</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Patient Name</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Phone</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Doctor / Dept</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Source</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Status</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Remark</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Attendant</th>
+            
+            <!-- 1. Lead ID -->
+            <th class="position-relative py-2 px-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Lead ID</span>
+              </div>
+            </th>
+
+            <!-- 2. Date -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Inquiry Date</span>
+              </div>
+            </th>
+
+            <!-- 3. Student Name -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Student Name</span>
+              </div>
+            </th>
+
+            <!-- 4. Phone / Mobile -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Mobile</span>
+              </div>
+            </th>
+
+            <!-- 5. Course -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Course Interested</span>
+              </div>
+            </th>
+
+            <!-- 6. Source -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Lead Source</span>
+              </div>
+            </th>
+
+            <!-- 7. Stage -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Stage</span>
+              </div>
+            </th>
+
+            <!-- 8. Deal / Admission Status -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Admission Status</span>
+              </div>
+            </th>
+
+            <!-- 9. Assigned Counselor -->
+            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Counselor / HR</span>
+              </div>
+            </th>
+
             <th class="py-2 px-3 text-uppercase small text-muted" style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
           </tr>
         </thead>
@@ -156,75 +204,52 @@
             <td><strong>{{ lead.name }}</strong></td>
             <td>{{ lead.mobile }}</td>
             <td>
-              {% if lead.custom_data.doctor %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i>{{ lead.custom_data.doctor }}</span>
-              {% endif %}
-              {% if lead.custom_data.department %}<div class="small text-muted">{{ lead.custom_data.department }}</div>{% endif %}
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                <i class="fa-solid fa-graduation-cap me-1"></i>{{ lead.course|default:"—" }}
+              </span>
             </td>
-            <td><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
+            <td><span class="small text-muted">{{ lead.lead_source|default:"—" }}</span></td>
+            <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
             <td>
-              {% if lead.display_status == 'Payment Done' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
-              {% elif lead.display_status == 'Booked' %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Booked</span>
-              {% elif lead.display_status == 'Payment Pending' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
-              {% elif lead.display_status == 'New' %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
-              {% elif lead.display_status == 'Open' %}
-                <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
-              {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
-              {% elif lead.display_status == 'Awaiting Approval' %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval</span>
-              {% else %}
-                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.display_status }}</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if lead.display_status == 'Payment Done' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold">
-                  <i class="fa-solid fa-receipt me-1"></i>{{ lead.remark_detail }}
-                </span>
-              {% elif lead.display_status == 'Booked' %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
-                  <i class="fa-solid fa-calendar-day me-1"></i>{{ lead.remark_detail }}
-                </span>
-              {% elif lead.remark_detail == 'Hot' %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-fire me-1"></i>Hot</span>
-              {% elif lead.remark_detail == 'Warm' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle fw-bold"><i class="fa-solid fa-sun me-1"></i>Warm</span>
-              {% elif lead.remark_detail == 'Cold' %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle fw-bold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>
-              {% elif lead.remark_detail == 'Freeze' %}
-                <span class="badge bg-dark bg-opacity-10 text-dark border border-secondary fw-bold"><i class="fa-solid fa-icicles me-1 text-info"></i>Freeze</span>
-              {% elif lead.display_status == 'Payment Pending' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
-                  <i class="fa-solid fa-triangle-exclamation me-1"></i>Billing Pending
+              {% if lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                  <i class="fa-solid fa-circle-check me-1"></i>Enrolled / Won
                 </span>
               {% else %}
-                <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.remark_detail }}">{{ lead.remark_detail }}</span>
+                <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
               {% endif %}
             </td>
             <td><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
             <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No patient leads found.</div></td></tr>
+          <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No student leads found.</div></td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
-{% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}</form>{% endif %}
+{% if request.user.can_edit_any_lead %}</form>{% endif %}
 
-{% if page_obj.paginator.num_pages > 1 %}
-<div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-3 mt-3">
-  <nav>
-    <ul class="pagination pagination-sm mb-0">
+<!-- Pagination & Records Count Summary -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3 px-1 py-2 border-top">
+  <div class="text-muted small">
+    {% if total_count > 0 %}
+      Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ total_count }}</strong> leads
+      {% if active_filters_count > 0 %}
+        <span class="badge bg-primary bg-opacity-10 text-primary ms-1 border border-primary-subtle"><i class="fa-solid fa-filter me-1"></i>Filtered</span>
+      {% endif %}
+    {% else %}
+      Showing <strong>0</strong> of <strong>0</strong> leads
+    {% endif %}
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav aria-label="Lead List Pagination">
+    <ul class="pagination pagination-sm mb-0 shadow-xs">
       {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
             <i class="fa-solid fa-chevron-left"></i>
           </a>
         </li>
@@ -234,7 +259,7 @@
 
       {% for num in page_obj.paginator.page_range %}
         {% if page_obj.number == num %}
-          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          <li class="page-item active"><span class="page-link fw-bold">{{ num }}</span></li>
         {% elif num > page_obj.number|add:'-4' and num < page_obj.number|add:'4' %}
           <li class="page-item">
             <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
@@ -244,7 +269,7 @@
 
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
             <i class="fa-solid fa-chevron-right"></i>
           </a>
         </li>
@@ -253,8 +278,8 @@
       {% endif %}
     </ul>
   </nav>
+  {% endif %}
 </div>
-{% endif %}
   </div> <!-- /Right Side Main Content -->
 </div> <!-- /Split View Container -->
 {% endblock %}

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}{{ request.user.hospital.name|default:'Hospital' }} Overall Analytics{% endblock %}
+{% block title %}{{ request.user.hospital.name|default:'Nelson Hospital' }} Interactive Analytics Dashboard{% endblock %}
 
 {% block extra_head %}
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -15,565 +15,716 @@
         --text-muted: #64748b;
         --bg-color: #f8fafc;
         --surface: #ffffff;
-        --border: rgba(99, 102, 241, 0.1);
-        --radius-lg: 20px;
-        --radius-md: 14px;
-        --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        --border: rgba(99, 102, 241, 0.12);
+        --radius-lg: 18px;
+        --radius-md: 12px;
+        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
     }
 
     .nelson-dashboard {
         font-family: 'Outfit', sans-serif;
-        background: #f8fafc;
         color: var(--text-main);
-        padding: 1.5rem;
+    }
+
+    .filter-panel {
+        background: #ffffff;
         border-radius: var(--radius-lg);
         border: 1px solid #e2e8f0;
-    }
-
-
-    .card {
-        background: var(--surface);
-        border-radius: var(--radius-lg);
         box-shadow: var(--shadow-sm);
-        border: 1px solid var(--border);
-        transition: all 0.3s ease;
-        padding: 1.5rem;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
     }
 
-    .stats-grid {
+    .custom-filter-select, .custom-filter-input {
+        border: 1.5px solid #94a3b8 !important;
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+        padding: 0.45rem 0.75rem !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        color: #1e293b !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .custom-filter-select:focus, .custom-filter-input:focus {
+        border-color: #4f46e5 !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+        outline: none !important;
+    }
+
+    .filter-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 0.35rem;
+        display: block;
+        letter-spacing: 0.5px;
+    }
+
+    .stats-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
         gap: 1rem;
-        margin-bottom: 2.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .revenue-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
 
     .stat-card {
-        background: #f1f5f9;
         border-radius: var(--radius-lg);
-        padding: 1.25rem 1.25rem 1rem 1.25rem;
-        display: block;
+        padding: 1.25rem;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        height: 100%;
-        cursor: pointer;
-        color: var(--text-main);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 110px;
     }
-    
-    .stats-grid>a:nth-child(1) .stat-card, .stats-grid>div:nth-child(1) { background: linear-gradient(135deg, #fff0f5 0%, #ffe6ee 100%); }
-    .stats-grid>a:nth-child(2) .stat-card, .stats-grid>div:nth-child(2) { background: linear-gradient(135deg, #fff9e6 0%, #fff4cc 100%); }
-    .stats-grid>a:nth-child(3) .stat-card, .stats-grid>div:nth-child(3) { background: linear-gradient(135deg, #e6fffa 0%, #c6f6d5 100%); }
-    .stats-grid>a:nth-child(4) .stat-card, .stats-grid>div:nth-child(4) { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); }
-    .stats-grid>a:nth-child(5) .stat-card, .stats-grid>div:nth-child(5) { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
 
     .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card.c-leads { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+    .stat-card.c-appo { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+    .stat-card.c-conv { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+    .stat-card.c-won { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); }
+    .stat-card.c-total-rev { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); }
+    .stat-card.c-opd { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
+    .stat-card.c-pharm { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+    .stat-card.c-ipd { background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%); }
+    .stat-card.c-inv { background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .stat-title {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #475569;
+        margin-bottom: 0.35rem;
     }
 
     .stat-icon {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1rem;
+        font-size: 1.15rem;
         color: white;
     }
 
-    .stat-info {
-        display: block;
-        padding-right: 2.2rem;
-        overflow: hidden;
-    }
-
-    .stat-info h3 {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.35rem;
-        font-weight: 600;
-        white-space: normal;
-        line-height: 1.3;
-    }
-
-    .stat-info h2 {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--text-main);
+    .stat-value {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #0f172a;
         margin: 0;
-    }
-        font-weight: 600;
-        white-space: normal;
-        line-height: 1.2;
+        line-height: 1.1;
     }
 
-    .stat-info h2 {
-        font-size: clamp(1.2rem, 2vw, 2rem);
-        font-weight: 700;
-        margin-bottom: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .stat-sub {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 0.25rem;
     }
 
     .charts-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
         gap: 1.5rem;
+        margin-bottom: 1.5rem;
     }
 
     .chart-card {
-        background: #f1f5f9;
+        background: #ffffff;
         border-radius: var(--radius-lg);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        padding: 1.5rem;
-        color: #1e293b;
-    }
-    
-    .charts-grid > .chart-card:nth-child(1) { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); }
-    .charts-grid > .chart-card:nth-child(2) { background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%); }
-    .charts-grid > .chart-card:nth-child(3) { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); }
-    .charts-grid > .chart-card:nth-child(4) { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); }
-    .charts-grid > .chart-card:nth-child(5) { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
-    .charts-grid > .chart-card:nth-child(6) { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); }
-
-    .chart-card h4 {
-        color: #1e293b !important; /* Ensure chart titles are readable */
-    }
-
-    .custom-funnel {
+        border: 1px solid #e2e8f0;
+        box-shadow: var(--shadow-sm);
+        padding: 1.25rem 1.5rem;
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
-        max-height: 280px;
-        overflow-y: auto;
-        padding-right: 0.5rem;
-    }
-    
-    .custom-funnel::-webkit-scrollbar {
-        width: 4px;
-    }
-    .custom-funnel::-webkit-scrollbar-thumb {
-        background-color: rgba(0,0,0,0.1);
-        border-radius: 4px;
     }
 
-    .custom-campaign-scroll::-webkit-scrollbar {
-        width: 5px;
-    }
-    .custom-campaign-scroll::-webkit-scrollbar-thumb {
-        background-color: rgba(0,0,0,0.18);
-        border-radius: 4px;
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        flex-wrap: gap-2;
     }
 
-    .funnel-stage {
+    .chart-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
         display: flex;
         align-items: center;
-        background: rgba(255, 255, 255, 0.4);
-        border-radius: var(--radius-md);
-        padding: 0.5rem 0.75rem;
-        border-left: 3px solid var(--primary);
-        position: relative;
+        gap: 0.5rem;
     }
 
-    .funnel-stage:not(:last-child)::after {
-        content: '↓';
-        position: absolute;
-        bottom: -0.6rem;
-        left: 2rem;
-        font-weight: bold;
-        color: rgba(0,0,0,0.3);
-        font-size: 0.9rem;
-        z-index: 10;
-    }
-
-    .funnel-stage-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--primary);
-        font-size: 0.9rem;
-        margin-right: 0.75rem;
-    }
-    
-    .funnel-stage-info {
-        flex-grow: 1;
-    }
-
-    .funnel-stage-title {
+    .top-n-select {
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        margin-bottom: 0.1rem;
+        padding: 2px 6px;
+        color: #334155;
+        cursor: pointer;
     }
 
-    .funnel-stage-count {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text-main);
-        margin: 0;
+    .top-n-select:focus {
+        outline: none;
+        border-color: var(--primary);
     }
-
-    .funnel-stage-stats {
-        display: flex;
-        gap: 0.5rem;
-        text-align: right;
-    }
-
-    .funnel-stat {
-        display: flex;
-        flex-direction: column;
-        font-size: 0.7rem;
-    }
-
-    .funnel-stat-label {
-        color: var(--text-muted);
-        font-weight: 500;
-    }
-
-    .funnel-stat-value.conv { color: #10b981; font-weight: 600; }
-    .funnel-stat-value.drop { color: #ef4444; font-weight: 600; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="nelson-dashboard" style="background: transparent; border: none; padding: 0;">
-    <!-- Top Header & Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-3">
+<div class="nelson-dashboard">
+    <!-- Header & Top Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
         <div>
-            <h4 class="fw-bold mb-0 text-dark">Overall Analytics</h4>
-            <p class="text-muted mb-0 mt-1" style="font-size: 0.88rem;">Comprehensive 360° Overview for {{ request.user.hospital.name|default:'Hospital' }}</p>
+            <h4 class="fw-bold mb-0 text-dark">Dashboard</h4>
         </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-            <!-- Date Filter Dropdown -->
-            <div class="dropdown">
-                <button class="btn {% if filter_label != 'All Time' %}btn-primary text-white shadow-sm{% else %}btn-outline-secondary bg-white text-dark border{% endif %} dropdown-toggle d-flex align-items-center gap-2 rounded-pill px-3 py-2 fw-semibold" type="button" id="periodFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.85rem;">
-                    <i class="ph ph-calendar {% if filter_label == 'All Time' %}text-primary{% endif %}"></i> <span>{% if filter_label != "All Time" %}{{ filter_label }}{% else %}Filter by Date{% endif %}</span>
-                </button>
-                <div class="dropdown-menu dropdown-menu-end shadow-lg border rounded-4 p-3 mt-2" style="min-width: 290px; right: 0; left: auto; z-index: 1060;" aria-labelledby="periodFilterDropdown">
-                    <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                        <span class="small fw-bold text-dark text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">Select Date Range</span>
-                        {% if filter_label != "All Time" %}
-                        <a href="{% url 'dashboard:superadmin_home' %}" class="small text-danger text-decoration-none fw-semibold" style="font-size: 0.72rem;">Clear Filter</a>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Quick Preset Select -->
-                    <div class="list-group list-group-flush mb-2">
-                        <a href="{% url 'dashboard:superadmin_home' %}" class="list-group-item list-group-item-action border-0 rounded-2 py-2 small fw-semibold {% if not time_filter %}active bg-primary text-white{% endif %}">
-                            <i class="ph ph-infinity me-2"></i> All Time
-                        </a>
-                        <a href="{% url 'dashboard:superadmin_home' %}?time_filter=today" class="list-group-item list-group-item-action border-0 rounded-2 py-2 small fw-semibold {% if time_filter == 'today' %}active bg-primary text-white{% endif %}">
-                            <i class="ph ph-clock me-2"></i> Today
-                        </a>
-                        <a href="{% url 'dashboard:superadmin_home' %}?time_filter=this_month" class="list-group-item list-group-item-action border-0 rounded-2 py-2 small fw-semibold {% if time_filter == 'this_month' %}active bg-primary text-white{% endif %}">
-                            <i class="ph ph-calendar me-2"></i> This Month
-                        </a>
-                    </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- 1. Single Filter Toggle Button right next to Today Date -->
+            <button type="button" class="btn {% if has_active_filters %}btn-primary text-white shadow-sm{% else %}btn-white bg-white text-dark border{% endif %} btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2" id="filterToggleBtn" style="font-size: 0.82rem;">
+                <i class="ph-bold ph-funnel {% if not has_active_filters %}text-primary{% endif %}"></i>
+                <span>Filters</span>
+                {% if has_active_filters %}
+                <span class="badge bg-white text-primary rounded-circle px-1" style="font-size: 0.65rem;">Active</span>
+                {% endif %}
+                <i class="ph ph-caret-down ms-1" id="filterChevronIcon"></i>
+            </button>
 
-                    <!-- Years -->
-                    {% if available_years %}
-                    <div class="mb-2 pt-2 border-top">
-                        <span class="small text-muted fw-bold d-block mb-1" style="font-size: 0.7rem;">BY YEAR:</span>
-                        <div class="d-flex flex-wrap gap-1">
-                            {% for yr in available_years %}
-                            <a href="{% url 'dashboard:superadmin_home' %}?time_filter=year_{{ yr }}" class="btn btn-sm rounded-pill px-2 py-1 small fw-semibold {% if time_filter == 'year_'|add:yr|stringformat:'s' %}btn-primary text-white{% else %}btn-light border text-dark{% endif %}" style="font-size: 0.75rem;">
-                                {{ yr }}
-                            </a>
+            <!-- 2. Single Reset Button (Visible only when filters are active) -->
+            {% if has_active_filters %}
+            <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 fw-bold text-decoration-none d-flex align-items-center gap-1" style="font-size: 0.82rem;">
+                <i class="ph ph-arrow-counter-clockwise"></i> Reset
+            </a>
+            {% endif %}
+
+            <!-- 3. Today Date Badge -->
+            <div class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm" style="font-size: 0.8rem; font-weight: 600;">
+                <i class="ph ph-calendar-blank text-primary me-1"></i> Today: {{ today|date:"d M Y" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Filter Panel (Collapsible / Toggleable) -->
+    <div class="filter-panel mb-4" id="filterCollapseBody" style="display: none;">
+        <form method="GET" action="{% url 'dashboard:superadmin_home' %}" id="interactiveFilterForm">
+            <div class="row g-3">
+                    <!-- 1. Campaign Filter -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">CAMPAIGN</label>
+                        <select name="campaign" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Campaigns</option>
+                            {% for camp in campaigns %}
+                            <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
                             {% endfor %}
-                        </div>
+                        </select>
                     </div>
-                    {% endif %}
 
-                    <!-- Custom Range -->
-                    <div class="pt-2 border-top">
-                        <span class="small text-muted fw-bold d-block mb-2" style="font-size: 0.7rem;">CUSTOM RANGE:</span>
-                        <form method="GET" action="{% url 'dashboard:superadmin_home' %}">
-                            <input type="hidden" name="time_filter" value="custom">
-                            <div class="row g-2 mb-2">
-                                <div class="col-6">
-                                    <label class="form-label text-muted small mb-0" style="font-size: 0.68rem;">From</label>
-                                    <input type="date" name="start_date" class="form-control form-control-sm rounded-2" value="{{ custom_start }}" max="{{ today_str }}" style="font-size: 0.75rem;" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label text-muted small mb-0" style="font-size: 0.68rem;">To</label>
-                                    <input type="date" name="end_date" class="form-control form-control-sm rounded-2" value="{{ custom_end|default:today_str }}" max="{{ today_str }}" style="font-size: 0.75rem;" required>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-primary w-100 rounded-pill fw-bold py-1" style="font-size: 0.78rem;">
-                                Apply Range
-                            </button>
-                        </form>
+                    <!-- 2. Source Filter -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">LEAD SOURCE</label>
+                        <select name="source" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Lead Sources</option>
+                            {% for src in lead_sources %}
+                            <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 3. Department Filter -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">DEPARTMENT</label>
+                        <select name="department" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 4. Doctor Filter -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">DOCTOR NAME</label>
+                        <select name="doctor" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Doctors</option>
+                            {% for doc in doctors %}
+                            <option value="{{ doc }}" {% if current_doctor == doc %}selected{% endif %}>{{ doc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 5. Location Filter -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">LOCATION</label>
+                        <select name="location" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Locations</option>
+                            {% for loc in locations %}
+                            <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>{{ loc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 6. Payments Breakdown Filter -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">PAYMENT / BILL FILTER</label>
+                        <select name="payment_type" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Leads (Paid & Unpaid)</option>
+                            <option value="all_paid" {% if current_payment_type == 'all_paid' %}selected{% endif %}>Won (All Paid Leads)</option>
+                            <option value="opd" {% if current_payment_type == 'opd' %}selected{% endif %}>Has OPD Bill</option>
+                            <option value="pharmacy" {% if current_payment_type == 'pharmacy' %}selected{% endif %}>Has Pharmacy Bill</option>
+                            <option value="ipd" {% if current_payment_type == 'ipd' %}selected{% endif %}>Has IPD Bill</option>
+                            <option value="investigation" {% if current_payment_type == 'investigation' %}selected{% endif %}>Has Investigation Bill</option>
+                            <option value="unpaid" {% if current_payment_type == 'unpaid' %}selected{% endif %}>Unpaid Leads Only</option>
+                        </select>
+                    </div>
+
+                    <!-- 7. Month Filter -->
+                    <div class="col-md-2 col-sm-4">
+                        <label class="filter-label">MONTH</label>
+                        <select name="month" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Months</option>
+                            {% for m in months %}
+                            <option value="{{ m }}" {% if current_month == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 8. Year Filter -->
+                    <div class="col-md-2 col-sm-4">
+                        <label class="filter-label">YEAR</label>
+                        <select name="year" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Years</option>
+                            {% for y in available_years %}
+                            <option value="{{ y }}" {% if current_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 9. Week Day Filter -->
+                    <div class="col-md-2 col-sm-4">
+                        <label class="filter-label">WEEK DAY</label>
+                        <select name="weekday" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Week Days</option>
+                            {% for wd in weekdays %}
+                            <option value="{{ wd }}" {% if current_weekday == wd %}selected{% endif %}>{{ wd }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 10. Gender Filter -->
+                    <div class="col-md-2 col-sm-4">
+                        <label class="filter-label">GENDER</label>
+                        <select name="gender" class="form-select custom-filter-select" onchange="this.form.submit()">
+                            <option value="">All Genders</option>
+                            <option value="FEMALE" {% if current_gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                            <option value="MALE" {% if current_gender == 'MALE' %}selected{% endif %}>Male</option>
+                            <option value="Not Mentioned" {% if current_gender == 'Not Mentioned' %}selected{% endif %}>Not Mentioned</option>
+                        </select>
+                    </div>
+
+                    <!-- 11. Custom Date Range Inputs (Locked to today's max date) -->
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">FROM DATE</label>
+                        <input type="date" name="start_date" id="filterStartDate" class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}" max="{{ today_str }}">
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <label class="filter-label">TO DATE</label>
+                        <input type="date" name="end_date" id="filterEndDate" class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}" max="{{ today_str }}">
                     </div>
                 </div>
-            </div>
 
-            {% if filter_label != "All Time" %}
-            <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-danger d-flex align-items-center gap-1 rounded-pill px-3 py-2 fw-semibold text-decoration-none" style="font-size: 0.85rem;" title="Reset Date Filter">
-                <i class="ph ph-x"></i> Reset Filter
-            </a>
-            {% endif %}
-
-            <a href="{% url 'meta_ads:dashboard' %}" class="btn btn-outline-primary {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %}"
-                style="border-radius: 50px; font-weight: 600;">
-                <i class="fa-brands fa-meta me-1"></i> Meta Ads{% if not request.user.can_manage_campaigns %} <i class="fa-solid fa-lock"></i>{% endif %}
-            </a>{% if not request.user.hospital %}
-            <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-primary"
-                style="border-radius: 50px; font-weight: 600;">
-                <i class="ph ph-buildings me-1"></i> Manage Businesses
-            </a>
-            {% endif %}
-            <div style="background: white; padding: 0.45rem 1rem; border-radius: 50px; border: 1px solid #e2e8f0; font-weight: 600; color: var(--text-main); font-size: 0.85rem;">
-                <i class="ph ph-calendar-blank me-1 text-primary"></i>Today: {{ now|date:"d M Y" }}
-            </div>
+                <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-2 border-top">
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="ph ph-check me-1"></i> Apply Slicers
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
-    
-    {% if not request.user.can_view_admin_dashboard %}
-    <div class="alert alert-secondary text-center rounded-4 p-5 mt-4 border-0 shadow-sm">
-        <i class="fa-solid fa-lock fa-3x text-muted mb-3"></i>
-        <h4 class="fw-bold text-dark">Dashboard Locked</h4>
-        <p class="text-muted mb-0">You do not have permission to view the administrative dashboard statistics.</p>
-    </div>
-    <div style="filter: blur(8px); opacity: 0.5; pointer-events: none;">
-    {% endif %}
-    <!-- Stats Grid -->
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #EC4899 0%, #BE185D 100%);">
-                <i class="ph ph-users"></i>
+    <!-- Main KPIs Cards Grid -->
+    <div class="stats-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        <!-- 1. Today's New Leads (Interactive Clickable Card) -->
+        <div class="stat-card c-leads cursor-pointer shadow-sm position-relative" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#todaysLeadsBreakdownModal" title="Click to view Today's Campaign & Status Breakdown">
+            <div class="stat-header">
+                <div>
+                    <div class="stat-title d-flex align-items-center gap-1">
+                        <span>Today's New Leads</span>
+                        <i class="ph ph-arrow-up-right text-primary small" style="font-size: 0.85rem;"></i>
+                    </div>
+                    <div class="stat-value">{{ insights.todays_new_leads|default:0|intcomma }}</div>
+                </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);">
+                    <i class="ph ph-user-plus"></i>
+                </div>
             </div>
-            <div class="stat-info">
-                <h3>Total Leads</h3>
-                <h2>{{ insights.total_leads|intcomma }}</h2>
+            <div class="stat-sub d-flex justify-content-between align-items-center">
+                <span>New & Hot Leads Imported Today</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-2 py-0" style="font-size: 0.68rem;">Click for Breakdown</span>
             </div>
         </div>
 
-        <a href="{% url 'leads:lead_list' %}?appo_book=YES" class="text-decoration-none">
-            <div class="stat-card">
+        <!-- 2. Appointments Booked -->
+        <div class="stat-card c-appo">
+            <div class="stat-header">
+                <div>
+                    <div class="stat-title">Appointments Booked</div>
+                    <div class="stat-value">{{ insights.appointments_booked|intcomma }}</div>
+                </div>
                 <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
                     <i class="ph ph-calendar-check"></i>
                 </div>
-                <div class="stat-info">
-                    <h3>Appointments Booked</h3>
-                    <h2>{{ insights.appointments_booked|intcomma }}</h2>
-                </div>
             </div>
-        </a>
-
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">
-                <i class="ph ph-trend-up"></i>
-            </div>
-            <div class="stat-info">
-                <h3>Conversion Rate</h3>
-                <h2>{{ insights.conversion_rate }}</h2>
-            </div>
-        </div>
-
-        <a href="{% url 'leads:lead_list' %}?has_revenue=1" class="text-decoration-none">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);">
-                    <i class="ph ph-currency-inr"></i>
-                </div>
-                <div class="stat-info">
-                    <h3>Total Revenue</h3>
-                    <h2>{{ insights.total_revenue|intcomma }}</h2>
-                </div>
-            </div>
-        </a>
-
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);">
-                <i class="ph ph-user-plus"></i>
-            </div>
-            <div class="stat-info">
-                <h3>New Leads (Month)</h3>
-                <h2>{{ insights.new_leads_this_month|intcomma }}</h2>
-            </div>
+            <div class="stat-sub">Confirmed & Scheduled Appointments</div>
         </div>
     </div>
 
-    <!-- Charts -->
-    <div class="charts-grid mt-4">
+    <!-- Charts Row 1: Location & Department -->
+    <div class="charts-grid">
+        <!-- 1. Location Wise Chart -->
         <div class="chart-card">
-            <h4 class="mb-3 fs-6 fw-bold">Conversion Funnel</h4>
-            <div id="customFunnelContainer" class="custom-funnel"></div>
-        </div>
-        <div class="chart-card">
-            <h4 class="mb-3 fs-6 fw-bold">Leads Count by Gender</h4>
-            <div style="position: relative; height: 260px; width: 100%;">
-                <canvas id="genderChart"></canvas>
-            </div>
-        </div>
-        <div class="chart-card">
-            <h4 class="mb-3 fs-6 fw-bold">Leads Count by Sources</h4>
-            <div style="position: relative; height: 260px; width: 100%;">
-                <canvas id="sourceChart"></canvas>
-            </div>
-        </div>
-        <div class="chart-card">
-            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <h4 class="mb-0 fs-6 fw-bold">Department Performance</h4>
-                <!-- Dynamic Filter Switcher for Leads / Appointments / Revenue -->
-                <div class="btn-group btn-group-sm" role="group" id="deptMetricButtonGroup">
-                    <button type="button" class="btn btn-primary btn-sm fw-semibold active" data-metric="leads" style="font-size: 0.72rem; padding: 2px 8px;">Leads</button>
-                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" data-metric="appointments" style="font-size: 0.72rem; padding: 2px 8px;">Appointments</button>
-                    <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" data-metric="revenue" style="font-size: 0.72rem; padding: 2px 8px;">Revenue</button>
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-map-pin text-primary"></i> Location-wise Leads
+                </h5>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                    <select class="top-n-select" id="locationTopN" onchange="updateLocationChart()">
+                        <option value="5">Top 5</option>
+                        <option value="10" selected>Top 10</option>
+                        <option value="15">Top 15</option>
+                        <option value="25">Top 25</option>
+                        <option value="all">All</option>
+                    </select>
                 </div>
             </div>
-            <div style="position: relative; height: 260px; width: 100%;">
+            <div style="position: relative; height: 290px; width: 100%;">
+                <canvas id="locationChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. Department Wise Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-buildings text-primary"></i> Department Distribution
+                </h5>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                    <select class="top-n-select" id="departmentTopN" onchange="updateDepartmentChart()">
+                        <option value="5">Top 5</option>
+                        <option value="10" selected>Top 10</option>
+                        <option value="15">Top 15</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+            <div style="position: relative; height: 290px; width: 100%;">
                 <canvas id="departmentChart"></canvas>
             </div>
         </div>
+    </div>
+
+    <!-- Charts Row 2: Month Wise & Final Lead Status -->
+    <div class="charts-grid">
+        <!-- 3. Month Wise Leads Chart -->
         <div class="chart-card">
-            <h4 class="mb-3 fs-6 fw-bold">Campaign Performance</h4>
-            <div style="position: relative; height: 260px; width: 100%;">
-                <canvas id="campaignChart"></canvas>
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-calendar text-primary"></i> Month-wise Inquiries
+                </h5>
+                <span class="badge bg-light text-muted border">Interactive</span>
+            </div>
+            <div style="position: relative; height: 290px; width: 100%;">
+                <canvas id="monthChart"></canvas>
             </div>
         </div>
 
+        <!-- 4. Final Lead Status Chart -->
         <div class="chart-card">
-            <h4 class="mb-3 fs-6 fw-bold">Month-wise Leads</h4>
-            <div style="position: relative; height: 260px; width: 100%;">
-                <canvas id="monthWiseChart"></canvas>
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-chart-pie-slice text-primary"></i> Final Lead Status
+                </h5>
+                <span class="badge bg-light text-muted border">Outcomes</span>
+            </div>
+            <div style="position: relative; height: 290px; width: 100%;">
+                <canvas id="finalStatusChart"></canvas>
             </div>
         </div>
     </div>
-    {% if not request.user.can_view_admin_dashboard %}</div>{% endif %}
+
+    <!-- Charts Row 3: Doctor Performance & Campaign Wise -->
+    <div class="charts-grid">
+        <!-- 5. Doctor Wise Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-user-circle-gear text-primary"></i> Doctor-wise Leads
+                </h5>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                    <select class="top-n-select" id="doctorTopN" onchange="updateDoctorChart()">
+                        <option value="5">Top 5</option>
+                        <option value="10" selected>Top 10</option>
+                        <option value="15">Top 15</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+            <div style="position: relative; height: 290px; width: 100%;">
+                <canvas id="doctorChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 6. Campaign Wise Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-megaphone text-primary"></i> Campaign-wise Volume
+                </h5>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                    <select class="top-n-select" id="campaignTopN" onchange="updateCampaignChart()">
+                        <option value="5">Top 5</option>
+                        <option value="10" selected>Top 10</option>
+                        <option value="15">Top 15</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+            <div style="position: relative; height: 290px; width: 100%;">
+                <canvas id="campaignChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 4: Appointment Status & Day of Week -->
+    <div class="charts-grid">
+        <!-- 7. Appointment Status Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-check-square-offset text-primary"></i> Appointment Status Breakdown
+                </h5>
+                <span class="badge bg-light text-muted border">Click to Filter</span>
+            </div>
+            <div style="position: relative; height: 270px; width: 100%;">
+                <canvas id="appointmentStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 8. Day of Week Pattern -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h5 class="chart-title">
+                    <i class="ph-bold ph-clock text-primary"></i> Day of Week Pattern
+                </h5>
+                <span class="badge bg-light text-muted border">Click to Filter</span>
+            </div>
+            <div style="position: relative; height: 270px; width: 100%;">
+                <canvas id="weekdayChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Today's New Leads Campaign & Status Breakdown -->
+<div class="modal fade" id="todaysLeadsBreakdownModal" tabindex="-1" aria-labelledby="todaysLeadsBreakdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom py-3 px-4">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark mb-1" id="todaysLeadsBreakdownModalLabel">
+                        <i class="ph-bold ph-user-plus text-primary me-2"></i>Today's New Leads Breakdown
+                    </h5>
+                    <p class="text-muted small mb-0">Total <strong>{{ insights.todays_new_leads|default:0 }}</strong> fresh leads imported / received today without attendant assignment.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                
+                {% if todays_campaign_breakdown %}
+                <div class="table-responsive border rounded-3 mb-3 bg-white">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                        <thead class="bg-light text-muted">
+                            <tr>
+                                <th class="py-2 px-3">Campaign Name</th>
+                                <th class="py-2 text-center">Today's Total</th>
+                                <th class="py-2 text-center text-success">Contacted</th>
+                                <th class="py-2 text-center text-danger">Not Contacted (Hot)</th>
+                                <th class="py-2 text-center text-warning">Appt Booked</th>
+                                <th class="py-2 px-3 text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in todays_campaign_breakdown %}
+                            <tr>
+                                <td class="px-3">
+                                    <div class="fw-bold text-dark">
+                                        <i class="ph ph-bullhorn text-primary me-1"></i> {{ item.campaign_name }}
+                                    </div>
+                                </td>
+                                <td class="text-center fw-bold">
+                                    <span class="badge bg-primary rounded-pill px-3 py-1">{{ item.total }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">{{ item.contacted }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">{{ item.not_contacted }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">{{ item.appointment_booked }}</span>
+                                </td>
+                                <td class="px-3 text-end">
+                                    <a href="{% url 'leads:lead_list' %}?campaign={{ item.campaign_name }}&temperature=HOT" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                        View Leads <i class="ph ph-arrow-right ms-1"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="ph ph-tray fs-1 opacity-25 d-block mb-2"></i>
+                    <h6 class="fw-bold text-dark">No New Leads Imported Today</h6>
+                    <p class="small text-muted mb-0">Import a leads campaign file from <a href="{% url 'imports:upload' %}" class="fw-bold text-primary">Import Leads</a> to see instant live breakdowns here.</p>
+                </div>
+                {% endif %}
+
+            </div>
+            <div class="modal-footer bg-light py-2 px-4 border-top">
+                <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+                    <i class="ph ph-upload-simple me-1"></i> Import More Leads
+                </a>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    const insights = {{ insights_json| safe }};
+    const insights = {{ insights_json|safe }};
 
-    // Global Chart.js Config
-    Chart.defaults.color = '#1e293b'; // Dark color for better contrast on pastel backgrounds
-    Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.05)';
+    Chart.defaults.color = '#334155';
+    Chart.defaults.borderColor = 'rgba(226, 232, 240, 0.8)';
     Chart.defaults.font.family = "'Outfit', sans-serif";
 
-    function renderChart(canvasId, type, dataObj, customColors = null) {
+    // Chart instances store
+    const chartInstances = {};
+
+    function getSortedTopN(dataObj, limit) {
+        const entries = Object.entries(dataObj || {}).filter(([k, v]) => v > 0);
+        entries.sort((a, b) => b[1] - a[1]);
+        const sliced = (limit === 'all' || !limit) ? entries : entries.slice(0, parseInt(limit));
+        return {
+            labels: sliced.map(e => e[0]),
+            values: sliced.map(e => e[1])
+        };
+    }
+
+    function createBarChart(canvasId, filterParam, colorHex, isHorizontal = true) {
         const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
+        if (!canvas) return null;
+        const ctx = canvas.getContext('2d');
+
+        return new Chart(ctx, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Count', data: [], backgroundColor: colorHex, borderRadius: 6, barPercentage: 0.7 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: isHorizontal ? 'y' : 'x',
+                scales: {
+                    x: { beginAtZero: true, grid: { display: isHorizontal } },
+                    y: { grid: { display: !isHorizontal } }
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0 && filterParam) {
+                        const idx = elements[0].index;
+                        const label = chartInstances[canvasId].data.labels[idx];
+                        applyFilterParam(filterParam, label);
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return ' Leads: ' + ctx.raw.toLocaleString('en-IN'); }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function createDoughnutChart(canvasId, filterParam, dataObj, colorPalette) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
         const ctx = canvas.getContext('2d');
         const labels = Object.keys(dataObj || {});
         const values = Object.values(dataObj || {});
 
-        if (type === 'bar') {
-            // Sort highest to lowest
-            const sorted = labels.map((l, i) => ({ l, v: values[i] })).sort((a, b) => b.v - a.v);
-            labels.length = 0; values.length = 0;
-            sorted.forEach(item => { labels.push(item.l); values.push(item.v); });
-        }
-
-        // For Campaign Chart, ensure dynamic height so each bar is clearly visible with scrolling
-        if (canvasId === 'campaignChart') {
-            const container = document.getElementById('campaignChartContainer');
-            if (container && labels.length > 0) {
-                // Ensure at least 38px height per campaign bar if more than 5 campaigns
-                const dynamicHeight = Math.max(labels.length * 40, 250);
-                container.style.height = `${dynamicHeight}px`;
-            }
-        }
-
-        new Chart(ctx, {
-            type: type,
+        return new Chart(ctx, {
+            type: 'doughnut',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Count',
                     data: values,
-                    backgroundColor: customColors || [
-                        '#4F46E5', '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'
-                    ],
-                    borderRadius: 4,
-                    barPercentage: 0.65
+                    backgroundColor: colorPalette || ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B']
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: type === 'bar' ? 'y' : 'x',
-                layout: {
-                    padding: {
-                        left: type === 'bar' ? 10 : 0,
-                        right: type === 'bar' ? 15 : 0
-                    }
-                },
-                scales: type === 'bar' ? {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    },
-                    y: {
-                        ticks: {
-                            autoSkip: false,
-                            font: {
-                                size: 11
-                            },
-                            callback: function(value) {
-                                const label = this.getLabelForValue(value);
-                                if (typeof label === 'string') {
-                                    // Always show starting of the name; truncate only at the end with ellipsis
-                                    if (label.length > 15) {
-                                        return label.substring(0, 13) + '...';
-                                    }
-                                    return label;
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                } : undefined,
                 onClick: (e, elements) => {
-                    if (elements.length > 0) {
+                    if (elements.length > 0 && filterParam) {
                         const idx = elements[0].index;
-                        const clickedLabel = labels[idx];
-
-                        const urlParams = new URLSearchParams(window.location.search);
-                        let paramName = '';
-                        if (canvasId === 'genderChart') paramName = 'gender';
-                        else if (canvasId === 'sourceChart') paramName = 'source';
-                        else if (canvasId === 'priorityChart') paramName = 'priority';
-                        else if (canvasId === 'campaignChart') paramName = 'campaign';
-                        
-                        if (paramName) {
-                            urlParams.set(paramName, clickedLabel);
-                            window.location.search = urlParams.toString();
-                        }
+                        const label = labels[idx];
+                        applyFilterParam(filterParam, label);
                     }
                 },
                 plugins: {
-                    legend: {
-                        position: type === 'bar' ? 'none' : 'bottom',
-                        display: type !== 'bar'
-                    },
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
                     tooltip: {
                         callbacks: {
-                            title: function(tooltipItems) {
-                                const idx = tooltipItems[0].dataIndex;
-                                return labels[idx] || '';
-                            }
+                            label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN'); }
                         }
                     }
                 }
@@ -581,241 +732,138 @@
         });
     }
 
-    function renderCustomFunnel(containerId, dataObj) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        const stages = [
-            { key: 'Leads', icon: 'ph-users' },
-            { key: 'Contacted', icon: 'ph-phone-call' },
-            { key: 'Follow-up', icon: 'ph-arrow-u-up-right' },
-            { key: 'Appointments', icon: 'ph-calendar-check' },
-            { key: 'Visits Completed', icon: 'ph-check-circle' },
-            { key: 'Active Patients', icon: 'ph-heartbeat' },
-            { key: 'Revenue', icon: 'ph-currency-inr' }
-        ];
+    function applyFilterParam(param, val) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get(param) === val) {
+            urlParams.delete(param); // Toggle off if clicked again
+        } else {
+            urlParams.set(param, val);
+        }
+        window.location.search = urlParams.toString();
+    }
 
-        let prevCount = null;
+    // Top N Updaters
+    function updateLocationChart() {
+        const limit = document.getElementById('locationTopN').value;
+        const sorted = getSortedTopN(insights.location_distribution, limit);
+        chartInstances['locationChart'].data.labels = sorted.labels;
+        chartInstances['locationChart'].data.datasets[0].data = sorted.values;
+        chartInstances['locationChart'].update();
+    }
 
-        stages.forEach((stage, index) => {
-            const count = dataObj[stage.key] || 0;
-            let convRate = null;
-            let dropRate = null;
+    function updateDepartmentChart() {
+        const limit = document.getElementById('departmentTopN').value;
+        const sorted = getSortedTopN(insights.department_distribution, limit);
+        chartInstances['departmentChart'].data.labels = sorted.labels;
+        chartInstances['departmentChart'].data.datasets[0].data = sorted.values;
+        chartInstances['departmentChart'].update();
+    }
 
-            if (prevCount !== null && stage.key !== 'Revenue') {
-                if (prevCount > 0) {
-                    convRate = ((count / prevCount) * 100).toFixed(1);
-                    dropRate = (100 - convRate).toFixed(1);
-                } else {
-                    convRate = "0.0";
-                    dropRate = "0.0";
-                }
-            }
+    function updateDoctorChart() {
+        const limit = document.getElementById('doctorTopN').value;
+        const sorted = getSortedTopN(insights.doctor_distribution, limit);
+        chartInstances['doctorChart'].data.labels = sorted.labels;
+        chartInstances['doctorChart'].data.datasets[0].data = sorted.values;
+        chartInstances['doctorChart'].update();
+    }
 
-            const isRevenue = stage.key === 'Revenue';
-            const displayCount = isRevenue ? `₹${count.toLocaleString('en-IN')}` : count.toLocaleString('en-IN');
-
-            let statsHtml = '';
-            if (convRate !== null) {
-                statsHtml = `
-                    <div class="funnel-stage-stats">
-                        <div class="funnel-stat">
-                            <span class="funnel-stat-label">Conversion</span>
-                            <span class="funnel-stat-value conv">↓ ${convRate}%</span>
-                        </div>
-                        <div class="funnel-stat">
-                            <span class="funnel-stat-label">Drop-off</span>
-                            <span class="funnel-stat-value drop">${dropRate}%</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            const stageHtml = `
-                <div class="funnel-stage">
-                    <div class="funnel-stage-icon">
-                        <i class="ph ${stage.icon}"></i>
-                    </div>
-                    <div class="funnel-stage-info">
-                        <div class="funnel-stage-title">${stage.key}</div>
-                        <div class="funnel-stage-count">${displayCount}</div>
-                    </div>
-                    ${statsHtml}
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', stageHtml);
-            
-            if (!isRevenue) {
-                prevCount = count;
-            }
-        });
+    function updateCampaignChart() {
+        const limit = document.getElementById('campaignTopN').value;
+        const sorted = getSortedTopN(insights.campaign_distribution, limit);
+        chartInstances['campaignChart'].data.labels = sorted.labels;
+        chartInstances['campaignChart'].data.datasets[0].data = sorted.values;
+        chartInstances['campaignChart'].update();
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-        if(typeof Chart === 'undefined') {
-            console.error("Chart.js is not loaded.");
-            return;
-        }
-        renderChart('genderChart', 'pie', insights.gender_distribution, 
-            ['#F472B6', '#60A5FA', '#34D399', '#A78BFA', '#FBBF24']);
+        // --- 1. Persistent Filter Panel Open / Collapse with localStorage ---
+        const filterBody = document.getElementById('filterCollapseBody');
+        const filterToggleBtn = document.getElementById('filterToggleBtn');
+        const filterChevron = document.getElementById('filterChevronIcon');
         
-        renderChart('sourceChart', 'doughnut', insights.source_distribution, 
-            ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#14B8A6']);
-            
-        renderDepartmentPerformanceChart(insights.department_metrics);
-            
-        renderChart('campaignChart', 'bar', insights.campaign_distribution, 
-            ['#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B']);
+        const hasActiveFilters = {{ has_active_filters|yesno:"true,false" }};
+        const savedState = localStorage.getItem('nelson_dashboard_filter_open');
 
-        renderCustomFunnel('customFunnelContainer', insights.funnel_data);
+        // If user manually opened it or has active filters, keep open
+        const shouldBeOpen = hasActiveFilters || savedState === 'true';
 
-        renderChart('monthWiseChart', 'bar', insights.month_wise_leads, 
-            ['#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#0ea5e9'], false);
-    });
-
-    let deptChartInstance = null;
-    function renderDepartmentPerformanceChart(deptMetrics) {
-        const canvas = document.getElementById('departmentChart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const metrics = deptMetrics || { leads: {}, appointments: {}, revenue: {} };
-
-        let currentMetric = 'leads';
-
-        function getChartData(metricType) {
-            const dataObj = metrics[metricType] || {};
-            const labels = Object.keys(dataObj);
-            const values = Object.values(dataObj);
-
-            // Sort descending by value
-            const sorted = labels.map((l, i) => ({ l, v: values[i] })).sort((a, b) => b.v - a.v);
-            return {
-                labels: sorted.map(item => item.l),
-                values: sorted.map(item => item.v)
-            };
+        if (shouldBeOpen) {
+            filterBody.style.display = 'block';
+            if (filterChevron) {
+                filterChevron.classList.remove('ph-caret-down');
+                filterChevron.classList.add('ph-caret-up');
+            }
+        } else {
+            filterBody.style.display = 'none';
+            if (filterChevron) {
+                filterChevron.classList.remove('ph-caret-up');
+                filterChevron.classList.add('ph-caret-down');
+            }
         }
 
-        const initial = getChartData('leads');
-
-        deptChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: initial.labels,
-                datasets: [{
-                    label: 'Leads Count',
-                    data: initial.values,
-                    backgroundColor: [
-                        '#4F46E5', '#10B981', '#3B82F6', '#F59E0B', '#EF4444',
-                        '#8B5CF6', '#EC4899', '#06B6D4', '#EAB308', '#2563EB'
-                    ],
-                    borderRadius: 4,
-                    barPercentage: 0.65
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                layout: {
-                    padding: {
-                        left: 10,
-                        right: 15
+        if (filterToggleBtn) {
+            filterToggleBtn.addEventListener('click', () => {
+                const isOpen = filterBody.style.display !== 'none';
+                if (isOpen) {
+                    filterBody.style.display = 'none';
+                    if (filterChevron) {
+                        filterChevron.classList.remove('ph-caret-up');
+                        filterChevron.classList.add('ph-caret-down');
                     }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0,
-                            callback: function(value) {
-                                if (currentMetric === 'revenue') {
-                                    return '₹' + value.toLocaleString('en-IN');
-                                }
-                                return value;
-                            }
-                        }
-                    },
-                    y: {
-                        ticks: {
-                            autoSkip: false,
-                            font: {
-                                size: 11
-                            },
-                            callback: function(value) {
-                                const label = this.getLabelForValue(value);
-                                if (typeof label === 'string' && label.length > 15) {
-                                    return label.substring(0, 13) + '...';
-                                }
-                                return label;
-                            }
-                        }
+                    localStorage.setItem('nelson_dashboard_filter_open', 'false');
+                } else {
+                    filterBody.style.display = 'block';
+                    if (filterChevron) {
+                        filterChevron.classList.remove('ph-caret-down');
+                        filterChevron.classList.add('ph-caret-up');
                     }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const val = context.raw || 0;
-                                if (currentMetric === 'revenue') {
-                                    return ' Revenue: ₹' + val.toLocaleString('en-IN');
-                                } else if (currentMetric === 'appointments') {
-                                    return ' Appointments Booked: ' + val.toLocaleString('en-IN');
-                                } else {
-                                    return ' Total Leads: ' + val.toLocaleString('en-IN');
-                                }
-                            },
-                            title: function(tooltipItems) {
-                                return tooltipItems[0].label || '';
-                            }
-                        }
-                    }
-                },
-                onClick: (e, elements) => {
-                    if (elements.length > 0) {
-                        const idx = elements[0].index;
-                        const clickedLabel = deptChartInstance.data.labels[idx];
-                        const urlParams = new URLSearchParams(window.location.search);
-                        urlParams.set('department', clickedLabel);
-                        window.location.search = urlParams.toString();
-                    }
+                    localStorage.setItem('nelson_dashboard_filter_open', 'true');
                 }
-            }
-        });
-
-        // Interactive Button Switcher logic
-        const btnGroup = document.getElementById('deptMetricButtonGroup');
-        if (btnGroup) {
-            const buttons = btnGroup.querySelectorAll('button[data-metric]');
-            buttons.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const metric = this.getAttribute('data-metric');
-                    if (metric === currentMetric) return;
-
-                    currentMetric = metric;
-
-                    // Update button styling
-                    buttons.forEach(b => {
-                        b.classList.remove('btn-primary', 'active');
-                        b.classList.add('btn-outline-primary');
-                    });
-                    this.classList.remove('btn-outline-primary');
-                    this.classList.add('btn-primary', 'active');
-
-                    // Update dataset and labels
-                    const freshData = getChartData(currentMetric);
-                    deptChartInstance.data.labels = freshData.labels;
-                    deptChartInstance.data.datasets[0].data = freshData.values;
-                    deptChartInstance.data.datasets[0].label = currentMetric === 'revenue' ? 'Total Revenue (₹)' : (currentMetric === 'appointments' ? 'Appointments Booked' : 'Leads Count');
-
-                    deptChartInstance.update();
-                });
             });
         }
-    }
+
+
+
+        // --- 3. Initialize Interactive Charts ---
+        // 1. Location Bar Chart (Default Top 10)
+        chartInstances['locationChart'] = createBarChart('locationChart', 'location', '#4f46e5', true);
+        updateLocationChart();
+
+        // 2. Department Bar Chart (Default Top 10)
+        chartInstances['departmentChart'] = createBarChart('departmentChart', 'department', '#06b6d4', true);
+        updateDepartmentChart();
+
+        // 3. Month Wise Bar Chart (Vertical)
+        chartInstances['monthChart'] = createBarChart('monthChart', 'month', '#8b5cf6', false);
+        const monthEntries = Object.entries(insights.month_distribution || {});
+        chartInstances['monthChart'].data.labels = monthEntries.map(e => e[0]);
+        chartInstances['monthChart'].data.datasets[0].data = monthEntries.map(e => e[1]);
+        chartInstances['monthChart'].update();
+
+        // 4. Final Lead Status (Doughnut)
+        chartInstances['finalStatusChart'] = createDoughnutChart('finalStatusChart', '', insights.final_lead_status_distribution, [
+            '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#14B8A6'
+        ]);
+
+        // 5. Doctor Wise Bar Chart (Default Top 10)
+        chartInstances['doctorChart'] = createBarChart('doctorChart', 'doctor', '#10b981', true);
+        updateDoctorChart();
+
+        // 6. Campaign Wise Bar Chart (Default Top 10)
+        chartInstances['campaignChart'] = createBarChart('campaignChart', 'campaign', '#f59e0b', true);
+        updateCampaignChart();
+
+        // 7. Appointment Status (Doughnut)
+        chartInstances['appointmentStatusChart'] = createDoughnutChart('appointmentStatusChart', '', insights.appointment_status_distribution, [
+            '#10B981', '#64748B', '#EF4444', '#F59E0B', '#3B82F6'
+        ]);
+
+        // 8. Weekday Bar Chart (Vertical)
+        chartInstances['weekdayChart'] = createBarChart('weekdayChart', 'weekday', '#ec4899', false);
+        const wdEntries = Object.entries(insights.weekday_distribution || {});
+        chartInstances['weekdayChart'].data.labels = wdEntries.map(e => e[0]);
+        chartInstances['weekdayChart'].data.datasets[0].data = wdEntries.map(e => e[1]);
+        chartInstances['weekdayChart'].update();
+    });
 </script>
 {% endblock %}

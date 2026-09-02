@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} · {{ lead.lead_code }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <div class="text-muted small">{{ lead.lead_code }}</div>
+    <h4 class="mb-1">{{ lead.name }}
+      <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
+      <span class="badge badge-stage">{{ lead.stage }}</span>
+    </h4>
+    <div class="text-muted small">
+      <i class="fa-solid fa-phone"></i> {{ lead.mobile }}
+      {% if lead.email %} &nbsp;·&nbsp; <i class="fa-solid fa-envelope"></i> {{ lead.email }}{% endif %}
+      {% if lead.city %} &nbsp;·&nbsp; <i class="fa-solid fa-location-dot"></i> {{ lead.city }}{% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-pen"></i> Edit</a>
+    {% if not admission %}
+    {% if request.user.hospital %}
+        <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#appointmentModal"><i class="fa-solid fa-stethoscope"></i> Book Appointment</button>
+    {% else %}
+        <button class="btn btn-sm btn-brand text-white" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap"></i> Convert to Admission</button>
+    {% endif %}
+    {% endif %}
+    {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+    <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
+      <i class="fa-solid fa-box-archive"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Overview</h6>
+        <div class="row small">
+          <div class="col-4 text-muted">Course</div><div class="col-8">{{ lead.course|default:"—" }}</div>
+          <div class="col-4 text-muted">Education</div><div class="col-8">{{ lead.education|default:"—" }} {{ lead.qualification }}</div>
+          <div class="col-4 text-muted">Inquiry Date</div><div class="col-8">{{ lead.inquiry_date }}</div>
+          <div class="col-4 text-muted">Deal Status</div>
+          <div class="col-8">
+            {% if lead.hospital and lead.custom_data.deal_status %}{{ lead.custom_data.deal_status }}
+            {% else %}{{ lead.get_deal_status_display }}
+            {% endif %}
+          </div>
+          <div class="col-4 text-muted">Admission Status</div><div class="col-8">{{ lead.get_admission_status_display }}</div>
+          <div class="col-4 text-muted">Assignment / Transfer</div>
+          <div class="col-8">
+            {% if user.can_assign_leads %}
+              <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="row g-2 align-items-center">
+                {% csrf_token %}
+                <div class="col-md-5">
+                  <select name="assigned_to" class="form-select form-select-sm" title="Counselor/HR">
+                    <option value="">Unassigned (Counselor/HR)</option>
+                    {% for emp in employees %}
+                      <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-5">
+                  <select name="assigned_manager" class="form-select form-select-sm" title="Manager">
+                    <option value="">No Manager</option>
+                    {% for mgr in managers %}
+                      <option value="{{ mgr.id }}" {% if lead.assigned_manager_id == mgr.id %}selected{% endif %}>{{ mgr.get_full_name|default:mgr.username }} ({{ mgr.get_role_display }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-sm btn-brand text-white w-100 py-1" title="Transfer Lead"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
+                </div>
+              </form>
+            {% else %}
+              {{ lead.assigned_to|default:"Unassigned" }} {% if lead.assigned_manager %}(Manager: {{ lead.assigned_manager }}){% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Attribution</h6>
+        <div class="row small">
+          <div class="col-4 text-muted">Current Source</div>
+          <div class="col-8">
+            {% if lead.hospital and lead.custom_data.lead_source %}{{ lead.custom_data.lead_source }}
+            {% else %}{{ lead.source_category|default:"—" }} / {{ lead.lead_source|default:"—" }}
+            {% endif %}
+          </div>
+          <div class="col-4 text-muted">Original Source</div><div class="col-8"><strong>{{ lead.original_source_category|default:"—" }} / {{ lead.original_lead_source|default:"—" }}</strong></div>
+          <div class="col-4 text-muted">Campaign</div>
+          <div class="col-8">
+            {% if lead.hospital and lead.custom_data.campaign %}{{ lead.custom_data.campaign }}
+            {% else %}{{ lead.campaign|default:"—" }}
+            {% endif %}
+          </div>
+          <div class="col-4 text-muted">UTM</div><div class="col-8">{{ lead.utm_source }} / {{ lead.utm_medium }} / {{ lead.utm_campaign }}</div>
+          {% if lead.referral_person %}
+          <div class="col-4 text-muted">Referral</div><div class="col-8">{{ lead.get_referral_type_display }} — {{ lead.referral_person }} ({{ lead.referral_contact }})</div>
+          {% endif %}
+          <div class="col-4 text-muted">Landing Page</div><div class="col-8">{{ lead.landing_page|default:"—" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Add Follow-up</h6>
+        <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="academyDetailFollowupForm" class="row g-2">
+          {% csrf_token %}
+          <div class="col-md-4"><input type="date" name="followup_date" id="detail_followup_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required></div>
+          <div class="col-md-2"><input type="time" name="followup_time" id="detail_followup_time" class="form-control form-control-sm"></div>
+          <div class="col-md-3">
+            <select name="followup_mode" class="form-select form-select-sm no-tom-select">
+              {% for val, label in followup_modes %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select name="followup_status" class="form-select form-select-sm no-tom-select">
+              {% for val, label in followup_statuses %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <!-- Real-time time error alert -->
+          <div id="detail_time_error" class="col-12 alert alert-danger py-1 px-2 mb-1 small d-none" style="font-size: 0.78rem;">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
+          </div>
+          <div class="col-md-10"><input type="text" name="comment" class="form-control form-control-sm" placeholder="Comment" required></div>
+          <div class="col-md-2"><button type="submit" class="btn btn-sm btn-brand text-white w-100" id="detail_fu_submit">Add</button></div>
+        </form>
+      </div>
+    </div>
+    <script>
+      (function() {
+        const dInput = document.getElementById('detail_followup_date');
+        const tInput = document.getElementById('detail_followup_time');
+        const errBox = document.getElementById('detail_time_error');
+        const errText = document.getElementById('detail_time_error_text');
+        const submitBtn = document.getElementById('detail_fu_submit');
+
+        function syncMinTime() {
+          if (!dInput || !tInput) return;
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayStr = `${year}-${month}-${day}`;
+          dInput.min = todayStr;
+
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const curTime = `${hours}:${minutes}`;
+
+          if (dInput.value === todayStr) {
+            tInput.min = curTime;
+            if (tInput.value && tInput.value < curTime) {
+              tInput.classList.add('is-invalid');
+              if (errBox) {
+                errBox.classList.remove('d-none');
+                if (errText) errText.textContent = `Invalid Time: Selected time (${tInput.value}) has already passed. Please select a time after ${curTime}.`;
+              }
+              if (submitBtn) submitBtn.disabled = true;
+              tInput.setCustomValidity(`Please select an upcoming time after ${curTime}`);
+            } else {
+              tInput.classList.remove('is-invalid');
+              if (errBox) errBox.classList.add('d-none');
+              if (submitBtn) submitBtn.disabled = false;
+              tInput.setCustomValidity('');
+            }
+          } else {
+            tInput.removeAttribute('min');
+            tInput.classList.remove('is-invalid');
+            if (errBox) errBox.classList.add('d-none');
+            if (submitBtn) submitBtn.disabled = false;
+            tInput.setCustomValidity('');
+          }
+        }
+
+        if (dInput && tInput) {
+          syncMinTime();
+          dInput.addEventListener('change', syncMinTime);
+          dInput.addEventListener('input', syncMinTime);
+          tInput.addEventListener('change', syncMinTime);
+          tInput.addEventListener('input', syncMinTime);
+        }
+
+        const fuForm = document.getElementById('academyDetailFollowupForm');
+        if (fuForm) {
+          fuForm.addEventListener('submit', function(e) {
+            syncMinTime();
+            if (tInput && tInput.classList.contains('is-invalid')) {
+              e.preventDefault();
+              tInput.focus();
+            }
+          });
+        }
+      })();
+    </script>
+
+    <div class="card">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Timeline</h6>
+        <ul class="list-unstyled small" style="max-height:420px; overflow-y:auto;">
+          {% for a in timeline %}
+          <li class="d-flex gap-2 mb-2 pb-2 border-bottom">
+            <div class="text-muted text-nowrap" style="width:120px;">{{ a.created_at|date:"d-m-Y H:i" }}</div>
+            <div><span class="badge badge-stage">{{ a.get_activity_type_display }}</span> {{ a.description }}</div>
+          </li>
+          {% empty %}
+          <li class="empty-state"><i class="fa-solid fa-clock"></i>No activity yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="text-muted text-uppercase small">Add Note</h6>
+        <form method="post" action="{% url 'leads:add_note' lead.pk %}">
+          {% csrf_token %}
+          <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Internal note..."></textarea>
+          <button class="btn btn-sm btn-brand text-white">Add Note</button>
+        </form>
+        <hr>
+        <ul class="list-unstyled small mb-0" style="max-height:260px; overflow-y:auto;">
+          {% for n in lead.lead_notes.all %}
+          <li class="mb-2 pb-2 border-bottom">
+            <div class="text-muted" style="font-size:.72rem;">{{ n.created_at|date:"d-m-Y H:i" }} — {{ n.created_by|default:"—" }}</div>
+            {{ n.note }}
+          </li>
+          {% empty %}<li class="text-muted">No notes yet.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    {% if admission %}
+    <!-- Admission Info Card -->
+    <div class="card mt-3">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted mb-3"><i class="fa-solid fa-graduation-cap text-brand me-1"></i>Admission Info</h6>
+        <div class="d-flex flex-column gap-1 small">
+          <div>Date: <strong>{{ admission.admission_date|date:"d-m-Y" }}</strong></div>
+          <hr class="my-1">
+          <div class="d-flex justify-content-between"><span>Course Fee:</span><span>₹{{ admission.total_fee|floatformat:0 }}</span></div>
+          <div class="d-flex justify-content-between text-danger"><span>Discount:</span><span>-₹{{ admission.discount|floatformat:0 }}</span></div>
+          {% if admission.discount > admission.max_allowed_discount %}
+          <div class="alert alert-warning p-2 mb-2 mt-1" style="font-size: 0.75rem; border-radius: 6px;">
+            <i class="fa-solid fa-circle-exclamation me-1"></i><strong>Extra Discount Applied!</strong> (Max Allowed: ₹{{ admission.max_allowed_discount|floatformat:0 }})
+            <div class="text-muted mt-1" style="font-size: 0.7rem;">Reason: <em>"{{ admission.extra_discount_reason }}"</em></div>
+          </div>
+          {% endif %}
+          <hr class="my-1">
+          <div class="d-flex justify-content-between fw-bold text-dark"><span>Final Fee:</span><span>₹{{ admission.final_fee|floatformat:0 }}</span></div>
+          <div class="d-flex justify-content-between text-success"><span>Collected:</span><span>₹{{ admission.collected|floatformat:0 }}</span></div>
+          <div class="d-flex justify-content-between text-warning fw-bold"><span>Pending Balance:</span><span>₹{{ admission.pending|floatformat:0 }}</span></div>
+        </div>
+
+        <!-- Status Update Form -->
+        <form method="post" action="{% url 'admissions:update_status' admission.id %}" class="mt-3 border-top pt-2">
+          {% csrf_token %}
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Payment Plan</label>
+              <select name="payment_plan" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="FULL" {% if admission.payment_plan == 'FULL' %}selected{% endif %}>Full Payment</option>
+                <option value="EMI" {% if admission.payment_plan == 'EMI' %}selected{% endif %}>EMI Plan</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Course Status</label>
+              <select name="course_status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="ONGOING" {% if admission.course_status == 'ONGOING' %}selected{% endif %}>Ongoing</option>
+                <option value="COMPLETED" {% if admission.course_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                <option value="DROPOUT" {% if admission.course_status == 'DROPOUT' %}selected{% endif %}>Dropout</option>
+              </select>
+            </div>
+          </div>
+        </form>
+        
+        <a href="{% url 'payments:add' admission.id %}" class="btn btn-sm btn-brand text-white mt-3 w-100"><i class="fa-solid fa-plus me-1"></i>Record Payment</a>
+      </div>
+    </div>
+
+    <!-- EMI Installments Planner Card (Visible if Payment Plan is EMI) -->
+    {% if admission.payment_plan == 'EMI' %}
+    <div class="card mt-3">
+      <div class="card-body">
+        <h6 class="text-uppercase small text-muted mb-2"><i class="fa-solid fa-calendar-days text-brand me-1"></i>EMI Installments</h6>
+        
+        <!-- List of Installments -->
+        <ul class="list-group list-group-flush small mb-3">
+          {% for inst in admission.installments.all %}
+          <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold">₹{{ inst.amount|floatformat:0 }}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">Due: {{ inst.due_date|date:"d-m-Y" }}</div>
+            </div>
+            <div class="d-flex gap-1 align-items-center">
+              {% if inst.is_paid %}
+              <span class="badge text-bg-success py-1">Paid</span>
+              <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Mark Unpaid"><i class="fa-solid fa-xmark"></i></a>
+              {% else %}
+              <span class="badge text-bg-danger py-1">Pending</span>
+              <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark Paid"><i class="fa-solid fa-check"></i></a>
+              {% endif %}
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item px-0 text-center text-muted py-3">No EMIs scheduled yet.</li>
+          {% endfor %}
+        </ul>
+
+        <!-- Add Installment Form -->
+        <form method="post" action="{% url 'admissions:add_installment' admission.id %}" class="bg-light p-2 rounded border">
+          {% csrf_token %}
+          <div class="fw-semibold text-muted small mb-1" style="font-size: 0.75rem;">Schedule New EMI</div>
+          <div class="row g-1">
+            <div class="col-6">
+              <input type="number" name="amount" class="form-control form-control-sm" placeholder="Amount (₹)" min="1" required>
+            </div>
+            <div class="col-6">
+              <input type="date" name="due_date" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-12 mt-1">
+              <button class="btn btn-sm btn-brand text-white w-100" style="font-size: 0.75rem;">Add EMI</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal fade" id="admissionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'leads:convert_admission' lead.pk %}" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header"><h6 class="modal-title">Convert to Admission</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label small">Admission Date</label><input type="date" name="admission_date" class="form-control" value="{{ today|date:'Y-m-d' }}"></div>
+        <div class="mb-3">
+          <label class="form-label small">Total Fee</label>
+          <input type="number" name="total_fee" class="form-control" required value="{{ lead.course.base_price|default:0 }}">
+          <div class="form-text text-muted" style="font-size: 0.75rem;">Course Base Price: <strong>₹{{ lead.course.base_price|default:0 }}</strong></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">Discount</label>
+          <input type="number" name="discount" id="discountInput" class="form-control" value="0">
+          <div class="form-text text-muted" style="font-size: 0.75rem;">Course Max Allowed Discount: <strong class="text-danger">₹{{ lead.course.max_discount|default:0 }}</strong></div>
+        </div>
+        <div class="mb-3 d-none" id="extraDiscountReasonDiv">
+          <label class="form-label small text-danger fw-bold"><i class="fa-solid fa-circle-exclamation me-1"></i>Reason for Extra Discount</label>
+          <textarea name="extra_discount_reason" id="extraDiscountReason" class="form-control form-control-sm" rows="2" placeholder="Please enter justification for exceeding course discount limits..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-brand text-white">Confirm Admission</button></div>
+    </form>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const discountInput = document.getElementById('discountInput');
+    const reasonDiv = document.getElementById('extraDiscountReasonDiv');
+    const reasonInput = document.getElementById('extraDiscountReason');
+    const maxDiscount = parseFloat('{{ lead.course.max_discount|default:0 }}') || 0;
+
+    if (discountInput && reasonDiv && reasonInput) {
+      discountInput.addEventListener('input', function() {
+        const discount = parseFloat(this.value) || 0;
+        if (discount > maxDiscount) {
+          reasonDiv.classList.remove('d-none');
+          reasonInput.setAttribute('required', 'required');
+        } else {
+          reasonDiv.classList.add('d-none');
+          reasonInput.removeAttribute('required');
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}
+{% endblock %}
+
+<!-- Appointment Modal -->
+<div class="modal fade" id="appointmentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-info bg-gradient text-white border-0 rounded-top-4">
+        <h6 class="modal-title fw-bold"><i class="fa-solid fa-stethoscope me-2"></i>Book Appointment</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'leads:book_appointment' lead.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-muted small mb-4">Schedule an appointment for <strong>{{ lead.name }}</strong> at {{ request.user.hospital.name }}.</p>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold text-secondary small text-uppercase">Doctor Name</label>
+            <input type="text" name="doctor_name" class="form-control" required placeholder="e.g. Dr. Smith">
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-6">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
+                <input type="date" name="appointment_date" class="form-control" required>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Time (Optional)</label>
+                <input type="time" name="appointment_time" class="form-control">
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold text-secondary small text-uppercase">Symptoms / Notes</label>
+            <textarea name="notes" class="form-control" rows="3" placeholder="Additional info..."></textarea>
+          </div>
+          
+        </div>
+        <div class="modal-footer bg-light border-0 rounded-bottom-4">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-info text-white shadow-sm px-4">Confirm Booking</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

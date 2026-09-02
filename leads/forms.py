@@ -328,6 +328,26 @@ class HospitalLeadForm(forms.ModelForm):
             "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
         })
     )
+    ipd_bill = forms.DecimalField(
+        max_digits=10, decimal_places=2, required=False, min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "min": "0",
+            "step": "0.01",
+            "placeholder": "0.00",
+            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+        })
+    )
+    investigation_bill = forms.DecimalField(
+        max_digits=10, decimal_places=2, required=False, min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "min": "0",
+            "step": "0.01",
+            "placeholder": "0.00",
+            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+        })
+    )
     investigation = forms.CharField(max_length=255, required=False)
     total = forms.DecimalField(
         max_digits=12, decimal_places=2, required=False, min_value=0,
@@ -378,7 +398,7 @@ class HospitalLeadForm(forms.ModelForm):
         cd = (self.instance.custom_data or {}) if (self.instance and self.instance.pk) else {}
         # Load JSON fields into form
         if self.instance and self.instance.pk:
-            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
+            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
                 if field in cd and field in self.fields:
                     self.fields[field].initial = cd[field]
             
@@ -660,9 +680,10 @@ class HospitalLeadForm(forms.ModelForm):
         for name, field in self.fields.items():
             if isinstance(field, forms.BooleanField):
                 field.widget.attrs.setdefault("class", "form-check-input")
+            elif isinstance(field.widget, (forms.Select, forms.SelectMultiple)):
+                field.widget.attrs["class"] = "form-select no-tom-select"
             else:
-                css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
-                field.widget.attrs.setdefault("class", css)
+                field.widget.attrs.setdefault("class", "form-control")
 
         # Attach bound fields to dynamic_custom_fields list for direct template access
         for cf in self.dynamic_custom_fields:
@@ -875,7 +896,10 @@ class HospitalLeadForm(forms.ModelForm):
         total_val = float(self.cleaned_data.get('total') or 0.0)
         opd_val = float(self.cleaned_data.get('opd_bill') or 0.0)
         pharm_val = float(self.cleaned_data.get('pharmacy_bill') or 0.0)
-        has_payment = (total_val > 0) or (opd_val > 0) or (pharm_val > 0)
+        ipd_val = float(self.cleaned_data.get('ipd_bill') or 0.0)
+        inv_val = float(self.cleaned_data.get('investigation_bill') or 0.0)
+        calc_sum = opd_val + pharm_val + ipd_val + inv_val
+        has_payment = (total_val > 0) or (calc_sum > 0)
 
         is_booking_selected = ("BOOK" in appo_status_upper)
         is_followup_needed = ("FOLLOW" in appo_status_upper or "WAIT" in appo_status_upper)
@@ -901,7 +925,9 @@ class HospitalLeadForm(forms.ModelForm):
         current_bill_item = {
             "opd_bill": str(self.cleaned_data.get('opd_bill') or '0'),
             "pharmacy_bill": str(self.cleaned_data.get('pharmacy_bill') or '0'),
-            "total": str(self.cleaned_data.get('total') or (opd_val + pharm_val)),
+            "ipd_bill": str(self.cleaned_data.get('ipd_bill') or '0'),
+            "investigation_bill": str(self.cleaned_data.get('investigation_bill') or '0'),
+            "total": str(self.cleaned_data.get('total') or calc_sum),
             "uhid_id_no": self.cleaned_data.get('uhid_id_no') or '',
             "ipd_no": self.cleaned_data.get('ipd_no') or '',
             "remark": self.cleaned_data.get('remark_1') or '',
@@ -972,21 +998,44 @@ class HospitalLeadForm(forms.ModelForm):
 
         instance.custom_data = cd
         def _save_related():
-            # 1. Create FollowUp record if Follow-up Needed / Waiting with followup date
-            if fu_date:
-                from followups.models import FollowUp, FollowUpStatus, FollowUpMode
-                from notifications.models import Notification
-                fu_obj = FollowUp.objects.create(
-                    lead=instance,
-                    followup_date=fu_date,
-                    followup_time=fu_time,
-                    followup_mode=FollowUpMode.CALL,
-                    followup_status=FollowUpStatus.PENDING,
-                    comment=f"Scheduled Follow-up for lead {instance.name}. Status: {appo_status or 'Follow-up Needed'}",
-                    created_by=getattr(self, 'current_user', None)
-                )
+            from followups.models import FollowUp, FollowUpStatus, FollowUpMode
+            from notifications.models import Notification
+            today_d = timezone.localdate()
 
-                # Send Notification to assigned user or creator
+            # 1. Map appointment status to FollowUpStatus
+            fu_status_mapped = FollowUpStatus.COMPLETED
+            if is_cancelled_or_not_interested:
+                if "NOT INT" in appo_status_upper:
+                    fu_status_mapped = FollowUpStatus.NOT_INTERESTED
+                else:
+                    fu_status_mapped = FollowUpStatus.CANCELLED
+            elif "NOT CON" in appo_status_upper:
+                fu_status_mapped = FollowUpStatus.NOT_CONNECTED
+            elif is_followup_needed:
+                fu_status_mapped = FollowUpStatus.RESCHEDULED if fu_date else FollowUpStatus.PENDING
+            elif "INTEREST" in appo_status_upper:
+                fu_status_mapped = FollowUpStatus.INTERESTED
+
+            # Compose remark text
+            remark_text = self.cleaned_data.get('remark_1') or cancel_reason_val or cd.get('comments') or ''
+            if not remark_text:
+                remark_text = f"Updated lead status to {appo_status or instance.get_deal_status_display()}"
+
+            # Always record today's contact/edit activity for team visibility
+            FollowUp.objects.create(
+                lead=instance,
+                followup_date=today_d,
+                followup_time=timezone.localtime().time(),
+                followup_mode=FollowUpMode.CALL,
+                followup_status=fu_status_mapped,
+                comment=remark_text,
+                next_followup_date=fu_date,
+                next_followup_time=fu_time,
+                created_by=getattr(self, 'current_user', None)
+            )
+
+            # Send Notification if a future follow-up is scheduled
+            if fu_date:
                 target_user = instance.assigned_to or getattr(self, 'current_user', None)
                 if target_user:
                     time_str = f" at {fu_time.strftime('%I:%M %p')}" if fu_time else ""

@@ -54,51 +54,71 @@
     position: relative;
   }
 
-  .crm-form-field .form-control,
-  .crm-form-field .form-select {
-    height: 40px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 7px;
-    font-size: 0.94rem;
-    font-weight: 550;
-    color: #0f172a;
-    background-color: #fcfdfe;
-    transition: all 0.2s ease;
-    padding: 0.42rem 0.85rem;
-  }
-
-  .crm-form-field textarea.form-control {
-    height: 40px;
-    min-height: 40px;
-    font-weight: normal;
-    resize: vertical;
-  }
-
-  .crm-name-field-wrap input.form-control,
+  /* Universal input & select styling: EXACT SAME HEIGHT & BORDER ON ALL FIELDS */
+  .crm-form-card input.form-control,
+  .crm-form-card select.form-select,
+  .crm-form-card .form-control,
+  .crm-form-card .form-select,
+  .crm-form-field input,
+  .crm-form-field select,
   #id_name {
-    font-size: 0.95rem !important;
-    font-weight: 500 !important;
-    color: #1e293b !important;
-    height: 40px !important;
-    background-color: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
-    box-shadow: none !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    border: 1.5px solid #94a3b8 !important;
     border-radius: 7px !important;
-    letter-spacing: normal !important;
-  }
-
-  .crm-name-field-wrap input.form-control:focus,
-  #id_name:focus {
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
     background-color: #ffffff !important;
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+    padding: 0.45rem 0.85rem !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    display: block !important;
+    width: 100% !important;
+    line-height: 1.5 !important;
   }
 
-  .crm-form-field .form-control:focus,
-  .crm-form-field .form-select:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-    outline: none;
+  /* Textarea exception for auto height */
+  .crm-form-card textarea.form-control,
+  .crm-form-field textarea {
+    height: auto !important;
+    min-height: 42px !important;
+    max-height: none !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.45rem 0.85rem !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    resize: vertical !important;
+  }
+
+  /* Hover states */
+  .crm-form-card input:hover,
+  .crm-form-card select:hover,
+  .crm-form-card textarea:hover,
+  .crm-form-field input:hover,
+  .crm-form-field select:hover,
+  .crm-form-field textarea:hover {
+    border-color: #64748b !important;
+  }
+
+  /* Focus states */
+  .crm-form-card input:focus,
+  .crm-form-card select:focus,
+  .crm-form-card textarea:focus,
+  .crm-form-field input:focus,
+  .crm-form-field select:focus,
+  .crm-form-field textarea:focus {
+    border-color: #4f46e5 !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.18) !important;
+    outline: none !important;
   }
 
   .crm-owner-badge {
@@ -302,7 +322,6 @@
       <div class="crm-section-header">
         <i class="fa-solid fa-id-card text-primary opacity-75"></i> Lead Information
       </div>
-
       <!-- Full-Width Top Bar: Assign To / Lead Owner -->
       <div class="row mb-3 pb-3 border-bottom">
         <div class="col-md-6">
@@ -311,14 +330,9 @@
             <div class="crm-form-field">
               {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
               {{ form.assigned_to }}
-              <div class="form-text small text-muted" style="font-size: 0.72rem;"><i
-                  class="fa-solid fa-user-check me-1"></i>Select the Lead Attendant / Staff member to assign this lead
-                to.</div>
               {% else %}
-              <div
-                class="crm-owner-badge d-flex justify-content-between align-items-center p-2 rounded border bg-light">
-                <span><i class="fa-solid fa-circle-user text-primary me-2"></i><strong>{{
-                    user.get_full_name|default:user.username }}</strong></span>
+              <div class="crm-owner-badge d-flex justify-content-between align-items-center p-2 rounded border bg-light">
+                <span><i class="fa-solid fa-circle-user text-primary me-2"></i><strong>{{ user.get_full_name|default:user.username }}</strong></span>
                 <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
               </div>
               <input type="hidden" name="assigned_to" value="{{ user.pk }}">
@@ -327,6 +341,7 @@
           </div>
         </div>
       </div>
+
 
       <!-- ================================================================= -->
       <!-- ROW-BY-ROW BALANCED 2-COLUMN GRID (Left=Odd, Right=Even)            -->
@@ -996,7 +1011,9 @@
     const selectedText = appStatusSelect.selectedIndex >= 0 ? (appStatusSelect.options[appStatusSelect.selectedIndex]?.text || '').toUpperCase() : '';
     const combinedVal = `${val} ${selectedText}`;
 
-    const isBooking = combinedVal.includes('BOOK') || combinedVal.includes('YES');
+    const isCancelling = combinedVal.includes('CANCEL') || combinedVal.includes('NOT INT') || combinedVal.includes('NOT_INT') || combinedVal.includes('REJECT') || combinedVal.includes('DECLINE') || combinedVal.includes('DROP') || combinedVal.includes('LOST');
+    const isBooking = !isCancelling && (combinedVal.includes('BOOK') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
+    const isFollowup = !isCancelling && !isBooking && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
     const isCompleted = combinedVal.includes('COMPLET') || combinedVal.includes('DONE') || combinedVal.includes('VISIT') || {{ is_appointment_completed|yesno:"true,false" }};
 
     const hasConfirmedCard = {{ is_appointment_confirmed|yesno:"true,false" }};

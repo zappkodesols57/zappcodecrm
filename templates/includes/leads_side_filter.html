@@ -1,581 +1,660 @@
 {% comment %}
-  Clean, Modern Side Drawer Filter Component (Zoho / Salesforce Style)
-  Features:
-  - Header with Filter & Sort tabs
-  - Search bar
-  - Structured "System Defined Filters" & "Filter By Fields" sections with clean toggle & checkboxes
-  - Instant live filter search
-  - Compact, high-productivity aesthetic matching image #2
+Clean, Modern Side Drawer Filter Component (Zoho / Salesforce Style)
+Features:
+- Header with Filter & Sort tabs
+- Search bar
+- Structured "System Defined Filters" & "Filter By Fields" sections with clean toggle & checkboxes
+- Instant live filter search
+- Compact, high-productivity aesthetic matching image #2
 {% endcomment %}
 
 <!-- Inline Split-View Filter Sidebar (Zoho CRM Style - Resizable, No overlapping popup/modal) -->
-<div id="crmFilterSidebarCol" class="{% if active_filters_count > 0 or request.GET.filter_open == '1' %}d-flex{% else %}d-none{% endif %}" style="width: 270px; min-width: 200px; max-width: 500px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #e2e8f0; border-radius: 0.75rem 0 0 0.75rem; position: relative;">
-  
-  <div class="d-flex flex-column h-100 flex-grow-1 overflow-hidden" style="position: sticky; top: 75px; max-height: calc(100vh - 90px);">
-  
-  <!-- Top Bar: Filter / Sort tabs & Close -->
-  <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="background-color: #f8fafc;">
-    <div class="d-flex align-items-center gap-2">
-      <!-- Filter Active Tab Indicator -->
-      <span class="btn btn-sm btn-white border px-3 py-1 fw-bold text-primary d-inline-flex align-items-center gap-1 shadow-xs" style="border-radius: 6px; font-size: 0.82rem; background: #ffffff;">
-        <i class="fa-solid fa-filter" style="font-size: 0.75rem;"></i> Filter
-      </span>
+<div id="crmFilterSidebarCol"
+  class="{% if active_filters_count > 0 or request.GET.filter_open == '1' %}d-flex{% else %}d-none{% endif %}"
+  style="width: 270px; min-width: 200px; max-width: 500px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #e2e8f0; border-radius: 0.75rem 0 0 0.75rem; position: relative;">
 
-      <!-- Sort Options Dropdown -->
-      <div class="dropdown">
-        <button class="btn btn-sm btn-light border px-2 py-1 text-dark d-inline-flex align-items-center gap-1 dropdown-toggle fw-semibold" type="button" id="crmSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 6px; font-size: 0.82rem;" title="Sort leads by...">
-          <i class="fa-solid fa-arrow-down-short-wide text-primary" style="font-size: 0.75rem;"></i>
-          <span>Sort: </span>
-          <span class="text-primary" style="font-size: 0.78rem;">
-            {% if current_sort == 'created_at' %}Oldest First
-            {% elif current_sort == '-updated_at' %}Recently Updated
-            {% elif current_sort == 'name_asc' %}Name (A-Z)
-            {% elif current_sort == 'name_desc' %}Name (Z-A)
-            {% elif current_sort == '-inquiry_date' %}Inquiry Date (New-Old)
-            {% elif current_sort == 'inquiry_date' %}Inquiry Date (Old-New)
-            {% else %}Newest First{% endif %}
-          </span>
-        </button>
-        <ul class="dropdown-menu shadow-sm border-0 py-1" aria-labelledby="crmSortDropdown" style="font-size: 0.82rem; min-width: 220px; z-index: 1070;">
-          <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Sort Leads By</h6></li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if not current_sort or current_sort == '-created_at' %}active fw-bold{% endif %}" onclick="applyDrawerSort('-created_at')">
-              <span><i class="fa-solid fa-clock me-2 text-muted"></i> Newest First (Created)</span>
-              {% if not current_sort or current_sort == '-created_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
-            </button>
-          </li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'created_at' %}active fw-bold{% endif %}" onclick="applyDrawerSort('created_at')">
-              <span><i class="fa-regular fa-clock me-2 text-muted"></i> Oldest First</span>
-              {% if current_sort == 'created_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
-            </button>
-          </li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == '-updated_at' %}active fw-bold{% endif %}" onclick="applyDrawerSort('-updated_at')">
-              <span><i class="fa-solid fa-rotate me-2 text-muted"></i> Recently Updated</span>
-              {% if current_sort == '-updated_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
-            </button>
-          </li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == '-inquiry_date' %}active fw-bold{% endif %}" onclick="applyDrawerSort('-inquiry_date')">
-              <span><i class="fa-regular fa-calendar-days me-2 text-muted"></i> Inquiry Date (Latest)</span>
-              {% if current_sort == '-inquiry_date' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
-            </button>
-          </li>
-          <li><hr class="dropdown-divider my-1"></li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'name_asc' %}active fw-bold{% endif %}" onclick="applyDrawerSort('name_asc')">
-              <span><i class="fa-solid fa-arrow-down-a-z me-2 text-muted"></i> Patient Name (A → Z)</span>
-              {% if current_sort == 'name_asc' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
-            </button>
-          </li>
-          <li>
-            <button type="button" class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'name_desc' %}active fw-bold{% endif %}" onclick="applyDrawerSort('name_desc')">
-              <span><i class="fa-solid fa-arrow-down-z-a me-2 text-muted"></i> Patient Name (Z → A)</span>
-              {% if current_sort == 'name_desc' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
-            </button>
-          </li>
-        </ul>
+  <div class="d-flex flex-column h-100 flex-grow-1 overflow-hidden"
+    style="position: sticky; top: 75px; max-height: calc(100vh - 90px);">
+
+    <!-- Top Bar: Filter / Sort tabs & Close -->
+    <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+      style="background-color: #f8fafc;">
+      <div class="d-flex align-items-center gap-2">
+        <!-- Filter Active Tab Indicator -->
+        <span
+          class="btn btn-sm btn-white border px-3 py-1 fw-bold text-primary d-inline-flex align-items-center gap-1 shadow-xs"
+          style="border-radius: 6px; font-size: 0.82rem; background: #ffffff;">
+          <i class="fa-solid fa-filter" style="font-size: 0.75rem;"></i> Filter
+        </span>
+
+        <!-- Sort Options Dropdown -->
+        <div class="dropdown">
+          <button
+            class="btn btn-sm btn-light border px-2 py-1 text-dark d-inline-flex align-items-center gap-1 dropdown-toggle fw-semibold"
+            type="button" id="crmSortDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+            style="border-radius: 6px; font-size: 0.82rem;" title="Sort leads by...">
+            <i class="fa-solid fa-arrow-down-short-wide text-primary" style="font-size: 0.75rem;"></i>
+            <span>Sort: </span>
+            <span class="text-primary" style="font-size: 0.78rem;">
+              {% if current_sort == 'created_at' %}Oldest First
+              {% elif current_sort == '-updated_at' %}Recently Updated
+              {% elif current_sort == 'name_asc' %}Name (A-Z)
+              {% elif current_sort == 'name_desc' %}Name (Z-A)
+              {% elif current_sort == '-inquiry_date' %}Inquiry Date (New-Old)
+              {% elif current_sort == 'inquiry_date' %}Inquiry Date (Old-New)
+              {% else %}Newest First{% endif %}
+            </span>
+          </button>
+          <ul class="dropdown-menu shadow-sm border-0 py-1" aria-labelledby="crmSortDropdown"
+            style="font-size: 0.82rem; min-width: 220px; z-index: 1070;">
+            <li>
+              <h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+                Sort Leads By</h6>
+            </li>
+            <li>
+              <button type="button"
+                class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if not current_sort or current_sort == '-created_at' %}active fw-bold{% endif %}"
+                onclick="applyDrawerSort('-created_at')">
+                <span><i class="fa-solid fa-clock me-2 text-muted"></i> Newest First (Created)</span>
+                {% if not current_sort or current_sort == '-created_at' %}<i
+                  class="fa-solid fa-check text-primary"></i>{% endif %}
+              </button>
+            </li>
+            <li>
+              <button type="button"
+                class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'created_at' %}active fw-bold{% endif %}"
+                onclick="applyDrawerSort('created_at')">
+                <span><i class="fa-regular fa-clock me-2 text-muted"></i> Oldest First</span>
+                {% if current_sort == 'created_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+              </button>
+            </li>
+            <li>
+              <button type="button"
+                class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == '-updated_at' %}active fw-bold{% endif %}"
+                onclick="applyDrawerSort('-updated_at')">
+                <span><i class="fa-solid fa-rotate me-2 text-muted"></i> Recently Updated</span>
+                {% if current_sort == '-updated_at' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+              </button>
+            </li>
+            <li>
+              <button type="button"
+                class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == '-inquiry_date' %}active fw-bold{% endif %}"
+                onclick="applyDrawerSort('-inquiry_date')">
+                <span><i class="fa-regular fa-calendar-days me-2 text-muted"></i> Inquiry Date (Latest)</span>
+                {% if current_sort == '-inquiry_date' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+              </button>
+            </li>
+            <li>
+              <hr class="dropdown-divider my-1">
+            </li>
+            <li>
+              <button type="button"
+                class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'name_asc' %}active fw-bold{% endif %}"
+                onclick="applyDrawerSort('name_asc')">
+                <span><i class="fa-solid fa-arrow-down-a-z me-2 text-muted"></i> Patient Name (A → Z)</span>
+                {% if current_sort == 'name_asc' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+              </button>
+            </li>
+            <li>
+              <button type="button"
+                class="dropdown-item d-flex align-items-center justify-content-between py-1 {% if current_sort == 'name_desc' %}active fw-bold{% endif %}"
+                onclick="applyDrawerSort('name_desc')">
+                <span><i class="fa-solid fa-arrow-down-z-a me-2 text-muted"></i> Patient Name (Z → A)</span>
+                {% if current_sort == 'name_desc' %}<i class="fa-solid fa-check text-primary"></i>{% endif %}
+              </button>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+      <button type="button" class="btn-close text-reset" onclick="toggleInlineFilterSidebar()" aria-label="Close"
+        style="font-size: 0.75rem;"></button>
+    </div>
+
+    <form method="GET" action="" id="crmDrawerFilterForm" class="d-flex flex-column h-100 overflow-hidden m-0">
+
+      <!-- Title & Search Header -->
+      <div class="px-3 pt-3 pb-2">
+        <h6 class="fw-bold text-dark mb-2" style="font-size: 0.95rem; letter-spacing: -0.2px;">Filter Leads by</h6>
+        <div class="input-group input-group-sm mb-1">
+          <span class="input-group-text bg-white border-end-0 text-muted"
+            style="border-radius: 6px 0 0 6px; border-color: #e2e8f0;"><i class="fa-solid fa-search"
+              style="font-size: 0.8rem;"></i></span>
+          <input type="text" name="q" id="drawerQuickSearch" class="form-control border-start-0 ps-0"
+            placeholder="Search" value="{{ q }}"
+            style="border-radius: 0 6px 6px 0; border-color: #e2e8f0; font-size: 0.85rem;"
+            onkeyup="filterDrawerOptions(this.value)">
+        </div>
       </div>
 
-    </div>
-    <button type="button" class="btn-close text-reset" onclick="toggleInlineFilterSidebar()" aria-label="Close" style="font-size: 0.75rem;"></button>
-  </div>
+      <!-- Scrollable Filter Body -->
+      <div class="px-3 py-1 overflow-y-auto flex-grow-1 custom-filter-scroll">
 
-  <form method="GET" action="" id="crmDrawerFilterForm" class="d-flex flex-column h-100 overflow-hidden m-0">
-    
-    <!-- Title & Search Header -->
-    <div class="px-3 pt-3 pb-2">
-      <h6 class="fw-bold text-dark mb-2" style="font-size: 0.95rem; letter-spacing: -0.2px;">Filter Leads by</h6>
-      <div class="input-group input-group-sm mb-1">
-        <span class="input-group-text bg-white border-end-0 text-muted" style="border-radius: 6px 0 0 6px; border-color: #e2e8f0;"><i class="fa-solid fa-search" style="font-size: 0.8rem;"></i></span>
-        <input type="text" name="q" id="drawerQuickSearch" class="form-control border-start-0 ps-0" placeholder="Search" value="{{ q }}" style="border-radius: 0 6px 6px 0; border-color: #e2e8f0; font-size: 0.85rem;" onkeyup="filterDrawerOptions(this.value)">
-      </div>
-    </div>
+        {% if request.user.role == 'LEAD_ATTENDENT' %}
+        <!-- ================= SIMPLE LEAD ATTENDANT FILTERS ================= -->
+        <div class="ps-1 pe-1 py-1">
 
-    <!-- Scrollable Filter Body -->
-    <div class="px-3 py-1 overflow-y-auto flex-grow-1 custom-filter-scroll">
-      
-      {% if request.user.role == 'LEAD_ATTENDENT' %}
-      <!-- ================= SIMPLE LEAD ATTENDANT FILTERS ================= -->
-      <div class="ps-1 pe-1 py-1">
-
-        <!-- 1. Status / Deal Status -->
-        <div class="py-2 border-bottom">
-          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attStatusFilter" role="button" style="font-size: 0.86rem;">
-            <span><i class="fa-solid fa-list-check me-2 text-primary"></i> Status / Stage</span>
-            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-          </a>
-          <div class="collapse show ps-2 pe-1 pt-2" id="attStatusFilter">
-            <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-              {% if hospital_statuses %}
+          <!-- 1. Status / Deal Status -->
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attStatusFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-solid fa-list-check me-2 text-primary"></i> Status / Stage</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse show ps-2 pe-1 pt-2" id="attStatusFilter">
+              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                {% if hospital_statuses %}
                 {% for ds in hospital_statuses %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ ds.name }}" id="att_ds_{{ forloop.counter }}" {% if ds.name in selected_deal_statuses %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_ds_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ ds.name }}</label>
                 </div>
                 {% endfor %}
-              {% elif stages %}
+                {% elif stages %}
                 {% for stg in stages %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="stage" value="{{ stg.id }}" id="att_stg_{{ stg.id }}" {% if stg.id|stringformat:'s' in selected_stages or stg.name in selected_stages %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_stg_{{ stg.id }}" style="font-size: 0.82rem;">{{ stg.name }}</label>
                 </div>
                 {% endfor %}
-              {% elif deal_status_choices %}
+                {% elif deal_status_choices %}
                 {% for s_val, s_lbl in deal_status_choices %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ s_val }}" id="att_ds_{{ s_val }}" {% if s_val in selected_deal_statuses %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_ds_{{ s_val }}" style="font-size: 0.82rem;">{{ s_lbl }}</label>
                 </div>
                 {% endfor %}
-              {% endif %}
+                {% endif %}
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- 2. Assigned To (My Leads vs Unassigned) -->
-        <div class="py-2 border-bottom">
-          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attAssignedFilter" role="button" style="font-size: 0.86rem;">
-            <span><i class="fa-solid fa-user-check me-2 text-primary"></i> Assigned To</span>
-            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-          </a>
-          <div class="collapse show ps-2 pe-1 pt-2" id="attAssignedFilter">
-            <div class="form-check mb-1 filter-item-row">
-              <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ request.user.id }}" id="att_assigned_me" {% if request.user.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
-              <label class="form-check-label text-primary fw-semibold filter-label" for="att_assigned_me" style="font-size: 0.82rem;">
-                <i class="fa-solid fa-user me-1"></i> My Leads (Assigned to Me)
-              </label>
-            </div>
-            <div class="form-check mb-1 filter-item-row">
-              <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="att_assigned_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
-              <label class="form-check-label text-danger fw-semibold filter-label" for="att_assigned_unassigned" style="font-size: 0.82rem;">
-                <i class="fa-solid fa-circle-question me-1"></i> Unassigned / Open Leads
-              </label>
+          <!-- 2. Assigned To (My Leads vs Unassigned) -->
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attAssignedFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-solid fa-user-check me-2 text-primary"></i> Assigned To</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse show ps-2 pe-1 pt-2" id="attAssignedFilter">
+              <div class="form-check mb-1 filter-item-row">
+                <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ request.user.id }}" id="att_assigned_me" {% if request.user.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
+                <label class="form-check-label text-primary fw-semibold filter-label" for="att_assigned_me" style="font-size: 0.82rem;">
+                  <i class="fa-solid fa-user me-1"></i> My Leads (Assigned to Me)
+                </label>
+              </div>
+              <div class="form-check mb-1 filter-item-row">
+                <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="att_assigned_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
+                <label class="form-check-label text-danger fw-semibold filter-label" for="att_assigned_unassigned" style="font-size: 0.82rem;">
+                  <i class="fa-solid fa-circle-question me-1"></i> Unassigned / Open Leads
+                </label>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- 3. Lead Source -->
-        {% if hospital_sources or lead_sources %}
-        <div class="py-2 border-bottom">
-          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attSourcesFilter" role="button" style="font-size: 0.86rem;">
-            <span><i class="fa-solid fa-share-nodes me-2 text-primary"></i> Lead Source</span>
-            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-          </a>
-          <div class="collapse show ps-2 pe-1 pt-2" id="attSourcesFilter">
-            <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
-              {% if hospital_sources %}
+          <!-- 3. Lead Source -->
+          {% if hospital_sources or lead_sources %}
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attSourcesFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-solid fa-share-nodes me-2 text-primary"></i> Lead Source</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse show ps-2 pe-1 pt-2" id="attSourcesFilter">
+              <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+                {% if hospital_sources %}
                 {% for s in hospital_sources %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.name }}" id="att_src_{{ forloop.counter }}" {% if s.name in selected_sources %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_src_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ s.name }}</label>
                 </div>
                 {% endfor %}
-              {% else %}
+                {% else %}
                 {% for s in lead_sources %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.id }}" id="att_src_std_{{ s.id }}" {% if s.id|stringformat:'s' in selected_sources or s.name in selected_sources %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_src_std_{{ s.id }}" style="font-size: 0.82rem;">{{ s.name }}</label>
                 </div>
                 {% endfor %}
-              {% endif %}
+                {% endif %}
+              </div>
             </div>
           </div>
-        </div>
-        {% endif %}
+          {% endif %}
 
-        <!-- 4. Campaign -->
-        {% if hospital_campaigns or campaigns %}
-        <div class="py-2 border-bottom">
-          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attCampaignsFilter" role="button" style="font-size: 0.86rem;">
-            <span><i class="fa-solid fa-bullseye me-2 text-primary"></i> Campaign</span>
-            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-          </a>
-          <div class="collapse show ps-2 pe-1 pt-2" id="attCampaignsFilter">
-            <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
-              {% if hospital_campaigns %}
+          <!-- 4. Campaign -->
+          {% if hospital_campaigns or campaigns %}
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attCampaignsFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-solid fa-bullseye me-2 text-primary"></i> Campaign</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse show ps-2 pe-1 pt-2" id="attCampaignsFilter">
+              <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+                {% if hospital_campaigns %}
                 {% for c in hospital_campaigns %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.name }}" id="att_camp_{{ forloop.counter }}" {% if c.name in selected_campaigns %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_camp_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ c.name }}</label>
                 </div>
                 {% endfor %}
-              {% else %}
+                {% else %}
                 {% for c in campaigns %}
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.id }}" id="att_camp_std_{{ c.id }}" {% if c.id|stringformat:'s' in selected_campaigns or c.name in selected_campaigns %}checked{% endif %}>
                   <label class="form-check-label text-dark filter-label" for="att_camp_std_{{ c.id }}" style="font-size: 0.82rem;">{{ c.name }}</label>
                 </div>
                 {% endfor %}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        {% endif %}
-
-        <!-- 5. Department -->
-        {% if filter_departments %}
-        <div class="py-2">
-          <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1" data-bs-toggle="collapse" href="#attDeptFilter" role="button" style="font-size: 0.86rem;">
-            <span><i class="fa-solid fa-stethoscope me-2 text-primary"></i> Department</span>
-            <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-          </a>
-          <div class="collapse show ps-2 pe-1 pt-2" id="attDeptFilter">
-            <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
-              {% for dept in filter_departments %}
-              <div class="form-check mb-1 filter-item-row">
-                <input class="form-check-input filter-checkbox" type="checkbox" name="department" value="{{ dept }}" id="att_dept_{{ forloop.counter }}" {% if dept in selected_departments %}checked{% endif %}>
-                <label class="form-check-label text-dark filter-label" for="att_dept_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ dept }}</label>
+                {% endif %}
               </div>
-              {% endfor %}
             </div>
           </div>
-        </div>
-        {% endif %}
+          {% endif %}
 
-      </div>
-      {% else %}
-      <!-- ================= FULL ADMIN FILTERS (SUPER ADMIN / ADMIN / MANAGER) ================= -->
-      
-      <!-- ================= SECTION 1: SYSTEM DEFINED FILTERS ================= -->
-      <div class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer" data-bs-toggle="collapse" data-bs-target="#groupSystemFilters" aria-expanded="true" style="font-size: 0.88rem; cursor: pointer; user-select: none;">
-        <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> System Defined Filters</span>
-      </div>
-      <div class="collapse show" id="groupSystemFilters">
-        <div class="ps-2 mb-2">
-          
-          <!-- Date Range (Collapsible or Direct) -->
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDateRange" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-regular fa-calendar me-2 text-muted"></i> Date Period</span>
+          <!-- 5. Department -->
+          {% if filter_departments %}
+          <div class="py-2">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attDeptFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-solid fa-stethoscope me-2 text-primary"></i> Department</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
-            <div class="collapse {% if date_from_val or date_to_val %}show{% endif %} ps-3 pe-1 py-1" id="subDateRange">
-              <div class="mb-2">
-                <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">From Date</label>
-                <input type="date" name="date_from" id="drawerDateFrom" class="form-control form-control-sm py-0 px-2" value="{{ date_from_val }}" max="{% now 'Y-m-d' %}" style="font-size: 0.8rem;">
-              </div>
-              <div>
-                <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">To Date</label>
-                <input type="date" name="date_to" id="drawerDateTo" class="form-control form-control-sm py-0 px-2" value="{{ date_to_val }}" max="{% now 'Y-m-d' %}" style="font-size: 0.8rem;">
+            <div class="collapse show ps-2 pe-1 pt-2" id="attDeptFilter">
+              <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+                {% for dept in filter_departments %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="department" value="{{ dept }}"
+                    id="att_dept_{{ forloop.counter }}" {% if dept in selected_departments %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_dept_{{ forloop.counter }}"
+                    style="font-size: 0.82rem;">{{ dept }}</label>
+                </div>
+                {% endfor %}
               </div>
             </div>
           </div>
+          {% endif %}
 
-          <!-- Campaigns Checkboxes -->
-          {% if hospital_campaigns or campaigns %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subCampaigns" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-bullseye me-2 text-muted"></i> Campaigns</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_campaigns %}show{% endif %} ps-3 pe-1 py-1" id="subCampaigns">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% if hospital_campaigns %}
+        </div>
+        {% else %}
+        <!-- ================= FULL ADMIN FILTERS (SUPER ADMIN / ADMIN / MANAGER) ================= -->
+
+        <!-- ================= SECTION 1: SYSTEM DEFINED FILTERS ================= -->
+        <div
+          class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer"
+          data-bs-toggle="collapse" data-bs-target="#groupSystemFilters" aria-expanded="true"
+          style="font-size: 0.88rem; cursor: pointer; user-select: none;">
+          <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> System Defined Filters</span>
+        </div>
+        <div class="collapse show" id="groupSystemFilters">
+          <div class="ps-2 mb-2">
+
+            <!-- Date Range (Collapsible or Direct) -->
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subDateRange" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-regular fa-calendar me-2 text-muted"></i> Date Period</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if date_from_val or date_to_val %}show{% endif %} ps-3 pe-1 py-1"
+                id="subDateRange">
+                <div class="mb-2">
+                  <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">From Date</label>
+                  <input type="date" name="date_from" id="drawerDateFrom" class="form-control form-control-sm py-0 px-2"
+                    value="{{ date_from_val }}" max="{% now 'Y-m-d' %}" style="font-size: 0.8rem;">
+                </div>
+                <div>
+                  <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">To Date</label>
+                  <input type="date" name="date_to" id="drawerDateTo" class="form-control form-control-sm py-0 px-2"
+                    value="{{ date_to_val }}" max="{% now 'Y-m-d' %}" style="font-size: 0.8rem;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Campaigns Checkboxes -->
+            {% if hospital_campaigns or campaigns %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subCampaigns" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-bullseye me-2 text-muted"></i> Campaigns</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_campaigns %}show{% endif %} ps-3 pe-1 py-1" id="subCampaigns">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% if hospital_campaigns %}
                   {% for c in hospital_campaigns %}
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.name }}" id="camp_{{ forloop.counter }}" {% if c.name in selected_campaigns %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="camp_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ c.name }}</label>
                   </div>
                   {% endfor %}
-                {% else %}
+                  {% else %}
                   {% for c in campaigns %}
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="campaign" value="{{ c.id }}" id="camp_std_{{ c.id }}" {% if c.id|stringformat:'s' in selected_campaigns or c.name in selected_campaigns %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="camp_std_{{ c.id }}" style="font-size: 0.82rem;">{{ c.name }}</label>
                   </div>
                   {% endfor %}
-                {% endif %}
+                  {% endif %}
+                </div>
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
-          <!-- Lead Source Checkboxes -->
-          {% if hospital_sources or lead_sources %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subSources" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-share-nodes me-2 text-muted"></i> Lead Sources</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_sources %}show{% endif %} ps-3 pe-1 py-1" id="subSources">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% if hospital_sources %}
+            <!-- Lead Source Checkboxes -->
+            {% if hospital_sources or lead_sources %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subSources" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-share-nodes me-2 text-muted"></i> Lead Sources</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_sources %}show{% endif %} ps-3 pe-1 py-1" id="subSources">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% if hospital_sources %}
                   {% for s in hospital_sources %}
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.name }}" id="src_{{ forloop.counter }}" {% if s.name in selected_sources %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="src_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ s.name }}</label>
                   </div>
                   {% endfor %}
-                {% else %}
+                  {% else %}
                   {% for s in lead_sources %}
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="lead_source" value="{{ s.id }}" id="src_std_{{ s.id }}" {% if s.id|stringformat:'s' in selected_sources or s.name in selected_sources %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="src_std_{{ s.id }}" style="font-size: 0.82rem;">{{ s.name }}</label>
                   </div>
                   {% endfor %}
-                {% endif %}
+                  {% endif %}
+                </div>
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
-          <!-- Assigned User Checkboxes -->
-          {% if employees %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subAssigned" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-user-check me-2 text-muted"></i> Assigned To</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_assigned %}show{% endif %} ps-3 pe-1 py-1" id="subAssigned">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="emp_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
-                  <label class="form-check-label text-danger filter-label fw-semibold" for="emp_unassigned" style="font-size: 0.82rem;">Unassigned Leads</label>
+            <!-- Assigned User Checkboxes -->
+            {% if employees %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subAssigned" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-user-check me-2 text-muted"></i> Assigned To</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_assigned %}show{% endif %} ps-3 pe-1 py-1" id="subAssigned">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="emp_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
+                    <label class="form-check-label text-danger filter-label fw-semibold" for="emp_unassigned" style="font-size: 0.82rem;">Unassigned Leads</label>
+                  </div>
+                  {% for emp in employees %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ emp.id }}" id="emp_{{ emp.id }}" {% if emp.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="emp_{{ emp.id }}" style="font-size: 0.82rem;">{{ emp.get_full_name|default:emp.username }}</label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% for emp in employees %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ emp.id }}" id="emp_{{ emp.id }}" {% if emp.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="emp_{{ emp.id }}" style="font-size: 0.82rem;">{{ emp.get_full_name|default:emp.username }}</label>
-                </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
+          </div>
         </div>
-      </div>
 
-      <hr class="my-2" style="border-color: #f1f5f9;">
+        <hr class="my-2" style="border-color: #f1f5f9;">
 
-      <!-- ================= SECTION 2: FILTER BY FIELDS ================= -->
-      <div class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer" data-bs-toggle="collapse" data-bs-target="#groupFieldFilters" aria-expanded="true" style="font-size: 0.88rem; cursor: pointer; user-select: none;">
-        <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> Filter By Fields</span>
-      </div>
-      <div class="collapse show" id="groupFieldFilters">
-        <div class="ps-2 mb-3">
+        <!-- ================= SECTION 2: FILTER BY FIELDS ================= -->
+        <div
+          class="filter-group-heading d-flex align-items-center justify-content-between py-2 text-dark fw-bold cursor-pointer"
+          data-bs-toggle="collapse" data-bs-target="#groupFieldFilters" aria-expanded="true"
+          style="font-size: 0.88rem; cursor: pointer; user-select: none;">
+          <span><i class="fa-solid fa-caret-down me-1 text-dark"></i> Filter By Fields</span>
+        </div>
+        <div class="collapse show" id="groupFieldFilters">
+          <div class="ps-2 mb-3">
 
-          <!-- Courses (For Zappcode / Academy Users) -->
-          {% if not request.user.hospital and courses %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subCourse" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-graduation-cap me-2 text-muted"></i> Course Interested</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_courses %}show{% endif %} ps-3 pe-1 py-1" id="subCourse">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for crs in courses %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="course" value="{{ crs.id }}" id="crs_{{ crs.id }}" {% if crs.id|stringformat:'s' in request_get.course or crs.name in request_get.course %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="crs_{{ crs.id }}" style="font-size: 0.82rem;">{{ crs.name }}</label>
+            <!-- Courses (For Zappcode / Academy Users) -->
+            {% if not request.user.hospital and courses %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subCourse" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-graduation-cap me-2 text-muted"></i> Course Interested</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_courses %}show{% endif %} ps-3 pe-1 py-1" id="subCourse">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for crs in courses %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="course" value="{{ crs.id }}" id="crs_{{ crs.id }}" {% if crs.id|stringformat:'s' in request_get.course or crs.name in request_get.course %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="crs_{{ crs.id }}" style="font-size: 0.82rem;">{{ crs.name }}</label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
-          <!-- Lead Stages (For Zappcode / Academy Users) -->
-          {% if not request.user.hospital and stages %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subStages" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-diagram-project me-2 text-muted"></i> Lead Stage</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_stages %}show{% endif %} ps-3 pe-1 py-1" id="subStages">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for stg in stages %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="stage" value="{{ stg.id }}" id="stg_{{ stg.id }}" {% if stg.id|stringformat:'s' in selected_stages or stg.name in selected_stages %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="stg_{{ stg.id }}" style="font-size: 0.82rem;">{{ stg.name }}</label>
+            <!-- Lead Stages (For Zappcode / Academy Users) -->
+            {% if not request.user.hospital and stages %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subStages" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-diagram-project me-2 text-muted"></i> Lead Stage</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_stages %}show{% endif %} ps-3 pe-1 py-1" id="subStages">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for stg in stages %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="stage" value="{{ stg.id }}" id="stg_{{ stg.id }}" {% if stg.id|stringformat:'s' in selected_stages or stg.name in selected_stages %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="stg_{{ stg.id }}" style="font-size: 0.82rem;">{{ stg.name }}</label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
-          <!-- Departments (Only for Hospital Users) -->
-          {% if request.user.hospital and filter_departments %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDept" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-hospital me-2 text-muted"></i> Department</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_departments %}show{% endif %} ps-3 pe-1 py-1" id="subDept">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for dept in filter_departments %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="department" value="{{ dept }}" id="dept_{{ forloop.counter }}" {% if dept in selected_departments %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="dept_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ dept }}</label>
+            <!-- Departments (Only for Hospital Users) -->
+            {% if request.user.hospital and filter_departments %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subDept" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-hospital me-2 text-muted"></i> Department</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_departments %}show{% endif %} ps-3 pe-1 py-1" id="subDept">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for dept in filter_departments %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="department" value="{{ dept }}" id="dept_{{ forloop.counter }}" {% if dept in selected_departments %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="dept_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ dept }}</label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
-          <!-- Doctors (Only for Hospital Users) -->
-          {% if request.user.hospital and filter_doctors %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subDoctors" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-user-doctor me-2 text-muted"></i> Doctor</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_doctors %}show{% endif %} ps-3 pe-1 py-1" id="subDoctors">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for doc in filter_doctors %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="doctor" value="{{ doc }}" id="doc_{{ forloop.counter }}" {% if doc in selected_doctors %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="doc_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ doc }}</label>
+            <!-- Doctors (Only for Hospital Users) -->
+            {% if request.user.hospital and filter_doctors %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subDoctors" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-user-doctor me-2 text-muted"></i> Doctor</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_doctors %}show{% endif %} ps-3 pe-1 py-1" id="subDoctors">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for doc in filter_doctors %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="doctor" value="{{ doc }}" id="doc_{{ forloop.counter }}" {% if doc in selected_doctors %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="doc_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ doc }}</label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
+            {% endif %}
 
-          <!-- Lead Status -->
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-list-check me-2 text-muted"></i> Lead Status</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_deal_statuses or selected_stages %}show{% endif %} ps-3 pe-1 py-1" id="subLeadStatus">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% if hospital_statuses %}
+            <!-- Lead Status -->
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-list-check me-2 text-muted"></i> Lead Status</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_deal_statuses or selected_stages %}show{% endif %} ps-3 pe-1 py-1"
+                id="subLeadStatus">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% if hospital_statuses %}
                   {% for ds in hospital_statuses %}
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ ds.name }}" id="ds_{{ forloop.counter }}" {% if ds.name in selected_deal_statuses %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="ds_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ ds.name }}</label>
                   </div>
                   {% endfor %}
-                {% else %}
+                  {% else %}
                   {% for s_val, s_lbl in deal_status_choices %}
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="deal_status" value="{{ s_val }}" id="ds_{{ s_val }}" {% if s_val in selected_deal_statuses %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="ds_{{ s_val }}" style="font-size: 0.82rem;">{{ s_lbl }}</label>
                   </div>
                   {% endfor %}
-                {% endif %}
-              </div>
-            </div>
-          </div>
-
-          <!-- Appointment Status (Only for Hospital Users) -->
-          {% if request.user.hospital and filter_appointment_statuses %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subApptStatus" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-regular fa-calendar-check me-2 text-muted"></i> Appointment Status</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_appointment_statuses %}show{% endif %} ps-3 pe-1 py-1" id="subApptStatus">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for st in filter_appointment_statuses %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="appointment_status" value="{{ st }}" id="apt_{{ forloop.counter }}" {% if st in selected_appointment_statuses %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="apt_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ st }}</label>
+                  {% endif %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
 
-          <!-- Priority / Temperature -->
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subPriority" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-fire me-2 text-muted"></i> Priority / Temperature</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_priorities or selected_temperatures %}show{% endif %} ps-3 pe-1 py-1" id="subPriority">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for prio in filter_priorities %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="priority" value="{{ prio }}" id="prio_{{ forloop.counter }}" {% if prio in selected_priorities or prio in selected_temperatures %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="prio_{{ forloop.counter }}" style="font-size: 0.82rem;">
-                    {% if prio == 'Hot' %}<span class="text-danger fw-semibold">🔥 Hot</span>
-                    {% elif prio == 'Warm' %}<span class="text-warning fw-semibold">⚡ Warm</span>
-                    {% else %}<span class="text-info fw-semibold">❄️ Cold</span>{% endif %}
-                  </label>
+            <!-- Appointment Status (Only for Hospital Users) -->
+            {% if request.user.hospital and filter_appointment_statuses %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subApptStatus" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-regular fa-calendar-check me-2 text-muted"></i> Appointment Status</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_appointment_statuses %}show{% endif %} ps-3 pe-1 py-1"
+                id="subApptStatus">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for st in filter_appointment_statuses %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="appointment_status" value="{{ st }}" id="apt_{{ forloop.counter }}" {% if st in selected_appointment_statuses %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="apt_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ st }}</label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
+            {% endif %}
 
-          <!-- City / Location -->
-          {% if filter_locations %}
-          <div class="py-1">
-            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1" data-bs-toggle="collapse" href="#subLocation" role="button" style="font-size: 0.84rem;">
-              <span><i class="fa-solid fa-location-dot me-2 text-muted"></i> City / Location</span>
-              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
-            </a>
-            <div class="collapse {% if selected_locations %}show{% endif %} ps-3 pe-1 py-1" id="subLocation">
-              <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
-                {% for loc in filter_locations %}
-                <div class="form-check mb-1 filter-item-row">
-                  <input class="form-check-input filter-checkbox" type="checkbox" name="location" value="{{ loc }}" id="loc_{{ forloop.counter }}" {% if loc in selected_locations %}checked{% endif %}>
-                  <label class="form-check-label text-dark filter-label" for="loc_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ loc }}</label>
+            <!-- Priority / Temperature -->
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subPriority" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-fire me-2 text-muted"></i> Priority / Temperature</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_priorities or selected_temperatures %}show{% endif %} ps-3 pe-1 py-1"
+                id="subPriority">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for prio in filter_priorities %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="priority" value="{{ prio }}" id="prio_{{ forloop.counter }}" {% if prio in selected_priorities or prio in selected_temperatures %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="prio_{{ forloop.counter }}" style="font-size: 0.82rem;">
+                      {% if prio == 'Hot' %}<span class="text-danger fw-semibold">🔥 Hot</span>
+                      {% elif prio == 'Warm' %}<span class="text-warning fw-semibold">⚡ Warm</span>
+                      {% else %}<span class="text-info fw-semibold">❄️ Cold</span>{% endif %}
+                    </label>
+                  </div>
+                  {% endfor %}
                 </div>
-                {% endfor %}
               </div>
             </div>
-          </div>
-          {% endif %}
 
+            <!-- City / Location -->
+            {% if filter_locations %}
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subLocation" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-location-dot me-2 text-muted"></i> City / Location</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_locations %}show{% endif %} ps-3 pe-1 py-1" id="subLocation">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  {% for loc in filter_locations %}
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="location" value="{{ loc }}" id="loc_{{ forloop.counter }}" {% if loc in selected_locations %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="loc_{{ forloop.counter }}" style="font-size: 0.82rem;">{{ loc }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+          </div>
         </div>
+        {% endif %}
+
       </div>
-      {% endif %}
 
-    </div>
+      <!-- Hidden Sort Input -->
+      <input type="hidden" name="sort" id="drawerSortInput" value="{{ current_sort|default:'-created_at' }}">
 
-    <!-- Hidden Sort Input -->
-    <input type="hidden" name="sort" id="drawerSortInput" value="{{ current_sort|default:'-created_at' }}">
-
-    <!-- Bottom Action Bar (Apply Filter, Export & Clear) -->
-    <div class="p-3 bg-white border-top shadow-sm">
-      <div class="row g-2 align-items-center">
-        <div class="col-12">
-          <button type="submit" class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2 fw-bold text-nowrap shadow-sm" style="height: 38px; border-radius: 7px; font-size: 0.88rem; background-color: #2563eb; border-color: #2563eb;">
-            <i class="fa-solid fa-filter small"></i>
-            <span>Apply Filters</span>
-          </button>
-        </div>
-        <div class="col-7">
-          <div class="dropdown w-100">
-            <button class="btn btn-outline-success dropdown-toggle w-100 d-inline-flex align-items-center justify-content-center gap-1 fw-semibold text-nowrap" type="button" id="drawerExportDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="height: 34px; border-radius: 7px; font-size: 0.82rem;" title="Export filtered leads">
-              <i class="fa-solid fa-file-export small"></i>
-              <span>Export</span>
+      <!-- Bottom Action Bar (Apply Filter, Export & Clear) -->
+      <div class="p-3 bg-white border-top shadow-sm">
+        <div class="row g-2 align-items-center">
+          <div class="col-12">
+            <button type="submit"
+              class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2 fw-bold text-nowrap shadow-sm"
+              style="height: 38px; border-radius: 7px; font-size: 0.88rem; background-color: #2563eb; border-color: #2563eb;">
+              <i class="fa-solid fa-filter small"></i>
+              <span>Apply Filters</span>
             </button>
-            <ul class="dropdown-menu dropdown-menu-start shadow border-0 py-1" aria-labelledby="drawerExportDropdown" style="font-size: 0.82rem; min-width: 160px; z-index: 1080;">
-              <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export Filtered Data</h6></li>
-              <li>
-                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('excel')">
-                  <i class="fa-solid fa-file-excel text-success" style="font-size: 0.95rem;"></i>
-                  <span>Excel (.xlsx)</span>
-                </button>
-              </li>
-              <li>
-                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" onclick="exportFilteredLeads('pdf')">
-                  <i class="fa-solid fa-file-pdf text-danger" style="font-size: 0.95rem;"></i>
-                  <span>PDF / Print</span>
-                </button>
-              </li>
-            </ul>
+          </div>
+          <div class="col-7">
+            <div class="dropdown w-100">
+              <button
+                class="btn btn-outline-success dropdown-toggle w-100 d-inline-flex align-items-center justify-content-center gap-1 fw-semibold text-nowrap"
+                type="button" id="drawerExportDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                style="height: 34px; border-radius: 7px; font-size: 0.82rem;" title="Export filtered leads">
+                <i class="fa-solid fa-file-export small"></i>
+                <span>Export</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-start shadow border-0 py-1" aria-labelledby="drawerExportDropdown"
+                style="font-size: 0.82rem; min-width: 160px; z-index: 1080;">
+                <li>
+                  <h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export Filtered Data
+                  </h6>
+                </li>
+                <li>
+                  <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2"
+                    onclick="exportFilteredLeads('excel')">
+                    <i class="fa-solid fa-file-excel text-success" style="font-size: 0.95rem;"></i>
+                    <span>Excel (.xlsx)</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2"
+                    onclick="exportFilteredLeads('pdf')">
+                    <i class="fa-solid fa-file-pdf text-danger" style="font-size: 0.95rem;"></i>
+                    <span>PDF / Print</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-5">
+            <a href="{{ request.path }}"
+              class="btn btn-outline-danger w-100 d-inline-flex align-items-center justify-content-center gap-1 fw-bold text-nowrap"
+              style="height: 34px; border-radius: 7px; font-size: 0.82rem; border: 1px solid #ef4444 !important; background-color: #fff5f5; color: #dc2626 !important;"
+              title="Clear all filters">
+              <i class="fa-solid fa-rotate-left small" style="font-size: 0.75rem;"></i>
+              <span>Clear</span>
+            </a>
           </div>
         </div>
-        <div class="col-5">
-          <a href="{{ request.path }}" class="btn btn-outline-danger w-100 d-inline-flex align-items-center justify-content-center gap-1 fw-bold text-nowrap" style="height: 34px; border-radius: 7px; font-size: 0.82rem; border: 1px solid #ef4444 !important; background-color: #fff5f5; color: #dc2626 !important;" title="Clear all filters">
-            <i class="fa-solid fa-rotate-left small" style="font-size: 0.75rem;"></i>
-            <span>Clear</span>
-          </a>
-        </div>
       </div>
-    </div>
-  </form>
+    </form>
   </div> <!-- /Inner Form Container -->
 
   <!-- Draggable Resizer Handle on Right Edge of Filter Column -->
@@ -587,11 +666,13 @@
   .filter-options-scroll::-webkit-scrollbar {
     width: 4px;
   }
+
   .custom-filter-scroll::-webkit-scrollbar-thumb,
   .filter-options-scroll::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 4px;
   }
+
   .form-check-input {
     width: 15px;
     height: 15px;
@@ -599,18 +680,23 @@
     border-color: #cbd5e1;
     border-radius: 3px;
   }
+
   .form-check-input:checked {
     background-color: #2563eb;
     border-color: #2563eb;
   }
+
   .form-check-label {
     cursor: pointer;
   }
+
   .filter-item-row:hover {
     background-color: #f8fafc;
     border-radius: 4px;
   }
-  .dropdown-item.active, .dropdown-item:active {
+
+  .dropdown-item.active,
+  .dropdown-item:active {
     background-color: #eff6ff;
     color: #1d4ed8;
   }
@@ -720,14 +806,14 @@
   }
 
   // Auto restore sidebar & filter state
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     const today = new Date().toISOString().split('T')[0];
     const dateFrom = document.getElementById('drawerDateFrom');
     const dateTo = document.getElementById('drawerDateTo');
-    
+
     if (dateFrom) {
       dateFrom.setAttribute('max', today);
-      dateFrom.addEventListener('change', function() {
+      dateFrom.addEventListener('change', function () {
         if (dateTo && this.value) {
           dateTo.setAttribute('min', this.value);
         }
@@ -735,7 +821,7 @@
     }
     if (dateTo) {
       dateTo.setAttribute('max', today);
-      dateTo.addEventListener('change', function() {
+      dateTo.addEventListener('change', function () {
         if (dateFrom && this.value) {
           dateFrom.setAttribute('max', this.value);
         }
@@ -752,43 +838,43 @@
       }
     }
 
-    // Filter Sidebar Interactive Width Resizer
-    const resizer = document.getElementById('filterSidebarResizer');
-    const filterCol = document.getElementById('crmFilterSidebarCol');
-    if (resizer && filterCol) {
-      const savedFilterWidth = localStorage.getItem('crmFilterSidebarCustomWidth');
-      if (savedFilterWidth) {
-        filterCol.style.width = savedFilterWidth + 'px';
-      }
-
-      let isResizingFilter = false;
-
-      resizer.addEventListener('mousedown', function(e) {
-        isResizingFilter = true;
-        resizer.classList.add('resizing');
-        document.body.style.userSelect = 'none';
-        document.body.style.cursor = 'col-resize';
-      });
-
-      document.addEventListener('mousemove', function(e) {
-        if (!isResizingFilter) return;
-        const rect = filterCol.getBoundingClientRect();
-        let newWidth = e.clientX - rect.left;
-        if (newWidth < 220) newWidth = 220;
-        if (newWidth > 550) newWidth = 550;
-
-        filterCol.style.width = newWidth + 'px';
-        localStorage.setItem('crmFilterSidebarCustomWidth', newWidth);
-      });
-
-      document.addEventListener('mouseup', function() {
-        if (isResizingFilter) {
-          isResizingFilter = false;
-          resizer.classList.remove('resizing');
-          document.body.style.userSelect = '';
-          document.body.style.cursor = '';
-        }
-      });
+  // Filter Sidebar Interactive Width Resizer
+  const resizer = document.getElementById('filterSidebarResizer');
+  const filterCol = document.getElementById('crmFilterSidebarCol');
+  if (resizer && filterCol) {
+    const savedFilterWidth = localStorage.getItem('crmFilterSidebarCustomWidth');
+    if (savedFilterWidth) {
+      filterCol.style.width = savedFilterWidth + 'px';
     }
+
+    let isResizingFilter = false;
+
+    resizer.addEventListener('mousedown', function (e) {
+      isResizingFilter = true;
+      resizer.classList.add('resizing');
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!isResizingFilter) return;
+      const rect = filterCol.getBoundingClientRect();
+      let newWidth = e.clientX - rect.left;
+      if (newWidth < 220) newWidth = 220;
+      if (newWidth > 550) newWidth = 550;
+
+      filterCol.style.width = newWidth + 'px';
+      localStorage.setItem('crmFilterSidebarCustomWidth', newWidth);
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (isResizingFilter) {
+        isResizingFilter = false;
+        resizer.classList.remove('resizing');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      }
+    });
+  }
   });
 </script>

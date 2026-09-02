@@ -140,10 +140,13 @@
 
   /* Minimized Sidebar */
   body.sidebar-minimized .sidebar {
-    width: var(--sidebar-collapsed-w);
+    width: var(--sidebar-collapsed-w) !important;
   }
   body.sidebar-minimized .main-wrap {
-    margin-left: var(--sidebar-collapsed-w);
+    margin-left: var(--sidebar-collapsed-w) !important;
+  }
+  body.sidebar-minimized .sidebar-resizer-handle {
+    display: none !important;
   }
   body.sidebar-minimized .sidebar .brand-text,
   body.sidebar-minimized .sidebar .section-title,
@@ -356,29 +359,44 @@
   .modal-body {
     overflow-y: visible !important;
   }
-  .ts-wrapper.form-select, .ts-wrapper.form-select-sm {
+  .ts-wrapper.form-select, .ts-wrapper.form-select-sm, .ts-wrapper {
     padding: 0 !important;
     border: none !important;
     background: transparent !important;
+    box-shadow: none !important;
   }
   .ts-control {
-    border: 1px solid #ced4da !important;
-    border-radius: 0.375rem !important;
-    min-height: 38px !important;
-    padding: 0.375rem 0.75rem !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    min-height: 42px !important;
+    padding: 0.45rem 0.85rem !important;
     background-color: #ffffff !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
     display: flex !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
   }
   .ts-control input {
-    font-size: 0.875rem !important;
+    font-size: 0.94rem !important;
+    color: #0f172a !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
-  .nelson-dashboard .ts-control {
-    border: 1px solid rgba(79, 70, 229, 0.2) !important;
-    border-radius: 0.6rem !important;
-    background-color: rgba(255, 255, 255, 0.8) !important;
-    min-height: 42px !important;
-    padding: 0.5rem 0.85rem !important;
+  .ts-control .item {
+    display: inline-flex !important;
+    align-items: center !important;
+    line-height: normal !important;
+    margin-right: 4px !important;
+    color: #0f172a !important;
+  }
+  .ts-control.focus, .ts-wrapper.focus .ts-control {
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.18) !important;
   }
 </style>
 {% block extra_head %}{% endblock %}

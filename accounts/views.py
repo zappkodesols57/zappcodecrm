@@ -644,6 +644,10 @@ def forgot_password(request):
                 messages.error(request, "No account found matching that email or username.")
                 return render(request, "accounts/forgot_password.html", {"step": 1, "email_or_username": email_or_username})
 
+            if not user.email:
+                messages.error(request, "This account does not have a registered email address. Please contact your system administrator.")
+                return render(request, "accounts/forgot_password.html", {"step": 1, "email_or_username": email_or_username})
+
             otp = str(random.randint(100000, 999999))
             
             # Create cryptographic token signed with SECRET_KEY (valid for 15 mins)

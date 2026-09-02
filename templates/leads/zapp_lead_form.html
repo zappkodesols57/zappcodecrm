@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ mode }} Academy Lead{% endblock %}
+{% block content %}
+<h4 class="mb-3">{{ mode }} New Lead</h4>
+
+{% if duplicates %}
+<div class="card mb-3 border-warning">
+  <div class="card-body">
+    <h6 class="text-warning"><i class="fa-solid fa-triangle-exclamation"></i> Existing Lead(s) Found — same mobile number</h6>
+    <table class="table table-sm">
+      <thead><tr><th>Lead ID</th><th>Name</th><th>Mobile</th><th>Course</th><th>Source</th><th>Stage</th><th>Assigned</th><th></th></tr></thead>
+      <tbody>
+        {% for d in duplicates %}
+        <tr>
+          <td>{{ d.lead_code }}</td><td>{{ d.name }}</td><td>{{ d.mobile }}</td>
+          <td>{{ d.course|default:"—" }}</td><td>{{ d.lead_source|default:"—" }}</td><td>{{ d.stage }}</td><td>{{ d.assigned_to|default:"—" }}</td>
+          <td><a href="{% url 'leads:lead_detail' d.pk %}" class="btn btn-sm btn-outline-primary">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-muted small">You can view/update the existing lead instead, or force-create a new one below if this is genuinely a different inquiry.</p>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
+
+      <h6 class="text-muted text-uppercase small mt-2">Basic Information</h6>
+      <div class="row g-3">
+        <div class="col-md-4">{{ form.name.label_tag }} {{ form.name }}</div>
+        <div class="col-md-4">{{ form.mobile.label_tag }} {{ form.mobile }}</div>
+        <div class="col-md-4">{{ form.alternate_mobile.label_tag }} {{ form.alternate_mobile }}</div>
+        <div class="col-md-4">{{ form.email.label_tag }} {{ form.email }}</div>
+        <div class="col-md-4">{{ form.city.label_tag }} {{ form.city }}</div>
+        <div class="col-md-4">{{ form.state.label_tag }} {{ form.state }}</div>
+        <div class="col-md-12">{{ form.location.label_tag }} {{ form.location }}</div>
+      </div>
+
+      <h6 class="text-muted text-uppercase small mt-4">Education</h6>
+      <div class="row g-3">
+        <div class="col-md-4">{{ form.education.label_tag }} {{ form.education }}</div>
+        <div class="col-md-4">{{ form.qualification.label_tag }} {{ form.qualification }}</div>
+        <div class="col-md-4">{{ form.graduation_year.label_tag }} {{ form.graduation_year }}</div>
+      </div>
+
+      <h6 class="text-muted text-uppercase small mt-4">Lead Information</h6>
+      <div class="row g-3">
+        <div class="col-md-3">{{ form.course.label_tag }} {{ form.course }}</div>
+        <div class="col-md-3">{{ form.lead_type.label_tag }} {{ form.lead_type }}</div>
+        <div class="col-md-2">{{ form.temperature.label_tag }} {{ form.temperature }}</div>
+        <div class="col-md-2">{{ form.stage.label_tag }} {{ form.stage }}</div>
+        <div class="col-md-2">{{ form.deal_status.label_tag }} {{ form.deal_status }}</div>
+        <div class="col-md-3">{{ form.admission_status.label_tag }} {{ form.admission_status }}</div>
+        <div class="col-md-3">{{ form.inquiry_date.label_tag }} {{ form.inquiry_date }}</div>
+      </div>
+
+      <h6 class="text-muted text-uppercase small mt-4">Lead Origin / Attribution</h6>
+      <div class="row g-3">
+        <div class="col-md-3">{{ form.source_category.label_tag }} {{ form.source_category }}</div>
+        <div class="col-md-3">{{ form.lead_source.label_tag }} {{ form.lead_source }}</div>
+        <div class="col-md-3">{{ form.campaign.label_tag }} {{ form.campaign }}</div>
+        <div class="col-md-3">{{ form.ad_platform.label_tag }} {{ form.ad_platform }}</div>
+        <div class="col-md-3">{{ form.campaign_id_text.label_tag }} {{ form.campaign_id_text }}</div>
+        <div class="col-md-3">{{ form.referral_type.label_tag }} {{ form.referral_type }}</div>
+        <div class="col-md-3">{{ form.referral_person.label_tag }} {{ form.referral_person }}</div>
+        <div class="col-md-3">{{ form.referral_contact.label_tag }} {{ form.referral_contact }}</div>
+        <div class="col-md-12">{{ form.referral_notes.label_tag }} {{ form.referral_notes }}</div>
+        <div class="col-md-4">{{ form.landing_page.label_tag }} {{ form.landing_page }}</div>
+        <div class="col-md-4">{{ form.utm_source.label_tag }} {{ form.utm_source }}</div>
+        <div class="col-md-4">{{ form.utm_medium.label_tag }} {{ form.utm_medium }}</div>
+        <div class="col-md-4">{{ form.utm_campaign.label_tag }} {{ form.utm_campaign }}</div>
+        <div class="col-md-4">{{ form.utm_term.label_tag }} {{ form.utm_term }}</div>
+        <div class="col-md-4">{{ form.utm_content.label_tag }} {{ form.utm_content }}</div>
+      </div>
+
+      <h6 class="text-muted text-uppercase small mt-4">Assignment</h6>
+      <div class="row g-3">
+        <div class="col-md-6">{{ form.assigned_to.label_tag }} {{ form.assigned_to }}</div>
+        <div class="col-md-6">{{ form.assigned_manager.label_tag }} {{ form.assigned_manager }}</div>
+      </div>
+
+      <h6 class="text-muted text-uppercase small mt-4">Additional</h6>
+      <div class="row g-3">
+        <div class="col-md-12">{{ form.notes.label_tag }} {{ form.notes }}</div>
+        <div class="col-md-12">{{ form.tags.label_tag }} {{ form.tags }}</div>
+      </div>
+
+      <div class="mt-4">
+        <button type="submit" class="btn btn-brand text-white">Save Lead</button>
+        <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // Enhanced dynamic Tags input with creation support
+  var tagsSelect = document.querySelector('select[name="tags"]');
+  if (tagsSelect && typeof TomSelect !== 'undefined') {
+    if (tagsSelect.tomselect) {
+      tagsSelect.tomselect.destroy();
+    }
+    new TomSelect(tagsSelect, {
+      plugins: ['remove_button'],
+      create: true,
+      persist: false,
+      createOnBlur: true,
+      placeholder: 'Type tag and press Enter...',
+      maxItems: null,
+      render: {
+        item: function(data, escape) {
+          return '<div class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 me-1 mb-1">' + escape(data.text) + '</div>';
+        }
+      }
+    });
+  }
+
+  var mobileInput = document.querySelector('input[name="mobile"]');
+  var altMobileInput = document.querySelector('input[name="alternate_mobile"]');
+
+  [mobileInput, altMobileInput].forEach(function(inp) {
+    if (inp) {
+      inp.setAttribute('maxlength', '10');
+      inp.setAttribute('minlength', '10');
+      inp.setAttribute('inputmode', 'numeric');
+      inp.setAttribute('pattern', '^[0-9]{10}$');
+      inp.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+      });
+    }
+  });
+
+  if (!mobileInput) return;
+
+  var statusDiv = document.createElement('div');
+  statusDiv.className = 'mt-1 small';
+  mobileInput.parentNode.appendChild(statusDiv);
+
+  var timer = null;
+  mobileInput.addEventListener('input', function() {
+    clearTimeout(timer);
+    var val = mobileInput.value.trim();
+    if (val.length < 8) {
+      statusDiv.innerHTML = '';
+      return;
+    }
+    timer = setTimeout(function() {
+      fetch("{% url 'leads:check_duplicate_mobile' %}?mobile=" + encodeURIComponent(val))
+        .then(function(res){ return res.json(); })
+        .then(function(data) {
+          if (data.exists) {
+            statusDiv.innerHTML = '<span class="badge text-bg-danger py-1 px-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Existing Lead Found: ' + data.name + ' (' + data.lead_code + ') — Assigned: ' + data.assigned_to + '</span>';
+          } else {
+            statusDiv.innerHTML = '<span class="badge text-bg-success py-1 px-2"><i class="fa-solid fa-check me-1"></i> Mobile Available</span>';
+          }
+        });
+    }, 350);
+  });
+});
+</script>
+{% endblock %}

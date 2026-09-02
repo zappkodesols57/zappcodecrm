@@ -79,10 +79,14 @@
             Campaigns</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all meta_ads campaign-management' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all meta_ads campaign-management import import_history' %}show{% endif %} nav-sub-items"
         id="sec_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="Lead Management"><i class="fa-solid fa-users"></i> <span class="nav-text">Lead Management</span></a>
+        <a class="nav-link {% if active == 'import' %}active{% endif %}" href="{% url 'imports:upload' %}"
+          title="Import Leads"><i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span></a>
+        <a class="nav-link {% if active == 'export' %}active{% endif %}" href="{% url 'imports:export' %}"
+          title="Export Leads"><i class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span></a>
         <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}"
           href="{% url 'meta_ads:dashboard' %}" title="Meta Ads Dashboard"><i class="fa-brands fa-meta"></i> <span
             class="nav-text">Meta Ads</span> {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
@@ -95,15 +99,15 @@
     <!-- Section: Operations & Analytics (Multiple Tabs) -->
     <div class="nav-section-group">
       <button
-        class="nav-section-btn {% if active not in 'reports financial-overview notifications tasks audit export' %}collapsed{% endif %}"
+        class="nav-section-btn {% if active not in 'reports financial-overview notifications tasks audit' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_ops"
-        aria-expanded="{% if active in 'reports financial-overview notifications tasks audit export' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'reports financial-overview notifications tasks audit' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-chart-column section-icon"></i><span class="section-title">Operations &
             Reports</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div
-        class="collapse {% if active in 'reports financial-overview notifications tasks audit export' %}show{% endif %} nav-sub-items"
+        class="collapse {% if active in 'reports financial-overview notifications tasks audit' %}show{% endif %} nav-sub-items"
         id="sec_ops">
         {% if request.user.can_view_reports %}
         <a class="nav-link {% if active == 'reports' %}active{% endif %}" href="{% url 'dashboard:admin_reports' %}"
@@ -118,8 +122,6 @@
           title="Tasks"><i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks</span></a>
         <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}"
           title="Audit Logs"><i class="fa-solid fa-shield-halved"></i> <span class="nav-text">Audit Logs</span></a>
-        <a class="nav-link {% if active == 'export' %}active{% endif %}" href="{% url 'imports:export' %}"
-          title="Data Export"><i class="fa-solid fa-file-export"></i> <span class="nav-text">Data Export</span></a>
       </div>
     </div>
 
@@ -163,7 +165,7 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div
-        class="collapse {% if active in 'my_leads new_enquiries team_today_activity search_filter' %}show{% endif %} nav-sub-items"
+        class="collapse {% if active in 'my_leads new_enquiries team_today_activity search_filter import' %}show{% endif %} nav-sub-items"
         id="sec_tele_leads">
         <a class="nav-link {% if active == 'my_leads' %}active{% endif %}"
           href="{% url 'dashboard:telecaller_my_leads' %}" title="My Leads"><i class="fa-solid fa-users"></i> <span
@@ -171,6 +173,12 @@
         <a class="nav-link {% if active == 'new_enquiries' %}active{% endif %}"
           href="{% url 'dashboard:telecaller_new_enquiries' %}" title="New Enquiries"><i
             class="fa-solid fa-envelope-open-text"></i> <span class="nav-text">New Enquiries</span></a>
+        <a class="nav-link {% if active == 'import' %}active{% endif %}"
+          href="{% url 'imports:upload' %}" title="Import Leads"><i
+            class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span></a>
+        <a class="nav-link {% if active == 'export' %}active{% endif %}"
+          href="{% url 'imports:export' %}" title="Export Leads"><i
+            class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span></a>
         <a class="nav-link {% if active == 'team_today_activity' %}active{% endif %}"
           href="{% url 'dashboard:telecaller_today_team_activity' %}" title="Team Activity"><i
             class="fa-solid fa-user-clock"></i> <span class="nav-text">Team Activity</span></a>

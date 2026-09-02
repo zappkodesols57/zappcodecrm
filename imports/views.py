@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
@@ -164,26 +164,363 @@ def _load_excel_or_csv(file_path, filename=""):
     raise ValueError("File format could not be read. Please upload a valid .xlsx, .xls, or .csv file.")
 
 
+from django.core.cache import cache
+from accounts.models import User, Hospital
+from leads.models import Campaign as HospitalCampaign
+from .nel_hospital_import_service import (
+    parse_any_file_to_dataframe,
+    extract_campaign_lead_data,
+    check_duplicates_in_db,
+    generate_lead_code,
+    parse_flexible_date,
+)
+from django.db import transaction
+
+
+def _can_user_access_import(user):
+    """
+    Lead Attendant, Hospital Manager, Hospital Admin, Super Admin can import campaign leads.
+    """
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER, User.Role.LEAD_ATTENDENT):
+        return True
+    return getattr(user, "can_import_export", False)
+
+
 @login_required
-@user_passes_test(lambda u: u.can_import_export)
+@user_passes_test(_can_user_access_import)
 def upload(request):
-    if request.method == "POST" and "excel_file" in request.FILES:
-        job = ImportJob.objects.create(
-            file=request.FILES["excel_file"],
-            original_filename=request.FILES["excel_file"].name,
-            created_by=request.user,
-        )
-        try:
-            reader_res = _load_excel_or_csv(job.file.path, job.original_filename)
-        except Exception as e:
-            job.delete()
-            messages.error(request, f"Could not read this file: {e}")
-            return redirect("imports:upload")
+    """
+    Unified Import Leads View:
+    - Mode 1: Campaign Leads (Available to Lead Attendant, Manager, Admin, Super Admin)
+    - Mode 2: Previous Lead Data (Available to Manager, Admin, Super Admin)
+    - Zappcode Super Admin can select target hospital/business.
+    """
+    user = request.user
+    is_super_admin_no_hospital = bool(user.role == User.Role.SUPER_ADMIN and not user.hospital)
+    can_import_previous = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER))
+    
+    # Available campaigns with current leads count
+    from django.db.models import Count
+    if user.hospital:
+        campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
+    else:
+        campaigns = HospitalCampaign.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(is_archived=False).count()
+
+    all_hospitals = []
+    if is_super_admin_no_hospital:
+        all_hospitals = Hospital.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("name")
+
+    context = {
+        "active": "import",
+        "is_super_admin_no_hospital": is_super_admin_no_hospital,
+        "can_import_previous": can_import_previous,
+        "available_campaigns": campaigns,
+        "all_hospitals": all_hospitals,
+        "current_leads_count": current_leads_count,
+    }
+    return render(request, "imports/upload.html", context)
+
+
+@login_required
+@user_passes_test(_can_user_access_import)
+def ajax_create_campaign(request):
+    """Creates a new Campaign via AJAX from the import screen."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method"}, status=400)
+    
+    name = request.POST.get("name", "").strip()
+    platform = request.POST.get("platform", "Meta Ads").strip()
+    ad_set = request.POST.get("ad_set", "").strip()
+    hospital_id = request.POST.get("hospital_id", "").strip()
+
+    if not name:
+        return JsonResponse({"success": False, "error": "Campaign name is required."})
+
+    target_hospital = None
+    if hospital_id:
+        target_hospital = Hospital.objects.filter(pk=hospital_id).first()
+    elif request.user.hospital:
+        target_hospital = request.user.hospital
+
+    start_date_str = request.POST.get("start_date", "").strip()
+    end_date_str = request.POST.get("end_date", "").strip()
+
+    start_date = parse_flexible_date(start_date_str) if start_date_str else None
+    end_date = parse_flexible_date(end_date_str) if end_date_str else None
+
+    defaults = {
+        "platform": platform,
+        "ad_set": ad_set,
+        "is_active": True,
+    }
+    if start_date:
+        defaults["start_date"] = start_date
+    if end_date:
+        defaults["end_date"] = end_date
+
+    campaign, created = HospitalCampaign.objects.get_or_create(
+        name=name,
+        hospital=target_hospital,
+        defaults=defaults
+    )
+    if not created:
+        if start_date and not campaign.start_date:
+            campaign.start_date = start_date
+        if end_date and not campaign.end_date:
+            campaign.end_date = end_date
+        campaign.save()
+
+    return JsonResponse({
+        "success": True,
+        "campaign": {
+            "id": campaign.id,
+            "name": campaign.name,
+            "platform": campaign.platform,
+            "hospital_id": campaign.hospital_id,
+        }
+    })
+
+
+@login_required
+@user_passes_test(_can_user_access_import)
+def campaign_import_process(request):
+    """
+    Processes uploaded Campaign Lead file (.xml, .xlsx, .xls, .csv).
+    If duplicate_strategy == 'preview', renders interactive conflict resolution screen.
+    Otherwise executes directly.
+    """
+    if request.method != "POST" or "lead_file" not in request.FILES:
+        messages.error(request, "Please select a valid leads file to upload.")
+        return redirect("imports:upload")
+
+    uploaded_file = request.FILES["lead_file"]
+    campaign_id = request.POST.get("campaign_id")
+    target_hospital_id = request.POST.get("target_hospital_id")
+    duplicate_strategy = request.POST.get("duplicate_strategy", "preview")
+
+    # Determine target hospital
+    target_hospital = None
+    if target_hospital_id:
+        target_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
+    elif request.user.hospital:
+        target_hospital = request.user.hospital
+
+    # Determine Campaign
+    campaign = None
+    if campaign_id:
+        campaign = HospitalCampaign.objects.filter(pk=campaign_id).first()
+
+    if not campaign:
+        messages.error(request, "Please select or create a Campaign for these leads.")
+        return redirect("imports:upload")
+
+    # Parse dataframe
+    try:
+        df = parse_any_file_to_dataframe(uploaded_file)
+    except Exception as e:
+        messages.error(request, f"Could not read the uploaded file: {e}")
+        return redirect("imports:upload")
+
+    if df is None or len(df) == 0:
+        messages.error(request, "The uploaded file is empty.")
+        return redirect("imports:upload")
+
+    # Clean and extract campaign rows
+    lead_rows = extract_campaign_lead_data(df, target_campaign=campaign, target_hospital=target_hospital)
+    if not lead_rows:
+        messages.error(request, "No valid lead rows could be extracted. Please check the file columns.")
+        return redirect("imports:upload")
+
+    # Check duplicates against DB
+    processed_rows, stats = check_duplicates_in_db(lead_rows, hospital=target_hospital)
+
+    # If preview strategy requested or duplicates exist
+    if duplicate_strategy == "preview":
+        import uuid
+        cache_key = f"camp_import_{uuid.uuid4().hex}"
+        cache.set(cache_key, {
+            "rows": processed_rows,
+            "campaign_id": campaign.id,
+            "target_hospital_id": target_hospital.id if target_hospital else None,
+            "original_filename": uploaded_file.name,
+        }, timeout=3600)
+
+        context = {
+            "active": "import",
+            "campaign": campaign,
+            "target_hospital": target_hospital,
+            "original_filename": uploaded_file.name,
+            "stats": stats,
+            "rows": processed_rows,
+            "cache_key": cache_key,
+        }
+        return render(request, "imports/nel_campaign_import_preview.html", context)
+
+    # Automatic execution based on strategy (skip / create / update)
+    return _execute_campaign_leads_import(
+        request, processed_rows, campaign, target_hospital, uploaded_file.name, default_strategy=duplicate_strategy
+    )
+
+
+@login_required
+@user_passes_test(_can_user_access_import)
+def campaign_import_execute(request):
+    """
+    Executes the campaign leads import after user confirms duplicate actions.
+    """
+    if request.method != "POST":
+        return redirect("imports:upload")
+
+    cache_key = request.POST.get("cache_key")
+    cached_data = cache.get(cache_key) if cache_key else None
+
+    if not cached_data:
+        messages.error(request, "Import session expired or not found. Please upload the file again.")
+        return redirect("imports:upload")
+
+    rows = cached_data.get("rows", [])
+    campaign_id = request.POST.get("campaign_id") or cached_data.get("campaign_id")
+    target_hospital_id = request.POST.get("target_hospital_id") or cached_data.get("target_hospital_id")
+    original_filename = cached_data.get("original_filename", "campaign_leads.xml")
+
+    campaign = HospitalCampaign.objects.filter(pk=campaign_id).first()
+    target_hospital = Hospital.objects.filter(pk=target_hospital_id).first() if target_hospital_id else request.user.hospital
+
+    # Apply row-level action decisions from form
+    for idx, r in enumerate(rows):
+        action_val = request.POST.get(f"action_{idx}")
+        if action_val:
+            r["duplicate_action"] = action_val
+
+    return _execute_campaign_leads_import(
+        request, rows, campaign, target_hospital, original_filename
+    )
+
+
+def _execute_campaign_leads_import(request, rows, campaign, target_hospital, original_filename, default_strategy=None):
+    """Core function to create/update Lead records with transaction safety and update Campaign start/end dates."""
+    from leads.models import MasterGroup, MasterItem, LeadCustomField
+    default_cat, _ = SourceCategory.objects.get_or_create(name="Digital Marketing", defaults={"order": 1})
+    stage_new = LeadStage.objects.filter(name__iexact="New").first() or LeadStage.objects.first()
+
+    job = ImportJob.objects.create(
+        original_filename=original_filename,
+        total_rows=len(rows),
+        created_by=request.user,
+        status=ImportJob.Status.PROCESSING,
+    )
+
+    imported_count = 0
+    updated_count = 0
+    skipped_count = 0
+
+    source_cache = {}
+    extracted_dates = []
+
+    with transaction.atomic():
+        for r in rows:
+            action = r.get("duplicate_action") or default_strategy or "create"
+            mobile = r.get("mobile", "")
+            name = r.get("name", "Unknown Patient")
+            email = r.get("email", "")
+            inquiry_date = parse_flexible_date(r.get("inquiry_date"))
+            if inquiry_date:
+                extracted_dates.append(inquiry_date)
+            source_name = r.get("source_name", "Instagram")
+            notes = r.get("notes", "")
+            custom_data = r.get("custom_data", {})
+            raw_meta = r.get("raw_metadata", {})
+            external_id = r.get("external_lead_id", "")
+
+            # If duplicate and user chose to discard
+            if r.get("is_duplicate") and action == "discard":
+                skipped_count += 1
+                continue
+
+            # Lead Source resolution
+            if source_name not in source_cache:
+                src_obj, _ = LeadSource.objects.get_or_create(
+                    name=source_name,
+                    category=default_cat,
+                    defaults={"is_active": True}
+                )
+                source_cache[source_name] = src_obj
+            lead_source_obj = source_cache[source_name]
+
+            # If duplicate and user chose update
+            if r.get("is_duplicate") and action == "update" and r.get("existing_lead_id"):
+                existing = Lead.objects.filter(pk=r["existing_lead_id"]).first()
+                if existing:
+                    if email and not existing.email:
+                        existing.email = email
+                    if campaign:
+                        existing.campaign = campaign
+                    if notes:
+                        existing.notes = (existing.notes + "\n" + notes).strip()
+                    if custom_data:
+                        existing.custom_data.update(custom_data)
+                    existing.import_job = job
+                    existing.save()
+                    updated_count += 1
+                    continue
+
+            # Create New Lead
+            lead_code = generate_lead_code(hospital=target_hospital)
             
-        return render(request, "imports/select_sheet.html", {
-            "active": "import", "job": job, "sheets": reader_res["sheets"],
-        })
-    return render(request, "imports/upload.html", {"active": "import"})
+            new_lead = Lead.objects.create(
+                lead_code=lead_code,
+                name=name,
+                mobile=mobile,
+                email=email,
+                hospital=target_hospital,
+                campaign=campaign,
+                source_category=default_cat,
+                lead_source=lead_source_obj,
+                stage=stage_new,
+                temperature="HOT",
+                deal_status="OPEN",
+                admission_status="NOT_APPLIED",
+                inquiry_date=inquiry_date,
+                notes=notes,
+                custom_data=custom_data,
+                raw_source_metadata=raw_meta,
+                external_lead_id=external_id,
+                import_source_file=original_filename,
+                import_job=job,
+                created_by=request.user,
+            )
+            imported_count += 1
+
+        # Automatically update Campaign start_date (earliest date) and end_date (latest date)
+        if campaign and extracted_dates:
+            min_d = min(extracted_dates)
+            max_d = max(extracted_dates)
+            if not campaign.start_date or min_d < campaign.start_date:
+                campaign.start_date = min_d
+            if not campaign.end_date or max_d > campaign.end_date:
+                campaign.end_date = max_d
+            campaign.save(update_fields=["start_date", "end_date"])
+
+    job.imported_count = imported_count + updated_count
+    job.updated_count = updated_count
+    job.skipped_count = skipped_count
+    job.status = ImportJob.Status.DONE
+    job.completed_at = timezone.now()
+    job.save()
+
+    messages.success(
+        request,
+        f"✅ Leads Import Successful! {imported_count} new leads created with Campaign '{campaign.name}', "
+        f"{updated_count} existing records updated, {skipped_count} duplicates skipped."
+    )
+
+    if request.user.role == User.Role.LEAD_ATTENDENT:
+        return redirect("dashboard:telecaller_new_enquiries")
+    return redirect("leads:lead_list")
 
 
 @login_required
@@ -699,26 +1036,41 @@ def export_leads(request):
     def build_row(l):
         if is_hospital:
             cd = l.custom_data or {}
+            doc = cd.get("doctor") or ""
+            dept = cd.get("department") or ""
+            loc = cd.get("location") or l.city or l.location or ""
+            src = cd.get("lead_source") or (l.lead_source.name if l.lead_source else "")
+            camp = cd.get("campaign") or (l.campaign.name if l.campaign else "")
+            apt_st = cd.get("appointment_status") or l.display_status
+            
             return {
-                "Lead ID": l.lead_code, "Name": l.name, "Mobile": l.mobile, "Email": l.email,
-                "Location": l.location, "Source Category": str(l.source_category or ""),
-                "Lead Source": cd.get("lead_source", ""), "Campaign": cd.get("campaign", ""),
-                "Stage": str(l.stage), "Temperature": l.get_temperature_display(),
-                "Deal Status": cd.get("deal_status", ""),
-                "Inquiry Date": str(l.inquiry_date), "Assigned To": str(l.assigned_to or ""),
+                "Lead ID": l.lead_code,
+                "Patient Name": l.name,
+                "Mobile": l.mobile,
+                "Email": l.email,
+                "Location": loc,
+                "Doctor / Consultant": doc,
+                "Department": dept,
+                "Lead Source": src,
+                "Campaign": camp,
+                "Status": l.display_status,
+                "Appointment Status": apt_st,
+                "Temperature": l.get_temperature_display(),
+                "Inquiry Date": str(l.inquiry_date or ""),
+                "Assigned To": str(l.assigned_to.get_full_name() if l.assigned_to else (cd.get("lead_attendant") or "")),
                 "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
-                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M"),
+                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
             }
         else:
             return {
                 "Lead ID": l.lead_code, "Name": l.name, "Mobile": l.mobile, "Email": l.email,
-                "City": l.city, "Course": str(l.course or ""), "Source Category": str(l.source_category or ""),
+                "City": l.city, "Course": str(l.course or ""),
                 "Lead Source": str(l.lead_source or ""), "Campaign": str(l.campaign or ""),
                 "Stage": str(l.stage), "Temperature": l.get_temperature_display(),
                 "Deal Status": l.get_deal_status_display(), "Admission Status": l.get_admission_status_display(),
                 "Inquiry Date": str(l.inquiry_date), "Assigned To": str(l.assigned_to or ""),
                 "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
-                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M"),
+                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
             }
 
     if is_preview:
@@ -738,30 +1090,37 @@ def export_leads(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.can_import_export)
+@user_passes_test(_can_user_access_import)
 def download_template(request):
+    """
+    Downloads Hospital-Specific Lead Import Template with Department, Doctor, Appointment Status, etc.
+    """
     from openpyxl import Workbook
     from openpyxl.worksheet.datavalidation import DataValidation
     from openpyxl.styles import Font, PatternFill, Alignment
-    from leads.models import LeadTemperature, DealStatus, AdmissionStatus
+    from leads.models import (
+        HospitalDepartment, HospitalDoctor, HospitalBranch, 
+        LeadSource, LeadTemperature, AppointmentStatus, Campaign as HospitalCampaign
+    )
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Leads Import Template"
+    ws.title = "Hospital Leads Template"
 
     headers = [
         "Inquiry Date", 
-        "Name", 
+        "Patient Name", 
         "Mobile", 
         "Alternate Mobile", 
         "Email", 
-        "City", 
-        "Course", 
+        "Location / City", 
+        "Department", 
+        "Doctor / Consultant", 
+        "Campaign",
         "Lead Source", 
-        "Lead Temperature", 
-        "Deal Status", 
-        "Admission Status", 
-        "Notes"
+        "Lead Priority / Temp", 
+        "Appointment Status", 
+        "Notes / Medical Concern"
     ]
     
     ws.append(headers)
@@ -777,18 +1136,19 @@ def download_template(request):
         cell.alignment = align_center
 
     sample_row = [
-        "2026-08-11",
-        "Rahul Kumar",
-        "9876543210",
-        "9876543211",
-        "rahul@example.com",
+        "2026-08-23",
+        "Adarsh Verma",
+        "9617696888",
+        "",
+        "adarshverma753@gmail.com",
         "Nagpur",
-        "Data Analytics",
-        "Meta Ads",
-        "WARM",
-        "OPEN",
-        "NOT_APPLIED",
-        "Interested in weekend batch"
+        "Gynaecology",
+        "Dr. Pradeep Patil",
+        "LuxeFreeHealthCheckup_Aug21st",
+        "Instagram",
+        "HOT",
+        "PENDING_APPROVAL",
+        "Interested in consultation (4-6 months pregnant)"
     ]
     ws.append(sample_row)
 
@@ -797,25 +1157,37 @@ def download_template(request):
         cell = ws.cell(row=2, column=col_idx)
         cell.font = sample_font
 
-    courses = list(Course.objects.filter(is_active=True).values_list("name", flat=True))
+    user_hospital = request.user.hospital
+    if user_hospital:
+        departments = list(HospitalDepartment.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
+        doctors = list(HospitalDoctor.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
+        campaigns = list(HospitalCampaign.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
+    else:
+        departments = list(HospitalDepartment.objects.filter(is_active=True).values_list("name", flat=True))
+        doctors = list(HospitalDoctor.objects.filter(is_active=True).values_list("name", flat=True))
+        campaigns = list(HospitalCampaign.objects.filter(is_active=True).values_list("name", flat=True))
+
     sources = list(LeadSource.objects.filter(is_active=True).values_list("name", flat=True))
-    
-    temperatures = [choice[0] for choice in LeadTemperature.choices]
-    deal_statuses = [choice[0] for choice in DealStatus.choices]
-    admission_statuses = [choice[0] for choice in AdmissionStatus.choices]
+    if not sources:
+        sources = ["Instagram", "Facebook", "Meta Ads", "Google Ads", "Website", "WhatsApp", "Walk-in"]
+        
+    temperatures = ["HOT", "WARM", "COLD", "UNCONTACTED"]
+    appt_statuses = [choice[0] for choice in AppointmentStatus.choices]
 
     data_ws = wb.create_sheet(title="DropdownData")
     
-    for idx, item in enumerate(courses, start=1):
+    for idx, item in enumerate(departments, start=1):
         data_ws.cell(row=idx, column=1, value=item)
-    for idx, item in enumerate(sources, start=1):
+    for idx, item in enumerate(doctors, start=1):
         data_ws.cell(row=idx, column=2, value=item)
-    for idx, item in enumerate(temperatures, start=1):
+    for idx, item in enumerate(campaigns, start=1):
         data_ws.cell(row=idx, column=3, value=item)
-    for idx, item in enumerate(deal_statuses, start=1):
+    for idx, item in enumerate(sources, start=1):
         data_ws.cell(row=idx, column=4, value=item)
-    for idx, item in enumerate(admission_statuses, start=1):
+    for idx, item in enumerate(temperatures, start=1):
         data_ws.cell(row=idx, column=5, value=item)
+    for idx, item in enumerate(appt_statuses, start=1):
+        data_ws.cell(row=idx, column=6, value=item)
 
     data_ws.sheet_state = "hidden"
 
@@ -834,11 +1206,12 @@ def download_template(request):
         ws.add_data_validation(dv)
         dv.add(f"{col_letter}3:{col_letter}1000")
 
-    add_validation("G", "A", len(courses), "Select a course")
-    add_validation("H", "B", len(sources), "Select a lead source")
-    add_validation("I", "C", len(temperatures), "Select temperature (HOT, WARM, COLD)")
-    add_validation("J", "D", len(deal_statuses), "Select deal status (OPEN, WON, LOST, HOLD)")
-    add_validation("K", "E", len(admission_statuses), "Select admission status")
+    add_validation("G", "A", len(departments), "Select a department")
+    add_validation("H", "B", len(doctors), "Select a doctor")
+    add_validation("I", "C", len(campaigns), "Select a campaign")
+    add_validation("J", "D", len(sources), "Select a lead source")
+    add_validation("K", "E", len(temperatures), "Select temperature / priority")
+    add_validation("L", "F", len(appt_statuses), "Select appointment status")
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -846,7 +1219,7 @@ def download_template(request):
         ws.column_dimensions[col_letter].width = max(max_len + 3, 15)
 
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="leads_import_template.xlsx"'
+    response["Content-Disposition"] = 'attachment; filename="nelson_hospital_leads_template.xlsx"'
     wb.save(response)
     return response
 

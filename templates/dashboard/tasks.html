@@ -128,9 +128,9 @@
                 </thead>
                 <tbody>
                     {% for task in tasks %}
-                    <tr class="{% if task.status == 'COMPLETED' %}table-light opacity-75{% endif %}">
+                    <tr>
                         <td class="px-3">
-                            <div class="fw-semibold text-dark {% if task.status == 'COMPLETED' %}text-decoration-line-through text-muted{% endif %}">{{ task.title }}</div>
+                            <div class="fw-semibold text-dark">{{ task.title }}</div>
                             {% if task.description %}
                                 <div class="small text-muted text-truncate" style="max-width: 250px; font-size: 0.76rem;">{{ task.description }}</div>
                             {% endif %}
