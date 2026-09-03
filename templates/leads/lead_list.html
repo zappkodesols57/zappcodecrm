@@ -256,7 +256,7 @@
               </div>
             </th>
 
-            <!-- 7. Stage -->
+            <!-- 7. Status (formerly Stage) -->
             <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="dropdown">
@@ -272,11 +272,11 @@
                     <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(7)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
                   </ul>
                 </div>
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Stage</span>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Status</span>
               </div>
             </th>
 
-            <!-- 8. Status / Appt -->
+            <!-- 8. Remark (formerly Status / Appt) -->
             <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="dropdown">
@@ -292,7 +292,7 @@
                     <li><button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" onclick="hideColumnByIndex(8)"><i class="fa-regular fa-eye-slash text-danger"></i> <span>Hide Column</span></button></li>
                   </ul>
                 </div>
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Status / Appt</span>
+                <span class="ms-1 fw-bold text-dark small text-uppercase">Remark</span>
               </div>
             </th>
 
@@ -336,22 +336,50 @@
               {% endif %}
             </td>
             <td><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
-            <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
             <td>
-              {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total or lead.custom_data.total_paid %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-                  <i class="fa-solid fa-circle-check me-1"></i>Payment Done: ₹{{ lead.custom_data.total_paid|default:lead.custom_data.total|default:'0' }}
-                </span>
-              {% elif lead.custom_data.appointment_status %}
-                {% if lead.custom_data.appointment_status == 'Booked' or lead.custom_data.appointment_status == 'Confirmed' %}
-                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Booked</span>
-                {% elif "Awaiting" in lead.custom_data.appointment_status %}
-                  <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-clock me-1"></i>Awaiting</span>
-                {% else %}
-                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.custom_data.appointment_status }}</span>
-                {% endif %}
+              {% if lead.display_status == 'Payment Done' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
+              {% elif lead.display_status == 'Booked' %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Booked</span>
+              {% elif lead.display_status == 'Payment Pending' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
+              {% elif lead.display_status == 'Assigned' %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
+              {% elif lead.display_status == 'New' %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
+              {% elif lead.display_status == 'Open' %}
+                <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
+              {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
+              {% elif lead.display_status == 'Awaiting Approval' %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval</span>
               {% else %}
-                <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.display_status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if lead.display_status == 'Payment Done' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold">
+                  <i class="fa-solid fa-receipt me-1"></i>{{ lead.remark_detail }}
+                </span>
+              {% elif lead.display_status == 'Booked' %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                  <i class="fa-solid fa-calendar-day me-1"></i>{{ lead.remark_detail }}
+                </span>
+              {% elif lead.remark_detail == 'Hot' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-fire me-1"></i>Hot</span>
+              {% elif lead.remark_detail == 'Warm' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle fw-bold"><i class="fa-solid fa-sun me-1"></i>Warm</span>
+              {% elif lead.remark_detail == 'Cold' %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle fw-bold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>
+              {% elif lead.remark_detail == 'Freeze' %}
+                <span class="badge bg-dark bg-opacity-10 text-dark border border-secondary fw-bold"><i class="fa-solid fa-icicles me-1 text-info"></i>Freeze</span>
+              {% elif lead.display_status == 'Payment Pending' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
+                  <i class="fa-solid fa-triangle-exclamation me-1"></i>Billing Pending
+                </span>
+              {% else %}
+                <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.remark_detail }}">{{ lead.remark_detail }}</span>
               {% endif %}
             </td>
             <td><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>

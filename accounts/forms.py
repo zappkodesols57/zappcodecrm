@@ -10,10 +10,17 @@ class CRMUserCreateForm(UserCreationForm):
         label="Allow Lead Data Import & Export (Excel/CSV)",
         help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
     )
+    daily_call_target = forms.IntegerField(
+        required=False,
+        initial=100,
+        min_value=0,
+        label="Daily Calling Target",
+        help_text="Assigned daily call target (default 100 calls per day)."
+    )
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "can_import_export")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "can_import_export")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -102,7 +109,11 @@ class CRMUserCreateForm(UserCreationForm):
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
+        daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
+        if not user.custom_permissions:
+            user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
+        user.custom_permissions["daily_call_target"] = int(daily_target)
         if commit:
             user.save()
         return user
@@ -114,16 +125,23 @@ class CRMUserEditForm(forms.ModelForm):
         label="Allow Lead Data Import & Export (Excel/CSV)",
         help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
     )
+    daily_call_target = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Daily Calling Target",
+        help_text="Assigned daily call target (default 100 calls per day)."
+    )
 
-    class Meta:
+    class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "can_import_export", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "can_import_export", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             self.fields["can_import_export"].initial = self.instance.can_import_export
+            self.fields["daily_call_target"].initial = self.instance.daily_call_target
 
         if self.user and self.user.hospital:
             allowed = self.user.hospital.get_allowed_roles()
@@ -204,9 +222,11 @@ class CRMUserEditForm(forms.ModelForm):
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
+        daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
+        user.custom_permissions["daily_call_target"] = int(daily_target)
         if commit:
             user.save()
         return user

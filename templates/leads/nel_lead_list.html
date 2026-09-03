@@ -93,8 +93,6 @@
         </li>
       </ul>
     </div>
-
-    <a href="{% url 'leads:lead_add' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3"><i class="fa-solid fa-user-plus me-1"></i> Add Patient Lead</a>
   </div>
 </div>
 
@@ -218,13 +216,25 @@
   </div>
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}</form>{% endif %}
 
-{% if page_obj.paginator.num_pages > 1 %}
-<div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-3 mt-3">
-  <nav>
-    <ul class="pagination pagination-sm mb-0">
+<!-- Pagination & Records Count Summary -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3 px-1 py-2 border-top">
+  <div class="text-muted small">
+    {% if total_count > 0 %}
+      Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ total_count }}</strong> leads
+      {% if active_filters_count > 0 %}
+        <span class="badge bg-primary bg-opacity-10 text-primary ms-1 border border-primary-subtle"><i class="fa-solid fa-filter me-1"></i>Filtered</span>
+      {% endif %}
+    {% else %}
+      Showing <strong>0</strong> of <strong>0</strong> leads
+    {% endif %}
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav aria-label="Lead List Pagination">
+    <ul class="pagination pagination-sm mb-0 shadow-xs">
       {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
             <i class="fa-solid fa-chevron-left"></i>
           </a>
         </li>
@@ -234,7 +244,7 @@
 
       {% for num in page_obj.paginator.page_range %}
         {% if page_obj.number == num %}
-          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          <li class="page-item active"><span class="page-link fw-bold">{{ num }}</span></li>
         {% elif num > page_obj.number|add:'-4' and num < page_obj.number|add:'4' %}
           <li class="page-item">
             <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
@@ -244,7 +254,7 @@
 
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
             <i class="fa-solid fa-chevron-right"></i>
           </a>
         </li>
@@ -253,8 +263,8 @@
       {% endif %}
     </ul>
   </nav>
+  {% endif %}
 </div>
-{% endif %}
   </div> <!-- /Right Side Main Content -->
 </div> <!-- /Split View Container -->
 {% endblock %}

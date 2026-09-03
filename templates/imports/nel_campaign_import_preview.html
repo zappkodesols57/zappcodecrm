@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Import Leads - Duplicate Conflict Resolution{% endblock %}
+
+{% block extra_head %}
+<style>
+  .conflict-card {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  }
+  .stat-pill {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+  .table-conflict th {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .table-conflict td {
+    font-size: 0.85rem;
+    vertical-align: middle;
+  }
+  .row-dup {
+    background-color: #fffbeb !important;
+  }
+  .row-new {
+    background-color: #f0fdf4 !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 px-2 px-md-3">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold text-dark mb-1">
+        <i class="fa-solid fa-list-check text-primary me-2"></i>Review & Resolve Duplicate Leads
+      </h4>
+      <p class="text-muted small mb-0">
+        Campaign: <span class="badge bg-primary text-white">{{ campaign.name }}</span> &bull; 
+        Source File: <code>{{ original_filename }}</code> &bull; 
+        Hospital: <strong>{{ target_hospital.name|default:"General / Zappcode" }}</strong>
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'imports:upload' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-none">
+        <i class="fa-solid fa-arrow-left me-1"></i> Cancel & Back
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Stats Bar -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="stat-pill bg-white border d-flex justify-content-between align-items-center shadow-sm">
+        <div>
+          <span class="text-muted small d-block">Total Rows in File</span>
+          <span class="fs-4 fw-bold text-dark">{{ stats.total }}</span>
+        </div>
+        <i class="fa-solid fa-file-lines fs-3 text-secondary opacity-50"></i>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-pill bg-success bg-opacity-10 border border-success-subtle d-flex justify-content-between align-items-center shadow-sm">
+        <div>
+          <span class="text-success small d-block fw-bold">New Unique Leads (Ready)</span>
+          <span class="fs-4 fw-bold text-success">{{ stats.new_unique }}</span>
+        </div>
+        <i class="fa-solid fa-user-plus fs-3 text-success"></i>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-pill bg-warning bg-opacity-10 border border-warning-subtle d-flex justify-content-between align-items-center shadow-sm">
+        <div>
+          <span class="text-warning small d-block fw-bold">Duplicate Numbers Found</span>
+          <span class="fs-4 fw-bold text-warning">{{ stats.duplicates }}</span>
+        </div>
+        <i class="fa-solid fa-triangle-exclamation fs-3 text-warning"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form for Execution -->
+  <form method="POST" action="{% url 'imports:campaign_import_execute' %}">
+    {% csrf_token %}
+    <input type="hidden" name="cache_key" value="{{ cache_key }}">
+    <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+    <input type="hidden" name="target_hospital_id" value="{{ target_hospital.id|default:'' }}">
+
+    <!-- Global Duplicate Action Controller -->
+    {% if stats.duplicates > 0 %}
+    <div class="card border-warning mb-4 shadow-sm">
+      <div class="card-body p-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+          <h6 class="fw-bold text-warning mb-1">
+            <i class="fa-solid fa-sliders me-1"></i> Quick Bulk Resolution for All Duplicates:
+          </h6>
+          <span class="text-muted small">Choose how you want to handle all {{ stats.duplicates }} existing contact records:</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-danger fw-bold" onclick="applyBulkAction('discard')">
+            <i class="fa-solid fa-trash me-1"></i> Discard All Duplicates (Skip)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success fw-bold" onclick="applyBulkAction('keep')">
+            <i class="fa-solid fa-clone me-1"></i> Keep All (Create New Lead)
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="applyBulkAction('update')">
+            <i class="fa-solid fa-pen-to-square me-1"></i> Update Existing Records
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Table of Leads -->
+    <div class="card conflict-card border-0 mb-4">
+      <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark small"><i class="fa-solid fa-table me-1 text-primary"></i> Leads Data Verification Table</span>
+        <span class="badge bg-secondary">{{ rows|length }} records</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover table-conflict align-middle mb-0">
+          <thead class="bg-light text-muted">
+            <tr>
+              <th class="py-2 px-3">#</th>
+              <th class="py-2">Incoming Lead Info</th>
+              <th class="py-2">Phone & Email</th>
+              <th class="py-2">Platform / Date</th>
+              <th class="py-2">Survey Response / Notes</th>
+              <th class="py-2">Duplicate Status</th>
+              <th class="py-2 px-3 text-end" style="min-width: 170px;">Action Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr class="{% if r.is_duplicate %}row-dup{% else %}row-new{% endif %}">
+              
+              <td class="px-3 fw-bold text-muted">{{ r.row_index }}</td>
+              
+              <!-- Name & Initial Tag -->
+              <td>
+                <div class="fw-bold text-dark">{{ r.name }}</div>
+                <div class="small">
+                  <span class="badge bg-danger text-white py-0 px-1" style="font-size: 0.68rem;">HOT</span>
+                  <span class="badge bg-primary text-white py-0 px-1" style="font-size: 0.68rem;">NEW</span>
+                </div>
+              </td>
+
+              <!-- Phone & Email -->
+              <td>
+                <div class="fw-bold text-primary"><i class="fa-solid fa-phone me-1 text-secondary"></i> {{ r.mobile }}</div>
+                {% if r.email %}<div class="text-muted small"><i class="fa-solid fa-envelope me-1"></i> {{ r.email }}</div>{% endif %}
+              </td>
+
+              <!-- Platform & Date -->
+              <td>
+                <span class="badge bg-light text-dark border">{{ r.source_name }}</span>
+                <div class="text-muted small mt-1"><i class="fa-solid fa-calendar-day me-1"></i> {{ r.inquiry_date }}</div>
+              </td>
+
+              <!-- Survey Notes -->
+              <td>
+                {% if r.notes %}
+                <span class="badge bg-info bg-opacity-10 text-dark border border-info-subtle text-wrap text-start" style="font-size: 0.76rem; max-width: 250px;">
+                  {{ r.notes }}
+                </span>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Duplicate Comparison -->
+              <td>
+                {% if r.is_duplicate %}
+                <div class="p-2 rounded bg-white border border-warning">
+                  <div class="text-danger fw-bold small"><i class="fa-solid fa-circle-exclamation me-1"></i> Exists as #{{ r.existing_lead_code }}</div>
+                  <div class="text-muted small">Name: <strong>{{ r.existing_name }}</strong></div>
+                  <div class="text-muted small">Stage: <span class="badge bg-light text-dark border">{{ r.existing_stage }}</span></div>
+                  <div class="text-muted small">Assigned: {{ r.existing_assigned }}</div>
+                </div>
+                {% else %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                  <i class="fa-solid fa-check me-1"></i> New Lead
+                </span>
+                {% endif %}
+              </td>
+
+              <!-- Action Selector -->
+              <td class="px-3 text-end">
+                {% if r.is_duplicate %}
+                <select name="action_{{ forloop.counter0 }}" class="form-select form-select-sm dup-action-select" style="font-size: 0.8rem;">
+                  <option value="discard" selected>Discard (Skip)</option>
+                  <option value="keep">Keep (Create New)</option>
+                  <option value="update">Update Existing</option>
+                </select>
+                {% else %}
+                <input type="hidden" name="action_{{ forloop.counter0 }}" value="create">
+                <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-plus me-1"></i> Will Create</span>
+                {% endif %}
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card-footer bg-light p-3 d-flex justify-content-between align-items-center">
+        <a href="{% url 'imports:upload' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="fa-solid fa-times me-1"></i> Cancel
+        </a>
+        <button type="submit" class="btn btn-success fw-bold px-4 py-2 shadow-sm rounded-3">
+          <i class="fa-solid fa-check-double me-1"></i> Confirm & Import Leads Now
+        </button>
+      </div>
+
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+  function applyBulkAction(actionValue) {
+    const selects = document.querySelectorAll('.dup-action-select');
+    selects.forEach(sel => {
+      sel.value = actionValue;
+    });
+  }
+</script>
+{% endblock %}

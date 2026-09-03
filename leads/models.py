@@ -472,6 +472,32 @@ class Lead(models.Model):
         return default
 
     @property
+    def effective_created_display(self):
+        """
+        Original Date & Time:
+        - If lead came from Excel / Ads Import or has inquiry_date / historical timestamp:
+          shows the original inquiry_date (+ received time if present).
+        - If manually registered via Walk-in / Add Lead form:
+          shows the exact creation datetime when saved.
+        """
+        cd = self.custom_data or {}
+        time_str = cd.get('lead_received_time') or cd.get('time')
+        
+        # If it was imported from campaign/excel file or has historical inquiry date:
+        if self.import_job_id or self.import_source_file or (self.inquiry_date and self.created_at and self.inquiry_date < self.created_at.date()):
+            d_str = self.inquiry_date.strftime('%d %b %Y') if self.inquiry_date else (self.created_at.strftime('%d %b %Y') if self.created_at else '—')
+            if time_str and str(time_str).strip().lower() not in ('none', 'nan', ''):
+                return f"{d_str}, {time_str}"
+            return d_str
+
+        # Manually added / direct walk-in leads:
+        if self.created_at:
+            return self.created_at.strftime('%d %b %Y, %I:%M %p')
+        if self.inquiry_date:
+            return self.inquiry_date.strftime('%d %b %Y')
+        return "—"
+
+    @property
     def custom_dept(self):
         dept = self.get_custom("department") or self.get_custom("disease")
         if not dept and self.course_id and self.course:
@@ -491,16 +517,50 @@ class Lead(models.Model):
 
     @property
     def custom_priority(self):
+        st = self.display_status
+        # For terminal / booked / paid / cancelled stages: NO priority tag is shown
+        if st in ("Payment Done", "Booked", "Payment Pending", "Cancelled", "Lost", "Awaiting Approval"):
+            return None
+
         prio = self.get_custom("priority")
-        if prio:
-            return prio
-        temp = (self.temperature or "").strip()
-        if temp and temp.upper() != 'UNCONTACTED':
-            return self.get_temperature_display()
-        # If assigned or updated, it is no longer uncontacted
-        if self.assigned_to_id or self.stage_id or (self.custom_data and (self.custom_data.get('appointment_status') or self.custom_data.get('deal_status'))):
-            return "Medium" if self.hospital else "Normal"
-        return "Uncontacted"
+        if prio and prio.lower() not in ("nan", "none", ""):
+            return prio.title()
+
+        cd = self.custom_data or {}
+        r1 = str(cd.get("remark_1") or "").strip()
+        r2 = str(cd.get("remark_2") or "").strip()
+        r3 = str(cd.get("remark_3") or "").strip()
+
+        def is_clean_val(v):
+            return bool(v and v.lower() not in ("nan", "none", "—", ""))
+
+        def is_call_not_rec(v):
+            if not is_clean_val(v):
+                return False
+            v_up = v.upper()
+            return any(k in v_up for k in [
+                "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
+                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE"
+            ])
+
+        has_calling_notes = is_clean_val(r1) or is_clean_val(r2) or is_clean_val(r3)
+
+        # 1. Unassigned or no calling interaction taken yet -> HOT
+        if not has_calling_notes:
+            return "Hot"
+
+        # 2. Sequential unanswered calling remarks:
+        if is_call_not_rec(r3) and is_call_not_rec(r2) and is_call_not_rec(r1):
+            return "Freeze"
+        if is_call_not_rec(r3):
+            return "Freeze"
+        if is_call_not_rec(r2):
+            return "Cold"
+        if is_call_not_rec(r1):
+            return "Warm"
+
+        temp = (self.temperature or "WARM").strip()
+        return self.get_temperature_display() if temp else "Warm"
 
     @property
     def custom_camp(self):
@@ -510,32 +570,176 @@ class Lead(models.Model):
         return camp or ""
 
     @property
+    def total_billed_amount(self):
+        cd = self.custom_data or {}
+        try:
+            val = float(cd.get("total_paid") or cd.get("total") or 0.0)
+            return val
+        except (ValueError, TypeError):
+            return 0.0
+
+    @property
     def custom_deal_status(self):
         cd = self.custom_data or {}
-        status = cd.get("deal_status") or (self.stage.name if self.stage_id and self.stage else "")
-        if self.hospital:
-            if str(status).strip().lower() in ("admission", "admission done", "won", "won (payment done)"):
+        tot = self.total_billed_amount
+        raw_ds = str(cd.get("deal_status") or (self.stage.name if self.stage_id and self.stage else "")).strip()
+        appt_st = str(cd.get("appointment_status") or "").strip().upper()
+        attendant = cd.get("lead_attendant") or (self.assigned_to.get_full_name() if self.assigned_to else "")
+
+        # 1. Payment Done (total bill > 0 or deal status Won)
+        if tot > 0 or self.deal_status == DealStatus.WON or raw_ds.lower() in ("won", "won (payment done)", "admission", "admission done", "payment done"):
+            if tot > 0:
                 return "Payment Done"
-        if not status:
-            temp = (self.temperature or "").upper()
-            if temp in ("UNCONTACTED", "") and not self.assigned_to_id:
-                return "New"
-            elif self.temperature:
-                return self.get_temperature_display()
+            # If total bill is 0 or unrecorded:
+            if "COMPLET" in appt_st or "DONE" in appt_st or "VISIT" in appt_st:
+                return "Payment Pending"
+            elif "BOOK" in appt_st or "CONFIRM" in appt_st or "YES" in appt_st:
+                return "Booked"
+            elif "CANCEL" in appt_st or self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper():
+                return "Cancelled" if "CANCEL" in appt_st else "Lost"
+            return "Open"
+
+        # 2. Cancelled / Lost
+        if "CANCEL" in appt_st or "CANCEL" in raw_ds.upper():
+            return "Cancelled"
+        if self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper() or "NOT INT" in appt_st:
+            return "Lost"
+
+        # 3. Booked
+        if "BOOK" in appt_st or "CONFIRM" in appt_st or appt_st == "YES":
+            return "Booked"
+
+        # 4. Completed visit with no bill
+        if "COMPLET" in appt_st or "DONE" in appt_st or "VISIT" in appt_st:
+            return "Payment Pending"
+        if "AWAIT" in appt_st:
+            return "Awaiting Approval"
+
+        # 5. Check Assignment and Untouched state
+        is_assigned = bool(self.assigned_to_id or (attendant and str(attendant).strip().lower() not in ("unassigned", "none", "nan", "", "-")))
+        
+        has_calling_notes = any(
+            cd.get(k) and str(cd.get(k)).strip().lower() not in ("nan", "none", "", "—")
+            for k in ["remark_1", "remark_2", "remark_3"]
+        )
+
+        today = timezone.localdate()
+        lead_creation_date = self.created_at.date() if self.created_at else (self.inquiry_date or today)
+
+        # If lead has an Attendant assigned and no terminal appointment status is set:
+        if is_assigned:
+            if raw_ds and raw_ds.lower() not in ("open", "new", "nan", "none", "", "assigned"):
+                return raw_ds
+            return "Assigned"
+
+        # If lead was added TODAY and is unassigned -> Status: "New"
+        if not is_assigned and not has_calling_notes and lead_creation_date == today:
             return "New"
-        return status
+
+        # If unassigned and older -> Status: "Open"
+        if not is_assigned:
+            return "Open"
+
+        if raw_ds and raw_ds.lower() not in ("open", "new", "nan", "none", ""):
+            return raw_ds
+
+        return "Open"
 
     @property
     def display_status(self):
         return self.custom_deal_status
 
     @property
-    def custom_status_display(self):
-        return self.custom_deal_status
+    def remark_detail(self):
+        """
+        Dynamic remark based on lifecycle:
+        - If Payment Done: Total billed amount (e.g. ₹47,226)
+        - If Booked: Appointment date (or time/schedule)
+        - If Payment Pending: 'Billing Pending'
+        - If Lost / Cancelled: Reason or specific remark
+        - If New (Added Today, unassigned & untouched): 'New Enquiry'
+        - If Open:
+            - If created_date < today and untouched/unassigned: 'Hot'
+            - If attendant assigned and untouched: 'Hot'
+            - Remark 1 is 'Call Not Received' / unanswered: 'Warm'
+            - Remark 2 is also 'Call Not Received' / unanswered: 'Cold'
+            - Remark 3 is also 'Call Not Received' / unanswered: 'Freeze'
+            - Otherwise: Actual calling note or temperature
+        """
+        st = self.display_status
+        cd = self.custom_data or {}
+        tot = self.total_billed_amount
 
-    @property
-    def custom_appointment_status(self):
-        return self.get_custom("appointment_status") or ""
+        if st == "Payment Done":
+            if tot > 0:
+                return f"₹{tot:,.0f}" if tot.is_integer() else f"₹{tot:,.2f}"
+            return "₹0"
+
+        if st == "Booked":
+            appo_date = cd.get("appo_booked_date") or self.next_followup_date
+            if appo_date:
+                return f"{appo_date}"
+            return "Slot Scheduled"
+
+        if st == "Payment Pending":
+            return "Billing Pending"
+
+        if st in ("Lost", "Cancelled"):
+            reason = cd.get("cancellation_reason") or cd.get("remark_1") or cd.get("remark_2") or cd.get("remark_3")
+            if reason and str(reason).strip().lower() not in ("nan", "none", ""):
+                return str(reason).strip()[:40]
+            return st
+
+        if st == "New":
+            return "New Enquiry"
+
+        # For Open (and other active leads):
+        r1 = str(cd.get("remark_1") or "").strip()
+        r2 = str(cd.get("remark_2") or "").strip()
+        r3 = str(cd.get("remark_3") or "").strip()
+
+        def is_clean_val(v):
+            return bool(v and v.lower() not in ("nan", "none", "—", ""))
+
+        def is_call_not_rec(v):
+            if not is_clean_val(v):
+                return False
+            v_up = v.upper()
+            return any(k in v_up for k in [
+                "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
+                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE"
+            ])
+
+        has_r1 = is_clean_val(r1)
+        has_r2 = is_clean_val(r2)
+        has_r3 = is_clean_val(r3)
+
+        # Condition 1: No calling remark taken yet -> Hot
+        if not has_r1 and not has_r2 and not has_r3:
+            return "Hot"
+
+        # Condition 2: 3rd remark is Call Not Received -> Freeze
+        if is_call_not_rec(r3) and is_call_not_rec(r2) and is_call_not_rec(r1):
+            return "Freeze"
+        if is_call_not_rec(r3):
+            return "Freeze"
+
+        # Condition 3: 2nd remark is Call Not Received -> Cold
+        if is_call_not_rec(r2):
+            return "Cold"
+
+        # Condition 4: 1st remark is Call Not Received -> Warm
+        if is_call_not_rec(r1):
+            return "Warm"
+
+        # Fallback to latest human note or temperature
+        for rk_val in [r3, r2, r1, str(cd.get("comments") or "").strip()]:
+            if is_clean_val(rk_val):
+                return rk_val[:40]
+
+        temp = (self.temperature or "WARM").strip()
+        return self.get_temperature_display() if temp else "Warm"
+
 
     def save(self, *args, **kwargs):
         if not self.lead_code:
@@ -554,6 +758,54 @@ class Lead(models.Model):
             self.original_referral_person = self.referral_person
             self.original_landing_page = self.landing_page
         super().save(*args, **kwargs)
+
+    @property
+    def is_booked(self):
+        """Check if lead has a confirmed booked appointment or status."""
+        cd = self.custom_data or {}
+        st = str(self.display_status or "").strip().lower()
+        if "book" in st or "complete" in st or "won" in st:
+            return True
+        apt_st = str(cd.get("appointment_status") or "").strip().lower()
+        if "book" in apt_st or "complete" in apt_st or apt_st == "yes" or "done" in apt_st:
+            return True
+        if cd.get("appo_booked_date"):
+            return True
+        return False
+
+    @property
+    def whatsapp_message(self):
+        """
+        Dynamically returns:
+        - If Booked: Customized Appointment Confirmation with Dr, Date, Time & Hospital name.
+        - If Not Booked: Warm Welcoming greeting message with Hospital & Agent name.
+        """
+        import urllib.parse
+        cd = self.custom_data or {}
+        hosp = (self.hospital.name if self.hospital else "Nelson Mother & Child Care Hospital").strip()
+        patient_name = (self.name or "Valued Patient").strip()
+        doc = (cd.get("doctor") or "our specialist doctor").strip()
+        appt_date = str(cd.get("appo_booked_date") or cd.get("appointment_date") or "").strip()
+        appt_time = str(cd.get("appointment_time") or "").strip()
+
+        if self.is_booked:
+            date_part = f" for {appt_date}" if appt_date else ""
+            time_part = f" at {appt_time}" if appt_time else ""
+            text = (
+                f"Hello {patient_name}, Greetings from {hosp}!\n\n"
+                f"Your appointment with Dr. {doc} at {hosp} is confirmed{date_part}{time_part}.\n\n"
+                f"Please reach 15 minutes prior to your scheduled slot. We look forward to serving you with the highest standard of care.\n\n"
+                f"For any queries, feel free to reply here.\n"
+                f"Warm Regards,\n{hosp}"
+            )
+        else:
+            text = (
+                f"Hello {patient_name}, Greetings from {hosp}!\n\n"
+                f"Thank you for connecting with us. We are pleased to assist you with your healthcare and doctor consultation inquiry.\n\n"
+                f"Please let us know your preferred date, time, or specialist requirement so we can assist you with your appointment.\n\n"
+                f"Warm Regards,\nPatient Care Team - {hosp}"
+            )
+        return urllib.parse.quote(text)
 
     @staticmethod
     def clean_mobile(raw):

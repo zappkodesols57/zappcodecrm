@@ -138,6 +138,13 @@ class User(AbstractUser):
         return default
 
     @property
+    def daily_call_target(self):
+        try:
+            return int(self.custom_permissions.get("daily_call_target", 100))
+        except (ValueError, TypeError):
+            return 100
+
+    @property
     def can_manage_users(self):
         return self.has_dynamic_permission("manage_users", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER))
 

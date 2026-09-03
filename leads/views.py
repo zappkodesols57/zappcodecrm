@@ -37,6 +37,9 @@ def _can_edit_lead(user, lead):
     # 2. Within-Business Edit Permission Check
     if user.can_edit_any_lead:
         return True
+    if user.role == User.Role.LEAD_ATTENDENT:
+        # Lead Attendants can call, edit, and update patient leads within their hospital
+        return True
     if user.can_edit_own_leads and lead.assigned_to == user:
         return True
     if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
@@ -186,8 +189,44 @@ def lead_list(request):
     if selected_deal_statuses:
         st_q = Q()
         for ds_val in selected_deal_statuses:
-            if ds_val:
-                st_q |= Q(deal_status__iexact=ds_val) | Q(custom_data__deal_status__iexact=ds_val) | Q(stage__name__iexact=ds_val)
+            if not ds_val:
+                continue
+            v_lower = ds_val.lower().strip()
+            sub_q = Q(deal_status__iexact=ds_val) | Q(custom_data__deal_status__iexact=ds_val) | Q(stage__name__iexact=ds_val)
+            
+            if 'book' in v_lower:
+                sub_q |= (
+                    Q(custom_data__appointment_status__icontains='Book') |
+                    Q(custom_data__appointment_status__icontains='Booking') |
+                    Q(custom_data__appointment_status__iexact='YES') |
+                    Q(custom_data__appo_booked_date__isnull=False)
+                )
+            elif 'payment' in v_lower or 'won' in v_lower:
+                sub_q |= (
+                    Q(deal_status=DealStatus.WON) |
+                    Q(custom_data__deal_status__icontains='Won') |
+                    Q(custom_data__deal_status__icontains='Payment Done') |
+                    Q(custom_data__total_paid__gt='0') |
+                    Q(custom_data__total__gt='0')
+                )
+            elif 'cancel' in v_lower:
+                sub_q |= (
+                    Q(deal_status=DealStatus.LOST) |
+                    Q(custom_data__appointment_status__icontains='Cancel') |
+                    Q(custom_data__deal_status__icontains='Cancel')
+                )
+            elif 'lost' in v_lower or 'not int' in v_lower:
+                sub_q |= (
+                    Q(deal_status=DealStatus.LOST) |
+                    Q(custom_data__deal_status__icontains='Lost') |
+                    Q(custom_data__appointment_status__icontains='Not Int')
+                )
+            elif 'open' in v_lower:
+                sub_q |= Q(deal_status=DealStatus.OPEN) | Q(deal_status='New') | Q(custom_data__deal_status__iexact='Open')
+            elif 'assigned' in v_lower:
+                sub_q |= Q(assigned_to__isnull=False) | Q(custom_data__deal_status__iexact='Assigned')
+            
+            st_q |= sub_q
         leads = leads.filter(st_q)
 
     if selected_stages:
@@ -205,7 +244,16 @@ def lead_list(request):
         apt_q = Q()
         for apt_val in selected_appointment_statuses:
             if apt_val:
-                apt_q |= Q(custom_data__appointment_status__icontains=apt_val)
+                v_l = apt_val.lower().strip()
+                if 'book' in v_l:
+                    apt_q |= (
+                        Q(custom_data__appointment_status__icontains='Book') |
+                        Q(custom_data__appointment_status__icontains='Booking') |
+                        Q(custom_data__appointment_status__iexact='YES') |
+                        Q(custom_data__appo_booked_date__isnull=False)
+                    )
+                else:
+                    apt_q |= Q(custom_data__appointment_status__icontains=apt_val)
         leads = leads.filter(apt_q)
 
     # 8. Priority & Temperature filter
@@ -215,6 +263,21 @@ def lead_list(request):
             if p_val:
                 prio_q |= Q(custom_data__priority__iexact=p_val) | Q(temperature__iexact=p_val)
         leads = leads.filter(prio_q)
+        
+        # When filtering by Priority/Temperature (e.g. HOT), exclude converted / closed / booked / paid / cancelled leads
+        p_vals_upper = [str(x).upper() for x in (selected_priorities + selected_temperatures)]
+        if any(x in ['HOT', 'WARM', 'COLD', 'FREEZE'] for x in p_vals_upper):
+            leads = leads.exclude(
+                Q(deal_status=DealStatus.WON) |
+                Q(deal_status=DealStatus.LOST) |
+                Q(custom_data__appointment_status__icontains='Book') |
+                Q(custom_data__appointment_status__icontains='Complete') |
+                Q(custom_data__appointment_status__icontains='Cancel') |
+                Q(custom_data__appointment_status__iexact='YES') |
+                Q(custom_data__deal_status__icontains='Won') |
+                Q(custom_data__deal_status__icontains='Payment Done') |
+                Q(custom_data__total_paid__gt='0')
+            )
 
     # 9. Location / City filter
     if selected_locations:
@@ -466,7 +529,7 @@ def lead_list(request):
         context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
         context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
 
-    template_name = "leads/hospital_lead_list.html" if request.user.hospital else "leads/academy_lead_list.html"
+    template_name = "leads/nel_lead_list.html" if request.user.hospital else "leads/zapp_lead_list.html"
     return render(request, template_name, context)
 
 
@@ -478,7 +541,7 @@ def lead_add(request):
         
     duplicates = None
     FormClass = HospitalLeadForm if request.user.hospital else LeadForm
-    template = "leads/hospital_lead_form.html" if request.user.hospital else "leads/academy_lead_form.html"
+    template = "leads/nel_lead_form.html" if request.user.hospital else "leads/zapp_lead_form.html"
     
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
@@ -594,7 +657,7 @@ def lead_edit(request, pk):
         return redirect("leads:lead_list")
         
     FormClass = HospitalLeadForm if lead.hospital else LeadForm
-    template = "leads/hospital_lead_form.html" if lead.hospital else "leads/academy_lead_form.html"
+    template = "leads/nel_lead_form.html" if lead.hospital else "leads/zapp_lead_form.html"
     
     if request.method == "POST":
         if is_view_only:
@@ -712,16 +775,19 @@ def lead_edit(request, pk):
     # Get latest active/confirmed appointment for this lead
     latest_appointment = Appointment.objects.filter(lead=lead).order_by('-appointment_date', '-id').first()
     
-    # If appointment exists or lead has booked date/doctor and completed/confirmed status
+    # If actual Appointment object exists or lead has real booked date and valid confirmed status
+    has_booked_date = bool(cd.get('appo_booked_date') and str(cd.get('appo_booked_date')).strip() not in ['', 'nan', 'None', '-'])
+    is_confirmed_status = any(k in apt_status_str for k in ['BOOK', 'CONFIRM', 'COMPLET', 'VISIT', 'YES', 'DONE'])
+    
     is_appointment_confirmed = False
     if latest_appointment:
         is_appointment_confirmed = True
-    elif cd.get('appo_booked_date') or cd.get('doctor'):
+    elif has_booked_date and is_confirmed_status:
         is_appointment_confirmed = True
 
     current_apt_status = cd.get("appointment_status") or ""
-    if (is_appointment_confirmed or is_payment_done or is_appointment_completed) and (not current_apt_status or current_apt_status in ['Completed', 'Payment Done', 'Booked']):
-        current_apt_status = "Booking"
+    if current_apt_status in ['nan', 'None', 'null', 'NULL', '']:
+        current_apt_status = ""
 
     saved_initial = {
         "hospital_branch": cd.get("hospital_branch") or cd.get("branch") or "",
@@ -804,7 +870,7 @@ def lead_detail(request, pk):
             if cf.name in cd and cd[cf.name] != "":
                 custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
         
-    template = "leads/hospital_lead_detail.html" if request.user.hospital else "leads/academy_lead_detail.html"
+    template = "leads/nel_lead_detail.html" if request.user.hospital else "leads/zapp_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
         "latest_appointment": latest_appointment,

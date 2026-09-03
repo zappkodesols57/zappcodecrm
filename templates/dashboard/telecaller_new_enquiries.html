@@ -45,9 +45,9 @@
             </ul>
         </div>
 
-        {% if user.can_import_export %}
+        {% if user.can_import_export or user.role == 'LEAD_ATTENDENT' or user.role == 'MANAGER' or user.role == 'ADMIN' or user.role == 'SUPER_ADMIN' %}
         <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-semibold">
-            <i class="fa-solid fa-file-excel me-1"></i> Import Excel
+            <i class="fa-solid fa-file-import me-1"></i> Import Leads
         </a>
         {% endif %}
         <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold">
@@ -77,7 +77,7 @@
             </div>
             <div class="col-md-3 col-12 d-flex gap-2">
                 <button type="submit" class="btn btn-primary rounded-pill flex-grow-1"><i class="fa-solid fa-search me-1"></i> Search</button>
-                <button class="btn btn-light border rounded-pill px-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#crmFilterDrawer" title="Open Filter Drawer">
+                <button class="btn btn-light border rounded-pill px-3" type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Filter Sidebar">
                     <i class="fa-solid fa-sliders text-primary"></i>
                 </button>
             </div>

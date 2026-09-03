@@ -77,4 +77,10 @@ restart_service.py
 update_domain.py
 add_logger.py
 import_nelson_excel.py
+clean_nelson_pipeline.py
+import_clean_nelson.py
+sync_hospital_masters.py
+inspect_*.py
+scratch/
+*.xml
 

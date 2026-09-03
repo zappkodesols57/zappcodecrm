@@ -1,0 +1,1712 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ request.user.hospital.name|default:'Nelson Hospital' }} Interactive Analytics Dashboard{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    :root {
+        --primary: #4f46e5;
+        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --bg-color: #f8fafc;
+        --surface: #ffffff;
+        --border: rgba(99, 102, 241, 0.12);
+        --radius-lg: 18px;
+        --radius-md: 12px;
+        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+    }
+
+    .nelson-dashboard {
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-main);
+    }
+
+    .filter-panel {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid #e2e8f0;
+        box-shadow: var(--shadow-sm);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .custom-filter-select,
+    .custom-filter-input {
+        border: 1.5px solid #94a3b8 !important;
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+        padding: 0.45rem 0.75rem !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        color: #1e293b !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .custom-filter-select:focus,
+    .custom-filter-input:focus {
+        border-color: #4f46e5 !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+        outline: none !important;
+    }
+
+    .filter-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #475569;
+        margin-bottom: 0.35rem;
+        display: block;
+        letter-spacing: 0.5px;
+    }
+
+    .stats-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .revenue-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 110px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card.c-leads {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    }
+
+    .stat-card.c-callnotdone {
+        background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+    }
+
+    .stat-card.c-appo {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    }
+
+    .stat-card.c-followup {
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    }
+
+    .stat-card.c-walkin {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    }
+
+    .stat-card.c-conv {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    }
+
+    .stat-card.c-won {
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    }
+
+    .stat-card.c-total-rev {
+        background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+    }
+
+    .stat-card.c-opd {
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    }
+
+    .stat-card.c-pharm {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    }
+
+    .stat-card.c-ipd {
+        background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%);
+    }
+
+    .stat-card.c-inv {
+        background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .stat-title {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #475569;
+        margin-bottom: 0.35rem;
+    }
+
+    .stat-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        color: white;
+    }
+
+    .stat-value {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    .stat-sub {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid #e2e8f0;
+        box-shadow: var(--shadow-sm);
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        flex-wrap: gap-2;
+    }
+
+    .chart-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .top-n-select {
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 6px;
+        color: #334155;
+        cursor: pointer;
+    }
+
+    .top-n-select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    /* Interactive Drilldown Calendar & Pill Styles */
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+    }
+
+    .cal-header-cell {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        padding-bottom: 4px;
+    }
+
+    .cal-day-cell {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        padding: 6px 2px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        min-height: 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .cal-day-cell:hover {
+        border-color: #4f46e5;
+        background: #f5f3ff;
+        transform: translateY(-2px);
+    }
+
+    .cal-day-cell.active-day {
+        border-color: #4f46e5;
+        background: #4f46e5 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
+    }
+
+    .cal-day-cell.active-day .cal-day-num,
+    .cal-day-cell.active-day .cal-day-count {
+        color: #ffffff !important;
+    }
+
+    .cal-day-cell.has-leads {
+        border-color: #c7d2fe;
+        background: #eef2ff;
+    }
+
+    .cal-day-num {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1;
+    }
+
+    .cal-day-count {
+        font-size: 0.68rem;
+        font-weight: 800;
+        margin-top: 3px;
+        padding: 1px 4px;
+        border-radius: 10px;
+        line-height: 1;
+    }
+
+    .nav-time-pill {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 50rem;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .nav-time-pill:hover,
+    .nav-time-pill.active {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #ffffff;
+    }
+
+    .cal-day-cell.disabled-day {
+        opacity: 0.35 !important;
+        cursor: not-allowed !important;
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+        pointer-events: none !important;
+    }
+
+    .nav-time-pill.disabled-pill {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+        color: #94a3b8 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nelson-dashboard">
+    <!-- Header & Top Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold mb-0 text-dark">Dashboard</h4>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- 1. Single Filter Toggle Button right next to Today Date -->
+            <button type="button"
+                class="btn {% if has_active_filters %}btn-primary text-white shadow-sm{% else %}btn-white bg-white text-dark border{% endif %} btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2"
+                id="filterToggleBtn" style="font-size: 0.82rem;">
+                <i class="ph-bold ph-funnel {% if not has_active_filters %}text-primary{% endif %}"></i>
+                <span>Filters</span>
+                {% if has_active_filters %}
+                <span class="badge bg-white text-primary rounded-circle px-1" style="font-size: 0.65rem;">Active</span>
+                {% endif %}
+                <i class="ph ph-caret-down ms-1" id="filterChevronIcon"></i>
+            </button>
+
+            <!-- 2. Single Reset Button (Visible only when filters are active) -->
+            {% if has_active_filters %}
+            <a href="{% url 'dashboard:superadmin_home' %}"
+                class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 fw-bold text-decoration-none d-flex align-items-center gap-1"
+                style="font-size: 0.82rem;">
+                <i class="ph ph-arrow-counter-clockwise"></i> Reset
+            </a>
+            {% endif %}
+
+            <!-- 3. Time Filter Toggle: Today vs This Month -->
+            <div class="btn-group shadow-sm rounded-pill p-1 bg-white border" role="group">
+                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=today"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'today' or not time_filter %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
+                    style="font-size: 0.8rem;">
+                    <i class="ph-bold ph-sun me-1"></i> Today
+                </a>
+                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=this_month"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'this_month' %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
+                    style="font-size: 0.8rem;">
+                    <i class="ph-bold ph-calendar-blank me-1"></i> This Month
+                </a>
+                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=all_time"
+                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'all_time' %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
+                    style="font-size: 0.8rem;">
+                    <i class="ph-bold ph-database me-1"></i> All Time
+                </a>
+            </div>
+
+            <!-- 4. Today Date Badge -->
+            <div class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm"
+                style="font-size: 0.8rem; font-weight: 600;">
+                <i class="ph ph-calendar-blank text-primary me-1"></i> {{ today|date:"d M Y" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Filter Panel (Collapsible / Toggleable) -->
+    <div class="filter-panel mb-4" id="filterCollapseBody" style="display: none;">
+        <form method="GET" action="{% url 'dashboard:superadmin_home' %}" id="interactiveFilterForm">
+            <div class="row g-3">
+                <!-- 1. Campaign Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">CAMPAIGN</label>
+                    <select name="campaign" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Campaigns</option>
+                        {% for camp in campaigns %}
+                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 2. Source Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">LEAD SOURCE</label>
+                    <select name="source" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Lead Sources</option>
+                        {% for src in lead_sources %}
+                        <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 3. Department Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">DEPARTMENT</label>
+                    <select name="department" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 4. Doctor Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">DOCTOR NAME</label>
+                    <select name="doctor" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Doctors</option>
+                        {% for doc in doctors %}
+                        <option value="{{ doc }}" {% if current_doctor == doc %}selected{% endif %}>{{ doc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 5. Location Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">LOCATION</label>
+                    <select name="location" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Locations</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>{{ loc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 6. Payments Breakdown Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">PAYMENT / BILL FILTER</label>
+                    <select name="payment_type" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Leads (Paid & Unpaid)</option>
+                        <option value="all_paid" {% if current_payment_type == 'all_paid' %}selected{% endif %}>Won (All Paid Leads)</option>
+                        <option value="opd" {% if current_payment_type == 'opd' %}selected{% endif %}>Has OPD Bill</option>
+                        <option value="pharmacy" {% if current_payment_type == 'pharmacy' %}selected{% endif %}>Has Pharmacy Bill</option>
+                        <option value="ipd" {% if current_payment_type == 'ipd' %}selected{% endif %}>Has IPD Bill</option>
+                        <option value="investigation" {% if current_payment_type == 'investigation' %}selected{% endif %}>Has Investigation Bill</option>
+                        <option value="unpaid" {% if current_payment_type == 'unpaid' %}selected{% endif %}>Unpaid Leads Only</option>
+                    </select>
+                </div>
+
+                <!-- 7. Month Filter -->
+                <div class="col-md-2 col-sm-4">
+                    <label class="filter-label">MONTH</label>
+                    <select name="month" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Months</option>
+                        {% for m in months %}
+                        <option value="{{ m }}" {% if current_month == m %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 8. Year Filter -->
+                <div class="col-md-2 col-sm-4">
+                    <label class="filter-label">YEAR</label>
+                    <select name="year" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Years</option>
+                        {% for y in available_years %}
+                        <option value="{{ y }}" {% if current_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 9. Week Day Filter -->
+                <div class="col-md-2 col-sm-4">
+                    <label class="filter-label">WEEK DAY</label>
+                    <select name="weekday" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Week Days</option>
+                        {% for wd in weekdays %}
+                        <option value="{{ wd }}" {% if current_weekday == wd %}selected{% endif %}>{{ wd }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 10. Gender Filter -->
+                <div class="col-md-2 col-sm-4">
+                    <label class="filter-label">GENDER</label>
+                    <select name="gender" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <option value="">All Genders</option>
+                        <option value="FEMALE" {% if current_gender == 'FEMALE' %}selected{% endif %}>Female</option>
+                        <option value="MALE" {% if current_gender == 'MALE' %}selected{% endif %}>Male</option>
+                        <option value="Not Mentioned" {% if current_gender == 'Not Mentioned' %}selected{% endif %}>Not Mentioned</option>
+                    </select>
+                </div>
+
+                <!-- 11. Custom Date Range Inputs (Locked to today's max date) -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">FROM DATE</label>
+                    <input type="date" name="start_date" id="filterStartDate"
+                        class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}"
+                        max="{{ today_str }}">
+                </div>
+
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">TO DATE</label>
+                    <input type="date" name="end_date" id="filterEndDate"
+                        class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}"
+                        max="{{ today_str }}">
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-2 border-top">
+                <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                    <i class="ph ph-check me-1"></i> Apply Slicers
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Main KPIs Cards Grid (5 Interactive Cards) -->
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));">
+
+    <!-- 1. Today's New Leads -->
+    <div class="stat-card c-leads cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('new_leads', 'New Leads', 'primary')" title="Click to view breakdown">
+        <div class="stat-header">
+            <div>
+                <div class="stat-title d-flex align-items-center gap-1">
+                    <span>{{ period_title_prefix }} New Leads</span>
+                    <i class="ph ph-arrow-up-right text-primary small" style="font-size: 0.85rem;"></i>
+                </div>
+                <div class="stat-value">{{ insights.todays_new_leads|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);">
+                <i class="ph ph-user-plus"></i>
+            </div>
+        </div>
+        <div class="stat-sub pt-1 text-muted"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(59, 130, 246, 0.2);">
+            <span class="text-primary fw-semibold">Campaign: {{ insights.todays_campaign_leads|default:0 }}</span>
+            &nbsp;•&nbsp;
+            <span class="text-success fw-semibold">Organic: {{ insights.todays_organic_leads|default:0 }}</span>
+            &nbsp;•&nbsp;
+            <span class="text-purple fw-semibold">Walk-in: {{ insights.todays_walkin_leads|default:0 }}</span>
+        </div>
+    </div>
+
+    <!-- 2. Call Not Done -->
+    <div class="stat-card c-callnotdone cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'danger')"
+        title="Click to view breakdown">
+        <div class="stat-header">
+            <div>
+                <div class="stat-title d-flex align-items-center gap-1">
+                    <span class="text-danger">Call Not Done</span>
+                    <i class="ph ph-arrow-up-right text-danger small" style="font-size: 0.85rem;"></i>
+                </div>
+                <div class="stat-value text-danger">{{ insights.call_not_done|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-icon" style="background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);">
+                <i class="ph ph-phone-x"></i>
+            </div>
+        </div>
+        <div class="stat-sub pt-1 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(239, 68, 68, 0.2);">
+            <span>Uncontacted & Hot Leads</span>
+            <span class="text-danger fw-semibold">Action Required</span>
+        </div>
+    </div>
+
+    <!-- 3. Today's OPD / Appointment Booked -->
+    <div class="stat-card c-appo cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('opd_booked', 'OPD / Appointments Booked', 'warning')"
+        title="Click to view breakdown">
+        <div class="stat-header">
+            <div>
+                <div class="stat-title d-flex align-items-center gap-1">
+                    <span>{{ period_title_prefix }} OPD Booked</span>
+                    <i class="ph ph-arrow-up-right text-warning small" style="font-size: 0.85rem;"></i>
+                </div>
+                <div class="stat-value">{{ insights.appointments_booked|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+                <i class="ph ph-calendar-check"></i>
+            </div>
+        </div>
+        <div class="stat-sub pt-1 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(245, 158, 11, 0.2);">
+            <span>Confirmed & Scheduled</span>
+            <span class="text-warning-emphasis fw-semibold">Consultations</span>
+        </div>
+    </div>
+
+    <!-- 4. Today's Follow-ups -->
+    <div class="stat-card c-followup cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'purple')" title="Click to view breakdown">
+        <div class="stat-header">
+            <div>
+                <div class="stat-title d-flex align-items-center gap-1">
+                    <span>{{ period_title_prefix }} Follow-ups</span>
+                    <i class="ph ph-arrow-up-right text-purple small" style="font-size: 0.85rem;"></i>
+                </div>
+                <div class="stat-value">{{ insights.todays_followups|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);">
+                <i class="ph ph-clock-countdown"></i>
+            </div>
+        </div>
+        <div class="stat-sub pt-1 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(139, 92, 246, 0.2);">
+            <span>Due Queue for Today</span>
+            <span class="text-purple fw-semibold">Scheduled</span>
+        </div>
+    </div>
+
+    <!-- 5. Today's Walk-in -->
+    <div class="stat-card c-walkin cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('walkin', 'Walk-in Inquiries', 'success')" title="Click to view breakdown">
+        <div class="stat-header">
+            <div>
+                <div class="stat-title d-flex align-items-center gap-1">
+                    <span>{{ period_title_prefix }} Walk-in</span>
+                    <i class="ph ph-arrow-up-right text-success small" style="font-size: 0.85rem;"></i>
+                </div>
+                <div class="stat-value text-success">{{ insights.todays_walkin|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-icon" style="background: linear-gradient(135deg, #10B981 0%, #047857 100%);">
+                <i class="ph ph-person-simple-walk"></i>
+            </div>
+        </div>
+        <div class="stat-sub pt-1 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(16, 185, 129, 0.2);">
+            <span>Direct Reception Inquiries</span>
+            <span class="text-success fw-semibold">Physical Walk-in</span>
+        </div>
+    </div>
+
+</div>
+
+<!-- Charts Row 1: Location & Department -->
+<div class="charts-grid">
+    <!-- 1. Location Wise Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-map-pin text-primary"></i> Location-wise Leads
+            </h5>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                <select class="top-n-select" id="locationTopN" onchange="updateLocationChart()">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="15">Top 15</option>
+                    <option value="25">Top 25</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="locationChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 2. Department Wise Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-buildings text-primary"></i> Department Distribution
+            </h5>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                <select class="top-n-select" id="departmentTopN" onchange="updateDepartmentChart()">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="15">Top 15</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="departmentChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2: Month Wise & Final Lead Status -->
+<div class="charts-grid">
+    <!-- 3. Month Wise Leads Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-calendar text-primary"></i> Month-wise Inquiries
+            </h5>
+            <span class="badge bg-light text-muted border">Interactive</span>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="monthChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 4. Final Lead Status Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-chart-pie-slice text-primary"></i> Final Lead Status
+            </h5>
+            <span class="badge bg-light text-muted border">Outcomes</span>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="finalStatusChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 3: Doctor Performance & Campaign Wise -->
+<div class="charts-grid">
+    <!-- 5. Doctor Wise Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-user-circle-gear text-primary"></i> Doctor-wise Leads
+            </h5>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                <select class="top-n-select" id="doctorTopN" onchange="updateDoctorChart()">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="15">Top 15</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="doctorChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 6. Campaign Wise Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-megaphone text-primary"></i> Campaign-wise Volume
+            </h5>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                <select class="top-n-select" id="campaignTopN" onchange="updateCampaignChart()">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="15">Top 15</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="campaignChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 4: Appointment Status & Day of Week -->
+<div class="charts-grid">
+    <!-- 7. Appointment Status Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-check-square-offset text-primary"></i> Appointment Status Breakdown
+            </h5>
+            <span class="badge bg-light text-muted border">Click to Filter</span>
+        </div>
+        <div style="position: relative; height: 270px; width: 100%;">
+            <canvas id="appointmentStatusChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 8. Day of Week Pattern -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-clock text-primary"></i> Day of Week Pattern
+            </h5>
+            <span class="badge bg-light text-muted border">Click to Filter</span>
+        </div>
+        <div style="position: relative; height: 270px; width: 100%;">
+            <canvas id="weekdayChart"></canvas>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- UNIVERSAL INTERACTIVE CARD DRILLDOWN MODAL (Today / Previous / Next / All / Custom Calendar) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle"
+    aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
+
+
+            <!-- Modal Header with Time Navigator Pills -->
+            <div
+                class="modal-header bg-light border-bottom py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span id="drilldownCardBadgeIcon" class="badge bg-primary p-2 rounded-3 fs-6">
+                        <i class="ph ph-squares-four"></i>
+                    </span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2"
+                            id="universalCardModalTitle">
+                            Card Leads Breakdown
+                        </h5>
+                        <p class="text-muted small mb-0" id="universalCardModalSubtitle">
+                            Viewing records for: <strong id="drilldownActiveDateLabel"
+                                class="text-primary">Today</strong> (<span id="drilldownTotalBadge">0</span> records)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Interactive Time Modes (Today / Previous / Next / All / Custom) -->
+                <div class="d-flex align-items-center gap-1 flex-wrap">
+                    <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')"
+                        title="Previous Day">
+                        <i class="ph ph-caret-left me-1"></i> Prev
+                    </button>
+                    <button type="button" class="nav-time-pill active" id="pillToday"
+                        onclick="drilldownSetMode('today')" title="Today's Leads">
+                        <i class="ph ph-sun me-1"></i> Today
+                    </button>
+                    <button type="button" class="nav-time-pill" id="pillNext" onclick="drilldownSetMode('next')"
+                        title="Next Day">
+                        Next <i class="ph ph-caret-right ms-1"></i>
+                    </button>
+                    <button type="button" class="nav-time-pill" id="pillAll" onclick="drilldownSetMode('all')"
+                        title="All Time Leads">
+                        <i class="ph ph-database me-1"></i> All
+                    </button>
+                    <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()"
+                        title="Pick Any Specific Date with Live Count">
+                        <i class="ph ph-calendar me-1"></i> Custom Date <i class="ph ph-caret-down ms-1"></i>
+                    </button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4 bg-light bg-opacity-25">
+
+                <!-- Custom Interactive Calendar Heatmap Picker (Collapsible) -->
+                <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3"
+                    style="display: none; background: #ffffff;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                <i class="ph ph-calendar text-primary"></i>
+                                Select Any Date (<span id="calMonthTitle">September 2026</span>)
+                            </h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                                    onclick="changeCalMonth(-1)">
+                                    <i class="ph ph-caret-left"></i> Prev Month
+                                </button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                                    onclick="changeCalMonth(1)">
+                                    Next Month <i class="ph ph-caret-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 7 Column Calendar Days Grid -->
+                        <div class="cal-grid mb-2">
+                            <div class="cal-header-cell">Sun</div>
+                            <div class="cal-header-cell">Mon</div>
+                            <div class="cal-header-cell">Tue</div>
+                            <div class="cal-header-cell">Wed</div>
+                            <div class="cal-header-cell">Thu</div>
+                            <div class="cal-header-cell">Fri</div>
+                            <div class="cal-header-cell">Sat</div>
+                        </div>
+                        <div id="calDaysContainer" class="cal-grid">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campaign Wise Filter Bar (Active Campaigns & Counts) -->
+                <div id="drilldownCampaignBarWrapper" class="card shadow-sm border-0 mb-3 bg-white rounded-3" style="display: none;">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary bg-opacity-10 text-primary p-1 rounded">
+                                    <i class="ph-bold ph-megaphone"></i>
+                                </span>
+                                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Campaign-wise Records</span>
+                                <span class="badge bg-light text-muted border rounded-pill" id="campaignsTotalCountBadge">0 Campaigns</span>
+                            </div>
+                            <span class="text-muted small" style="font-size: 0.75rem;">Click any campaign to filter records</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap" id="drilldownCampaignPillsContainer">
+                            <!-- Populated dynamically with active campaigns and counts -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leads Table Section -->
+                <div class="card shadow-sm border-0 bg-white rounded-3">
+                    <div
+                        class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold text-dark" id="leadsTableHeading">Patient Records</span>
+                            <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0
+                                Leads</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="text" id="drilldownSearchInput"
+                                class="form-control form-control-sm rounded-pill" placeholder="Search in this list..."
+                                style="width: 220px;" oninput="filterDrilldownTable()">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable"
+                            style="font-size: 0.85rem;">
+                            <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
+                                <tr>
+                                    <th class="py-2 px-3">Patient Name</th>
+                                    <th class="py-2">Contact</th>
+                                    <th class="py-2">Source / Campaign</th>
+                                    <th class="py-2">Doctor / Dept</th>
+                                    <th class="py-2 text-center">Temperature</th>
+                                    <th class="py-2 text-center">Status</th>
+                                    <th class="py-2 text-center">Attendant</th>
+                                    <th class="py-2 px-3 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drilldownTableBody">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="drilldownEmptyState" class="text-center py-5 text-muted" style="display: none;">
+                        <i class="ph ph-tray fs-1 opacity-25 d-block mb-2"></i>
+                        <h6 class="fw-bold text-dark">No Leads Found For This Date / Mode</h6>
+                        <p class="small text-muted mb-0">Try picking another date from the calendar or click 'All' to
+                            view all records.</p>
+                    </div>
+
+                    <div id="drilldownLoadingState" class="text-center py-5 text-primary" style="display: none;">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span class="fw-semibold">Loading live lead metrics...</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer bg-light py-2 px-4 border-top d-flex justify-content-between align-items-center">
+                <span class="text-muted small">
+                    <i class="ph ph-info me-1"></i> Showing real-time updated lead status & temperatures
+                </span>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4"
+                    data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+{% block extra_js %}
+<script>
+    const insights = {{ insights_json| safe }};
+
+    Chart.defaults.color = '#334155';
+    Chart.defaults.borderColor = 'rgba(226, 232, 240, 0.8)';
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+
+    // Chart instances store
+    const chartInstances = {};
+
+    function getSortedTopN(dataObj, limit) {
+        const entries = Object.entries(dataObj || {}).filter(([k, v]) => v > 0);
+        entries.sort((a, b) => b[1] - a[1]);
+        const sliced = (limit === 'all' || !limit) ? entries : entries.slice(0, parseInt(limit));
+        return {
+            labels: sliced.map(e => e[0]),
+            values: sliced.map(e => e[1])
+        };
+    }
+
+    function createBarChart(canvasId, filterParam, colorHex, isHorizontal = true) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        const ctx = canvas.getContext('2d');
+
+        return new Chart(ctx, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Count', data: [], backgroundColor: colorHex, borderRadius: 6, barPercentage: 0.7 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: isHorizontal ? 'y' : 'x',
+                scales: {
+                    x: { beginAtZero: true, grid: { display: isHorizontal } },
+                    y: { grid: { display: !isHorizontal } }
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0 && filterParam) {
+                        const idx = elements[0].index;
+                        const label = chartInstances[canvasId].data.labels[idx];
+                        applyFilterParam(filterParam, label);
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) { return ' Leads: ' + ctx.raw.toLocaleString('en-IN'); }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function createDoughnutChart(canvasId, filterParam, dataObj, colorPalette) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        const ctx = canvas.getContext('2d');
+        const labels = Object.keys(dataObj || {});
+        const values = Object.values(dataObj || {});
+
+        return new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colorPalette || ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (e, elements) => {
+                    if (elements.length > 0 && filterParam) {
+                        const idx = elements[0].index;
+                        const label = labels[idx];
+                        applyFilterParam(filterParam, label);
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) { return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN'); }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function applyFilterParam(param, val) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get(param) === val) {
+            urlParams.delete(param); // Toggle off if clicked again
+        } else {
+            urlParams.set(param, val);
+        }
+        window.location.search = urlParams.toString();
+    }
+
+    // Top N Updaters
+    function updateLocationChart() {
+        const limit = document.getElementById('locationTopN').value;
+        const sorted = getSortedTopN(insights.location_distribution, limit);
+        chartInstances['locationChart'].data.labels = sorted.labels;
+        chartInstances['locationChart'].data.datasets[0].data = sorted.values;
+        chartInstances['locationChart'].update();
+    }
+
+    function updateDepartmentChart() {
+        const limit = document.getElementById('departmentTopN').value;
+        const sorted = getSortedTopN(insights.department_distribution, limit);
+        chartInstances['departmentChart'].data.labels = sorted.labels;
+        chartInstances['departmentChart'].data.datasets[0].data = sorted.values;
+        chartInstances['departmentChart'].update();
+    }
+
+    function updateDoctorChart() {
+        const limit = document.getElementById('doctorTopN').value;
+        const sorted = getSortedTopN(insights.doctor_distribution, limit);
+        chartInstances['doctorChart'].data.labels = sorted.labels;
+        chartInstances['doctorChart'].data.datasets[0].data = sorted.values;
+        chartInstances['doctorChart'].update();
+    }
+
+    function updateCampaignChart() {
+        const limit = document.getElementById('campaignTopN').value;
+        const sorted = getSortedTopN(insights.campaign_distribution, limit);
+        chartInstances['campaignChart'].data.labels = sorted.labels;
+        chartInstances['campaignChart'].data.datasets[0].data = sorted.values;
+        chartInstances['campaignChart'].update();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // --- 1. Filter Panel Open / Collapse (Only opens when user clicks Filters button) ---
+        const filterBody = document.getElementById('filterCollapseBody');
+        const filterToggleBtn = document.getElementById('filterToggleBtn');
+        const filterChevron = document.getElementById('filterChevronIcon');
+
+        // Always default to collapsed/hidden unless user explicitly clicks the Filters toggle button
+        filterBody.style.display = 'none';
+        if (filterChevron) {
+            filterChevron.classList.remove('ph-caret-up');
+            filterChevron.classList.add('ph-caret-down');
+        }
+
+        if (filterToggleBtn) {
+            filterToggleBtn.addEventListener('click', () => {
+                const isOpen = filterBody.style.display !== 'none';
+                if (isOpen) {
+                    filterBody.style.display = 'none';
+                    if (filterChevron) {
+                        filterChevron.classList.remove('ph-caret-up');
+                        filterChevron.classList.add('ph-caret-down');
+                    }
+                } else {
+                    filterBody.style.display = 'block';
+                    if (filterChevron) {
+                        filterChevron.classList.remove('ph-caret-down');
+                        filterChevron.classList.add('ph-caret-up');
+                    }
+                }
+            });
+        }
+
+
+
+        // --- 3. Initialize Interactive Charts ---
+        // 1. Location Bar Chart (Default Top 10)
+        chartInstances['locationChart'] = createBarChart('locationChart', 'location', '#4f46e5', true);
+        updateLocationChart();
+
+        // 2. Department Bar Chart (Default Top 10)
+        chartInstances['departmentChart'] = createBarChart('departmentChart', 'department', '#06b6d4', true);
+        updateDepartmentChart();
+
+        // 3. Month Wise Bar Chart (Vertical)
+        chartInstances['monthChart'] = createBarChart('monthChart', 'month', '#8b5cf6', false);
+        const monthEntries = Object.entries(insights.month_distribution || {});
+        chartInstances['monthChart'].data.labels = monthEntries.map(e => e[0]);
+        chartInstances['monthChart'].data.datasets[0].data = monthEntries.map(e => e[1]);
+        chartInstances['monthChart'].update();
+
+        // 4. Final Lead Status (Doughnut)
+        chartInstances['finalStatusChart'] = createDoughnutChart('finalStatusChart', '', insights.final_lead_status_distribution, [
+            '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#14B8A6'
+        ]);
+
+        // 5. Doctor Wise Bar Chart (Default Top 10)
+        chartInstances['doctorChart'] = createBarChart('doctorChart', 'doctor', '#10b981', true);
+        updateDoctorChart();
+
+        // 6. Campaign Wise Bar Chart (Default Top 10)
+        chartInstances['campaignChart'] = createBarChart('campaignChart', 'campaign', '#f59e0b', true);
+        updateCampaignChart();
+
+        // 7. Appointment Status (Doughnut)
+        chartInstances['appointmentStatusChart'] = createDoughnutChart('appointmentStatusChart', '', insights.appointment_status_distribution, [
+            '#10B981', '#64748B', '#EF4444', '#F59E0B', '#3B82F6'
+        ]);
+
+        // 8. Weekday Bar Chart (Vertical)
+        chartInstances['weekdayChart'] = createBarChart('weekdayChart', 'weekday', '#ec4899', false);
+        const wdEntries = Object.entries(insights.weekday_distribution || {});
+        chartInstances['weekdayChart'].data.labels = wdEntries.map(e => e[0]);
+        chartInstances['weekdayChart'].data.datasets[0].data = wdEntries.map(e => e[1]);
+        chartInstances['weekdayChart'].update();
+    });
+
+    // =========================================================================
+    // UNIVERSAL DRILLDOWN ENGINE (Today, Prev, Next, All, Custom Calendar with Counts)
+    // =========================================================================
+    let currentDrilldownCard = 'new_leads';
+    let currentDrilldownCardTitle = "Leads";
+    let currentDrilldownMode = 'today';
+    let currentDrilldownDate = '{{ today|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
+    let currentCalYear = new Date().getFullYear();
+    let currentCalMonth = new Date().getMonth() + 1;
+    let cachedLeadItems = [];
+
+    const cardBaseNameMap = {
+        'new_leads': 'Total Leads',
+        'call_not_done': 'Call Not Done Leads',
+        'opd_booked': 'OPD / Appointments',
+        'followups': 'Follow-ups Queue',
+        'walkin': 'Walk-in Leads',
+    };
+
+    const cardIconMap = {
+        'new_leads': { icon: 'ph-user-plus', colorClass: 'bg-primary' },
+        'call_not_done': { icon: 'ph-phone-x', colorClass: 'bg-danger' },
+        'opd_booked': { icon: 'ph-calendar-check', colorClass: 'bg-warning' },
+        'followups': { icon: 'ph-clock-countdown', colorClass: 'bg-purple' },
+        'walkin': { icon: 'ph-person-simple-walk', colorClass: 'bg-success' },
+    };
+
+    const todayStrGlobal = '{{ today|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
+
+    function isFutureDateAllowed() {
+        return currentDrilldownCard === 'opd_booked' || currentDrilldownCard === 'followups';
+    }
+
+    function updateModalDynamicTitle(dateDisplay) {
+        const baseName = cardBaseNameMap[currentDrilldownCard] || 'Leads';
+        const modalTitleEl = document.getElementById('universalCardModalTitle');
+        const leadsTableHeading = document.getElementById('leadsTableHeading');
+
+        if (modalTitleEl) {
+            if (dateDisplay && dateDisplay.toLowerCase() !== 'all time') {
+                modalTitleEl.innerText = `${baseName} for ${dateDisplay}`;
+            } else if (dateDisplay && dateDisplay.toLowerCase() === 'all time') {
+                modalTitleEl.innerText = `All ${baseName}`;
+            } else {
+                modalTitleEl.innerText = `${baseName} Breakdown`;
+            }
+        }
+        if (leadsTableHeading) {
+            leadsTableHeading.innerText = `${baseName} Records`;
+        }
+    }
+
+    function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
+        currentDrilldownCard = cardType;
+        currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
+        currentDrilldownMode = 'today';
+        currentDrilldownDate = todayStrGlobal;
+        currentCalYear = new Date().getFullYear();
+        currentCalMonth = new Date().getMonth() + 1;
+
+        // Set Initial Title & Badge
+        updateModalDynamicTitle('Today');
+        const iconConfig = cardIconMap[cardType] || { icon: 'ph-squares-four', colorClass: 'bg-primary' };
+        const badgeEl = document.getElementById('drilldownCardBadgeIcon');
+        if (badgeEl) {
+            badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
+            badgeEl.innerHTML = `<i class="ph ${iconConfig.icon}"></i>`;
+        }
+
+        // Configure Next Day Pill
+        const pillNext = document.getElementById('pillNext');
+        if (pillNext) {
+            if (isFutureDateAllowed()) {
+                pillNext.classList.remove('disabled-pill');
+                pillNext.disabled = false;
+                pillNext.title = 'Next Day';
+            } else {
+                pillNext.classList.add('disabled-pill');
+                pillNext.disabled = true;
+                pillNext.title = 'Future dates are only available for OPD Booked & Follow-ups';
+            }
+        }
+
+        // Reset Pills
+        updatePillUI('today');
+        document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+        document.getElementById('drilldownSearchInput').value = '';
+
+        // Show Modal & Fetch
+        const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
+        modal.show();
+
+        fetchDrilldownData();
+    }
+
+    function drilldownSetMode(mode) {
+        if (mode === 'next' && !isFutureDateAllowed()) {
+            return;
+        }
+        currentDrilldownMode = mode;
+        updatePillUI(mode);
+        if (mode !== 'custom') {
+            document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+        }
+        fetchDrilldownData();
+    }
+
+    function drilldownToggleCalendar() {
+        const calWrapper = document.getElementById('drilldownCalendarWrapper');
+        if (calWrapper.style.display === 'none') {
+            calWrapper.style.display = 'block';
+            updatePillUI('custom');
+            currentDrilldownMode = 'custom';
+            fetchDrilldownData();
+        } else {
+            calWrapper.style.display = 'none';
+        }
+    }
+
+    function updatePillUI(mode) {
+        ['pillPrev', 'pillToday', 'pillNext', 'pillAll', 'pillCustom'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active');
+        });
+
+        const pillNext = document.getElementById('pillNext');
+        if (pillNext) {
+            if (isFutureDateAllowed()) {
+                pillNext.classList.remove('disabled-pill');
+                pillNext.disabled = false;
+            } else {
+                pillNext.classList.add('disabled-pill');
+                pillNext.disabled = true;
+            }
+        }
+
+        if (mode === 'today') document.getElementById('pillToday')?.classList.add('active');
+        else if (mode === 'previous') document.getElementById('pillPrev')?.classList.add('active');
+        else if (mode === 'next' && isFutureDateAllowed()) document.getElementById('pillNext')?.classList.add('active');
+        else if (mode === 'all') document.getElementById('pillAll')?.classList.add('active');
+        else if (mode === 'custom') document.getElementById('pillCustom')?.classList.add('active');
+    }
+
+    function changeCalMonth(delta) {
+        const now = new Date();
+        const currentRealYear = now.getFullYear();
+        const currentRealMonth = now.getMonth() + 1;
+
+        if (delta > 0 && !isFutureDateAllowed()) {
+            if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
+                return;
+            }
+        }
+
+        currentCalMonth += delta;
+        if (currentCalMonth > 12) {
+            currentCalMonth = 1;
+            currentCalYear += 1;
+        } else if (currentCalMonth < 1) {
+            currentCalMonth = 12;
+            currentCalYear -= 1;
+        }
+        fetchDrilldownData();
+    }
+
+    function selectCalendarDate(dateStr) {
+        if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
+            return;
+        }
+        currentDrilldownDate = dateStr;
+        currentDrilldownMode = 'custom';
+        updatePillUI('custom');
+        fetchDrilldownData();
+    }
+
+    let cachedHospitalName = "{{ request.user.hospital.name|default:'Nelson Mother & Child Care Hospital'|escapejs }}";
+    let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Patient Care Team'|escapejs }}";
+
+    let selectedCampaignFilter = null;
+
+    function fetchDrilldownData() {
+        const loadingEl = document.getElementById('drilldownLoadingState');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        const tbody = document.getElementById('drilldownTableBody');
+
+        loadingEl.style.display = 'block';
+        emptyEl.style.display = 'none';
+        tbody.innerHTML = '';
+        selectedCampaignFilter = null;
+
+        const url = `/dashboard/superadmin/card-drilldown-api/?card_type=${currentDrilldownCard}&mode=${currentDrilldownMode}&target_date=${currentDrilldownDate}&year=${currentCalYear}&month=${currentCalMonth}`;
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                loadingEl.style.display = 'none';
+                if (data.status === 'success') {
+                    cachedLeadItems = data.lead_items || [];
+                    if (data.hospital_name) cachedHospitalName = data.hospital_name;
+                    if (data.agent_name) cachedAgentName = data.agent_name;
+
+                    // Update active date label
+                    if (data.selected_date !== 'all') {
+                        currentDrilldownDate = data.selected_date;
+                    }
+
+                    // Dynamically update Modal Title & Labels for specific date
+                    updateModalDynamicTitle(data.selected_date_display);
+
+                    document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
+                    document.getElementById('drilldownTotalBadge').innerText = data.total_count;
+                    document.getElementById('leadsTableCountBadge').innerText = `${data.total_count} Leads`;
+                    document.getElementById('calMonthTitle').innerText = data.cal_month_name;
+
+                    // Render Campaign Wise Breakdown Pills Bar
+                    renderCampaignPills(data.campaign_breakdown || [], data.total_count);
+
+                    // Render Calendar Heatmap
+                    renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
+
+                    // Render Leads List
+                    renderDrilldownTable(cachedLeadItems);
+                }
+            })
+            .catch(err => {
+                loadingEl.style.display = 'none';
+                console.error("Failed to load drilldown data:", err);
+            });
+    }
+
+    function renderCampaignPills(campaignList, totalCount) {
+        const wrapper = document.getElementById('drilldownCampaignBarWrapper');
+        const container = document.getElementById('drilldownCampaignPillsContainer');
+        const countBadge = document.getElementById('campaignsTotalCountBadge');
+
+        if (!wrapper || !container) return;
+
+        if (!campaignList || campaignList.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+
+        wrapper.style.display = 'block';
+        countBadge.innerText = `${campaignList.length} Active Campaigns`;
+        container.innerHTML = '';
+
+        // "All Campaigns" Master Pill
+        const allPill = document.createElement('button');
+        allPill.type = 'button';
+        allPill.className = `btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 ${!selectedCampaignFilter ? 'btn-primary text-white shadow-xs' : 'btn-light border text-dark'}`;
+        allPill.style.fontSize = '0.78rem';
+        allPill.innerHTML = `<span>All Campaigns</span> <span class="badge ${!selectedCampaignFilter ? 'bg-white text-primary' : 'bg-secondary bg-opacity-25 text-dark'} rounded-pill">${totalCount}</span>`;
+        allPill.onclick = () => selectCampaignFilter(null);
+        container.appendChild(allPill);
+
+        // Individual Campaign Pills
+        campaignList.forEach(camp => {
+            const isSelected = selectedCampaignFilter === camp.campaign_name;
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = `btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 ${isSelected ? 'btn-primary text-white shadow-xs' : 'btn-light border text-dark'}`;
+            pill.style.fontSize = '0.78rem';
+            pill.innerHTML = `<span>${camp.campaign_name}</span> <span class="badge ${isSelected ? 'bg-white text-primary' : 'bg-primary bg-opacity-10 text-primary'} rounded-pill">${camp.count}</span>`;
+            pill.onclick = () => selectCampaignFilter(camp.campaign_name);
+            container.appendChild(pill);
+        });
+    }
+
+    function selectCampaignFilter(campName) {
+        selectedCampaignFilter = campName;
+        
+        // Re-highlight campaign pills
+        const pills = document.querySelectorAll('#drilldownCampaignPillsContainer button');
+        pills.forEach(btn => {
+            const btnText = btn.querySelector('span').innerText.trim();
+            const isAll = (campName === null && btnText === 'All Campaigns');
+            const isMatch = (campName !== null && btnText === campName);
+
+            if (isAll || isMatch) {
+                btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-primary text-white shadow-xs';
+                const badge = btn.querySelector('.badge');
+                if (badge) badge.className = 'badge bg-white text-primary rounded-pill';
+            } else {
+                btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-light border text-dark';
+                const badge = btn.querySelector('.badge');
+                if (badge) badge.className = 'badge bg-primary bg-opacity-10 text-primary rounded-pill';
+            }
+        });
+
+        // Filter lead items by selected campaign
+        let filtered = cachedLeadItems;
+        if (selectedCampaignFilter) {
+            filtered = cachedLeadItems.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+        }
+
+        // Apply quick search if typed
+        const query = (document.getElementById('drilldownSearchInput').value || '').toLowerCase().trim();
+        if (query) {
+            filtered = filtered.filter(l =>
+                l.name.toLowerCase().includes(query) ||
+                l.mobile.toLowerCase().includes(query) ||
+                l.doctor.toLowerCase().includes(query) ||
+                l.department.toLowerCase().includes(query) ||
+                l.campaign.toLowerCase().includes(query) ||
+                l.lead_source.toLowerCase().includes(query)
+            );
+        }
+
+        document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
+        renderDrilldownTable(filtered);
+    }
+
+    function renderCalendarGrid(year, month, countsMap, activeDate) {
+        const container = document.getElementById('calDaysContainer');
+        container.innerHTML = '';
+
+        const firstDayIdx = new Date(year, month - 1, 1).getDay(); // 0 = Sun
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const allowFuture = isFutureDateAllowed();
+
+        // Empty padding cells for start of month
+        for (let i = 0; i < firstDayIdx; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'cal-day-cell text-muted opacity-25';
+            emptyCell.style.background = '#f8fafc';
+            container.appendChild(emptyCell);
+        }
+
+        // Days of month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const mm = String(month).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            const dateStr = `${year}-${mm}-${dd}`;
+            const count = countsMap[dateStr] || 0;
+            const isFuture = dateStr > todayStrGlobal;
+            const isDisabled = isFuture && !allowFuture;
+
+            const dayCell = document.createElement('div');
+
+            if (isDisabled) {
+                dayCell.className = 'cal-day-cell disabled-day';
+                dayCell.title = 'Future dates are disabled for this metric';
+            } else {
+                const isActive = (activeDate === dateStr);
+                const hasLeadsClass = count > 0 ? 'has-leads' : '';
+                const activeClass = isActive ? 'active-day' : '';
+
+                dayCell.className = `cal-day-cell ${hasLeadsClass} ${activeClass}`;
+                dayCell.onclick = () => selectCalendarDate(dateStr);
+            }
+
+            const countBadgeClass = count > 0
+                ? (currentDrilldownCard === 'call_not_done' ? 'bg-danger text-white' : 'bg-primary text-white')
+                : 'text-muted';
+
+            dayCell.innerHTML = `
+                <div class="cal-day-num">${day}</div>
+                <div class="cal-day-count ${countBadgeClass}">${count}</div>
+            `;
+            container.appendChild(dayCell);
+        }
+    }
+
+    function renderDrilldownTable(leads) {
+        const tbody = document.getElementById('drilldownTableBody');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        tbody.innerHTML = '';
+
+        if (!leads || leads.length === 0) {
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+
+        leads.forEach(lead => {
+            const tr = document.createElement('tr');
+
+            // Temperature Badge
+            let tempBadge = `<span class="badge bg-secondary">WARM</span>`;
+            if (lead.temperature === 'HOT') {
+                tempBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="ph-bold ph-fire me-1"></i>HOT</span>`;
+            } else if (lead.temperature === 'WARM') {
+                tempBadge = `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">WARM</span>`;
+            } else if (lead.temperature === 'COLD') {
+                tempBadge = `<span class="badge bg-secondary bg-opacity-10 text-secondary border">COLD</span>`;
+            }
+
+            // Deal / Appointment Status Badge
+            let statusBadge = `<span class="badge bg-light text-dark border">${lead.appointment_status || lead.status}</span>`;
+            const stLower = (lead.appointment_status || lead.status).toLowerCase();
+            if (stLower.includes('book') || stLower.includes('complete') || stLower.includes('won')) {
+                statusBadge = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="ph ph-check me-1"></i>${lead.appointment_status}</span>`;
+            } else if (stLower.includes('assign')) {
+                statusBadge = `<span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
+            } else if (stLower.includes('new') || stLower.includes('open')) {
+                statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${lead.appointment_status}</span>`;
+            }
+
+            // Direct Voice Call & Dynamic WhatsApp Message
+            let directCallBtn = '';
+            let whatsappBtn = '';
+
+            if (lead.clean_mobile && lead.clean_mobile.length >= 10) {
+                const phoneDigits = lead.clean_mobile;
+                const patientName = encodeURIComponent(lead.name || 'Valued Patient');
+                const hospName = encodeURIComponent(cachedHospitalName || 'Nelson Mother & Child Care Hospital');
+                const agentName = encodeURIComponent(cachedAgentName || 'Patient Care Team');
+                const docName = encodeURIComponent(lead.doctor || 'our specialist');
+                const apptDate = lead.appointment_date ? encodeURIComponent(lead.appointment_date) : '';
+                const apptTime = lead.appointment_time ? encodeURIComponent(lead.appointment_time) : '';
+                
+                let waText = lead.whatsapp_message;
+                if (!waText) {
+                    if (lead.is_booked) {
+                        const datePart = apptDate ? `%20for%20${apptDate}` : '';
+                        const timePart = apptTime ? `%20at%20${apptTime}` : '';
+                        waText = `Hello%20${patientName},%20Greetings%20from%20${hospName}!%0A%0AYour%20appointment%20with%20Dr.%20${docName}%20at%20${hospName}%20is%20confirmed${datePart}${timePart}.%0A%0APlease%20reach%2015%20minutes%20prior%20to%20your%20scheduled%20slot.%20Thank%20you!%0A%0AWarm%20Regards,%0A${hospName}`;
+                    } else {
+                        waText = `Hello%20${patientName},%20Greetings%20from%20${hospName}!%0A%0AThank%20you%20for%20connecting%20with%20us.%20We%20are%20pleased%20to%20assist%20you%20with%20your%20healthcare%20and%20doctor%20consultation%20inquiry.%0A%0APlease%20let%20us%20know%20how%20we%20may%20best%20assist%20you%20today.%0A%0AWarm%20Regards,%0A${agentName}%20-%20${hospName}`;
+                    }
+                }
+                
+                directCallBtn = `
+                    <a href="tel:${phoneDigits}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="Direct Call to ${lead.mobile}">
+                        <i class="ph-bold ph-phone-call me-1"></i> Call
+                    </a>
+                `;
+
+                const btnTitle = lead.is_booked ? 'Send WhatsApp Appointment Confirmation' : `Send WhatsApp Welcome Message from ${cachedHospitalName}`;
+                const btnLabel = lead.is_booked ? 'WhatsApp (Booking)' : 'WhatsApp';
+
+                whatsappBtn = `
+                    <a href="https://wa.me/91${phoneDigits}?text=${waText}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="${btnTitle}">
+                        <i class="ph-bold ph-whatsapp-logo me-1 text-success"></i> ${btnLabel}
+                    </a>
+                `;
+            }
+
+            tr.innerHTML = `
+                <td class="px-3">
+                    <a href="${lead.detail_url}" class="fw-bold text-dark text-decoration-none hover-primary">
+                        ${lead.name}
+                    </a>
+                    <div class="text-muted small" style="font-size: 0.72rem;">Added: ${lead.created_date}</div>
+                </td>
+                <td>
+                    <div class="text-dark fw-semibold">${lead.mobile}</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">${lead.email !== '-' ? lead.email : ''}</div>
+                </td>
+                <td>
+                    <span class="badge bg-light text-secondary border">${lead.lead_source}</span>
+                    <div class="text-muted small mt-1" style="font-size: 0.72rem;">${lead.campaign}</div>
+                </td>
+                <td>
+                    <div class="text-dark fw-semibold"><i class="ph ph-stethoscope text-primary me-1"></i>${lead.doctor}</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">${lead.department}</div>
+                </td>
+                <td class="text-center">${tempBadge}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-center">
+                    <span class="badge bg-light text-dark border">${lead.assigned_to}</span>
+                </td>
+                <td class="px-3 text-end text-nowrap">
+                    ${directCallBtn}
+                    ${whatsappBtn}
+                    <a href="${lead.detail_url}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Profile">
+                        <i class="ph ph-eye me-1"></i> View
+                    </a>
+                    <a href="${lead.edit_url}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="font-size: 0.75rem;" title="Edit Lead Form">
+                        <i class="ph ph-pencil-simple me-1"></i> Edit
+                    </a>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterDrilldownTable() {
+        const query = document.getElementById('drilldownSearchInput').value.toLowerCase().trim();
+        let filtered = cachedLeadItems;
+
+        if (selectedCampaignFilter) {
+            filtered = filtered.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+        }
+
+        if (query) {
+            filtered = filtered.filter(l =>
+                l.name.toLowerCase().includes(query) ||
+                l.mobile.toLowerCase().includes(query) ||
+                l.doctor.toLowerCase().includes(query) ||
+                l.department.toLowerCase().includes(query) ||
+                l.campaign.toLowerCase().includes(query) ||
+                l.lead_source.toLowerCase().includes(query)
+            );
+        }
+        document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
+        renderDrilldownTable(filtered);
+    }
+</script>
+{% endblock %}

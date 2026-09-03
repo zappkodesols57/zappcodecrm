@@ -14,14 +14,14 @@
     </a>
     {% endif %}
 
-    {% if user.can_import_export %}
-    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success d-none d-sm-inline-flex align-items-center gap-1 fw-semibold shadow-sm" title="Import Leads from Excel / CSV">
-      <i class="fa-solid fa-file-excel"></i> Import Excel
+    {% if user.can_import_export or user.role == 'LEAD_ATTENDENT' or user.role == 'MANAGER' or user.role == 'ADMIN' or user.role == 'SUPER_ADMIN' %}
+    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success d-none d-sm-inline-flex align-items-center gap-1 fw-semibold shadow-sm" title="Import Leads from XML / Excel / CSV / Google Sheets">
+      <i class="fa-solid fa-file-import"></i> Import Leads
     </a>
     {% endif %}
 
     <!-- Notification Bell -->
-    <div class="dropdown me-2">
+    <div class="dropdown me-2" id="notifDropdownWrapper">
       <button class="btn btn-sm btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false" id="notifDropdownBtn" style="border: none; background: transparent; font-size: 1.2rem;">
         <i class="fa-solid fa-bell text-secondary"></i>
         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge" style="display: none; font-size: 0.65rem;">
@@ -31,7 +31,11 @@
       <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-0" style="width: 320px; max-height: 400px; overflow-y: auto;" id="notifList">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
           <h6 class="mb-0 fw-bold">Notifications</h6>
-          <a href="{% url 'notifications:list' %}" class="small text-decoration-none">View All</a>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-link p-0 text-decoration-none small text-primary fw-semibold" id="markAllReadBtn" style="font-size: 0.75rem;">Mark all read</button>
+            <span class="text-muted small">·</span>
+            <a href="{% url 'notifications:list' %}" class="small text-decoration-none text-secondary" style="font-size: 0.75rem;">View All</a>
+          </div>
         </div>
         <div id="notifItems">
           <div class="p-3 text-center text-muted small"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
@@ -97,25 +101,32 @@
   document.addEventListener("DOMContentLoaded", function() {
     const notifBadge = document.getElementById('notifBadge');
     const notifItems = document.getElementById('notifItems');
+    const notifDropdownBtn = document.getElementById('notifDropdownBtn');
+    const markAllReadBtn = document.getElementById('markAllReadBtn');
+
+    function updateBadge(count) {
+      if (count > 0) {
+        notifBadge.style.display = 'inline-block';
+        notifBadge.textContent = count > 99 ? '99+' : count;
+      } else {
+        notifBadge.style.display = 'none';
+        notifBadge.textContent = '0';
+      }
+    }
 
     function fetchNotifications() {
       fetch('{% url "notifications:api_unread" %}')
         .then(response => response.json())
         .then(data => {
-          if (data.count > 0) {
-            notifBadge.style.display = 'inline-block';
-            notifBadge.textContent = data.count > 99 ? '99+' : data.count;
-          } else {
-            notifBadge.style.display = 'none';
-          }
+          updateBadge(data.count);
           
           let html = '';
-          if (data.notifications.length === 0) {
+          if (!data.notifications || data.notifications.length === 0) {
             html = '<div class="p-4 text-center text-muted small">No new notifications</div>';
           } else {
             data.notifications.forEach(n => {
               html += `
-                <a href="${n.link || '#'}" onclick="markNotificationRead(${n.id})" class="dropdown-item p-3 border-bottom text-wrap" style="white-space: normal;">
+                <a href="${n.link || '#'}" onclick="markNotificationRead(${n.id}, event)" class="dropdown-item p-3 border-bottom text-wrap notif-row-item" data-id="${n.id}" style="white-space: normal;">
                   <div class="d-flex justify-content-between align-items-start">
                     <strong class="text-dark small">${n.title}</strong>
                     <span class="text-muted" style="font-size: 0.72rem; white-space: nowrap;" title="${n.full_time || n.created_at}">${n.created_at}</span>
@@ -130,19 +141,55 @@
         .catch(err => console.error("Error fetching notifications:", err));
     }
 
-    // Polling every 30 seconds
+    function markAllNotificationsAsRead() {
+      fetch('{% url "notifications:api_mark_all_read" %}', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          updateBadge(0);
+        }
+      })
+      .catch(err => console.error("Error marking all read:", err));
+    }
+
+    // Auto mark as read and clear badge when dropdown is opened
+    if (notifDropdownBtn) {
+      notifDropdownBtn.addEventListener('show.bs.dropdown', function () {
+        if (notifBadge && notifBadge.style.display !== 'none' && parseInt(notifBadge.textContent) > 0) {
+          updateBadge(0);
+          markAllNotificationsAsRead();
+        }
+      });
+    }
+
+    if (markAllReadBtn) {
+      markAllReadBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        updateBadge(0);
+        markAllNotificationsAsRead();
+      });
+    }
+
+    // Initial fetch & polling every 30 seconds
     fetchNotifications();
     setInterval(fetchNotifications, 30000);
   });
 
-  function markNotificationRead(id) {
+  function markNotificationRead(id, event) {
     fetch(`/notifications/api/mark-read/${id}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        }
-    });
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/json'
+      }
+    }).catch(err => console.error("Error marking notification as read:", err));
   }
 </script>
 {% endif %}
