@@ -193,27 +193,25 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         col_map[col] = c_clean
 
     # Known column mapping heuristics
-    name_cols = ["full_name", "patient_name", "lead_name", "customer_name", "name", "first_name"]
-    phone_cols = ["phone", "mobile", "mobile_no", "contact", "phone_number", "contact_no", "whatsapp"]
-    email_cols = ["email", "e_mail", "email_address"]
+    name_cols = [
+        "your_name", "full_name", "patient_name", "lead_name", "customer_name", 
+        "client_name", "name", "first_name", "user_name", "contact_name", "naam"
+    ]
+    phone_cols = [
+        "phone_number", "phone", "mobile", "mobile_no", "contact", 
+        "contact_no", "whatsapp", "whatsapp_number", "call_number", "cell"
+    ]
+    email_cols = ["email", "e_mail", "email_address", "mail"]
     date_cols = ["created_time", "created_at", "date", "inquiry_date", "lead_date", "time"]
     platform_cols = ["platform", "source", "publisher_platform", "lead_source", "channel"]
     
     # Find survey / remark questions (e.g. "how_many_months_pregnant_are_you?", "question", "symptom", "problem")
-    survey_cols = [col for col in df.columns if "?" in col or "pregnant" in col.lower() or "query" in col.lower() or "remark" in col.lower() or "month" in col.lower()]
+    survey_cols = [col for col in df.columns if "?" in str(col) or any(k in str(col).lower() for k in ["pregnant", "query", "remark", "month", "समस्या", "रोग"])]
+
+    unknown_counter = 1
 
     for idx, row in df.iterrows():
-        # 1. Name
-        name_val = ""
-        for orig_col, clean_c in col_map.items():
-            if clean_c in name_cols and pd.notna(row.get(orig_col)):
-                name_val = str(row.get(orig_col)).strip()
-                if name_val:
-                    break
-        if not name_val:
-            name_val = "Unknown Patient"
-
-        # 2. Phone
+        # 1. Phone
         phone_val = ""
         for orig_col, clean_c in col_map.items():
             if clean_c in phone_cols and pd.notna(row.get(orig_col)):
@@ -222,7 +220,7 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                 if phone_val:
                     break
 
-        # 3. Email
+        # 2. Email
         email_val = ""
         for orig_col, clean_c in col_map.items():
             if clean_c in email_cols and pd.notna(row.get(orig_col)):
@@ -232,6 +230,29 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                         raw_email = raw_email[4:]
                     email_val = raw_email.lower()
                     break
+
+        # 3. Name (Direct Column -> or Fallback to Email -> or Sequenced Unknown Patient)
+        name_val = ""
+        for orig_col, clean_c in col_map.items():
+            # Exact or partial match on name keywords
+            if (clean_c in name_cols or any(nk in clean_c for nk in ["your_name", "full_name", "patient_name", "lead_name", "customer_name"])) and pd.notna(row.get(orig_col)):
+                raw_n = str(row.get(orig_col)).strip()
+                if raw_n and raw_n.lower() not in ("nan", "none", "null", "-", "na", "nat"):
+                    name_val = raw_n
+                    break
+
+        # If name not found in name column, extract from email (e.g. shabana.khan@gmail.com -> Shabana Khan)
+        if not name_val and email_val:
+            email_user = email_val.split("@")[0]
+            # Replace dots, numbers, underscores with space
+            clean_email_name = re.sub(r"[0-9_\.\-]+", " ", email_user).strip().title()
+            if len(clean_email_name) >= 2:
+                name_val = clean_email_name
+
+        # If still no name, give numbered unique sequence e.g. "Unknown Patient 1", "Unknown Patient 2"
+        if not name_val:
+            name_val = f"Unknown Patient {unknown_counter}"
+            unknown_counter += 1
 
         # 4. Platform / Source
         platform_val = ""

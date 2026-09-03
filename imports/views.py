@@ -31,9 +31,9 @@ TARGET_FIELDS = [
 ]
 
 GUESS_KEYWORDS = {
-    "name": ["patient name", "patient", "full name", "customer name", "lead name", "name"],
-    "mobile": ["mobile number", "mobile", "phone number", "phone", "contact number", "contact", "call number", "whatsapp number", "cell"],
-    "email": ["email", "e-mail", "mail"],
+    "name": ["your_name", "your name", "patient name", "patient", "full name", "customer name", "lead name", "client name", "user name", "name", "first name", "naam"],
+    "mobile": ["phone_number", "phone number", "mobile number", "mobile", "phone", "contact number", "contact", "call number", "whatsapp number", "whatsapp", "cell"],
+    "email": ["email", "e-mail", "mail", "email address"],
     "gender": ["gender", "sex", "m/f"],
     "age": ["age", "years", "yrs"],
     "city": ["city", "location", "address", "area", "town", "district"],
@@ -43,7 +43,7 @@ GUESS_KEYWORDS = {
     "source": ["origin", "source", "platform", "publisher platform", "lead source", "channel"],
     "assigned_to": ["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"],
     "inquiry_date": ["created at", "created_at", "date", "created time", "lead date", "inquiry date", "lead time"],
-    "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question"],
+    "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question", "समस्या", "रोग"],
 }
 
 
@@ -726,6 +726,15 @@ def _parse_row(row, cols, mapping, user=None):
                 survey_questions.append(f"[{clean_q_name}]: {val_str}")
 
     name = str(data.get("name", "")).strip()
+    if name.lower() in ("nan", "none", "null", "-", "na", "nat"):
+        name = ""
+    email_val = str(data.get("email", "")).strip()
+    if not name and email_val and "@" in email_val:
+        email_user = email_val.split("@")[0]
+        clean_email_name = re.sub(r"[0-9_\.\-]+", " ", email_user).strip().title()
+        if len(clean_email_name) >= 2:
+            name = clean_email_name
+
     mobile, alt_mobile = cleaning.clean_phone(data.get("mobile"))
     source_cat, source_name, source_ambiguous = cleaning.normalize_source(data.get("source"))
     temperature, temp_ambiguous = cleaning.normalize_temperature(data.get("temperature"))
@@ -741,8 +750,8 @@ def _parse_row(row, cols, mapping, user=None):
     combined_notes = "\n".join(all_notes_list)
 
     warnings = []
-    if not name or name.lower() == "nan":
-        warnings.append("Missing name")
+    if not name:
+        name = f"Unknown Patient (Row {row.name if hasattr(row, 'name') else ''})"
     if not mobile:
         warnings.append("Missing/invalid mobile number")
 
@@ -1418,8 +1427,8 @@ def quick_import(request):
                         return col
             return None
 
-        col_name = find_matching_col(["patient name", "full name", "lead name", "customer name", "name", "client name"])
-        col_mobile = find_matching_col(["mobile number", "phone number", "contact number", "call number", "whatsapp number", "mobile", "phone", "contact", "cell"])
+        col_name = find_matching_col(["your_name", "your name", "patient name", "full name", "lead name", "customer name", "client name", "user name", "name", "first name", "naam"])
+        col_mobile = find_matching_col(["phone_number", "phone number", "mobile number", "mobile", "phone", "contact number", "contact", "call number", "whatsapp number", "whatsapp", "cell"])
         col_email = find_matching_col(["email address", "e-mail", "email", "mail"])
         col_city = find_matching_col(["city", "location", "address", "area", "town", "district"])
         col_gender = find_matching_col(["gender", "sex", "m/f"])
@@ -1430,15 +1439,14 @@ def quick_import(request):
         col_source = find_matching_col(["lead source", "source", "platform", "publisher platform", "channel", "origin"])
         col_assigned = find_matching_col(["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"])
         col_date = find_matching_col(["created at", "created_at", "inquiry date", "lead date", "lead time", "date", "created time"])
-        col_notes = find_matching_col(["remark", "comment", "issue", "note", "notes", "symptom", "problem", "query"])
+        col_notes = find_matching_col(["remark", "comment", "issue", "note", "notes", "symptom", "problem", "query", "समस्या", "रोग"])
 
-        if not col_name or not col_mobile:
+        if not col_mobile:
             job.delete()
             messages.error(
                 request, 
-                "Could not detect Name or Mobile column in your file. "
-                "Please make sure your sheet has a column for Name (e.g. 'Patient Name', 'Name', 'Full Name') "
-                "and Mobile (e.g. 'Mobile Number', 'Phone Number', 'Contact')."
+                "Could not detect Mobile Number column in your file. "
+                "Please make sure your sheet has a column for Phone / Mobile (e.g. 'phone_number', 'Mobile Number', 'Phone', 'Contact')."
             )
             return redirect("imports:upload")
             
@@ -1447,9 +1455,10 @@ def quick_import(request):
         from leads.models import Campaign as HospitalCampaign
         
         imported = updated = skipped = duplicate = invalid = 0
+        unknown_counter = 1
         
         start_idx = 0
-        if len(df) > 0:
+        if len(df) > 0 and col_name:
             first_row_name = str(df.iloc[0].get(col_name, "")).strip().lower()
             first_row_mobile = str(df.iloc[0].get(col_mobile, "")).strip()
             if "rahul kumar" in first_row_name or "9876543210" in first_row_mobile:
@@ -1459,11 +1468,29 @@ def quick_import(request):
             row = df.iloc[idx]
             row_num = idx + 2
             
-            name = str(row.get(col_name, "")).strip()
+            name = str(row.get(col_name, "")).strip() if col_name else ""
+            if name.lower() in ("nan", "none", "null", "-", "na", "nat"):
+                name = ""
+            
             mobile_raw = row.get(col_mobile)
             mobile, alt_mobile = cleaning.clean_phone(mobile_raw)
-            
-            if not name or name.lower() == "nan" or not mobile:
+            email = str(row.get(col_email, "") or "").strip() if col_email else ""
+            if email.lower() in ("nan", "none", "null", "-", "na", "nat"):
+                email = ""
+
+            # If name is empty, extract name from email address
+            if not name and email and "@" in email:
+                email_user = email.split("@")[0]
+                clean_email_name = re.sub(r"[0-9_\.\-]+", " ", email_user).strip().title()
+                if len(clean_email_name) >= 2:
+                    name = clean_email_name
+
+            # If still no name, give numbered unique sequence e.g. "Unknown Patient 1", "Unknown Patient 2"
+            if not name:
+                name = f"Unknown Patient {unknown_counter}"
+                unknown_counter += 1
+
+            if not mobile:
                 invalid += 1
                 continue
                 
