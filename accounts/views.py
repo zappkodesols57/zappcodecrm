@@ -66,7 +66,7 @@ def crm_login(request):
         next_url = request.POST.get("next")
         if next_url:
             return redirect(next_url)
-        return _role_redirect(user)
+        return redirect("dashboard:welcome")
 
     return render(request, "accounts/login.html")
 

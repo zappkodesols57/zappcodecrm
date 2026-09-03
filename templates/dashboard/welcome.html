@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<style>
+    .welcome-container {
+        min-height: calc(100vh - 120px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2.5rem 1rem;
+    }
+    .welcome-card {
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.09);
+        border: 1px solid #e2e8f0;
+        max-width: 650px;
+        width: 100%;
+        padding: 40px 44px;
+        position: relative;
+        overflow: hidden;
+    }
+    .welcome-top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .live-time-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 30px;
+    }
+    .user-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #eef2ff;
+        color: #4f46e5;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 30px;
+    }
+    .greeting-section {
+        text-align: left;
+        margin-bottom: 26px;
+    }
+    .greeting-title {
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .greeting-sub {
+        color: #64748b;
+        font-size: 1rem;
+    }
+    .main-stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .stat-card-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .stat-card-box:hover {
+        transform: translateY(-2px);
+        border-color: #cbd5e1;
+    }
+    .stat-card-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+    .stat-val {
+        font-size: 1.9rem;
+        font-weight: 800;
+        line-height: 1;
+        color: #0f172a;
+    }
+    .stat-lbl {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: 500;
+        margin-top: 4px;
+    }
+    .campaign-section {
+        background: #fafafa;
+        border: 1px solid #f1f5f9;
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin-bottom: 28px;
+        text-align: left;
+    }
+    .campaign-header {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .campaign-tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .campaign-tag {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        color: #1e293b;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .campaign-count-pill {
+        background: #4f46e5;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.75rem;
+        padding: 2px 7px;
+        border-radius: 12px;
+    }
+    .btn-launch-dashboard {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        font-size: 1.05rem;
+        padding: 14px 28px;
+        border-radius: 14px;
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        text-decoration: none;
+    }
+    .btn-launch-dashboard:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(79, 70, 229, 0.5);
+        color: #ffffff !important;
+    }
+    .countdown-bar-wrapper {
+        margin-top: 18px;
+    }
+    .progress-track {
+        width: 100%;
+        height: 5px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(90deg, #4f46e5, #7c3aed);
+        transition: width 1s linear;
+    }
+    .countdown-text {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        text-align: center;
+    }
+</style>
+
+<div class="welcome-container">
+    <div class="welcome-card">
+        <!-- Top Metadata Bar -->
+        <div class="welcome-top-bar">
+            <div class="live-time-badge">
+                <i class="fa-regular fa-clock text-primary"></i>
+                <span id="liveClock">{{ current_time_str }}</span>
+                <span>•</span>
+                <span>{{ today_date }}</span>
+            </div>
+            <div class="user-pill">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>{{ user_role }}</span>
+                {% if hospital_name %}
+                    <span>• {{ hospital_name }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Time-of-Day Greeting -->
+        <div class="greeting-section">
+            <h1 class="greeting-title">
+                <i class="fa-solid {{ greeting_icon }}" style="{{ greeting_style }}"></i>
+                <span>{{ greeting }}, {{ user_name }}!</span>
+            </h1>
+            <p class="greeting-sub">Welcome back to <strong>Zappcode CRM</strong>. Here is what is waiting for you today:</p>
+        </div>
+
+        <!-- 2 Key Stats: New Leads & Pending Followups -->
+        <div class="main-stats-grid">
+            <div class="stat-card-box">
+                <div class="stat-card-icon" style="background: rgba(79, 70, 229, 0.12); color: #4f46e5;">
+                    <i class="fa-solid fa-users-rays"></i>
+                </div>
+                <div>
+                    <div class="stat-val">{{ new_leads_count }}</div>
+                    <div class="stat-lbl">New Leads Today</div>
+                </div>
+            </div>
+
+            <div class="stat-card-box">
+                <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                    <i class="fa-solid fa-phone-volume"></i>
+                </div>
+                <div>
+                    <div class="stat-val text-warning">{{ pending_followups_count }}</div>
+                    <div class="stat-lbl">Pending Follow-ups</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign / Source Breakdown -->
+        <div class="campaign-section">
+            <div class="campaign-header">
+                <span><i class="fa-solid fa-bullhorn me-1 text-primary"></i> Today's Leads by Campaign</span>
+                <span class="badge bg-light text-muted border">{{ campaign_stats|length }} Active Sources</span>
+            </div>
+            
+            {% if campaign_stats %}
+                <div class="campaign-tag-list">
+                    {% for c in campaign_stats %}
+                        <div class="campaign-tag">
+                            <span>{{ c.name|default:"Direct / Organic" }}</span>
+                            <span class="campaign-count-pill">{{ c.count }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-muted small py-1">
+                    <i class="fa-solid fa-circle-info me-1"></i> No leads registered under active campaigns yet today.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Proceed Action Button -->
+        <a href="{{ next_url }}" class="btn btn-launch-dashboard" id="launchBtn">
+            <span>Proceed to Dashboard</span>
+            <i class="fa-solid fa-arrow-right"></i>
+        </a>
+
+        <!-- Auto-redirect Timer & Bar -->
+        <div class="countdown-bar-wrapper">
+            <div class="progress-track">
+                <div class="progress-bar-fill" id="timerBar"></div>
+            </div>
+            <div class="countdown-text">
+                Automatically entering dashboard in <strong id="secondsCount" class="text-primary">6</strong> seconds...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const totalSeconds = 6;
+    let secondsLeft = totalSeconds;
+    const countEl = document.getElementById("secondsCount");
+    const barEl = document.getElementById("timerBar");
+    const targetUrl = "{{ next_url }}";
+
+    // Update progress bar and counter every second
+    const interval = setInterval(function() {
+        secondsLeft--;
+        if (countEl) countEl.innerText = secondsLeft;
+        if (barEl) {
+            const percent = (secondsLeft / totalSeconds) * 100;
+            barEl.style.width = percent + "%";
+        }
+        if (secondsLeft <= 0) {
+            clearInterval(interval);
+            window.location.href = targetUrl;
+        }
+    }, 1000);
+
+    // Live clock update
+    function updateClock() {
+        const now = new Date();
+        const clockEl = document.getElementById("liveClock");
+        if (clockEl) {
+            clockEl.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+    setInterval(updateClock, 30000);
+</script>
+{% endblock %}

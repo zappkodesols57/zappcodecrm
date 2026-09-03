@@ -19,6 +19,116 @@ from notifications.models import Notification
 from imports.models import ImportJob
 
 
+
+@login_required
+def welcome_view(request):
+    from accounts.views import _role_redirect
+    from accounts.models import User
+    from leads.models import Lead, DealStatus, Campaign
+    from followups.models import FollowUp, FollowUpStatus
+
+    user = request.user
+    today_date = timezone.localdate()
+    now = timezone.localtime()
+    start_of_today = timezone.make_aware(datetime.combine(today_date, datetime.min.time()))
+    end_of_today = timezone.make_aware(datetime.combine(today_date, datetime.max.time()))
+
+    # 1. Determine Time-based Greeting & Icon
+    current_hour = now.hour
+    if 5 <= current_hour < 12:
+        greeting = "Good Morning"
+        greeting_icon = "fa-sun"
+        greeting_style = "color: #f59e0b;"
+    elif 12 <= current_hour < 17:
+        greeting = "Good Afternoon"
+        greeting_icon = "fa-cloud-sun"
+        greeting_style = "color: #f97316;"
+    else:
+        greeting = "Good Evening"
+        greeting_icon = "fa-moon"
+        greeting_style = "color: #818cf8;"
+
+    # 2. Base Queryset for Leads
+    if user.hospital:
+        hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False)
+        today_leads_qs = hospital_leads.filter(
+            Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+        ).distinct()
+    else:
+        hospital_leads = Lead.objects.filter(is_archived=False)
+        today_leads_qs = hospital_leads.filter(
+            created_at__range=(start_of_today, end_of_today)
+        )
+
+    new_leads_count = today_leads_qs.count()
+
+    # 3. Campaign Breakdown
+    # Group by campaign name or source
+    campaign_stats = []
+    # Try grouped by campaign
+    campaign_counts = (
+        today_leads_qs.filter(campaign__isnull=False)
+        .values("campaign__name")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+    for c in campaign_counts:
+        campaign_stats.append({
+            "name": c["campaign__name"],
+            "count": c["count"]
+        })
+
+    # If few or no tagged campaigns, also group by lead source or custom_data 'campaign'
+    if not campaign_stats:
+        source_counts = (
+            today_leads_qs.filter(lead_source__isnull=False)
+            .values("lead_source__name")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:5]
+        )
+        for s in source_counts:
+            campaign_stats.append({
+                "name": s["lead_source__name"],
+                "count": s["count"]
+            })
+
+    # 4. Pending Follow-ups for Today
+    pending_followups_qs = FollowUp.objects.filter(
+        followup_date=today_date,
+        followup_status__in=[FollowUpStatus.PENDING, "PENDING", "pending"]
+    )
+    if user.hospital:
+        pending_followups_qs = pending_followups_qs.filter(lead__hospital=user.hospital)
+    if user.role == User.Role.LEAD_ATTENDENT:
+        pending_followups_qs = pending_followups_qs.filter(
+            Q(lead__assigned_to=user) | Q(created_by=user)
+        )
+    pending_followups_count = pending_followups_qs.count()
+
+    # 5. Determine target URL
+    dest_resp = _role_redirect(user)
+    next_url = dest_resp.url if hasattr(dest_resp, 'url') else "/dashboard/"
+
+    user_name = user.get_full_name().strip() or user.username
+    user_role = user.get_role_display() if hasattr(user, 'get_role_display') else str(user.role)
+    hospital_name = user.hospital.name if user.hospital else ""
+
+    return render(request, "dashboard/welcome.html", {
+        "user_name": user_name,
+        "user_role": user_role,
+        "hospital_name": hospital_name,
+        "greeting": greeting,
+        "greeting_icon": greeting_icon,
+        "greeting_style": greeting_style,
+        "current_time_str": now.strftime("%I:%M %p"),
+        "today_date": today_date.strftime("%A, %d %B %Y"),
+        "new_leads_count": new_leads_count,
+        "campaign_stats": campaign_stats,
+        "pending_followups_count": pending_followups_count,
+        "next_url": next_url,
+    })
+
+
 @login_required
 def home(request):
     from accounts.models import User
