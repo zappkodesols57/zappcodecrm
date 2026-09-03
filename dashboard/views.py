@@ -987,6 +987,44 @@ def nel_card_drilldown_api(request):
     # Base tenant queryset
     hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.hospital) if user.hospital else Lead.objects.filter(is_archived=False)
 
+    # Extract Active Slicer Filters
+    campaign_filter = request.GET.get('campaign', '').strip()
+    source_filter = request.GET.get('source', '').strip()
+    department_filter = request.GET.get('department', '').strip()
+    doctor_filter = request.GET.get('doctor', '').strip()
+    location_filter = request.GET.get('location', '').strip()
+    gender_filter = request.GET.get('gender', '').strip()
+    age_group_filter = request.GET.get('age_group', '').strip()
+    payment_type_filter = request.GET.get('payment_type', '').strip()
+
+    if campaign_filter:
+        hospital_qs = hospital_qs.filter(Q(campaign__name__iexact=campaign_filter) | Q(custom_data__campaign__iexact=campaign_filter))
+    if source_filter:
+        hospital_qs = hospital_qs.filter(Q(lead_source__name__iexact=source_filter) | Q(custom_data__lead_source__iexact=source_filter))
+    if department_filter:
+        hospital_qs = hospital_qs.filter(custom_data__department__iexact=department_filter)
+    if doctor_filter:
+        hospital_qs = hospital_qs.filter(custom_data__doctor__icontains=doctor_filter)
+    if location_filter:
+        hospital_qs = hospital_qs.filter(Q(location__iexact=location_filter) | Q(custom_data__location__iexact=location_filter))
+    if gender_filter:
+        hospital_qs = hospital_qs.filter(custom_data__gender__iexact=gender_filter)
+    if age_group_filter:
+        hospital_qs = hospital_qs.filter(custom_data__age_group__iexact=age_group_filter)
+
+    if payment_type_filter == 'all_paid':
+        hospital_qs = hospital_qs.filter(deal_status=DealStatus.WON)
+    elif payment_type_filter == 'opd':
+        hospital_qs = hospital_qs.filter(custom_data__opd_bill__gt='0')
+    elif payment_type_filter == 'pharmacy':
+        hospital_qs = hospital_qs.filter(custom_data__pharmacy_bill__gt='0')
+    elif payment_type_filter == 'ipd':
+        hospital_qs = hospital_qs.filter(custom_data__ipd_bill__gt='0')
+    elif payment_type_filter == 'investigation':
+        hospital_qs = hospital_qs.filter(custom_data__investigation_bill__gt='0')
+    elif payment_type_filter == 'unpaid':
+        hospital_qs = hospital_qs.exclude(deal_status=DealStatus.WON)
+
     start_dt = timezone.make_aware(datetime.combine(selected_date, datetime.min.time())) if selected_date else None
     end_dt = timezone.make_aware(datetime.combine(selected_date, datetime.max.time())) if selected_date else None
     sel_date_str = selected_date.isoformat() if selected_date else ""

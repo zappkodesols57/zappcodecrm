@@ -1402,7 +1402,14 @@
         tbody.innerHTML = '';
         selectedCampaignFilter = null;
 
-        const url = `/dashboard/superadmin/card-drilldown-api/?card_type=${currentDrilldownCard}&mode=${currentDrilldownMode}&target_date=${currentDrilldownDate}&year=${currentCalYear}&month=${currentCalMonth}`;
+        const searchParams = new URLSearchParams(window.location.search);
+        searchParams.set('card_type', currentDrilldownCard);
+        searchParams.set('mode', currentDrilldownMode);
+        searchParams.set('target_date', currentDrilldownDate);
+        searchParams.set('year', currentCalYear);
+        searchParams.set('month', currentCalMonth);
+
+        const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
         fetch(url)
             .then(res => res.json())
