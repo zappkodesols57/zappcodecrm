@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 from django.contrib import messages
@@ -7,8 +7,11 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.db.models import Q, Count
 
 from leads.models import Lead, SourceCategory, LeadSource, Course, LeadStage
+from leads.models import Campaign as HospitalCampaign
+from accounts.models import User, Hospital
 from followups.models import FollowUp, FollowUpStatus, FollowUpMode
 from .models import ImportJob, ImportError as ImportErrorModel
 from . import cleaning
@@ -31,9 +34,9 @@ TARGET_FIELDS = [
 ]
 
 GUESS_KEYWORDS = {
-    "name": ["patient name", "patient", "full name", "customer name", "lead name", "name"],
-    "mobile": ["mobile number", "mobile", "phone number", "phone", "contact number", "contact", "call number", "whatsapp number", "cell"],
-    "email": ["email", "e-mail", "mail"],
+    "name": ["your_name", "your name", "patient name", "patient", "full name", "customer name", "lead name", "client name", "user name", "name", "first name", "naam"],
+    "mobile": ["phone_number", "phone number", "mobile number", "mobile", "phone", "contact number", "contact", "call number", "whatsapp number", "whatsapp", "cell"],
+    "email": ["email", "e-mail", "mail", "email address"],
     "gender": ["gender", "sex", "m/f"],
     "age": ["age", "years", "yrs"],
     "city": ["city", "location", "address", "area", "town", "district"],
@@ -43,7 +46,7 @@ GUESS_KEYWORDS = {
     "source": ["origin", "source", "platform", "publisher platform", "lead source", "channel"],
     "assigned_to": ["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"],
     "inquiry_date": ["created at", "created_at", "date", "created time", "lead date", "inquiry date", "lead time"],
-    "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question"],
+    "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question", "समस्या", "रोग"],
 }
 
 
@@ -214,11 +217,99 @@ def upload(request):
     if is_super_admin_no_hospital:
         all_hospitals = Hospital.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("name")
 
+    today = timezone.localdate()
+    date_preset = request.GET.get('date_preset', 'today')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+
+    if date_preset == 'today':
+        filter_start = today
+        filter_end = today
+        preset_label = today.strftime('%d-%m-%Y')
+    elif date_preset == 'yesterday':
+        yesterday = today - timedelta(days=1)
+        filter_start = yesterday
+        filter_end = yesterday
+        preset_label = yesterday.strftime('%d-%m-%Y')
+    elif date_preset == 'last_7d':
+        filter_start = today - timedelta(days=7)
+        filter_end = today
+        preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+    elif date_preset == 'this_month':
+        filter_start = today.replace(day=1)
+        filter_end = today
+        preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+    elif date_preset == 'all_time':
+        filter_start = None
+        filter_end = None
+        preset_label = "All Time"
+    elif date_preset == 'custom' and start_date_str:
+        try:
+            filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else filter_start
+            preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+        except ValueError:
+            filter_start = today
+            filter_end = today
+            preset_label = today.strftime('%d-%m-%Y')
+
+    # Filter base leads and import jobs for current scope
+    if user.hospital:
+        base_leads_qs = Lead.objects.filter(hospital=user.hospital, is_archived=False)
+        base_jobs_qs = ImportJob.objects.filter(created_by__hospital=user.hospital)
+    else:
+        base_leads_qs = Lead.objects.filter(is_archived=False)
+        base_jobs_qs = ImportJob.objects.all()
+
+    import datetime as dt_module
+    if filter_start and filter_end:
+        start_dt = timezone.make_aware(dt_module.datetime.combine(filter_start, dt_module.time.min))
+        end_dt = timezone.make_aware(dt_module.datetime.combine(filter_end, dt_module.time.max))
+        period_leads_qs = base_leads_qs.filter(
+            Q(created_at__gte=start_dt, created_at__lte=end_dt) |
+            Q(inquiry_date__gte=filter_start, inquiry_date__lte=filter_end)
+        )
+        period_jobs_qs = base_jobs_qs.filter(
+            created_at__gte=start_dt, created_at__lte=end_dt
+        )
+    else:
+        period_leads_qs = base_leads_qs
+        period_jobs_qs = base_jobs_qs
+
+    campaigns_data = []
+    total_period_leads = 0
+    for c in campaigns:
+        p_cnt = period_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
+        total_period_leads += p_cnt
+        campaigns_data.append({
+            "id": c.id,
+            "name": c.name,
+            "platform": c.platform or "General",
+            "period_leads": p_cnt,
+            "all_time_leads": c.leads_count,
+        })
+
+    # Sort so campaigns with active leads in this period appear first
+    campaigns_data.sort(key=lambda x: x["period_leads"], reverse=True)
+
+    # Only show files that actually created/imported leads (> 0) in this period
+    recent_jobs = period_jobs_qs.filter(imported_count__gt=0).order_by('-created_at')[:15]
+    hospital_name = user.hospital.name if user.hospital else "Zappcode CRM"
+
     context = {
         "active": "import",
         "is_super_admin_no_hospital": is_super_admin_no_hospital,
         "can_import_previous": can_import_previous,
         "available_campaigns": campaigns,
+        "campaigns_data": campaigns_data,
+        "total_period_leads": total_period_leads,
+        "recent_jobs": recent_jobs,
+        "hospital_name": hospital_name,
+        "today_date_str": today.strftime('%d-%m-%Y'),
+        "date_preset": date_preset,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+        "preset_label": preset_label,
         "all_hospitals": all_hospitals,
         "current_leads_count": current_leads_count,
     }
@@ -342,12 +433,17 @@ def campaign_import_process(request):
     if duplicate_strategy == "preview":
         import uuid
         cache_key = f"camp_import_{uuid.uuid4().hex}"
-        cache.set(cache_key, {
+        cache_payload = {
             "rows": processed_rows,
             "campaign_id": campaign.id,
             "target_hospital_id": target_hospital.id if target_hospital else None,
             "original_filename": uploaded_file.name,
-        }, timeout=3600)
+        }
+        # Store in cache (file-based)
+        cache.set(cache_key, cache_payload, timeout=86400)
+        # Also store in DB session as fallback
+        request.session[cache_key] = cache_payload
+        request.session.modified = True
 
         context = {
             "active": "import",
@@ -377,6 +473,10 @@ def campaign_import_execute(request):
 
     cache_key = request.POST.get("cache_key")
     cached_data = cache.get(cache_key) if cache_key else None
+    
+    # Fallback to session if cache missed
+    if not cached_data and cache_key and cache_key in request.session:
+        cached_data = request.session.get(cache_key)
 
     if not cached_data:
         messages.error(request, "Import session expired or not found. Please upload the file again.")
@@ -640,6 +740,15 @@ def _parse_row(row, cols, mapping, user=None):
                 survey_questions.append(f"[{clean_q_name}]: {val_str}")
 
     name = str(data.get("name", "")).strip()
+    if name.lower() in ("nan", "none", "null", "-", "na", "nat"):
+        name = ""
+    email_val = str(data.get("email", "")).strip()
+    if not name and email_val and "@" in email_val:
+        email_user = email_val.split("@")[0]
+        clean_email_name = re.sub(r"[0-9_\.\-]+", " ", email_user).strip().title()
+        if len(clean_email_name) >= 2:
+            name = clean_email_name
+
     mobile, alt_mobile = cleaning.clean_phone(data.get("mobile"))
     source_cat, source_name, source_ambiguous = cleaning.normalize_source(data.get("source"))
     temperature, temp_ambiguous = cleaning.normalize_temperature(data.get("temperature"))
@@ -655,8 +764,8 @@ def _parse_row(row, cols, mapping, user=None):
     combined_notes = "\n".join(all_notes_list)
 
     warnings = []
-    if not name or name.lower() == "nan":
-        warnings.append("Missing name")
+    if not name:
+        name = f"Unknown Patient (Row {row.name if hasattr(row, 'name') else ''})"
     if not mobile:
         warnings.append("Missing/invalid mobile number")
 
@@ -884,8 +993,66 @@ def job_detail(request, pk):
 @login_required
 @user_passes_test(lambda u: u.can_import_export)
 def history(request):
-    jobs = ImportJob.objects.select_related("created_by").all()
-    return render(request, "imports/history.html", {"active": "import_history", "jobs": jobs})
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    from django.db.models import Q
+
+    user = request.user
+    jobs_qs = ImportJob.objects.select_related("created_by")
+    if user.hospital:
+        jobs_qs = jobs_qs.filter(created_by__hospital=user.hospital)
+
+    date_preset = request.GET.get('date_preset', 'all_time')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+    
+    today = timezone.localdate()
+    filter_start = None
+    filter_end = None
+    preset_label = "All Time"
+
+    if date_preset == 'today':
+        filter_start = today
+        filter_end = today
+        preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+    elif date_preset == 'yesterday':
+        yesterday = today - timedelta(days=1)
+        filter_start = yesterday
+        filter_end = yesterday
+        preset_label = f"Yesterday ({yesterday.strftime('%d-%m-%Y')})"
+    elif date_preset == 'last_7d':
+        filter_start = today - timedelta(days=7)
+        filter_end = today
+        preset_label = f"Last 7 Days ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+    elif date_preset == 'this_month':
+        filter_start = today.replace(day=1)
+        filter_end = today
+        preset_label = f"This Month ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+    elif date_preset == 'custom' and start_date_str:
+        try:
+            filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else filter_start
+            preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+        except ValueError:
+            filter_start = None
+            filter_end = None
+            preset_label = "All Time"
+
+    if filter_start and filter_end:
+        jobs_qs = jobs_qs.filter(created_at__date__gte=filter_start, created_at__date__lte=filter_end)
+
+    hospital_name = user.hospital.name if user.hospital else "Zappcode CRM"
+
+    return render(request, "imports/history.html", {
+        "active": "import_history",
+        "jobs": jobs_qs,
+        "date_preset": date_preset,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+        "preset_label": preset_label,
+        "hospital_name": hospital_name,
+        "today_date_str": today.strftime('%d-%m-%Y'),
+    })
 
 
 @login_required
@@ -1274,8 +1441,8 @@ def quick_import(request):
                         return col
             return None
 
-        col_name = find_matching_col(["patient name", "full name", "lead name", "customer name", "name", "client name"])
-        col_mobile = find_matching_col(["mobile number", "phone number", "contact number", "call number", "whatsapp number", "mobile", "phone", "contact", "cell"])
+        col_name = find_matching_col(["your_name", "your name", "patient name", "full name", "lead name", "customer name", "client name", "user name", "name", "first name", "naam"])
+        col_mobile = find_matching_col(["phone_number", "phone number", "mobile number", "mobile", "phone", "contact number", "contact", "call number", "whatsapp number", "whatsapp", "cell"])
         col_email = find_matching_col(["email address", "e-mail", "email", "mail"])
         col_city = find_matching_col(["city", "location", "address", "area", "town", "district"])
         col_gender = find_matching_col(["gender", "sex", "m/f"])
@@ -1286,15 +1453,14 @@ def quick_import(request):
         col_source = find_matching_col(["lead source", "source", "platform", "publisher platform", "channel", "origin"])
         col_assigned = find_matching_col(["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"])
         col_date = find_matching_col(["created at", "created_at", "inquiry date", "lead date", "lead time", "date", "created time"])
-        col_notes = find_matching_col(["remark", "comment", "issue", "note", "notes", "symptom", "problem", "query"])
+        col_notes = find_matching_col(["remark", "comment", "issue", "note", "notes", "symptom", "problem", "query", "समस्या", "रोग"])
 
-        if not col_name or not col_mobile:
+        if not col_mobile:
             job.delete()
             messages.error(
                 request, 
-                "Could not detect Name or Mobile column in your file. "
-                "Please make sure your sheet has a column for Name (e.g. 'Patient Name', 'Name', 'Full Name') "
-                "and Mobile (e.g. 'Mobile Number', 'Phone Number', 'Contact')."
+                "Could not detect Mobile Number column in your file. "
+                "Please make sure your sheet has a column for Phone / Mobile (e.g. 'phone_number', 'Mobile Number', 'Phone', 'Contact')."
             )
             return redirect("imports:upload")
             
@@ -1303,9 +1469,10 @@ def quick_import(request):
         from leads.models import Campaign as HospitalCampaign
         
         imported = updated = skipped = duplicate = invalid = 0
+        unknown_counter = 1
         
         start_idx = 0
-        if len(df) > 0:
+        if len(df) > 0 and col_name:
             first_row_name = str(df.iloc[0].get(col_name, "")).strip().lower()
             first_row_mobile = str(df.iloc[0].get(col_mobile, "")).strip()
             if "rahul kumar" in first_row_name or "9876543210" in first_row_mobile:
@@ -1315,11 +1482,29 @@ def quick_import(request):
             row = df.iloc[idx]
             row_num = idx + 2
             
-            name = str(row.get(col_name, "")).strip()
+            name = str(row.get(col_name, "")).strip() if col_name else ""
+            if name.lower() in ("nan", "none", "null", "-", "na", "nat"):
+                name = ""
+            
             mobile_raw = row.get(col_mobile)
             mobile, alt_mobile = cleaning.clean_phone(mobile_raw)
-            
-            if not name or name.lower() == "nan" or not mobile:
+            email = str(row.get(col_email, "") or "").strip() if col_email else ""
+            if email.lower() in ("nan", "none", "null", "-", "na", "nat"):
+                email = ""
+
+            # If name is empty, extract name from email address
+            if not name and email and "@" in email:
+                email_user = email.split("@")[0]
+                clean_email_name = re.sub(r"[0-9_\.\-]+", " ", email_user).strip().title()
+                if len(clean_email_name) >= 2:
+                    name = clean_email_name
+
+            # If still no name, give numbered unique sequence e.g. "Unknown Patient 1", "Unknown Patient 2"
+            if not name:
+                name = f"Unknown Patient {unknown_counter}"
+                unknown_counter += 1
+
+            if not mobile:
                 invalid += 1
                 continue
                 
