@@ -342,12 +342,17 @@ def campaign_import_process(request):
     if duplicate_strategy == "preview":
         import uuid
         cache_key = f"camp_import_{uuid.uuid4().hex}"
-        cache.set(cache_key, {
+        cache_payload = {
             "rows": processed_rows,
             "campaign_id": campaign.id,
             "target_hospital_id": target_hospital.id if target_hospital else None,
             "original_filename": uploaded_file.name,
-        }, timeout=3600)
+        }
+        # Store in cache (file-based)
+        cache.set(cache_key, cache_payload, timeout=86400)
+        # Also store in DB session as fallback
+        request.session[cache_key] = cache_payload
+        request.session.modified = True
 
         context = {
             "active": "import",
@@ -377,6 +382,10 @@ def campaign_import_execute(request):
 
     cache_key = request.POST.get("cache_key")
     cached_data = cache.get(cache_key) if cache_key else None
+    
+    # Fallback to session if cache missed
+    if not cached_data and cache_key and cache_key in request.session:
+        cached_data = request.session.get(cache_key)
 
     if not cached_data:
         messages.error(request, "Import session expired or not found. Please upload the file again.")

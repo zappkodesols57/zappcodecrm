@@ -157,6 +157,18 @@ MAX_IMPORT_ROWS = 50000
 
 
 
+# Cache Configuration (Persistent across all WSGI/Gunicorn workers)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': BASE_DIR / '.django_cache',
+        'TIMEOUT': 86400,  # 24 hours
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+        }
+    }
+}
+
 # Session & Cookie Persistence Settings
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 21600  # 6 Hours automatic logout (21600 seconds = 6 * 60 * 60)
