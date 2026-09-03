@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 from django.contrib import messages
@@ -7,8 +7,11 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.db.models import Q, Count
 
 from leads.models import Lead, SourceCategory, LeadSource, Course, LeadStage
+from leads.models import Campaign as HospitalCampaign
+from accounts.models import User, Hospital
 from followups.models import FollowUp, FollowUpStatus, FollowUpMode
 from .models import ImportJob, ImportError as ImportErrorModel
 from . import cleaning
@@ -201,37 +204,41 @@ def upload(request):
     is_super_admin_no_hospital = bool(user.role == User.Role.SUPER_ADMIN and not user.hospital)
     can_import_previous = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER))
     
-    from datetime import datetime, timedelta
-    from django.utils import timezone
-    from django.db.models import Q
-    from .models import ImportJob
+    # Available campaigns with current leads count
+    from django.db.models import Count
+    if user.hospital:
+        campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
+    else:
+        campaigns = HospitalCampaign.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(is_archived=False).count()
+
+    all_hospitals = []
+    if is_super_admin_no_hospital:
+        all_hospitals = Hospital.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("name")
 
     today = timezone.localdate()
     date_preset = request.GET.get('date_preset', 'today')
     start_date_str = request.GET.get('start_date', '')
     end_date_str = request.GET.get('end_date', '')
 
-    filter_start = today
-    filter_end = today
-    preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
-
     if date_preset == 'today':
         filter_start = today
         filter_end = today
-        preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+        preset_label = today.strftime('%d-%m-%Y')
     elif date_preset == 'yesterday':
         yesterday = today - timedelta(days=1)
         filter_start = yesterday
         filter_end = yesterday
-        preset_label = f"Yesterday ({yesterday.strftime('%d-%m-%Y')})"
+        preset_label = yesterday.strftime('%d-%m-%Y')
     elif date_preset == 'last_7d':
         filter_start = today - timedelta(days=7)
         filter_end = today
-        preset_label = f"Last 7 Days ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+        preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
     elif date_preset == 'this_month':
         filter_start = today.replace(day=1)
         filter_end = today
-        preset_label = f"This Month ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+        preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
     elif date_preset == 'all_time':
         filter_start = None
         filter_end = None
@@ -244,7 +251,7 @@ def upload(request):
         except ValueError:
             filter_start = today
             filter_end = today
-            preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+            preset_label = today.strftime('%d-%m-%Y')
 
     # Filter base leads and import jobs for current scope
     if user.hospital:
@@ -254,13 +261,16 @@ def upload(request):
         base_leads_qs = Lead.objects.filter(is_archived=False)
         base_jobs_qs = ImportJob.objects.all()
 
+    import datetime as dt_module
     if filter_start and filter_end:
+        start_dt = timezone.make_aware(dt_module.datetime.combine(filter_start, dt_module.time.min))
+        end_dt = timezone.make_aware(dt_module.datetime.combine(filter_end, dt_module.time.max))
         period_leads_qs = base_leads_qs.filter(
-            Q(created_at__date__gte=filter_start, created_at__date__lte=filter_end) |
+            Q(created_at__gte=start_dt, created_at__lte=end_dt) |
             Q(inquiry_date__gte=filter_start, inquiry_date__lte=filter_end)
         )
         period_jobs_qs = base_jobs_qs.filter(
-            created_at__date__gte=filter_start, created_at__date__lte=filter_end
+            created_at__gte=start_dt, created_at__lte=end_dt
         )
     else:
         period_leads_qs = base_leads_qs
@@ -279,7 +289,11 @@ def upload(request):
             "all_time_leads": c.leads_count,
         })
 
-    recent_jobs = period_jobs_qs.order_by('-created_at')[:15]
+    # Sort so campaigns with active leads in this period appear first
+    campaigns_data.sort(key=lambda x: x["period_leads"], reverse=True)
+
+    # Only show files that actually created/imported leads (> 0) in this period
+    recent_jobs = period_jobs_qs.filter(imported_count__gt=0).order_by('-created_at')[:15]
     hospital_name = user.hospital.name if user.hospital else "Zappcode CRM"
 
     context = {

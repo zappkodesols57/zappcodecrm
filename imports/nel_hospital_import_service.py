@@ -109,12 +109,20 @@ def read_xml_spreadsheet(file_bytes):
     for r_idx, row in enumerate(rows):
         cells = row.findall('ss:Cell', ns)
         row_values = []
+        current_col = 0
         for cell in cells:
+            idx_attr = cell.get(f"{{{ns['ss']}}}Index")
+            if idx_attr:
+                target_col = int(idx_attr) - 1
+                while current_col < target_col:
+                    row_values.append("")
+                    current_col += 1
             data_elem = cell.find('ss:Data', ns)
             if data_elem is not None and data_elem.text is not None:
                 row_values.append(data_elem.text.strip())
             else:
                 row_values.append("")
+            current_col += 1
         if r_idx == 0:
             headers = [h.strip() for h in row_values]
         else:

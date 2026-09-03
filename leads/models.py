@@ -691,7 +691,7 @@ class Lead(models.Model):
             return st
 
         if st == "New":
-            return "New Enquiry"
+            return "Hot"
 
         # For Open (and other active leads):
         r1 = str(cd.get("remark_1") or "").strip()

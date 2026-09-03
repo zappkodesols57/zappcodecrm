@@ -454,10 +454,6 @@
                 <input class="form-check-input" type="checkbox" id="waIncludeCampaigns" checked onchange="updateWhatsAppPreview()">
                 <label class="form-check-label small" for="waIncludeCampaigns">Active Campaigns Lead Breakdown</label>
               </div>
-              <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="waIncludeUploadFiles" checked onchange="updateWhatsAppPreview()">
-                <label class="form-check-label small" for="waIncludeUploadFiles">Import Files Uploaded Today ({{ recent_jobs|length }} files)</label>
-              </div>
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" id="waIncludeSender" checked onchange="updateWhatsAppPreview()">
                 <label class="form-check-label small" for="waIncludeSender">Sender Name ({{ request.user.get_full_name|default:request.user.username }})</label>
@@ -498,24 +494,15 @@
 </div>
 
 <script>
-  // Campaign & Import Job Data from Server
+  // Campaign Data from Server
   const CAMPAIGN_SUMMARY_DATA = [
-    {% for c in campaigns_data %}
+    {% for item in campaigns_data %}
       {
-        name: "{{ c.obj.name|escapejs }}",
-        platform: "{{ c.obj.platform|default:'General'|escapejs }}",
-        period_leads: {{ c.period_leads_count }},
-        all_time_leads: {{ c.leads_count }}
-      },
-    {% endfor %}
-  ];
-
-  const RECENT_JOBS_DATA = [
-    {% for j in recent_jobs %}
-      {
-        filename: "{{ j.original_filename|escapejs }}",
-        count: {{ j.imported_count }},
-        date: "{{ j.created_at|date:'d-M H:i' }}"
+        id: {{ item.obj.pk }},
+        name: "{{ item.obj.name|escapejs }}",
+        platform: "{{ item.obj.platform|default:'General'|escapejs }}",
+        leads_count: {{ item.leads_count }},
+        period_leads: {{ item.period_leads_count }}
       },
     {% endfor %}
   ];
@@ -524,16 +511,13 @@
     hospitalName: "{{ hospital_name|escapejs }}",
     presetLabel: "{{ preset_label|escapejs }}",
     totalPeriodLeads: {{ total_period_leads }},
-    totalAllTimeLeads: {{ total_leads_generated }},
     senderName: "{{ request.user.get_full_name|default:request.user.username|escapejs }}",
-    todayDate: "{{ today_date_str }}"
   };
 
   function buildWhatsAppMessage() {
     const greeting = document.getElementById('waGreeting').value.trim();
     const includeTotal = document.getElementById('waIncludeTotal').checked;
     const includeCampaigns = document.getElementById('waIncludeCampaigns').checked;
-    const includeUploads = document.getElementById('waIncludeUploadFiles').checked;
     const includeSender = document.getElementById('waIncludeSender').checked;
     const customNote = document.getElementById('waCustomNote').value.trim();
 
@@ -542,7 +526,7 @@
       lines.push(greeting);
     }
     lines.push(`🏥 *${META_INFO.hospitalName}*`);
-    lines.push(`📅 *Date / Period:* ${META_INFO.presetLabel}`);
+    lines.push(`📅 *Date:* ${META_INFO.presetLabel}`);
     lines.push(`────────────────────`);
 
     if (includeTotal) {
@@ -551,29 +535,23 @@
     }
 
     if (includeCampaigns) {
-      lines.push(`🎯 *Campaigns Breakdown:*`);
+      lines.push(`🎯 *Campaigns Lead Breakdown:*`);
       let hasCampWithLeads = false;
       CAMPAIGN_SUMMARY_DATA.forEach(c => {
-        // Show campaigns that had leads in this period or all active
-        if (c.period_leads > 0 || META_INFO.presetLabel.includes('All Time')) {
+        if (c.period_leads > 0) {
           hasCampWithLeads = true;
           lines.push(`• *${c.name}* (${c.platform}): *${c.period_leads} leads*`);
         }
       });
       if (!hasCampWithLeads) {
-        // If 0 leads in period, list top active campaigns
-        CAMPAIGN_SUMMARY_DATA.slice(0, 5).forEach(c => {
-          lines.push(`• *${c.name}*: ${c.period_leads} leads`);
-        });
+        if (META_INFO.presetLabel.includes('All Time')) {
+          CAMPAIGN_SUMMARY_DATA.slice(0, 5).forEach(c => {
+            lines.push(`• *${c.name}*: ${c.leads_count} leads`);
+          });
+        } else {
+          lines.push(`• _No new campaign leads uploaded for this date._`);
+        }
       }
-      lines.push(``);
-    }
-
-    if (includeUploads && RECENT_JOBS_DATA.length > 0) {
-      lines.push(`📁 *Uploads History in this Period:*`);
-      RECENT_JOBS_DATA.forEach(j => {
-        lines.push(`• _${j.filename}_ → *${j.count} leads* (${j.date})`);
-      });
       lines.push(``);
     }
 

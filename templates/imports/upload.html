@@ -495,10 +495,6 @@
                 <input class="form-check-input" type="checkbox" id="waUploadIncludeCampaigns" checked onchange="updateUploadPageWhatsAppPreview()">
                 <label class="form-check-label small" for="waUploadIncludeCampaigns">Campaigns Breakdown</label>
               </div>
-              <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="waUploadIncludeFiles" checked onchange="updateUploadPageWhatsAppPreview()">
-                <label class="form-check-label small" for="waUploadIncludeFiles">Recent Uploaded Files ({{ recent_jobs|length }} files)</label>
-              </div>
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" id="waUploadIncludeSender" checked onchange="updateUploadPageWhatsAppPreview()">
                 <label class="form-check-label small" for="waUploadIncludeSender">Sender Name ({{ request.user.get_full_name|default:request.user.username }})</label>
@@ -550,16 +546,6 @@
     {% endfor %}
   ];
 
-  const UPLOAD_PAGE_RECENT_JOBS = [
-    {% for j in recent_jobs %}
-      {
-        filename: "{{ j.original_filename|escapejs }}",
-        imported: {{ j.imported_count }},
-        date: "{{ j.created_at|date:'d-m-Y H:i' }}"
-      },
-    {% endfor %}
-  ];
-
   const UPLOAD_META = {
     hospitalName: "{{ hospital_name|escapejs }}",
     presetLabel: "{{ preset_label|escapejs }}",
@@ -571,14 +557,13 @@
     const greeting = document.getElementById('waUploadGreeting').value.trim();
     const includeTotals = document.getElementById('waUploadIncludeTotals').checked;
     const includeCampaigns = document.getElementById('waUploadIncludeCampaigns').checked;
-    const includeFiles = document.getElementById('waUploadIncludeFiles').checked;
     const includeSender = document.getElementById('waUploadIncludeSender').checked;
     const customNote = document.getElementById('waUploadCustomNote').value.trim();
 
     let lines = [];
     if (greeting) lines.push(greeting);
     lines.push(`🏥 *${UPLOAD_META.hospitalName}*`);
-    lines.push(`📅 *Period:* ${UPLOAD_META.presetLabel}`);
+    lines.push(`📅 *Date:* ${UPLOAD_META.presetLabel}`);
     lines.push(`────────────────────`);
 
     if (includeTotals) {
@@ -590,24 +575,20 @@
       lines.push(`🎯 *Campaigns Lead Breakdown:*`);
       let countAdded = 0;
       UPLOAD_PAGE_CAMPAIGNS.forEach(c => {
-        if (c.period_leads > 0 || UPLOAD_META.presetLabel.includes('All Time')) {
+        if (c.period_leads > 0) {
           countAdded++;
           lines.push(`• *${c.name}* (${c.platform}): *${c.period_leads} leads*`);
         }
       });
       if (countAdded === 0) {
-        UPLOAD_PAGE_CAMPAIGNS.slice(0, 4).forEach(c => {
-          lines.push(`• *${c.name}*: ${c.period_leads} leads`);
-        });
+        if (UPLOAD_META.presetLabel.includes('All Time')) {
+          UPLOAD_PAGE_CAMPAIGNS.slice(0, 5).forEach(c => {
+            lines.push(`• *${c.name}*: ${c.all_time_leads} leads`);
+          });
+        } else {
+          lines.push(`• _No new campaign leads uploaded for this date._`);
+        }
       }
-      lines.push(``);
-    }
-
-    if (includeFiles && UPLOAD_PAGE_RECENT_JOBS.length > 0) {
-      lines.push(`📁 *Uploaded Files in this Period:*`);
-      UPLOAD_PAGE_RECENT_JOBS.forEach((j, idx) => {
-        lines.push(`• _${j.filename}_ → *${j.imported} leads* (${j.date})`);
-      });
       lines.push(``);
     }
 
