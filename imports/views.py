@@ -343,6 +343,9 @@ def ajax_create_campaign(request):
     start_date = parse_flexible_date(start_date_str) if start_date_str else None
     end_date = parse_flexible_date(end_date_str) if end_date_str else None
 
+    if start_date and end_date and end_date < start_date:
+        return JsonResponse({"success": False, "error": "End Date must be greater than or equal to Start Date."})
+
     defaults = {
         "platform": platform,
         "ad_set": ad_set,

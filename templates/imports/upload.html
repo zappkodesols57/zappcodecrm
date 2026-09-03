@@ -420,19 +420,34 @@
 
       if (data.success) {
         const sel = document.getElementById('campaignSelect');
-        const optText = `${data.campaign.name} (0 Leads)`;
-        const opt = new Option(optText, data.campaign.id, true, true);
-        sel.add(opt);
-        sel.value = data.campaign.id;
+        if (sel) {
+          const optText = `${data.campaign.name} (0 Leads)`;
+          const opt = new Option(optText, data.campaign.id, true, true);
+          opt.setAttribute('data-hospital', data.campaign.hospital_id || '');
+          sel.appendChild(opt);
+          sel.value = String(data.campaign.id);
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
 
+        // Hide Modal properly
         const modalEl = document.getElementById('newCampaignModal');
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
+        if (modalEl) {
+          const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+          modalInstance.hide();
+        }
+        
+        // Reset form fields
         nameInput.value = '';
+        const adSetInput = document.getElementById('modalCampaignAdSet');
+        if (adSetInput) adSetInput.value = '';
+        const errDiv = document.getElementById('campaignModalError');
+        if (errDiv) errDiv.classList.add('d-none');
       } else {
         const errDiv = document.getElementById('campaignModalError');
-        errDiv.innerText = data.error || 'Failed to create campaign';
-        errDiv.classList.remove('d-none');
+        if (errDiv) {
+          errDiv.innerText = data.error || 'Failed to create campaign';
+          errDiv.classList.remove('d-none');
+        }
       }
     })
     .catch(err => {

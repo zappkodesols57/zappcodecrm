@@ -16,6 +16,7 @@ from payments.models import Payment, PaymentStatus
 from accounts.models import User
 from dashboard.models import DailyReport, TaskReminder
 from notifications.models import Notification
+from imports.models import ImportJob
 
 
 @login_required
@@ -350,9 +351,14 @@ def superadmin_home(request):
     age_group_filter = request.GET.get('age_group', '').strip()
     payment_type_filter = request.GET.get('payment_type', '').strip() # 'all_paid', 'opd', 'pharmacy', 'ipd', 'investigation', 'unpaid'
 
-    # 3. Apply Filters (Default view is 'today' if no time_filter/custom dates/year/month specified)
-    if not any([time_filter, custom_start, custom_end, year_filter, month_filter, weekday_filter, campaign_filter, source_filter, department_filter, doctor_filter, location_filter, gender_filter, age_group_filter, payment_type_filter]):
-        time_filter = 'today'
+    # 3. Apply Filters (Default view is 'all_time' if specific dropdown slicers or dates are used, or 'today' if clean view)
+    has_specific_dropdown = any([custom_start, custom_end, year_filter, month_filter, weekday_filter, campaign_filter, source_filter, department_filter, doctor_filter, location_filter, gender_filter, age_group_filter, payment_type_filter])
+    
+    if not time_filter:
+        if has_specific_dropdown:
+            time_filter = 'all_time'
+        else:
+            time_filter = 'today'
 
     from datetime import datetime, date
     import calendar
@@ -466,8 +472,8 @@ def superadmin_home(request):
     # 4. Aggregations & Analytical Calculations for Nelson Hospital
     from collections import defaultdict
 
-    # Base queryset for hospital tenant
-    hospital_all_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital) if user.hospital else Lead.objects.filter(is_archived=False)
+    # Base queryset for hospital tenant (inherits all applied filters: campaign, source, department, doctor, location, date, etc.)
+    hospital_all_leads = base_leads
 
     # =========================================================================
     # CARD 1: TODAY'S / PERIOD NEW LEADS (Excel Imported + Organic + Direct Walk-in)
@@ -630,30 +636,37 @@ def superadmin_home(request):
     # =========================================================================
     # CARD 3: TODAY'S / PERIOD OPD / APPOINTMENT BOOKED
     # =========================================================================
+    today_alt_str = today.strftime("%d-%m-%Y")
+    opd_status_q = (
+        Q(custom_data__appointment_status__icontains='Book') |
+        Q(custom_data__appointment_status__icontains='Confirm') |
+        Q(custom_data__appointment_status__icontains='Approv') |
+        Q(custom_data__appointment_status__icontains='Complete') |
+        Q(custom_data__appointment_status__iexact='YES')
+    )
     if time_filter == 'this_month':
         appts_booked_qs = hospital_all_leads.filter(
-            Q(custom_data__appointment_status__icontains='Book') |
-            Q(custom_data__appointment_status__icontains='Complete') |
-            Q(custom_data__appointment_status__iexact='YES')
+            opd_status_q
         ).filter(
             Q(created_at__range=(start_of_month, end_of_month)) |
-            Q(inquiry_date__range=(start_date_month, end_date_month))
+            Q(inquiry_date__range=(start_date_month, end_date_month)) |
+            Q(custom_data__appo_booked_date__startswith=today.strftime('%Y-%m'))
         ).distinct()
     elif time_filter == 'all_time':
         appts_booked_qs = hospital_all_leads.filter(
-            Q(custom_data__appointment_status__icontains='Book') |
-            Q(custom_data__appointment_status__icontains='Complete') |
-            Q(custom_data__appointment_status__iexact='YES')
+            opd_status_q
         ).distinct()
     else:
         appts_booked_qs = hospital_all_leads.filter(
-            Q(custom_data__appointment_status__icontains='Book') |
-            Q(custom_data__appointment_status__icontains='Complete') |
-            Q(custom_data__appointment_status__iexact='YES')
+            opd_status_q
         ).filter(
             Q(created_at__range=(start_of_today, end_of_today)) |
             Q(inquiry_date=today) |
-            Q(custom_data__appo_booked_date=today_str)
+            Q(custom_data__appo_booked_date=today_str) |
+            Q(custom_data__appo_booked_date=today_alt_str) |
+            Q(custom_data__appointment_date=today_str) |
+            Q(custom_data__appointment_date=today_alt_str) |
+            Q(custom_data__appointment_confirmed_at__startswith=today_str)
         ).distinct()
 
     appts_booked_count = appts_booked_qs.count()
@@ -682,18 +695,24 @@ def superadmin_home(request):
     # =========================================================================
     # CARD 4: TODAY'S / PERIOD FOLLOW-UPS (Pending / Due Follow-ups)
     # =========================================================================
+    # Exclude won/lost as well as active Booked / Booking Confirmed OPD leads (which belong to OPD Card 3)
+    booked_exclude_q = (
+        Q(custom_data__appointment_status__icontains='Book') |
+        Q(custom_data__appointment_status__icontains='Confirm') |
+        Q(deal_status__in=[DealStatus.WON, DealStatus.LOST])
+    )
     if time_filter == 'all_time':
         todays_followups_qs = hospital_all_leads.filter(
             next_followup_date__isnull=False
-        ).distinct()
+        ).exclude(booked_exclude_q).distinct()
     elif time_filter == 'this_month':
         todays_followups_qs = hospital_all_leads.filter(
             next_followup_date__range=(start_date_month, end_date_month)
-        ).distinct()
+        ).exclude(booked_exclude_q).distinct()
     else:
         todays_followups_qs = hospital_all_leads.filter(
             next_followup_date=today
-        ).distinct()
+        ).exclude(booked_exclude_q).distinct()
 
     todays_followups_count = todays_followups_qs.count()
 
@@ -1034,23 +1053,35 @@ def nel_card_drilldown_api(request):
     elif card_type == 'opd_booked':
         b_base = hospital_qs.filter(
             Q(custom_data__appointment_status__icontains='Book') |
+            Q(custom_data__appointment_status__icontains='Confirm') |
+            Q(custom_data__appointment_status__icontains='Approv') |
             Q(custom_data__appointment_status__icontains='Complete') |
             Q(custom_data__appointment_status__iexact='YES')
         )
         if selected_date:
+            sel_alt_str = selected_date.strftime("%d-%m-%Y")
             leads_qs = b_base.filter(
                 Q(created_at__range=(start_dt, end_dt)) |
                 Q(inquiry_date=selected_date) |
-                Q(custom_data__appo_booked_date=sel_date_str)
+                Q(custom_data__appo_booked_date=sel_date_str) |
+                Q(custom_data__appo_booked_date=sel_alt_str) |
+                Q(custom_data__appointment_date=sel_date_str) |
+                Q(custom_data__appointment_date=sel_alt_str) |
+                Q(custom_data__appointment_confirmed_at__startswith=sel_date_str)
             )
         else:
             leads_qs = b_base
 
     elif card_type == 'followups':
+        booked_exclude_modal = (
+            Q(custom_data__appointment_status__icontains='Book') |
+            Q(custom_data__appointment_status__icontains='Confirm') |
+            Q(deal_status__in=[DealStatus.WON, DealStatus.LOST])
+        )
         if selected_date:
-            leads_qs = hospital_qs.filter(next_followup_date=selected_date)
+            leads_qs = hospital_qs.filter(next_followup_date=selected_date).exclude(booked_exclude_modal)
         else:
-            leads_qs = hospital_qs.filter(next_followup_date__isnull=False)
+            leads_qs = hospital_qs.filter(next_followup_date__isnull=False).exclude(booked_exclude_modal)
 
     elif card_type == 'walkin':
         w_base = hospital_qs.filter(
@@ -1105,6 +1136,9 @@ def nel_card_drilldown_api(request):
         appt_date = str(cd.get("appo_booked_date") or cd.get("appointment_date") or "").strip()
         appt_time = str(cd.get("appointment_time") or "").strip()
 
+        status_str = l.display_status
+        temp_str = l.custom_temperature or ""
+
         lead_items.append({
             "id": l.id,
             "name": l.name or "Anonymous Patient",
@@ -1115,10 +1149,10 @@ def nel_card_drilldown_api(request):
             "inquiry_date": str(l.inquiry_date or '-'),
             "campaign": c_name.strip(),
             "lead_source": l.lead_source.name if l.lead_source else (cd.get('lead_source') or 'Hospital Form'),
-            "status": l.display_status,
+            "status": status_str,
             "is_booked": is_booked,
-            "temperature": str(l.temperature),
-            "appointment_status": appt_st,
+            "temperature": temp_str,
+            "appointment_status": appt_st or status_str,
             "doctor": doc,
             "appointment_date": appt_date,
             "appointment_time": appt_time,
@@ -1281,11 +1315,26 @@ def nelson_module_view(request, module_name):
                 campaign_id_code = request.POST.get('campaign_id_code', '').strip()
                 ad_set = request.POST.get('ad_set', '').strip()
                 ad_name = request.POST.get('ad_name', '').strip()
-                cost = request.POST.get('cost', 0) or 0
+                raw_cost = request.POST.get('cost', '0').strip()
                 landing_page = request.POST.get('landing_page', '').strip()
                 start_date = request.POST.get('start_date') or None
                 end_date = request.POST.get('end_date') or None
                 
+                # Validation: Cost must be non-negative integer
+                try:
+                    cost_val = int(float(raw_cost)) if raw_cost else 0
+                    if cost_val < 0:
+                        messages.error(request, "Campaign cost cannot be negative.")
+                        return redirect('dashboard:nelson_module', module_name='campaign-management')
+                except (ValueError, TypeError):
+                    messages.error(request, "Please enter a valid whole integer amount for cost.")
+                    return redirect('dashboard:nelson_module', module_name='campaign-management')
+
+                # Validation: End Date must be after/on Start Date
+                if start_date and end_date and end_date < start_date:
+                    messages.error(request, "End Date must be greater than or equal to Start Date.")
+                    return redirect('dashboard:nelson_module', module_name='campaign-management')
+
                 if name:
                     Campaign.objects.create(
                         hospital=hospital,
@@ -1294,7 +1343,7 @@ def nelson_module_view(request, module_name):
                         campaign_id=campaign_id_code,
                         ad_set=ad_set,
                         ad_name=ad_name,
-                        cost=cost,
+                        cost=cost_val,
                         landing_page=landing_page,
                         start_date=start_date,
                         end_date=end_date,
@@ -1310,15 +1359,34 @@ def nelson_module_view(request, module_name):
                     messages.error(request, "Permission denied.")
                     return redirect('dashboard:nelson_module', module_name='campaign-management')
                     
+                raw_cost = request.POST.get('cost', '').strip()
+                start_date = request.POST.get('start_date') or None
+                end_date = request.POST.get('end_date') or None
+
+                # Validation: Cost must be non-negative integer
+                try:
+                    cost_val = int(float(raw_cost)) if raw_cost else 0
+                    if cost_val < 0:
+                        messages.error(request, "Campaign cost cannot be negative.")
+                        return redirect('dashboard:nelson_module', module_name='campaign-management')
+                except (ValueError, TypeError):
+                    messages.error(request, "Please enter a valid whole integer amount for cost.")
+                    return redirect('dashboard:nelson_module', module_name='campaign-management')
+
+                # Validation: End Date must be after/on Start Date
+                if start_date and end_date and end_date < start_date:
+                    messages.error(request, "End Date must be greater than or equal to Start Date.")
+                    return redirect('dashboard:nelson_module', module_name='campaign-management')
+
                 camp.name = request.POST.get('name', camp.name).strip()
                 camp.platform = request.POST.get('platform', camp.platform).strip()
                 camp.campaign_id = request.POST.get('campaign_id_code', camp.campaign_id).strip()
                 camp.ad_set = request.POST.get('ad_set', camp.ad_set).strip()
                 camp.ad_name = request.POST.get('ad_name', camp.ad_name).strip()
-                camp.cost = request.POST.get('cost', camp.cost) or 0
+                camp.cost = cost_val
                 camp.landing_page = request.POST.get('landing_page', camp.landing_page).strip()
-                camp.start_date = request.POST.get('start_date') or None
-                camp.end_date = request.POST.get('end_date') or None
+                camp.start_date = start_date
+                camp.end_date = end_date
                 camp.is_active = (request.POST.get('is_active') == 'on')
                 camp.save()
                 messages.success(request, f"Campaign '{camp.name}' updated successfully!")
@@ -2336,11 +2404,16 @@ def telecaller_home(request):
     todays_opd_booked_count = max(appts_model_cnt, appts_leads_cnt)
 
     # CARD 4: Today's Follow-ups for User
+    booked_exclude_tele = (
+        Q(custom_data__appointment_status__icontains='Book') |
+        Q(custom_data__appointment_status__icontains='Confirm') |
+        Q(deal_status__in=[DealStatus.WON, DealStatus.LOST])
+    )
     todays_followups_count = hospital_leads.filter(
         assigned_to=user,
         next_followup_date=today_date
     ).exclude(
-        deal_status__in=[DealStatus.WON, DealStatus.LOST]
+        booked_exclude_tele
     ).distinct().count()
 
     # CARD 5: Today's Walk-in Leads
@@ -2433,7 +2506,7 @@ def telecaller_home(request):
         assigned_to=user,
         next_followup_date__isnull=False
     ).exclude(
-        deal_status__in=[DealStatus.WON, DealStatus.LOST]
+        booked_exclude_tele
     ).select_related('stage', 'campaign', 'lead_source').order_by('next_followup_date')
 
     pending_followups_list = []
@@ -2443,7 +2516,7 @@ def telecaller_home(request):
         f_type = 'Call Follow-up'
         if cd.get('pharmacy_bill') or cd.get('opd_bill') or cd.get('total') or l.custom_deal_status == 'Payment Pending':
             f_type = 'Billing Follow-up'
-        elif any(k in str(cd.get('appointment_status') or '').lower() for k in ['book', 'appo', 'confirm']):
+        elif any(k in str(cd.get('appointment_status') or '').lower() for k in ['appo', 'reschedule', 'slot']):
             f_type = 'Appointment Follow-up'
         elif cd.get('remark_1') or cd.get('last_called_date'):
             f_type = 'Calling Follow-up'
@@ -2781,10 +2854,14 @@ def doctor_home(request):
 
             # Update Lead custom data / deal status to reflect Booked appointment
             cd = lead.custom_data or {}
-            cd['appointment_status'] = 'Booked'
+            cd['appointment_status'] = 'Booking Confirmed'
+            cd['appo_booked_date'] = apt.appointment_date.strftime('%Y-%m-%d')
+            if apt.appointment_time:
+                cd['appointment_time'] = apt.appointment_time.strftime('%I:%M %p')
             cd['appointment_confirmed_at'] = timezone.now().strftime('%Y-%m-%d %H:%M')
             lead.custom_data = cd
-            lead.save(update_fields=['custom_data'])
+            lead.next_followup_date = None # Lead is now confirmed booked OPD, remove from generic follow-ups
+            lead.save(update_fields=['custom_data', 'next_followup_date'])
 
             # Notify Lead Attendant
             if lead.assigned_to:
@@ -2795,7 +2872,7 @@ def doctor_home(request):
                     link=f"/leads/{lead.pk}/",
                 )
 
-            messages.success(request, f"Appointment for {lead.name} on {date_str} at {time_str} approved and Booked! Notification sent to Lead Attendant.")
+            messages.success(request, f"Appointment for {lead.name} on {date_str} at {time_str} approved and Booking Confirmed! Notification sent to Lead Attendant.")
 
         elif action == "reject" or action == "cancel":
             reason = request.POST.get('reject_reason', '').strip() or request.POST.get('doctor_notes', '').strip() or 'Doctor unavailable / slot full'
@@ -2971,10 +3048,14 @@ def doctor_appointments(request):
             apt.status = AppointmentStatus.APPROVED
             apt.save(update_fields=['status'])
             cd = lead.custom_data or {}
-            cd['appointment_status'] = 'Booked'
+            cd['appointment_status'] = 'Booking Confirmed'
+            cd['appo_booked_date'] = apt.appointment_date.strftime('%Y-%m-%d')
+            if apt.appointment_time:
+                cd['appointment_time'] = apt.appointment_time.strftime('%I:%M %p')
             cd['appointment_confirmed_at'] = timezone.now().strftime('%Y-%m-%d %H:%M')
             lead.custom_data = cd
-            lead.save(update_fields=['custom_data'])
+            lead.next_followup_date = None
+            lead.save(update_fields=['custom_data', 'next_followup_date'])
 
             if lead.assigned_to:
                 Notification.objects.create(
@@ -2983,7 +3064,7 @@ def doctor_appointments(request):
                     message=f"Dr. {doctor.get_full_name() or doctor.username} confirmed and booked appointment for patient {lead.name} on {date_str} at {time_str}.",
                     link=f"/leads/{lead.pk}/",
                 )
-            messages.success(request, f"Appointment for {lead.name} on {date_str} at {time_str} approved and Booked!")
+            messages.success(request, f"Appointment for {lead.name} on {date_str} at {time_str} approved and Booking Confirmed!")
 
         elif action == "reject" or action == "cancel":
             reason = request.POST.get('reject_reason', '').strip() or request.POST.get('doctor_notes', '').strip() or 'Doctor unavailable / slot full'

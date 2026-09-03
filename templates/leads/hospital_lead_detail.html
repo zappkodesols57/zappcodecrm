@@ -6,32 +6,41 @@
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
   <div>
     <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
-    <h4 class="mb-1 fw-bold text-dark">{{ lead.name }}
+    <h4 class="mb-1 fw-bold text-dark d-flex align-items-center gap-2 flex-wrap">{{ lead.name }}
       {% if lead.display_status == 'Payment Done' %}
-        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
+        <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
+      {% elif lead.display_status == 'Booking Confirmed' %}
+        <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed ({{ lead.remark_detail }})</span>
       {% elif lead.display_status == 'Booked' %}
-        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
+        <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
+      {% elif lead.display_status == 'Booking Approval Pending' %}
+        <span class="badge badge-booking-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Booking Approval Pending</span>
+      {% elif lead.display_status == 'Follow-up Needed' %}
+        <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
       {% elif lead.display_status == 'Payment Pending' %}
-        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
+        <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
       {% elif lead.display_status == 'New' %}
-        <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-sparkles me-1"></i>New Enquiry</span>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
       {% elif lead.display_status == 'Open' %}
-        <span class="badge bg-light text-dark border">
-          <i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open
-          {% if lead.remark_detail == 'Hot' %}
-            <span class="text-danger fw-bold ms-1">· Hot</span>
-          {% elif lead.remark_detail == 'Warm' %}
-            <span class="text-warning-emphasis fw-bold ms-1">· Warm</span>
-          {% elif lead.remark_detail == 'Cold' %}
-            <span class="text-info fw-bold ms-1">· Cold</span>
-          {% elif lead.remark_detail == 'Freeze' %}
-            <span class="text-secondary fw-bold ms-1">· Freeze</span>
-          {% endif %}
-        </span>
-      {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' %}
-        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
+        <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
+      {% elif lead.display_status == 'Assigned' %}
+        <span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
+      {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
+        <span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
       {% else %}
         <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
+      {% endif %}
+
+      {% if lead.custom_temperature %}
+        {% if lead.custom_temperature == 'Hot' %}
+          <span class="badge badge-hot"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
+        {% elif lead.custom_temperature == 'Warm' %}
+          <span class="badge badge-warm"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
+        {% elif lead.custom_temperature == 'Cold' %}
+          <span class="badge badge-cold"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
+        {% elif lead.custom_temperature == 'Freeze' %}
+          <span class="badge badge-freeze"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
+        {% endif %}
       {% endif %}
     </h4>
     <div class="text-muted small d-flex gap-3 mt-1">
@@ -47,7 +56,7 @@
   <div class="d-flex gap-2 align-items-center flex-wrap">
     <!-- 1-Click Dynamic WhatsApp Message to Patient -->
     {% if lead.mobile %}
-    <a href="https://wa.me/91{{ lead.clean_mobile }}?text={{ lead.whatsapp_message }}" target="_blank" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
+    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
       <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
     </a>
     {% endif %}
@@ -68,11 +77,6 @@
     <div class="card border-0 shadow-sm rounded-4 mb-3">
       <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-stethoscope text-primary me-2"></i>Consultation & Appointment Details</h6>
-        {% if lead.mobile %}
-        <a href="https://wa.me/91{{ lead.clean_mobile }}?text={{ lead.whatsapp_message }}" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-bold" title="{% if lead.is_booked %}Send Booking Confirmation{% else %}Send Welcome Greeting{% endif %}">
-          <i class="fa-brands fa-whatsapp me-1"></i> {% if lead.is_booked %}WhatsApp Booking Details{% else %}Quick Message{% endif %}
-        </a>
-        {% endif %}
       </div>
       <div class="card-body">
         <div class="row g-3 small">

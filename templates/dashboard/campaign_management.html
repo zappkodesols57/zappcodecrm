@@ -1,3 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Campaign Management & Reports | CRM{% endblock %}
+
 {% block extra_head %}
 <style>
   .filter-pill-btn {
@@ -298,7 +301,7 @@
                         <div class="row g-2 mb-3">
                           <div class="col-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">Budget / Cost (₹)</label>
-                            <input type="number" step="0.01" name="cost" class="form-control" value="{{ c.obj.cost }}">
+                            <input type="number" min="0" step="1" name="cost" class="form-control" value="{{ c.obj.cost }}" placeholder="0" oninput="if(this.value < 0) this.value = 0; if(this.value.includes('.')) this.value = Math.floor(this.value);">
                           </div>
                           <div class="col-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">Landing Page URL</label>
@@ -308,11 +311,11 @@
                         <div class="row g-2 mb-3">
                           <div class="col-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
-                            <input type="date" name="start_date" class="form-control" value="{{ c.obj.start_date|date:'Y-m-d' }}">
+                            <input type="date" name="start_date" id="editStartDate{{ c.obj.pk }}" class="form-control" value="{{ c.obj.start_date|date:'Y-m-d' }}" onchange="document.getElementById('editEndDate{{ c.obj.pk }}').min = this.value">
                           </div>
                           <div class="col-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
-                            <input type="date" name="end_date" class="form-control" value="{{ c.obj.end_date|date:'Y-m-d' }}">
+                            <input type="date" name="end_date" id="editEndDate{{ c.obj.pk }}" class="form-control" value="{{ c.obj.end_date|date:'Y-m-d' }}" {% if c.obj.start_date %}min="{{ c.obj.start_date|date:'Y-m-d' }}"{% endif %}>
                           </div>
                         </div>
                         <div class="form-check form-switch mt-2">
@@ -332,7 +335,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="text-center py-5">
+            <td colspan="8" class="text-center py-5">
               <div class="text-muted mb-3"><i class="fa-solid fa-bullseye fa-3x opacity-25"></i></div>
               <h5 class="fw-bold text-dark">No campaigns registered yet</h5>
               <p class="text-muted">Click "Add New Campaign" to create your first hospital campaign or connect via Meta Ads.</p>
@@ -353,7 +356,7 @@
         <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-plus text-primary me-2"></i> Add New Campaign</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}">
+      <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}" onsubmit="return validateCampaignForm(this)">
         {% csrf_token %}
         <input type="hidden" name="action" value="create">
         <div class="modal-body p-4">
@@ -384,7 +387,7 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label small fw-bold text-muted text-uppercase">Budget / Cost (₹)</label>
-              <input type="number" step="0.01" name="cost" class="form-control" placeholder="0.00">
+              <input type="number" min="0" step="1" name="cost" class="form-control" placeholder="0" oninput="if(this.value < 0) this.value = 0; if(this.value.includes('.')) this.value = Math.floor(this.value);">
             </div>
             <div class="col-6">
               <label class="form-label small fw-bold text-muted text-uppercase">Landing Page URL</label>
@@ -394,11 +397,11 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
-              <input type="date" name="start_date" class="form-control">
+              <input type="date" name="start_date" id="createStartDate" class="form-control" onchange="document.getElementById('createEndDate').min = this.value">
             </div>
             <div class="col-6">
               <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
-              <input type="date" name="end_date" class="form-control">
+              <input type="date" name="end_date" id="createEndDate" class="form-control">
             </div>
           </div>
         </div>
@@ -612,6 +615,29 @@
     
     let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
+  }
+
+  function validateCampaignForm(form) {
+    const costInput = form.querySelector('input[name="cost"]');
+    if (costInput && costInput.value) {
+      const costVal = Number(costInput.value);
+      if (isNaN(costVal) || costVal < 0) {
+        alert('Budget/Cost cannot be negative. Please enter a valid non-negative amount.');
+        costInput.focus();
+        return false;
+      }
+    }
+
+    const startDateInput = form.querySelector('input[name="start_date"]');
+    const endDateInput = form.querySelector('input[name="end_date"]');
+    if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+      if (endDateInput.value < startDateInput.value) {
+        alert('End Date must be greater than or equal to Start Date.');
+        endDateInput.focus();
+        return false;
+      }
+    }
+    return true;
   }
 
   // Initialize preview on DOM ready

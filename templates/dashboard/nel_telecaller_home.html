@@ -370,15 +370,21 @@
                                     </td>
                                     <td class="text-center">
                                         {% if lead.custom_deal_status == 'Payment Done' %}
-                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="ph-bold ph-check-circle me-1"></i>Payment Done</span>
+                                            <span class="badge badge-payment-done px-2 py-1"><i class="ph-bold ph-check-circle me-1"></i>Payment Done</span>
+                                        {% elif lead.custom_deal_status == 'Booking Confirmed' %}
+                                            <span class="badge badge-booking-confirmed px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booking Confirmed</span>
                                         {% elif lead.custom_deal_status == 'Booked' %}
-                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booked</span>
+                                            <span class="badge badge-booking px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booked</span>
+                                        {% elif lead.custom_deal_status == 'Booking Approval Pending' %}
+                                            <span class="badge badge-booking-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Approval Pending</span>
+                                        {% elif lead.custom_deal_status == 'Follow-up Needed' %}
+                                            <span class="badge badge-followup-needed px-2 py-1"><i class="ph-bold ph-clock me-1"></i>Follow-up</span>
                                         {% elif lead.custom_deal_status == 'Payment Pending' %}
-                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Payment Pending</span>
+                                            <span class="badge badge-payment-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Payment Pending</span>
                                         {% elif lead.custom_deal_status == 'Assigned' %}
-                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="ph-bold ph-user-check me-1"></i>Assigned</span>
-                                        {% elif lead.custom_deal_status == 'Lost' or lead.custom_deal_status == 'Cancelled' %}
-                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1"><i class="ph-bold ph-prohibit me-1"></i>{{ lead.custom_deal_status }}</span>
+                                            <span class="badge badge-assigned px-2 py-1"><i class="ph-bold ph-user-check me-1"></i>Assigned</span>
+                                        {% elif lead.custom_deal_status == 'Lost' or lead.custom_deal_status == 'Cancelled' or lead.custom_deal_status == 'Not Interested' %}
+                                            <span class="badge badge-lost px-2 py-1"><i class="ph-bold ph-prohibit me-1"></i>{{ lead.custom_deal_status }}</span>
                                         {% else %}
                                             <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.custom_deal_status|default:'Open' }}</span>
                                         {% endif %}
