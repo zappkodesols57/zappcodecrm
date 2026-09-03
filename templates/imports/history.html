@@ -145,7 +145,7 @@
             <div class="d-flex gap-1 align-items-center justify-content-end">
               <!-- Single File WhatsApp Share -->
               <button type="button" class="btn btn-sm btn-outline-success rounded-3" title="Share this file upload report on WhatsApp"
-                onclick="openSingleJobWhatsApp('{{ j.original_filename|escapejs }}', '{{ j.imported_count }}', '{{ j.updated_count }}', '{{ j.duplicate_count }}', '{{ j.total_rows }}', '{{ j.created_at|date:\"d-m-Y H:i\" }}')">
+                onclick="openSingleJobWhatsApp('{{ j.original_filename|escapejs }}', '{{ j.imported_count }}', '{{ j.updated_count }}', '{{ j.duplicate_count }}', '{{ j.total_rows }}', '{{ j.created_at|date:'d-m-Y H:i' }}')">
                 <i class="fa-brands fa-whatsapp"></i>
               </button>
               <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary rounded-3" title="View Leads Imported from this File">

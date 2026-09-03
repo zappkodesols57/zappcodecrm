@@ -201,24 +201,101 @@ def upload(request):
     is_super_admin_no_hospital = bool(user.role == User.Role.SUPER_ADMIN and not user.hospital)
     can_import_previous = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER))
     
-    # Available campaigns with current leads count
-    from django.db.models import Count
-    if user.hospital:
-        campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
-    else:
-        campaigns = HospitalCampaign.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        current_leads_count = Lead.objects.filter(is_archived=False).count()
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    from django.db.models import Q
+    from .models import ImportJob
 
-    all_hospitals = []
-    if is_super_admin_no_hospital:
-        all_hospitals = Hospital.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("name")
+    today = timezone.localdate()
+    date_preset = request.GET.get('date_preset', 'today')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+
+    filter_start = today
+    filter_end = today
+    preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+
+    if date_preset == 'today':
+        filter_start = today
+        filter_end = today
+        preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+    elif date_preset == 'yesterday':
+        yesterday = today - timedelta(days=1)
+        filter_start = yesterday
+        filter_end = yesterday
+        preset_label = f"Yesterday ({yesterday.strftime('%d-%m-%Y')})"
+    elif date_preset == 'last_7d':
+        filter_start = today - timedelta(days=7)
+        filter_end = today
+        preset_label = f"Last 7 Days ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+    elif date_preset == 'this_month':
+        filter_start = today.replace(day=1)
+        filter_end = today
+        preset_label = f"This Month ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+    elif date_preset == 'all_time':
+        filter_start = None
+        filter_end = None
+        preset_label = "All Time"
+    elif date_preset == 'custom' and start_date_str:
+        try:
+            filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else filter_start
+            preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+        except ValueError:
+            filter_start = today
+            filter_end = today
+            preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+
+    # Filter base leads and import jobs for current scope
+    if user.hospital:
+        base_leads_qs = Lead.objects.filter(hospital=user.hospital, is_archived=False)
+        base_jobs_qs = ImportJob.objects.filter(created_by__hospital=user.hospital)
+    else:
+        base_leads_qs = Lead.objects.filter(is_archived=False)
+        base_jobs_qs = ImportJob.objects.all()
+
+    if filter_start and filter_end:
+        period_leads_qs = base_leads_qs.filter(
+            Q(created_at__date__gte=filter_start, created_at__date__lte=filter_end) |
+            Q(inquiry_date__gte=filter_start, inquiry_date__lte=filter_end)
+        )
+        period_jobs_qs = base_jobs_qs.filter(
+            created_at__date__gte=filter_start, created_at__date__lte=filter_end
+        )
+    else:
+        period_leads_qs = base_leads_qs
+        period_jobs_qs = base_jobs_qs
+
+    campaigns_data = []
+    total_period_leads = 0
+    for c in campaigns:
+        p_cnt = period_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
+        total_period_leads += p_cnt
+        campaigns_data.append({
+            "id": c.id,
+            "name": c.name,
+            "platform": c.platform or "General",
+            "period_leads": p_cnt,
+            "all_time_leads": c.leads_count,
+        })
+
+    recent_jobs = period_jobs_qs.order_by('-created_at')[:15]
+    hospital_name = user.hospital.name if user.hospital else "Zappcode CRM"
 
     context = {
         "active": "import",
         "is_super_admin_no_hospital": is_super_admin_no_hospital,
         "can_import_previous": can_import_previous,
         "available_campaigns": campaigns,
+        "campaigns_data": campaigns_data,
+        "total_period_leads": total_period_leads,
+        "recent_jobs": recent_jobs,
+        "hospital_name": hospital_name,
+        "today_date_str": today.strftime('%d-%m-%Y'),
+        "date_preset": date_preset,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+        "preset_label": preset_label,
         "all_hospitals": all_hospitals,
         "current_leads_count": current_leads_count,
     }

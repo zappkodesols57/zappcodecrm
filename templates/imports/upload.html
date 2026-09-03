@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Import Leads{% endblock %}
+{% block title %}Import Leads | CRM{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -35,26 +35,94 @@
     border-color: #6366f1;
     background-color: #eef2ff;
   }
+  .btn-whatsapp-theme {
+    background: #25D366;
+    color: #fff;
+    border: 1px solid #25D366;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .btn-whatsapp-theme:hover {
+    background: #1eb956;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+  }
+  .filter-pill-btn {
+    border-radius: 9999px;
+    padding: 0.28rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    background: #fff;
+  }
+  .filter-pill-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+  .filter-pill-btn.active {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+  }
+  .msg-preview-box {
+    background: #eef8f1;
+    border: 1px solid #c7ebd2;
+    border-radius: 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.86rem;
+    white-space: pre-wrap;
+    padding: 1rem;
+    color: #111827;
+    max-height: 280px;
+    overflow-y: auto;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3 px-2 px-md-3">
 
-  <!-- Simple Clean Header -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <!-- Header with WhatsApp Report Button -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="fw-bold text-dark mb-0">
+      <h4 class="fw-bold text-dark mb-1">
         <i class="fa-solid fa-file-import text-primary me-2"></i>Import Leads Data
       </h4>
+      <p class="text-muted small mb-0">Upload campaign XML/Excel sheets and instantly share daily upload summaries on WhatsApp.</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <!-- WhatsApp Report Button for Nelson & Admins -->
+      <button type="button" class="btn btn-whatsapp-theme btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#whatsappUploadPageModal">
+        <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send WhatsApp Report
+      </button>
       <a href="{% url 'imports:download_template' %}" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-none">
         <i class="fa-solid fa-file-excel me-1"></i> Download Template
       </a>
       <a href="{% url 'imports:history' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-none">
         <i class="fa-solid fa-clock-rotate-left me-1"></i> Import History
       </a>
+    </div>
+  </div>
+
+  <!-- Quick Date Filter Strip -->
+  <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-2 px-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-1 flex-wrap">
+        <span class="text-muted small fw-bold me-1"><i class="fa-solid fa-calendar-day text-primary me-1"></i> Report Period:</span>
+        <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">Today</a>
+        <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">Yesterday</a>
+        <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">Last 7 Days</a>
+        <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">This Month</a>
+      </div>
+      <div class="small text-muted">
+        Selected: <strong class="text-primary">{{ preset_label }}</strong> &bull; Total Leads in Period: <strong class="text-success">{{ total_period_leads }}</strong>
+      </div>
     </div>
   </div>
 
@@ -382,5 +450,213 @@
       displayElem.innerText = count;
     }
   }
+</script>
+
+<!-- Modal: WhatsApp Upload Page Summary Customizer -->
+<div class="modal fade" id="whatsappUploadPageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0 bg-light rounded-top-4 p-4">
+        <div>
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="fa-brands fa-whatsapp text-success fs-4"></i> Share Leads Upload Report on WhatsApp
+          </h5>
+          <p class="text-muted small mb-0">Period: <strong class="text-primary">{{ preset_label }}</strong> &bull; Hospital: <strong>{{ hospital_name }}</strong></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <!-- Left: Customization Controls -->
+          <div class="col-md-6 border-end">
+            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-sliders text-primary me-1"></i> Customize Message</h6>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Recipient WhatsApp Number (Optional)</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="fa-solid fa-phone text-muted"></i></span>
+                <input type="text" id="waUploadRecipientNumber" class="form-control" placeholder="e.g. 919876543210 (with country code)" oninput="updateUploadPageWhatsAppPreview()">
+              </div>
+              <small class="text-muted" style="font-size: 0.72rem;">Leave empty to choose contact in WhatsApp directly.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Header Title</label>
+              <input type="text" id="waUploadGreeting" class="form-control form-control-sm" value="*Daily Leads Upload & Campaign Status Report*" oninput="updateUploadPageWhatsAppPreview()">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Include Sections</label>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waUploadIncludeTotals" checked onchange="updateUploadPageWhatsAppPreview()">
+                <label class="form-check-label small" for="waUploadIncludeTotals">Total Period Leads ({{ total_period_leads }})</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waUploadIncludeCampaigns" checked onchange="updateUploadPageWhatsAppPreview()">
+                <label class="form-check-label small" for="waUploadIncludeCampaigns">Campaigns Breakdown</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waUploadIncludeFiles" checked onchange="updateUploadPageWhatsAppPreview()">
+                <label class="form-check-label small" for="waUploadIncludeFiles">Recent Uploaded Files ({{ recent_jobs|length }} files)</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="waUploadIncludeSender" checked onchange="updateUploadPageWhatsAppPreview()">
+                <label class="form-check-label small" for="waUploadIncludeSender">Sender Name ({{ request.user.get_full_name|default:request.user.username }})</label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Custom Closing Remark / Note</label>
+              <input type="text" id="waUploadCustomNote" class="form-control form-control-sm" placeholder="e.g. All fresh leads uploaded and distributed." oninput="updateUploadPageWhatsAppPreview()">
+            </div>
+          </div>
+
+          <!-- Right: Live WhatsApp Text Preview -->
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-eye text-success me-1"></i> Message Preview</h6>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" onclick="copyUploadPageWhatsAppText()">
+                <i class="fa-solid fa-copy me-1"></i> Copy
+              </button>
+            </div>
+            <div id="waUploadPreviewText" class="msg-preview-box"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0 bg-light rounded-bottom-4 p-3 d-flex justify-content-between">
+        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="copyUploadPageWhatsAppText()">
+            <i class="fa-solid fa-copy me-1"></i> Copy Message
+          </button>
+          <button type="button" class="btn btn-whatsapp-theme rounded-pill px-4 shadow" onclick="sendUploadPageToWhatsApp()">
+            <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Open in WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const UPLOAD_PAGE_CAMPAIGNS = [
+    {% for c in campaigns_data %}
+      {
+        name: "{{ c.name|escapejs }}",
+        platform: "{{ c.platform|escapejs }}",
+        period_leads: {{ c.period_leads }},
+        all_time_leads: {{ c.all_time_leads }}
+      },
+    {% endfor %}
+  ];
+
+  const UPLOAD_PAGE_RECENT_JOBS = [
+    {% for j in recent_jobs %}
+      {
+        filename: "{{ j.original_filename|escapejs }}",
+        imported: {{ j.imported_count }},
+        date: "{{ j.created_at|date:'d-m-Y H:i' }}"
+      },
+    {% endfor %}
+  ];
+
+  const UPLOAD_META = {
+    hospitalName: "{{ hospital_name|escapejs }}",
+    presetLabel: "{{ preset_label|escapejs }}",
+    totalPeriodLeads: {{ total_period_leads }},
+    senderName: "{{ request.user.get_full_name|default:request.user.username|escapejs }}",
+  };
+
+  function buildUploadPageWhatsAppMessage() {
+    const greeting = document.getElementById('waUploadGreeting').value.trim();
+    const includeTotals = document.getElementById('waUploadIncludeTotals').checked;
+    const includeCampaigns = document.getElementById('waUploadIncludeCampaigns').checked;
+    const includeFiles = document.getElementById('waUploadIncludeFiles').checked;
+    const includeSender = document.getElementById('waUploadIncludeSender').checked;
+    const customNote = document.getElementById('waUploadCustomNote').value.trim();
+
+    let lines = [];
+    if (greeting) lines.push(greeting);
+    lines.push(`🏥 *${UPLOAD_META.hospitalName}*`);
+    lines.push(`📅 *Period:* ${UPLOAD_META.presetLabel}`);
+    lines.push(`────────────────────`);
+
+    if (includeTotals) {
+      lines.push(`📊 *TOTAL LEADS RECEIVED:* ${UPLOAD_META.totalPeriodLeads}`);
+      lines.push(``);
+    }
+
+    if (includeCampaigns && UPLOAD_PAGE_CAMPAIGNS.length > 0) {
+      lines.push(`🎯 *Campaigns Lead Breakdown:*`);
+      let countAdded = 0;
+      UPLOAD_PAGE_CAMPAIGNS.forEach(c => {
+        if (c.period_leads > 0 || UPLOAD_META.presetLabel.includes('All Time')) {
+          countAdded++;
+          lines.push(`• *${c.name}* (${c.platform}): *${c.period_leads} leads*`);
+        }
+      });
+      if (countAdded === 0) {
+        UPLOAD_PAGE_CAMPAIGNS.slice(0, 4).forEach(c => {
+          lines.push(`• *${c.name}*: ${c.period_leads} leads`);
+        });
+      }
+      lines.push(``);
+    }
+
+    if (includeFiles && UPLOAD_PAGE_RECENT_JOBS.length > 0) {
+      lines.push(`📁 *Uploaded Files in this Period:*`);
+      UPLOAD_PAGE_RECENT_JOBS.forEach((j, idx) => {
+        lines.push(`• _${j.filename}_ → *${j.imported} leads* (${j.date})`);
+      });
+      lines.push(``);
+    }
+
+    if (customNote) {
+      lines.push(`📝 *Note:* ${customNote}`);
+      lines.push(``);
+    }
+
+    if (includeSender) {
+      lines.push(`────────────────────`);
+      lines.push(`_Report by: ${UPLOAD_META.senderName}_`);
+    }
+
+    return lines.join('\n');
+  }
+
+  function updateUploadPageWhatsAppPreview() {
+    const text = buildUploadPageWhatsAppMessage();
+    const previewEl = document.getElementById('waUploadPreviewText');
+    if (previewEl) {
+      previewEl.textContent = text;
+    }
+  }
+
+  function sendUploadPageToWhatsApp() {
+    const text = buildUploadPageWhatsAppMessage();
+    const phoneInput = document.getElementById('waUploadRecipientNumber');
+    let phone = phoneInput ? phoneInput.value.replace(/[^0-9]/g, '') : '';
+    
+    let url = '';
+    if (phone) {
+      url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}`;
+    } else {
+      url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    }
+    window.open(url, '_blank');
+  }
+
+  function copyUploadPageWhatsAppText() {
+    const text = buildUploadPageWhatsAppMessage();
+    navigator.clipboard.writeText(text).then(() => {
+      alert('WhatsApp report copied to clipboard!');
+    }).catch(err => {
+      console.error('Could not copy text: ', err);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updateUploadPageWhatsAppPreview();
+  });
 </script>
 {% endblock %}
