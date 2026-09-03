@@ -893,8 +893,66 @@ def job_detail(request, pk):
 @login_required
 @user_passes_test(lambda u: u.can_import_export)
 def history(request):
-    jobs = ImportJob.objects.select_related("created_by").all()
-    return render(request, "imports/history.html", {"active": "import_history", "jobs": jobs})
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    from django.db.models import Q
+
+    user = request.user
+    jobs_qs = ImportJob.objects.select_related("created_by")
+    if user.hospital:
+        jobs_qs = jobs_qs.filter(created_by__hospital=user.hospital)
+
+    date_preset = request.GET.get('date_preset', 'all_time')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+    
+    today = timezone.localdate()
+    filter_start = None
+    filter_end = None
+    preset_label = "All Time"
+
+    if date_preset == 'today':
+        filter_start = today
+        filter_end = today
+        preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+    elif date_preset == 'yesterday':
+        yesterday = today - timedelta(days=1)
+        filter_start = yesterday
+        filter_end = yesterday
+        preset_label = f"Yesterday ({yesterday.strftime('%d-%m-%Y')})"
+    elif date_preset == 'last_7d':
+        filter_start = today - timedelta(days=7)
+        filter_end = today
+        preset_label = f"Last 7 Days ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+    elif date_preset == 'this_month':
+        filter_start = today.replace(day=1)
+        filter_end = today
+        preset_label = f"This Month ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+    elif date_preset == 'custom' and start_date_str:
+        try:
+            filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else filter_start
+            preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+        except ValueError:
+            filter_start = None
+            filter_end = None
+            preset_label = "All Time"
+
+    if filter_start and filter_end:
+        jobs_qs = jobs_qs.filter(created_at__date__gte=filter_start, created_at__date__lte=filter_end)
+
+    hospital_name = user.hospital.name if user.hospital else "Zappcode CRM"
+
+    return render(request, "imports/history.html", {
+        "active": "import_history",
+        "jobs": jobs_qs,
+        "date_preset": date_preset,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+        "preset_label": preset_label,
+        "hospital_name": hospital_name,
+        "today_date_str": today.strftime('%d-%m-%Y'),
+    })
 
 
 @login_required

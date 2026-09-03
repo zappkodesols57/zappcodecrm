@@ -1343,20 +1343,94 @@ def nelson_module_view(request, module_name):
         # Load campaigns for this hospital
         if hospital:
             campaigns_qs = Campaign.objects.filter(Q(hospital=hospital) | Q(hospital__isnull=True)).order_by('-is_active', '-id')
+            base_leads_qs = Lead.objects.filter(hospital=hospital, is_archived=False)
+            base_jobs_qs = ImportJob.objects.filter(created_by__hospital=hospital)
         else:
             campaigns_qs = Campaign.objects.all().order_by('-is_active', '-id')
+            base_leads_qs = Lead.objects.filter(is_archived=False)
+            base_jobs_qs = ImportJob.objects.all()
+
+        # Date Filtering Logic
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+        
+        date_preset = request.GET.get('date_preset', 'today')
+        start_date_str = request.GET.get('start_date', '')
+        end_date_str = request.GET.get('end_date', '')
+        
+        today = timezone.localdate()
+        filter_start = today
+        filter_end = today
+        preset_label = "Today"
+
+        if date_preset == 'today':
+            filter_start = today
+            filter_end = today
+            preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+        elif date_preset == 'yesterday':
+            yesterday = today - timedelta(days=1)
+            filter_start = yesterday
+            filter_end = yesterday
+            preset_label = f"Yesterday ({yesterday.strftime('%d-%m-%Y')})"
+        elif date_preset == 'last_7d':
+            filter_start = today - timedelta(days=7)
+            filter_end = today
+            preset_label = f"Last 7 Days ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+        elif date_preset == 'this_month':
+            filter_start = today.replace(day=1)
+            filter_end = today
+            preset_label = f"This Month ({filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')})"
+        elif date_preset == 'all_time':
+            filter_start = None
+            filter_end = None
+            preset_label = "All Time"
+        elif date_preset == 'custom' and start_date_str:
+            try:
+                filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else filter_start
+                preset_label = f"{filter_start.strftime('%d-%m-%Y')} to {filter_end.strftime('%d-%m-%Y')}"
+            except ValueError:
+                filter_start = today
+                filter_end = today
+                preset_label = f"Today ({today.strftime('%d-%m-%Y')})"
+
+        # Leads in selected period (by created_at or inquiry_date)
+        if filter_start and filter_end:
+            period_leads_qs = base_leads_qs.filter(
+                Q(created_at__date__gte=filter_start, created_at__date__lte=filter_end) |
+                Q(inquiry_date__gte=filter_start, inquiry_date__lte=filter_end)
+            )
+            period_jobs_qs = base_jobs_qs.filter(
+                created_at__date__gte=filter_start, created_at__date__lte=filter_end
+            )
+        else:
+            period_leads_qs = base_leads_qs
+            period_jobs_qs = base_jobs_qs
 
         campaigns_data = []
         total_leads_count = 0
+        total_period_leads = 0
+
         for c in campaigns_qs:
-            leads_cnt = Lead.objects.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
-            total_leads_count += leads_cnt
+            # All time leads for this campaign
+            leads_all_cnt = base_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
+            # Period leads for this campaign
+            leads_period_cnt = period_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
+            
+            total_leads_count += leads_all_cnt
+            total_period_leads += leads_period_cnt
+            
             campaigns_data.append({
                 "obj": c,
-                "leads_count": leads_cnt
+                "leads_count": leads_all_cnt,
+                "period_leads_count": leads_period_cnt,
             })
             
         total_appts = Appointment.objects.filter(hospital=hospital).count() if hospital else 0
+        
+        # Recent Import Jobs in selected period for WhatsApp report
+        recent_jobs = period_jobs_qs.order_by('-created_at')[:15]
+        hospital_name = hospital.name if hospital else "Zappcode CRM"
 
         return render(request, "dashboard/campaign_management.html", {
             "title": "Campaign Management",
@@ -1365,7 +1439,15 @@ def nelson_module_view(request, module_name):
             "total_campaigns": campaigns_qs.count(),
             "active_campaigns_count": campaigns_qs.filter(is_active=True).count(),
             "total_leads_generated": total_leads_count,
+            "total_period_leads": total_period_leads,
             "total_appts_generated": total_appts,
+            "date_preset": date_preset,
+            "start_date": start_date_str,
+            "end_date": end_date_str,
+            "preset_label": preset_label,
+            "recent_jobs": recent_jobs,
+            "hospital_name": hospital_name,
+            "today_date_str": today.strftime('%d-%m-%Y'),
         })
 
     elif module_name == 'financial-overview':

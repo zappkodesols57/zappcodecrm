@@ -1,16 +1,111 @@
-{% extends "base.html" %}
-{% block title %}Campaign Management | CRM{% endblock %}
+{% block extra_head %}
+<style>
+  .filter-pill-btn {
+    border-radius: 9999px;
+    padding: 0.35rem 0.95rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    background: #fff;
+  }
+  .filter-pill-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+  .filter-pill-btn.active {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+  }
+  .btn-whatsapp-theme {
+    background: #25D366;
+    color: #fff;
+    border: 1px solid #25D366;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .btn-whatsapp-theme:hover {
+    background: #1eb956;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+  }
+  .msg-preview-box {
+    background: #eef8f1;
+    border: 1px solid #c7ebd2;
+    border-radius: 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.86rem;
+    white-space: pre-wrap;
+    padding: 1rem;
+    color: #111827;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
-    <h4 class="fw-bold text-dark mb-1"><i class="fa-solid fa-bullseye text-primary me-2"></i> Campaign Management</h4>
-    <p class="text-muted small mb-0">Create, monitor, and track lead conversion performance across your hospital's marketing campaigns.</p>
+    <h4 class="fw-bold text-dark mb-1"><i class="fa-solid fa-bullseye text-primary me-2"></i> Campaign Management & Reports</h4>
+    <p class="text-muted small mb-0">Monitor marketing campaigns, lead counts, and instantly share upload summaries on WhatsApp.</p>
   </div>
-  <div>
-    <button class="btn btn-primary rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#createCampaignModal">
-      <i class="fa-solid fa-plus me-1"></i> Add New Campaign
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <!-- WhatsApp Share Summary Button -->
+    <button type="button" class="btn btn-whatsapp-theme rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappSummaryModal">
+      <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send WhatsApp Report
     </button>
+    <button class="btn btn-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#createCampaignModal">
+      <i class="fa-solid fa-plus me-1"></i> Add Campaign
+    </button>
+  </div>
+</div>
+
+<!-- Date Filter Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-1 flex-wrap">
+      <span class="text-muted small fw-bold me-2"><i class="fa-solid fa-calendar-day text-primary me-1"></i> Date Filter:</span>
+      <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">
+        <i class="fa-solid fa-sun"></i> Today
+      </a>
+      <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">
+        <i class="fa-solid fa-clock-rotate-left"></i> Yesterday
+      </a>
+      <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-week"></i> Last 7 Days
+      </a>
+      <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-days"></i> This Month
+      </a>
+      <a href="?date_preset=all_time" class="filter-pill-btn {% if date_preset == 'all_time' %}active{% endif %}">
+        <i class="fa-solid fa-infinity"></i> All Time
+      </a>
+    </div>
+
+    <!-- Custom Date Range Form -->
+    <form method="GET" class="d-flex align-items-center gap-2 mb-0">
+      <input type="hidden" name="date_preset" value="custom">
+      <div class="input-group input-group-sm" style="max-width: 320px;">
+        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date">
+        <span class="input-group-text bg-light text-muted small">to</span>
+        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date">
+        <button class="btn btn-outline-primary btn-sm" type="submit"><i class="fa-solid fa-filter"></i></button>
+      </div>
+      {% if date_preset != 'today' %}
+        <a href="?date_preset=today" class="btn btn-sm btn-outline-secondary rounded-pill" title="Reset filter">
+          <i class="fa-solid fa-xmark"></i>
+        </a>
+      {% endif %}
+    </form>
   </div>
 </div>
 
@@ -33,11 +128,11 @@
     <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">Active Running</span>
-          <h3 class="fw-bold text-success mb-0 mt-1">{{ active_campaigns_count }}</h3>
+          <span class="small text-muted fw-bold text-uppercase">{{ preset_label }} Leads</span>
+          <h3 class="fw-bold text-success mb-0 mt-1">{{ total_period_leads }}</h3>
         </div>
         <div class="rounded-circle bg-success bg-opacity-10 text-success p-3">
-          <i class="fa-solid fa-circle-play fa-lg"></i>
+          <i class="fa-solid fa-user-plus fa-lg"></i>
         </div>
       </div>
     </div>
@@ -46,7 +141,7 @@
     <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-info border-4">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">Total Leads</span>
+          <span class="small text-muted fw-bold text-uppercase">All-Time Leads</span>
           <h3 class="fw-bold text-info mb-0 mt-1">{{ total_leads_generated }}</h3>
         </div>
         <div class="rounded-circle bg-info bg-opacity-10 text-info p-3">
@@ -59,11 +154,11 @@
     <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">Appts Booked</span>
-          <h3 class="fw-bold text-warning mb-0 mt-1">{{ total_appts_generated }}</h3>
+          <span class="small text-muted fw-bold text-uppercase">Active Running</span>
+          <h3 class="fw-bold text-warning mb-0 mt-1">{{ active_campaigns_count }}</h3>
         </div>
         <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3">
-          <i class="fa-solid fa-calendar-check fa-lg"></i>
+          <i class="fa-solid fa-circle-play fa-lg"></i>
         </div>
       </div>
     </div>
@@ -87,7 +182,8 @@
             <th class="border-0 py-3 text-muted small text-uppercase">Platform</th>
             <th class="border-0 py-3 text-muted small text-uppercase">Ad Set / Group</th>
             <th class="border-0 py-3 text-muted small text-uppercase">Budget / Cost</th>
-            <th class="border-0 py-3 text-muted small text-uppercase text-center">Leads</th>
+            <th class="border-0 py-3 text-muted small text-uppercase text-center">{{ preset_label }} Leads</th>
+            <th class="border-0 py-3 text-muted small text-uppercase text-center">All-Time Leads</th>
             <th class="border-0 py-3 text-muted small text-uppercase text-center">Status</th>
             <th class="border-0 px-4 py-3 text-muted small text-uppercase text-end">Actions</th>
           </tr>
@@ -121,7 +217,10 @@
               {% endif %}
             </td>
             <td class="text-center">
-              <span class="badge bg-info text-dark fs-6 px-3 py-1 rounded-pill">{{ c.leads_count }}</span>
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fs-6 px-3 py-1 rounded-pill fw-bold">{{ c.period_leads_count }}</span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-light text-secondary border fs-6 px-3 py-1 rounded-pill">{{ c.leads_count }}</span>
             </td>
             <td class="text-center">
               <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}" style="display:inline;">
@@ -141,6 +240,11 @@
             </td>
             <td class="px-4 text-end">
               <div class="d-flex justify-content-end gap-1">
+                <!-- Share single campaign on WhatsApp -->
+                <button type="button" class="btn btn-sm btn-outline-success rounded-3" title="Share this campaign lead update on WhatsApp"
+                  onclick="openSingleCampaignWhatsApp('{{ c.obj.name|escapejs }}', '{{ c.period_leads_count }}', '{{ c.leads_count }}', '{{ preset_label|escapejs }}')">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </button>
                 <button class="btn btn-sm btn-outline-primary rounded-3" data-bs-toggle="modal" data-bs-target="#editModal{{ c.obj.pk }}" title="Edit Campaign">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
@@ -306,4 +410,235 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: WhatsApp Report & Message Customizer -->
+<div class="modal fade" id="whatsappSummaryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0 bg-light rounded-top-4 p-4">
+        <div>
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="fa-brands fa-whatsapp text-success fs-4"></i> Send Campaign Leads Report via WhatsApp
+          </h5>
+          <p class="text-muted small mb-0">Period: <strong class="text-primary">{{ preset_label }}</strong> &bull; Hospital: <strong>{{ hospital_name }}</strong></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <!-- Left: Customization Controls -->
+          <div class="col-md-6 border-end">
+            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-sliders text-primary me-1"></i> Customize Message</h6>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Recipient WhatsApp Number (Optional)</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="fa-solid fa-phone text-muted"></i></span>
+                <input type="text" id="waRecipientNumber" class="form-control" placeholder="e.g. 919876543210 (with country code)" oninput="updateWhatsAppPreview()">
+              </div>
+              <small class="text-muted" style="font-size: 0.72rem;">Leave empty to choose contact in WhatsApp directly.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Greeting / Header Note</label>
+              <input type="text" id="waGreeting" class="form-control form-control-sm" value="*Daily Campaign & Leads Upload Report*" oninput="updateWhatsAppPreview()">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Include Sections</label>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waIncludeTotal" checked onchange="updateWhatsAppPreview()">
+                <label class="form-check-label small" for="waIncludeTotal">Total Summary (Total Leads: {{ total_period_leads }})</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waIncludeCampaigns" checked onchange="updateWhatsAppPreview()">
+                <label class="form-check-label small" for="waIncludeCampaigns">Active Campaigns Lead Breakdown</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waIncludeUploadFiles" checked onchange="updateWhatsAppPreview()">
+                <label class="form-check-label small" for="waIncludeUploadFiles">Import Files Uploaded Today ({{ recent_jobs|length }} files)</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="waIncludeSender" checked onchange="updateWhatsAppPreview()">
+                <label class="form-check-label small" for="waIncludeSender">Sender Name ({{ request.user.get_full_name|default:request.user.username }})</label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Custom Closing Remark / Note</label>
+              <input type="text" id="waCustomNote" class="form-control form-control-sm" placeholder="e.g. All leads assigned to telecallers." oninput="updateWhatsAppPreview()">
+            </div>
+          </div>
+
+          <!-- Right: Live WhatsApp Text Preview -->
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-eye text-success me-1"></i> Message Preview</h6>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" onclick="copyWhatsAppText()">
+                <i class="fa-solid fa-copy me-1"></i> Copy
+              </button>
+            </div>
+            <div id="waPreviewText" class="msg-preview-box"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0 bg-light rounded-bottom-4 p-3 d-flex justify-content-between">
+        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="copyWhatsAppText()">
+            <i class="fa-solid fa-copy me-1"></i> Copy Message
+          </button>
+          <button type="button" class="btn btn-whatsapp-theme rounded-pill px-4 shadow" onclick="sendToWhatsApp()">
+            <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Open in WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Campaign & Import Job Data from Server
+  const CAMPAIGN_SUMMARY_DATA = [
+    {% for c in campaigns_data %}
+      {
+        name: "{{ c.obj.name|escapejs }}",
+        platform: "{{ c.obj.platform|default:'General'|escapejs }}",
+        period_leads: {{ c.period_leads_count }},
+        all_time_leads: {{ c.leads_count }}
+      },
+    {% endfor %}
+  ];
+
+  const RECENT_JOBS_DATA = [
+    {% for j in recent_jobs %}
+      {
+        filename: "{{ j.original_filename|escapejs }}",
+        count: {{ j.imported_count }},
+        date: "{{ j.created_at|date:'d-M H:i' }}"
+      },
+    {% endfor %}
+  ];
+
+  const META_INFO = {
+    hospitalName: "{{ hospital_name|escapejs }}",
+    presetLabel: "{{ preset_label|escapejs }}",
+    totalPeriodLeads: {{ total_period_leads }},
+    totalAllTimeLeads: {{ total_leads_generated }},
+    senderName: "{{ request.user.get_full_name|default:request.user.username|escapejs }}",
+    todayDate: "{{ today_date_str }}"
+  };
+
+  function buildWhatsAppMessage() {
+    const greeting = document.getElementById('waGreeting').value.trim();
+    const includeTotal = document.getElementById('waIncludeTotal').checked;
+    const includeCampaigns = document.getElementById('waIncludeCampaigns').checked;
+    const includeUploads = document.getElementById('waIncludeUploadFiles').checked;
+    const includeSender = document.getElementById('waIncludeSender').checked;
+    const customNote = document.getElementById('waCustomNote').value.trim();
+
+    let lines = [];
+    if (greeting) {
+      lines.push(greeting);
+    }
+    lines.push(`🏥 *${META_INFO.hospitalName}*`);
+    lines.push(`📅 *Date / Period:* ${META_INFO.presetLabel}`);
+    lines.push(`────────────────────`);
+
+    if (includeTotal) {
+      lines.push(`📊 *TOTAL LEADS RECEIVED:* ${META_INFO.totalPeriodLeads}`);
+      lines.push(``);
+    }
+
+    if (includeCampaigns) {
+      lines.push(`🎯 *Campaigns Breakdown:*`);
+      let hasCampWithLeads = false;
+      CAMPAIGN_SUMMARY_DATA.forEach(c => {
+        // Show campaigns that had leads in this period or all active
+        if (c.period_leads > 0 || META_INFO.presetLabel.includes('All Time')) {
+          hasCampWithLeads = true;
+          lines.push(`• *${c.name}* (${c.platform}): *${c.period_leads} leads*`);
+        }
+      });
+      if (!hasCampWithLeads) {
+        // If 0 leads in period, list top active campaigns
+        CAMPAIGN_SUMMARY_DATA.slice(0, 5).forEach(c => {
+          lines.push(`• *${c.name}*: ${c.period_leads} leads`);
+        });
+      }
+      lines.push(``);
+    }
+
+    if (includeUploads && RECENT_JOBS_DATA.length > 0) {
+      lines.push(`📁 *Uploads History in this Period:*`);
+      RECENT_JOBS_DATA.forEach(j => {
+        lines.push(`• _${j.filename}_ → *${j.count} leads* (${j.date})`);
+      });
+      lines.push(``);
+    }
+
+    if (customNote) {
+      lines.push(`📝 *Note:* ${customNote}`);
+      lines.push(``);
+    }
+
+    if (includeSender) {
+      lines.push(`────────────────────`);
+      lines.push(`_Report shared by: ${META_INFO.senderName}_`);
+    }
+
+    return lines.join('\n');
+  }
+
+  function updateWhatsAppPreview() {
+    const text = buildWhatsAppMessage();
+    const previewEl = document.getElementById('waPreviewText');
+    if (previewEl) {
+      previewEl.textContent = text;
+    }
+  }
+
+  function sendToWhatsApp() {
+    const text = buildWhatsAppMessage();
+    const phoneInput = document.getElementById('waRecipientNumber');
+    let phone = phoneInput ? phoneInput.value.replace(/[^0-9]/g, '') : '';
+    
+    let url = '';
+    if (phone) {
+      url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}`;
+    } else {
+      url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    }
+    window.open(url, '_blank');
+  }
+
+  function copyWhatsAppText() {
+    const text = buildWhatsAppMessage();
+    navigator.clipboard.writeText(text).then(() => {
+      alert('WhatsApp message copied to clipboard!');
+    }).catch(err => {
+      console.error('Could not copy text: ', err);
+    });
+  }
+
+  function openSingleCampaignWhatsApp(campName, periodLeads, totalLeads, dateLabel) {
+    let msg = `*Campaign Lead Update*\n` +
+              `🏥 *${META_INFO.hospitalName}*\n` +
+              `📅 *Period:* ${dateLabel}\n` +
+              `────────────────────\n` +
+              `🎯 *Campaign:* ${campName}\n` +
+              `📈 *New Leads in Period:* ${periodLeads}\n` +
+              `📊 *All-Time Total Leads:* ${totalLeads}\n` +
+              `────────────────────\n` +
+              `_Report by: ${META_INFO.senderName}_`;
+    
+    let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  // Initialize preview on DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    updateWhatsAppPreview();
+  });
+</script>
 {% endblock %}

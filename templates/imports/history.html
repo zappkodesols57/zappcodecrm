@@ -1,29 +1,160 @@
 {% extends "base.html" %}
 {% block title %}Import History{% endblock %}
+
+{% block extra_head %}
+<style>
+  .filter-pill-btn {
+    border-radius: 9999px;
+    padding: 0.35rem 0.95rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    background: #fff;
+  }
+  .filter-pill-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+  .filter-pill-btn.active {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+  }
+  .btn-whatsapp-theme {
+    background: #25D366;
+    color: #fff;
+    border: 1px solid #25D366;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .btn-whatsapp-theme:hover {
+    background: #1eb956;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+  }
+  .msg-preview-box {
+    background: #eef8f1;
+    border: 1px solid #c7ebd2;
+    border-radius: 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.86rem;
+    white-space: pre-wrap;
+    padding: 1rem;
+    color: #111827;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Import History</h4>
-  <a href="{% url 'imports:upload' %}" class="btn btn-brand btn-sm text-white"><i class="fa-solid fa-file-import"></i> New Import</a>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold text-dark mb-1"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Lead Import History</h4>
+    <p class="text-muted small mb-0">Track all uploaded lead batches, view lead lists, and share upload reports on WhatsApp.</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <button type="button" class="btn btn-whatsapp-theme rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappHistoryModal">
+      <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send Upload Summary
+    </button>
+    <a href="{% url 'imports:upload' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3"><i class="fa-solid fa-file-import me-1"></i> New Import</a>
+  </div>
 </div>
-<div class="card">
+
+<!-- Date Filter Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-1 flex-wrap">
+      <span class="text-muted small fw-bold me-2"><i class="fa-solid fa-calendar-day text-primary me-1"></i> Date Filter:</span>
+      <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">
+        <i class="fa-solid fa-sun"></i> Today
+      </a>
+      <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">
+        <i class="fa-solid fa-clock-rotate-left"></i> Yesterday
+      </a>
+      <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-week"></i> Last 7 Days
+      </a>
+      <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-days"></i> This Month
+      </a>
+      <a href="?date_preset=all_time" class="filter-pill-btn {% if date_preset == 'all_time' %}active{% endif %}">
+        <i class="fa-solid fa-infinity"></i> All Time
+      </a>
+    </div>
+
+    <!-- Custom Date Range Form -->
+    <form method="GET" class="d-flex align-items-center gap-2 mb-0">
+      <input type="hidden" name="date_preset" value="custom">
+      <div class="input-group input-group-sm" style="max-width: 320px;">
+        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date">
+        <span class="input-group-text bg-light text-muted small">to</span>
+        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date">
+        <button class="btn btn-outline-primary btn-sm" type="submit"><i class="fa-solid fa-filter"></i></button>
+      </div>
+      {% if date_preset != 'all_time' %}
+        <a href="?date_preset=all_time" class="btn btn-sm btn-outline-secondary rounded-pill" title="Reset filter">
+          <i class="fa-solid fa-xmark"></i>
+        </a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
   <div class="table-responsive">
-    <table class="table mb-0">
-      <thead><tr><th>File</th><th>Sheet</th><th>Status</th><th>Total</th><th>Imported</th><th>Updated</th><th>Duplicate</th><th>Invalid</th><th>Date</th><th></th></tr></thead>
+    <table class="table table-hover align-middle mb-0">
+      <thead class="bg-light">
+        <tr>
+          <th class="border-0 px-3 py-3 text-muted small text-uppercase">File Name</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">Uploaded By</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center">Total</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center">Imported</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center">Updated</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center">Duplicate</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center">Date & Time</th>
+          <th class="border-0 px-3 py-3 text-muted small text-uppercase text-end">Actions</th>
+        </tr>
+      </thead>
       <tbody>
         {% for j in jobs %}
         <tr>
-          <td>{{ j.original_filename }}</td><td>{{ j.sheet_name }}</td>
-          <td><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
-          <td>{{ j.total_rows }}</td><td>{{ j.imported_count }}</td><td>{{ j.updated_count }}</td>
-          <td>{{ j.duplicate_count }}</td><td>{{ j.invalid_count }}</td>
-          <td>{{ j.created_at|date:"d-m-Y H:i" }}</td>
+          <td class="px-3">
+            <div class="fw-bold text-dark">{{ j.original_filename|default:"Upload Batch" }}</div>
+            {% if j.sheet_name %}<small class="text-muted">Sheet: {{ j.sheet_name }}</small>{% endif %}
+          </td>
           <td>
-            <div class="d-flex gap-1 align-items-center">
-              <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary" title="View Leads Imported from this File"><i class="fa-solid fa-users me-1"></i> View Leads</a>
-              <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary">Details</a>
+            <span class="small fw-semibold text-dark">{{ j.created_by.get_full_name|default:j.created_by.username|default:"System" }}</span>
+          </td>
+          <td><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
+          <td class="text-center fw-bold">{{ j.total_rows }}</td>
+          <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">{{ j.imported_count }}</span></td>
+          <td class="text-center">{{ j.updated_count }}</td>
+          <td class="text-center">{{ j.duplicate_count }}</td>
+          <td class="text-center text-muted small">{{ j.created_at|date:"d-m-Y H:i" }}</td>
+          <td class="px-3 text-end">
+            <div class="d-flex gap-1 align-items-center justify-content-end">
+              <!-- Single File WhatsApp Share -->
+              <button type="button" class="btn btn-sm btn-outline-success rounded-3" title="Share this file upload report on WhatsApp"
+                onclick="openSingleJobWhatsApp('{{ j.original_filename|escapejs }}', '{{ j.imported_count }}', '{{ j.updated_count }}', '{{ j.duplicate_count }}', '{{ j.total_rows }}', '{{ j.created_at|date:\"d-m-Y H:i\" }}')">
+                <i class="fa-brands fa-whatsapp"></i>
+              </button>
+              <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary rounded-3" title="View Leads Imported from this File">
+                <i class="fa-solid fa-users me-1"></i> View Leads
+              </a>
+              <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary rounded-3">Details</a>
               <form method="post" action="{% url 'imports:delete_job' j.pk %}" onsubmit="return confirmAction('Are you sure you want to delete this import? This will delete the job history and all leads imported by this excel file.');" style="display:inline;">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Import File & Leads">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="Delete Import File & Leads">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </form>
@@ -31,10 +162,216 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="10"><div class="empty-state"><i class="fa-solid fa-file-excel"></i>No imports yet.</div></td></tr>
+        <tr><td colspan="9"><div class="empty-state"><i class="fa-solid fa-file-excel"></i>No imports found for {{ preset_label }}.</div></td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- Modal: WhatsApp Upload History Report Customizer -->
+<div class="modal fade" id="whatsappHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0 bg-light rounded-top-4 p-4">
+        <div>
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="fa-brands fa-whatsapp text-success fs-4"></i> Share Uploaded Leads Summary on WhatsApp
+          </h5>
+          <p class="text-muted small mb-0">Period: <strong class="text-primary">{{ preset_label }}</strong> &bull; Hospital: <strong>{{ hospital_name }}</strong></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <!-- Left: Customization Controls -->
+          <div class="col-md-6 border-end">
+            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-sliders text-primary me-1"></i> Customize Message</h6>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Recipient WhatsApp Number (Optional)</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="fa-solid fa-phone text-muted"></i></span>
+                <input type="text" id="waHistRecipientNumber" class="form-control" placeholder="e.g. 919876543210 (with country code)" oninput="updateHistWhatsAppPreview()">
+              </div>
+              <small class="text-muted" style="font-size: 0.72rem;">Leave empty to choose contact in WhatsApp directly.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Header Title</label>
+              <input type="text" id="waHistGreeting" class="form-control form-control-sm" value="*Leads Upload & Import History Report*" oninput="updateHistWhatsAppPreview()">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Include Sections</label>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waHistIncludeTotals" checked onchange="updateHistWhatsAppPreview()">
+                <label class="form-check-label small" for="waHistIncludeTotals">Total Files & Leads Count</label>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="waHistIncludeDetails" checked onchange="updateHistWhatsAppPreview()">
+                <label class="form-check-label small" for="waHistIncludeDetails">Individual File Breakdown</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="waHistIncludeSender" checked onchange="updateHistWhatsAppPreview()">
+                <label class="form-check-label small" for="waHistIncludeSender">Sender Info ({{ request.user.get_full_name|default:request.user.username }})</label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Custom Closing Remark / Note</label>
+              <input type="text" id="waHistCustomNote" class="form-control form-control-sm" placeholder="e.g. All batch leads imported successfully." oninput="updateHistWhatsAppPreview()">
+            </div>
+          </div>
+
+          <!-- Right: Live WhatsApp Text Preview -->
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-eye text-success me-1"></i> Message Preview</h6>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" onclick="copyHistWhatsAppText()">
+                <i class="fa-solid fa-copy me-1"></i> Copy
+              </button>
+            </div>
+            <div id="waHistPreviewText" class="msg-preview-box"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0 bg-light rounded-bottom-4 p-3 d-flex justify-content-between">
+        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="copyHistWhatsAppText()">
+            <i class="fa-solid fa-copy me-1"></i> Copy Message
+          </button>
+          <button type="button" class="btn btn-whatsapp-theme rounded-pill px-4 shadow" onclick="sendHistToWhatsApp()">
+            <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Open in WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const JOBS_DATA = [
+    {% for j in jobs %}
+      {
+        filename: "{{ j.original_filename|escapejs }}",
+        total: {{ j.total_rows }},
+        imported: {{ j.imported_count }},
+        updated: {{ j.updated_count }},
+        duplicate: {{ j.duplicate_count }},
+        date: "{{ j.created_at|date:'d-m-Y H:i' }}",
+        user: "{{ j.created_by.get_full_name|default:j.created_by.username|default:'Admin'|escapejs }}"
+      },
+    {% endfor %}
+  ];
+
+  const HIST_META = {
+    hospitalName: "{{ hospital_name|escapejs }}",
+    presetLabel: "{{ preset_label|escapejs }}",
+    senderName: "{{ request.user.get_full_name|default:request.user.username|escapejs }}",
+  };
+
+  function buildHistWhatsAppMessage() {
+    const greeting = document.getElementById('waHistGreeting').value.trim();
+    const includeTotals = document.getElementById('waHistIncludeTotals').checked;
+    const includeDetails = document.getElementById('waHistIncludeDetails').checked;
+    const includeSender = document.getElementById('waHistIncludeSender').checked;
+    const customNote = document.getElementById('waHistCustomNote').value.trim();
+
+    let totalImported = 0;
+    let totalRows = 0;
+    JOBS_DATA.forEach(j => {
+      totalImported += j.imported;
+      totalRows += j.total;
+    });
+
+    let lines = [];
+    if (greeting) lines.push(greeting);
+    lines.push(`🏥 *${HIST_META.hospitalName}*`);
+    lines.push(`📅 *Period:* ${HIST_META.presetLabel}`);
+    lines.push(`────────────────────`);
+
+    if (includeTotals) {
+      lines.push(`📁 *Total Files Uploaded:* ${JOBS_DATA.length}`);
+      lines.push(`👥 *Total Leads Imported:* ${totalImported}`);
+      lines.push(``);
+    }
+
+    if (includeDetails && JOBS_DATA.length > 0) {
+      lines.push(`📋 *Files Summary:*`);
+      JOBS_DATA.forEach((j, idx) => {
+        lines.push(`${idx + 1}. *${j.filename}*`);
+        lines.push(`   • Created: *${j.imported}* | Updated: ${j.updated} | Dups: ${j.duplicate}`);
+        lines.push(`   • Uploaded at: ${j.date} by ${j.user}`);
+      });
+      lines.push(``);
+    }
+
+    if (customNote) {
+      lines.push(`📝 *Note:* ${customNote}`);
+      lines.push(``);
+    }
+
+    if (includeSender) {
+      lines.push(`────────────────────`);
+      lines.push(`_Report shared by: ${HIST_META.senderName}_`);
+    }
+
+    return lines.join('\n');
+  }
+
+  function updateHistWhatsAppPreview() {
+    const text = buildHistWhatsAppMessage();
+    const previewEl = document.getElementById('waHistPreviewText');
+    if (previewEl) {
+      previewEl.textContent = text;
+    }
+  }
+
+  function sendHistToWhatsApp() {
+    const text = buildHistWhatsAppMessage();
+    const phoneInput = document.getElementById('waHistRecipientNumber');
+    let phone = phoneInput ? phoneInput.value.replace(/[^0-9]/g, '') : '';
+    
+    let url = '';
+    if (phone) {
+      url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}`;
+    } else {
+      url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    }
+    window.open(url, '_blank');
+  }
+
+  function copyHistWhatsAppText() {
+    const text = buildHistWhatsAppMessage();
+    navigator.clipboard.writeText(text).then(() => {
+      alert('WhatsApp message copied to clipboard!');
+    }).catch(err => {
+      console.error('Could not copy text: ', err);
+    });
+  }
+
+  function openSingleJobWhatsApp(filename, imported, updated, duplicate, total, dt) {
+    let msg = `*File Upload Lead Report*\n` +
+              `🏥 *${HIST_META.hospitalName}*\n` +
+              `📁 *File:* ${filename}\n` +
+              `📅 *Date:* ${dt}\n` +
+              `────────────────────\n` +
+              `✅ *New Leads Created:* ${imported}\n` +
+              `🔄 *Existing Leads Updated:* ${updated}\n` +
+              `⚠️ *Duplicates Handled:* ${duplicate}\n` +
+              `📊 *Total Rows:* ${total}\n` +
+              `────────────────────\n` +
+              `_Report by: ${HIST_META.senderName}_`;
+    
+    let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updateHistWhatsAppPreview();
+  });
+</script>
 {% endblock %}
+
