@@ -37,8 +37,12 @@ def _role_redirect(user):
     return redirect("dashboard:home")
 
 
+from django.views.decorators.csrf import ensure_csrf_cookie
+
+
 # ─── UNIFIED LOGIN ─────────────────────────────────────────────────────────────
 
+@ensure_csrf_cookie
 def crm_login(request):
     if request.user.is_authenticated:
         return _role_redirect(request.user)

@@ -443,6 +443,36 @@ function togglePasswordVisibility(inputId, icon) {
     icon.classList.add('fa-eye', 'fa-regular');
   }
 }
+
+// Function to get current CSRF cookie
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Ensure the form's CSRF token always matches the latest browser csrftoken cookie
+document.addEventListener("DOMContentLoaded", function() {
+  const loginForm = document.querySelector('form[method="post"]');
+  if (loginForm) {
+    loginForm.addEventListener('submit', function() {
+      const liveCookie = getCookie('csrftoken');
+      const csrfInput = loginForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      if (liveCookie && csrfInput && csrfInput.value !== liveCookie) {
+        csrfInput.value = liveCookie;
+      }
+    });
+  }
+});
 </script>
 </body>
 </html>

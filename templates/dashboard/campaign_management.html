@@ -52,6 +52,95 @@
     max-height: 280px;
     overflow-y: auto;
   }
+  /* Modern Premium KPI Cards */
+  .kpi-card {
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 1.25rem 1.35rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 1px 4px -1px rgba(15, 23, 42, 0.03);
+  }
+  .kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.09), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+    border-color: rgba(203, 213, 225, 0.9);
+  }
+  .kpi-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+  }
+  .kpi-card.kpi-cyan::before {
+    background: linear-gradient(90deg, #06b6d4, #3b82f6);
+  }
+  .kpi-card.kpi-indigo::before {
+    background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  }
+  .kpi-card.kpi-emerald::before {
+    background: linear-gradient(90deg, #10b981, #059669);
+  }
+  .kpi-card.kpi-amber::before {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+  }
+  .kpi-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+  }
+  .kpi-card:hover .kpi-icon-wrap {
+    transform: scale(1.08);
+  }
+  .kpi-cyan .kpi-icon-wrap {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(59, 130, 246, 0.15));
+    color: #0284c7;
+  }
+  .kpi-indigo .kpi-icon-wrap {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(124, 58, 237, 0.15));
+    color: #4f46e5;
+  }
+  .kpi-emerald .kpi-icon-wrap {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.15));
+    color: #059669;
+  }
+  .kpi-amber .kpi-icon-wrap {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.15));
+    color: #d97706;
+  }
+  .kpi-label {
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+  }
+  .kpi-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0;
+  }
+  .kpi-sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
 </style>
 {% endblock %}
 
@@ -64,7 +153,7 @@
   <div class="d-flex gap-2 align-items-center flex-wrap">
     <!-- WhatsApp Share Summary Button -->
     <button type="button" class="btn btn-whatsapp-theme rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappSummaryModal">
-      <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send WhatsApp Report
+      <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send Report
     </button>
     <button class="btn btn-primary rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#createCampaignModal">
       <i class="fa-solid fa-plus me-1"></i> Add Campaign
@@ -114,54 +203,73 @@
 
 <!-- Campaign Summary KPI Cards -->
 <div class="row g-3 mb-4">
+  <!-- 1. All-Time Leads (First Place) -->
   <div class="col-md-3 col-6">
-    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="kpi-card kpi-cyan">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">Total Campaigns</span>
-          <h3 class="fw-bold text-primary mb-0 mt-1">{{ total_campaigns }}</h3>
+          <div class="kpi-label">All-Time Leads</div>
+          <h3 class="kpi-value text-dark">{{ total_leads_generated }}</h3>
+          <div class="kpi-sub">
+            <i class="fa-solid fa-layer-group text-info"></i> Across all campaigns
+          </div>
         </div>
-        <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-3">
-          <i class="fa-solid fa-bullseye fa-lg"></i>
+        <div class="kpi-icon-wrap">
+          <i class="fa-solid fa-users"></i>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- 2. Total Campaigns (Second Place) -->
   <div class="col-md-3 col-6">
-    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="kpi-card kpi-indigo">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">{{ preset_label }} Leads</span>
-          <h3 class="fw-bold text-success mb-0 mt-1">{{ total_period_leads }}</h3>
+          <div class="kpi-label">Total Campaigns</div>
+          <h3 class="kpi-value text-dark">{{ total_campaigns }}</h3>
+          <div class="kpi-sub">
+            <i class="fa-solid fa-chart-pie text-primary"></i> Configured channels
+          </div>
         </div>
-        <div class="rounded-circle bg-success bg-opacity-10 text-success p-3">
-          <i class="fa-solid fa-user-plus fa-lg"></i>
+        <div class="kpi-icon-wrap">
+          <i class="fa-solid fa-bullseye"></i>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- 3. Date Filter Leads (Third Place) -->
   <div class="col-md-3 col-6">
-    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-info border-4">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="kpi-card kpi-emerald">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">All-Time Leads</span>
-          <h3 class="fw-bold text-info mb-0 mt-1">{{ total_leads_generated }}</h3>
+          <div class="kpi-label text-truncate" style="max-width: 175px;" title="{{ preset_label }} Leads">{{ preset_label }} Leads</div>
+          <h3 class="kpi-value text-success">{{ total_period_leads }}</h3>
+          <div class="kpi-sub">
+            <i class="fa-solid fa-calendar-check text-success"></i> In selected filter
+          </div>
         </div>
-        <div class="rounded-circle bg-info bg-opacity-10 text-info p-3">
-          <i class="fa-solid fa-users fa-lg"></i>
+        <div class="kpi-icon-wrap">
+          <i class="fa-solid fa-user-plus"></i>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- 4. Today's Active Campaigns (Fourth Place) -->
   <div class="col-md-3 col-6">
-    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4">
-      <div class="d-flex justify-content-between align-items-center">
+    <div class="kpi-card kpi-amber">
+      <div class="d-flex justify-content-between align-items-start">
         <div>
-          <span class="small text-muted fw-bold text-uppercase">Active Running</span>
-          <h3 class="fw-bold text-warning mb-0 mt-1">{{ active_campaigns_count }}</h3>
+          <div class="kpi-label">Today's Active Campaigns</div>
+          <h3 class="kpi-value text-dark">{{ today_active_campaigns_count }}</h3>
+          <div class="kpi-sub">
+            <i class="fa-solid fa-bolt text-warning"></i> Campaigns with leads today
+          </div>
         </div>
-        <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3">
-          <i class="fa-solid fa-circle-play fa-lg"></i>
+        <div class="kpi-icon-wrap">
+          <i class="fa-solid fa-chart-line"></i>
         </div>
       </div>
     </div>
@@ -281,7 +389,21 @@
                         <div class="row g-2 mb-3">
                           <div class="col-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">Platform</label>
-                            <input type="text" name="platform" class="form-control" value="{{ c.obj.platform }}" placeholder="e.g. Meta Ads, Google Ads">
+                            <select name="platform" class="form-select">
+                              <option value="" {% if not c.obj.platform %}selected{% endif %}>--- Select Platform ---</option>
+                              <option value="Meta" {% if c.obj.platform == 'Meta' %}selected{% endif %}>Meta (Combined Facebook/Insta)</option>
+                              <option value="Facebook" {% if c.obj.platform == 'Facebook' %}selected{% endif %}>Facebook Only</option>
+                              <option value="Instagram" {% if c.obj.platform == 'Instagram' %}selected{% endif %}>Instagram Only</option>
+                              <option value="Google Ads" {% if c.obj.platform == 'Google Ads' %}selected{% endif %}>Google Ads</option>
+                              <option value="Newspaper" {% if c.obj.platform == 'Newspaper' %}selected{% endif %}>Newspaper</option>
+                              <option value="Walk-in" {% if c.obj.platform == 'Walk-in' %}selected{% endif %}>Walk-in</option>
+                              <option value="Offline" {% if c.obj.platform == 'Offline' %}selected{% endif %}>Offline / Camp</option>
+                              <option value="JustDial" {% if c.obj.platform == 'JustDial' %}selected{% endif %}>JustDial</option>
+                              <option value="Practo" {% if c.obj.platform == 'Practo' %}selected{% endif %}>Practo</option>
+                              <option value="Organic" {% if c.obj.platform == 'Organic' %}selected{% endif %}>Organic / SEO</option>
+                              <option value="Referral" {% if c.obj.platform == 'Referral' %}selected{% endif %}>Referral</option>
+                              <option value="Other" {% if c.obj.platform == 'Other' %}selected{% endif %}>Other</option>
+                            </select>
                           </div>
                           <div class="col-6">
                             <label class="form-label small fw-bold text-muted text-uppercase">Campaign ID</label>
@@ -367,7 +489,21 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label small fw-bold text-muted text-uppercase">Platform</label>
-              <input type="text" name="platform" class="form-control" placeholder="Meta Ads, Google, Newspaper">
+              <select name="platform" class="form-select">
+                <option value="" selected>--- Select Platform ---</option>
+                <option value="Meta">Meta (Combined Facebook/Insta)</option>
+                <option value="Facebook">Facebook Only</option>
+                <option value="Instagram">Instagram Only</option>
+                <option value="Google Ads">Google Ads</option>
+                <option value="Newspaper">Newspaper</option>
+                <option value="Walk-in">Walk-in</option>
+                <option value="Offline">Offline / Camp</option>
+                <option value="JustDial">JustDial</option>
+                <option value="Practo">Practo</option>
+                <option value="Organic">Organic / SEO</option>
+                <option value="Referral">Referral</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
             <div class="col-6">
               <label class="form-label small fw-bold text-muted text-uppercase">Campaign ID</label>

@@ -775,14 +775,11 @@ def lead_edit(request, pk):
     # Get latest active/confirmed appointment for this lead
     latest_appointment = Appointment.objects.filter(lead=lead).order_by('-appointment_date', '-id').first()
     
-    # If actual Appointment object exists or lead has real booked date and valid confirmed status
-    has_booked_date = bool(cd.get('appo_booked_date') and str(cd.get('appo_booked_date')).strip() not in ['', 'nan', 'None', '-'])
-    is_confirmed_status = any(k in apt_status_str for k in ['BOOK', 'CONFIRM', 'COMPLET', 'VISIT', 'YES', 'DONE'])
-    
+    # If actual Appointment object exists and has been approved/completed by doctor
     is_appointment_confirmed = False
-    if latest_appointment:
+    if latest_appointment and latest_appointment.status in [AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED]:
         is_appointment_confirmed = True
-    elif has_booked_date and is_confirmed_status:
+    elif cd.get('appointment_confirmed_at') and any(k in apt_status_str for k in ['CONFIRM', 'COMPLET', 'VISIT']):
         is_appointment_confirmed = True
 
     current_apt_status = cd.get("appointment_status") or ""
@@ -1958,6 +1955,41 @@ def hospital_configuration_view(request):
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
+def hospital_profile_save(request):
+    """Update Hospital / Organization Core Profile details."""
+    hospital = request.user.hospital
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        contact_email = request.POST.get("contact_email", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        registration_no = request.POST.get("registration_no", "").strip()
+        address = request.POST.get("address", "").strip()
+
+        if not name:
+            messages.error(request, "Hospital / Organization name is required.")
+            return redirect("/leads/hospital-configuration/?tab=profile")
+
+        hospital.name = name
+        hospital.contact_email = contact_email
+        hospital.phone = phone
+        hospital.registration_no = registration_no
+        hospital.address = address
+
+        if "logo" in request.FILES:
+            hospital.logo = request.FILES["logo"]
+
+        hospital.save()
+        messages.success(request, f"Hospital profile '{name}' updated successfully.")
+
+    return redirect("/leads/hospital-configuration/?tab=profile")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
 def hospital_branch_save(request, pk=None):
     hospital = request.user.hospital
     if request.method == "POST":
@@ -2109,6 +2141,8 @@ def hospital_doctor_save(request, pk=None):
             department_ids = [request.POST.get("department")]
         qualification = request.POST.get("qualification", "").strip()
         specialization = request.POST.get("specialization", "").strip()
+        email = request.POST.get("email", "").strip()
+        contact_number = request.POST.get("contact_number", "").strip()
         raw_fee = request.POST.get("consultation_fee", "0").strip()
         try:
             consultation_fee = max(0, int(round(float(raw_fee or 0))))

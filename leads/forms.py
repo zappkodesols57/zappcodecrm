@@ -234,6 +234,26 @@ class LeadSourceForm(forms.ModelForm):
 
 
 class CampaignForm(forms.ModelForm):
+    PLATFORM_CHOICES = [
+        ("", "--- Select Platform ---"),
+        ("Meta", "Meta (Facebook / Instagram)"),
+        ("Google Ads", "Google Ads"),
+        ("Newspaper", "Newspaper"),
+        ("Walk-in", "Walk-in"),
+        ("Offline", "Offline / Camp"),
+        ("JustDial", "JustDial"),
+        ("Practo", "Practo"),
+        ("Organic", "Organic / SEO"),
+        ("Referral", "Referral"),
+        ("Other", "Other"),
+    ]
+    
+    platform = forms.ChoiceField(
+        choices=PLATFORM_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+
     class Meta:
         model = Campaign
         fields = ["name", "platform", "campaign_id", "landing_page", "cost", "start_date", "end_date", "is_active"]
@@ -329,6 +349,7 @@ class HospitalLeadForm(forms.ModelForm):
     appointment_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
     followup_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     followup_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
+    followup_remark = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter patient remarks or follow-up notes..."}), required=False, label="Follow-up Remark")
     visit_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     priority = NonStrictChoiceField(choices=[], required=False)
     # Location & Comments
@@ -435,7 +456,7 @@ class HospitalLeadForm(forms.ModelForm):
         cd = (self.instance.custom_data or {}) if (self.instance and self.instance.pk) else {}
         # Load JSON fields into form
         if self.instance and self.instance.pk:
-            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
+            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
                 if field in cd and field in self.fields:
                     self.fields[field].initial = cd[field]
             
@@ -999,6 +1020,12 @@ class HospitalLeadForm(forms.ModelForm):
             cd['deal_status'] = 'Won (Payment Done)'
             cd['appointment_status'] = 'Completed'
 
+            # Payment Done leads should NOT show booking date as next_followup_date
+            fu_date_input = self.cleaned_data.get('followup_date')
+            if not fu_date_input:
+                instance.next_followup_date = None
+                instance.next_followup_time = None
+
             if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
                 existing_apt.status = AppointmentStatus.COMPLETED
                 existing_apt.save(update_fields=['status'])
@@ -1054,7 +1081,8 @@ class HospitalLeadForm(forms.ModelForm):
                 fu_status_mapped = FollowUpStatus.INTERESTED
 
             # Compose remark text
-            remark_text = self.cleaned_data.get('remark_1') or cancel_reason_val or cd.get('comments') or ''
+            fu_remark = self.cleaned_data.get('followup_remark')
+            remark_text = fu_remark or self.cleaned_data.get('remark_1') or cancel_reason_val or cd.get('comments') or ''
             if not remark_text:
                 remark_text = f"Updated lead status to {appo_status or instance.get_deal_status_display()}"
 

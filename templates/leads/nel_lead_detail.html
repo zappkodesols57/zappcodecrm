@@ -11,12 +11,15 @@
         <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
       {% elif lead.display_status == 'Booking Confirmed' %}
         <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed ({{ lead.remark_detail }})</span>
+      {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
+        <span class="badge badge-booking-pending"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
       {% elif lead.display_status == 'Booked' %}
         <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
-      {% elif lead.display_status == 'Booking Approval Pending' %}
-        <span class="badge badge-booking-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Booking Approval Pending</span>
       {% elif lead.display_status == 'Follow-up Needed' %}
         <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
+        {% if lead.next_followup_date %}
+          <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
+        {% endif %}
       {% elif lead.display_status == 'Payment Pending' %}
         <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
       {% elif lead.display_status == 'New' %}

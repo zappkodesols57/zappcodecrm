@@ -53,6 +53,13 @@
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
     <div class="card-header bg-white border-bottom pt-2 pb-0 px-4">
       <ul class="nav nav-tabs border-bottom-0 gap-3" id="hospitalMasterTabs" role="tablist">
+        <!-- 0. Hospital Profile Tab -->
+        <li class="nav-item" role="presentation">
+          <a class="nav-link custom-hospital-tab {% if active_tab == 'profile' %}active{% endif %} px-4 py-3" 
+             id="tab-profile-btn" data-bs-toggle="tab" href="#tab-profile" role="tab">
+            <i class="fa-solid fa-id-card-clip me-2"></i> Hospital Profile
+          </a>
+        </li>
         <!-- 1. Branches Tab -->
         <li class="nav-item" role="presentation">
           <a class="nav-link custom-hospital-tab {% if active_tab == 'branches' %}active{% endif %} px-4 py-3" 
@@ -91,6 +98,91 @@
     <div class="card-body p-4">
       <div class="tab-content" id="hospitalMasterTabContent">
         
+        <!-- ==================== 0. HOSPITAL PROFILE TAB ==================== -->
+        <div class="tab-pane fade {% if active_tab == 'profile' %}show active{% endif %}" id="tab-profile" role="tabpanel">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-3">
+            <div>
+              <h6 class="fw-bold text-dark mb-0">Hospital Core Profile & Branding</h6>
+              <small class="text-muted">Manage hospital logo, registration number, contact email, and primary address</small>
+            </div>
+          </div>
+
+          <div class="row g-4 pt-2">
+            <div class="col-lg-8">
+              <form method="post" action="{% url 'leads:hospital_profile_save' %}" enctype="multipart/form-data" class="bg-light p-4 rounded-4 border">
+                {% csrf_token %}
+                <div class="row g-3">
+                  <!-- Hospital Name -->
+                  <div class="col-md-12">
+                    <label class="form-label small fw-bold text-dark">Hospital / Organization Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control rounded-3" value="{{ hospital.name }}" required>
+                  </div>
+
+                  <!-- Registration Number -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark">Registration / License No.</label>
+                    <input type="text" name="registration_no" class="form-control rounded-3" value="{{ hospital.registration_no|default:'' }}" placeholder="e.g. MH-HOSP-2024-9981">
+                  </div>
+
+                  <!-- Phone Number -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark">Contact Phone</label>
+                    <input type="text" name="phone" class="form-control rounded-3" value="{{ hospital.phone|default:'' }}" placeholder="e.g. 0712-2555555">
+                  </div>
+
+                  <!-- Email Address -->
+                  <div class="col-md-12">
+                    <label class="form-label small fw-bold text-dark">Official Contact Email</label>
+                    <input type="email" name="contact_email" class="form-control rounded-3" value="{{ hospital.contact_email|default:'' }}" placeholder="info@nelsonhospital.com">
+                  </div>
+
+                  <!-- Primary Address -->
+                  <div class="col-md-12">
+                    <label class="form-label small fw-bold text-dark">Primary Address / Headquarters</label>
+                    <textarea name="address" class="form-control rounded-3" rows="3" placeholder="Full address of hospital headquarters">{{ hospital.address|default:'' }}</textarea>
+                  </div>
+
+                  <!-- Logo Upload -->
+                  <div class="col-md-12">
+                    <label class="form-label small fw-bold text-dark">Hospital Logo</label>
+                    <input type="file" name="logo" class="form-control rounded-3" accept="image/*">
+                    <small class="text-muted">Recommended format: Transparent PNG or SVG (Max: 2MB)</small>
+                  </div>
+
+                  <div class="col-md-12 mt-4 pt-2 border-top d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+                      <i class="fa-solid fa-floppy-disk me-1"></i> Save Hospital Profile
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <!-- Profile Preview Summary Box -->
+            <div class="col-lg-4">
+              <div class="card border rounded-4 shadow-sm p-3 h-100 bg-white">
+                <div class="text-center py-3 border-bottom">
+                  {% if hospital.logo %}
+                    <img src="{{ hospital.logo.url }}" alt="{{ hospital.name }}" class="img-fluid mb-2" style="max-height: 70px; object-fit: contain;">
+                  {% else %}
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 70px; height: 70px;">
+                      <i class="fa-solid fa-hospital fs-2"></i>
+                    </div>
+                  {% endif %}
+                  <h6 class="fw-bold text-dark mb-0">{{ hospital.name }}</h6>
+                  <span class="badge bg-success bg-opacity-10 text-success rounded-pill mt-1">Active Hospital Organization</span>
+                </div>
+                <div class="py-3 small d-flex flex-column gap-2 text-muted">
+                  <div><strong class="text-dark"><i class="fa-solid fa-hashtag text-secondary me-1"></i> Reg No:</strong> {{ hospital.registration_no|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark"><i class="fa-solid fa-phone text-secondary me-1"></i> Phone:</strong> {{ hospital.phone|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark"><i class="fa-solid fa-envelope text-secondary me-1"></i> Email:</strong> {{ hospital.contact_email|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark"><i class="fa-solid fa-location-dot text-secondary me-1"></i> Address:</strong> {{ hospital.address|default:'Not Provided' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- ==================== 1. BRANCHES TAB ==================== -->
         <div class="tab-pane fade {% if active_tab == 'branches' %}show active{% endif %}" id="tab-branches" role="tabpanel">
           <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-3">
@@ -882,7 +974,10 @@
 
   function openActiveTabModal() {
     const activeTab = document.querySelector('#hospitalMasterTabs .nav-link.active').getAttribute('href');
-    if (activeTab === '#tab-branches') {
+    if (activeTab === '#tab-profile') {
+      const nameInput = document.querySelector('#tab-profile input[name="name"]');
+      if (nameInput) nameInput.focus();
+    } else if (activeTab === '#tab-branches') {
       document.getElementById('formBranch').action = "{% url 'leads:hospital_branch_create' %}";
       document.getElementById('modalBranchTitle').innerText = "Add Hospital Branch";
       document.getElementById('formBranch').reset();

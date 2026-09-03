@@ -973,6 +973,9 @@ def nel_card_drilldown_api(request):
     else:
         current_date = today
 
+    month_range_start = None
+    month_range_end = None
+
     if mode == 'previous':
         selected_date = current_date - timedelta(days=1)
     elif mode == 'next':
@@ -981,6 +984,13 @@ def nel_card_drilldown_api(request):
         selected_date = today
     elif mode == 'custom':
         selected_date = current_date
+    elif mode == 'this_month':
+        selected_date = None
+        m_start_date = today.replace(day=1)
+        _, last_day = calendar.monthrange(today.year, today.month)
+        m_end_date = today.replace(day=last_day)
+        month_range_start = timezone.make_aware(datetime.combine(m_start_date, datetime.min.time()))
+        month_range_end = timezone.make_aware(datetime.combine(m_end_date, datetime.max.time()))
     else: # mode == 'all'
         selected_date = None
 
@@ -1035,6 +1045,11 @@ def nel_card_drilldown_api(request):
             leads_qs = hospital_qs.filter(
                 Q(created_at__range=(start_dt, end_dt)) | Q(inquiry_date=selected_date)
             )
+        elif month_range_start and month_range_end:
+            leads_qs = hospital_qs.filter(
+                Q(created_at__range=(month_range_start, month_range_end)) |
+                Q(inquiry_date__range=(m_start_date, m_end_date))
+            )
         else:
             leads_qs = hospital_qs
 
@@ -1050,6 +1065,11 @@ def nel_card_drilldown_api(request):
         if selected_date:
             c_base = c_base.filter(
                 Q(created_at__range=(start_dt, end_dt)) | Q(inquiry_date=selected_date)
+            )
+        elif month_range_start and month_range_end:
+            c_base = c_base.filter(
+                Q(created_at__range=(month_range_start, month_range_end)) |
+                Q(inquiry_date__range=(m_start_date, m_end_date))
             )
 
         # In-memory clean filter for Call Not Done: remark 1 must be empty and no terminal status / calling done
@@ -1107,6 +1127,12 @@ def nel_card_drilldown_api(request):
                 Q(custom_data__appointment_date=sel_alt_str) |
                 Q(custom_data__appointment_confirmed_at__startswith=sel_date_str)
             )
+        elif month_range_start and month_range_end:
+            leads_qs = b_base.filter(
+                Q(created_at__range=(month_range_start, month_range_end)) |
+                Q(inquiry_date__range=(m_start_date, m_end_date)) |
+                Q(custom_data__appo_booked_date__startswith=today.strftime('%Y-%m'))
+            )
         else:
             leads_qs = b_base
 
@@ -1118,6 +1144,8 @@ def nel_card_drilldown_api(request):
         )
         if selected_date:
             leads_qs = hospital_qs.filter(next_followup_date=selected_date).exclude(booked_exclude_modal)
+        elif month_range_start and month_range_end:
+            leads_qs = hospital_qs.filter(next_followup_date__range=(m_start_date, m_end_date)).exclude(booked_exclude_modal)
         else:
             leads_qs = hospital_qs.filter(next_followup_date__isnull=False).exclude(booked_exclude_modal)
 
@@ -1131,6 +1159,11 @@ def nel_card_drilldown_api(request):
         if selected_date:
             leads_qs = w_base.filter(
                 Q(created_at__range=(start_dt, end_dt)) | Q(inquiry_date=selected_date)
+            )
+        elif month_range_start and month_range_end:
+            leads_qs = w_base.filter(
+                Q(created_at__range=(month_range_start, month_range_end)) |
+                Q(inquiry_date__range=(m_start_date, m_end_date))
             )
         else:
             leads_qs = w_base
@@ -1159,12 +1192,6 @@ def nel_card_drilldown_api(request):
         cd = l.custom_data or {}
         doc = cd.get('doctor') or (l.assigned_to.get_full_name() if l.assigned_to else 'Unassigned')
         dept = cd.get('department') or 'General OPD'
-        raw_apt = cd.get('appointment_status')
-        if raw_apt and str(raw_apt).strip().lower() not in ('nan', 'none', '', '-'):
-            appt_st = str(raw_apt).strip()
-        else:
-            appt_st = l.display_status
-        
         c_name = l.campaign.name if l.campaign else (cd.get('campaign') or 'General / Direct')
         if not c_name or str(c_name).strip() in ['nan', 'None', '', '—', '-']:
             c_name = 'General / Direct'
@@ -1190,7 +1217,7 @@ def nel_card_drilldown_api(request):
             "status": status_str,
             "is_booked": is_booked,
             "temperature": temp_str,
-            "appointment_status": appt_st or status_str,
+            "appointment_status": status_str,
             "doctor": doc,
             "appointment_date": appt_date,
             "appointment_time": appt_time,
@@ -1272,12 +1299,19 @@ def nel_card_drilldown_api(request):
     hosp_name = user.hospital.name if (hasattr(user, 'hospital') and user.hospital) else "Nelson Mother & Child Care Hospital"
     agent_name = user.get_full_name() or user.username or "Patient Care Team"
 
+    if mode == 'this_month':
+        disp_title = today.strftime('%B %Y')
+    elif selected_date:
+        disp_title = selected_date.strftime('%d %B %Y')
+    else:
+        disp_title = "All Time Records"
+
     return JsonResponse({
         "status": "success",
         "card_type": card_type,
         "mode": mode,
         "selected_date": selected_date.strftime('%Y-%m-%d') if selected_date else "all",
-        "selected_date_display": selected_date.strftime('%d %B %Y') if selected_date else "All Time Records",
+        "selected_date_display": disp_title,
         "total_count": total_count,
         "hospital_name": hosp_name,
         "agent_name": agent_name,
@@ -1288,6 +1322,138 @@ def nel_card_drilldown_api(request):
         "cal_month": cal_month,
         "cal_month_name": date(cal_year, cal_month, 1).strftime('%B %Y'),
     })
+
+
+@login_required
+def live_metrics_api(request):
+    """
+    Lightweight background polling endpoint for real-time CRM updates.
+    Returns live counts for KPI cards, appointments, follow-ups, and latest lead ID/hash.
+    Designed with fail-safe error handling so network blips never crash the UI.
+    """
+    from django.http import JsonResponse
+    try:
+        user = request.user
+        hospital = user.hospital if hasattr(user, 'hospital') else None
+        today = timezone.localdate()
+        
+        start_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+        end_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
+
+        time_filter = request.GET.get('time_filter', 'today')
+        start_of_month = timezone.make_aware(datetime(today.year, today.month, 1, 0, 0, 0))
+        _, last_day = calendar.monthrange(today.year, today.month)
+        end_of_month = timezone.make_aware(datetime(today.year, today.month, last_day, 23, 59, 59))
+        start_date_month = date(today.year, today.month, 1)
+        end_date_month = date(today.year, today.month, last_day)
+
+        # Base Leads QuerySet
+        leads_qs = Lead.objects.filter(is_archived=False)
+        if hospital:
+            leads_qs = leads_qs.filter(hospital=hospital)
+
+        # Role-based restriction if telecaller
+        if user.role == User.Role.LEAD_ATTENDENT and not getattr(user, 'can_view_all_leads', False):
+            my_leads_qs = leads_qs.filter(assigned_to=user)
+        else:
+            my_leads_qs = leads_qs
+
+        # Counts
+        total_leads = my_leads_qs.count()
+        today_leads = my_leads_qs.filter(
+            Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)
+        ).count()
+
+        # Follow-ups
+        booked_exclude = (
+            Q(custom_data__appointment_status__icontains='Book') |
+            Q(custom_data__appointment_status__icontains='Confirm') |
+            Q(deal_status__in=['WON', 'LOST'])
+        )
+        today_followups = my_leads_qs.filter(next_followup_date=today).exclude(booked_exclude).count()
+
+        # Appointments
+        apt_qs = Appointment.objects.all()
+        if hospital:
+            apt_qs = apt_qs.filter(hospital=hospital)
+        if user.role == User.Role.DOCTOR:
+            apt_qs = apt_qs.filter(doctor_user=user)
+
+        today_apts = apt_qs.filter(appointment_date=today).count()
+        awaiting_approval_count = apt_qs.filter(status=AppointmentStatus.SCHEDULED).count()
+        confirmed_count = apt_qs.filter(status=AppointmentStatus.APPROVED).count()
+
+        # Call Not Done (Exact same logic as dashboard calculate_insights)
+        call_not_done_base = my_leads_qs.filter(
+            deal_status__in=[DealStatus.OPEN, 'New', 'OPEN']
+        )
+        if time_filter == 'today':
+            cnd_raw_qs = call_not_done_base.filter(
+                Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)
+            ).distinct()
+        elif time_filter == 'this_month':
+            cnd_raw_qs = call_not_done_base.filter(
+                Q(created_at__range=(start_of_month, end_of_month)) |
+                Q(inquiry_date__range=(start_date_month, end_date_month))
+            ).distinct()
+        else:
+            cnd_raw_qs = call_not_done_base.distinct()
+
+        terminal_statuses = {'booked', 'completed', 'payment done', 'payment pending', 'cancelled', 'visited', 'admission done', 'won', 'lost'}
+        today_s = today.strftime("%Y-%m-%d")
+        today_a = today.strftime("%d-%m-%Y")
+        cnd_count = 0
+
+        for l in cnd_raw_qs:
+            cd = l.custom_data or {}
+            r1 = str(cd.get('remark_1') or '').strip()
+            if r1 and r1.lower() not in ('nan', 'none', '—', '-', ''):
+                continue
+            raw_apt = str(cd.get('appointment_status') or '').strip().lower()
+            raw_ds = str(cd.get('deal_status') or '').strip().lower()
+            disp_st = str(l.display_status or '').strip().lower()
+
+            if raw_apt in terminal_statuses or raw_ds in terminal_statuses or disp_st in terminal_statuses:
+                continue
+            if 'book' in raw_apt or 'confirm' in raw_apt or 'won' in raw_apt or 'cancel' in raw_apt or 'lost' in raw_apt:
+                continue
+            if 'book' in disp_st or 'payment' in disp_st or 'cancel' in disp_st or 'lost' in disp_st:
+                continue
+            if cd.get('calling_date_remark_1') in (today_s, today_a) or \
+               cd.get('calling_date_remark_2') in (today_s, today_a) or \
+               cd.get('calling_date_remark_3') in (today_s, today_a) or \
+               cd.get('last_called_date') in (today_s, today_a):
+                continue
+            cnd_count += 1
+
+        call_not_done_count = cnd_count
+
+        # Latest lead tracking to detect new entries
+        latest_lead = my_leads_qs.order_by('-id').values('id', 'name', 'mobile', 'created_at').first()
+        latest_lead_id = latest_lead['id'] if latest_lead else 0
+        latest_lead_name = latest_lead['name'] if latest_lead else ''
+
+        return JsonResponse({
+            "status": "success",
+            "timestamp": timezone.now().isoformat(),
+            "latest_lead_id": latest_lead_id,
+            "latest_lead_name": latest_lead_name,
+            "metrics": {
+                "total_leads": total_leads,
+                "today_leads": today_leads,
+                "today_followups": today_followups,
+                "call_not_done": call_not_done_count,
+                "today_appointments": today_apts,
+                "awaiting_approval": awaiting_approval_count,
+                "confirmed_appointments": confirmed_count,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            "status": "retry",
+            "error": str(e),
+            "metrics": {}
+        })
 
 
 @login_required
@@ -1519,12 +1685,28 @@ def nelson_module_view(request, module_name):
         campaigns_data = []
         total_leads_count = 0
         total_period_leads = 0
+        # Count campaigns that received leads today and in the active period
+        start_today = timezone.make_aware(dt_module.datetime.combine(today, dt_module.time.min))
+        end_today = timezone.make_aware(dt_module.datetime.combine(today, dt_module.time.max))
+        today_leads_qs = base_leads_qs.filter(
+            Q(created_at__gte=start_today, created_at__lte=end_today) |
+            Q(inquiry_date=today)
+        )
+        today_active_campaigns_count = 0
+        period_active_campaigns_count = 0
 
         for c in campaigns_qs:
             # All time leads for this campaign
             leads_all_cnt = base_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
             # Period leads for this campaign
             leads_period_cnt = period_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
+            # Today's leads for this campaign
+            leads_today_cnt = today_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
+
+            if leads_today_cnt > 0:
+                today_active_campaigns_count += 1
+            if leads_period_cnt > 0:
+                period_active_campaigns_count += 1
             
             total_leads_count += leads_all_cnt
             total_period_leads += leads_period_cnt
@@ -1533,6 +1715,7 @@ def nelson_module_view(request, module_name):
                 "obj": c,
                 "leads_count": leads_all_cnt,
                 "period_leads_count": leads_period_cnt,
+                "today_leads_count": leads_today_cnt,
             })
             
         total_appts = Appointment.objects.filter(hospital=hospital).count() if hospital else 0
@@ -1547,6 +1730,8 @@ def nelson_module_view(request, module_name):
             "campaigns_data": campaigns_data,
             "total_campaigns": campaigns_qs.count(),
             "active_campaigns_count": campaigns_qs.filter(is_active=True).count(),
+            "today_active_campaigns_count": today_active_campaigns_count,
+            "period_active_campaigns_count": period_active_campaigns_count,
             "total_leads_generated": total_leads_count,
             "total_period_leads": total_period_leads,
             "total_appts_generated": total_appts,
@@ -2943,7 +3128,21 @@ def doctor_home(request):
             
             if new_date_str:
                 from datetime import datetime
-                apt.appointment_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
+                new_date_obj = datetime.strptime(new_date_str, "%Y-%m-%d").date()
+                
+                # Check for doctor leave
+                from leads.models import DoctorLeave
+                is_on_leave = DoctorLeave.objects.filter(
+                    doctor=doctor,
+                    start_date__lte=new_date_obj,
+                    end_date__gte=new_date_obj
+                ).exists()
+                
+                if is_on_leave:
+                    messages.error(request, "Cannot reschedule/update appointment to this date as you are marked on leave/vacation.")
+                    return redirect("dashboard:doctor_home")
+                    
+                apt.appointment_date = new_date_obj
             if new_time_str:
                 apt.appointment_time = new_time_str
             

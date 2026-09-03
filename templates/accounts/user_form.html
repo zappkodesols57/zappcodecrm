@@ -53,7 +53,7 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="nelson-dashboard">
+<div class="nelson-dashboard pt-4">
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
@@ -147,16 +147,16 @@
         {% for field in form %}
           {% if field.field.widget.input_type == 'checkbox' %}
           <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
-            <div class="form-check p-3 bg-light rounded-3 border h-100 d-flex align-items-center gap-3">
-              {{ field }}
-              <div>
+            <div class="p-3 bg-light rounded-3 border h-100">
+              <div class="form-check m-0">
+                {{ field }}
                 <label class="form-check-label small fw-semibold text-dark mb-0 cursor-pointer" for="{{ field.id_for_label }}">
                   {{ field.label }}
                 </label>
-                {% if field.help_text %}
-                  <div class="text-muted" style="font-size: 0.72rem;">{{ field.help_text|striptags }}</div>
-                {% endif %}
               </div>
+              {% if field.help_text %}
+                <div class="text-muted mt-1" style="font-size: 0.72rem; margin-left: 1.75rem;">{{ field.help_text|striptags }}</div>
+              {% endif %}
             </div>
           </div>
           {% endif %}
