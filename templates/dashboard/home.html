@@ -55,7 +55,10 @@
 <form method="get" class="card p-3 mb-3" style="display: none;">
   <div class="row g-2">
     <div class="col-md-2">
-      <input type="search" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ request_get.q }}">
+      <div class="input-group input-group-sm">
+        <input type="search" name="q" class="form-control" placeholder="Search..." value="{{ request_get.q }}">
+        <button class="btn btn-primary" type="submit" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+      </div>
     </div>
     <div class="col-md-2">
       <select name="city" class="form-select form-select-sm">

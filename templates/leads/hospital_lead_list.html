@@ -110,22 +110,31 @@
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
 <form method="post" action="{% url 'leads:bulk_action' %}">
   {% csrf_token %}
-  <div class="card mb-2 p-2 d-flex flex-row gap-2 align-items-center">
-    <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px;">
+  <style>
+    .bulk-action-bar .ts-wrapper .ts-control {
+      border: 1px solid #9ca3af !important;
+      background-color: #f1f5f9 !important;
+      border-radius: 0.4rem !important;
+      min-height: calc(1.5em + 0.5rem + 2px);
+    }
+  </style>
+  <div class="card bulk-action-bar mb-3 p-3 d-flex flex-row gap-3 align-items-center bg-white shadow-sm" style="border: 1px solid #9ca3af !important; border-radius: 0.75rem;">
+    <span class="fw-bold text-dark small text-uppercase ms-1"><i class="fa-solid fa-layer-group text-primary me-1"></i> Bulk Actions:</span>
+    <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
       <option value="assign">Assign to...</option>
       <option value="stage">Change Stage to...</option>
       {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
       <option value="archive">Archive</option>
       {% endif %}
     </select>
-    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px;">
+    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
       <option value="">Hospital Attendant / User</option>
       {% for e in employees %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
     </select>
-    <select name="stage" class="form-select form-select-sm" style="max-width:180px;">
+    <select name="stage" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
       {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
     </select>
-    <button class="btn btn-sm btn-outline-secondary" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
+    <button class="btn btn-sm btn-primary px-4 fw-bold shadow-sm" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
   </div>
 {% endif %}
 
@@ -207,7 +216,7 @@
               {% endif %}
             </td>
             <td><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
-            <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
+            <td>{% if lead.display_next_followup_date %}<span class="small text-nowrap">{{ lead.display_next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
           </tr>
           {% empty %}
           <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No patient leads found.</div></td></tr>

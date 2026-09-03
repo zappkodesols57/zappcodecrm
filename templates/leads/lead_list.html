@@ -110,22 +110,31 @@
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
 <form method="post" action="{% url 'leads:bulk_action' %}">
   {% csrf_token %}
-  <div class="card mb-2 p-2 d-flex flex-row gap-2 align-items-center">
-    <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px;">
+  <style>
+    .bulk-action-bar .ts-wrapper .ts-control {
+      border: 1px solid #9ca3af !important;
+      background-color: #f1f5f9 !important;
+      border-radius: 0.4rem !important;
+      min-height: calc(1.5em + 0.5rem + 2px);
+    }
+  </style>
+  <div class="card bulk-action-bar mb-3 p-3 d-flex flex-row gap-3 align-items-center bg-white shadow-sm" style="border: 1px solid #9ca3af !important; border-radius: 0.75rem;">
+    <span class="fw-bold text-dark small text-uppercase ms-1"><i class="fa-solid fa-layer-group text-primary me-1"></i> Bulk Actions:</span>
+    <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
       <option value="assign">Assign to...</option>
       <option value="stage">Change Stage to...</option>
       {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
       <option value="archive">Archive</option>
       {% endif %}
     </select>
-    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px;">
+    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
       <option value="">Employee</option>
       {% for e in employees %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
     </select>
-    <select name="stage" class="form-select form-select-sm" style="max-width:180px;">
+    <select name="stage" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
       {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
     </select>
-    <button class="btn btn-sm btn-outline-secondary" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
+    <button class="btn btn-sm btn-primary px-4 fw-bold shadow-sm" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
   </div>
 {% endif %}
 
@@ -323,11 +332,11 @@
           {% for lead in page_obj %}
           <tr>
             <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-            <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold">{{ lead.lead_code }}</a></td>
-            <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
-            <td><strong>{{ lead.name }}</strong></td>
-            <td>{{ lead.mobile }}</td>
-            <td>
+            <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold ps-4">{{ lead.lead_code }}</a></td>
+            <td><span class="text-nowrap small text-muted ps-4">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
+            <td class="ps-4"><strong>{{ lead.name }}</strong></td>
+            <td class="ps-4">{{ lead.mobile }}</td>
+            <td class="ps-4">
               {% if lead.hospital and lead.custom_data.doctor %}
                 <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i>{{ lead.custom_data.doctor }}</span>
                 {% if lead.custom_data.department %}<div class="small text-muted">{{ lead.custom_data.department }}</div>{% endif %}
@@ -335,8 +344,8 @@
                 {{ lead.course|default:"—" }}
               {% endif %}
             </td>
-            <td><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
-            <td>
+            <td class="ps-4"><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
+            <td class="ps-4">
               {% if lead.display_status == 'Payment Done' %}
                 <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
               {% elif lead.display_status == 'Booked' %}
@@ -357,7 +366,7 @@
                 <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.display_status }}</span>
               {% endif %}
             </td>
-            <td>
+            <td class="ps-4">
               {% if lead.display_status == 'Payment Done' %}
                 <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold">
                   <i class="fa-solid fa-receipt me-1"></i>{{ lead.remark_detail }}
@@ -382,7 +391,7 @@
                 <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.remark_detail }}">{{ lead.remark_detail }}</span>
               {% endif %}
             </td>
-            <td><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
+            <td class="ps-4"><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
             <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
           </tr>
           {% empty %}

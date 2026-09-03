@@ -131,14 +131,34 @@
                         </td>
                         <td>
                             <div class="mb-1 d-flex flex-wrap gap-1 align-items-center">
-                                {% if lead.deal_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.custom_data.appointment_status == 'Payment Done' or 'Payment' in lead.custom_data.deal_status or lead.custom_data.total or lead.custom_data.total_paid %}
+                                {% if lead.display_status == 'Payment Done' %}
                                     <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
                                         <i class="fa-solid fa-circle-check me-1"></i> Payment Done: ₹{{ lead.custom_data.total_paid|default:lead.custom_data.total|default:'0' }}
                                     </span>
-                                {% elif lead.custom_data.appointment_status and lead.custom_data.appointment_status != 'Not Booked' and lead.custom_data.appointment_status != '' %}
-                                    <!-- When Appointment Status is active (Booked, Cancelled, Not Interested, etc.), ONLY show this single tag -->
-                                    <span class="badge {% if lead.custom_data.appointment_status == 'Booked' %}bg-success text-success border-success-subtle{% elif lead.custom_data.appointment_status == 'Cancelled' or lead.custom_data.appointment_status == 'Not Intrested' or lead.custom_data.appointment_status == 'Not Interested' %}bg-danger text-danger border-danger-subtle{% else %}bg-primary text-primary border-primary-subtle{% endif %} bg-opacity-10 border px-2 py-1">
-                                        <i class="fa-solid {% if lead.custom_data.appointment_status == 'Booked' %}fa-calendar-check{% elif lead.custom_data.appointment_status == 'Cancelled' %}fa-calendar-xmark{% elif 'Not Int' in lead.custom_data.appointment_status %}fa-user-xmark{% else %}fa-clock{% endif %} me-1"></i> {{ lead.custom_data.appointment_status }}
+                                {% elif lead.display_status == 'Booking Confirmed' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
+                                        <i class="fa-solid fa-calendar-check me-1"></i> Booking Confirmed
+                                    </span>
+                                {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
+                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
+                                        <i class="fa-solid fa-hourglass-half me-1"></i> Awaiting Approval from Doctor
+                                    </span>
+                                {% elif lead.display_status == 'Booked' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                        <i class="fa-solid fa-calendar-check me-1"></i> Booked
+                                    </span>
+                                {% elif lead.display_status == 'Follow-up Needed' %}
+                                    <span class="badge bg-purple bg-opacity-10 text-purple border border-purple-subtle px-2 py-1" style="background:#faf5ff; color:#7e22ce; border-color:#e9d5ff;">
+                                        <i class="fa-solid fa-clock me-1"></i> Follow-up Needed
+                                    </span>
+                                    {% if lead.next_followup_date %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
+                                            <i class="fa-solid fa-calendar me-1"></i> {{ lead.next_followup_date|date:"d M Y" }}
+                                        </span>
+                                    {% endif %}
+                                {% elif lead.display_status == 'Cancelled' or lead.display_status == 'Lost' or lead.display_status == 'Not Interested' %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">
+                                        <i class="fa-solid fa-ban me-1"></i> {{ lead.display_status }}
                                     </span>
                                 {% else %}
                                     <!-- When Appointment Status is not set, display Priority and Stage/Deal -->

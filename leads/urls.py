@@ -43,6 +43,7 @@ urlpatterns = [
 
     # Hospital Master Configuration & Cascading Routes
     path("hospital-configuration/", views.hospital_configuration_view, name="hospital_configuration"),
+    path("hospital-configuration/profile/save/", views.hospital_profile_save, name="hospital_profile_save"),
     path("hospital-configuration/import/", views.hospital_master_excel_import, name="hospital_master_excel_import"),
     path("hospital-configuration/sample-download/", views.hospital_master_sample_download, name="hospital_master_sample_download"),
     path("hospital-configuration/branch/save/", views.hospital_branch_save, name="hospital_branch_create"),

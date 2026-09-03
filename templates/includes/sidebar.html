@@ -134,11 +134,15 @@
             Settings</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'universal_masters hospital_config' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'universal_masters hospital_config hospital-profile hospital_profile' %}show{% endif %} nav-sub-items"
         id="sec_masters">
-        <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'hospital_config' %}active{% endif %}"
+        <a class="nav-link {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if active == 'hospital-profile' or active == 'hospital_profile' or active_tab == 'profile' %}active{% endif %}"
+          href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
+          <i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Profile</span>
+          {% if not request.user.can_manage_hospital_profile %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+        <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'hospital_config' and active_tab != 'profile' %}active{% endif %}"
           href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration"><i
-            class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span>{% if not request.user.can_manage_masters %} <i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+            class="fa-solid fa-sliders"></i> <span class="nav-text">Hospital Configuration</span>{% if not request.user.can_manage_masters %} <i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
         <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'universal_masters' %}active{% endif %}"
           href="{% url 'leads:universal_masters' %}" title="Custom Lead Form"><i
             class="fa-solid fa-pen-ruler"></i> <span class="nav-text">Custom Lead Form</span>
@@ -512,13 +516,7 @@
 
     {% endif %}
 
-    {% if user.hospital and user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' and user.hospital %}
-    <!-- Direct Hospital Profile Link (Placed with Profile tab at the bottom) -->
-    <a class="nav-link {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if active == 'hospital-profile' %}active{% endif %}"
-      href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
-      <i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Profile</span>
-      {% if not request.user.can_manage_hospital_profile %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
-    {% endif %}
+
 
   </div>
 

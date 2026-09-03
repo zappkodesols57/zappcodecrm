@@ -10,6 +10,12 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  
+  /* Fix Microsoft Edge double password eye icon */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+      display: none;
+  }
   :root{
     --sidebar-w: 265px;
     --sidebar-collapsed-w: 70px;
@@ -474,6 +480,9 @@
     });
   });
 </script>
+
+{% load static %}
+<script src="{% static 'js/crm_live_sync.js' %}"></script>
 
 {% include "includes/footer.html" %}
 {% block extra_js %}{% endblock %}

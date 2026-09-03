@@ -17,6 +17,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("superadmin/", views.superadmin_home, name="superadmin_home"),
     path("superadmin/card-drilldown-api/", views.nel_card_drilldown_api, name="nel_card_drilldown_api"),
+    path("api/live-metrics/", views.live_metrics_api, name="live_metrics_api"),
     path("management/", zappcode_views.management_home, name="management_home"),
     path("nelson/roles-permissions/", views.roles_permissions_view, name="roles_permissions"),
     path("nelson/module/<str:module_name>/", views.nelson_module_view, name="nelson_module"),

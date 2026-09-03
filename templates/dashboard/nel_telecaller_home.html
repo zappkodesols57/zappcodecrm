@@ -229,7 +229,7 @@
                     <i class="ph-bold ph-user-plus"></i>
                 </div>
             </div>
-            <div class="stat-value text-primary">{{ todays_new_leads_count|intcomma }}</div>
+            <div class="stat-value text-primary" data-live-metric="today_leads">{{ todays_new_leads_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Received Today</span>
                 <i class="ph-bold ph-arrow-up-right text-primary"></i>
@@ -244,7 +244,7 @@
                     <i class="ph-bold ph-phone-x"></i>
                 </div>
             </div>
-            <div class="stat-value text-danger">{{ call_not_done_count|intcomma }}</div>
+            <div class="stat-value text-danger" data-live-metric="call_not_done">{{ call_not_done_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Pending Calling</span>
                 <i class="ph-bold ph-arrow-up-right text-danger"></i>
@@ -259,7 +259,7 @@
                     <i class="ph-bold ph-calendar-check"></i>
                 </div>
             </div>
-            <div class="stat-value text-dark">{{ todays_opd_booked_count|intcomma }}</div>
+            <div class="stat-value text-dark" data-live-metric="today_appointments">{{ todays_opd_booked_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Booked by You</span>
                 <i class="ph-bold ph-arrow-up-right text-warning"></i>
@@ -274,7 +274,7 @@
                     <i class="ph-bold ph-clock-countdown"></i>
                 </div>
             </div>
-            <div class="stat-value" style="color: #6b21a8;">{{ todays_followups_count|intcomma }}</div>
+            <div class="stat-value" style="color: #6b21a8;" data-live-metric="today_followups">{{ todays_followups_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Due Today</span>
                 <i class="ph-bold ph-arrow-up-right" style="color: #8b5cf6;"></i>
@@ -373,12 +373,15 @@
                                             <span class="badge badge-payment-done px-2 py-1"><i class="ph-bold ph-check-circle me-1"></i>Payment Done</span>
                                         {% elif lead.custom_deal_status == 'Booking Confirmed' %}
                                             <span class="badge badge-booking-confirmed px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booking Confirmed</span>
+                                        {% elif lead.custom_deal_status == 'Awaiting Approval from Doctor' or lead.custom_deal_status == 'Booking Approval Pending' %}
+                                            <span class="badge badge-booking-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Awaiting Approval from Doctor</span>
                                         {% elif lead.custom_deal_status == 'Booked' %}
                                             <span class="badge badge-booking px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booked</span>
-                                        {% elif lead.custom_deal_status == 'Booking Approval Pending' %}
-                                            <span class="badge badge-booking-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Approval Pending</span>
                                         {% elif lead.custom_deal_status == 'Follow-up Needed' %}
                                             <span class="badge badge-followup-needed px-2 py-1"><i class="ph-bold ph-clock me-1"></i>Follow-up</span>
+                                            {% if lead.next_followup_date %}
+                                                <div class="small text-muted mt-1" style="font-size: 0.7rem;"><i class="ph-bold ph-calendar me-1"></i>{{ lead.next_followup_date|date:"d M, y" }}</div>
+                                            {% endif %}
                                         {% elif lead.custom_deal_status == 'Payment Pending' %}
                                             <span class="badge badge-payment-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Payment Pending</span>
                                         {% elif lead.custom_deal_status == 'Assigned' %}
@@ -887,13 +890,31 @@
     function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
         currentDrilldownCard = cardType;
         currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
-        currentDrilldownMode = 'today';
-        currentDrilldownDate = todayStrGlobal;
+
+        // Check if page has active time filter
+        const pageParams = new URLSearchParams(window.location.search);
+        const activeTimeFilter = pageParams.get('time_filter') || '{{ time_filter|default:"today" }}';
+
+        if (activeTimeFilter === 'all_time') {
+            currentDrilldownMode = 'all';
+            currentDrilldownDate = 'all';
+            updateModalDynamicTitle('All Time');
+            updatePillUI('all');
+        } else if (activeTimeFilter === 'this_month') {
+            currentDrilldownMode = 'this_month';
+            currentDrilldownDate = todayStrGlobal;
+            updateModalDynamicTitle('This Month');
+            updatePillUI('custom');
+        } else {
+            currentDrilldownMode = 'today';
+            currentDrilldownDate = todayStrGlobal;
+            updateModalDynamicTitle('Today');
+            updatePillUI('today');
+        }
+
         currentCalYear = new Date().getFullYear();
         currentCalMonth = new Date().getMonth() + 1;
 
-        // Set Initial Title & Badge
-        updateModalDynamicTitle('Today');
         const iconConfig = cardIconMap[cardType] || { icon: 'ph-squares-four', colorClass: 'bg-primary' };
         const badgeEl = document.getElementById('drilldownCardBadgeIcon');
         if (badgeEl) {
@@ -915,8 +936,6 @@
             }
         }
 
-        // Reset Pills
-        updatePillUI('today');
         document.getElementById('drilldownCalendarWrapper').style.display = 'none';
         document.getElementById('drilldownSearchInput').value = '';
 
@@ -1022,7 +1041,14 @@
         tbody.innerHTML = '';
         selectedCampaignFilter = null;
 
-        const url = `/dashboard/superadmin/card-drilldown-api/?card_type=${currentDrilldownCard}&mode=${currentDrilldownMode}&target_date=${currentDrilldownDate}&year=${currentCalYear}&month=${currentCalMonth}`;
+        const searchParams = new URLSearchParams(window.location.search);
+        searchParams.set('card_type', currentDrilldownCard);
+        searchParams.set('mode', currentDrilldownMode);
+        searchParams.set('target_date', currentDrilldownDate);
+        searchParams.set('year', currentCalYear);
+        searchParams.set('month', currentCalMonth);
+
+        const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
         fetch(url)
             .then(res => res.json())
@@ -1201,23 +1227,46 @@
         leads.forEach(lead => {
             const tr = document.createElement('tr');
             
-            let tempBadge = `<span class="badge bg-secondary">WARM</span>`;
-            if (lead.temperature === 'HOT') {
-                tempBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="ph-bold ph-fire me-1"></i>HOT</span>`;
-            } else if (lead.temperature === 'WARM') {
-                tempBadge = `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">WARM</span>`;
-            } else if (lead.temperature === 'COLD') {
-                tempBadge = `<span class="badge bg-secondary bg-opacity-10 text-secondary border">COLD</span>`;
+            // Temperature Badge: only show when temperature exists (never when appointment/terminal status is set)
+            let tempBadge = `<span class="text-muted small">—</span>`;
+            const tempUpper = (lead.temperature || '').toUpperCase();
+            if (tempUpper === 'HOT') {
+                tempBadge = `<span class="badge badge-hot"><i class="ph-bold ph-fire me-1"></i>Hot</span>`;
+            } else if (tempUpper === 'WARM') {
+                tempBadge = `<span class="badge badge-warm"><i class="ph-bold ph-thermometer-simple me-1"></i>Warm</span>`;
+            } else if (tempUpper === 'COLD') {
+                tempBadge = `<span class="badge badge-cold"><i class="ph-bold ph-snowflake me-1"></i>Cold</span>`;
+            } else if (tempUpper === 'FREEZE') {
+                tempBadge = `<span class="badge badge-freeze"><i class="ph-bold ph-snow-outline me-1"></i>Freeze</span>`;
             }
 
-            let statusBadge = `<span class="badge bg-light text-dark border">${lead.appointment_status || lead.status}</span>`;
-            const stLower = (lead.appointment_status || lead.status).toLowerCase();
-            if (stLower.includes('book') || stLower.includes('complete') || stLower.includes('won')) {
-                statusBadge = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="ph ph-check me-1"></i>${lead.appointment_status}</span>`;
+            // Deal / Appointment Status Badge
+            const displaySt = lead.appointment_status || lead.status || 'Open';
+            let statusBadge = `<span class="badge bg-light text-dark border">${displaySt}</span>`;
+            const stLower = displaySt.toLowerCase();
+            if (stLower.includes('payment done') || stLower.includes('won')) {
+                statusBadge = `<span class="badge badge-payment-done"><i class="ph ph-check me-1"></i>Payment Done</span>`;
+            } else if (stLower.includes('confirm')) {
+                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-calendar-check me-1"></i>Booking Confirmed</span>`;
+            } else if (stLower.includes('await') || stLower.includes('approval pending')) {
+                statusBadge = `<span class="badge badge-booking-pending"><i class="ph ph-clock-countdown me-1"></i>Awaiting Approval from Doctor</span>`;
+            } else if (stLower.includes('complete') || stLower.includes('visit')) {
+                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-check-circle me-1"></i>Completed</span>`;
+            } else if (stLower.includes('book') || stLower === 'yes') {
+                statusBadge = `<span class="badge badge-booking"><i class="ph ph-calendar me-1"></i>Booked</span>`;
+            } else if (stLower.includes('follow') || stLower.includes('wait')) {
+                statusBadge = `<span class="badge badge-followup-needed"><i class="ph ph-clock me-1"></i>Follow-up Needed</span>`;
+                if (lead.next_followup && lead.next_followup !== '-' && lead.next_followup !== 'None') {
+                    statusBadge += `<div class="mt-1 small text-muted" style="font-size:0.7rem;"><i class="ph-bold ph-calendar me-1"></i>${lead.next_followup}</div>`;
+                }
+            } else if (stLower.includes('payment pending')) {
+                statusBadge = `<span class="badge badge-payment-pending"><i class="ph ph-clock-countdown me-1"></i>Payment Pending</span>`;
             } else if (stLower.includes('assign')) {
-                statusBadge = `<span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
-            } else if (stLower.includes('new') || stLower.includes('open')) {
-                statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${lead.appointment_status}</span>`;
+                statusBadge = `<span class="badge badge-assigned"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
+            } else if (stLower.includes('lost') || stLower.includes('cancel') || stLower.includes('not int')) {
+                statusBadge = `<span class="badge badge-lost"><i class="ph ph-prohibit me-1"></i>${displaySt}</span>`;
+            } else if (stLower.includes('new')) {
+                statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${displaySt}</span>`;
             }
 
             // Direct Voice Call & Dynamic WhatsApp Message

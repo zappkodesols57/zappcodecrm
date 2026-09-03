@@ -596,7 +596,7 @@ class Lead(models.Model):
     @property
     def custom_priority(self):
         st = self.display_status
-        if st in ("Payment Done", "Booked", "Booking Confirmed", "Payment Pending", "Cancelled", "Lost", "Awaiting Approval", "Follow-up Needed", "Not Interested"):
+        if st in ("Payment Done", "Booked", "Booking Confirmed", "Awaiting Approval from Doctor", "Payment Pending", "Cancelled", "Lost", "Awaiting Approval", "Follow-up Needed", "Not Interested"):
             return None
 
         prio = self.get_custom("priority")
@@ -630,14 +630,22 @@ class Lead(models.Model):
         appt_st_up = appt_st.upper()
         attendant = cd.get("lead_attendant") or (self.assigned_to.get_full_name() if self.assigned_to else "")
 
+        # Check appointment confirmation status from linked Appointment record
+        latest_apt = self.appointments.order_by('-id').first() if self.pk else None
+        has_doctor_approved = False
+        if latest_apt:
+            has_doctor_approved = (latest_apt.status in [AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED])
+        elif cd.get('appointment_confirmed_at'):
+            has_doctor_approved = True
+
         # 1. Payment Done (total bill > 0 or deal status Won)
         if tot > 0 or self.deal_status == DealStatus.WON or raw_ds.lower() in ("won", "won (payment done)", "admission", "admission done", "payment done"):
             if tot > 0:
                 return "Payment Done"
             if "COMPLET" in appt_st_up or "DONE" in appt_st_up or "VISIT" in appt_st_up:
                 return "Payment Pending"
-            elif "BOOK" in appt_st_up or "CONFIRM" in appt_st_up or "YES" in appt_st_up:
-                return "Booking Confirmed" if "CONFIRM" in appt_st_up else "Booked"
+            elif "BOOK" in appt_st_up or "CONFIRM" in appt_st_up or "YES" in appt_st_up or "AWAIT" in appt_st_up:
+                return "Booking Confirmed" if has_doctor_approved else "Awaiting Approval from Doctor"
             elif "CANCEL" in appt_st_up or self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper():
                 return "Cancelled" if "CANCEL" in appt_st_up else "Lost"
             return "Payment Done"
@@ -646,12 +654,12 @@ class Lead(models.Model):
         if appt_st and appt_st.lower() not in ("nan", "none", "", "—", "-"):
             if "COMPLET" in appt_st_up or "DONE" in appt_st_up or "VISIT" in appt_st_up:
                 return "Completed Appointment" if tot == 0 else "Payment Done"
+            if "AWAIT" in appt_st_up or "PENDING" in appt_st_up:
+                return "Booking Confirmed" if has_doctor_approved else "Awaiting Approval from Doctor"
             if "CONFIRM" in appt_st_up or "APPROV" in appt_st_up:
-                return "Booking Confirmed"
-            if "AWAIT" in appt_st_up:
-                return "Booking Approval Pending"
+                return "Booking Confirmed" if has_doctor_approved else "Awaiting Approval from Doctor"
             if "BOOK" in appt_st_up or appt_st_up == "YES":
-                return "Booked"
+                return "Booking Confirmed" if has_doctor_approved else "Awaiting Approval from Doctor"
             if "FOLLOW" in appt_st_up or "WAIT" in appt_st_up:
                 return "Follow-up Needed"
             if "NOT INT" in appt_st_up:
@@ -661,6 +669,10 @@ class Lead(models.Model):
             if "LOST" in appt_st_up:
                 return "Lost"
             return appt_st
+
+        # If lead has booked date/slot or appointment record but no appointment_status string
+        if (cd.get('appo_booked_date') or latest_apt):
+            return "Booking Confirmed" if has_doctor_approved else "Awaiting Approval from Doctor"
 
         # 3. Check Cancelled / Lost in Deal Status
         if "CANCEL" in raw_ds.upper():
@@ -728,7 +740,7 @@ class Lead(models.Model):
                 return f"₹{tot:,.0f}" if tot.is_integer() else f"₹{tot:,.2f}"
             return "₹0"
 
-        if st in ("Booked", "Booking Confirmed", "Booking Approval Pending"):
+        if st in ("Booked", "Booking Confirmed", "Awaiting Approval from Doctor", "Booking Approval Pending"):
             appo_date = cd.get("appo_booked_date") or cd.get("appointment_date") or self.next_followup_date
             appo_time = cd.get("appointment_time")
             if appo_date and appo_time and str(appo_time).strip() not in ('-', 'None', ''):
@@ -793,6 +805,22 @@ class Lead(models.Model):
 
         return self.custom_temperature or "Warm"
 
+    @property
+    def display_next_followup_date(self):
+        """
+        Returns the next follow-up date only if genuinely scheduled.
+        For leads with 'Payment Done', booking date should never be shown as next follow-up
+        unless an explicit follow-up record with a next_followup_date was added.
+        """
+        st = self.display_status
+        if st == "Payment Done":
+            # Check if there is an explicit follow-up record with next_followup_date
+            latest_fu = self.followups.filter(next_followup_date__isnull=False).order_by('-id').first()
+            if latest_fu and latest_fu.next_followup_date:
+                return latest_fu.next_followup_date
+            return None
+        return self.next_followup_date
+
 
     def save(self, *args, **kwargs):
         if not self.lead_code:
@@ -817,12 +845,14 @@ class Lead(models.Model):
         """Check if lead has a confirmed booked appointment or status."""
         cd = self.custom_data or {}
         st = str(self.display_status or "").strip().lower()
-        if "book" in st or "complete" in st or "won" in st:
+        if "awaiting approval" in st or "approval pending" in st:
+            return False
+        if "booking confirmed" in st or "completed" in st or "won" in st or "payment done" in st:
             return True
         apt_st = str(cd.get("appointment_status") or "").strip().lower()
-        if "book" in apt_st or "complete" in apt_st or apt_st == "yes" or "done" in apt_st:
-            return True
-        if cd.get("appo_booked_date"):
+        if "awaiting" in apt_st:
+            return False
+        if "confirm" in apt_st or "complete" in apt_st or "done" in apt_st:
             return True
         return False
 

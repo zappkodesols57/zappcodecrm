@@ -620,21 +620,24 @@
           <i class="fa-solid fa-calendar-plus"></i> Schedule Follow-up Details
         </div>
         <div class="row g-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label small fw-bold text-dark">Follow-up Date <span class="text-danger">*</span></label>
             {{ form.followup_date }}
             <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Lead will appear in Follow-ups tab on
               this date</small>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label small fw-bold text-dark">Follow-up Time</label>
             {{ form.followup_time }}
             <div id="fuTimeErrorMsg" class="text-danger small mt-1 d-none fw-semibold" style="font-size: 0.75rem;">
-              <i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Follow-up time cannot be in the past
-              for today's date.
+              <i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Cannot be in the past.
             </div>
             <small id="fuTimeHelperText" class="text-muted d-block mt-1" style="font-size: 0.75rem;">Notification
               reminder will be sent</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-dark">Follow-up Remark</label>
+            {{ form.followup_remark }}
           </div>
         </div>
       </div>
@@ -1462,8 +1465,10 @@
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const currentTimeStr = `${hours}:${minutes}`;
 
+    // Keep min removed on time input itself so Chrome time picker dropdown list does not break with huge gaps
+    fuTimeInput.removeAttribute('min');
+
     if (fuDateInput.value === todayStr) {
-      fuTimeInput.min = currentTimeStr;
       if (fuTimeInput.value && fuTimeInput.value < currentTimeStr) {
         fuTimeInput.setCustomValidity(`Please select an upcoming time after ${currentTimeStr}`);
         fuTimeInput.classList.add('is-invalid');
@@ -1471,7 +1476,6 @@
           fuTimeErrorMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Please choose upcoming time after ${currentTimeStr} for today.`;
           fuTimeErrorMsg.classList.remove('d-none');
         }
-
       } else {
         fuTimeInput.setCustomValidity('');
         fuTimeInput.classList.remove('is-invalid');
@@ -1480,7 +1484,6 @@
         }
       }
     } else {
-      fuTimeInput.removeAttribute('min');
       fuTimeInput.setCustomValidity('');
       fuTimeInput.classList.remove('is-invalid');
       if (fuTimeErrorMsg) {
