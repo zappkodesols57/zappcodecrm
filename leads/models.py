@@ -516,23 +516,41 @@ class Lead(models.Model):
         return src or ""
 
     @property
-    def custom_priority(self):
-        st = self.display_status
-        # For terminal / booked / paid / cancelled stages: NO priority tag is shown
-        if st in ("Payment Done", "Booked", "Payment Pending", "Cancelled", "Lost", "Awaiting Approval"):
+    def custom_temperature(self):
+        """
+        Calculates the lead temperature based on assignment, calling remarks, and appointment status:
+        - If appointment status is set (Booked, Booking, Follow-up, Not Interested, Cancelled, etc.): blank/None
+        - If Unassigned (New/Open untouched): 'Hot'
+        - If Assigned with no calling remarks: 'Hot'
+        - If 1st calling remark is 'Call Not Received' / unanswered: 'Warm'
+        - If 2nd calling remark is also 'Call Not Received' / unanswered: 'Cold'
+        - If 3rd calling remark is also 'Call Not Received' / unanswered: 'Freeze'
+        - If other valid calling remark / note: returns temperature or note classification
+        """
+        cd = self.custom_data or {}
+        raw_apt = str(cd.get("appointment_status") or "").strip().upper()
+        raw_ds = str(cd.get("deal_status") or "").strip().upper()
+        tot = self.total_billed_amount
+
+        # Terminal / Appointment Statuses -> Temperature is blank/None
+        if tot > 0 or self.deal_status == DealStatus.WON or "WON" in raw_ds or "PAYMENT" in raw_ds:
+            return None
+        if "PAYMENT" in raw_apt or "COMPLET" in raw_apt or "VISIT" in raw_apt or "DONE" in raw_apt:
+            return None
+        if "BOOK" in raw_apt or "CONFIRM" in raw_apt or "APPROV" in raw_apt or "AWAIT" in raw_apt or raw_apt == "YES":
+            return None
+        if "CANCEL" in raw_apt or "NOT INT" in raw_apt or self.deal_status == DealStatus.LOST or "LOST" in raw_ds:
+            return None
+        if "FOLLOW" in raw_apt or "WAIT" in raw_apt or "RESCHEDULE" in raw_apt:
             return None
 
-        prio = self.get_custom("priority")
-        if prio and prio.lower() not in ("nan", "none", ""):
-            return prio.title()
-
-        cd = self.custom_data or {}
+        # Check remarks
         r1 = str(cd.get("remark_1") or "").strip()
         r2 = str(cd.get("remark_2") or "").strip()
         r3 = str(cd.get("remark_3") or "").strip()
 
         def is_clean_val(v):
-            return bool(v and v.lower() not in ("nan", "none", "—", ""))
+            return bool(v and v.lower() not in ("nan", "none", "—", "-", ""))
 
         def is_call_not_rec(v):
             if not is_clean_val(v):
@@ -540,27 +558,52 @@ class Lead(models.Model):
             v_up = v.upper()
             return any(k in v_up for k in [
                 "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
-                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE"
+                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED"
             ])
 
-        has_calling_notes = is_clean_val(r1) or is_clean_val(r2) or is_clean_val(r3)
+        has_r1 = is_clean_val(r1)
+        has_r2 = is_clean_val(r2)
+        has_r3 = is_clean_val(r3)
 
-        # 1. Unassigned or no calling interaction taken yet -> HOT
-        if not has_calling_notes:
+        # Untouched / no calling remarks taken yet -> Hot
+        if not has_r1 and not has_r2 and not has_r3:
             return "Hot"
 
-        # 2. Sequential unanswered calling remarks:
-        if is_call_not_rec(r3) and is_call_not_rec(r2) and is_call_not_rec(r1):
-            return "Freeze"
+        # 3rd remark is Call Not Received -> Freeze
         if is_call_not_rec(r3):
             return "Freeze"
+
+        # 2nd remark is Call Not Received -> Cold
         if is_call_not_rec(r2):
             return "Cold"
+
+        # 1st remark is Call Not Received -> Warm
         if is_call_not_rec(r1):
             return "Warm"
 
-        temp = (self.temperature or "WARM").strip()
-        return self.get_temperature_display() if temp else "Warm"
+        # If user explicitly selected a temperature on lead
+        temp_val = (self.temperature or "").strip()
+        if temp_val in ["HOT", "WARM", "COLD", "NOT_PICKED", "UNCONTACTED"]:
+            if temp_val == "HOT":
+                return "Hot"
+            elif temp_val == "WARM":
+                return "Warm"
+            elif temp_val in ["COLD", "NOT_PICKED"]:
+                return "Cold"
+
+        return "Warm"
+
+    @property
+    def custom_priority(self):
+        st = self.display_status
+        if st in ("Payment Done", "Booked", "Booking Confirmed", "Payment Pending", "Cancelled", "Lost", "Awaiting Approval", "Follow-up Needed", "Not Interested"):
+            return None
+
+        prio = self.get_custom("priority")
+        if prio and prio.lower() not in ("nan", "none", ""):
+            return prio.title()
+
+        return self.custom_temperature
 
     @property
     def custom_camp(self):
@@ -583,43 +626,53 @@ class Lead(models.Model):
         cd = self.custom_data or {}
         tot = self.total_billed_amount
         raw_ds = str(cd.get("deal_status") or (self.stage.name if self.stage_id and self.stage else "")).strip()
-        appt_st = str(cd.get("appointment_status") or "").strip().upper()
+        appt_st = str(cd.get("appointment_status") or "").strip()
+        appt_st_up = appt_st.upper()
         attendant = cd.get("lead_attendant") or (self.assigned_to.get_full_name() if self.assigned_to else "")
 
         # 1. Payment Done (total bill > 0 or deal status Won)
         if tot > 0 or self.deal_status == DealStatus.WON or raw_ds.lower() in ("won", "won (payment done)", "admission", "admission done", "payment done"):
             if tot > 0:
                 return "Payment Done"
-            # If total bill is 0 or unrecorded:
-            if "COMPLET" in appt_st or "DONE" in appt_st or "VISIT" in appt_st:
+            if "COMPLET" in appt_st_up or "DONE" in appt_st_up or "VISIT" in appt_st_up:
                 return "Payment Pending"
-            elif "BOOK" in appt_st or "CONFIRM" in appt_st or "YES" in appt_st:
-                return "Booked"
-            elif "CANCEL" in appt_st or self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper():
-                return "Cancelled" if "CANCEL" in appt_st else "Lost"
-            return "Open"
+            elif "BOOK" in appt_st_up or "CONFIRM" in appt_st_up or "YES" in appt_st_up:
+                return "Booking Confirmed" if "CONFIRM" in appt_st_up else "Booked"
+            elif "CANCEL" in appt_st_up or self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper():
+                return "Cancelled" if "CANCEL" in appt_st_up else "Lost"
+            return "Payment Done"
 
-        # 2. Cancelled / Lost
-        if "CANCEL" in appt_st or "CANCEL" in raw_ds.upper():
+        # 2. Specific Appointment Statuses set by User / Admin / Doctor
+        if appt_st and appt_st.lower() not in ("nan", "none", "", "—", "-"):
+            if "COMPLET" in appt_st_up or "DONE" in appt_st_up or "VISIT" in appt_st_up:
+                return "Completed Appointment" if tot == 0 else "Payment Done"
+            if "CONFIRM" in appt_st_up or "APPROV" in appt_st_up:
+                return "Booking Confirmed"
+            if "AWAIT" in appt_st_up:
+                return "Booking Approval Pending"
+            if "BOOK" in appt_st_up or appt_st_up == "YES":
+                return "Booked"
+            if "FOLLOW" in appt_st_up or "WAIT" in appt_st_up:
+                return "Follow-up Needed"
+            if "NOT INT" in appt_st_up:
+                return "Not Interested"
+            if "CANCEL" in appt_st_up:
+                return "Cancelled"
+            if "LOST" in appt_st_up:
+                return "Lost"
+            return appt_st
+
+        # 3. Check Cancelled / Lost in Deal Status
+        if "CANCEL" in raw_ds.upper():
             return "Cancelled"
-        if self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper() or "NOT INT" in appt_st:
+        if self.deal_status == DealStatus.LOST or "LOST" in raw_ds.upper() or "NOT INT" in raw_ds.upper():
             return "Lost"
 
-        # 3. Booked
-        if "BOOK" in appt_st or "CONFIRM" in appt_st or appt_st == "YES":
-            return "Booked"
-
-        # 4. Completed visit with no bill
-        if "COMPLET" in appt_st or "DONE" in appt_st or "VISIT" in appt_st:
-            return "Payment Pending"
-        if "AWAIT" in appt_st:
-            return "Awaiting Approval"
-
-        # 5. Check Assignment and Untouched state
+        # 4. Check Assignment and Untouched state
         is_assigned = bool(self.assigned_to_id or (attendant and str(attendant).strip().lower() not in ("unassigned", "none", "nan", "", "-")))
         
         has_calling_notes = any(
-            cd.get(k) and str(cd.get(k)).strip().lower() not in ("nan", "none", "", "—")
+            cd.get(k) and str(cd.get(k)).strip().lower() not in ("nan", "none", "", "—", "-")
             for k in ["remark_1", "remark_2", "remark_3"]
         )
 
@@ -654,7 +707,7 @@ class Lead(models.Model):
         """
         Dynamic remark based on lifecycle:
         - If Payment Done: Total billed amount (e.g. ₹47,226)
-        - If Booked: Appointment date (or time/schedule)
+        - If Booked / Booking Confirmed: Appointment date & time (or Slot Scheduled)
         - If Payment Pending: 'Billing Pending'
         - If Lost / Cancelled: Reason or specific remark
         - If New (Added Today, unassigned & untouched): 'New Enquiry'
@@ -675,16 +728,19 @@ class Lead(models.Model):
                 return f"₹{tot:,.0f}" if tot.is_integer() else f"₹{tot:,.2f}"
             return "₹0"
 
-        if st == "Booked":
-            appo_date = cd.get("appo_booked_date") or self.next_followup_date
-            if appo_date:
+        if st in ("Booked", "Booking Confirmed", "Booking Approval Pending"):
+            appo_date = cd.get("appo_booked_date") or cd.get("appointment_date") or self.next_followup_date
+            appo_time = cd.get("appointment_time")
+            if appo_date and appo_time and str(appo_time).strip() not in ('-', 'None', ''):
+                return f"{appo_date} ({appo_time})"
+            elif appo_date:
                 return f"{appo_date}"
             return "Slot Scheduled"
 
         if st == "Payment Pending":
             return "Billing Pending"
 
-        if st in ("Lost", "Cancelled"):
+        if st in ("Lost", "Cancelled", "Not Interested"):
             reason = cd.get("cancellation_reason") or cd.get("remark_1") or cd.get("remark_2") or cd.get("remark_3")
             if reason and str(reason).strip().lower() not in ("nan", "none", ""):
                 return str(reason).strip()[:40]
@@ -693,13 +749,13 @@ class Lead(models.Model):
         if st == "New":
             return "Hot"
 
-        # For Open (and other active leads):
+        # For Open / Assigned (and other active leads):
         r1 = str(cd.get("remark_1") or "").strip()
         r2 = str(cd.get("remark_2") or "").strip()
         r3 = str(cd.get("remark_3") or "").strip()
 
         def is_clean_val(v):
-            return bool(v and v.lower() not in ("nan", "none", "—", ""))
+            return bool(v and v.lower() not in ("nan", "none", "—", "-", ""))
 
         def is_call_not_rec(v):
             if not is_clean_val(v):
@@ -707,7 +763,7 @@ class Lead(models.Model):
             v_up = v.upper()
             return any(k in v_up for k in [
                 "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
-                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE"
+                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED"
             ])
 
         has_r1 = is_clean_val(r1)
@@ -719,8 +775,6 @@ class Lead(models.Model):
             return "Hot"
 
         # Condition 2: 3rd remark is Call Not Received -> Freeze
-        if is_call_not_rec(r3) and is_call_not_rec(r2) and is_call_not_rec(r1):
-            return "Freeze"
         if is_call_not_rec(r3):
             return "Freeze"
 
@@ -737,8 +791,7 @@ class Lead(models.Model):
             if is_clean_val(rk_val):
                 return rk_val[:40]
 
-        temp = (self.temperature or "WARM").strip()
-        return self.get_temperature_display() if temp else "Warm"
+        return self.custom_temperature or "Warm"
 
 
     def save(self, *args, **kwargs):
@@ -807,9 +860,27 @@ class Lead(models.Model):
             )
         return urllib.parse.quote(text)
 
+    @property
+    def clean_phone_number(self):
+        """Returns 10-digit clean mobile number of the lead instance for WhatsApp links."""
+        return self.normalize_mobile(self.mobile)
+
+    @classmethod
+    def clean_mobile(cls, raw=None):
+        """Normalize phone string or return current instance clean phone number."""
+        import re
+        if raw is None:
+            return ""
+        digits = re.sub(r"\D", "", str(raw or ""))
+        if len(digits) == 12 and digits.startswith("91"):
+            digits = digits[2:]
+        if len(digits) == 11 and digits.startswith("0"):
+            digits = digits[1:]
+        return digits
+
     @staticmethod
-    def clean_mobile(raw):
-        """Normalize a phone string for duplicate-detection matching."""
+    def normalize_mobile(raw):
+        """Normalize a phone string for duplicate-detection matching and WhatsApp links."""
         import re
         digits = re.sub(r"\D", "", str(raw or ""))
         if len(digits) == 12 and digits.startswith("91"):
@@ -819,11 +890,11 @@ class Lead(models.Model):
         return digits
 
     def find_duplicates(self):
-        digits = self.clean_mobile(self.mobile)
+        digits = self.normalize_mobile(self.mobile)
         qs = Lead.objects.exclude(pk=self.pk)
         if digits:
             from django.db.models.functions import Replace
-            candidates = [l for l in qs.only("id", "mobile") if Lead.clean_mobile(l.mobile) == digits]
+            candidates = [l for l in qs.only("id", "mobile") if self.normalize_mobile(l.mobile) == digits]
             if candidates:
                 return Lead.objects.filter(pk__in=[c.pk for c in candidates])
         if self.email:

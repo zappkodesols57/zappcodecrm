@@ -169,15 +169,25 @@ CACHES = {
     }
 }
 
-# Session & Cookie Persistence Settings
+# Session & Cookie Persistence Settings (30 Days Long-Lived Session)
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 21600  # 6 Hours automatic logout (21600 seconds = 6 * 60 * 60)
-SESSION_SAVE_EVERY_REQUEST = True  # Automatically refresh session timer on every user request/activity
+SESSION_COOKIE_NAME = 'sessionid_crm'
+SESSION_COOKIE_AGE = 2592000  # 30 Days
+SESSION_SAVE_EVERY_REQUEST = False  # Avoid updating session cookie timestamp on every background AJAX request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
+CSRF_TRUSTED_ORIGINS = [
+    'https://crm.zappcode.in',
+    'http://crm.zappcode.in',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
 
 # Proxy SSL Header for Nginx/Production HTTPS
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -185,8 +195,9 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    # If site is behind reverse proxy (Nginx), allow non-HTTPS cookie fallback if proxy terminates SSL
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # Email Configuration (Brevo SMTP - ae3d0f001@smtp-brevo.com)
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')

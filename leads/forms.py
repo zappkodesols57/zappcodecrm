@@ -262,6 +262,43 @@ class LeadStageForm(forms.ModelForm):
 
 
 
+class FlexibleTimeField(forms.Field):
+    """TimeField that gracefully handles 12-hour AM/PM formats ('01:00 PM', '1:00 PM', '01:00 pm'), 24-hour formats ('13:00', '13:00:00'), or raw valid strings without raising validation error."""
+    def to_python(self, value):
+        if value in (None, '', '—', '-', 'None'):
+            return None
+        if isinstance(value, datetime):
+            return value.time()
+        import datetime as dt
+        if isinstance(value, dt.time):
+            return value
+        
+        val_str = str(value).strip()
+        # Try standard formats
+        for fmt in ('%H:%M:%S', '%H:%M', '%I:%M %p', '%I:%M%p', '%I:%M:%S %p', '%I:%M:%S%p', '%I:%M %P', '%I:%M%P'):
+            try:
+                return datetime.strptime(val_str, fmt).time()
+            except (ValueError, TypeError):
+                pass
+        
+        # If parsing as standard time fails, extract hour/min/ampm with regex
+        match = re.match(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$', val_str, re.IGNORECASE)
+        if match:
+            h, m, s, ampm = match.groups()
+            h, m = int(h), int(m)
+            s = int(s) if s else 0
+            if ampm:
+                ampm = ampm.lower()
+                if ampm == 'pm' and h < 12:
+                    h += 12
+                elif ampm == 'am' and h == 12:
+                    h = 0
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                return dt.time(h, m, s)
+        
+        # If still cannot parse into a dt.time, return None instead of blocking form save
+        return None
+
 class NonStrictChoiceField(forms.ChoiceField):
     """ChoiceField that renders options in <select> dropdown while allowing any value without validation error."""
     def validate(self, value):
@@ -289,9 +326,9 @@ class HospitalLeadForm(forms.ModelForm):
     doctor = NonStrictChoiceField(choices=[], required=False)
     appointment_status = NonStrictChoiceField(choices=[], required=False)
     appo_booked_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    appointment_time = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
+    appointment_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
     followup_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    followup_time = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
+    followup_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
     visit_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     priority = NonStrictChoiceField(choices=[], required=False)
     # Location & Comments
@@ -365,7 +402,7 @@ class HospitalLeadForm(forms.ModelForm):
     remark_1 = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
     
     calling_date_remark_2 = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    calling_time_remark_2 = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
+    calling_time_remark_2 = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
     remark_2 = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
     
     calling_date_remark_3 = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)

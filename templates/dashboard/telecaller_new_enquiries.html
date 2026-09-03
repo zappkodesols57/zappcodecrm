@@ -223,9 +223,17 @@
                         </td>
                         <td>
                             <div class="d-flex flex-wrap gap-1 align-items-center">
-                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
-                                    <i class="fa-solid fa-fire text-danger me-1"></i>{{ lead.custom_priority|default:lead.get_temperature_display|default:"Fresh" }}
-                                </span>
+                                {% if lead.custom_temperature == 'Hot' %}
+                                    <span class="badge badge-hot px-2 py-1"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
+                                {% elif lead.custom_temperature == 'Warm' %}
+                                    <span class="badge badge-warm px-2 py-1"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
+                                {% elif lead.custom_temperature == 'Cold' %}
+                                    <span class="badge badge-cold px-2 py-1"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
+                                {% elif lead.custom_temperature == 'Freeze' %}
+                                    <span class="badge badge-freeze px-2 py-1"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
+                                {% elif lead.custom_priority %}
+                                    <span class="badge badge-hot px-2 py-1"><i class="fa-solid fa-fire text-danger me-1"></i>{{ lead.custom_priority }}</span>
+                                {% endif %}
                                 {% if lead.custom_dept %}
                                     <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
                                         {{ lead.custom_dept }}

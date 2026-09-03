@@ -408,6 +408,9 @@
     <!-- Interactive Filter Panel (Collapsible / Toggleable) -->
     <div class="filter-panel mb-4" id="filterCollapseBody" style="display: none;">
         <form method="GET" action="{% url 'dashboard:superadmin_home' %}" id="interactiveFilterForm">
+            {% if time_filter %}
+            <input type="hidden" name="time_filter" value="{{ time_filter }}">
+            {% endif %}
             <div class="row g-3">
                 <!-- 1. Campaign Filter -->
                 <div class="col-md-3 col-sm-6">
@@ -667,7 +670,7 @@
 
 </div>
 
-<!-- Charts Row 1: Location & Department -->
+<!-- Charts Row 1: Location & Final Lead Status -->
 <div class="charts-grid">
     <!-- 1. Location Wise Chart -->
     <div class="chart-card">
@@ -691,7 +694,36 @@
         </div>
     </div>
 
-    <!-- 2. Department Wise Chart -->
+    <!-- 2. Final Lead Status Chart (Exchanged with Department Distribution) -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-chart-pie-slice text-primary"></i> Final Lead Status
+            </h5>
+            <span class="badge bg-light text-muted border">Outcomes</span>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="finalStatusChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2: Month Wise & Department Distribution -->
+<div class="charts-grid">
+    <!-- 3. Month Wise Leads Chart -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="ph-bold ph-calendar text-primary"></i> Month-wise Inquiries
+            </h5>
+            <span class="badge bg-light text-muted border">Interactive</span>
+        </div>
+        <div style="position: relative; height: 290px; width: 100%;">
+            <canvas id="monthChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 4. Department Wise Chart (Exchanged with Final Lead Status) -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
@@ -709,35 +741,6 @@
         </div>
         <div style="position: relative; height: 290px; width: 100%;">
             <canvas id="departmentChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row 2: Month Wise & Final Lead Status -->
-<div class="charts-grid">
-    <!-- 3. Month Wise Leads Chart -->
-    <div class="chart-card">
-        <div class="chart-header">
-            <h5 class="chart-title">
-                <i class="ph-bold ph-calendar text-primary"></i> Month-wise Inquiries
-            </h5>
-            <span class="badge bg-light text-muted border">Interactive</span>
-        </div>
-        <div style="position: relative; height: 290px; width: 100%;">
-            <canvas id="monthChart"></canvas>
-        </div>
-    </div>
-
-    <!-- 4. Final Lead Status Chart -->
-    <div class="chart-card">
-        <div class="chart-header">
-            <h5 class="chart-title">
-                <i class="ph-bold ph-chart-pie-slice text-primary"></i> Final Lead Status
-            </h5>
-            <span class="badge bg-light text-muted border">Outcomes</span>
-        </div>
-        <div style="position: relative; height: 290px; width: 100%;">
-            <canvas id="finalStatusChart"></canvas>
         </div>
     </div>
 </div>
@@ -1588,24 +1591,40 @@
             const tr = document.createElement('tr');
 
             // Temperature Badge
-            let tempBadge = `<span class="badge bg-secondary">WARM</span>`;
-            if (lead.temperature === 'HOT') {
-                tempBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="ph-bold ph-fire me-1"></i>HOT</span>`;
-            } else if (lead.temperature === 'WARM') {
-                tempBadge = `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">WARM</span>`;
-            } else if (lead.temperature === 'COLD') {
-                tempBadge = `<span class="badge bg-secondary bg-opacity-10 text-secondary border">COLD</span>`;
+            let tempBadge = '';
+            const tempUpper = (lead.temperature || '').toUpperCase();
+            if (tempUpper === 'HOT') {
+                tempBadge = `<span class="badge badge-hot"><i class="ph-bold ph-fire me-1"></i>Hot</span>`;
+            } else if (tempUpper === 'WARM') {
+                tempBadge = `<span class="badge badge-warm"><i class="ph-bold ph-thermometer-simple me-1"></i>Warm</span>`;
+            } else if (tempUpper === 'COLD') {
+                tempBadge = `<span class="badge badge-cold"><i class="ph-bold ph-snowflake me-1"></i>Cold</span>`;
+            } else if (tempUpper === 'FREEZE') {
+                tempBadge = `<span class="badge badge-freeze"><i class="ph-bold ph-snow-outline me-1"></i>Freeze</span>`;
             }
 
             // Deal / Appointment Status Badge
-            let statusBadge = `<span class="badge bg-light text-dark border">${lead.appointment_status || lead.status}</span>`;
-            const stLower = (lead.appointment_status || lead.status).toLowerCase();
-            if (stLower.includes('book') || stLower.includes('complete') || stLower.includes('won')) {
-                statusBadge = `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="ph ph-check me-1"></i>${lead.appointment_status}</span>`;
+            const displaySt = lead.appointment_status || lead.status || 'Open';
+            let statusBadge = `<span class="badge bg-light text-dark border">${displaySt}</span>`;
+            const stLower = displaySt.toLowerCase();
+            if (stLower.includes('payment done') || stLower.includes('won')) {
+                statusBadge = `<span class="badge badge-payment-done"><i class="ph ph-check me-1"></i>Payment Done</span>`;
+            } else if (stLower.includes('confirm')) {
+                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-calendar-check me-1"></i>Booking Confirmed</span>`;
+            } else if (stLower.includes('approval pending') || stLower.includes('await')) {
+                statusBadge = `<span class="badge badge-booking-pending"><i class="ph ph-clock-countdown me-1"></i>Approval Pending</span>`;
+            } else if (stLower.includes('book')) {
+                statusBadge = `<span class="badge badge-booking"><i class="ph ph-calendar me-1"></i>Booked</span>`;
+            } else if (stLower.includes('follow')) {
+                statusBadge = `<span class="badge badge-followup-needed"><i class="ph ph-clock me-1"></i>Follow-up</span>`;
+            } else if (stLower.includes('payment pending')) {
+                statusBadge = `<span class="badge badge-payment-pending"><i class="ph ph-clock-countdown me-1"></i>Payment Pending</span>`;
             } else if (stLower.includes('assign')) {
-                statusBadge = `<span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
+                statusBadge = `<span class="badge badge-assigned"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
+            } else if (stLower.includes('cancel') || stLower.includes('lost') || stLower.includes('not int')) {
+                statusBadge = `<span class="badge badge-lost"><i class="ph ph-prohibit me-1"></i>${displaySt}</span>`;
             } else if (stLower.includes('new') || stLower.includes('open')) {
-                statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${lead.appointment_status}</span>`;
+                statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${displaySt}</span>`;
             }
 
             // Direct Voice Call & Dynamic WhatsApp Message

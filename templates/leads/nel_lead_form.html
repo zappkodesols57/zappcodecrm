@@ -210,7 +210,7 @@
     </div>
     <div class="d-flex gap-2 align-items-center">
       {% if obj and obj.mobile %}
-      <a href="https://wa.me/91{{ obj.clean_mobile }}?text={{ obj.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-bold d-flex align-items-center gap-1" title="{% if obj.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
+      <a href="https://wa.me/91{{ obj.clean_phone_number }}?text={{ obj.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-bold d-flex align-items-center gap-1" title="{% if obj.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
         <i class="fa-brands fa-whatsapp fs-6 text-success"></i> {% if obj.is_booked %}WhatsApp Booking Details{% else %}WhatsApp Message{% endif %}
       </a>
       {% endif %}

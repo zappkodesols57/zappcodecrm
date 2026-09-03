@@ -57,7 +57,7 @@ def crm_login(request):
             return render(request, "accounts/login.html", {"form_error": True})
 
         login(request, user)
-        request.session.set_expiry(21600)  # 6 Hours automatic logout session timer (21600s)
+        request.session.set_expiry(2592000)  # 30 Days persistent session (2592000s)
         log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
         next_url = request.POST.get("next")
         if next_url:
@@ -104,6 +104,15 @@ def user_list(request):
         page_size = 10
     if page_size not in [10, 25, 50, 100]:
         page_size = 10
+
+    if request.method == "POST" and request.POST.get("action") == "generate_temp_profiles":
+        hospital = request.user.hospital
+        created = auto_generate_master_data_profiles(hospital=hospital)
+        if created:
+            messages.success(request, f"Successfully created {len(created)} temporary user profiles for Lead Attendants & Doctors from master data! (Default password: Nelson@123)")
+        else:
+            messages.info(request, "All Lead Attendants and Doctors in master data already have matching user profiles.")
+        return redirect("accounts:user_list")
 
     pending_users = User.objects.filter(is_approved=False).order_by("-date_joined")
     users_qs = User.objects.filter(is_approved=True).order_by("-date_joined")
@@ -171,6 +180,118 @@ def user_list(request):
     })
 
 
+def auto_generate_master_data_profiles(hospital=None):
+    """
+    Scans Lead custom_data & relations to auto-generate temporary User profiles
+    and HospitalDoctor entries for uncreated Lead Attendants and Doctors.
+    Default Temporary Password: 'Nelson@123'
+    """
+    from django.db.models import Q
+    from leads.models import Lead, HospitalDoctor
+    import re
+
+    # 1. Gather distinct Lead Attendant names and Doctor names from Lead records
+    lead_qs = Lead.objects.all()
+    if hospital:
+        lead_qs = lead_qs.filter(hospital=hospital)
+
+    attendants = set()
+    doctors = set()
+
+    for (cd,) in lead_qs.values_list('custom_data'):
+        cd = cd or {}
+        att = cd.get('lead_attendant')
+        doc = cd.get('doctor')
+        
+        if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
+            attendants.add(str(att).strip())
+        if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
+            for d in str(doc).split(','):
+                d_clean = d.strip()
+                if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
+                    doctors.add(d_clean)
+
+    created_users = []
+
+    # 2. Auto-generate Temporary User Profiles for Lead Attendants
+    for att_name in attendants:
+        # Check if matching user exists
+        names = att_name.split()
+        first_n = names[0]
+        last_n = " ".join(names[1:]) if len(names) > 1 else ""
+
+        # Normalize username
+        base_username = re.sub(r'[^a-zA-Z0-9]', '', att_name).lower()
+        if not base_username:
+            continue
+
+        existing_user = User.objects.filter(
+            Q(username__iexact=base_username) | 
+            Q(first_name__iexact=first_n, last_name__iexact=last_n)
+        ).first()
+
+        if not existing_user:
+            # Generate unique username
+            uname = base_username
+            idx = 1
+            while User.objects.filter(username=uname).exists():
+                uname = f"{base_username}{idx}"
+                idx += 1
+
+            new_user = User.objects.create_user(
+                username=uname,
+                password="Nelson@123",
+                first_name=first_n,
+                last_name=last_n,
+                role=User.Role.LEAD_ATTENDENT,
+                hospital=hospital,
+                is_active=True,
+                is_approved=True,
+            )
+            created_users.append(new_user)
+
+    # 3. Auto-generate Temporary User & HospitalDoctor Profiles for Doctors
+    for doc_name in doctors:
+        clean_doc_name = re.sub(r"^(dr\.?|doctor)\s+", "", doc_name, flags=re.IGNORECASE).strip()
+        if not clean_doc_name:
+            continue
+
+        doc_names = clean_doc_name.split()
+        first_n = doc_names[0]
+        last_n = " ".join(doc_names[1:]) if len(doc_names) > 1 else ""
+        raw_uname = f"dr_{re.sub(r'[^a-zA-Z0-9]', '', clean_doc_name).lower()}"
+
+        existing_user = User.objects.filter(
+            Q(username__iexact=raw_uname) | 
+            Q(first_name__iexact=first_n, last_name__iexact=last_n)
+        ).first()
+
+        if not existing_user:
+            uname = raw_uname
+            idx = 1
+            while User.objects.filter(username__iexact=uname).exists():
+                uname = f"{raw_uname}{idx}"
+                idx += 1
+
+            existing_user = User.objects.create_user(
+                username=uname,
+                password="Nelson@123",
+                first_name=first_n,
+                last_name=last_n,
+                role=User.Role.DOCTOR,
+                hospital=hospital,
+                is_active=True,
+                is_approved=True,
+            )
+            created_users.append(existing_user)
+
+        # Ensure sync to HospitalDoctor model
+        if hospital and existing_user and existing_user.role == User.Role.DOCTOR:
+            sync_doctor_profile(existing_user)
+
+    return created_users
+
+
 import re
 
 def sync_doctor_profile(user):
@@ -187,18 +308,22 @@ def sync_doctor_profile(user):
     if not clean_name:
         clean_name = doc_name
 
-    doc, created = HospitalDoctor.objects.get_or_create(
-        hospital=user.hospital,
-        user=user,
-        defaults={
-            "name": clean_name,
-            "contact_number": user.phone or "",
-            "email": user.email or "",
-            "specialization": user.speciality or "",
-            "is_active": user.is_active and user.is_active_employee,
-        }
-    )
-    if not created:
+    doc = HospitalDoctor.objects.filter(hospital=user.hospital, user=user).first()
+    if not doc:
+        doc = HospitalDoctor.objects.filter(hospital=user.hospital, name__iexact=clean_name).first()
+
+    if not doc:
+        doc = HospitalDoctor.objects.create(
+            hospital=user.hospital,
+            user=user,
+            name=clean_name,
+            contact_number=user.phone or "",
+            email=user.email or "",
+            specialization=user.speciality or "",
+            is_active=user.is_active and user.is_active_employee,
+        )
+    else:
+        doc.user = user
         doc.name = clean_name
         if user.phone:
             doc.contact_number = user.phone
@@ -745,8 +870,8 @@ def forgot_password(request):
             user.set_password(p1)
             user.save()
 
-            messages.success(request, f"Password for '{user.username}' reset successfully! You can now log in.")
-            return redirect("accounts:portal_select")
+            messages.success(request, f"Password for '{user.username}' reset successfully! You can now log in with your new password.")
+            return redirect("accounts:login")
 
     return render(request, "accounts/forgot_password.html", {"step": 1})
 
