@@ -684,7 +684,7 @@
 
 <!-- UNIVERSAL CARD DRILLDOWN MODAL -->
 <div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 96vw;">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
             
             <!-- Modal Header -->
@@ -797,12 +797,13 @@
                                 <tr>
                                     <th class="py-2 px-3">Patient Name</th>
                                     <th class="py-2">Contact</th>
-                                    <th class="py-2">Source / Campaign</th>
+                                    <th class="py-2" style="max-width: 110px;">Source / Campaign</th>
                                     <th class="py-2">Doctor / Dept</th>
-                                    <th class="py-2 text-center">Temperature</th>
-                                    <th class="py-2 text-center">Status</th>
-                                    <th class="py-2 text-center">Attendant</th>
-                                    <th class="py-2 px-3 text-end">Action</th>
+                                    <th class="py-2">Temp</th>
+                                    <th class="py-2">Status</th>
+                                    <th class="py-2">Attendant</th>
+                                    <th class="py-2" style="min-width: 200px;">Comments</th>
+                                    <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="drilldownTableBody">
@@ -1295,22 +1296,27 @@
                 
                 directCallBtn = `
                     <a href="tel:${phoneDigits}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="Direct Call to ${lead.mobile}">
-                        <i class="ph-bold ph-phone-call me-1"></i> Call
+                        <i class="ph-bold ph-phone-call"></i>
                     </a>
                 `;
 
                 const btnTitle = lead.is_booked ? 'Send WhatsApp Appointment Confirmation' : `Send WhatsApp Welcome Message from ${cachedHospitalName}`;
-                const btnLabel = lead.is_booked ? 'WhatsApp (Booking)' : 'WhatsApp';
-
+                
                 whatsappBtn = `
                     <a href="https://wa.me/91${phoneDigits}?text=${waText}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="${btnTitle}">
-                        <i class="ph-bold ph-whatsapp-logo me-1 text-success"></i> ${btnLabel}
+                        <i class="ph-bold ph-whatsapp-logo text-success"></i>
                     </a>
                 `;
             }
+            
+            let commentsHtml = '-';
+            if (lead.all_comments && lead.all_comments.length > 0) {
+                const lis = lead.all_comments.map(c => `<li class="mb-1">${c}</li>`).join('');
+                commentsHtml = `<ul class="mb-0 ps-3 text-start" style="list-style-type: disc;">${lis}</ul>`;
+            }
 
             tr.innerHTML = `
-                <td class="px-3">
+                <td class="px-3 text-start">
                     <a href="${lead.detail_url}" class="fw-bold text-dark text-decoration-none hover-primary">
                         ${lead.name}
                     </a>
@@ -1320,24 +1326,27 @@
                     <div class="text-dark fw-semibold">${lead.mobile}</div>
                     <div class="text-muted small" style="font-size: 0.72rem;">${lead.email !== '-' ? lead.email : ''}</div>
                 </td>
-                <td>
-                    <span class="badge bg-light text-secondary border">${lead.lead_source}</span>
-                    <div class="text-muted small mt-1" style="font-size: 0.72rem;">${lead.campaign}</div>
+                <td style="max-width: 110px;">
+                    <div class="text-truncate" title="${lead.lead_source}"><span class="badge bg-light text-secondary border text-truncate" style="max-width: 100%;">${lead.lead_source}</span></div>
+                    <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${lead.campaign}">${lead.campaign}</div>
                 </td>
                 <td>
                     <div class="text-dark fw-semibold"><i class="ph ph-stethoscope text-primary me-1"></i>${lead.doctor}</div>
                     <div class="text-muted small" style="font-size: 0.72rem;">${lead.department}</div>
                 </td>
-                <td class="text-center">${tempBadge}</td>
-                <td class="text-center">${statusBadge}</td>
-                <td class="text-center">
+                <td>${tempBadge}</td>
+                <td>${statusBadge}</td>
+                <td>
                     <span class="badge bg-light text-dark border">${lead.assigned_to}</span>
                 </td>
-                <td class="px-3 text-end text-nowrap">
+                <td>
+                    <div class="text-muted small text-wrap text-start" style="font-size: 0.72rem; min-width: 250px; max-width: 350px;">${commentsHtml}</div>
+                </td>
+                <td class="px-3 text-nowrap position-sticky end-0 bg-white" style="z-index: 2; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
                     ${directCallBtn}
                     ${whatsappBtn}
                     <a href="${lead.detail_url}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Profile">
-                        <i class="ph ph-eye me-1"></i> View
+                        <i class="ph ph-eye me-1"></i> Follow up
                     </a>
                     <a href="${lead.edit_url}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="font-size: 0.75rem; background: var(--primary-gradient); border: none;" title="Edit Lead Form">
                         <i class="ph ph-pencil-simple me-1"></i> Edit

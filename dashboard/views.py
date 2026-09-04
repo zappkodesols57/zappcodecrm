@@ -1295,12 +1295,27 @@ def nel_card_drilldown_api(request):
         {"campaign_name": camp, "count": cnt}
         for camp, cnt in sorted(campaign_counts.items(), key=lambda x: x[1], reverse=True)
     ]
+    
+    # Pre-fetch all followups and notes for the paginated leads
+    leads_page = leads_qs[:250]
+    lead_ids = [l.id for l in leads_page]
+    from followups.models import FollowUp, Note
+    followups = FollowUp.objects.filter(lead_id__in=lead_ids).order_by('-created_at')
+    notes = Note.objects.filter(lead_id__in=lead_ids).order_by('-created_at')
+    
+    lead_comments_map = defaultdict(list)
+    for f in followups:
+        if f.comment and str(f.comment).strip() not in ('', 'None', 'nan', '-'):
+            lead_comments_map[f.lead_id].append(str(f.comment).strip())
+    for n in notes:
+        if n.note and str(n.note).strip() not in ('', 'None', 'nan', '-'):
+            lead_comments_map[n.lead_id].append(str(n.note).strip())
 
     # Build Lead Items (limit to top 250 for ultra fast responsive modal)
     lead_items = []
-    for l in leads_qs[:250]:
+    for l in leads_page:
         cd = l.custom_data or {}
-        doc = cd.get('doctor') or (l.assigned_to.get_full_name() if l.assigned_to else 'Unassigned')
+        doc = cd.get('doctor') or 'Not Assigned'
         dept = cd.get('department') or 'General OPD'
         c_name = l.campaign.name if l.campaign else (cd.get('campaign') or 'General / Direct')
         if not c_name or str(c_name).strip() in ['nan', 'None', '', '—', '-']:
@@ -1313,6 +1328,13 @@ def nel_card_drilldown_api(request):
 
         status_str = l.display_status
         temp_str = l.custom_temperature or ""
+        
+        all_comments = []
+        for i in range(1, 6):
+            r = cd.get(f'remark_{i}')
+            if r and str(r).strip() not in ('', 'None', 'nan', '-'):
+                all_comments.append(str(r).strip())
+        all_comments.extend(lead_comments_map.get(l.id, []))
 
         lead_items.append({
             "id": l.id,
@@ -1335,6 +1357,7 @@ def nel_card_drilldown_api(request):
             "department": dept,
             "assigned_to": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
             "next_followup": str(l.next_followup_date or '-'),
+            "all_comments": all_comments,
             "detail_url": f"/leads/{l.id}/",
             "edit_url": f"/leads/{l.id}/edit/",
         })
