@@ -1226,7 +1226,7 @@ def nel_card_drilldown_api(request):
                 all_comments.append(str(r).strip())
         
         # Include internal notes and direct comments
-        for extra_note in [l.notes, l.doctor_notes, cd.get('comments')]:
+        for extra_note in [l.notes, getattr(l, 'referral_notes', None), cd.get('comments')]:
             if extra_note and str(extra_note).strip() not in ('', 'None', 'nan', '-'):
                 all_comments.append(str(extra_note).strip())
         all_comments.extend(lead_comments_map.get(l.id, []))
