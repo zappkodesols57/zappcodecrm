@@ -30,8 +30,8 @@
 
   <div class="sidebar-nav-container" id="sidebarAccordion">
 
-    {% if user.hospital and user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-    {# 🏥 HOSPITAL SUPER ADMIN & MANAGER SIDEBAR (Nelson Admin) #}
+    {% if user.hospital and user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'ADMIN' or user.hospital and user.role == 'MANAGER' %}
+    {# 🏥 HOSPITAL SUPER ADMIN, ADMIN & MANAGER SIDEBAR (Nelson Admin) #}
 
     <!-- Direct Dashboard Link -->
     <a class="nav-link {% if active == 'superadmin_home' %}active{% endif %}"
@@ -47,6 +47,7 @@
     </a>
     {% endif %}
 
+    {% if user.can_manage_users %}
     <!-- Section: People Management (Multiple Tabs) -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'users roles_permissions' %}collapsed{% endif %}" type="button"
@@ -68,6 +69,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
     <!-- Section: Leads & Campaigns (Multiple Tabs) -->
     <div class="nav-section-group">
@@ -83,10 +85,10 @@
         id="sec_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="Lead Management"><i class="fa-solid fa-users"></i> <span class="nav-text">Lead Management</span></a>
-        <a class="nav-link {% if active == 'import' %}active{% endif %}" href="{% url 'imports:upload' %}"
-          title="Import Leads"><i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span></a>
-        <a class="nav-link {% if active == 'export' %}active{% endif %}" href="{% url 'imports:export' %}"
-          title="Export Leads"><i class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span></a>
+        <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'import' %}active{% endif %}" href="{% url 'imports:upload' %}"
+          title="Import Leads"><i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span>{% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+        <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'export' %}active{% endif %}" href="{% url 'imports:export' %}"
+          title="Export Leads"><i class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span>{% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
         <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}"
           href="{% url 'meta_ads:dashboard' %}" title="Meta Ads Dashboard"><i class="fa-brands fa-meta"></i> <span
             class="nav-text">Meta Ads</span> {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
@@ -120,8 +122,10 @@
           title="Notifications"><i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span></a>
         <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"
           title="Tasks"><i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks</span></a>
+        {% if request.user.can_manage_users %}
         <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}"
           title="Audit Logs"><i class="fa-solid fa-shield-halved"></i> <span class="nav-text">Audit Logs</span></a>
+        {% endif %}
       </div>
     </div>
 
@@ -177,12 +181,12 @@
         <a class="nav-link {% if active == 'new_enquiries' %}active{% endif %}"
           href="{% url 'dashboard:telecaller_new_enquiries' %}" title="New Enquiries"><i
             class="fa-solid fa-envelope-open-text"></i> <span class="nav-text">New Enquiries</span></a>
-        <a class="nav-link {% if active == 'import' %}active{% endif %}"
+        <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'import' %}active{% endif %}"
           href="{% url 'imports:upload' %}" title="Import Leads"><i
-            class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span></a>
-        <a class="nav-link {% if active == 'export' %}active{% endif %}"
+            class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span>{% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
+        <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'export' %}active{% endif %}"
           href="{% url 'imports:export' %}" title="Export Leads"><i
-            class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span></a>
+            class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span>{% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
         <a class="nav-link {% if active == 'team_today_activity' %}active{% endif %}"
           href="{% url 'dashboard:telecaller_today_team_activity' %}" title="Team Activity"><i
             class="fa-solid fa-user-clock"></i> <span class="nav-text">Team Activity</span></a>
