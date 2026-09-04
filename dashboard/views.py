@@ -1224,6 +1224,11 @@ def nel_card_drilldown_api(request):
             r = cd.get(f'remark_{i}')
             if r and str(r).strip() not in ('', 'None', 'nan', '-'):
                 all_comments.append(str(r).strip())
+        
+        # Include internal notes and direct comments
+        for extra_note in [l.notes, l.doctor_notes, cd.get('comments')]:
+            if extra_note and str(extra_note).strip() not in ('', 'None', 'nan', '-'):
+                all_comments.append(str(extra_note).strip())
         all_comments.extend(lead_comments_map.get(l.id, []))
 
         lead_items.append({
