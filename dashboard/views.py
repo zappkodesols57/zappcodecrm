@@ -149,15 +149,26 @@ def home(request):
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]) & Q(updated_at__date=today))
         ).count()
 
-    # 5. Upcoming Follow-ups: Next followup date in the future (> today)
-    upcoming_followups = leads.filter(
-        next_followup_date__gt=today
-    ).count()
+    # 5. Upcoming Follow-ups: next_followup_date >= today OR a FollowUp scheduled for today/future
+    from followups.models import FollowUp as FollowUpModel
+    upcoming_followup_lead_ids = set(
+        leads.filter(next_followup_date__gte=today).values_list('id', flat=True)
+    ) | set(
+        leads.filter(
+            followups__followup_date__gte=today
+        ).values_list('id', flat=True)
+    )
+    upcoming_followups = len(upcoming_followup_lead_ids)
 
-    # 6. Overdue Follow-ups: Followup date <= today and pending
-    overdue_followups = leads.filter(
-        next_followup_date__lte=today
-    ).count()
+    # 6. Overdue Follow-ups: next_followup_date < today OR a past FollowUp with no future follow-up
+    overdue_followup_lead_ids = set(
+        leads.filter(next_followup_date__lt=today).values_list('id', flat=True)
+    ) | set(
+        leads.filter(
+            followups__followup_date__lt=today
+        ).exclude(id__in=upcoming_followup_lead_ids).values_list('id', flat=True)
+    )
+    overdue_followups = len(overdue_followup_lead_ids)
 
     # Also keep legacy metrics for backward compatibility if needed
     admissions_qs = Admission.objects.filter(lead__in=leads)

@@ -368,12 +368,21 @@ def lead_list(request):
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]) & Q(updated_at__date=today))
         ).distinct()
     elif quick_filter == "upcoming_followups" or followup_filter == "upcoming":
-        leads = leads.filter(next_followup_date__gt=today)
+        # Include leads with next_followup_date >= today OR FollowUp.followup_date >= today
+        leads = leads.filter(
+            Q(next_followup_date__gte=today) | Q(followups__followup_date__gte=today)
+        ).distinct()
 
     if followup_filter == "overdue" or quick_filter == "overdue":
-        leads = leads.filter(next_followup_date__lte=today)
+        leads = leads.filter(
+            Q(next_followup_date__lt=today) | Q(followups__followup_date__lt=today)
+        ).exclude(
+            Q(next_followup_date__gte=today) | Q(followups__followup_date__gte=today)
+        ).distinct()
     elif followup_filter == "today":
-        leads = leads.filter(next_followup_date=today)
+        leads = leads.filter(
+            Q(next_followup_date=today) | Q(followups__followup_date=today)
+        ).distinct()
 
     is_nelson = not request.user.hospital or 'nelson' in request.user.hospital.name.lower()
 
@@ -1054,6 +1063,11 @@ def add_followup(request, pk):
                         return redirect("leads:lead_detail", pk=pk)
             except ValueError:
                 fu_time = None
+
+        # If no explicit next_followup_date set, but followup_date is today or future,
+        # treat followup_date as the next_followup_date so dashboard shows it correctly
+        if next_fu_date is None and fu_date >= today:
+            next_fu_date = fu_date
 
         FollowUp.objects.create(
             lead=lead,
