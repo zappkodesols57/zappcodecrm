@@ -98,21 +98,30 @@ class User(AbstractUser):
 
     @property
     def is_hospital_user(self):
-        return bool(self.hospital)
+        """True if user belongs to a hospital-type business (not academy/education).
+        Determined by hospital.settings['business_type'] == 'hospital'.
+        Defaults to True if business_type is not set (legacy hospitals).
+        """
+        if not self.hospital:
+            return False
+        btype = (self.hospital.settings or {}).get("business_type", "hospital")
+        return btype == "hospital"
 
     @property
     def is_zappcode_user(self):
-        return not bool(self.hospital)
+        """True if user is not a hospital-type business user (academy, education, etc.) or global super admin."""
+        return not self.is_hospital_user
 
     @property
     def custom_role_display(self):
-        prefix = "hospital-user" if self.hospital else "zappcode-user"
+        is_hospital = self.is_hospital_user
+        prefix = "hospital-user" if is_hospital else "zappcode-user"
         if self.role == self.Role.SUPER_ADMIN:
-            role_name = "Hospital Super Admin" if self.hospital else "Zappcode Super Admin"
+            role_name = "Hospital Super Admin" if is_hospital else "Zappcode Super Admin"
         elif self.role == self.Role.ADMIN:
-            role_name = "Hospital Admin" if self.hospital else "Zappcode Admin"
+            role_name = "Hospital Admin" if is_hospital else "Zappcode Admin"
         elif self.role == self.Role.MANAGER:
-            role_name = "Hospital Manager" if self.hospital else "Zappcode Manager"
+            role_name = "Hospital Manager" if is_hospital else "Zappcode Manager"
         else:
             role_name = self.get_role_display()
         return f"{prefix} ({role_name})"

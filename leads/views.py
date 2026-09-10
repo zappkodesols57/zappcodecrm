@@ -25,16 +25,26 @@ from .forms import (
 
 
 def _can_edit_lead(user, lead):
-    # 1. Multi-Tenant Business Alignment Check
+    """
+    Business-tenant aware edit permission check.
+    - Global Super Admin (no hospital): can edit any lead.
+    - Tenant user: can only edit leads in their own business (hospital).
+    - Within-business: role-based edit permission applies.
+    """
+    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
+
+    if is_global_admin:
+        return True  # Global admin can edit anything
+
+    # Business-tenant check: lead must belong to the same business
     if user.hospital:
         if lead.hospital != user.hospital:
             return False
     else:
-        if lead.hospital is not None:
-            if not (user.role == User.Role.SUPER_ADMIN or user.is_superuser):
-                return False
+        # Non-global-admin without hospital: no access
+        return False
 
-    # 2. Within-Business Edit Permission Check
+    # Within-Business Edit Permission Check
     if user.can_edit_any_lead:
         return True
     if user.role == User.Role.LEAD_ATTENDENT:
@@ -42,27 +52,34 @@ def _can_edit_lead(user, lead):
         return True
     if user.can_edit_own_leads and lead.assigned_to == user:
         return True
-    if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
-        return True
-    if not user.hospital and lead.hospital is None and lead.assigned_to is None:
+    if lead.assigned_to is None:
         return True
     return False
 
 def _can_access_lead(user, lead):
-    # 1. Multi-Tenant Business Alignment Check
+    """
+    Business-tenant aware access permission check.
+    - Global Super Admin (no hospital): can access any lead.
+    - Tenant user: can only access leads in their own business (hospital).
+    - Within-business: role-based access permission applies.
+    """
+    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
+
+    if is_global_admin:
+        return True  # Global admin can access anything
+
+    # Business-tenant check
     if user.hospital:
         if lead.hospital != user.hospital:
             return False
     else:
-        if lead.hospital is not None:
-            if not (user.role == User.Role.SUPER_ADMIN or user.is_superuser):
-                return False
+        return False
 
-    # 2. Doctor within same hospital can view patient leads
+    # Doctor within same business can view patient leads
     if user.role == User.Role.DOCTOR:
         return True
 
-    # 3. Within-Business Access Permission Check
+    # Within-Business Access Permission Check
     if user.can_view_all_leads:
         return True
     if user.can_view_team_leads:
@@ -71,9 +88,7 @@ def _can_access_lead(user, lead):
             return True
     if user.can_view_assigned_leads and lead.assigned_to == user:
         return True
-    if user.hospital and lead.hospital == user.hospital and lead.assigned_to is None:
-        return True
-    if not user.hospital and lead.hospital is None and lead.assigned_to is None:
+    if lead.assigned_to is None:
         return True
     return False
 
@@ -92,31 +107,30 @@ def lead_list(request):
         "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
     ).filter(is_archived=False)
 
+    # --- Business-Tenant Scoping ---
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
     if request.user.hospital:
+        # Tenant user: always scoped to their business
         leads = leads.filter(hospital=request.user.hospital)
-        
         if not request.user.can_view_all_leads:
             if request.user.can_view_team_leads:
-                # View leads assigned to team members reporting to this user
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+            elif request.user.role == User.Role.MANAGER:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
             elif request.user.can_view_assigned_leads:
-                leads = leads.filter(assigned_to=request.user)
+                # Counsellors / Staff see their own assigned leads, created by them, or unassigned leads they can capture
+                leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
             else:
                 leads = leads.none()
+    elif is_global_admin:
+        pass  # Global Super Admin sees all leads
     else:
-        # Zappcode users -> strictly only show Zappcode leads (hospital__isnull=True)
-        leads = leads.filter(hospital__isnull=True)
-
-        # Only Zappcode Admin / Super Admin can view ALL leads
-        is_zappcode_admin = request.user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN) or request.user.is_superuser
-        if not is_zappcode_admin:
-            if request.user.role == User.Role.MANAGER or request.user.can_view_team_leads:
-                team = User.objects.filter(reports_to=request.user)
-                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
-            else:
-                # Counsellors, HR, and other employees only see their own assigned leads
-                leads = leads.filter(assigned_to=request.user)
+        leads = leads.none()  # No hospital and not super admin: show nothing
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -129,6 +143,7 @@ def lead_list(request):
     # Multi-select & single-value filter extraction
     selected_campaigns = request.GET.getlist("campaign")
     selected_sources = request.GET.getlist("lead_source")
+    selected_courses = request.GET.getlist("course")
     selected_departments = request.GET.getlist("department")
     selected_doctors = request.GET.getlist("doctor")
     selected_assigned = request.GET.getlist("assigned_to")
@@ -158,6 +173,17 @@ def lead_list(request):
                 if s_val.isdigit():
                     src_q |= Q(lead_source_id=int(s_val))
         leads = leads.filter(src_q)
+
+    # 2b. Course filter (Academy)
+    if selected_courses:
+        crs_q = Q()
+        for crs_val in selected_courses:
+            if crs_val:
+                if str(crs_val).isdigit():
+                    crs_q |= Q(course_id=int(crs_val))
+                else:
+                    crs_q |= Q(course__name__iexact=crs_val) | Q(custom_data__course__icontains=crs_val)
+        leads = leads.filter(crs_q)
 
     # 3. Department filter
     if selected_departments:
@@ -321,9 +347,31 @@ def lead_list(request):
         leads = leads.filter(inquiry_date__lte=date_to)
 
     followup_filter = request.GET.get("followup")
+    quick_filter = request.GET.get("filter")
     today = timezone.localdate()
-    if followup_filter == "overdue":
-        leads = leads.filter(next_followup_date__lt=today)
+    
+    if quick_filter == "todays_new":
+        leads = leads.filter(
+            Q(created_at__date=today) | Q(inquiry_date=today)
+        )
+    elif quick_filter == "call_not_done":
+        leads = leads.filter(
+            Q(followup_count=0) | Q(temperature="UNCONTACTED")
+        )
+    elif quick_filter == "admission_today":
+        leads = leads.filter(
+            Q(admission_status="ADMISSION_DONE") | Q(deal_status="WON") | Q(admission__admission_date=today) | Q(custom_data__admission_date=str(today))
+        ).distinct()
+    elif quick_filter == "billing_today":
+        leads = leads.filter(
+            Q(admission__payments__payment_status='SUCCESS', admission__payments__created_at__date=today) |
+            (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]) & Q(updated_at__date=today))
+        ).distinct()
+    elif quick_filter == "upcoming_followups" or followup_filter == "upcoming":
+        leads = leads.filter(next_followup_date__gt=today)
+
+    if followup_filter == "overdue" or quick_filter == "overdue":
+        leads = leads.filter(next_followup_date__lte=today)
     elif followup_filter == "today":
         leads = leads.filter(next_followup_date=today)
 
@@ -434,15 +482,14 @@ def lead_list(request):
     if 'page' in query_params:
         del query_params['page']
 
-    # Filter dropdown options to only those that have at least one lead associated
+    # Filter dropdown options scoped to current user's business
     active_leads = Lead.objects.filter(is_archived=False)
     if request.user.hospital:
         active_leads = active_leads.filter(hospital=request.user.hospital)
-    else:
-        active_leads = active_leads.filter(hospital__isnull=True)
-
-    if request.user.role in ('COUNSELLOR', 'HR'):
-        active_leads = active_leads.filter(assigned_to=request.user)
+        if request.user.role in ('COUNSELLOR', 'HR'):
+            active_leads = active_leads.filter(
+                Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
+            )
     
     used_sc_ids = active_leads.values_list("source_category_id", flat=True).distinct()
     used_ls_ids = active_leads.values_list("lead_source_id", flat=True).distinct()
@@ -529,7 +576,7 @@ def lead_list(request):
         context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
         context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
 
-    template_name = "leads/nel_lead_list.html" if request.user.hospital else "leads/zapp_lead_list.html"
+    template_name = "leads/nel_lead_list.html" if request.user.is_hospital_user else "leads/zapp_lead_list.html"
     return render(request, template_name, context)
 
 
@@ -540,8 +587,9 @@ def lead_add(request):
         return redirect("dashboard:doctor_home")
         
     duplicates = None
-    FormClass = HospitalLeadForm if request.user.hospital else LeadForm
-    template = "leads/nel_lead_form.html" if request.user.hospital else "leads/zapp_lead_form.html"
+    is_hospital = request.user.is_hospital_user
+    FormClass = HospitalLeadForm if is_hospital else LeadForm
+    template = "leads/nel_lead_form.html" if is_hospital else "leads/zapp_lead_form.html"
     
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
@@ -559,20 +607,36 @@ def lead_add(request):
             if request.user.hospital:
                 lead.hospital = request.user.hospital
                 
-            # If creator is a Lead Attendant, always assign to themselves
-            if request.user.role == User.Role.LEAD_ATTENDENT:
-                lead.assigned_to = request.user
+            # If creator is a Lead Attendant, Counsellor, or employee without can_assign_leads permission, auto-assign to themselves
+            if request.user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR) or not request.user.can_assign_leads:
+                if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
+                    lead.assigned_to = request.user
+                elif not lead.assigned_to:
+                    lead.assigned_to = request.user
             
             # Ensure defaults
             from leads.models import LeadStage, LeadSource, SourceCategory, Appointment, AppointmentStatus
             from notifications.models import Notification
             
-            if not lead.stage_id:
-                if lead.assigned_to:
-                    lead.stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.first()
-                else:
-                    lead.stage = LeadStage.objects.first()
-                
+            # Process Zappcode conditional form fields
+            custom_fup = request.POST.get("custom_followup_date")
+            custom_adm = request.POST.get("custom_admission_date")
+            custom_reason = request.POST.get("custom_cancellation_reason")
+            
+            if custom_fup:
+                from datetime import datetime
+                try:
+                    lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+            
+            custom_dict = lead.custom_data or {}
+            if custom_adm:
+                custom_dict["admission_date"] = custom_adm
+            if custom_reason:
+                custom_dict["cancellation_reason"] = custom_reason
+            lead.custom_data = custom_dict
+
             lead.save()
             form.save_m2m()
             messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) saved successfully! ✅")
@@ -656,8 +720,12 @@ def lead_edit(request, pk):
             return redirect("dashboard:doctor_appointments")
         return redirect("leads:lead_list")
         
-    FormClass = HospitalLeadForm if lead.hospital else LeadForm
-    template = "leads/nel_lead_form.html" if lead.hospital else "leads/zapp_lead_form.html"
+    # Determine form/template based on hospital's business_type (not name string)
+    lead_hospital_settings = (lead.hospital.settings or {}) if lead.hospital else {}
+    lead_btype = lead_hospital_settings.get("business_type", "hospital")
+    is_lead_hospital_type = (lead_btype == "hospital")
+    FormClass = HospitalLeadForm if is_lead_hospital_type else LeadForm
+    template = "leads/nel_lead_form.html" if is_lead_hospital_type else "leads/zapp_lead_form.html"
     
     if request.method == "POST":
         if is_view_only:
@@ -678,12 +746,9 @@ def lead_edit(request, pk):
                 
             # Check if telecaller filled calling remarks or call dates
             cd = saved_lead.custom_data if saved_lead.custom_data else {}
-            has_call_interaction = bool(
-                cd.get('remark_1') or cd.get('calling_date_remark_1') or 
-                cd.get('remark_2') or cd.get('calling_date_remark_2') or 
-                cd.get('remark_3') or cd.get('calling_date_remark_3') or
-                cd.get('appointment_status') in ['Booked', 'Cancelled', 'Confirmed', 'Completed', 'Visited']
-            )
+            has_call_remarks = bool(cd.get('calling_remarks') or cd.get('remarks') or cd.get('last_call_remark'))
+            has_call_dates = bool(cd.get('last_calling_date') or cd.get('last_called_on'))
+            has_call_interaction = has_call_remarks or has_call_dates
             
             try:
                 # If payment is done / deal won, keep stage as Payment Done / Admission Done
@@ -721,6 +786,24 @@ def lead_edit(request, pk):
             except Exception:
                 pass
                 
+            # Process Zappcode conditional form fields
+            custom_fup = request.POST.get("custom_followup_date")
+            custom_adm = request.POST.get("custom_admission_date")
+            custom_reason = request.POST.get("custom_cancellation_reason")
+            
+            if custom_fup:
+                from datetime import datetime
+                try:
+                    saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+            
+            if custom_adm:
+                cd["admission_date"] = custom_adm
+            if custom_reason:
+                cd["cancellation_reason"] = custom_reason
+            saved_lead.custom_data = cd
+
             prev_assigned = lead.assigned_to
             saved_lead.save()
             if hasattr(form, 'save_m2m'):
@@ -858,7 +941,8 @@ def lead_detail(request, pk):
     
     latest_appointment = None
     custom_field_data = []
-    if request.user.hospital:
+    is_hospital = bool(request.user.is_hospital_user and request.user.hospital)
+    if is_hospital:
         from leads.models import Appointment, LeadCustomField
         latest_appointment = Appointment.objects.filter(lead=lead).order_by('-id').first()
         cfs = LeadCustomField.objects.filter(hospital=request.user.hospital, is_active=True).order_by("order")
@@ -867,7 +951,7 @@ def lead_detail(request, pk):
             if cf.name in cd and cd[cf.name] != "":
                 custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
         
-    template = "leads/nel_lead_detail.html" if request.user.hospital else "leads/zapp_lead_detail.html"
+    template = "leads/nel_lead_detail.html" if is_hospital else "leads/zapp_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
         "latest_appointment": latest_appointment,
@@ -1035,6 +1119,63 @@ def convert_admission(request, pk):
 
 
 @login_required
+def lead_self_assign(request, pk):
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
+    
+    # Allow user to capture / self-assign if lead is unassigned or if user has access
+    if lead.assigned_to and lead.assigned_to != request.user and not request.user.can_assign_leads:
+        messages.warning(request, f"Lead is already assigned to {lead.assigned_to.get_full_name() or lead.assigned_to.username}.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    lead.assigned_to = request.user
+    if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+        if assigned_stage:
+            lead.stage = assigned_stage
+    lead.save()
+
+    Activity.objects.create(
+        lead=lead,
+        user=request.user,
+        activity_type="STATUS_CHANGE",
+        details=f"Lead captured / self-assigned by {request.user.get_full_name() or request.user.username}.",
+    )
+    messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you! You can now follow up, edit, or process admission.")
+    
+    next_url = request.GET.get("next") or request.POST.get("next")
+    if next_url:
+        return redirect(next_url)
+    return redirect("leads:lead_edit", pk=pk)
+
+
+@login_required
+def assign_lead(request, pk):
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
+    if not request.user.can_assign_leads:
+        messages.error(request, "You do not have permission to assign leads.")
+        return redirect("leads:lead_detail", pk=pk)
+        
+    if request.method == "POST":
+        assignee_id = request.POST.get("assigned_to")
+        if assignee_id:
+            assignee = User.objects.filter(pk=assignee_id, is_active=True).first()
+            if assignee:
+                lead.assigned_to = assignee
+                lead.save(update_fields=["assigned_to"])
+                messages.success(request, f"Lead assigned to {assignee.get_full_name() or assignee.username}.")
+        else:
+            lead.assigned_to = None
+            lead.save(update_fields=["assigned_to"])
+            messages.success(request, "Lead unassigned.")
+            
+    return redirect("leads:lead_detail", pk=pk)
+
+
+@login_required
 def bulk_action(request):
     if request.method != "POST":
         return redirect("leads:lead_list")
@@ -1067,7 +1208,12 @@ def bulk_action(request):
 
 @login_required
 def duplicates(request):
-    all_leads = list(Lead.objects.select_related("stage", "assigned_to", "lead_source").filter(is_archived=False))
+    leads_qs = Lead.objects.select_related("stage", "assigned_to", "lead_source").filter(is_archived=False)
+    if request.user.hospital:
+        leads_qs = leads_qs.filter(hospital=request.user.hospital)
+    elif not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+        leads_qs = leads_qs.none()
+    all_leads = list(leads_qs)
     groups = defaultdict(list)
     for l in all_leads:
         digits = Lead.clean_mobile(l.mobile)
@@ -1218,7 +1364,8 @@ def universal_master_list(request):
         if request.user.hospital:
             items = selected_group.items.filter(hospital=request.user.hospital)
         else:
-            items = selected_group.items.filter(hospital__isnull=True)
+            # Global Super Admin: see all items across all businesses
+            items = selected_group.items.all()
 
     from leads.models import LeadCustomField
     h = request.user.hospital
@@ -1264,7 +1411,8 @@ def universal_master_list(request):
 
         all_fields_qs = LeadCustomField.objects.filter(hospital=h).order_by('order', 'id')
     else:
-        all_fields_qs = LeadCustomField.objects.filter(hospital__isnull=True).order_by('order', 'id')
+        # Global Super Admin: see all custom fields across all businesses
+        all_fields_qs = LeadCustomField.objects.all().order_by('order', 'id')
 
     return render(request, "leads/universal_masters.html", {
         "active": "universal_masters",
@@ -1628,13 +1776,10 @@ def lead_self_assign(request, pk):
     if not _can_access_lead(request.user, lead):
         raise PermissionDenied("You do not have permission to access this lead.")
         
-    if request.user.role != User.Role.LEAD_ATTENDENT:
-        messages.error(request, "Only Lead Attendants can self-assign leads.")
-        return redirect('leads:lead_detail', pk=pk)
-        
-    if lead.assigned_to is not None:
-        messages.error(request, "This lead is already assigned to someone else.")
-        return redirect('leads:lead_detail', pk=pk)
+    if lead.assigned_to is not None and lead.assigned_to != request.user:
+        if not request.user.can_assign_leads:
+            messages.warning(request, f"This lead is already assigned to {lead.assigned_to.get_full_name() or lead.assigned_to.username}.")
+            return redirect('leads:lead_detail', pk=pk)
         
     if request.method == "POST":
         lead.assigned_to = request.user
@@ -1645,8 +1790,20 @@ def lead_self_assign(request, pk):
         except Exception:
             pass
         lead.save()
-        messages.success(request, "Lead successfully assigned to you and added to My Leads.")
         
+        Activity.objects.create(
+            lead=lead,
+            created_by=request.user,
+            activity_type="ASSIGNMENT",
+            description=f"Lead captured by {request.user.get_full_name() or request.user.username}.",
+        )
+        messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) captured successfully! It has been added to your leads.")
+        
+    next_url = request.GET.get("next") or request.POST.get("next")
+    if next_url:
+        from django.utils.http import url_has_allowed_host_and_scheme
+        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
     return redirect('leads:lead_detail', pk=pk)
 
 @login_required

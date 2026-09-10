@@ -202,6 +202,7 @@
             </th>
 
             <th class="py-2 px-3 text-uppercase small text-muted" style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
+            <th class="py-2 px-3 text-uppercase small text-muted text-end" style="border-left: 1px solid #e2e8f0 !important; min-width: 140px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -211,7 +212,9 @@
             <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold">{{ lead.lead_code }}</a></td>
             <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
             <td><strong>{{ lead.name }}</strong></td>
-            <td>{{ lead.mobile }}</td>
+            <td>
+              <span class="fw-semibold">{{ lead.mobile }}</span>
+            </td>
             <td>
               <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
                 <i class="fa-solid fa-graduation-cap me-1"></i>{{ lead.course|default:"—" }}
@@ -228,11 +231,46 @@
                 <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
               {% endif %}
             </td>
-            <td><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
+            <td>
+              {% if lead.assigned_to %}
+                <span class="small fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+              {% else %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+              {% endif %}
+            </td>
             <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
+            <td class="text-end">
+              <div class="d-inline-flex align-items-center gap-1">
+                {% if not lead.assigned_to %}
+                  <!-- Capture Lead Button (POST to actually save) -->
+                  <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}" class="d-inline m-0 p-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-bold" style="font-size: 0.75rem;" title="Capture & Assign to Me">
+                      <i class="fa-solid fa-hand-holding-hand"></i> Capture
+                    </button>
+                  </form>
+                {% endif %}
+                <!-- Direct Call -->
+                <a href="tel:{{ lead.mobile }}" class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
+                  <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+                </a>
+                <!-- WhatsApp -->
+                <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy." target="_blank" class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
+                  <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
+                </a>
+                <!-- Edit & Quick Followup -->
+                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Edit Lead">
+                  <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
+                </a>
+                <!-- View Detail & Followup Modal -->
+                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-info rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="View Lead & Follow-ups">
+                  <i class="fa-solid fa-eye" style="font-size: 0.72rem;"></i>
+                </a>
+              </div>
+            </td>
           </tr>
           {% empty %}
-          <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No student leads found.</div></td></tr>
+          <tr><td colspan="12"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No student leads found.</div></td></tr>
           {% endfor %}
         </tbody>
       </table>

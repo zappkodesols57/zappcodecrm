@@ -112,8 +112,9 @@ class DirectAdmissionForm(forms.Form):
             self.fields["course"].queryset = Course.objects.filter(is_active=True, hospital=user.hospital)
             self.fields["assigned_counselor"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
         else:
-            self.fields["course"].queryset = Course.objects.filter(is_active=True, hospital__isnull=True)
-            self.fields["assigned_counselor"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True)
+            # Global Super Admin: show all active courses and users
+            self.fields["course"].queryset = Course.objects.filter(is_active=True)
+            self.fields["assigned_counselor"].queryset = User.objects.filter(is_active=True, is_approved=True)
 
         for name, field in self.fields.items():
             if name != "is_existing_student":

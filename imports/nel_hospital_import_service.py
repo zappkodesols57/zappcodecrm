@@ -294,9 +294,32 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                 inquiry_date_val = parse_flexible_date(row.get(orig_col))
                 break
 
-        # 6. Survey questions & remarks
+        # 6. City / Location
+        city_val = ""
+        for orig_col, clean_c in col_map.items():
+            if clean_c in ["city", "location", "area", "address", "district"] and pd.notna(row.get(orig_col)):
+                raw_c = str(row.get(orig_col)).strip()
+                if raw_c and raw_c.lower() not in ("nan", "none", "null", "-", "na"):
+                    city_val = raw_c
+                    break
+
+        # 7. Course / Program
+        course_name_val = ""
+        for orig_col, clean_c in col_map.items():
+            if any(k in clean_c for k in ["course", "service", "program", "specialization", "stream"]) and pd.notna(row.get(orig_col)):
+                raw_crs = str(row.get(orig_col)).strip()
+                if raw_crs and raw_crs.lower() not in ("nan", "none", "null", "-"):
+                    course_name_val = raw_crs
+                    break
+
+        # 8. Survey questions, timeline & remarks
         survey_notes = []
         custom_data_survey = {}
+        if city_val:
+            custom_data_survey["city"] = city_val
+        if course_name_val:
+            custom_data_survey["course"] = course_name_val
+
         for s_col in survey_cols:
             s_val = row.get(s_col)
             if pd.notna(s_val) and str(s_val).strip():
@@ -305,16 +328,24 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                 survey_notes.append(f"{clean_label}: {clean_val}")
                 custom_data_survey[s_col] = clean_val
 
+        # Also capture timeline or form name if present
+        for extra_col in ["Timeline", "timeline", "Form Name", "form_name"]:
+            if extra_col in df.columns and pd.notna(row.get(extra_col)):
+                val_extra = str(row.get(extra_col)).strip()
+                if val_extra and val_extra.lower() not in ("nan", "none", "null"):
+                    custom_data_survey[extra_col.lower().replace(" ", "_")] = val_extra
+                    survey_notes.append(f"{extra_col}: {val_extra}")
+
         notes_combined = "\n".join(survey_notes)
 
-        # 7. Raw Metadata dictionary
+        # 9. Raw Metadata dictionary
         raw_meta = {}
         for col in df.columns:
             val = row.get(col)
             if pd.notna(val):
                 raw_meta[str(col)] = str(val)
 
-        external_id = raw_meta.get('id') or raw_meta.get('ad_id') or raw_meta.get('lead_id') or ""
+        external_id = raw_meta.get('id') or raw_meta.get('ad_id') or raw_meta.get('lead_id') or raw_meta.get('Lead ID') or ""
 
         if not phone_val and name_val == "Unknown Patient":
             continue
@@ -324,6 +355,8 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             "name": name_val,
             "mobile": phone_val,
             "email": email_val,
+            "city": city_val,
+            "course_name": course_name_val,
             "source_name": canonical_platform,
             "inquiry_date": str(inquiry_date_val),
             "created_time_str": raw_created_time or str(inquiry_date_val),
@@ -331,7 +364,7 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             "custom_data": custom_data_survey,
             "raw_metadata": raw_meta,
             "external_lead_id": external_id,
-            "campaign_name": target_campaign.name if target_campaign else raw_meta.get('campaign_name', ''),
+            "campaign_name": target_campaign.name if target_campaign else raw_meta.get('campaign_name', raw_meta.get('Form Name', '')),
         })
 
     return processed_rows

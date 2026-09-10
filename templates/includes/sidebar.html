@@ -3,17 +3,14 @@
   <div class="brand"
     style="padding: 0.9rem 0.8rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08);">
     <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-      {% if user.hospital %}
-      {% if user.hospital.logo %}
+      {% if user.hospital and user.hospital.logo %}
       <img src="{{ user.hospital.logo.url }}" alt="{{ user.hospital.name }}"
         style="max-height: 28px; max-width: 90px; object-fit: contain;">
       <span class="brand-text"
         style="font-family: 'Dancing Script', cursive; font-size: 1.7rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1; margin-top: -2px;">CRM</span>
-      {% else %}
+      {% elif user.is_hospital_user %}
       <i class="fa-solid fa-hospital" style="color:#818cf8; font-size:1.3rem;"></i>
-      <span class="brand-text" style="font-weight: 700; color: #fff; font-size: 1rem; white-space: nowrap;">{{
-        user.hospital.name|truncatechars:14 }}</span>
-      {% endif %}
+      <span class="brand-text" style="font-weight: 700; color: #fff; font-size: 1rem; white-space: nowrap;">{{ user.hospital.name|truncatechars:14 }}</span>
       {% else %}
       <img src="/media/zappkode_logo.png" alt="Zappkode Logo"
         style="max-height: 28px; max-width: 90px; object-fit: contain;">
@@ -30,7 +27,7 @@
 
   <div class="sidebar-nav-container" id="sidebarAccordion">
 
-    {% if user.hospital and user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'ADMIN' or user.hospital and user.role == 'MANAGER' %}
+    {% if user.is_hospital_user and user.role == 'SUPER_ADMIN' or user.is_hospital_user and user.role == 'ADMIN' or user.is_hospital_user and user.role == 'MANAGER' %}
     {# 🏥 HOSPITAL SUPER ADMIN, ADMIN & MANAGER SIDEBAR (Nelson Admin) #}
 
     <!-- Direct Dashboard Link -->
@@ -154,7 +151,7 @@
       </div>
     </div>
 
-    {% elif user.role == 'LEAD_ATTENDENT' and user.hospital %}
+    {% elif user.role == 'LEAD_ATTENDENT' and user.is_hospital_user %}
     {# 🎧 TELECALLER / LEAD ATTENDANT SIDEBAR (Hospital / Nelson Employee) #}
 
     <!-- Direct Dashboard Link -->
@@ -348,7 +345,7 @@
       </div>
     </div>
 
-    {% if not request.user.hospital %}
+    {% if not request.user.is_hospital_user %}
     <!-- Section: Admissions & Payments -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button"
@@ -445,19 +442,13 @@
     {% else %}
     {# 💼 COUNSELLOR / HR EMPLOYEE SIDEBAR #}
 
-    <!-- Direct Dashboard Link -->
+    <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}"
       title="Dashboard" style="margin-top: 4px;">
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
-    <!-- Submit Daily Report (Single Tab) -->
-    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
-      href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
-      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
-    </a>
-
-    <!-- Section: Lead Management -->
+    <!-- 2. Section: Lead Management -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'leads_all leads_add leads_dup' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_leads"
@@ -477,7 +468,7 @@
       </div>
     </div>
 
-    <!-- Section: Follow-up Management -->
+    <!-- 3. Section: Follow-up Management -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'fu_today fu_upcoming fu_overdue' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_fu"
@@ -498,25 +489,29 @@
       </div>
     </div>
 
-    {% if not request.user.hospital %}
-    <!-- Section: Admissions & Payments -->
+    {% if not request.user.is_hospital_user %}
+    <!-- 4. Section: Admissions & Billings -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button"
         data-bs-toggle="collapse" data-bs-target="#sec_emp_adm"
         aria-expanded="{% if active in 'admissions payments' %}true{% else %}false{% endif %}">
-        <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">Admissions &
-            Billing</span></span>
+        <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">Billings & Admissions</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'admissions payments' %}show{% endif %} nav-sub-items" id="sec_emp_adm"
-       >
+      <div class="collapse {% if active in 'admissions payments' %}show{% endif %} nav-sub-items" id="sec_emp_adm">
         <a class="nav-link {% if active == 'admissions' %}active{% endif %}" href="{% url 'admissions:list' %}"
           title="Admissions"><i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions</span></a>
         <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'payments:list' %}"
-          title="Payments"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments</span></a>
+          title="Payments / Billings"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Billings & Payments</span></a>
       </div>
     </div>
     {% endif %}
+
+    <!-- 5. Submit EOD Report -->
+    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
+      href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
+      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
+    </a>
 
     {% endif %}
 

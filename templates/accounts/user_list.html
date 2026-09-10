@@ -44,7 +44,7 @@
         <tr>
           <td><strong>{{ u.get_full_name|default:"—" }}</strong></td>
           <td><code>{{ u.username }}</code></td>
-          <td><span class="badge {% if u.hospital %}bg-info bg-opacity-10 text-info border border-info-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %} fw-semibold">{{ u.custom_role_display }}</span></td>
+          <td><span class="badge {% if u.is_hospital_user %}bg-info bg-opacity-10 text-info border border-info-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %} fw-semibold">{{ u.custom_role_display }}</span></td>
           <td>{{ u.phone|default:"—" }}</td>
           <td>{{ u.date_joined|date:"d-m-Y H:i" }}</td>
           <td class="text-end">
@@ -152,11 +152,15 @@
             <div class="fw-bold text-dark">{{ u.get_full_name|default:u.username }}</div>
             {% if u.email %}<div class="small text-muted"><i class="fa-solid fa-envelope me-1 text-secondary"></i>{{ u.email }}</div>{% endif %}
             {% if u.phone %}<div class="small text-muted"><i class="fa-solid fa-phone me-1 text-secondary"></i>{{ u.phone }}</div>{% endif %}
-            {% if u.hospital and not request.user.hospital %}<div class="small fw-bold mt-1 text-primary"><i class="fa-solid fa-hospital-user me-1"></i>{{ u.hospital.name }}</div>{% endif %}
+            {% if u.hospital and not request.user.hospital %}
+              <div class="small fw-bold mt-1 {% if u.is_hospital_user %}text-primary{% else %}text-info{% endif %}">
+                <i class="fa-solid {% if u.is_hospital_user %}fa-hospital-user{% else %}fa-building{% endif %} me-1"></i>{{ u.hospital.name }}
+              </div>
+            {% endif %}
           </td>
           <td><code>{{ u.username }}</code></td>
           <td>
-            <span class="badge {% if u.hospital %}bg-info bg-opacity-10 text-info border border-info-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %} fw-semibold">
+            <span class="badge {% if u.is_hospital_user %}bg-info bg-opacity-10 text-info border border-info-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %} fw-semibold">
               {{ u.custom_role_display }}
             </span>
           </td>
