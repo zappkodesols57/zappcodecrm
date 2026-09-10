@@ -3,6 +3,7 @@ from datetime import datetime, date
 from django.utils import timezone
 from django import forms
 from django.db import models
+from django.db.models import Q
 from accounts.models import User
 from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag
 
@@ -74,19 +75,22 @@ class LeadForm(forms.ModelForm):
                 if user and getattr(user, "hospital", None):
                     self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
                 else:
-                    self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True)
+                    # Global Super Admin: show all users
+                    self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True)
             if "assigned_manager" in self.fields:
                 if user and getattr(user, "hospital", None):
                     self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
                 else:
-                    self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+                    self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
 
         # Filter master choice fields to active options from Master Data
         if "course" in self.fields:
             if user and getattr(user, "hospital", None):
-                qs = Course.objects.filter(is_active=True, hospital=user.hospital)
+                qs = Course.objects.filter(is_active=True).filter(
+                    Q(hospital=user.hospital) | Q(hospital__isnull=True)
+                )
             else:
-                qs = Course.objects.filter(is_active=True, hospital__isnull=True)
+                qs = Course.objects.filter(is_active=True)
             if self.instance and self.instance.pk and self.instance.course:
                 qs = qs | Course.objects.filter(pk=self.instance.course.pk)
             self.fields["course"].queryset = qs.distinct().order_by("name")
@@ -107,7 +111,8 @@ class LeadForm(forms.ModelForm):
             if user and getattr(user, "hospital", None):
                 qs = Campaign.objects.filter(is_active=True, hospital=user.hospital)
             else:
-                qs = Campaign.objects.filter(is_active=True, hospital__isnull=True)
+                # Global Super Admin: show all active campaigns
+                qs = Campaign.objects.filter(is_active=True)
             if self.instance and self.instance.pk and self.instance.campaign:
                 qs = qs | Campaign.objects.filter(pk=self.instance.campaign.pk)
             self.fields["campaign"].queryset = qs.distinct().order_by("-id")
@@ -119,14 +124,65 @@ class LeadForm(forms.ModelForm):
             self.fields["stage"].queryset = qs.distinct().order_by("order", "name")
 
         for name, field in self.fields.items():
-            css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+            css = "form-select no-tom-select" if isinstance(field.widget, forms.Select) else ("form-select" if isinstance(field.widget, forms.SelectMultiple) else "form-control")
             field.widget.attrs.setdefault("class", css)
-            field.widget.attrs.setdefault("placeholder", field.label or name.replace("_", " ").title())
             field.widget.attrs.update({
                 "id": f"id_{name}",
                 "name": name,
             })
         
+        # Define clean, concise, user-friendly placeholders
+        short_placeholders = {
+            "name": "Full name",
+            "mobile": "10-digit mobile number",
+            "alternate_mobile": "10-digit alternate mobile",
+            "email": "name@example.com",
+            "city": "City name",
+            "state": "State",
+            "location": "Area / Locality / Address",
+            "education": "Degree / Field (e.g. B.Tech, BCA)",
+            "qualification": "Qualification (e.g. Graduate, 12th)",
+            "graduation_year": "e.g. 2024",
+            "lead_type": "e.g. Inbound, Walk-in, Referral",
+            "ad_platform": "e.g. Meta, Google, LinkedIn",
+            "campaign_id_text": "Ad ID or tracking code",
+            "referral_person": "Referred by person name",
+            "referral_contact": "Referrer phone / contact",
+            "referral_notes": "Referral details or context...",
+            "landing_page": "Landing page URL / path",
+            "utm_source": "utm_source",
+            "utm_medium": "utm_medium",
+            "utm_campaign": "utm_campaign",
+            "utm_term": "utm_term",
+            "utm_content": "utm_content",
+            "notes": "Add lead notes, conversation summary, or remarks...",
+        }
+
+        for field_name, ph in short_placeholders.items():
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs["placeholder"] = ph
+
+        # Set clean empty labels for Select dropdown fields
+        select_empty_labels = {
+            "course": "Select Course",
+            "temperature": "Select Temperature",
+            "stage": "Select Stage",
+            "deal_status": "Select Deal Status",
+            "admission_status": "Select Admission Status",
+            "source_category": "Select Source Category",
+            "lead_source": "Select Lead Source",
+            "campaign": "Select Campaign",
+            "referral_type": "Select Referral Type",
+            "assigned_to": "Select Team Member",
+            "assigned_manager": "Select Reporting Manager",
+        }
+
+        for field_name, label in select_empty_labels.items():
+            if field_name in self.fields:
+                if hasattr(self.fields[field_name], "empty_label"):
+                    self.fields[field_name].empty_label = label
+                self.fields[field_name].widget.attrs.setdefault("data-placeholder", label)
+
         if "tags" in self.fields:
             self.fields["tags"].widget.attrs.update({
                 "class": "form-select tags-input",
@@ -682,7 +738,8 @@ class HospitalLeadForm(forms.ModelForm):
                 self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
                 self.fields["assigned_to"].empty_label = "-- Select Attendant / Staff --"
             else:
-                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital__isnull=True)
+                # Global Super Admin: show all active users
+                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True)
                 self.fields["assigned_to"].empty_label = "-- Select Attendant / Staff --"
             
         # Dynamically load Admin-Configured Custom Form Fields (Non-system only)
@@ -758,7 +815,8 @@ class HospitalLeadForm(forms.ModelForm):
         if user and user.hospital:
             configured_fields = LeadCustomField.objects.filter(hospital=user.hospital, is_active=True).order_by('order', 'id')
         else:
-            configured_fields = LeadCustomField.objects.filter(hospital__isnull=True, is_active=True).order_by('order', 'id')
+            # Global Super Admin: show all configured fields (no hospital restriction)
+            configured_fields = LeadCustomField.objects.filter(is_active=True).order_by('order', 'id')
             
         for fld in configured_fields:
             if fld.is_system:

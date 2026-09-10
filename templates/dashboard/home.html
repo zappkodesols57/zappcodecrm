@@ -133,46 +133,80 @@
 </form>
 {% endif %}
 
-<!-- ─── EXACT 5 KPI CARDS (Total Leads, Uncontacted, Contacted, Booked, Overdue) ─── -->
+<!-- ─── EXACT 6 COUNSELLOR KPI CARDS (Today's New Leads, Call Not Done, Admission Today, Billing Done Today, Upcoming, Follow-ups) ─── -->
 <div class="row g-3 mb-4">
   
-  <!-- 1. Total Leads -->
-  <div class="col-12 col-sm-6 col-lg">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Total Leads</div>
-      <div class="value">{{ kpis.total_leads }}</div>
+  <!-- 1. Today's New Leads -->
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <a href="{% url 'leads:lead_list' %}?filter=todays_new" class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm" style="border-left: 4px solid #3b82f6 !important;">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="label text-muted small fw-bold text-uppercase">Today's New Leads</span>
+        <i class="fa-solid fa-sparkles text-primary"></i>
+      </div>
+      <div class="value fs-3 fw-bold text-dark">{{ kpis.todays_new|default:0 }}</div>
+      <small class="text-primary mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</small>
     </a>
   </div>
 
-  <!-- 2. Uncontacted (Today's New Uncontacted Leads) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Uncontacted (Today's New)</div>
-      <div class="value">{{ kpis.uncontacted }}</div>
+  <!-- 2. Call Not Done (Pending First Call / Uncontacted) -->
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <a href="{% url 'leads:lead_list' %}?filter=call_not_done" class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm" style="border-left: 4px solid #f59e0b !important;">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="label text-muted small fw-bold text-uppercase">Call Not Done</span>
+        <i class="fa-solid fa-phone-slash text-warning"></i>
+      </div>
+      <div class="value fs-3 fw-bold text-dark">{{ kpis.call_not_done|default:0 }}</div>
+      <small class="text-warning mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-headset me-1"></i>Pending Calls</small>
     </a>
   </div>
 
-  <!-- 3. Contacted Leads (Today's Contacted / Edited) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Contacted (Today)</div>
-      <div class="value">{{ kpis.contacted_today }}</div>
-    </div>
+  <!-- 3. Admission Today -->
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <a href="{% url 'leads:lead_list' %}?filter=admission_today" class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm" style="border-left: 4px solid #10b981 !important;">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="label text-muted small fw-bold text-uppercase">Admission Today</span>
+        <i class="fa-solid fa-user-graduate text-success"></i>
+      </div>
+      <div class="value fs-3 fw-bold text-dark">{{ kpis.admission_today|default:0 }}</div>
+      <small class="text-success mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-circle-check me-1"></i>Enrolled Students</small>
+    </a>
   </div>
 
-  <!-- 4. Booked Leads (Today's Booked Deals) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Booked (Today)</div>
-      <div class="value">{{ kpis.booked_today }}</div>
-    </div>
+  <!-- 4. Billing Done Today -->
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <a href="{% url 'leads:lead_list' %}?filter=billing_today" class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm" style="border-left: 4px solid #8b5cf6 !important;">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="label text-muted small fw-bold text-uppercase">Billing Done Today</span>
+        <i class="fa-solid fa-receipt text-purple" style="color: #8b5cf6;"></i>
+      </div>
+      <div class="value fs-3 fw-bold text-dark">
+        {% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}
+      </div>
+      <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-credit-card me-1"></i>Payments Collected</small>
+    </a>
   </div>
 
-  <!-- 5. Overdue (Followup time today or past) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <a href="{% url 'followups:overdue' %}" class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Overdue Follow-ups</div>
-      <div class="value">{{ kpis.overdue }}</div>
+  <!-- 5. Upcoming Follow-ups -->
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <a href="{% url 'leads:lead_list' %}?filter=upcoming_followups" class="kpi-card kpi-4 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm" style="border-left: 4px solid #06b6d4 !important;">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="label text-muted small fw-bold text-uppercase">Upcoming Follow-ups</span>
+        <i class="fa-solid fa-calendar-days text-info"></i>
+      </div>
+      <div class="value fs-3 fw-bold text-dark">{{ kpis.upcoming_followups|default:0 }}</div>
+      <small class="text-info mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-clock me-1"></i>Scheduled Ahead</small>
+    </a>
+  </div>
+
+  <!-- 6. Overdue Follow-ups -->
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <a href="{% url 'leads:lead_list' %}?followup=overdue" class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm" style="border-left: 4px solid #ef4444 !important;">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="label text-muted small fw-bold text-uppercase">Overdue Follow-ups</span>
+        <i class="fa-solid fa-bell-slash text-danger"></i>
+      </div>
+      <div class="value fs-3 fw-bold text-dark">{{ kpis.overdue_followups|default:kpis.overdue|default:0 }}</div>
+      <small class="text-danger mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>Action Required</small>
     </a>
   </div>
 

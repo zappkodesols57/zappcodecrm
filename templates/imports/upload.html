@@ -94,10 +94,10 @@
       <h4 class="fw-bold text-dark mb-1">
         <i class="fa-solid fa-file-import text-primary me-2"></i>Import Leads Data
       </h4>
-      <p class="text-muted small mb-0">Upload campaign XML/Excel sheets and instantly share daily upload summaries on WhatsApp.</p>
+      <p class="text-muted small mb-0">Upload {% if is_hospital %}campaign{% else %}course{% endif %} Excel/XML sheets and instantly share daily summaries on WhatsApp.</p>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-      <!-- WhatsApp Report Button for Nelson & Admins -->
+      <!-- WhatsApp Report Button -->
       <button type="button" class="btn btn-whatsapp-theme btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#whatsappUploadPageModal">
         <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send WhatsApp Report
       </button>
@@ -131,18 +131,22 @@
     <div class="card-header bg-light bg-opacity-50 border-bottom p-0">
       <ul class="nav nav-tabs border-bottom-0 px-3 pt-2" id="importModeTabs" role="tablist">
         
-        <!-- Tab 1: Short name 'Campaign Leads' -->
+        <!-- Tab 1: Course Leads for Academy / Campaign Leads for Hospital -->
         <li class="nav-item" role="presentation">
           <button class="nav-link mode-tab-btn active" id="campaign-tab" data-bs-toggle="tab" data-bs-target="#campaign-mode" type="button" role="tab">
-            <i class="fa-solid fa-bullhorn text-primary me-2"></i>Campaign Leads
+            {% if is_hospital %}
+              <i class="fa-solid fa-bullhorn text-primary me-2"></i>Campaign Leads
+            {% else %}
+              <i class="fa-solid fa-graduation-cap text-primary me-2"></i>Course Leads (Ad/Direct)
+            {% endif %}
           </button>
         </li>
 
-        <!-- Tab 2: Short name 'Master Data' -->
+        <!-- Tab 2: Master Sheet / Previous Leads Import -->
         {% if can_import_previous %}
         <li class="nav-item" role="presentation">
           <button class="nav-link mode-tab-btn" id="previous-tab" data-bs-toggle="tab" data-bs-target="#previous-mode" type="button" role="tab">
-            <i class="fa-solid fa-database text-warning me-2"></i>Master Data
+            <i class="fa-solid fa-database text-warning me-2"></i>Master Sheet (Previous Leads)
           </button>
         </li>
         {% endif %}
@@ -154,7 +158,7 @@
       <div class="tab-content" id="importModeTabsContent">
 
         <!-- ================================================================= -->
-        <!-- TAB 1: CAMPAIGN LEADS                                             -->
+        <!-- TAB 1: COURSE / CAMPAIGN LEADS                                    -->
         <!-- ================================================================= -->
         <div class="tab-pane fade show active" id="campaign-mode" role="tabpanel">
           
@@ -168,7 +172,7 @@
               <div class="col-md-6">
                 <label class="form-label fw-bold text-dark small">Hospital / Business <span class="text-danger">*</span></label>
                 <select name="target_hospital_id" id="targetHospitalSelect" class="form-select form-select-sm" required>
-                  <option value="">Select Hospital</option>
+                  <option value="">Select Hospital / Business</option>
                   {% for h in all_hospitals %}
                   <option value="{{ h.id }}" {% if forloop.first %}selected{% endif %}>{{ h.name }}</option>
                   {% endfor %}
@@ -178,24 +182,45 @@
               <input type="hidden" name="target_hospital_id" value="{{ user.hospital.id|default:'' }}">
               {% endif %}
 
-              <!-- Campaign Selection & Single Create Button -->
-              <div class="{% if is_super_admin_no_hospital %}col-md-6{% else %}col-md-12{% endif %}">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <label class="form-label fw-bold text-dark small mb-0">Campaign <span class="text-danger">*</span></label>
-                  <button type="button" class="btn btn-xs btn-outline-primary rounded-pill py-0 px-2 small" data-bs-toggle="modal" data-bs-target="#newCampaignModal">
-                    <i class="fa-solid fa-plus me-1"></i> Create Campaign
-                  </button>
+              {% if is_hospital %}
+                <!-- Hospital Mode: Campaign Selection -->
+                <div class="{% if is_super_admin_no_hospital %}col-md-6{% else %}col-md-12{% endif %}">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label fw-bold text-dark small mb-0">Campaign <span class="text-danger">*</span></label>
+                    <button type="button" class="btn btn-xs btn-outline-primary rounded-pill py-0 px-2 small" data-bs-toggle="modal" data-bs-target="#newCampaignModal">
+                      <i class="fa-solid fa-plus me-1"></i> Create Campaign
+                    </button>
+                  </div>
+                  
+                  <select name="campaign_id" id="campaignSelect" class="form-select form-select-sm">
+                    <option value="">Auto-Detect from File / Select Campaign (Optional)</option>
+                    {% for c in available_campaigns %}
+                    <option value="{{ c.id }}" data-hospital="{{ c.hospital_id|default:'' }}">
+                      {{ c.name }} ({{ c.leads_count|default:0 }} Leads)
+                    </option>
+                    {% endfor %}
+                  </select>
                 </div>
-                
-                <select name="campaign_id" id="campaignSelect" class="form-select form-select-sm" required>
-                  <option value="">Select Campaign</option>
-                  {% for c in available_campaigns %}
-                  <option value="{{ c.id }}" data-hospital="{{ c.hospital_id|default:'' }}">
-                    {{ c.name }} ({{ c.leads_count|default:0 }} Leads)
-                  </option>
-                  {% endfor %}
-                </select>
-              </div>
+              {% else %}
+                <!-- Academy Mode: Course Selection -->
+                <div class="{% if is_super_admin_no_hospital %}col-md-6{% else %}col-md-12{% endif %}">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label fw-bold text-dark small mb-0">Course / Program</label>
+                    <button type="button" class="btn btn-xs btn-outline-primary rounded-pill py-0 px-2 small" data-bs-toggle="modal" data-bs-target="#newCourseModal">
+                      <i class="fa-solid fa-plus me-1"></i> Add Course
+                    </button>
+                  </div>
+                  
+                  <select name="course_id" id="courseSelect" class="form-select form-select-sm">
+                    <option value="">Auto-Detect Course from File (Recommended)</option>
+                    {% for crs in available_courses %}
+                    <option value="{{ crs.id }}">
+                      {{ crs.name }} ({{ crs.leads_count|default:0 }} Leads)
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              {% endif %}
 
             </div>
 
@@ -206,7 +231,7 @@
               <div class="upload-dropzone" onclick="document.getElementById('campaignFileInput').click()">
                 <i class="fa-solid fa-cloud-arrow-up text-primary fs-2 mb-2"></i>
                 <h6 class="fw-bold text-dark mb-1" id="campaignFileNameDisplay">Choose or Drag & Drop File</h6>
-                <div class="text-muted small">Supports XML, Excel (.xlsx, .xls), CSV, Google Sheets</div>
+                <div class="text-muted small">Supports XML, Excel (.xlsx, .xls), CSV, Meta Lead Export</div>
               </div>
               <input type="file" name="lead_file" id="campaignFileInput" accept=".xml,.xlsx,.xls,.csv,.tsv" class="d-none" required onchange="handleFileSelected(this, 'campaignFileNameDisplay')">
             </div>
@@ -235,7 +260,7 @@
         </div>
 
         <!-- ================================================================= -->
-        <!-- TAB 2: MASTER DATA                                                -->
+        <!-- TAB 2: MASTER DATA (PREVIOUS LEADS)                               -->
         <!-- ================================================================= -->
         {% if can_import_previous %}
         <div class="tab-pane fade" id="previous-mode" role="tabpanel">
@@ -256,7 +281,7 @@
             </div>
             <div>
               <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-3 py-2 fw-semibold rounded-pill">
-                <i class="fa-solid fa-circle-info text-warning me-1"></i> New records will be appended or merged safely
+                <i class="fa-solid fa-circle-info text-warning me-1"></i> Historical leads will be imported safely and visible to counsellors with capture option.
               </span>
             </div>
           </div>
@@ -268,7 +293,7 @@
             <div class="mb-3">
               <label class="form-label fw-bold text-dark small">Hospital / Business <span class="text-danger">*</span></label>
               <select name="target_hospital_id" id="masterHospitalSelect" class="form-select form-select-sm" required onchange="updateMasterHospitalCount(this)">
-                <option value="">Select Hospital</option>
+                <option value="">Select Hospital / Business</option>
                 {% for h in all_hospitals %}
                 <option value="{{ h.id }}" data-count="{{ h.leads_count|default:0 }}" {% if forloop.first %}selected{% endif %}>
                   {{ h.name }} ({{ h.leads_count|default:0 }} Leads Present)
@@ -279,11 +304,11 @@
             {% endif %}
 
             <div class="mb-3">
-              <label class="form-label fw-bold text-dark small">Excel / CSV File <span class="text-danger">*</span></label>
+              <label class="form-label fw-bold text-dark small">Excel / CSV Master File <span class="text-danger">*</span></label>
               <div class="upload-dropzone" onclick="document.getElementById('masterFileInput').click()">
                 <i class="fa-solid fa-cloud-arrow-up text-warning fs-2 mb-2"></i>
                 <h6 class="fw-bold text-dark mb-1" id="masterFileNameDisplay">Choose or Drag & Drop Master Leads File</h6>
-                <div class="text-muted small">Supports Excel (.xlsx, .xls), CSV files</div>
+                <div class="text-muted small">Supports Excel (.xlsx, .xls), CSV files with Student/Course data</div>
               </div>
               <input type="file" name="excel_file" id="masterFileInput" accept=".xlsx,.xls,.csv" class="d-none" required onchange="handleFileSelected(this, 'masterFileNameDisplay')">
             </div>
@@ -292,16 +317,15 @@
               <div class="col-md-6">
                 <label class="form-label fw-bold text-dark small mb-1">Duplicate Strategy</label>
                 <select name="on_duplicate" class="form-select form-select-sm">
-                  <option value="preview">Review & Resolve (Keep / Discard / Update)</option>
-                  <option value="skip" selected>Skip Duplicates</option>
-                  <option value="update">Update Existing</option>
-                  <option value="create">Allow All</option>
+                  <option value="skip" selected>Skip Duplicates (Recommended)</option>
+                  <option value="update">Update Existing Leads</option>
+                  <option value="create">Allow All (Duplicate Allowed)</option>
                 </select>
               </div>
 
               <div class="col-md-6 text-end pt-3">
                 <button type="submit" class="btn btn-warning text-dark fw-bold px-4 py-2 rounded-3 shadow-sm">
-                  <i class="fa-solid fa-upload me-1"></i> Import Master Data
+                  <i class="fa-solid fa-upload me-1"></i> Import Master Sheet Leads
                 </button>
               </div>
             </div>
@@ -315,6 +339,34 @@
     </div>
   </div>
 
+</div>
+
+<!-- Modal: Create New Course Inline -->
+<div class="modal fade" id="newCourseModal" tabindex="-1" aria-labelledby="newCourseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white py-2 px-3">
+        <h6 class="modal-title fw-bold" id="newCourseModalLabel"><i class="fa-solid fa-graduation-cap me-1"></i> Add Course</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <form id="ajaxCourseForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Course Name <span class="text-danger">*</span></label>
+            <input type="text" id="modalCourseName" name="name" class="form-control form-control-sm" placeholder="e.g. Data Analytics + AI, Full Stack Python" required>
+          </div>
+          <div id="courseModalError" class="alert alert-danger py-1 px-2 small d-none mt-2"></div>
+        </form>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary fw-bold" id="saveCourseBtn" onclick="saveNewCourseAjax()">
+          <i class="fa-solid fa-check me-1"></i> Save Course
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: Create New Campaign Inline -->
@@ -380,6 +432,70 @@
     }
   }
 
+  function saveNewCourseAjax() {
+    const nameInput = document.getElementById('modalCourseName');
+    const name = nameInput.value.trim();
+    if (!name) {
+      alert('Please enter a Course Name.');
+      nameInput.focus();
+      return;
+    }
+
+    const hospitalSelect = document.getElementById('targetHospitalSelect');
+    const hospitalId = hospitalSelect ? hospitalSelect.value : "{{ user.hospital.id|default:'' }}";
+
+    const btn = document.getElementById('saveCourseBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...';
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('hospital_id', hospitalId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+    fetch("{% url 'imports:ajax_create_course' %}", {
+      method: 'POST',
+      body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Save Course';
+
+      if (data.success) {
+        const sel = document.getElementById('courseSelect');
+        if (sel) {
+          const optText = `${data.course.name} (0 Leads)`;
+          const opt = new Option(optText, data.course.id, true, true);
+          sel.appendChild(opt);
+          sel.value = String(data.course.id);
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const modalEl = document.getElementById('newCourseModal');
+        if (modalEl) {
+          const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+          modalInstance.hide();
+        }
+        
+        nameInput.value = '';
+        const errDiv = document.getElementById('courseModalError');
+        if (errDiv) errDiv.classList.add('d-none');
+      } else {
+        const errDiv = document.getElementById('courseModalError');
+        if (errDiv) {
+          errDiv.innerText = data.error || 'Failed to create course';
+          errDiv.classList.remove('d-none');
+        }
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Save Course';
+      alert('Error: ' + err);
+    });
+  }
+
   function saveNewCampaignAjax() {
     const nameInput = document.getElementById('modalCampaignName');
     const name = nameInput.value.trim();
@@ -429,14 +545,12 @@
           sel.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
-        // Hide Modal properly
         const modalEl = document.getElementById('newCampaignModal');
         if (modalEl) {
           const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
           modalInstance.hide();
         }
         
-        // Reset form fields
         nameInput.value = '';
         const adSetInput = document.getElementById('modalCampaignAdSet');
         if (adSetInput) adSetInput.value = '';
@@ -476,7 +590,7 @@
           <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
             <i class="fa-brands fa-whatsapp text-success fs-4"></i> Share Leads Upload Report on WhatsApp
           </h5>
-          <p class="text-muted small mb-0">Period: <strong class="text-primary">{{ preset_label }}</strong> &bull; Hospital: <strong>{{ hospital_name }}</strong></p>
+          <p class="text-muted small mb-0">Period: <strong class="text-primary">{{ preset_label }}</strong> &bull; Organization: <strong>{{ hospital_name }}</strong></p>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -497,7 +611,7 @@
 
             <div class="mb-3">
               <label class="form-label small fw-bold text-muted text-uppercase">Header Title</label>
-              <input type="text" id="waUploadGreeting" class="form-control form-control-sm" value="*Daily Leads Upload & Campaign Status Report*" oninput="updateUploadPageWhatsAppPreview()">
+              <input type="text" id="waUploadGreeting" class="form-control form-control-sm" value="*Daily Leads Upload & {% if is_hospital %}Campaign{% else %}Course{% endif %} Status Report*" oninput="updateUploadPageWhatsAppPreview()">
             </div>
 
             <div class="mb-3">
@@ -507,8 +621,8 @@
                 <label class="form-check-label small" for="waUploadIncludeTotals">Total Period Leads ({{ total_period_leads }})</label>
               </div>
               <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="waUploadIncludeCampaigns" checked onchange="updateUploadPageWhatsAppPreview()">
-                <label class="form-check-label small" for="waUploadIncludeCampaigns">Campaigns Breakdown</label>
+                <input class="form-check-input" type="checkbox" id="waUploadIncludeBreakdown" checked onchange="updateUploadPageWhatsAppPreview()">
+                <label class="form-check-label small" for="waUploadIncludeBreakdown">{% if is_hospital %}Campaigns{% else %}Courses{% endif %} Breakdown</label>
               </div>
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" id="waUploadIncludeSender" checked onchange="updateUploadPageWhatsAppPreview()">
@@ -550,6 +664,8 @@
 </div>
 
 <script>
+  const IS_HOSPITAL_SCOPE = {{ is_hospital|yesno:"true,false" }};
+
   const UPLOAD_PAGE_CAMPAIGNS = [
     {% for c in campaigns_data %}
       {
@@ -557,6 +673,17 @@
         platform: "{{ c.platform|escapejs }}",
         period_leads: {{ c.period_leads }},
         all_time_leads: {{ c.all_time_leads }}
+      },
+    {% endfor %}
+  ];
+
+  const UPLOAD_PAGE_COURSES = [
+    {% for crs in courses_data %}
+      {
+        name: "{{ crs.name|escapejs }}",
+        category: "{{ crs.category|escapejs }}",
+        period_leads: {{ crs.period_leads }},
+        all_time_leads: {{ crs.all_time_leads }}
       },
     {% endfor %}
   ];
@@ -571,13 +698,13 @@
   function buildUploadPageWhatsAppMessage() {
     const greeting = document.getElementById('waUploadGreeting').value.trim();
     const includeTotals = document.getElementById('waUploadIncludeTotals').checked;
-    const includeCampaigns = document.getElementById('waUploadIncludeCampaigns').checked;
+    const includeBreakdown = document.getElementById('waUploadIncludeBreakdown').checked;
     const includeSender = document.getElementById('waUploadIncludeSender').checked;
     const customNote = document.getElementById('waUploadCustomNote').value.trim();
 
     let lines = [];
     if (greeting) lines.push(greeting);
-    lines.push(`🏥 *${UPLOAD_META.hospitalName}*`);
+    lines.push(`${IS_HOSPITAL_SCOPE ? '🏥' : '🎓'} *${UPLOAD_META.hospitalName}*`);
     lines.push(`📅 *Date:* ${UPLOAD_META.presetLabel}`);
     lines.push(`────────────────────`);
 
@@ -586,25 +713,46 @@
       lines.push(``);
     }
 
-    if (includeCampaigns && UPLOAD_PAGE_CAMPAIGNS.length > 0) {
-      lines.push(`🎯 *Campaigns Lead Breakdown:*`);
-      let countAdded = 0;
-      UPLOAD_PAGE_CAMPAIGNS.forEach(c => {
-        if (c.period_leads > 0) {
-          countAdded++;
-          lines.push(`• *${c.name}* (${c.platform}): *${c.period_leads} leads*`);
+    if (includeBreakdown) {
+      if (IS_HOSPITAL_SCOPE && UPLOAD_PAGE_CAMPAIGNS.length > 0) {
+        lines.push(`🎯 *Campaigns Lead Breakdown:*`);
+        let countAdded = 0;
+        UPLOAD_PAGE_CAMPAIGNS.forEach(c => {
+          if (c.period_leads > 0) {
+            countAdded++;
+            lines.push(`• *${c.name}* (${c.platform}): *${c.period_leads} leads*`);
+          }
+        });
+        if (countAdded === 0) {
+          if (UPLOAD_META.presetLabel.includes('All Time')) {
+            UPLOAD_PAGE_CAMPAIGNS.slice(0, 5).forEach(c => {
+              lines.push(`• *${c.name}*: ${c.all_time_leads} leads`);
+            });
+          } else {
+            lines.push(`• _No new campaign leads uploaded for this date._`);
+          }
         }
-      });
-      if (countAdded === 0) {
-        if (UPLOAD_META.presetLabel.includes('All Time')) {
-          UPLOAD_PAGE_CAMPAIGNS.slice(0, 5).forEach(c => {
-            lines.push(`• *${c.name}*: ${c.all_time_leads} leads`);
-          });
-        } else {
-          lines.push(`• _No new campaign leads uploaded for this date._`);
+        lines.push(``);
+      } else if (!IS_HOSPITAL_SCOPE && UPLOAD_PAGE_COURSES.length > 0) {
+        lines.push(`📚 *Course-wise Lead Breakdown:*`);
+        let countAdded = 0;
+        UPLOAD_PAGE_COURSES.forEach(crs => {
+          if (crs.period_leads > 0) {
+            countAdded++;
+            lines.push(`• *${crs.name}*: *${crs.period_leads} leads*`);
+          }
+        });
+        if (countAdded === 0) {
+          if (UPLOAD_META.presetLabel.includes('All Time')) {
+            UPLOAD_PAGE_COURSES.slice(0, 6).forEach(crs => {
+              lines.push(`• *${crs.name}*: ${crs.all_time_leads} leads`);
+            });
+          } else {
+            lines.push(`• _No new course leads uploaded for this date._`);
+          }
         }
+        lines.push(``);
       }
-      lines.push(``);
     }
 
     if (customNote) {
@@ -656,3 +804,4 @@
   });
 </script>
 {% endblock %}
+

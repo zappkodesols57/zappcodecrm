@@ -1,128 +1,664 @@
 {% extends "base.html" %}
 {% block title %}{{ mode }} Academy Lead{% endblock %}
+
+{% block extra_head %}
+<style>
+  .zapp-form-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    padding: 2rem 2.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .zapp-section-header {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #4338ca;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e7ff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Form control height, border & crisp clean white background */
+  .zapp-form-card .form-control,
+  .zapp-form-card .form-select,
+  .zapp-form-card select,
+  .zapp-form-card input {
+    height: 42px;
+    min-height: 42px;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.45rem 0.85rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+
+  .zapp-form-card textarea.form-control,
+  .zapp-form-card textarea {
+    height: auto;
+    min-height: 80px;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.6rem 0.85rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+
+  /* Crisp Focus Background and Border */
+  .zapp-form-card .form-control:focus,
+  .zapp-form-card .form-select:focus,
+  .zapp-form-card select:focus,
+  .zapp-form-card input:focus,
+  .zapp-form-card textarea:focus {
+    border-color: #6366f1 !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
+    outline: none !important;
+  }
+
+  /* Dropdown Option Items */
+  .zapp-form-card select option {
+    background-color: #ffffff;
+    color: #0f172a;
+    padding: 6px 10px;
+  }
+
+  /* Validation Error Highlighting */
+  .zapp-form-card .form-control.is-invalid,
+  .zapp-form-card .form-select.is-invalid,
+  .zapp-form-card .field-invalid {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+  }
+
+  .zapp-form-card .form-label,
+  .zapp-form-card label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+    display: block;
+  }
+
+  .zapp-form-card .form-control::placeholder {
+    color: #94a3b8;
+    font-size: 0.88rem;
+  }
+
+  .req-star {
+    color: #ef4444;
+    font-weight: 700;
+    margin-left: 2px;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<h4 class="mb-3">{{ mode }} New Lead</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-graduation-cap text-primary me-2"></i>{{ mode }} Academy Lead</h4>
+    <p class="text-muted small mb-0">Record and manage student inquiries and course enrollments.</p>
+  </div>
+  <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+    <i class="fa-solid fa-arrow-left me-1"></i> Back to Leads
+  </a>
+</div>
 
 {% if duplicates %}
-<div class="card mb-3 border-warning">
+<div class="card mb-3 border-warning shadow-sm rounded-3">
   <div class="card-body">
-    <h6 class="text-warning"><i class="fa-solid fa-triangle-exclamation"></i> Existing Lead(s) Found — same mobile number</h6>
-    <table class="table table-sm">
-      <thead><tr><th>Lead ID</th><th>Name</th><th>Mobile</th><th>Course</th><th>Source</th><th>Stage</th><th>Assigned</th><th></th></tr></thead>
-      <tbody>
-        {% for d in duplicates %}
-        <tr>
-          <td>{{ d.lead_code }}</td><td>{{ d.name }}</td><td>{{ d.mobile }}</td>
-          <td>{{ d.course|default:"—" }}</td><td>{{ d.lead_source|default:"—" }}</td><td>{{ d.stage }}</td><td>{{ d.assigned_to|default:"—" }}</td>
-          <td><a href="{% url 'leads:lead_detail' d.pk %}" class="btn btn-sm btn-outline-primary">View</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p class="text-muted small">You can view/update the existing lead instead, or force-create a new one below if this is genuinely a different inquiry.</p>
+    <h6 class="text-warning fw-bold mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Existing Lead(s) Found — same mobile number</h6>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-2">
+        <thead class="table-light"><tr><th>Lead ID</th><th>Name</th><th>Mobile</th><th>Course</th><th>Source</th><th>Stage</th><th>Assigned</th><th></th></tr></thead>
+        <tbody>
+          {% for d in duplicates %}
+          <tr>
+            <td><code>{{ d.lead_code }}</code></td><td><strong>{{ d.name }}</strong></td><td>{{ d.mobile }}</td>
+            <td>{{ d.course|default:"—" }}</td><td>{{ d.lead_source|default:"—" }}</td><td>{{ d.stage }}</td><td>{{ d.assigned_to|default:"—" }}</td>
+            <td><a href="{% url 'leads:lead_detail' d.pk %}" class="btn btn-sm btn-outline-primary rounded-pill">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted small mb-0">You can view/update the existing lead instead, or force-create a new one below if this is genuinely a different inquiry.</p>
   </div>
 </div>
 {% endif %}
 
-<div class="card">
-  <div class="card-body">
-    <form method="post">
-      {% csrf_token %}
-      {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
+<div class="zapp-form-card">
+  <form method="post" id="zappLeadForm" novalidate>
+    {% csrf_token %}
+    {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
 
-      <h6 class="text-muted text-uppercase small mt-2">Basic Information</h6>
-      <div class="row g-3">
-        <div class="col-md-4">{{ form.name.label_tag }} {{ form.name }}</div>
-        <div class="col-md-4">{{ form.mobile.label_tag }} {{ form.mobile }}</div>
-        <div class="col-md-4">{{ form.alternate_mobile.label_tag }} {{ form.alternate_mobile }}</div>
-        <div class="col-md-4">{{ form.email.label_tag }} {{ form.email }}</div>
-        <div class="col-md-4">{{ form.city.label_tag }} {{ form.city }}</div>
-        <div class="col-md-4">{{ form.state.label_tag }} {{ form.state }}</div>
-        <div class="col-md-12">{{ form.location.label_tag }} {{ form.location }}</div>
+    <!-- Alert container for validation errors -->
+    <div id="formValidationErrorBox" class="alert alert-danger py-2 px-3 mb-3 rounded-3 d-none">
+      <i class="fa-solid fa-circle-exclamation me-2"></i> Please fill in all required fields highlighted below before saving.
+    </div>
+
+    <!-- Top Bar: Lead Owner / Assign To -->
+    <div class="row mb-3 pb-3 border-bottom align-items-center">
+      <div class="col-md-6">
+        <label class="form-label text-muted small fw-bold text-uppercase mb-1">
+          <i class="fa-solid fa-user-check me-1 text-primary"></i> Lead Owner / Assigned Counselor
+        </label>
+        {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
+          {{ form.assigned_to }}
+        {% else %}
+          <div class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-light shadow-xs" style="min-height: 42px;">
+            <span class="d-flex align-items-center">
+              <i class="fa-solid fa-circle-user text-primary fs-5 me-2"></i>
+              <strong class="text-dark">{{ user.get_full_name|default:user.username }}</strong>
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-2" style="font-size: 0.72rem;">{{ user.get_role_display|default:"Counselor" }}</span>
+            </span>
+            <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
+          </div>
+          <input type="hidden" name="assigned_to" value="{{ user.pk }}">
+        {% endif %}
+      </div>
+      <div class="col-md-6 text-md-end mt-2 mt-md-0">
+        <span class="badge bg-light text-muted border px-3 py-2 rounded-pill small">
+          <i class="fa-solid fa-shield-halved text-success me-1"></i> Zappcode Academy CRM
+        </span>
+      </div>
+    </div>
+
+    <!-- 1. Basic Information -->
+    <div class="zapp-section-header">
+      <i class="fa-solid fa-user me-1"></i> Basic Student Information
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <label class="form-label" for="id_name">Student Name <span class="req-star">*</span></label>
+        {{ form.name }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_mobile">Mobile Number <span class="req-star">*</span></label>
+        {{ form.mobile }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_alternate_mobile">Alternate Mobile</label>
+        {{ form.alternate_mobile }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_email">Email Address</label>
+        {{ form.email }}
+      </div>
+      <!-- State FIRST, then City -->
+      <div class="col-md-4">
+        <label class="form-label" for="id_state">State <span class="req-star">*</span></label>
+        <select name="state" id="id_state" class="form-select no-tom-select" required>
+          <option value="">Select State</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_city">City <span class="req-star">*</span></label>
+        <select name="city" id="id_city" class="form-select no-tom-select" required>
+          <option value="">Select City</option>
+        </select>
+      </div>
+      <div class="col-md-12">
+        <label class="form-label" for="id_location">Area / Location / Address</label>
+        {{ form.location }}
+      </div>
+    </div>
+
+    <!-- 2. Education -->
+    <div class="zapp-section-header">
+      <i class="fa-solid fa-user-graduate me-1"></i> Educational Background
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <label class="form-label" for="id_education">Education Category <span class="req-star">*</span></label>
+        <select name="education" id="id_education" class="form-select no-tom-select" required>
+          <option value="">Select Education</option>
+          <option value="Engineering">Engineering</option>
+          <option value="Medical">Medical</option>
+          <option value="Management">Management</option>
+          <option value="Arts & Commerce">Arts & Commerce</option>
+          <option value="Polytechnic / Diploma">Polytechnic / Diploma</option>
+          <option value="School Student">School Student (10th / 12th)</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_qualification">Qualification / Year <span class="req-star">*</span></label>
+        <select name="qualification" id="id_qualification" class="form-select no-tom-select" required>
+          <option value="">Select Qualification</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_graduation_year">Graduation / Passing Year</label>
+        {{ form.graduation_year }}
+      </div>
+    </div>
+
+    <!-- 3. Lead & Course Information -->
+    <div class="zapp-section-header">
+      <i class="fa-solid fa-book-open-reader me-1"></i> Course & Lead Status
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label class="form-label" for="id_course">Course Interested <span class="req-star">*</span></label>
+        {{ form.course }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_lead_type">Lead Type</label>
+        {{ form.lead_type }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_temperature">Lead Temperature</label>
+        {{ form.temperature }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_stage">Lead Stage <span class="req-star">*</span></label>
+        {{ form.stage }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_deal_status">Deal Status</label>
+        {{ form.deal_status }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_admission_status">Admission Status <span class="req-star">*</span></label>
+        {{ form.admission_status }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_inquiry_date">Inquiry Date <span class="req-star">*</span></label>
+        {{ form.inquiry_date }}
       </div>
 
-      <h6 class="text-muted text-uppercase small mt-4">Education</h6>
-      <div class="row g-3">
-        <div class="col-md-4">{{ form.education.label_tag }} {{ form.education }}</div>
-        <div class="col-md-4">{{ form.qualification.label_tag }} {{ form.qualification }}</div>
-        <div class="col-md-4">{{ form.graduation_year.label_tag }} {{ form.graduation_year }}</div>
+      <!-- Dynamic Conditional Fields based on Admission Status -->
+      <div class="col-md-3 d-none" id="div_followup_date">
+        <label class="form-label" for="custom_followup_date">Next Follow-up Date <span class="req-star">*</span></label>
+        <input type="date" name="custom_followup_date" id="custom_followup_date" class="form-control">
       </div>
+      <div class="col-md-3 d-none" id="div_admission_date">
+        <label class="form-label" for="custom_admission_date">Admission Date <span class="req-star">*</span></label>
+        <input type="date" name="custom_admission_date" id="custom_admission_date" class="form-control">
+      </div>
+      <div class="col-md-6 d-none" id="div_cancellation_reason">
+        <label class="form-label" for="custom_cancellation_reason">Reason for Cancellation <span class="req-star">*</span></label>
+        <input type="text" name="custom_cancellation_reason" id="custom_cancellation_reason" class="form-control" placeholder="Enter reason why lead cancelled / lost...">
+      </div>
+    </div>
 
-      <h6 class="text-muted text-uppercase small mt-4">Lead Information</h6>
-      <div class="row g-3">
-        <div class="col-md-3">{{ form.course.label_tag }} {{ form.course }}</div>
-        <div class="col-md-3">{{ form.lead_type.label_tag }} {{ form.lead_type }}</div>
-        <div class="col-md-2">{{ form.temperature.label_tag }} {{ form.temperature }}</div>
-        <div class="col-md-2">{{ form.stage.label_tag }} {{ form.stage }}</div>
-        <div class="col-md-2">{{ form.deal_status.label_tag }} {{ form.deal_status }}</div>
-        <div class="col-md-3">{{ form.admission_status.label_tag }} {{ form.admission_status }}</div>
-        <div class="col-md-3">{{ form.inquiry_date.label_tag }} {{ form.inquiry_date }}</div>
+    <!-- 4. Lead Origin / Attribution -->
+    <div class="zapp-section-header">
+      <i class="fa-solid fa-bullhorn me-1"></i> Lead Source & Attribution
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label class="form-label" for="id_source_category">Source Category</label>
+        {{ form.source_category }}
       </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_lead_source">Lead Source</label>
+        {{ form.lead_source }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_campaign">Campaign</label>
+        {{ form.campaign }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_ad_platform">Ad Platform</label>
+        {{ form.ad_platform }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_campaign_id_text">Campaign Tracking Code</label>
+        {{ form.campaign_id_text }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_referral_type">Referral Type</label>
+        {{ form.referral_type }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_referral_person">Referral Person</label>
+        {{ form.referral_person }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="id_referral_contact">Referral Contact</label>
+        {{ form.referral_contact }}
+      </div>
+      <div class="col-md-12">
+        <label class="form-label" for="id_referral_notes">Referral Notes</label>
+        {{ form.referral_notes }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_landing_page">Landing Page</label>
+        {{ form.landing_page }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_utm_source">UTM Source</label>
+        {{ form.utm_source }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_utm_medium">UTM Medium</label>
+        {{ form.utm_medium }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_utm_campaign">UTM Campaign</label>
+        {{ form.utm_campaign }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_utm_term">UTM Term</label>
+        {{ form.utm_term }}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="id_utm_content">UTM Content</label>
+        {{ form.utm_content }}
+      </div>
+    </div>
 
-      <h6 class="text-muted text-uppercase small mt-4">Lead Origin / Attribution</h6>
-      <div class="row g-3">
-        <div class="col-md-3">{{ form.source_category.label_tag }} {{ form.source_category }}</div>
-        <div class="col-md-3">{{ form.lead_source.label_tag }} {{ form.lead_source }}</div>
-        <div class="col-md-3">{{ form.campaign.label_tag }} {{ form.campaign }}</div>
-        <div class="col-md-3">{{ form.ad_platform.label_tag }} {{ form.ad_platform }}</div>
-        <div class="col-md-3">{{ form.campaign_id_text.label_tag }} {{ form.campaign_id_text }}</div>
-        <div class="col-md-3">{{ form.referral_type.label_tag }} {{ form.referral_type }}</div>
-        <div class="col-md-3">{{ form.referral_person.label_tag }} {{ form.referral_person }}</div>
-        <div class="col-md-3">{{ form.referral_contact.label_tag }} {{ form.referral_contact }}</div>
-        <div class="col-md-12">{{ form.referral_notes.label_tag }} {{ form.referral_notes }}</div>
-        <div class="col-md-4">{{ form.landing_page.label_tag }} {{ form.landing_page }}</div>
-        <div class="col-md-4">{{ form.utm_source.label_tag }} {{ form.utm_source }}</div>
-        <div class="col-md-4">{{ form.utm_medium.label_tag }} {{ form.utm_medium }}</div>
-        <div class="col-md-4">{{ form.utm_campaign.label_tag }} {{ form.utm_campaign }}</div>
-        <div class="col-md-4">{{ form.utm_term.label_tag }} {{ form.utm_term }}</div>
-        <div class="col-md-4">{{ form.utm_content.label_tag }} {{ form.utm_content }}</div>
+    <!-- 5. Assignment -->
+    <div class="zapp-section-header">
+      <i class="fa-solid fa-user-check me-1"></i> Assignment
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <label class="form-label" for="id_assigned_to">Assigned Counselor</label>
+        {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
+          {{ form.assigned_to }}
+        {% else %}
+          <div class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-light shadow-xs" style="min-height: 42px;">
+            <span class="d-flex align-items-center">
+              <i class="fa-solid fa-circle-user text-primary fs-5 me-2"></i>
+              <strong class="text-dark">{{ user.get_full_name|default:user.username }}</strong>
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-2" style="font-size: 0.72rem;">{{ user.get_role_display|default:"Counselor" }}</span>
+            </span>
+            <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
+          </div>
+        {% endif %}
       </div>
+      {% if form.assigned_manager %}
+      <div class="col-md-6">
+        <label class="form-label" for="id_assigned_manager">Reporting Manager</label>
+        {{ form.assigned_manager }}
+      </div>
+      {% endif %}
+    </div>
 
-      <h6 class="text-muted text-uppercase small mt-4">Assignment</h6>
-      <div class="row g-3">
-        <div class="col-md-6">{{ form.assigned_to.label_tag }} {{ form.assigned_to }}</div>
-        <div class="col-md-6">{{ form.assigned_manager.label_tag }} {{ form.assigned_manager }}</div>
+    <!-- 6. Additional Notes -->
+    <div class="zapp-section-header">
+      <i class="fa-solid fa-note-sticky me-1"></i> Lead Notes & Remarks
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-12">
+        <label class="form-label" for="id_notes">Lead Notes / Remarks</label>
+        {{ form.notes }}
       </div>
+    </div>
 
-      <h6 class="text-muted text-uppercase small mt-4">Additional</h6>
-      <div class="row g-3">
-        <div class="col-md-12">{{ form.notes.label_tag }} {{ form.notes }}</div>
-        <div class="col-md-12">{{ form.tags.label_tag }} {{ form.tags }}</div>
-      </div>
-
-      <div class="mt-4">
-        <button type="submit" class="btn btn-brand text-white">Save Lead</button>
-        <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary">Cancel</a>
-      </div>
-    </form>
-  </div>
+    <div class="d-flex align-items-center gap-2 mt-4 pt-3 border-top">
+      <button type="submit" class="btn btn-brand text-white px-4 rounded-pill shadow-sm">
+        <i class="fa-solid fa-floppy-disk me-1"></i> Save Lead
+      </button>
+      <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+    </div>
+  </form>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-  // Enhanced dynamic Tags input with creation support
-  var tagsSelect = document.querySelector('select[name="tags"]');
-  if (tagsSelect && typeof TomSelect !== 'undefined') {
-    if (tagsSelect.tomselect) {
-      tagsSelect.tomselect.destroy();
+  // ─── 1. State & City Dependent Data ───
+  const stateCityData = {
+    "Maharashtra": [
+      "Nagpur", "Mumbai", "Pune", "Thane", "Nashik", "Aurangabad (Chhatrapati Sambhajinagar)",
+      "Solapur", "Amravati", "Nanded", "Kolhapur", "Akola", "Latur", "Chandrapur", "Parbhani",
+      "Gondia", "Bhandara", "Wardha", "Yavatmal", "Gadchiroli", "Buldhana", "Jalgaon", "Satara",
+      "Sangli", "Ahmednagar", "Dhule", "Nandurbar", "Ratnagiri", "Sindhudurg", "Other (Maharashtra)"
+    ],
+    "Madhya Pradesh": [
+      "Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain", "Sagar", "Rewa", "Satna", "Chhindwara",
+      "Seoni", "Balaghat", "Betul", "Katni", "Singrauli", "Dewas", "Ratlam", "Burhanpur", "Other (MP)"
+    ],
+    "Chhattisgarh": [
+      "Raipur", "Bhilai", "Bilaspur", "Korba", "Rajnandgaon", "Jagdalpur", "Raigarh", "Durg", "Ambikapur", "Other (CG)"
+    ],
+    "Delhi NCR": ["New Delhi", "Gurugram", "Noida", "Ghaziabad", "Faridabad"],
+    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar", "Gandhinagar", "Other (Gujarat)"],
+    "Karnataka": ["Bengaluru", "Mysuru", "Hubballi-Dharwad", "Mangaluru", "Belagavi", "Gulbarga", "Other (Karnataka)"],
+    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam"],
+    "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj", "Meerut", "Noida", "Other (UP)"],
+    "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Purnia", "Other (Bihar)"],
+    "Other State": ["Other City"]
+  };
+
+  const stateSelect = document.getElementById("id_state");
+  const citySelect = document.getElementById("id_city");
+
+  const existingStateVal = "{{ form.instance.state|default:form.state.value|default:''|escapejs }}".trim();
+  const existingCityVal = "{{ form.instance.city|default:form.city.value|default:''|escapejs }}".trim();
+
+  // Populate States
+  stateSelect.innerHTML = '<option value="">Select State</option>';
+  Object.keys(stateCityData).forEach(function(st) {
+    const opt = document.createElement("option");
+    opt.value = st;
+    opt.textContent = st;
+    if (existingStateVal && (existingStateVal === st || existingStateVal.toLowerCase() === st.toLowerCase())) {
+      opt.selected = true;
     }
-    new TomSelect(tagsSelect, {
-      plugins: ['remove_button'],
-      create: true,
-      persist: false,
-      createOnBlur: true,
-      placeholder: 'Type tag and press Enter...',
-      maxItems: null,
-      render: {
-        item: function(data, escape) {
-          return '<div class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 me-1 mb-1">' + escape(data.text) + '</div>';
+    stateSelect.appendChild(opt);
+  });
+
+  function updateCities(selectedState, targetCityVal) {
+    citySelect.innerHTML = '<option value="">Select City</option>';
+    if (!selectedState) return;
+
+    // Match exact or case-insensitive state key
+    let stateKey = Object.keys(stateCityData).find(k => k.toLowerCase() === selectedState.toLowerCase());
+    let citiesList = stateKey ? stateCityData[stateKey] : null;
+
+    if (citiesList) {
+      citiesList.forEach(function(ct) {
+        const opt = document.createElement("option");
+        opt.value = ct;
+        opt.textContent = ct;
+        if (targetCityVal && (targetCityVal === ct || targetCityVal.toLowerCase() === ct.toLowerCase())) {
+          opt.selected = true;
+        }
+        citySelect.appendChild(opt);
+      });
+    } else {
+      const opt = document.createElement("option");
+      opt.value = "Other City";
+      opt.textContent = "Other City";
+      citySelect.appendChild(opt);
+    }
+  }
+
+  if (stateSelect.value) {
+    updateCities(stateSelect.value, existingCityVal);
+  }
+
+  stateSelect.addEventListener("change", function() {
+    updateCities(this.value, "");
+  });
+
+  // ─── 2. Education & Qualification Dependent Data ───
+  const eduQualData = {
+    "Engineering": [
+      "B.Tech 1st Year", "B.Tech 2nd Year", "B.Tech 3rd Year", "B.Tech 4th Year (Final Year)",
+      "B.Tech Passout", "M.Tech 1st Year", "M.Tech 2nd Year", "M.Tech Passout", "B.E. Student"
+    ],
+    "Medical": [
+      "MBBS", "BAMS", "BHMS", "BDS", "B.Pharm 1st/2nd Year", "B.Pharm Final Year",
+      "B.Pharm Passout", "D.Pharm", "B.Sc Nursing", "Paramedical", "Other Medical"
+    ],
+    "Management": [
+      "BBA 1st Year", "BBA 2nd Year", "BBA Final Year", "BBA Passout",
+      "MBA 1st Year", "MBA 2nd Year", "MBA Passout", "PGDM"
+    ],
+    "Arts & Commerce": [
+      "B.Com 1st Year", "B.Com Final Year", "B.Com Passout", "B.A. Student",
+      "M.Com", "M.A.", "B.Sc General"
+    ],
+    "Polytechnic / Diploma": [
+      "Diploma 1st Year", "Diploma 2nd Year", "Diploma 3rd Year (Final)", "Diploma Passout"
+    ],
+    "School Student": [
+      "10th Standard", "11th Science", "11th Commerce", "12th Science", "12th Commerce", "12th Passout"
+    ],
+    "Other": ["Graduation Passout", "Post-Graduation", "Working Professional", "Other Qualification"]
+  };
+
+  const eduSelect = document.getElementById("id_education");
+  const qualSelect = document.getElementById("id_qualification");
+
+  const existingEduVal = "{{ form.instance.education|default:form.education.value|default:''|escapejs }}".trim();
+  const existingQualVal = "{{ form.instance.qualification|default:form.qualification.value|default:''|escapejs }}".trim();
+
+  if (existingEduVal) {
+    for (let i = 0; i < eduSelect.options.length; i++) {
+      if (eduSelect.options[i].value.toLowerCase() === existingEduVal.toLowerCase()) {
+        eduSelect.options[i].selected = true;
+        break;
+      }
+    }
+  }
+
+  function updateQualifications(selectedEdu, targetQualVal) {
+    qualSelect.innerHTML = '<option value="">Select Qualification</option>';
+    if (!selectedEdu) return;
+
+    // Match exact or case-insensitive/partial education key
+    let eduKey = Object.keys(eduQualData).find(k => k.toLowerCase() === selectedEdu.toLowerCase() || selectedEdu.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(selectedEdu.toLowerCase()));
+    let qualList = eduKey ? eduQualData[eduKey] : null;
+
+    if (qualList) {
+      qualList.forEach(function(q) {
+        const opt = document.createElement("option");
+        opt.value = q;
+        opt.textContent = q;
+        if (targetQualVal && (targetQualVal === q || targetQualVal.toLowerCase() === q.toLowerCase())) {
+          opt.selected = true;
+        }
+        qualSelect.appendChild(opt);
+      });
+    } else {
+      const opt = document.createElement("option");
+      opt.value = "Other Qualification";
+      opt.textContent = "Other Qualification";
+      qualSelect.appendChild(opt);
+    }
+  }
+
+  if (eduSelect.value) {
+    updateQualifications(eduSelect.value, existingQualVal);
+  }
+
+  eduSelect.addEventListener("change", function() {
+    updateQualifications(this.value, "");
+  });
+
+  // ─── 3. Dynamic Admission Status Conditional Fields ───
+  const admissionStatusSelect = document.getElementById("id_admission_status");
+  const divFollowup = document.getElementById("div_followup_date");
+  const divAdmission = document.getElementById("div_admission_date");
+  const divReason = document.getElementById("div_cancellation_reason");
+
+  const inputFollowup = document.getElementById("custom_followup_date");
+  const inputAdmission = document.getElementById("custom_admission_date");
+  const inputReason = document.getElementById("custom_cancellation_reason");
+
+  function handleAdmissionStatusChange() {
+    const val = (admissionStatusSelect.value || "").toUpperCase();
+    
+    // Hide all first
+    divFollowup.classList.add("d-none");
+    divAdmission.classList.add("d-none");
+    divReason.classList.add("d-none");
+
+    inputFollowup.required = false;
+    inputAdmission.required = false;
+    inputReason.required = false;
+
+    if (val === "INTERESTED") {
+      divFollowup.classList.remove("d-none");
+      inputFollowup.required = true;
+    } else if (val === "APPLIED" || val === "ADMISSION_DONE") {
+      divAdmission.classList.remove("d-none");
+      inputAdmission.required = true;
+    } else if (val === "CANCELLED" || val === "LOST") {
+      divReason.classList.remove("d-none");
+      inputReason.required = true;
+    }
+  }
+
+  if (admissionStatusSelect) {
+    handleAdmissionStatusChange();
+    admissionStatusSelect.addEventListener("change", handleAdmissionStatusChange);
+  }
+
+  // ─── 4. Form Validation & Highlight Required Fields ───
+  const form = document.getElementById("zappLeadForm");
+  const errorBox = document.getElementById("formValidationErrorBox");
+
+  form.addEventListener("submit", function(e) {
+    let isValid = true;
+    errorBox.classList.add("d-none");
+
+    // Clear previous error classes
+    form.querySelectorAll(".is-invalid, .field-invalid").forEach(function(el) {
+      el.classList.remove("is-invalid", "field-invalid");
+    });
+
+    // Check all required inputs & selects
+    const requiredInputs = form.querySelectorAll("[required]");
+    requiredInputs.forEach(function(input) {
+      if (!input.value || input.value.trim() === "") {
+        isValid = false;
+        input.classList.add("is-invalid");
+        if (input.closest(".form-select") || input.closest("select")) {
+          input.classList.add("field-invalid");
         }
       }
     });
-  }
 
-  var mobileInput = document.querySelector('input[name="mobile"]');
-  var altMobileInput = document.querySelector('input[name="alternate_mobile"]');
+    if (!isValid) {
+      e.preventDefault();
+      errorBox.classList.remove("d-none");
+      const firstInvalid = form.querySelector(".is-invalid, .field-invalid");
+      if (firstInvalid) {
+        firstInvalid.focus();
+        firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  });
+
+  // Clear invalid styling on user input
+  form.querySelectorAll("input, select, textarea").forEach(function(el) {
+    el.addEventListener("change", function() {
+      if (this.value && this.value.trim() !== "") {
+        this.classList.remove("is-invalid", "field-invalid");
+      }
+    });
+    el.addEventListener("input", function() {
+      if (this.value && this.value.trim() !== "") {
+        this.classList.remove("is-invalid", "field-invalid");
+      }
+    });
+  });
+
+
+
+  // ─── 6. Mobile input numeric restriction ───
+  const mobileInput = document.querySelector('input[name="mobile"]');
+  const altMobileInput = document.querySelector('input[name="alternate_mobile"]');
 
   [mobileInput, altMobileInput].forEach(function(inp) {
     if (inp) {
@@ -138,14 +674,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
   if (!mobileInput) return;
 
-  var statusDiv = document.createElement('div');
+  const statusDiv = document.createElement('div');
   statusDiv.className = 'mt-1 small';
   mobileInput.parentNode.appendChild(statusDiv);
 
-  var timer = null;
+  let timer = null;
   mobileInput.addEventListener('input', function() {
     clearTimeout(timer);
-    var val = mobileInput.value.trim();
+    const val = mobileInput.value.trim();
     if (val.length < 8) {
       statusDiv.innerHTML = '';
       return;

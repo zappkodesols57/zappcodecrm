@@ -19,8 +19,7 @@ def admission_list(request):
 
     if request.user.hospital:
         admissions = admissions.filter(lead__hospital=request.user.hospital)
-    else:
-        admissions = admissions.filter(lead__hospital__isnull=True)
+    # Global Super Admin (no hospital): see all admissions - no filter needed
 
     # Dynamic Dashboard Stats (calculated before filters are applied)
     stats_all = admissions
@@ -223,7 +222,7 @@ def add_admission(request):
         form = DirectAdmissionForm(user=request.user)
 
     import json
-    courses_qs = Course.objects.filter(is_active=True, hospital=request.user.hospital) if request.user.hospital else Course.objects.filter(is_active=True, hospital__isnull=True)
+    courses_qs = Course.objects.filter(is_active=True, hospital=request.user.hospital) if request.user.hospital else Course.objects.filter(is_active=True)
     course_data = {
         str(c.id): {
             "name": c.name,

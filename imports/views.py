@@ -204,13 +204,19 @@ def upload(request):
     is_super_admin_no_hospital = bool(user.role == User.Role.SUPER_ADMIN and not user.hospital)
     can_import_previous = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER))
     
-    # Available campaigns with current leads count
+    # Determine if current scope is Hospital vs Zappcode Academy
+    is_hospital = bool(user.hospital or (user.is_hospital_user and not is_super_admin_no_hospital))
+
+    # Available campaigns & courses with current leads count
     from django.db.models import Count
     if user.hospital:
         campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
     else:
         campaigns = HospitalCampaign.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        # Global Super Admin: count all leads not scoped to any specific business
         current_leads_count = Lead.objects.filter(is_archived=False).count()
 
     all_hospitals = []
@@ -258,6 +264,7 @@ def upload(request):
         base_leads_qs = Lead.objects.filter(hospital=user.hospital, is_archived=False)
         base_jobs_qs = ImportJob.objects.filter(created_by__hospital=user.hospital)
     else:
+        # Global Super Admin: can see all leads across all businesses
         base_leads_qs = Lead.objects.filter(is_archived=False)
         base_jobs_qs = ImportJob.objects.all()
 
@@ -276,11 +283,12 @@ def upload(request):
         period_leads_qs = base_leads_qs
         period_jobs_qs = base_jobs_qs
 
+    total_period_leads = period_leads_qs.count()
+
+    # 1. Campaigns Breakdown (Hospital)
     campaigns_data = []
-    total_period_leads = 0
     for c in campaigns:
         p_cnt = period_leads_qs.filter(Q(campaign=c) | Q(custom_data__campaign=c.name)).count()
-        total_period_leads += p_cnt
         campaigns_data.append({
             "id": c.id,
             "name": c.name,
@@ -288,20 +296,34 @@ def upload(request):
             "period_leads": p_cnt,
             "all_time_leads": c.leads_count,
         })
-
-    # Sort so campaigns with active leads in this period appear first
     campaigns_data.sort(key=lambda x: x["period_leads"], reverse=True)
+
+    # 2. Courses Breakdown (Academy)
+    courses_data = []
+    for crs in courses:
+        p_cnt = period_leads_qs.filter(Q(course=crs) | Q(custom_data__course__icontains=crs.name)).count()
+        courses_data.append({
+            "id": crs.id,
+            "name": crs.name,
+            "category": getattr(crs, "category", "") or "Technology",
+            "period_leads": p_cnt,
+            "all_time_leads": crs.leads_count,
+        })
+    courses_data.sort(key=lambda x: x["period_leads"], reverse=True)
 
     # Only show files that actually created/imported leads (> 0) in this period
     recent_jobs = period_jobs_qs.filter(imported_count__gt=0).order_by('-created_at')[:15]
-    hospital_name = user.hospital.name if user.hospital else "Zappcode CRM"
+    hospital_name = user.hospital.name if (user.hospital and is_hospital) else "Zappcode Academy"
 
     context = {
         "active": "import",
+        "is_hospital": is_hospital,
         "is_super_admin_no_hospital": is_super_admin_no_hospital,
         "can_import_previous": can_import_previous,
         "available_campaigns": campaigns,
+        "available_courses": courses,
         "campaigns_data": campaigns_data,
+        "courses_data": courses_data,
         "total_period_leads": total_period_leads,
         "recent_jobs": recent_jobs,
         "hospital_name": hospital_name,
@@ -314,6 +336,40 @@ def upload(request):
         "current_leads_count": current_leads_count,
     }
     return render(request, "imports/upload.html", context)
+
+
+@login_required
+@user_passes_test(_can_user_access_import)
+def ajax_create_course(request):
+    """Creates a new Course via AJAX from the import screen."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method"}, status=400)
+
+    name = request.POST.get("name", "").strip()
+    if not name:
+        return JsonResponse({"success": False, "error": "Course name is required."})
+
+    hospital_id = request.POST.get("hospital_id", "").strip()
+    target_hospital = None
+    if hospital_id:
+        target_hospital = Hospital.objects.filter(pk=hospital_id).first()
+    elif request.user.hospital and "zappcode" not in (request.user.hospital.name or "").lower():
+        target_hospital = request.user.hospital
+
+    course, created = Course.objects.get_or_create(
+        name=name,
+        hospital=target_hospital,
+        defaults={"is_active": True}
+    )
+
+    return JsonResponse({
+        "success": True,
+        "course": {
+            "id": course.id,
+            "name": course.name,
+            "hospital_id": course.hospital_id,
+        }
+    })
 
 
 @login_required
@@ -403,16 +459,7 @@ def campaign_import_process(request):
     elif request.user.hospital:
         target_hospital = request.user.hospital
 
-    # Determine Campaign
-    campaign = None
-    if campaign_id:
-        campaign = HospitalCampaign.objects.filter(pk=campaign_id).first()
-
-    if not campaign:
-        messages.error(request, "Please select or create a Campaign for these leads.")
-        return redirect("imports:upload")
-
-    # Parse dataframe
+    # Parse dataframe first
     try:
         df = parse_any_file_to_dataframe(uploaded_file)
     except Exception as e:
@@ -421,6 +468,34 @@ def campaign_import_process(request):
 
     if df is None or len(df) == 0:
         messages.error(request, "The uploaded file is empty.")
+        return redirect("imports:upload")
+
+    # Determine Campaign
+    campaign = None
+    if campaign_id:
+        campaign = HospitalCampaign.objects.filter(pk=campaign_id).first()
+
+    # If no campaign selected, auto-resolve from Form Name column or filename
+    if not campaign:
+        auto_campaign_name = ""
+        for col in ["Form Name", "form_name", "Campaign Name", "campaign_name", "Campaign"]:
+            if col in df.columns and df[col].dropna().count() > 0:
+                auto_campaign_name = str(df[col].dropna().iloc[0]).strip()
+                break
+        
+        if not auto_campaign_name:
+            import os
+            auto_campaign_name = os.path.splitext(uploaded_file.name)[0].replace("_", " ").strip()
+            
+        if auto_campaign_name:
+            campaign, _ = HospitalCampaign.objects.get_or_create(
+                name=auto_campaign_name,
+                hospital=target_hospital,
+                defaults={"platform": "Meta Ads", "is_active": True}
+            )
+
+    if not campaign:
+        messages.error(request, "Please select or create a Campaign for these leads.")
         return redirect("imports:upload")
 
     # Clean and extract campaign rows
@@ -554,12 +629,30 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 source_cache[source_name] = src_obj
             lead_source_obj = source_cache[source_name]
 
+            # Course resolution
+            course_obj = None
+            course_name = r.get("course_name", "")
+            if course_name:
+                course_obj = Course.objects.filter(
+                    Q(name__iexact=course_name) | Q(name__icontains=course_name)
+                ).first()
+                if not course_obj:
+                    course_obj = Course.objects.create(
+                        name=course_name,
+                        hospital=target_hospital,
+                        is_active=True
+                    )
+
             # If duplicate and user chose update
             if r.get("is_duplicate") and action == "update" and r.get("existing_lead_id"):
                 existing = Lead.objects.filter(pk=r["existing_lead_id"]).first()
                 if existing:
                     if email and not existing.email:
                         existing.email = email
+                    if r.get("city") and not existing.city:
+                        existing.city = r.get("city")
+                    if course_obj and not existing.course:
+                        existing.course = course_obj
                     if campaign:
                         existing.campaign = campaign
                     if notes:
@@ -579,6 +672,9 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 name=name,
                 mobile=mobile,
                 email=email,
+                city=r.get("city", ""),
+                location=r.get("city", ""),
+                course=course_obj,
                 hospital=target_hospital,
                 campaign=campaign,
                 source_category=default_cat,
@@ -1263,40 +1359,68 @@ def export_leads(request):
 @user_passes_test(_can_user_access_import)
 def download_template(request):
     """
-    Downloads Hospital-Specific Lead Import Template with Department, Doctor, Appointment Status, etc.
+    Downloads entity-specific Lead Import Template:
+    - Hospital template for Nelson / Hospital users.
+    - Student/Course template for Zappcode Academy users.
     """
     from openpyxl import Workbook
     from openpyxl.worksheet.datavalidation import DataValidation
     from openpyxl.styles import Font, PatternFill, Alignment
     from leads.models import (
         HospitalDepartment, HospitalDoctor, HospitalBranch, 
-        LeadSource, LeadTemperature, AppointmentStatus, Campaign as HospitalCampaign
+        LeadSource, LeadTemperature, AppointmentStatus, Campaign as HospitalCampaign, Course
     )
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Hospital Leads Template"
 
-    headers = [
-        "Inquiry Date", 
-        "Patient Name", 
-        "Mobile", 
-        "Alternate Mobile", 
-        "Email", 
-        "Location / City", 
-        "Department", 
-        "Doctor / Consultant", 
-        "Campaign",
-        "Lead Source", 
-        "Lead Priority / Temp", 
-        "Appointment Status", 
-        "Notes / Medical Concern"
-    ]
+    is_hospital = request.user.is_hospital_user
+
+    if is_hospital:
+        ws.title = "Hospital Leads Template"
+        headers = [
+            "Inquiry Date", 
+            "Patient Name", 
+            "Mobile", 
+            "Alternate Mobile", 
+            "Email", 
+            "Location / City", 
+            "Department", 
+            "Doctor / Consultant", 
+            "Campaign",
+            "Lead Source", 
+            "Lead Priority / Temp", 
+            "Appointment Status", 
+            "Notes / Medical Concern"
+        ]
+        sample_row = [
+            "10-09-2026", "Ramesh Kumar", "9876543210", "", "ramesh@example.com",
+            "Nagpur", "NEUROLOGY", "Dr. Sharma", "Nelson Neuro Camp", "Meta Ads", "Hot", "Booked", "Consultation needed"
+        ]
+    else:
+        ws.title = "Zappcode Leads Template"
+        headers = [
+            "Inquiry Date",
+            "Full Name",
+            "Phone",
+            "Email",
+            "City",
+            "Course / Service",
+            "Lead Source",
+            "Campaign Name",
+            "Timeline",
+            "Notes / Query"
+        ]
+        sample_row = [
+            "10-09-2026", "Rahul Verma", "9876543210", "rahul@example.com",
+            "Nagpur", "Data Analytics", "Meta Ads", "Python & Data Science Campaign", "Immediate", "Looking for placement assistance"
+        ]
     
     ws.append(headers)
+    ws.append(sample_row)
 
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
+    header_fill = PatternFill(start_color="4F46E5" if not is_hospital else "1F497D", end_color="4F46E5" if not is_hospital else "1F497D", fill_type="solid")
     align_center = Alignment(horizontal="center", vertical="center")
     
     for col_idx, header in enumerate(headers, start=1):
@@ -1305,91 +1429,111 @@ def download_template(request):
         cell.fill = header_fill
         cell.alignment = align_center
 
-    sample_row = [
-        "2026-08-23",
-        "Adarsh Verma",
-        "9617696888",
-        "",
-        "adarshverma753@gmail.com",
-        "Nagpur",
-        "Gynaecology",
-        "Dr. Pradeep Patil",
-        "LuxeFreeHealthCheckup_Aug21st",
-        "Instagram",
-        "HOT",
-        "PENDING_APPROVAL",
-        "Interested in consultation (4-6 months pregnant)"
-    ]
-    ws.append(sample_row)
-
     sample_font = Font(name="Calibri", size=10, italic=True, color="595959")
     for col_idx in range(1, len(headers) + 1):
         cell = ws.cell(row=2, column=col_idx)
         cell.font = sample_font
 
     user_hospital = request.user.hospital
-    if user_hospital:
-        departments = list(HospitalDepartment.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
-        doctors = list(HospitalDoctor.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
-        campaigns = list(HospitalCampaign.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
-    else:
-        departments = list(HospitalDepartment.objects.filter(is_active=True).values_list("name", flat=True))
-        doctors = list(HospitalDoctor.objects.filter(is_active=True).values_list("name", flat=True))
-        campaigns = list(HospitalCampaign.objects.filter(is_active=True).values_list("name", flat=True))
-
-    sources = list(LeadSource.objects.filter(is_active=True).values_list("name", flat=True))
-    if not sources:
-        sources = ["Instagram", "Facebook", "Meta Ads", "Google Ads", "Website", "WhatsApp", "Walk-in"]
-        
-    temperatures = ["HOT", "WARM", "COLD", "UNCONTACTED"]
-    appt_statuses = [choice[0] for choice in AppointmentStatus.choices]
-
     data_ws = wb.create_sheet(title="DropdownData")
-    
-    for idx, item in enumerate(departments, start=1):
-        data_ws.cell(row=idx, column=1, value=item)
-    for idx, item in enumerate(doctors, start=1):
-        data_ws.cell(row=idx, column=2, value=item)
-    for idx, item in enumerate(campaigns, start=1):
-        data_ws.cell(row=idx, column=3, value=item)
-    for idx, item in enumerate(sources, start=1):
-        data_ws.cell(row=idx, column=4, value=item)
-    for idx, item in enumerate(temperatures, start=1):
-        data_ws.cell(row=idx, column=5, value=item)
-    for idx, item in enumerate(appt_statuses, start=1):
-        data_ws.cell(row=idx, column=6, value=item)
+
+    if is_hospital:
+        if user_hospital:
+            departments = list(HospitalDepartment.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
+            doctors = list(HospitalDoctor.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
+            campaigns = list(HospitalCampaign.objects.filter(hospital=user_hospital, is_active=True).values_list("name", flat=True))
+        else:
+            departments = list(HospitalDepartment.objects.filter(is_active=True).values_list("name", flat=True))
+            doctors = list(HospitalDoctor.objects.filter(is_active=True).values_list("name", flat=True))
+            campaigns = list(HospitalCampaign.objects.filter(is_active=True).values_list("name", flat=True))
+
+        sources = list(LeadSource.objects.filter(is_active=True).values_list("name", flat=True))
+        if not sources:
+            sources = ["Instagram", "Facebook", "Meta Ads", "Google Ads", "Website", "WhatsApp", "Walk-in"]
+            
+        temperatures = ["HOT", "WARM", "COLD", "UNCONTACTED"]
+        appt_statuses = [choice[0] for choice in AppointmentStatus.choices]
+        
+        for idx, item in enumerate(departments, start=1):
+            data_ws.cell(row=idx, column=1, value=item)
+        for idx, item in enumerate(doctors, start=1):
+            data_ws.cell(row=idx, column=2, value=item)
+        for idx, item in enumerate(campaigns, start=1):
+            data_ws.cell(row=idx, column=3, value=item)
+        for idx, item in enumerate(sources, start=1):
+            data_ws.cell(row=idx, column=4, value=item)
+        for idx, item in enumerate(temperatures, start=1):
+            data_ws.cell(row=idx, column=5, value=item)
+        for idx, item in enumerate(appt_statuses, start=1):
+            data_ws.cell(row=idx, column=6, value=item)
+
+        def add_validation(col_letter, data_col_letter, count, prompt):
+            if count == 0:
+                return
+            dv = DataValidation(
+                type="list", 
+                formula1=f"DropdownData!${data_col_letter}$1:${data_col_letter}${count}", 
+                allow_blank=True
+            )
+            dv.error = 'Your entry is not in the list'
+            dv.errorTitle = 'Invalid Entry'
+            dv.prompt = prompt
+            dv.promptTitle = 'Select from list'
+            ws.add_data_validation(dv)
+            dv.add(f"{col_letter}3:{col_letter}1000")
+
+        add_validation("G", "A", len(departments), "Select a department")
+        add_validation("H", "B", len(doctors), "Select a doctor")
+        add_validation("I", "C", len(campaigns), "Select a campaign")
+        add_validation("J", "D", len(sources), "Select a lead source")
+        add_validation("K", "E", len(temperatures), "Select temperature / priority")
+        add_validation("L", "F", len(appt_statuses), "Select appointment status")
+    else:
+        # Zappcode Academy Template dropdowns
+        courses = list(Course.objects.filter(is_active=True).values_list("name", flat=True))
+        if not courses:
+            courses = ["Full Stack Python", "Data Analytics", "Java Full Stack", "Web Development", "UI/UX Design", "Digital Marketing"]
+        sources = list(LeadSource.objects.filter(is_active=True).values_list("name", flat=True))
+        if not sources:
+            sources = ["Meta Ads", "Google Ads", "Instagram", "Facebook", "LinkedIn", "Website", "Walk-in", "Referral"]
+        timelines = ["Immediate", "Within 1 Week", "Within 1 Month", "Next Batch", "Information Only"]
+
+        for idx, item in enumerate(courses, start=1):
+            data_ws.cell(row=idx, column=1, value=item)
+        for idx, item in enumerate(sources, start=1):
+            data_ws.cell(row=idx, column=2, value=item)
+        for idx, item in enumerate(timelines, start=1):
+            data_ws.cell(row=idx, column=3, value=item)
+
+        def add_validation(col_letter, data_col_letter, count, prompt):
+            if count == 0:
+                return
+            dv = DataValidation(
+                type="list", 
+                formula1=f"DropdownData!${data_col_letter}$1:${data_col_letter}${count}", 
+                allow_blank=True
+            )
+            dv.error = 'Your entry is not in the list'
+            dv.errorTitle = 'Invalid Entry'
+            dv.prompt = prompt
+            dv.promptTitle = 'Select from list'
+            ws.add_data_validation(dv)
+            dv.add(f"{col_letter}3:{col_letter}1000")
+
+        add_validation("F", "A", len(courses), "Select a course")
+        add_validation("G", "B", len(sources), "Select a lead source")
+        add_validation("I", "C", len(timelines), "Select enrollment timeline")
 
     data_ws.sheet_state = "hidden"
-
-    def add_validation(col_letter, data_col_letter, count, prompt):
-        if count == 0:
-            return
-        dv = DataValidation(
-            type="list", 
-            formula1=f"DropdownData!${data_col_letter}$1:${data_col_letter}${count}", 
-            allow_blank=True
-        )
-        dv.error = 'Your entry is not in the list'
-        dv.errorTitle = 'Invalid Entry'
-        dv.prompt = prompt
-        dv.promptTitle = 'Select from list'
-        ws.add_data_validation(dv)
-        dv.add(f"{col_letter}3:{col_letter}1000")
-
-    add_validation("G", "A", len(departments), "Select a department")
-    add_validation("H", "B", len(doctors), "Select a doctor")
-    add_validation("I", "C", len(campaigns), "Select a campaign")
-    add_validation("J", "D", len(sources), "Select a lead source")
-    add_validation("K", "E", len(temperatures), "Select temperature / priority")
-    add_validation("L", "F", len(appt_statuses), "Select appointment status")
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
         col_letter = col[0].column_letter
         ws.column_dimensions[col_letter].width = max(max_len + 3, 15)
 
+    filename = "nelson_hospital_leads_template.xlsx" if is_hospital else "zappcode_academy_leads_template.xlsx"
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="nelson_hospital_leads_template.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
 
@@ -1435,7 +1579,14 @@ def quick_import(request):
         df.columns = [str(c).strip() for c in df.columns]
         cols = list(df.columns)
         
-        # Smart Dynamic Column Matcher
+        target_hospital_id = request.POST.get("target_hospital_id")
+        user_hospital = None
+        if target_hospital_id:
+            user_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
+        elif request.user.hospital and "zappcode" not in (request.user.hospital.name or "").lower():
+            user_hospital = request.user.hospital
+
+        # Dynamic Column Matcher
         def find_matching_col(aliases):
             for col in cols:
                 c_clean = col.lower().replace("_", " ").strip()
@@ -1448,6 +1599,7 @@ def quick_import(request):
         col_mobile = find_matching_col(["phone_number", "phone number", "mobile number", "mobile", "phone", "contact number", "contact", "call number", "whatsapp number", "whatsapp", "cell"])
         col_email = find_matching_col(["email address", "e-mail", "email", "mail"])
         col_city = find_matching_col(["city", "location", "address", "area", "town", "district"])
+        col_course = find_matching_col(["course / service", "course", "service", "program", "stream", "specialization"])
         col_gender = find_matching_col(["gender", "sex", "m/f"])
         col_age = find_matching_col(["age", "years", "yrs"])
         col_doctor = find_matching_col(["doctor", "dr name", "consultant", "physician", "surgeon"])
@@ -1468,7 +1620,6 @@ def quick_import(request):
             return redirect("imports:upload")
             
         default_stage = _default_stage()
-        user_hospital = request.user.hospital
         from leads.models import Campaign as HospitalCampaign
         
         imported = updated = skipped = duplicate = invalid = 0
@@ -1513,6 +1664,7 @@ def quick_import(request):
                 
             email = str(row.get(col_email, "") or "").strip() if col_email else ""
             city = str(row.get(col_city, "") or "").strip() if col_city else ""
+            course_val = str(row.get(col_course, "") or "").strip() if col_course else ""
             gender = str(row.get(col_gender, "") or "").strip() if col_gender else ""
             age_val = row.get(col_age, "") if col_age else ""
             doctor_val = str(row.get(col_doctor, "") or "").strip() if col_doctor else ""
@@ -1527,7 +1679,7 @@ def quick_import(request):
             base_notes = str(row.get(col_notes, "") or "").strip() if col_notes else ""
             
             # Auto-gather survey questions from other columns (e.g. Hindi/Marathi questions, pregnant months, etc.)
-            known_cols = [c for c in [col_name, col_mobile, col_email, col_city, col_gender, col_age, col_doctor, col_dept, col_campaign, col_source, col_assigned, col_date, col_notes] if c]
+            known_cols = [c for c in [col_name, col_mobile, col_email, col_city, col_course, col_gender, col_age, col_doctor, col_dept, col_campaign, col_source, col_assigned, col_date, col_notes] if c]
             survey_notes = []
             for col in cols:
                 if col not in known_cols:
@@ -1558,6 +1710,19 @@ def quick_import(request):
                 
             cat, src = _get_or_create_source(source_cat, source_name)
             
+            # Course matching
+            course_obj = None
+            if course_val and course_val.lower() not in ("nan", "none", "null", "-"):
+                course_obj = Course.objects.filter(
+                    Q(name__iexact=course_val) | Q(name__icontains=course_val)
+                ).first()
+                if not course_obj:
+                    course_obj = Course.objects.create(
+                        name=course_val,
+                        hospital=user_hospital,
+                        is_active=True
+                    )
+
             campaign_obj = None
             if campaign_val:
                 if user_hospital:
@@ -1573,6 +1738,8 @@ def quick_import(request):
                     )
                     
             custom_data_payload = {}
+            if course_val:
+                custom_data_payload["course"] = course_val
             if doctor_val:
                 custom_data_payload["doctor"] = doctor_val
             if dept_val:
@@ -1587,6 +1754,8 @@ def quick_import(request):
             if existing and on_duplicate == "update":
                 existing.city = city or existing.city
                 existing.email = email or existing.email
+                if course_obj and not existing.course:
+                    existing.course = course_obj
                 if assigned_user:
                     existing.assigned_to = assigned_user
                 if campaign_obj:
@@ -1603,6 +1772,7 @@ def quick_import(request):
                 Lead.objects.create(
                     name=name, mobile=mobile, alternate_mobile=alt_mobile,
                     email=email, city=city, location=city,
+                    course=course_obj,
                     campaign=campaign_obj,
                     assigned_to=assigned_user,
                     temperature="HOT", stage=default_stage,

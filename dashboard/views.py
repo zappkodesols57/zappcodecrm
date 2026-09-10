@@ -23,7 +23,7 @@ from imports.models import ImportJob
 def home(request):
     from accounts.models import User
     # If user belongs to a specific hospital role, send them directly to their dedicated dashboard
-    if request.user.hospital:
+    if request.user.hospital and request.user.is_hospital_user:
         if request.user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_home")
         elif request.user.role == User.Role.DOCTOR:
@@ -39,16 +39,34 @@ def home(request):
     today = timezone.localdate()
     leads = Lead.objects.filter(is_archived=False)
 
-    if not request.user.can_view_all_leads:
-        if request.user.can_view_team_leads:
-            # View leads assigned to team members reporting to this user
-            team = User.objects.filter(reports_to=request.user)
-            leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
-        elif request.user.can_view_assigned_leads:
-            leads = leads.filter(assigned_to=request.user)
-        else:
-            # Can't view any leads
-            leads = leads.none()
+    # --- Business-Tenant Scoping ---
+    # Any user assigned to a business sees only that business's leads.
+    # Global Super Admin (no hospital) can see all leads across businesses.
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    if request.user.hospital:
+        # Tenant user: always scoped to their business
+        leads = leads.filter(hospital=request.user.hospital)
+        if not request.user.can_view_all_leads:
+            if request.user.can_view_team_leads:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+            elif request.user.role == User.Role.MANAGER:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+            elif request.user.can_view_assigned_leads:
+                # Counsellors / HR: see assigned leads, leads created by them, or fresh unassigned leads in their business
+                leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
+            else:
+                leads = leads.none()
+    elif is_global_admin:
+        # Global Super Admin: can see all leads (or filter by a selected hospital)
+        pass  # No hospital filter - sees everything
+    else:
+        # Fallback safety: no hospital and not super admin - show nothing
+        leads = leads.none()
 
     # 1. Apply Filters
     q = request.GET.get("q", "").strip()
@@ -94,36 +112,54 @@ def home(request):
     # 2. Compute KPIs based on user filtered leads matching exact requirements
     total_leads = leads.count()
     
-    # 1. Uncontacted: Today's new leads jo abhi tak contact/edit nahi hui (created today & uncontacted/no followups)
-    uncontacted_today = leads.filter(
-        Q(created_at__date=today) | Q(inquiry_date=today),
-        temperature="UNCONTACTED",
-        followup_count=0
+    # 1. Today's New Leads: Leads created or inquired today
+    todays_new_leads = leads.filter(
+        Q(created_at__date=today) | Q(inquiry_date=today)
     ).count()
 
-    # 2. Contacted: Aaj ki contacted ya edited leads count
-    from followups.models import FollowUp
-    contacted_lead_ids = set(FollowUp.objects.filter(lead__in=leads, created_at__date=today).values_list("lead_id", flat=True))
-    # also include leads edited/updated today that are not uncontacted
-    edited_today_ids = set(leads.filter(updated_at__date=today).exclude(temperature="UNCONTACTED").values_list("id", flat=True))
-    contacted_today = len(contacted_lead_ids.union(edited_today_ids))
+    # 2. Call Not Done: Leads pending initial call / 0 follow-ups / uncontacted
+    call_not_done = leads.filter(
+        Q(followup_count=0) | Q(temperature="UNCONTACTED")
+    ).count()
 
-    # 3. Booked: Aaj ki booked leads
-    booked_today = leads.filter(
+    # 3. Admission Today: Admissions enrolled / done today
+    admission_today = leads.filter(
+        Q(admission_status="ADMISSION_DONE") | 
         Q(deal_status="WON") | 
-        Q(admission_status="ADMISSION_DONE") |
-        Q(admission__admission_date=today) |
-        Q(custom_data__appo_booked_date=str(today)) |
-        Q(custom_data__appointment_status__icontains="Booked")
+        Q(admission__admission_date=today) | 
+        Q(custom_data__admission_date=str(today))
     ).filter(
-        Q(updated_at__date=today) | Q(created_at__date=today) | Q(admission__created_at__date=today)
+        Q(updated_at__date=today) | Q(created_at__date=today) | Q(admission__created_at__date=today) | Q(inquiry_date=today)
     ).distinct().count()
 
-    # 4. Overdue: Vo leads jinka followup time aaj ya aaj se pehle tha (<= today) and pending
-    overdue_leads_count = leads.filter(
+    # 4. Billing Done Today: Payments received today
+    billing_today = Payment.objects.filter(
+        payment_status=PaymentStatus.SUCCESS,
+        created_at__date=today,
+        admission__lead__in=leads
+    ).aggregate(s=Sum("amount"))["s"] or 0
+    billing_count_today = Payment.objects.filter(
+        payment_status=PaymentStatus.SUCCESS,
+        created_at__date=today,
+        admission__lead__in=leads
+    ).count()
+    if billing_count_today == 0:
+        # Check custom_data billing fallback
+        billing_count_today = leads.filter(
+            (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]) & Q(updated_at__date=today))
+        ).count()
+
+    # 5. Upcoming Follow-ups: Next followup date in the future (> today)
+    upcoming_followups = leads.filter(
+        next_followup_date__gt=today
+    ).count()
+
+    # 6. Overdue Follow-ups: Followup date <= today and pending
+    overdue_followups = leads.filter(
         next_followup_date__lte=today
     ).count()
 
+    # Also keep legacy metrics for backward compatibility if needed
     admissions_qs = Admission.objects.filter(lead__in=leads)
     admissions = admissions_qs.count()
     conversion_rate = round((admissions / total_leads * 100), 1) if total_leads else 0
@@ -171,9 +207,13 @@ def home(request):
     course_labels = [c["course__name"] or "Unspecified" for c in course_data]
     course_counts = [c["count"] for c in course_data]
 
-    # 7. Dropdowns for filters
-    if request.user.role in ('COUNSELLOR', 'HR'):
-        active_leads_all = Lead.objects.filter(is_archived=False, assigned_to=request.user)
+    # 7. Dropdowns for filters - scoped to current user's business
+    if request.user.hospital:
+        active_leads_all = Lead.objects.filter(is_archived=False, hospital=request.user.hospital)
+        if request.user.role in ('COUNSELLOR', 'HR'):
+            active_leads_all = active_leads_all.filter(
+                Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
+            )
     else:
         active_leads_all = Lead.objects.filter(is_archived=False)
 
@@ -220,10 +260,17 @@ def home(request):
         "active": "dashboard",
         "kpis": {
             "total_leads": total_leads,
-            "uncontacted": uncontacted_today,
-            "contacted_today": contacted_today,
-            "booked_today": booked_today,
-            "overdue": overdue_leads_count,
+            "todays_new": todays_new_leads,
+            "call_not_done": call_not_done,
+            "admission_today": admission_today,
+            "billing_today": billing_today,
+            "billing_count_today": billing_count_today,
+            "upcoming_followups": upcoming_followups,
+            "overdue_followups": overdue_followups,
+            "uncontacted": todays_new_leads,
+            "contacted_today": total_leads - call_not_done,
+            "booked_today": admission_today,
+            "overdue": overdue_followups,
             "admissions": admissions,
             "conversion_rate": conversion_rate,
             "revenue": revenue,
@@ -265,7 +312,7 @@ def superadmin_home(request):
     import calendar
 
     if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
-        raise PermissionDenied("This dashboard is restricted to Business Admins & Managers.")
+        return redirect("dashboard:home")
 
     today = timezone.localdate()
     user = request.user

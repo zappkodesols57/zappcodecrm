@@ -169,7 +169,47 @@ Features:
             </div>
           </div>
 
-          <!-- 2. Assigned To (My Leads vs Unassigned) -->
+          <!-- 2. Course Interested (Academy) -->
+          {% if courses %}
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attCourseFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-solid fa-graduation-cap me-2 text-primary"></i> Course Interested</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse show ps-2 pe-1 pt-2" id="attCourseFilter">
+              <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+                {% for crs in courses %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="course" value="{{ crs.id }}" id="att_crs_{{ crs.id }}" {% if crs.id|stringformat:'s' in request_get.course or crs.name in request_get.course %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_crs_{{ crs.id }}" style="font-size: 0.82rem;">{{ crs.name }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- 2b. Date Period -->
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attDateFilter" role="button" style="font-size: 0.86rem;">
+              <span><i class="fa-regular fa-calendar me-2 text-primary"></i> Inquiry Date</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse {% if date_from_val or date_to_val %}show{% endif %} ps-2 pe-1 pt-2" id="attDateFilter">
+              <div class="mb-2">
+                <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">From Date</label>
+                <input type="date" name="date_from" class="form-control form-control-sm py-0 px-2" value="{{ date_from_val }}" style="font-size: 0.8rem;">
+              </div>
+              <div>
+                <label class="form-label text-muted mb-0" style="font-size: 0.7rem;">To Date</label>
+                <input type="date" name="date_to" class="form-control form-control-sm py-0 px-2" value="{{ date_to_val }}" style="font-size: 0.8rem;">
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Assigned To (My Leads vs Unassigned) -->
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attAssignedFilter" role="button" style="font-size: 0.86rem;">
@@ -192,7 +232,7 @@ Features:
             </div>
           </div>
 
-          <!-- 3. Lead Source -->
+          <!-- 4. Lead Source -->
           {% if hospital_sources or lead_sources %}
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
