@@ -23,6 +23,9 @@ class DailyReport(models.Model):
     leads_visited = models.PositiveIntegerField(default=0, verbose_name="Student Visits (Leads Visited)")
     admissions_done = models.PositiveIntegerField(default=0, verbose_name="Admissions Completed Today")
     fees_collected = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Fees Payments Collected (₹)")
+    payments_done = models.PositiveIntegerField(default=0, verbose_name="Payments Done Count")
+    pending_leads = models.PositiveIntegerField(default=0, verbose_name="Pending Leads")
+    tomorrow_followups = models.PositiveIntegerField(default=0, verbose_name="Tomorrow's Follow-ups")
     follow_ups_pending = models.PositiveIntegerField(default=0, verbose_name="Follow-ups Pending")
     follow_ups_taken = models.PositiveIntegerField(default=0, verbose_name="Follow-ups Taken Today")
 
@@ -36,9 +39,17 @@ class DailyReport(models.Model):
     tomorrow_priority = models.TextField(blank=True, verbose_name="Tomorrow's Priority / Plan")
     other_updates = models.TextField(blank=True, verbose_name="Other Updates / Summary")
 
-    # Mood / Energy self-rating (1–5)
-    MOOD_CHOICES = [(1, "😞 Very Low"), (2, "😕 Low"), (3, "😐 Okay"), (4, "🙂 Good"), (5, "😄 Excellent")]
-    mood_rating = models.PositiveSmallIntegerField(default=3, choices=MOOD_CHOICES, verbose_name="Energy / Mood Rating")
+    # Mood / Energy self-rating
+    MOOD_CHOICES = [
+        ("Great", "😄 Great"),
+        ("Good", "🙂 Good"),
+        ("Moderate", "😐 Moderate"),
+        ("Tired", "🥱 Tired"),
+        ("Exhausted", "😫 Exhausted"),
+        ("Sick", "🤒 Sick"),
+    ]
+    mood = models.CharField(max_length=30, choices=MOOD_CHOICES, default="Good", verbose_name="Today's Mood")
+    mood_rating = models.PositiveSmallIntegerField(default=3, verbose_name="Energy / Mood Rating")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -46,6 +57,21 @@ class DailyReport(models.Model):
     class Meta:
         ordering = ["-report_date", "-created_at"]
         unique_together = ("user", "report_date")
+
+    @property
+    def mood_display(self):
+        mood_map = {
+            "Great": "😄 Great",
+            "Good": "🙂 Good",
+            "Moderate": "😐 Moderate",
+            "Tired": "🥱 Tired",
+            "Exhausted": "😫 Exhausted",
+            "Sick": "🤒 Sick",
+        }
+        if self.mood and self.mood in mood_map:
+            return mood_map[self.mood]
+        legacy_map = {1: "😞 Very Low", 2: "😕 Low", 3: "😐 Moderate", 4: "🙂 Good", 5: "😄 Great"}
+        return legacy_map.get(self.mood_rating, "🙂 Good")
 
     def __str__(self):
         return f"{self.user.username} - {self.report_date}"

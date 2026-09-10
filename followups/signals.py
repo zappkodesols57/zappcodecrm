@@ -13,12 +13,21 @@ def _followup_activity(sender, instance, created, **kwargs):
             description=f"[{instance.get_followup_mode_display()}] {instance.get_followup_status_display()}: {instance.comment or '(no comment)'}",
             created_by=instance.created_by,
         )
-    # refresh denormalized cache on Lead
+    # Refresh denormalized cache on Lead
+    today_date = __import__('datetime').date.today()
     latest = lead.followups.order_by("-followup_date", "-followup_time").first()
-    upcoming = lead.followups.filter(next_followup_date__isnull=False).order_by("-followup_date").first()
+    # Get the nearest upcoming follow-up (soonest future next_followup_date)
+    upcoming = lead.followups.filter(
+        next_followup_date__isnull=False,
+        next_followup_date__gte=today_date
+    ).order_by("next_followup_date").first()
+    # If no future follow-up, take the most recently scheduled one (so old dates still show)
+    if not upcoming:
+        upcoming = lead.followups.filter(next_followup_date__isnull=False).order_by("-next_followup_date").first()
+
     lead.last_followup_date = latest.followup_date if latest else lead.last_followup_date
-    lead.next_followup_date = upcoming.next_followup_date if upcoming else lead.next_followup_date
-    lead.next_followup_time = upcoming.next_followup_time if upcoming else lead.next_followup_time
+    lead.next_followup_date = upcoming.next_followup_date if upcoming else None
+    lead.next_followup_time = upcoming.next_followup_time if upcoming else None
     lead.followup_count = lead.followups.count()
     Lead = lead.__class__
     Lead.objects.filter(pk=lead.pk).update(

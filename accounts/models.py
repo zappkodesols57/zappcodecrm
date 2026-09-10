@@ -97,20 +97,31 @@ class User(AbstractUser):
     custom_permissions = models.JSONField(default=dict, blank=True)
 
     @property
-    def is_hospital_user(self):
-        """True if user belongs to a hospital-type business (not academy/education).
-        Determined by hospital.settings['business_type'] == 'hospital'.
-        Defaults to True if business_type is not set (legacy hospitals).
+    def business_type(self):
+        """
+        Returns the business type of the user's assigned tenant/organization:
+        - 'hospital': Healthcare / clinic tenants (e.g. Nelson Hospital)
+        - 'academy': Education / coaching / Zappcode Academy tenants
         """
         if not self.hospital:
-            return False
-        btype = (self.hospital.settings or {}).get("business_type", "hospital")
-        return btype == "hospital"
+            return "academy"
+        btype = (self.hospital.settings or {}).get("business_type")
+        if btype:
+            return str(btype).strip().lower()
+        name_lower = (self.hospital.name or "").lower()
+        if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
+            return "hospital"
+        return "academy"
+
+    @property
+    def is_hospital_user(self):
+        """True if user belongs to a hospital-type business."""
+        return self.business_type == "hospital"
 
     @property
     def is_zappcode_user(self):
-        """True if user is not a hospital-type business user (academy, education, etc.) or global super admin."""
-        return not self.is_hospital_user
+        """True if user belongs to academy/education business or global Zappcode super admin."""
+        return self.business_type == "academy"
 
     @property
     def custom_role_display(self):

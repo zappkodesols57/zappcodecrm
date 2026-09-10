@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
-from leads.models import Lead, LeadSource, SourceCategory, Course, Campaign, LeadStage, Appointment, AppointmentStatus
+from leads.models import Lead, LeadSource, SourceCategory, Course, Campaign, LeadStage, Appointment, AppointmentStatus, DealStatus, LeadTemperature
 from admissions.models import Admission
 from payments.models import Payment, PaymentStatus
 from accounts.models import User
@@ -259,15 +259,26 @@ def home(request):
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]) & Q(updated_at__date=today))
         ).count()
 
-    # 5. Upcoming Follow-ups: Next followup date in the future (> today)
-    upcoming_followups = leads.filter(
-        next_followup_date__gt=today
-    ).count()
+    # 5. Upcoming Follow-ups: next_followup_date >= today OR a FollowUp scheduled for today/future
+    from followups.models import FollowUp as FollowUpModel
+    upcoming_followup_lead_ids = set(
+        leads.filter(next_followup_date__gte=today).values_list('id', flat=True)
+    ) | set(
+        leads.filter(
+            followups__followup_date__gte=today
+        ).values_list('id', flat=True)
+    )
+    upcoming_followups = len(upcoming_followup_lead_ids)
 
-    # 6. Overdue Follow-ups: Followup date <= today and pending
-    overdue_followups = leads.filter(
-        next_followup_date__lte=today
-    ).count()
+    # 6. Overdue Follow-ups: next_followup_date < today OR a past FollowUp with no future follow-up
+    overdue_followup_lead_ids = set(
+        leads.filter(next_followup_date__lt=today).values_list('id', flat=True)
+    ) | set(
+        leads.filter(
+            followups__followup_date__lt=today
+        ).exclude(id__in=upcoming_followup_lead_ids).values_list('id', flat=True)
+    )
+    overdue_followups = len(overdue_followup_lead_ids)
 
     # Also keep legacy metrics for backward compatibility if needed
     admissions_qs = Admission.objects.filter(lead__in=leads)
@@ -2350,7 +2361,10 @@ def submit_daily_report(request):
     from .forms import AcademyDailyReportForm, HospitalDailyReportForm, DailyReportForm
     from .models import DailyReport
     from followups.models import FollowUp
-    from datetime import datetime
+    from datetime import datetime, timedelta
+    from admissions.models import Admission
+    from payments.models import Payment, PaymentStatus
+    from audit.models import AuditLog
 
     date_str = request.GET.get("date")
     if date_str:
@@ -2374,19 +2388,31 @@ def submit_daily_report(request):
         })
 
     # ── Compute suggestions from today's actions ─────────────
-    day_followups = FollowUp.objects.filter(created_by=request.user, followup_date=report_date)
+    day_followups = FollowUp.objects.filter(
+        Q(created_by=request.user, followup_date=report_date) |
+        Q(created_by=request.user, created_at__date=report_date)
+    )
     
-    # 1. Calls & Follow-ups
+    # 1. Calls & Follow-ups / Touches
     outgoing_calls_cnt = day_followups.filter(followup_mode="CALL_OUTGOING").count()
     incoming_calls_cnt = day_followups.filter(followup_mode="CALL_INCOMING").count()
-    calls_attended_cnt = day_followups.filter(followup_mode__in=["CALL_OUTGOING", "CALL_INCOMING"]).count()
     calls_not_connected_cnt = day_followups.filter(followup_status="NOT_CONNECTED").count()
     follow_ups_taken_cnt = day_followups.count()
 
-    # 2. Leads Assigned to this user today
-    leads_assigned_cnt = Lead.objects.filter(assigned_to=request.user, inquiry_date=report_date).count()
+    leads_touched_today = Lead.objects.filter(
+        Q(created_by=request.user, created_at__date=report_date) |
+        Q(assigned_to=request.user, updated_at__date=report_date)
+    ).distinct().count()
+    calls_attended_cnt = max(follow_ups_taken_cnt, leads_touched_today, day_followups.filter(followup_mode__in=["CALL_OUTGOING", "CALL_INCOMING", "CALL"]).count())
 
-    # 3. Appointments Booked / Approved today
+    # 2. Leads Assigned to this user today (Captured by user + Assigned by admin/manager)
+    leads_assigned_cnt = Lead.objects.filter(
+        Q(assigned_to=request.user, inquiry_date=report_date) |
+        Q(assigned_to=request.user, created_at__date=report_date) |
+        Q(created_by=request.user, created_at__date=report_date)
+    ).distinct().count()
+
+    # 3. Appointments Booked / Approved today (for Hospital)
     from leads.models import Appointment, AppointmentStatus
     report_date_str = report_date.strftime("%Y-%m-%d")
     report_date_alt_str = report_date.strftime("%d-%m-%Y")
@@ -2429,12 +2455,41 @@ def submit_daily_report(request):
         Q(custom_data__appointment_status__icontains="Not Interested")
     ).count()
 
-    # 5. Pending Follow-ups, Interested, Cold, Visited
+    # 5. Pending Leads (Today's pending followups & uncontacted/open assigned leads)
+    pending_followups_cnt = FollowUp.objects.filter(
+        lead__assigned_to=request.user,
+        followup_date__lte=report_date,
+        followup_status__in=["PENDING", "MISSED", "SCHEDULED"]
+    ).values('lead').distinct().count()
+
+    uncontacted_assigned_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False,
+        deal_status=DealStatus.OPEN
+    ).filter(
+        Q(temperature=LeadTemperature.UNCONTACTED) | Q(followup_count=0)
+    ).count()
+
     follow_ups_pending_cnt = FollowUp.objects.filter(
         lead__assigned_to=request.user,
         followup_date__lte=report_date,
         followup_status__in=["PENDING", "MISSED", "SCHEDULED"]
     ).count()
+
+    pending_leads_cnt = max(pending_followups_cnt + uncontacted_assigned_cnt, follow_ups_pending_cnt)
+
+    # 6. Tomorrow's Follow-ups scheduled
+    tomorrow_date = report_date + timedelta(days=1)
+    tomorrow_fu_cnt = FollowUp.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(created_by=request.user),
+        followup_date=tomorrow_date,
+        followup_status__in=["PENDING", "SCHEDULED"]
+    ).count()
+    tomorrow_lead_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        next_followup_date=tomorrow_date
+    ).count()
+    tomorrow_followups_cnt = max(tomorrow_fu_cnt, tomorrow_lead_cnt)
 
     leads_interested_cnt = Lead.objects.filter(
         assigned_to=request.user,
@@ -2458,8 +2513,7 @@ def submit_daily_report(request):
         Q(custom_data__status__icontains="Visit")
     ).count()
 
-    # 6. Login / Logout times from AuditLog (with smart fallback to activity timestamps)
-    from audit.models import AuditLog
+    # 7. Login / Logout times from AuditLog
     first_login_log = AuditLog.objects.filter(
         user=request.user, 
         action="USER_LOGIN", 
@@ -2481,28 +2535,46 @@ def submit_daily_report(request):
     ).order_by("-created_at").first()
     last_logout_time = last_logout_log.created_at if last_logout_log else None
     
-    # 7. Auto-calculate academic metrics: Admissions Done today and Fees Payments Collected today
-    from admissions.models import Admission
-    from payments.models import Payment, PaymentStatus
-    admissions_today_cnt = Admission.objects.filter(lead__assigned_to=request.user, admission_date=report_date).count()
-    fees_today_sum = Payment.objects.filter(
-        admission__lead__assigned_to=request.user,
+    # 8. Admissions Done today and Payments Done today
+    adm_records_cnt = Admission.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
+        admission_date=report_date
+    ).count()
+    lead_adm_cnt = Lead.objects.filter(
+        assigned_to=request.user
+    ).filter(
+        Q(admission_status="ADMITTED") | Q(stage__name__icontains="Admission")
+    ).filter(
+        Q(updated_at__date=report_date) | Q(admission__admission_date=report_date)
+    ).distinct().count()
+    admissions_today_cnt = max(adm_records_cnt, lead_adm_cnt)
+
+    payments_today_qs = Payment.objects.filter(
+        Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user),
         payment_date=report_date,
         payment_status=PaymentStatus.SUCCESS
-    ).aggregate(s=Sum("amount"))["s"] or 0
+    )
+    payments_done_cnt = payments_today_qs.count()
+    fees_today_sum = payments_today_qs.aggregate(s=Sum("amount"))["s"] or 0
 
-    # Determine who this report will be sent to
+    # ── Determine who this report will be sent to ─────────────
+    # If user has reports_to set, send to them.
+    # Default: send to Zappcode Super Admin(s).
     reports_to_user = request.user.reports_to
-    admin_qs = User.objects.filter(role__in=['SUPER_ADMIN', 'ADMIN', 'MANAGER'], is_active=True)
-    if request.user.hospital:
-        admin_qs = admin_qs.filter(hospital=request.user.hospital)
-    
     recipients = []
     if reports_to_user and reports_to_user.is_active:
         recipients.append(reports_to_user)
-    for adm in admin_qs:
-        if adm not in recipients and adm != request.user:
-            recipients.append(adm)
+    else:
+        super_admins = User.objects.filter(role=User.Role.SUPER_ADMIN, is_active=True)
+        if request.user.hospital:
+            super_admins = super_admins.filter(hospital=request.user.hospital)
+        else:
+            super_admins = super_admins.filter(hospital__isnull=True)
+            if not super_admins.exists():
+                super_admins = User.objects.filter(role=User.Role.SUPER_ADMIN, is_active=True)
+        for sa in super_admins:
+            if sa != request.user and sa not in recipients:
+                recipients.append(sa)
 
     suggestions = {
         "outgoing_calls": outgoing_calls_cnt,
@@ -2514,17 +2586,34 @@ def submit_daily_report(request):
         "freeze_leads": freeze_leads_cnt,
         "follow_ups_taken": follow_ups_taken_cnt,
         "follow_ups_pending": follow_ups_pending_cnt,
+        "pending_leads": pending_leads_cnt,
+        "tomorrow_followups": tomorrow_followups_cnt,
         "leads_interested": leads_interested_cnt,
         "leads_cold": leads_cold_cnt,
         "leads_visited": leads_visited_cnt,
         "admissions_done": admissions_today_cnt,
+        "payments_done": payments_done_cnt,
         "fees_collected": fees_today_sum,
+        "mood": "Good",
         "first_login_time": first_login_time,
         "last_logout_time": last_logout_time,
     }
 
-    FormClass = HospitalDailyReportForm if request.user.hospital else AcademyDailyReportForm
-    template_name = "dashboard/hospital_daily_report_form.html" if request.user.hospital else "dashboard/academy_reports_form.html"
+    # ── 1. BUSINESS TENANT CHECK & 2. ROLE CHECK ──────────────────────────────
+    # Business Check first: 'hospital' vs 'academy' (Zappcode)
+    # Then Role Check under the Business:
+    user_business_type = request.user.business_type  # 'hospital' or 'academy'
+    user_role = request.user.role
+
+    if user_business_type == "hospital" and user_role in (User.Role.LEAD_ATTENDENT, User.Role.DOCTOR, User.Role.ADMIN, User.Role.MANAGER):
+        is_hospital_form = True
+        FormClass = HospitalDailyReportForm
+        template_name = "dashboard/hospital_daily_report_form.html"
+    else:
+        # Zappcode Academy Business (Counsellor, HR, Manager, Admin, Super Admin)
+        is_hospital_form = False
+        FormClass = AcademyDailyReportForm
+        template_name = "dashboard/academy_reports_form.html"
 
     if request.method == "POST":
         from django.db import IntegrityError, transaction
@@ -2536,6 +2625,10 @@ def submit_daily_report(request):
                 with transaction.atomic():
                     cleaned = form.cleaned_data
                     
+                    mood_val = cleaned.get("mood") or "Good"
+                    mood_to_rating = {"Great": 5, "Good": 4, "Moderate": 3, "Tired": 2, "Exhausted": 1, "Sick": 1}
+                    mood_rating_val = mood_to_rating.get(mood_val, cleaned.get("mood_rating") or 3)
+
                     # Store exact values entered/edited by user
                     report_data = {
                         "leads_assigned": cleaned.get("leads_assigned") if cleaned.get("leads_assigned") is not None else leads_assigned_cnt,
@@ -2547,16 +2640,20 @@ def submit_daily_report(request):
                         "calls_not_connected": cleaned.get("calls_not_connected") if cleaned.get("calls_not_connected") is not None else calls_not_connected_cnt,
                         "follow_ups_taken": cleaned.get("follow_ups_taken") if cleaned.get("follow_ups_taken") is not None else follow_ups_taken_cnt,
                         "follow_ups_pending": cleaned.get("follow_ups_pending") if cleaned.get("follow_ups_pending") is not None else follow_ups_pending_cnt,
+                        "pending_leads": cleaned.get("pending_leads") if cleaned.get("pending_leads") is not None else pending_leads_cnt,
+                        "tomorrow_followups": cleaned.get("tomorrow_followups") if cleaned.get("tomorrow_followups") is not None else tomorrow_followups_cnt,
                         "leads_cold": cleaned.get("leads_cold") if cleaned.get("leads_cold") is not None else leads_cold_cnt,
                         "leads_interested": cleaned.get("leads_interested") if cleaned.get("leads_interested") is not None else leads_interested_cnt,
                         "leads_visited": cleaned.get("leads_visited") if cleaned.get("leads_visited") is not None else leads_visited_cnt,
                         "admissions_done": cleaned.get("admissions_done") if cleaned.get("admissions_done") is not None else admissions_today_cnt,
+                        "payments_done": cleaned.get("payments_done") if cleaned.get("payments_done") is not None else payments_done_cnt,
                         "fees_collected": cleaned.get("fees_collected") if cleaned.get("fees_collected") is not None else fees_today_sum,
                         "key_highlight": cleaned.get("key_highlight") or "",
                         "challenges_faced": cleaned.get("challenges_faced") or "",
                         "tomorrow_priority": cleaned.get("tomorrow_priority") or "",
                         "other_updates": cleaned.get("other_updates") or "",
-                        "mood_rating": cleaned.get("mood_rating") or 3,
+                        "mood": mood_val,
+                        "mood_rating": mood_rating_val,
                         "first_login_at": first_login_time,
                         "last_logout_at": last_logout_time,
                     }
@@ -2568,17 +2665,22 @@ def submit_daily_report(request):
                     )
                     
                     # Send Notifications to recipient (Reports To / Admin)
-                    target_recipients = recipients if recipients else admin_qs
                     action_word = "submitted" if created else "updated"
-                    for r_user in target_recipients:
+                    for r_user in recipients:
                         Notification.objects.create(
                             user=r_user,
                             title=f"EOD Report ({action_word.capitalize()}) from {request.user.get_full_name() or request.user.username}",
-                            message=f"{request.user.get_full_name() or request.user.username} {action_word} Daily EOD Report for {report_date.strftime('%d %b %Y')}. (Assigned: {report.leads_assigned}, Appts: {report.appointments_booked}, Calls: {report.calls_attended})",
+                            message=(
+                                f"{request.user.get_full_name() or request.user.username} {action_word} Daily EOD Report for {report_date.strftime('%d %b %Y')}.\n"
+                                f"Assigned Leads: {report.leads_assigned} | Calls: {report.calls_attended} | "
+                                f"Admissions Done: {report.admissions_done} | Payments: {report.payments_done} (₹{report.fees_collected}) | "
+                                f"Pending Leads: {report.pending_leads} | Tomorrow FU: {report.tomorrow_followups} | "
+                                f"Mood: {report.mood_display}"
+                            ),
                             link="/dashboard/reports/admin/",
                         )
 
-                messages.success(request, f"Daily report for {report_date.strftime('%d-%m-%Y')} {'submitted' if created else 'updated'} successfully! ✅")
+                messages.success(request, f"Daily EOD report for {report_date.strftime('%d-%m-%Y')} {'submitted' if created else 'updated'} successfully! ✅")
                 return redirect("dashboard:submit_daily_report")
             except Exception as e:
                 messages.error(request, f"Error saving report: {str(e)}")
@@ -2593,18 +2695,22 @@ def submit_daily_report(request):
                 "calls_not_connected": report_instance.calls_not_connected,
                 "follow_ups_taken": report_instance.follow_ups_taken,
                 "follow_ups_pending": report_instance.follow_ups_pending,
+                "pending_leads": report_instance.pending_leads,
+                "tomorrow_followups": report_instance.tomorrow_followups,
                 "leads_cold": report_instance.leads_cold,
                 "leads_interested": report_instance.leads_interested,
                 "leads_visited": report_instance.leads_visited,
                 "admissions_done": report_instance.admissions_done,
+                "payments_done": report_instance.payments_done,
                 "fees_collected": report_instance.fees_collected,
                 "key_highlight": report_instance.key_highlight,
                 "challenges_faced": report_instance.challenges_faced,
                 "tomorrow_priority": report_instance.tomorrow_priority,
                 "other_updates": report_instance.other_updates,
+                "mood": report_instance.mood or "Good",
                 "mood_rating": report_instance.mood_rating,
             }
-            if request.user.hospital:
+            if is_hospital_form:
                 init_data["appointments_booked"] = report_instance.appointments_booked
                 init_data["freeze_leads"] = report_instance.freeze_leads
         else:
@@ -2616,13 +2722,17 @@ def submit_daily_report(request):
                 "calls_not_connected": suggestions["calls_not_connected"],
                 "follow_ups_taken": suggestions["follow_ups_taken"],
                 "follow_ups_pending": suggestions["follow_ups_pending"],
+                "pending_leads": suggestions["pending_leads"],
+                "tomorrow_followups": suggestions["tomorrow_followups"],
                 "leads_interested": suggestions["leads_interested"],
                 "leads_cold": suggestions["leads_cold"],
                 "leads_visited": suggestions["leads_visited"],
                 "admissions_done": suggestions["admissions_done"],
+                "payments_done": suggestions["payments_done"],
                 "fees_collected": suggestions["fees_collected"],
+                "mood": suggestions["mood"],
             }
-            if request.user.hospital:
+            if is_hospital_form:
                 init_data["appointments_booked"] = suggestions["appointments_booked"]
                 init_data["freeze_leads"] = suggestions["freeze_leads"]
 
@@ -2633,6 +2743,7 @@ def submit_daily_report(request):
         "form": form,
         "suggestions": suggestions,
         "report_date": report_date,
+        "first_login_time": first_login_time,
         "reports_to_user": reports_to_user,
         "recipients": recipients,
         "existing": report_instance is not None,
@@ -2696,17 +2807,19 @@ def management_daily_reports(request):
                 "First Login": r.first_login_at.strftime("%I:%M %p") if r.first_login_at else "—",
                 "Last Logout": r.last_logout_at.strftime("%I:%M %p") if r.last_logout_at else "—",
                 "Leads Assigned": r.leads_assigned,
-                "Calls Attended": r.calls_attended,
-                "Outgoing Calls": r.outgoing_calls,
-                "Incoming Calls": r.incoming_calls,
+                "Calls / Touches": r.calls_attended,
+                "Admissions Done": r.admissions_done,
+                "Payments Done": r.payments_done,
+                "Fees Collected (₹)": float(r.fees_collected),
+                "Pending Leads": r.pending_leads,
+                "Tomorrow Follow-ups": r.tomorrow_followups,
                 "Follow-ups Taken": r.follow_ups_taken,
                 "Appointments Booked": r.appointments_booked,
                 "Freeze Leads": r.freeze_leads,
-                "Interested Leads": r.leads_interested,
                 "Key Highlight": r.key_highlight,
                 "Challenges Faced": r.challenges_faced,
                 "Tomorrow Priority": r.tomorrow_priority,
-                "Mood Rating": dict(r.MOOD_CHOICES).get(r.mood_rating, r.mood_rating),
+                "Mood": r.mood_display,
             })
         df = pd.DataFrame(rows)
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

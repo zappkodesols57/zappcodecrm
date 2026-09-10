@@ -20,31 +20,48 @@
     <!-- Summary of submitted report -->
     <div class="card border-0 shadow-sm mb-4" style="border-radius: 1rem; text-align: left;">
       <div class="card-body p-4">
-        <h6 class="fw-bold mb-3 text-muted text-uppercase small">Today's Report Summary</h6>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0 text-muted text-uppercase small">Today's Report Summary</h6>
+          <span class="badge bg-light text-dark border">
+            <i class="fa-solid fa-right-to-bracket text-success me-1"></i> In: {% if report.first_login_at %}{{ report.first_login_at|time:"h:i A" }}{% else %}Active{% endif %}
+          </span>
+        </div>
 
         <div class="row g-2 mb-3">
           <div class="col-6">
-            <div class="p-2 rounded" style="background: #dbeafe;">
-              <div style="font-size: 0.7rem; color: #1e40af; font-weight: 600;">Total Calls</div>
-              <div style="font-size: 1.4rem; font-weight: 800; color: #1d4ed8;">{{ report.calls_attended }}</div>
+            <div class="p-2 rounded" style="background: #eff6ff; border: 1px solid #dbeafe;">
+              <div style="font-size: 0.7rem; color: #1e40af; font-weight: 600;">Assigned Leads</div>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #1d4ed8;">{{ report.leads_assigned }}</div>
             </div>
           </div>
           <div class="col-6">
-            <div class="p-2 rounded" style="background: #d1fae5;">
-              <div style="font-size: 0.7rem; color: #065f46; font-weight: 600;">Interested Leads</div>
-              <div style="font-size: 1.4rem; font-weight: 800; color: #047857;">{{ report.leads_interested }}</div>
+            <div class="p-2 rounded" style="background: #f0fdf4; border: 1px solid #dcfce7;">
+              <div style="font-size: 0.7rem; color: #15803d; font-weight: 600;">Calls / Touches</div>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #16a34a;">{{ report.calls_attended }}</div>
             </div>
           </div>
           <div class="col-6">
-            <div class="p-2 rounded" style="background: #fee2e2;">
-              <div style="font-size: 0.7rem; color: #991b1b; font-weight: 600;">Cold / Not Interested</div>
-              <div style="font-size: 1.4rem; font-weight: 800; color: #b91c1c;">{{ report.leads_cold }}</div>
+            <div class="p-2 rounded" style="background: #faf5ff; border: 1px solid #f3e8ff;">
+              <div style="font-size: 0.7rem; color: #7e22ce; font-weight: 600;">Admissions Done</div>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #9333ea;">{{ report.admissions_done }}</div>
             </div>
           </div>
           <div class="col-6">
-            <div class="p-2 rounded" style="background: #fae8ff;">
-              <div style="font-size: 0.7rem; color: #6b21a8; font-weight: 600;">Admissions Done</div>
-              <div style="font-size: 1.4rem; font-weight: 800; color: #7c3aed;">{{ report.admissions_done }}</div>
+            <div class="p-2 rounded" style="background: #ecfdf5; border: 1px solid #d1fae5;">
+              <div style="font-size: 0.7rem; color: #047857; font-weight: 600;">Payments Done</div>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #059669;">{{ report.payments_done }} <span style="font-size: 0.75rem; font-weight: 600; color: #059669;">(₹{{ report.fees_collected|floatformat:0 }})</span></div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background: #fffbeb; border: 1px solid #fef3c7;">
+              <div style="font-size: 0.7rem; color: #b45309; font-weight: 600;">Pending Leads</div>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #d97706;">{{ report.pending_leads }}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background: #f0fdfa; border: 1px solid #ccfbf1;">
+              <div style="font-size: 0.7rem; color: #0f766e; font-weight: 600;">Tomorrow Follow-ups</div>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #0d9488;">{{ report.tomorrow_followups }}</div>
             </div>
           </div>
         </div>
@@ -52,20 +69,19 @@
         {% if report.key_highlight %}
         <div class="mb-2">
           <div class="text-muted small fw-semibold">⭐ Key Highlight</div>
-          <div class="small">{{ report.key_highlight }}</div>
+          <div class="small text-dark">{{ report.key_highlight }}</div>
         </div>
         {% endif %}
 
-        <div class="d-flex align-items-center gap-2 mt-2">
-          <div class="text-muted small fw-semibold">Mood:</div>
-          <span style="font-size: 1.2rem;">
-            {% if report.mood_rating == 1 %}😞{% elif report.mood_rating == 2 %}😕{% elif report.mood_rating == 3 %}😐{% elif report.mood_rating == 4 %}🙂{% elif report.mood_rating == 5 %}😄{% endif %}
-          </span>
-          <span class="text-muted small">{{ report.get_mood_rating_display|slice:"3:" }}</span>
-        </div>
+        <div class="d-flex align-items-center justify-content-between gap-2 mt-3 pt-2 border-top">
+          <div class="d-flex align-items-center gap-1.5">
+            <div class="text-muted small fw-semibold">Mood:</div>
+            <span class="badge bg-light text-dark border px-2 py-1 fw-bold">{{ report.mood_display }}</span>
+          </div>
 
-        <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.75rem;">
-          <i class="fa-solid fa-clock me-1"></i> Submitted at {{ report.created_at|date:"h:i A" }}
+          <div class="text-muted" style="font-size: 0.72rem;">
+            <i class="fa-solid fa-clock me-1"></i> Submitted {{ report.created_at|date:"h:i A" }}
+          </div>
         </div>
       </div>
     </div>
