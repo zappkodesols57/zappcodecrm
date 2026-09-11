@@ -1166,9 +1166,9 @@ def lead_self_assign(request, pk):
 
     Activity.objects.create(
         lead=lead,
-        user=request.user,
-        activity_type="STATUS_CHANGE",
-        details=f"Lead captured / self-assigned by {request.user.get_full_name() or request.user.username}.",
+        created_by=request.user,
+        activity_type="ASSIGNMENT",
+        description=f"Lead captured / self-assigned by {request.user.get_full_name() or request.user.username}.",
     )
     messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you! You can now follow up, edit, or process admission.")
     
@@ -1245,9 +1245,9 @@ def bulk_action(request):
             lead.save(update_fields=["assigned_to", "stage", "updated_at"])
             Activity.objects.create(
                 lead=lead,
-                user=request.user,
-                activity_type="STATUS_CHANGE",
-                details=f"Bulk self-assigned by {request.user.get_full_name() or request.user.username}.",
+                created_by=request.user,
+                activity_type="ASSIGNMENT",
+                description=f"Bulk self-assigned by {request.user.get_full_name() or request.user.username}.",
             )
             updated_count += 1
             
