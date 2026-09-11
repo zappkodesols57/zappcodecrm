@@ -7,6 +7,74 @@ logger = logging.getLogger(__name__)
 META_GRAPH_URL = "https://graph.facebook.com/v19.0"
 
 
+def resolve_course_name(raw_str):
+    """Normalize raw course string from Meta form to CRM course name."""
+    if not raw_str:
+        return ""
+    s = str(raw_str).strip().lower().replace("_", " ")
+    if "data anal" in s:
+        return "Data Analytics"
+    if "ai" in s or "machine learn" in s or "ml" in s:
+        return "AI & Machine Learning"
+    if "data sci" in s:
+        return "Data Science"
+    if "python" in s:
+        return "Python programming"
+    if "full stack" in s:
+        return "Full Stack Development"
+    if "digital market" in s:
+        return "Digital Marketing"
+    if "web dev" in s:
+        return "Frontend Web Development"
+    return str(raw_str).strip().replace("_", " ").title()
+
+
+def parse_lead_field_data(item):
+    """Robustly parse lead fields from Meta Graph API item."""
+    fields = {
+        "meta_lead_id": str(item.get("id")),
+        "created_time": item.get("created_time", ""),
+        "name": "",
+        "phone": "",
+        "email": "",
+        "city": "",
+        "course": "",
+        "other_details": [],
+        "raw": item,
+    }
+    
+    for f in item.get("field_data", []):
+        fname = f.get("name", "").lower()
+        vals = f.get("values", [])
+        val_str = str(vals[0]).strip() if vals else ""
+        if not val_str:
+            continue
+            
+        if any(k in fname for k in ["full_name", "first_name", "name"]) and not fields["name"]:
+            fields["name"] = val_str
+        elif any(k in fname for k in ["phone", "mobile"]) and not fields["phone"]:
+            fields["phone"] = val_str
+        elif "email" in fname and not fields["email"]:
+            fields["email"] = val_str
+        elif "city" in fname and not fields["city"]:
+            fields["city"] = val_str
+        elif any(k in fname for k in ["course", "service", "looking_for"]) and not fields["course"]:
+            fields["course"] = resolve_course_name(val_str)
+        else:
+            fields["other_details"].append(f"{f.get('name')}: {val_str}")
+            
+    # Clean phone (strip non-digits, take 10 or 12 digits)
+    if fields["phone"]:
+        clean_phone = "".join(ch for ch in fields["phone"] if ch.isdigit())
+        if len(clean_phone) > 10 and clean_phone.startswith("91"):
+            clean_phone = clean_phone[2:]
+        fields["clean_mobile"] = clean_phone
+    else:
+        fields["clean_mobile"] = ""
+        
+    return fields
+
+
 def get_lead_details(access_token, lead_id):
     """Fetch a single lead's field data from Meta Graph API."""
     try:
@@ -18,29 +86,59 @@ def get_lead_details(access_token, lead_id):
         resp.raise_for_status()
         data = resp.json()
 
-        # Flatten field_data list into a dict
-        fields = {}
-        for item in data.get("field_data", []):
-            fields[item["name"]] = item["values"][0] if item.get("values") else ""
-
-        return {
-            "meta_lead_id": lead_id,
-            "name": fields.get("full_name") or fields.get("name", ""),
-            "phone": fields.get("phone_number") or fields.get("mobile", ""),
-            "email": fields.get("email", ""),
-            "city": fields.get("city", ""),
-            "department": fields.get("department") or fields.get("service", ""),
+        parsed = parse_lead_field_data(data)
+        parsed.update({
             "campaign_id": data.get("campaign_id", ""),
             "campaign_name": data.get("campaign_name", ""),
             "ad_set_name": data.get("adset_name", ""),
             "ad_name": data.get("ad_name", ""),
             "form_id": data.get("form_id", ""),
-            "created_time": data.get("created_time", ""),
-            "raw": data,
-        }
+        })
+        return parsed
     except Exception as e:
         logger.error(f"Meta API error fetching lead {lead_id}: {e}")
         return None
+
+
+def fetch_all_form_leads(access_token, page_id, limit_per_form=100):
+    """
+    Fetch all recent leads across all active leadgen forms for a Meta Page.
+    Returns a list of parsed lead dicts.
+    """
+    leads = []
+    try:
+        forms_url = f"{META_GRAPH_URL}/{page_id}/leadgen_forms"
+        forms_res = requests.get(forms_url, params={"access_token": access_token, "limit": 100}, timeout=15)
+        forms_res.raise_for_status()
+        forms = forms_res.json().get("data", [])
+        logger.info(f"Checking {len(forms)} leadgen forms on Meta Page {page_id}...")
+
+        for f in forms:
+            fid = f.get("id")
+            fname = f.get("name", "Form")
+            url = f"{META_GRAPH_URL}/{fid}/leads"
+            params = {"access_token": access_token, "limit": limit_per_form}
+
+            # Fetch first page (or more if needed)
+            l_res = requests.get(url, params=params, timeout=15)
+            if l_res.status_code != 200:
+                continue
+            ldata = l_res.json().get("data", [])
+
+            for item in ldata:
+                lead_dict = parse_lead_field_data(item)
+                lead_dict["form_id"] = fid
+                lead_dict["form_name"] = fname
+                # Ignore test dummy leads
+                if "test@meta.com" in lead_dict["email"].lower():
+                    continue
+                leads.append(lead_dict)
+
+        logger.info(f"Total Meta form leads fetched: {len(leads)}")
+    except Exception as e:
+        logger.error(f"Error fetching Meta form leads: {e}")
+        
+    return leads
 
 
 def get_campaign_insights(access_token, ad_account_id, date_preset="last_30d"):

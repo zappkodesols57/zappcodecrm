@@ -68,72 +68,93 @@ def meta_webhook(request):
     return HttpResponse(status=405)
 
 
-def _create_lead_from_meta(connection, meta_lead_id):
-    """Fetch lead data from Meta API and create a Lead record in CRM with automatic Source & Campaign discovery."""
-    from leads.models import Lead, LeadStage, LeadSource, SourceCategory, Campaign, LeadTemperature, MasterGroup, MasterItem
-    
-    # Prevent duplicates
-    if Lead.objects.filter(external_lead_id=meta_lead_id).exists():
-        logger.info(f"Duplicate Meta lead skipped: {meta_lead_id}")
-        return
+def create_or_update_meta_lead(connection, data):
+    """Fetch lead data from Meta API and create a Lead record in CRM with course mapping & deduplication."""
+    from leads.models import Lead, LeadStage, LeadSource, SourceCategory, Campaign, Course, LeadTemperature
+    from accounts.models import Hospital
 
-    data = get_lead_details(connection.page_access_token, meta_lead_id)
-    if not data:
-        logger.error(f"Could not fetch Meta lead data for {meta_lead_id}")
-        return
+    meta_lead_id = data.get("meta_lead_id")
+    if not meta_lead_id:
+        return None
 
-    # 1. Get first/default lead stage
+    # Prevent duplicate by external_lead_id or notes content
+    from django.db.models import Q
+    if Lead.objects.filter(Q(external_lead_id=meta_lead_id) | Q(notes__contains=meta_lead_id)).exists():
+        logger.info(f"Duplicate Meta lead skipped (external_lead_id/notes): {meta_lead_id}")
+        return None
+
+    # Also prevent duplicate if mobile matches and created recently
+    mobile_num = data.get("clean_mobile") or data.get("phone", "")
+    if mobile_num and len(mobile_num) >= 10:
+        clean_10 = mobile_num[-10:]
+        if Lead.objects.filter(mobile__endswith=clean_10, ad_platform="Meta", created_at__gte=timezone.now() - timezone.timedelta(hours=24)).exists():
+            logger.info(f"Duplicate Meta lead skipped (recent mobile): {clean_10}")
+            return None
+
+    # Hospital association -> Default to Zappcode Academy for Zappcode Meta leads
+    hospital = Hospital.objects.filter(name__icontains="Zappcode").first() or getattr(connection, "hospital", None) or Hospital.objects.first()
+
+    # 1. Stage
     stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.filter(is_active=True).order_by("order").first()
 
-    # 2. Automatically Find or Link Source Category (Digital / Paid Ads / Social Media)
+    # 2. Source Category & Lead Source
     source_cat = SourceCategory.objects.filter(name__icontains="Digital").first() or \
                  SourceCategory.objects.filter(name__icontains="Social").first() or \
                  SourceCategory.objects.filter(name__icontains="Ads").first()
     if not source_cat:
         source_cat = SourceCategory.objects.create(name="Digital Marketing", order=1)
 
-    # 3. Automatically Find or Link Lead Source (Meta Ads / Facebook Ads / Instagram)
-    raw_platform = (data.get("platform") or "Meta Ads").strip()
     lead_source = LeadSource.objects.filter(name__icontains="Meta").first() or \
                   LeadSource.objects.filter(name__icontains="Facebook").first()
     if not lead_source:
         lead_source = LeadSource.objects.create(name="Meta Ads", category=source_cat, order=1)
 
-    # 4. Automatically Find or Create Campaign from Meta campaign_name
-    campaign_name = (data.get("campaign_name") or "Meta Leads Campaign").strip()
+    # 3. Campaign
+    campaign_name = (data.get("campaign_name") or data.get("form_name") or "Meta Leads Campaign").strip()
     campaign_obj = Campaign.objects.filter(name__iexact=campaign_name).first()
     if not campaign_obj and campaign_name:
         campaign_obj = Campaign.objects.create(
             name=campaign_name,
             platform="FACEBOOK",
             campaign_id=data.get("campaign_id", ""),
+            hospital=hospital,
             is_active=True
         )
 
-    # Hospital association
-    hospital = getattr(connection, "hospital", None)
-    if not hospital:
-        from accounts.models import Hospital
-        hospital = Hospital.objects.first()
+    # 4. Course Association
+    course_obj = None
+    course_name = data.get("course")
+    if course_name:
+        course_obj = Course.objects.filter(name__iexact=course_name, hospital=hospital).first() or \
+                     Course.objects.filter(name__icontains=course_name).first()
 
-    # Build custom_data JSON for hospital CRM integration
-    custom_data = {
-        "campaign": campaign_name,
-        "lead_source": lead_source.name if lead_source else "Meta Ads",
-        "appointment_status": "Not Booked",
-        "deal_status": "New",
-        "priority": "Hot",  # Meta API direct ad leads start as Hot
-    }
+    # 5. Inquiry date
+    inq_date = timezone.localdate()
+    c_time = data.get("created_time")
+    if c_time:
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(c_time[:19], "%Y-%m-%dT%H:%M:%S")
+            inq_date = dt.date()
+        except Exception:
+            pass
 
-    # Extract location / city if available
-    city_val = data.get("city", "").strip()
+    notes_lines = [
+        f"[Lead ID]: {meta_lead_id}",
+        f"[Form Name]: {data.get('form_name', '')}",
+    ]
+    if course_name:
+        notes_lines.append(f"[Course / Service]: {course_name}")
+    if data.get("other_details"):
+        notes_lines.append(" | ".join(data.get("other_details")))
 
     lead = Lead.objects.create(
-        name=data.get("name", "Unknown Lead"),
-        mobile=data.get("phone", ""),
+        name=data.get("name") or "Meta Lead",
+        mobile=mobile_num,
         email=data.get("email", ""),
-        city=city_val,
-        location=city_val,
+        city=data.get("city", ""),
+        location=data.get("city", ""),
+        course=course_obj,
         hospital=hospital,
         stage=stage,
         temperature=LeadTemperature.HOT,
@@ -149,38 +170,50 @@ def _create_lead_from_meta(connection, meta_lead_id):
         utm_source="facebook",
         utm_medium="paid_social",
         external_lead_id=meta_lead_id,
+        inquiry_date=inq_date,
         raw_source_metadata=data.get("raw", {}),
-        custom_data=custom_data,
-        notes=f"Auto-imported from Meta Ads.\nCampaign: {campaign_name}\nAd Set: {data.get('ad_set_name')}\nAd: {data.get('ad_name')}",
+        custom_data={"priority": "Hot", "lead_source": "Meta Ads"},
+        notes="\n".join(notes_lines),
     )
 
-    # Update last synced time
-    connection.last_synced_at = timezone.now()
-    connection.save(update_fields=["last_synced_at"])
+    logger.info(f"✅ New Meta lead created: {lead.lead_code} — {lead.name} ({lead.course})")
 
-    logger.info(f"✅ New Meta lead created: {lead.lead_code} — {lead.name}")
-
-    # Generate Notification
+    # Generate In-app Notification
     try:
         from notifications.models import Notification
         from accounts.models import User
         from django.urls import reverse
-        
-        # Determine who to notify. For now, notify admins and managers.
-        # Can be customized based on roles later.
+
         notify_users = User.objects.filter(is_superuser=True) | User.objects.filter(role__in=['admin', 'manager', 'counsellor', 'nelson_admin', 'nelson_manager'])
         notify_users = notify_users.distinct()
-        
+
         link = reverse('leads:lead_edit', args=[lead.pk])
+        course_display = f" for {lead.course.name}" if lead.course else ""
         for u in notify_users:
             Notification.objects.create(
                 user=u,
                 title="New Meta Lead Captured",
-                message=f"Lead {lead.name} ({lead.mobile}) arrived from campaign {lead.utm_campaign or 'Meta'}.",
+                message=f"Lead {lead.name} ({lead.mobile}){course_display} arrived from Meta Ads.",
                 link=link
             )
     except Exception as e:
-        logger.error(f"Failed to create notifications for lead {lead.lead_code}: {e}")
+        logger.error(f"Failed to create notification for lead {lead.lead_code}: {e}")
+
+    return lead
+
+
+def _create_lead_from_meta(connection, meta_lead_id):
+    """Fetch lead data from Meta API and create a Lead record in CRM."""
+    data = get_lead_details(connection.page_access_token, meta_lead_id)
+    if not data:
+        logger.error(f"Could not fetch Meta lead data for {meta_lead_id}")
+        return None
+
+    lead = create_or_update_meta_lead(connection, data)
+    if lead:
+        connection.last_synced_at = timezone.now()
+        connection.save(update_fields=["last_synced_at"])
+    return lead
 
 
 # ─────────────────────────────────────────────
@@ -352,3 +385,45 @@ def recent_leads_json(request):
         for l in leads
     ]
     return JsonResponse({"leads": data})
+
+
+@login_required
+def sync_leads_now(request):
+    """Manual trigger to fetch new leads from all Meta forms and import into CRM."""
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    from .api import fetch_all_form_leads
+
+    if request.method != "POST":
+        return redirect("meta_ads:dashboard")
+
+    connection = MetaAdsConnection.objects.filter(is_active=True).first()
+    if not connection:
+        messages.error(request, "❌ No active Meta Ads connection found.")
+        return redirect("meta_ads:dashboard")
+
+    if not connection.page_access_token or not connection.page_id:
+        messages.error(request, "❌ Missing Page Access Token or Page ID in Meta connection.")
+        return redirect("meta_ads:dashboard")
+
+    try:
+        leads_data = fetch_all_form_leads(connection.page_access_token, connection.page_id, limit_per_form=100)
+        created_count = 0
+        for item in leads_data:
+            lead = create_or_update_meta_lead(connection, item)
+            if lead:
+                created_count += 1
+
+        connection.last_synced_at = timezone.now()
+        connection.save(update_fields=["last_synced_at"])
+
+        if created_count > 0:
+            messages.success(request, f"🎉 Successfully imported {created_count} fresh lead(s) from Meta into CRM!")
+        else:
+            messages.info(request, "✅ Meta leads are already up to date. No new leads found.")
+    except Exception as e:
+        logger.error(f"Error in sync_leads_now: {e}")
+        messages.error(request, f"Error syncing leads from Meta: {str(e)}")
+
+    return redirect("meta_ads:dashboard")
+

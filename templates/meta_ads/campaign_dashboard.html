@@ -182,11 +182,17 @@
       </select>
     </form>
     {% if connection %}
+      <form method="post" action="{% url 'meta_ads:sync_leads_now' %}" class="mb-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm">
+          <i class="fa-solid fa-cloud-arrow-down me-1"></i> Sync Leads Now
+        </button>
+      </form>
       <form method="post" action="{% url 'meta_ads:sync' %}" class="mb-0">
         {% csrf_token %}
         <input type="hidden" name="date_preset" value="{{ date_preset }}">
         <button type="submit" class="btn btn-sm btn-light fw-600">
-          <i class="fa-solid fa-rotate me-1"></i> Sync Now
+          <i class="fa-solid fa-rotate me-1"></i> Sync Stats
         </button>
       </form>
       {% if connection.last_synced_at %}
@@ -197,6 +203,37 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Meta Automation Status Banner -->
+{% if connection %}
+<div class="card mb-4 border-0 shadow-sm" style="border-radius: .9rem; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #e2e8f0 !important;">
+  <div class="card-body p-3 p-md-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-bolt me-1"></i> Live Webhook Active</span>
+          <span class="badge bg-primary text-white px-2 py-1"><i class="fa-solid fa-clock me-1"></i> Auto-Sync: 9:00 AM IST</span>
+          <span class="badge bg-dark text-white px-2 py-1"><i class="fa-solid fa-building-columns me-1"></i> Zappcode Academy</span>
+        </div>
+        <h5 class="mb-1 fw-bold text-dark">Meta Lead Ads Automated Ingestion</h5>
+        <div class="text-muted small">
+          <strong>Webhook Endpoint:</strong> <code class="text-primary fw-semibold user-select-all">https://crm.zappcode.in/meta-ads/webhook/</code> 
+          <span class="mx-2">•</span> 
+          <strong>Verify Token:</strong> <code class="text-dark fw-semibold user-select-all">zappcode_academy_verify_2026</code>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <form method="post" action="{% url 'meta_ads:sync_leads_now' %}" class="mb-0">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary fw-bold px-3 py-2 shadow-sm">
+            <i class="fa-solid fa-arrows-rotate me-1 fa-spin-hover"></i> Pull Latest Leads from Meta
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- No Connection Warning -->
 {% if not connection %}
