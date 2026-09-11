@@ -178,14 +178,19 @@ def create_or_update_meta_lead(connection, data):
 
     logger.info(f"✅ New Meta lead created: {lead.lead_code} — {lead.name} ({lead.course})")
 
-    # Generate In-app Notification
+    # Generate In-app Notification for Admins, Managers, and Counsellors
     try:
         from notifications.models import Notification
         from accounts.models import User
         from django.urls import reverse
+        from django.db.models import Q
 
-        notify_users = User.objects.filter(is_superuser=True) | User.objects.filter(role__in=['admin', 'manager', 'counsellor', 'nelson_admin', 'nelson_manager'])
-        notify_users = notify_users.distinct()
+        notify_users = User.objects.filter(
+            Q(is_superuser=True) |
+            Q(role__in=['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'COUNSELLOR', 'LEAD_ATTENDENT'])
+        ).filter(
+            Q(hospital=hospital) | Q(hospital__isnull=True) | Q(is_superuser=True)
+        ).distinct()
 
         link = reverse('leads:lead_edit', args=[lead.pk])
         course_display = f" for {lead.course.name}" if lead.course else ""
