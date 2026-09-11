@@ -171,9 +171,9 @@ CACHES = {
 
 # Session & Cookie Persistence Settings (30 Days Long-Lived Session)
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_NAME = 'sessionid_crm'
-SESSION_COOKIE_AGE = 21600  # 6 hrs
-SESSION_SAVE_EVERY_REQUEST = False  # Avoid updating session cookie timestamp on every background AJAX request
+SESSION_COOKIE_NAME = 'sessionid_crm_dev' if DEBUG else 'sessionid_crm'
+SESSION_COOKIE_AGE = 2592000  # 30 Days (2592000 seconds)
+SESSION_SAVE_EVERY_REQUEST = True  # Automatically refresh session timer on active requests
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False

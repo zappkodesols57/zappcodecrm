@@ -18,6 +18,7 @@ from .models import (
     Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, 
     MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
     HospitalDisease, DoctorBranchAvailability, DealStatus, LeadTemperature,
+    AdmissionStatus,
 )
 from .forms import (
     LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
@@ -148,6 +149,7 @@ def lead_list(request):
     selected_doctors = request.GET.getlist("doctor")
     selected_assigned = request.GET.getlist("assigned_to")
     selected_deal_statuses = request.GET.getlist("deal_status")
+    selected_admission_statuses = request.GET.getlist("admission_status")
     selected_appointment_statuses = request.GET.getlist("appointment_status")
     selected_priorities = request.GET.getlist("priority")
     selected_temperatures = request.GET.getlist("temperature")
@@ -265,7 +267,7 @@ def lead_list(request):
                     stg_q |= Q(stage__name__iexact=stg_val)
         leads = leads.filter(stg_q)
 
-    # 7. Appointment Status filter
+    # 7. Appointment Status filter (Hospital)
     if selected_appointment_statuses:
         apt_q = Q()
         for apt_val in selected_appointment_statuses:
@@ -281,6 +283,14 @@ def lead_list(request):
                 else:
                     apt_q |= Q(custom_data__appointment_status__icontains=apt_val)
         leads = leads.filter(apt_q)
+
+    # 7b. Admission Status filter (Academy)
+    if selected_admission_statuses:
+        adm_q = Q()
+        for adm_val in selected_admission_statuses:
+            if adm_val:
+                adm_q |= Q(admission_status__iexact=adm_val) | Q(custom_data__admission_status__iexact=adm_val)
+        leads = leads.filter(adm_q)
 
     # 8. Priority & Temperature filter
     if selected_priorities or selected_temperatures:
@@ -510,13 +520,13 @@ def lead_list(request):
     distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
     distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
     
-    # Extract departments and doctors only for hospital users
+    # Extract departments, doctors, and appointment statuses only for hospital users
     filter_departments = []
     filter_doctors = []
     filter_appointment_statuses = []
     filter_priorities = ["Hot", "Warm", "Cold"]
 
-    if request.user.hospital:
+    if request.user.hospital and request.user.is_hospital_user:
         filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
         filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
         if not filter_departments:
@@ -530,8 +540,9 @@ def lead_list(request):
         filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
 
     active_filters_count = (
-        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_campaigns) + len(selected_sources) + len(selected_courses) + len(selected_departments) +
         len(selected_doctors) + len(selected_assigned) + len(selected_deal_statuses) +
+        len(selected_admission_statuses) +
         len(selected_appointment_statuses) + len(selected_priorities) + len(selected_temperatures) +
         len(selected_locations) + len(selected_stages) +
         (1 if (date_from or date_to) else 0)
@@ -555,14 +566,17 @@ def lead_list(request):
         "filter_departments": filter_departments,
         "filter_doctors": filter_doctors,
         "filter_appointment_statuses": filter_appointment_statuses,
+        "admission_status_choices": AdmissionStatus.choices,
         "filter_priorities": filter_priorities,
         "deal_status_choices": DealStatus.choices,
         "selected_campaigns": selected_campaigns,
         "selected_sources": selected_sources,
+        "selected_courses": selected_courses,
         "selected_departments": selected_departments,
         "selected_doctors": selected_doctors,
         "selected_assigned": selected_assigned,
         "selected_deal_statuses": selected_deal_statuses,
+        "selected_admission_statuses": selected_admission_statuses,
         "selected_appointment_statuses": selected_appointment_statuses,
         "selected_priorities": selected_priorities,
         "selected_temperatures": selected_temperatures,
