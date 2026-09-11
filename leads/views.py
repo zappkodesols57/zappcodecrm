@@ -1214,7 +1214,50 @@ def bulk_action(request):
         messages.warning(request, "No leads selected.")
         return redirect("leads:lead_list")
 
-    if action == "assign":
+    if action == "self_assign":
+        max_limit = getattr(request.user, "bulk_self_assign_limit", 25)
+        selected_count = leads.count()
+        if selected_count > max_limit:
+            messages.error(
+                request,
+                f"Bulk Self-Assign Limit exceeded! Your maximum allowed limit is {max_limit} leads at a time, but you selected {selected_count} leads."
+            )
+            return redirect("leads:lead_list")
+        
+        # Determine candidate leads (unassigned or already assigned to self or accessible)
+        # Non-admin users cannot take away leads already assigned to someone else
+        eligible_leads = leads
+        if not request.user.can_assign_leads:
+            already_assigned_other = leads.filter(assigned_to__isnull=False).exclude(assigned_to=request.user)
+            if already_assigned_other.exists():
+                messages.warning(
+                    request,
+                    f"{already_assigned_other.count()} lead(s) are already assigned to other team members and were skipped."
+                )
+            eligible_leads = leads.filter(Q(assigned_to__isnull=True) | Q(assigned_to=request.user))
+        
+        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+        updated_count = 0
+        for lead in eligible_leads:
+            lead.assigned_to = request.user
+            if assigned_stage and (not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']):
+                lead.stage = assigned_stage
+            lead.save(update_fields=["assigned_to", "stage", "updated_at"])
+            Activity.objects.create(
+                lead=lead,
+                user=request.user,
+                activity_type="STATUS_CHANGE",
+                details=f"Bulk self-assigned by {request.user.get_full_name() or request.user.username}.",
+            )
+            updated_count += 1
+            
+        if updated_count > 0:
+            messages.success(request, f"🎉 Successfully self-assigned {updated_count} lead(s) to yourself!")
+        else:
+            messages.info(request, "No eligible unassigned leads to assign.")
+        return redirect("leads:lead_list")
+
+    elif action == "assign":
         if not request.user.can_assign_leads:
             messages.error(request, "You don't have permission to assign leads.")
             return redirect("leads:lead_list")

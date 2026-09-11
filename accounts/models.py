@@ -165,6 +165,13 @@ class User(AbstractUser):
             return 100
 
     @property
+    def bulk_self_assign_limit(self):
+        try:
+            return int(self.custom_permissions.get("bulk_self_assign_limit", 25))
+        except (ValueError, TypeError):
+            return 25
+
+    @property
     def can_manage_users(self):
         return self.has_dynamic_permission("manage_users", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER))
 
