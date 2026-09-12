@@ -933,10 +933,26 @@
                     </div>
                 </div>
 
+                <!-- Bulk Assignment Floating Bar -->
+                <div id="drilldownBulkActionBar" class="card shadow-sm border-0 mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2" style="display: none; border-left: 4px solid var(--primary) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0 Leads Selected</span>
+                        <span class="text-muted small">Choose an employee to assign the selected leads:</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill" style="min-width: 180px;">
+                            <option value="">-- Select Employee --</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="executeDrilldownBulkAssign()">
+                            <i class="ph-bold ph-user-check me-1"></i> Bulk Assign
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Leads Table Section -->
                 <div class="card shadow-sm border-0 bg-white rounded-3">
                     <div
-                        class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom">
+                        class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
                             <span class="fw-bold text-dark" id="leadsTableHeading">Patient Records</span>
                             <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0
@@ -954,13 +970,16 @@
                             style="font-size: 0.85rem;">
                             <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
                                 <tr>
-                                    <th class="py-2 px-3">Lead / Candidate</th>
+                                    <th class="py-2 px-3" style="width: 40px;">
+                                        <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
+                                    </th>
+                                    <th class="py-2">Lead / Candidate</th>
                                     <th class="py-2">Contact</th>
                                     <th class="py-2">Business / Source</th>
                                     <th class="py-2">Dept / Course</th>
                                     <th class="py-2">Temp</th>
                                     <th class="py-2">Status / Admission</th>
-                                    <th class="py-2">Assigned To</th>
+                                    <th class="py-2" style="min-width: 150px;">Assigned To</th>
                                     <th class="py-2" style="min-width: 180px;">Comments</th>
                                     <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">Action</th>
                                 </tr>
@@ -1406,8 +1425,10 @@
 
     let cachedHospitalName = "{{ request.user.hospital.name|default:'Nelson Mother & Child Care Hospital'|escapejs }}";
     let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Patient Care Team'|escapejs }}";
-
     let selectedCampaignFilter = null;
+    let cachedAssignableUsers = [];
+    let canUserAssign = false;
+    let selectedDrilldownLeadIds = new Set();
 
     function fetchDrilldownData() {
         const loadingEl = document.getElementById('drilldownLoadingState');
@@ -1418,6 +1439,8 @@
         emptyEl.style.display = 'none';
         tbody.innerHTML = '';
         selectedCampaignFilter = null;
+        selectedDrilldownLeadIds.clear();
+        updateBulkActionBar();
 
         const searchParams = new URLSearchParams(window.location.search);
         searchParams.set('card_type', currentDrilldownCard);
@@ -1434,6 +1457,9 @@
                 loadingEl.style.display = 'none';
                 if (data.status === 'success') {
                     cachedLeadItems = data.lead_items || [];
+                    cachedAssignableUsers = data.users || [];
+                    canUserAssign = !!data.can_assign;
+
                     if (data.hospital_name) cachedHospitalName = data.hospital_name;
                     if (data.agent_name) cachedAgentName = data.agent_name;
 
@@ -1444,6 +1470,7 @@
 
                     // Dynamically update Modal Title & Labels for specific date
                     updateModalDynamicTitle(data.selected_date_display);
+                    populateBulkAssignDropdown(cachedAssignableUsers);
 
                     document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
                     document.getElementById('drilldownTotalBadge').innerText = data.total_count;
@@ -1464,6 +1491,122 @@
                 loadingEl.style.display = 'none';
                 console.error("Failed to load drilldown data:", err);
             });
+    }
+
+    function populateBulkAssignDropdown(users) {
+        const sel = document.getElementById('drilldownBulkAssignSelect');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Select Employee --</option>';
+        users.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = `${u.name} (${u.role})`;
+            sel.appendChild(opt);
+        });
+    }
+
+    function toggleDrilldownSelectAll(masterCheckbox) {
+        const isChecked = masterCheckbox.checked;
+        const checkboxes = document.querySelectorAll('.drilldown-row-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+            const leadId = parseInt(cb.value);
+            if (isChecked) {
+                selectedDrilldownLeadIds.add(leadId);
+            } else {
+                selectedDrilldownLeadIds.delete(leadId);
+            }
+        });
+        updateBulkActionBar();
+    }
+
+    function toggleDrilldownRowSelect(checkbox, leadId) {
+        if (checkbox.checked) {
+            selectedDrilldownLeadIds.add(leadId);
+        } else {
+            selectedDrilldownLeadIds.delete(leadId);
+        }
+        const allCbs = document.querySelectorAll('.drilldown-row-checkbox');
+        const masterCb = document.getElementById('drilldownSelectAllCheckbox');
+        if (masterCb && allCbs.length > 0) {
+            masterCb.checked = (selectedDrilldownLeadIds.size === allCbs.length);
+        }
+        updateBulkActionBar();
+    }
+
+    function updateBulkActionBar() {
+        const bar = document.getElementById('drilldownBulkActionBar');
+        const badge = document.getElementById('drilldownSelectedCountBadge');
+        const count = selectedDrilldownLeadIds.size;
+        if (count > 0 && canUserAssign) {
+            bar.style.display = 'flex';
+            badge.innerText = `${count} Leads Selected`;
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    function executeDrilldownBulkAssign() {
+        const assignSelect = document.getElementById('drilldownBulkAssignSelect');
+        const assignToId = assignSelect ? assignSelect.value : '';
+        if (!assignToId) {
+            alert('Please select an employee to assign the leads to.');
+            return;
+        }
+        if (selectedDrilldownLeadIds.size === 0) {
+            alert('Please select at least one lead.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('bulk_action', 'assign');
+        formData.append('assign_to', assignToId);
+        selectedDrilldownLeadIds.forEach(id => formData.append('selected', id));
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
+        fetch('/leads/bulk-action/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: formData
+        })
+        .then(res => {
+            if (res.ok) {
+                selectedDrilldownLeadIds.clear();
+                updateBulkActionBar();
+                fetchDrilldownData();
+            } else {
+                alert('Failed to assign leads. Please try again.');
+            }
+        })
+        .catch(err => {
+            console.error("Bulk assign error:", err);
+            alert('Error performing bulk assign.');
+        });
+    }
+
+    function executeSingleLeadAssign(leadId, assigneeId) {
+        if (!leadId) return;
+        const formData = new FormData();
+        formData.append('assigned_to', assigneeId || '');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
+        fetch(`/leads/${leadId}/assign/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: formData
+        })
+        .then(res => {
+            if (res.ok) {
+                fetchDrilldownData();
+            } else {
+                alert('Failed to update lead assignment.');
+            }
+        })
+        .catch(err => {
+            console.error("Single assign error:", err);
+            alert('Error updating assignment.');
+        });
     }
 
     function renderCampaignPills(campaignList, totalCount) {
@@ -1724,7 +1867,29 @@
                 statusAdmissionHtml += `<div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;"><i class="ph ph-student me-1"></i>${lead.admission_status}</span></div>`;
             }
 
+            // Assigned To with Quick Reassign Dropdown (if user has permissions)
+            let assignedToHtml = '';
+            if (canUserAssign && cachedAssignableUsers.length > 0) {
+                let opts = `<option value="">Unassigned</option>`;
+                cachedAssignableUsers.forEach(u => {
+                    const isSel = (lead.assigned_to_id && lead.assigned_to_id === u.id) ? 'selected' : '';
+                    opts += `<option value="${u.id}" ${isSel}>${u.name}</option>`;
+                });
+                assignedToHtml = `
+                    <select class="form-select form-select-sm rounded-pill border-light-subtle shadow-xs py-0 px-2" style="font-size:0.75rem; width:130px;" onchange="executeSingleLeadAssign(${lead.id}, this.value)">
+                        ${opts}
+                    </select>
+                `;
+            } else {
+                assignedToHtml = `<span class="badge bg-light text-dark border">${lead.assigned_to}</span>`;
+            }
+
+            const isRowChecked = selectedDrilldownLeadIds.has(lead.id) ? 'checked' : '';
+
             tr.innerHTML = `
+                <td class="text-center px-3">
+                    <input type="checkbox" class="form-check-input drilldown-row-checkbox" value="${lead.id}" ${isRowChecked} onchange="toggleDrilldownRowSelect(this, ${lead.id})">
+                </td>
                 <td class="text-start">
                     <a href="${lead.detail_url}" class="fw-bold text-dark text-decoration-none hover-primary">
                         ${lead.name}
@@ -1745,7 +1910,7 @@
                 <td>${tempBadge}</td>
                 <td>${statusAdmissionHtml}</td>
                 <td>
-                    <span class="badge bg-light text-dark border">${lead.assigned_to}</span>
+                    ${assignedToHtml}
                 </td>
                 <td>
                     <div class="text-muted small text-wrap text-start" style="font-size: 0.72rem; min-width: 200px; max-width: 320px;">${commentsHtml}</div>

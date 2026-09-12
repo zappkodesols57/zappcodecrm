@@ -1086,7 +1086,7 @@ def nel_card_drilldown_api(request):
         hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.hospital)
     elif selected_hospital_id and selected_hospital_id.isdigit():
         hospital_qs = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
-    elif selected_hospital_id == "none":
+    elif selected_hospital_id in ("zappcode", "none"):
         hospital_qs = Lead.objects.filter(is_archived=False, hospital__isnull=True)
     else:
         hospital_qs = Lead.objects.filter(is_archived=False)
@@ -1237,11 +1237,22 @@ def nel_card_drilldown_api(request):
             Q(deal_status__in=[DealStatus.WON, DealStatus.LOST])
         )
         if selected_date:
-            leads_qs = hospital_qs.filter(next_followup_date=selected_date).exclude(booked_exclude_modal)
+            leads_qs = hospital_qs.filter(
+                Q(next_followup_date=selected_date) |
+                Q(followups__followup_date=selected_date) |
+                Q(followups__next_followup_date=selected_date)
+            ).exclude(booked_exclude_modal)
         elif month_range_start and month_range_end:
-            leads_qs = hospital_qs.filter(next_followup_date__range=(m_start_date, m_end_date)).exclude(booked_exclude_modal)
+            leads_qs = hospital_qs.filter(
+                Q(next_followup_date__range=(m_start_date, m_end_date)) |
+                Q(followups__followup_date__range=(m_start_date, m_end_date)) |
+                Q(followups__next_followup_date__range=(m_start_date, m_end_date))
+            ).exclude(booked_exclude_modal)
         else:
-            leads_qs = hospital_qs.filter(next_followup_date__isnull=False).exclude(booked_exclude_modal)
+            leads_qs = hospital_qs.filter(
+                Q(next_followup_date__isnull=False) |
+                Q(followups__isnull=False)
+            ).exclude(booked_exclude_modal)
 
     elif card_type == 'walkin':
         w_base = hospital_qs.filter(
@@ -1355,6 +1366,7 @@ def nel_card_drilldown_api(request):
             "is_hospital": is_hosp_lead,
             "business_name": l.hospital.name if l.hospital else "Zappcode Academy",
             "assigned_to": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
+            "assigned_to_id": l.assigned_to_id,
             "next_followup": str(l.next_followup_date or '-'),
             "all_comments": all_comments,
             "detail_url": f"/leads/{l.id}/",
@@ -1362,7 +1374,6 @@ def nel_card_drilldown_api(request):
         })
 
     # Pre-calculate calendar heatmap matrix
-    # Shows count under each day for the target month
     cal_year = int(year_param) if year_param.isdigit() else (selected_date.year if selected_date else today.year)
     cal_month = int(month_param) if month_param.isdigit() else (selected_date.month if selected_date else today.month)
     _, days_in_month = calendar.monthrange(cal_year, cal_month)
@@ -1415,7 +1426,11 @@ def nel_card_drilldown_api(request):
                 Q(custom_data__appo_booked_date=day_str)
             ).count()
         elif card_type == 'followups':
-            cnt = hospital_qs.filter(next_followup_date=day_date).count()
+            cnt = hospital_qs.filter(
+                Q(next_followup_date=day_date) |
+                Q(followups__followup_date=day_date) |
+                Q(followups__next_followup_date=day_date)
+            ).distinct().count()
         elif card_type == 'walkin':
             cnt = hospital_qs.filter(
                 Q(lead_source__name__icontains='walk-in') |
@@ -1438,6 +1453,21 @@ def nel_card_drilldown_api(request):
     else:
         disp_title = "All Time Records"
 
+    # Eligible assignable users for bulk assignment inside modal strictly filtered by selected business
+    if user.hospital:
+        assign_users_qs = User.objects.filter(hospital=user.hospital, is_active=True, is_approved=True)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        assign_users_qs = User.objects.filter(hospital_id=int(selected_hospital_id), is_active=True, is_approved=True)
+    elif selected_hospital_id in ("zappcode", "none"):
+        assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
+    else:
+        assign_users_qs = User.objects.filter(is_active=True, is_approved=True)
+
+    users_list = [
+        {"id": u.id, "name": u.get_full_name() or u.username, "role": u.get_role_display()}
+        for u in assign_users_qs.order_by("first_name", "username")
+    ]
+
     return JsonResponse({
         "status": "success",
         "card_type": card_type,
@@ -1453,6 +1483,8 @@ def nel_card_drilldown_api(request):
         "cal_year": cal_year,
         "cal_month": cal_month,
         "cal_month_name": date(cal_year, cal_month, 1).strftime('%B %Y'),
+        "users": users_list,
+        "can_assign": bool(user.can_assign_leads or user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]),
     })
 
 
