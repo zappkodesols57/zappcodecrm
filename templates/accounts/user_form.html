@@ -184,6 +184,7 @@
     const deptDiv = document.getElementById("div_id_department");
     const specDiv = document.getElementById("div_id_speciality");
     const hospDiv = document.getElementById("div_id_hospital");
+    const bulkLimitDiv = document.getElementById("div_id_bulk_self_assign_limit");
     const reportsToSelect = document.getElementById("id_reports_to");
 
     // Clear initial role pre-selection if mode is Add Mode
@@ -225,9 +226,11 @@
       if (!roleField) return;
       
       const isDoctor = roleField.value === "DOCTOR";
+      const isEligibleForBulkAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
       
       if (deptDiv) deptDiv.style.display = isDoctor ? "block" : "none";
       if (specDiv) specDiv.style.display = isDoctor ? "block" : "none";
+      if (bulkLimitDiv) bulkLimitDiv.style.display = isEligibleForBulkAssign ? "block" : "none";
       
       if (!isDoctor) {
         const deptSelect = document.getElementById("id_department");

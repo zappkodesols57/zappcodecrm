@@ -29,6 +29,7 @@ urlpatterns = [
     path("businesses/<int:pk>/edit/", views.business_edit, name="business_edit"),
     path("businesses/<int:pk>/toggle-active/", views.business_toggle_active, name="business_toggle_active"),
     path("businesses/<int:pk>/delete/", views.business_delete, name="business_delete"),
+    path("switch-business/", views.switch_business, name="switch_business"),
 
 
     # Single-Page 6-Digit OTP Password Reset

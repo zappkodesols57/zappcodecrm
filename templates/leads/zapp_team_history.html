@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% block title %}Teams History · Zappcode Academy{% endblock %}
+{% block content %}
+<style>
+  .user-stat-card {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 0.85rem 1.1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .user-stat-card:hover {
+    border-color: #818cf8;
+    background: #f8faff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+  }
+  .user-stat-card.active {
+    border-color: #4f46e5;
+    background: #eef2ff;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.16);
+  }
+  .user-avatar-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+  .filter-pill-btn {
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35rem 0.95rem;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #475569;
+  }
+  .filter-pill-btn:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border-color: #94a3b8;
+  }
+  .filter-pill-btn.active {
+    background: #4f46e5;
+    color: #ffffff !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+  }
+  .leads-custom-table th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+  }
+</style>
+
+<!-- Top Title Bar -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <h4 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+      <span class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+        <i class="fa-solid fa-users-viewfinder"></i>
+      </span>
+      <span>Teams History</span>
+    </h4>
+    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-bold" style="font-size: 0.8rem;">
+      {{ total_count }} Team Leads
+    </span>
+    <span class="badge bg-light text-secondary border px-2.5 py-1.5 rounded-pill small">
+      <i class="fa-regular fa-calendar me-1"></i>{{ active_date_label }}
+    </span>
+  </div>
+
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    {% if is_global_admin and available_businesses %}
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-dark dropdown-toggle rounded-pill px-3 fw-semibold" type="button" data-bs-toggle="dropdown">
+        <i class="fa-solid fa-city me-1 text-primary"></i> {{ current_hospital.name|default:"Select Business" }}
+      </button>
+      <ul class="dropdown-menu shadow-sm border-0">
+        {% for b in available_businesses %}
+        <li><a class="dropdown-item small {% if current_hospital and current_hospital.id == b.id %}active fw-bold{% endif %}" href="?business={{ b.id }}">{{ b.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <a href="{% url 'leads:my_leads' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+      <i class="fa-solid fa-user-check me-1"></i> My Leads
+    </a>
+    <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
+      <i class="fa-solid fa-users me-1"></i> All Leads
+    </a>
+  </div>
+</div>
+
+<!-- Team Members Lead Count Header Grid -->
+<div class="row g-2 mb-3">
+  <!-- All Team Card -->
+  <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+    <a href="javascript:void(0)" onclick="filterByUser('')" class="user-stat-card h-100 {% if not selected_user %}active{% endif %}">
+      <div class="user-avatar-circle bg-secondary bg-gradient">
+        <i class="fa-solid fa-people-group"></i>
+      </div>
+      <div class="overflow-hidden">
+        <div class="text-muted small text-truncate" style="font-size: 0.75rem;">All Members</div>
+        <div class="fw-bold fs-5 text-dark lh-1 mt-0.5">{{ total_count }}</div>
+      </div>
+    </a>
+  </div>
+
+  {% for stat in user_counts %}
+  <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+    <a href="javascript:void(0)" onclick="filterByUser('{{ stat.user.id }}')"
+       class="user-stat-card h-100 {% if selected_user and selected_user.id == stat.user.id %}active{% endif %}"
+       title="View {{ stat.user.get_full_name|default:stat.user.username }}'s leads">
+      <div class="user-avatar-circle {% if stat.is_self %}bg-success bg-gradient{% endif %}">
+        {{ stat.user.first_name|default:stat.user.username|slice:":1"|upper }}
+      </div>
+      <div class="overflow-hidden">
+        <div class="fw-semibold text-dark text-truncate small" style="font-size: 0.82rem;">
+          {{ stat.user.get_full_name|default:stat.user.username }}
+          {% if stat.is_self %}<span class="badge bg-success-subtle text-success p-0.5" style="font-size: 0.65rem;">(You)</span>{% endif %}
+        </div>
+        <div class="fw-bold fs-5 text-primary lh-1 mt-0.5">{{ stat.count }} <span class="text-muted fw-normal" style="font-size: 0.72rem;">leads</span></div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Main Filter Card -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+  <div class="card-body p-3">
+    <form method="get" action="{% url 'leads:team_history' %}" id="teamHistoryFilterForm">
+      <!-- 1. Quick Date Filters Pill Row -->
+      <div class="d-flex align-items-center flex-wrap gap-2 pb-3 border-bottom mb-3">
+        <span class="text-uppercase small fw-bold text-muted me-1" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+          <i class="fa-solid fa-clock-rotate-left me-1 text-primary"></i>Period:
+        </span>
+
+        <!-- All Time (Default) -->
+        <a href="javascript:void(0)" onclick="applyDateFilter('preset', 'all')"
+           class="filter-pill-btn {% if not date_preset or date_preset == 'all' %}{% if not selected_month and not selected_year and not date_from and not date_to %}active{% endif %}{% endif %}">
+          <i class="fa-solid fa-layer-group"></i> All Time
+        </a>
+
+        <!-- Today -->
+        <a href="javascript:void(0)" onclick="applyDateFilter('preset', 'today')"
+           class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">
+          <i class="fa-solid fa-sun"></i> Today
+        </a>
+
+        <!-- Yesterday -->
+        <a href="javascript:void(0)" onclick="applyDateFilter('preset', 'yesterday')"
+           class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">
+          <i class="fa-regular fa-clock"></i> Yesterday
+        </a>
+
+        <!-- Month Dropdown -->
+        <div class="dropdown d-inline-block">
+          <button class="filter-pill-btn dropdown-toggle filter-dropdown-toggle {% if selected_month %}active{% endif %}" type="button" id="teamMonthDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fa-regular fa-calendar-days"></i>
+            <span>{% if selected_month %}{{ active_date_label }}{% else %}Month{% endif %}</span>
+          </button>
+          <ul class="dropdown-menu shadow-sm border-0 py-1" aria-labelledby="teamMonthDropdown" style="max-height: 280px; overflow-y: auto; min-width: 170px;">
+            <li><h6 class="dropdown-header text-uppercase small text-muted">Select Available Month</h6></li>
+            {% for m in available_months %}
+            <li>
+              <a class="dropdown-item d-flex align-items-center justify-content-between py-1.5 small {% if selected_month == m.value %}active fw-bold{% endif %}"
+                 href="javascript:void(0)" onclick="applyDateFilter('month', '{{ m.value }}')">
+                <span>{{ m.label }}</span>
+                {% if selected_month == m.value %}<i class="fa-solid fa-check text-white ms-2"></i>{% endif %}
+              </a>
+            </li>
+            {% empty %}
+            <li><span class="dropdown-item text-muted small">No past months found</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <!-- Year Dropdown -->
+        <div class="dropdown d-inline-block">
+          <button class="filter-pill-btn dropdown-toggle filter-dropdown-toggle {% if selected_year %}active{% endif %}" type="button" id="teamYearDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fa-regular fa-calendar"></i>
+            <span>{% if selected_year %}Year {{ selected_year }}{% else %}Year{% endif %}</span>
+          </button>
+          <ul class="dropdown-menu shadow-sm border-0 py-1" aria-labelledby="teamYearDropdown" style="min-width: 140px;">
+            <li><h6 class="dropdown-header text-uppercase small text-muted">Select Year</h6></li>
+            {% for y in available_years %}
+            <li>
+              <a class="dropdown-item d-flex align-items-center justify-content-between py-1.5 small {% if selected_year == y|stringformat:'s' %}active fw-bold{% endif %}"
+                 href="javascript:void(0)" onclick="applyDateFilter('year', '{{ y }}')">
+                <span>{{ y }}</span>
+                {% if selected_year == y|stringformat:'s' %}<i class="fa-solid fa-check text-white ms-2"></i>{% endif %}
+              </a>
+            </li>
+            {% empty %}
+            <li><span class="dropdown-item text-muted small">No past years found</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <!-- Custom Date Range Trigger -->
+        <button type="button" class="filter-pill-btn {% if date_from or date_to %}active{% endif %}" onclick="toggleCustomDateRow()">
+          <i class="fa-solid fa-sliders"></i> Custom Dates
+        </button>
+
+        <!-- Hidden parameters for Date Period -->
+        <input type="hidden" name="date_preset" id="team_hidden_date_preset" value="{{ date_preset }}">
+        <input type="hidden" name="month" id="team_hidden_month" value="{{ selected_month }}">
+        <input type="hidden" name="year" id="team_hidden_year" value="{{ selected_year }}">
+
+        {% if active_filters_count > 0 %}
+        <a href="{% url 'leads:team_history' %}" class="btn btn-sm btn-link text-danger text-decoration-none fw-semibold ms-auto small p-0">
+          <i class="fa-solid fa-xmark me-1"></i>Reset Filters
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Custom Date Row (Toggled) -->
+      <div id="teamCustomDateBox" class="p-2.5 mb-3 bg-light rounded-3 border {% if not date_from and not date_to %}d-none{% endif %}">
+        <div class="row g-2 align-items-center">
+          <div class="col-auto">
+            <span class="small fw-bold text-secondary"><i class="fa-regular fa-calendar-check text-primary me-1"></i>From Date:</span>
+          </div>
+          <div class="col-sm-3 col-md-2">
+            <input type="date" name="date_from" id="teamDateFrom" class="form-control form-control-sm bg-white" value="{{ date_from }}" onchange="syncTeamToDateMin()">
+          </div>
+          <div class="col-auto">
+            <span class="small fw-bold text-secondary"><i class="fa-regular fa-calendar-check text-primary me-1"></i>To Date:</span>
+          </div>
+          <div class="col-sm-3 col-md-2">
+            <input type="date" name="date_to" id="teamDateTo" class="form-control form-control-sm bg-white" value="{{ date_to }}">
+          </div>
+          <div class="col-auto">
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-xs" onclick="applyTeamCustomDate()">
+              Apply Range
+            </button>
+          </div>
+          <div class="col-auto">
+            <span class="text-muted small" style="font-size: 0.75rem;">* To Date must be on or after From Date</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Dropdown Filters Row -->
+      <div class="row g-2 align-items-center">
+        <!-- Search -->
+        <div class="col-md-3">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white border-secondary-subtle"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+            <input type="text" name="q" value="{{ q }}" class="form-control border-secondary-subtle" placeholder="Search student, mobile, lead ID...">
+          </div>
+        </div>
+
+        <!-- Filter by Team Member Dropdown -->
+        <div class="col-md-3 col-sm-6">
+          <select name="user_id" id="teamMemberSelect" class="form-select form-select-sm border-secondary-subtle" onchange="this.form.submit()">
+            <option value="">All Team Members</option>
+            {% for m in team_members %}
+            <option value="{{ m.id }}" {% if selected_user and selected_user.id == m.id %}selected{% endif %}>
+              {{ m.get_full_name|default:m.username }} ({{ m.get_role_display }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Course Filter -->
+        <div class="col-md-2 col-sm-6">
+          <select name="course" class="form-select form-select-sm border-secondary-subtle" onchange="this.form.submit()">
+            <option value="">All Courses</option>
+            {% for c in courses %}
+            <option value="{{ c.id }}" {% if c.id|stringformat:"s" in selected_courses %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Stage Filter -->
+        <div class="col-md-2 col-sm-6">
+          <select name="stage" class="form-select form-select-sm border-secondary-subtle" onchange="this.form.submit()">
+            <option value="">All Stages</option>
+            {% for s in stages %}
+            <option value="{{ s.id }}" {% if s.id|stringformat:"s" in selected_stages %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Admission Status Filter -->
+        <div class="col-md-2 col-sm-6">
+          <select name="admission_status" class="form-select form-select-sm border-secondary-subtle" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in admission_status_choices %}
+            <option value="{{ val }}" {% if val in selected_admission_statuses %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Active Filter User Pill Banner -->
+{% if selected_user %}
+<div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-25 py-2 px-3 rounded-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1">
+      <i class="fa-solid fa-user-tag me-1"></i>Filtered User
+    </span>
+    <span class="text-dark fw-bold fs-6">
+      {{ selected_user.get_full_name|default:selected_user.username }}
+    </span>
+    <span class="badge bg-white text-secondary border rounded-pill px-2 py-1 small">
+      {{ total_count }} leads in {{ active_date_label }}
+    </span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if active_date_label != "All Time" %}
+    <button type="button" onclick="applyDateFilter('preset', 'all')" class="btn btn-xs btn-primary rounded-pill px-2.5 py-1 fw-bold shadow-xs">
+      <i class="fa-solid fa-layer-group me-1"></i>View All Time History
+    </button>
+    {% endif %}
+    <button type="button" onclick="filterByUser('')" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fw-bold shadow-xs bg-white">
+      <i class="fa-solid fa-xmark me-1"></i>View All Team Members
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<!-- Notice Bar explaining permissions -->
+<div class="alert alert-info py-2 px-3 small border-0 shadow-xs rounded-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-2">
+    <i class="fa-solid fa-circle-info fs-6 text-primary"></i>
+    <span>
+      <strong>Team Collaboration Mode:</strong> You can view team leads, add follow-ups, and add internal notes. Editing student details and converting to admission is restricted to the assigned counselor or manager.
+    </span>
+  </div>
+</div>
+
+<!-- Leads Data Table Card -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+  <div class="table-responsive custom-table-scrollbar pb-2">
+    <table class="table align-middle mb-0 leads-custom-table" style="min-width: 1100px;">
+      <thead>
+        <tr>
+          <th class="py-2.5 px-3">Lead ID</th>
+          <th class="py-2.5 px-3">Inquiry Date</th>
+          <th class="py-2.5 px-3">Student Name</th>
+          <th class="py-2.5 px-3">Mobile</th>
+          <th class="py-2.5 px-3">Course Interested</th>
+          <th class="py-2.5 px-3">Stage</th>
+          <th class="py-2.5 px-3">Admission Status</th>
+          <th class="py-2.5 px-3" style="min-width: 220px;">Latest Work & Calling Remarks</th>
+          <th class="py-2.5 px-3">Assigned Counselor</th>
+          <th class="py-2.5 px-3">Next Follow-up</th>
+          <th class="py-2.5 px-3 text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in page_obj %}
+        <tr>
+          <td class="px-3">
+            <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-primary text-decoration-none">
+              {{ lead.lead_code }}
+            </a>
+          </td>
+          <td class="px-3 text-nowrap small text-muted">
+            {{ lead.inquiry_date|date:"d-m-Y" }}
+          </td>
+          <td class="px-3">
+            <strong class="text-dark">{{ lead.name }}</strong>
+            {% if lead.city %}<div class="text-muted small" style="font-size: 0.72rem;"><i class="fa-solid fa-location-dot me-1"></i>{{ lead.city }}</div>{% endif %}
+          </td>
+          <td class="px-3">
+            <span class="fw-semibold">{{ lead.mobile }}</span>
+          </td>
+          <td class="px-3">
+            {% if lead.course %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+              <i class="fa-solid fa-graduation-cap me-1"></i>{{ lead.course.name }}
+            </span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="px-3">
+            <span class="badge badge-stage">{{ lead.stage|default:"New" }}</span>
+          </td>
+          <td class="px-3">
+            {% if lead.admission_status == 'ADMISSION_DONE' %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Admission Done</span>
+            {% elif lead.admission_status == 'APPLIED' %}
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-file-signature me-1"></i>Applied</span>
+            {% elif lead.admission_status == 'INTERESTED' %}
+              <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle"><i class="fa-solid fa-thumbs-up me-1"></i>Interested</span>
+            {% elif lead.admission_status == 'CANCELLED' %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>Cancelled</span>
+            {% else %}
+              <span class="badge bg-light text-secondary border">Not Applied</span>
+            {% endif %}
+          </td>
+          <td class="px-3">
+            {% if lead.latest_followup_obj %}
+              <div class="d-flex flex-column gap-0.5" style="max-width: 260px;">
+                <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                  <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle p-0.5 px-1" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-phone-volume me-1"></i>{{ lead.latest_followup_obj.get_followup_mode_display|default:"Call" }}
+                  </span>
+                  <span class="badge {% if lead.latest_followup_obj.followup_status == 'INTERESTED' %}bg-success-subtle text-success{% elif lead.latest_followup_obj.followup_status == 'NOT_CONNECTED' %}bg-secondary-subtle text-secondary{% elif lead.latest_followup_obj.followup_status == 'NOT_INTERESTED' %}bg-danger-subtle text-danger{% else %}bg-primary-subtle text-primary{% endif %} p-0.5 px-1" style="font-size: 0.68rem;">
+                    {{ lead.latest_followup_obj.get_followup_status_display }}
+                  </span>
+                </div>
+                {% if lead.latest_followup_obj.comment %}
+                  <div class="text-dark small fw-medium text-truncate" title="{{ lead.latest_followup_obj.comment }}" style="font-size: 0.78rem;">
+                    "{{ lead.latest_followup_obj.comment }}"
+                  </div>
+                {% endif %}
+                <div class="text-muted" style="font-size: 0.68rem;">
+                  <i class="fa-regular fa-user me-0.5"></i>{% if lead.latest_followup_obj.created_by %}{{ lead.latest_followup_obj.created_by.get_full_name|default:lead.latest_followup_obj.created_by.username }}{% else %}Team Member{% endif %}
+                  · <i class="fa-regular fa-clock me-0.5"></i>{{ lead.latest_followup_obj.followup_date|date:"d M Y" }}
+                </div>
+              </div>
+            {% elif lead.latest_activity_obj %}
+              <div class="d-flex flex-column gap-0.5" style="max-width: 260px;">
+                <span class="badge bg-secondary-subtle text-secondary p-0.5 px-1 align-self-start" style="font-size: 0.68rem;">
+                  {{ lead.latest_activity_obj.get_activity_type_display }}
+                </span>
+                <div class="text-dark small text-truncate" title="{{ lead.latest_activity_obj.description }}" style="font-size: 0.78rem;">
+                  {{ lead.latest_activity_obj.description }}
+                </div>
+                <div class="text-muted" style="font-size: 0.68rem;">
+                  {% if lead.latest_activity_obj.created_by %}{{ lead.latest_activity_obj.created_by.get_full_name|default:lead.latest_activity_obj.created_by.username }}{% else %}System{% endif %}
+                  · {{ lead.latest_activity_obj.created_at|date:"d M Y" }}
+                </div>
+              </div>
+            {% else %}
+              <span class="text-muted small" style="font-size: 0.75rem;">No updates yet</span>
+            {% endif %}
+          </td>
+          <td class="px-3">
+            {% if lead.assigned_to %}
+              <span class="small fw-semibold text-dark d-inline-flex align-items-center gap-1">
+                <i class="fa-solid fa-user-check text-success"></i>
+                <span>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+              </span>
+              {% if lead.assigned_to == request.user %}
+                <span class="badge bg-success-subtle text-success p-0.5 ms-1" style="font-size: 0.65rem;">You</span>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+            {% endif %}
+          </td>
+          <td class="px-3">
+            {% if lead.next_followup_date %}
+              <span class="small text-nowrap fw-semibold text-secondary"><i class="fa-regular fa-calendar-check text-warning me-1"></i>{{ lead.next_followup_date|date:"d-m-Y" }}</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="px-3 text-end">
+            <div class="d-inline-flex align-items-center gap-1">
+              <!-- View / Open Details (Always Allowed) -->
+              <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="View Lead & Follow-ups">
+                <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
+              </a>
+
+              <!-- Call -->
+              <a href="tel:{{ lead.mobile }}" class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
+                <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+              </a>
+
+              <!-- WhatsApp -->
+              <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy." target="_blank" class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
+                <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
+              </a>
+
+              <!-- Edit (Only shown if user is owner or manager/admin) -->
+              {% if lead.assigned_to == request.user or not lead.assigned_to or request.user.can_edit_any_lead %}
+              <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Edit Lead">
+                <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="11" class="text-center py-5">
+            <div class="empty-state py-4">
+              <i class="fa-solid fa-users-slash text-muted mb-2 fs-2 opacity-50"></i>
+              <h6 class="fw-bold text-dark mb-1">No team leads found for this filter</h6>
+              <p class="text-muted small mb-3">Try switching date periods or resetting filters to view all leads.</p>
+              <div class="d-inline-flex align-items-center gap-2 flex-wrap justify-content-center">
+                {% if active_date_label != "All Time" %}
+                <button type="button" onclick="applyDateFilter('preset', 'all')" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
+                  <i class="fa-solid fa-layer-group me-1"></i> Switch to All Time
+                </button>
+                {% endif %}
+                {% if active_filters_count > 0 %}
+                <a href="{% url 'leads:team_history' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold bg-white">
+                  <i class="fa-solid fa-arrows-rotate me-1"></i> Reset All Filters
+                </a>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="d-flex justify-content-between align-items-center mt-3 px-2 flex-wrap gap-2">
+  <span class="small text-muted">
+    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} leads
+  </span>
+  <ul class="pagination pagination-sm mb-0">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}"><i class="fa-solid fa-chevron-left"></i></a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-left"></i></span></li>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+      {% if page_obj.number == num %}
+        <li class="page-item active"><span class="page-link fw-bold">{{ num }}</span></li>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item"><a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a></li>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}"><i class="fa-solid fa-chevron-right"></i></a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-right"></i></span></li>
+    {% endif %}
+  </ul>
+</div>
+{% endif %}
+
+<script>
+  function filterByUser(userId) {
+    const sel = document.getElementById('teamMemberSelect');
+    if (sel) {
+      // If clicking already selected user, toggle off to show all members
+      if (sel.value && String(sel.value) === String(userId)) {
+        sel.value = '';
+      } else {
+        sel.value = userId || '';
+      }
+    }
+    document.getElementById('teamHistoryFilterForm').submit();
+  }
+
+  function applyDateFilter(type, val) {
+    document.getElementById('team_hidden_date_preset').value = '';
+    document.getElementById('team_hidden_month').value = '';
+    document.getElementById('team_hidden_year').value = '';
+    document.getElementById('teamDateFrom').value = '';
+    document.getElementById('teamDateTo').value = '';
+
+    if (type === 'preset') {
+      document.getElementById('team_hidden_date_preset').value = val;
+    } else if (type === 'month') {
+      document.getElementById('team_hidden_month').value = val;
+    } else if (type === 'year') {
+      document.getElementById('team_hidden_year').value = val;
+    }
+    document.getElementById('teamHistoryFilterForm').submit();
+  }
+
+  function toggleCustomDateRow() {
+    const box = document.getElementById('teamCustomDateBox');
+    box.classList.toggle('d-none');
+    if (!box.classList.contains('d-none')) {
+      document.getElementById('teamDateFrom').focus();
+    }
+  }
+
+  function syncTeamToDateMin() {
+    const fromVal = document.getElementById('teamDateFrom').value;
+    const toInput = document.getElementById('teamDateTo');
+    if (fromVal) {
+      toInput.min = fromVal;
+      if (toInput.value && toInput.value < fromVal) {
+        toInput.value = fromVal;
+      }
+    } else {
+      toInput.removeAttribute('min');
+    }
+  }
+
+  function applyTeamCustomDate() {
+    const df = document.getElementById('teamDateFrom').value;
+    const dt = document.getElementById('teamDateTo').value;
+    if (!df && !dt) {
+      alert("Please select at least a From Date or To Date.");
+      return;
+    }
+    if (df && dt && dt < df) {
+      alert("To Date cannot be earlier than From Date.");
+      return;
+    }
+    document.getElementById('team_hidden_date_preset').value = '';
+    document.getElementById('team_hidden_month').value = '';
+    document.getElementById('team_hidden_year').value = '';
+    document.getElementById('teamHistoryFilterForm').submit();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    syncTeamToDateMin();
+  });
+</script>
+{% endblock %}

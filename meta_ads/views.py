@@ -192,7 +192,7 @@ def create_or_update_meta_lead(connection, data):
             Q(hospital=hospital) | Q(hospital__isnull=True) | Q(is_superuser=True)
         ).distinct()
 
-        link = reverse('leads:lead_edit', args=[lead.pk])
+        link = reverse('leads:lead_detail', args=[lead.pk])
         course_display = f" for {lead.course.name}" if lead.course else ""
         for u in notify_users:
             Notification.objects.create(

@@ -6,26 +6,37 @@
   <div class="d-flex align-items-center gap-3">
     <!-- View Switcher Dropdown -->
     <div class="dropdown">
-      <button class="btn btn-link text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2" type="button" id="listViewFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.25rem;">
+      <button class="btn btn-link text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2"
+        type="button" id="listViewFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+        style="font-size: 1.25rem;">
         <span><i class="fa-solid fa-graduation-cap me-2 text-primary"></i>All Student Leads</span>
         <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.8rem;"></i>
       </button>
-      <ul class="dropdown-menu shadow border-0 py-2" aria-labelledby="listViewFilterDropdown" style="min-width: 240px; font-size: 0.88rem; z-index: 1060;">
-        <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Switch Lead View</h6></li>
+      <ul class="dropdown-menu shadow border-0 py-2" aria-labelledby="listViewFilterDropdown"
+        style="min-width: 240px; font-size: 0.88rem; z-index: 1060;">
         <li>
-          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'leads_all' %}active fw-bold{% endif %}" href="{% url 'leads:lead_list' %}">
+          <h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+            Switch Lead View</h6>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if active == 'leads_all' %}active fw-bold{% endif %}"
+            href="{% url 'leads:lead_list' %}">
             <span><i class="fa-solid fa-list-ul me-2 text-primary"></i> All Student Leads</span>
             <span class="badge bg-light text-secondary border rounded-pill">{{ total_count|default:0 }}</span>
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center justify-content-between py-2" href="{% url 'leads:lead_list' %}?assigned_to={{ request.user.id }}">
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2"
+            href="{% url 'leads:lead_list' %}?assigned_to={{ request.user.id }}">
             <span><i class="fa-solid fa-user-check me-2 text-success"></i> My Assigned Leads</span>
           </a>
         </li>
-        <li><hr class="dropdown-divider my-1"></li>
         <li>
-          <a class="dropdown-item d-flex align-items-center py-2 text-primary" href="{% url 'leads:lead_list' %}?sort=-inquiry_date">
+          <hr class="dropdown-divider my-1">
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center py-2 text-primary"
+            href="{% url 'leads:lead_list' %}?sort=-inquiry_date">
             <i class="fa-regular fa-calendar-check me-2"></i> Recently Created / Inquired
           </a>
         </li>
@@ -33,55 +44,87 @@
     </div>
 
     <!-- Count Badge -->
-    <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">{{ total_count }} records</span>
+    <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">{{ total_count }}
+      records</span>
   </div>
 
   <div class="d-flex align-items-center gap-2">
     <!-- Inline Filter Toggle Button -->
-    <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill" type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Sidebar Filters">
+    <button
+      class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
+      type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Sidebar Filters">
       <i class="fa-solid fa-sliders text-primary"></i>
       <span>Filter</span>
       {% if active_filters_count > 0 %}
-        <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ active_filters_count }}</span>
+      <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ active_filters_count }}</span>
       {% endif %}
     </button>
 
+    {% if not user.is_superuser and user.role != 'SUPER_ADMIN' and user.role != 'ADMIN' %}
+    <!-- Bulk Self-Assign Button with Count Badge -->
+    <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
+      id="bulkSelfAssignBtn"
+      onclick="submitBulkSelfAssign()"
+      title="Bulk assign selected leads to yourself (Max limit: {{ request.user.bulk_self_assign_limit }})">
+      <i class="fa-solid fa-hand-holding-hand text-success"></i>
+      <span>Bulk Assign to Me</span>
+      <span class="badge bg-success rounded-pill px-2 py-1" id="bulkSelfAssignBadge" style="font-size: 0.7rem;">
+        <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
+      </span>
+    </button>
+    {% endif %}
+
     <!-- Sort Dropdown Trigger -->
     <div class="dropdown">
-      <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 fw-semibold px-3 shadow-sm rounded-pill dropdown-toggle" type="button" id="titleSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
+      <button
+        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 fw-semibold px-3 shadow-sm rounded-pill dropdown-toggle"
+        type="button" id="titleSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
         <i class="fa-solid fa-arrow-down-short-wide text-primary"></i>
         <span>Sort</span>
       </button>
-      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="titleSortDropdown" style="font-size: 0.82rem; min-width: 200px;">
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-created_at')">Newest First</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('created_at')">Oldest First</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_asc')">Student Name (A → Z)</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_desc')">Student Name (Z → A)</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="titleSortDropdown"
+        style="font-size: 0.82rem; min-width: 200px;">
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-created_at')">Newest
+            First</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('created_at')">Oldest
+            First</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_asc')">Student Name (A →
+            Z)</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_desc')">Student Name (Z →
+            A)</button></li>
+        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-inquiry_date')">Inquiry Date
+            (Latest)</button></li>
       </ul>
     </div>
 
     {% if active_filters_count > 0 %}
-      <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-3" title="Clear all applied filters">
-        <i class="fa-solid fa-rotate-left me-1"></i> Clear
-      </a>
+    <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-3"
+      title="Clear all applied filters">
+      <i class="fa-solid fa-rotate-left me-1"></i> Clear
+    </a>
     {% endif %}
 
     <!-- Top Header Export Dropdown -->
     <div class="dropdown">
-      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle shadow-sm" type="button" id="topHeaderExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle shadow-sm" type="button"
+        id="topHeaderExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="fa-solid fa-file-export me-1"></i> Export
       </button>
-      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportDropdown" style="font-size: 0.85rem; min-width: 170px;">
-        <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export {% if active_filters_count > 0 %}Filtered{% else %}All{% endif %} Leads</h6></li>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportDropdown"
+        style="font-size: 0.85rem; min-width: 170px;">
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=excel">
+          <h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export {% if active_filters_count > 0 %}Filtered{% else %}All{% endif %} Leads</h6>
+        </li>
+        <li>
+          <a class="dropdown-item d-flex align-items-center gap-2 py-2"
+            href="?{{ request.GET.urlencode }}&export=excel">
             <i class="fa-solid fa-file-excel text-success" style="font-size: 1rem;"></i>
             <span>Excel (.xlsx)</span>
           </a>
         </li>
         <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=pdf" target="_blank">
+          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=pdf"
+            target="_blank">
             <i class="fa-solid fa-file-pdf text-danger" style="font-size: 1rem;"></i>
             <span>PDF / Print</span>
           </a>
@@ -93,240 +136,653 @@
 
 <!-- Split View Container: Left Filter Column + Right Main Table -->
 <div class="d-flex align-items-stretch gap-3 w-100">
-  
+
   <!-- Left Side Filter Panel (Inline) -->
   {% include "includes/leads_side_filter.html" %}
 
   <!-- Right Side Main Content & Table -->
   <div class="flex-grow-1 overflow-hidden">
+    <form method="post" action="{% url 'leads:bulk_action' %}" id="leadsBulkActionForm">
+      {% csrf_token %}
+      <input type="hidden" name="bulk_action" id="bulkActionInput" value="self_assign">
 
-{% if request.user.can_edit_any_lead %}
-<form method="post" action="{% url 'leads:bulk_action' %}">
-  {% csrf_token %}
-  <style>
-    .bulk-action-bar .ts-wrapper .ts-control {
-      border: 1px solid #9ca3af !important;
-      background-color: #f1f5f9 !important;
-      border-radius: 0.4rem !important;
-      min-height: calc(1.5em + 0.5rem + 2px);
-    }
-  </style>
-  <div class="card bulk-action-bar mb-3 p-3 d-flex flex-row gap-3 align-items-center bg-white shadow-sm" style="border: 1px solid #9ca3af !important; border-radius: 0.75rem;">
-    <span class="fw-bold text-dark small text-uppercase ms-1"><i class="fa-solid fa-layer-group text-primary me-1"></i> Bulk Actions:</span>
-    <select name="bulk_action" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
-      <option value="assign">Assign to...</option>
-      <option value="stage">Change Stage to...</option>
-      {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-      <option value="archive">Archive</option>
+      {% if request.user.can_edit_any_lead %}
+      <style>
+        .bulk-action-bar {
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 0.85rem !important;
+          background: #ffffff;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .bulk-field-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: #64748b;
+          margin-bottom: 2px;
+        }
+      </style>
+      <div class="card bulk-action-bar mb-3 p-3">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <div class="d-flex align-items-center me-1">
+            <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-3 me-2">
+              <i class="fa-solid fa-layer-group fa-lg"></i>
+            </span>
+            <div>
+              <div class="fw-bold text-dark" style="font-size: 0.88rem;">Bulk Action</div>
+              <div class="text-muted" style="font-size: 0.72rem;">Apply changes to selected leads</div>
+            </div>
+          </div>
+
+          <!-- 1. Action Dropdown -->
+          <div style="min-width: 170px;">
+            <div class="bulk-field-label">Action</div>
+            <select name="admin_bulk_action" id="adminBulkActionSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none" onchange="handleBulkActionChange()">
+              <option value="">-- Select Action --</option>
+              <option value="assign">Assign to...</option>
+              <option value="stage">Change Stage to...</option>
+              {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+              <option value="archive">Archive</option>
+              {% endif %}
+            </select>
+          </div>
+
+          <!-- 2. From Field Container -->
+          <div id="fromFieldContainer" class="d-none" style="min-width: 170px;">
+            <div class="bulk-field-label" id="fromFieldLabel">From</div>
+            <!-- From User Select Wrapper -->
+            <div id="fromUserWrapper" class="d-none">
+              <select name="from_user" id="fromUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+                <option value="">All / Any User</option>
+                <option value="unassigned">Unassigned / Open</option>
+                {% for e in employees %}
+                <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <!-- From Stage Select Wrapper -->
+            <div id="fromStageWrapper" class="d-none">
+              <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+                <option value="">All / Any Stage</option>
+                {% for s in bulk_stages %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- 3. To Field Container -->
+          <div id="toFieldContainer" class="d-none" style="min-width: 170px;">
+            <div class="bulk-field-label" id="toFieldLabel">To</div>
+            <!-- To User Select Wrapper -->
+            <div id="toUserWrapper" class="d-none">
+              <select name="assign_to" id="toUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+                <option value="">-- Select Assignee --</option>
+                {% for e in employees %}
+                <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <!-- To Stage Select Wrapper -->
+            <div id="toStageWrapper" class="d-none">
+              <select name="stage" id="toStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+                <option value="">-- Select Target Stage --</option>
+                {% for s in bulk_stages %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Apply Button -->
+          <div class="ms-auto pt-3 pt-md-0">
+            <button type="button" class="btn btn-sm btn-primary px-4 fw-semibold shadow-sm d-flex align-items-center gap-2" onclick="submitAdminBulkAction()">
+              <i class="fa-solid fa-check-double"></i>
+              <span>Apply to Selected</span>
+            </button>
+          </div>
+        </div>
+      </div>
       {% endif %}
-    </select>
-    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
-      <option value="">Counselor / HR</option>
-      {% for e in employees %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-    </select>
-    <select name="stage" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
-      {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-    </select>
-    <button class="btn btn-sm btn-primary px-4 fw-bold shadow-sm" onclick="return confirmAction('Apply bulk action to selected leads?')">Apply to Selected</button>
-  </div>
-{% endif %}
 
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive custom-table-scrollbar pb-2">
-      <table class="table align-middle mb-0" style="min-width: 1100px;">
-        <thead class="bg-light border-bottom">
-          <tr>
-            <th style="width: 40px;"><input type="checkbox" onclick="document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked)"></th>
-            
-            <!-- 1. Lead ID -->
-            <th class="position-relative py-2 px-3">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Lead ID</span>
-              </div>
-            </th>
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive custom-table-scrollbar pb-2">
+          <table class="table align-middle mb-0" style="min-width: 1100px;">
+            <thead class="bg-light border-bottom">
+              <tr>
+                <th style="width: 40px;"><input type="checkbox" id="masterLeadCheckbox"
+                    onclick="toggleAllCheckboxes(this)"></th>
 
-            <!-- 2. Date -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Inquiry Date</span>
-              </div>
-            </th>
+                <!-- 1. Lead ID -->
+                <th class="position-relative py-2 px-3">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Lead ID</span>
+                  </div>
+                </th>
 
-            <!-- 3. Student Name -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Student Name</span>
-              </div>
-            </th>
+                <!-- 2. Date -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Inquiry Date</span>
+                  </div>
+                </th>
 
-            <!-- 4. Phone / Mobile -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Mobile</span>
-              </div>
-            </th>
+                <!-- 3. Student Name -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Student Name</span>
+                  </div>
+                </th>
 
-            <!-- 5. Course -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Course Interested</span>
-              </div>
-            </th>
+                <!-- 4. Phone / Mobile -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Mobile</span>
+                  </div>
+                </th>
 
-            <!-- 6. Source -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Lead Source</span>
-              </div>
-            </th>
+                <!-- 5. Course -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Course Interested</span>
+                  </div>
+                </th>
 
-            <!-- 7. Stage -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Stage</span>
-              </div>
-            </th>
+                <!-- 6. Source -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Lead Source</span>
+                  </div>
+                </th>
 
-            <!-- 8. Deal / Admission Status -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Admission Status</span>
-              </div>
-            </th>
+                <!-- 7. Stage -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Stage</span>
+                  </div>
+                </th>
 
-            <!-- 9. Assigned Counselor -->
-            <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
-              <div class="d-flex align-items-center justify-content-between">
-                <span class="ms-1 fw-bold text-dark small text-uppercase">Counselor / HR</span>
-              </div>
-            </th>
+                <!-- 8. Deal / Admission Status -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Admission Status</span>
+                  </div>
+                </th>
 
-            <th class="py-2 px-3 text-uppercase small text-muted" style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
-            <th class="py-2 px-3 text-uppercase small text-muted text-end" style="border-left: 1px solid #e2e8f0 !important; min-width: 140px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for lead in page_obj %}
-          <tr>
-            <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-            <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold">{{ lead.lead_code }}</a></td>
-            <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
-            <td><strong>{{ lead.name }}</strong></td>
-            <td>
-              <span class="fw-semibold">{{ lead.mobile }}</span>
-            </td>
-            <td>
-              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
-                <i class="fa-solid fa-graduation-cap me-1"></i>{{ lead.course|default:"—" }}
-              </span>
-            </td>
-            <td><span class="small text-muted">{{ lead.lead_source|default:"—" }}</span></td>
-            <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
-            <td>
-              {% if lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-                  <i class="fa-solid fa-circle-check me-1"></i>Enrolled / Won
-                </span>
-              {% else %}
-                <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if lead.assigned_to %}
-                <span class="small fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
-              {% else %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
-              {% endif %}
-            </td>
-            <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
-            <td class="text-end">
-              <div class="d-inline-flex align-items-center gap-1">
-                {% if not lead.assigned_to %}
-                  <!-- Capture Lead Button (POST to actually save) -->
-                  <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}" class="d-inline m-0 p-0">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-xs btn-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-bold" style="font-size: 0.75rem;" title="Capture & Assign to Me">
+                <!-- 9. Assigned Counselor -->
+                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="ms-1 fw-bold text-dark small text-uppercase">Counselor / HR</span>
+                  </div>
+                </th>
+
+                <th class="py-2 px-3 text-uppercase small text-muted"
+                  style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
+                <th class="py-2 px-3 text-uppercase small text-muted text-end"
+                  style="border-left: 1px solid #e2e8f0 !important; min-width: 140px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lead in page_obj %}
+              <tr>
+                <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
+                <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold">{{ lead.lead_code }}</a></td>
+                <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
+                <td><strong>{{ lead.name }}</strong></td>
+                <td>
+                  <span class="fw-semibold">{{ lead.mobile }}</span>
+                </td>
+                <td>
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                    <i class="fa-solid fa-graduation-cap me-1"></i>{{ lead.course|default:"—" }}
+                  </span>
+                </td>
+                <td><span class="small text-muted">{{ lead.lead_source|default:"—" }}</span></td>
+                <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
+                <td>
+                  {% if lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                    <i class="fa-solid fa-circle-check me-1"></i>Enrolled / Won
+                  </span>
+                  {% else %}
+                  <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if lead.assigned_to %}
+                  <span class="small fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                  {% else %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i
+                      class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+                  {% endif %}
+                </td>
+                <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
+                <td class="text-end">
+                  <div class="d-inline-flex align-items-center gap-1">
+                    {% if not lead.assigned_to %}
+                    <!-- Capture Lead Button -->
+                    <button type="button"
+                      onclick="captureSingleLead('{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}', '{{ lead.name|escapejs }}')"
+                      class="btn btn-xs btn-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-bold"
+                      style="font-size: 0.75rem;" title="Capture & Assign to Me">
                       <i class="fa-solid fa-hand-holding-hand"></i> Capture
                     </button>
-                  </form>
-                {% endif %}
-                <!-- Direct Call -->
-                <a href="tel:{{ lead.mobile }}" class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
-                  <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
-                </a>
-                <!-- WhatsApp -->
-                <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy." target="_blank" class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
-                  <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
-                </a>
-                <!-- Edit & Quick Followup -->
-                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Edit Lead">
-                  <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
-                </a>
-                <!-- View Detail & Followup Modal -->
-                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-info rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="View Lead & Follow-ups">
-                  <i class="fa-solid fa-eye" style="font-size: 0.72rem;"></i>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="12"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No student leads found.</div></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-{% if request.user.can_edit_any_lead %}</form>{% endif %}
+                    {% endif %}
+                    <!-- Direct Call -->
+                    <a href="tel:{{ lead.mobile }}"
+                      class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+                      style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
+                      <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+                    </a>
+                    <!-- WhatsApp -->
+                    <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy."
+                      target="_blank"
+                      class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+                      style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
+                      <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
+                    </a>
+                    <!-- Edit & Quick Followup -->
+                    <a href="{% url 'leads:lead_edit' lead.pk %}"
+                      class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+                      style="width: 28px; height: 28px;" title="Edit Lead">
+                      <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
+                    </a>
+                    <!-- View Detail & Followup Modal -->
+                    <a href="{% url 'leads:lead_detail' lead.pk %}"
+                      class="btn btn-xs btn-outline-info rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+                      style="width: 28px; height: 28px;" title="View Lead & Follow-ups">
+                      <i class="fa-solid fa-eye" style="font-size: 0.72rem;"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="12">
+                  <div class="empty-state"><i class="fa-solid fa-inbox"></i>No student leads found.</div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </form>
 
-<!-- Pagination & Records Count Summary -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3 px-1 py-2 border-top">
-  <div class="text-muted small">
-    {% if total_count > 0 %}
-      Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ total_count }}</strong> leads
-      {% if active_filters_count > 0 %}
-        <span class="badge bg-primary bg-opacity-10 text-primary ms-1 border border-primary-subtle"><i class="fa-solid fa-filter me-1"></i>Filtered</span>
-      {% endif %}
-    {% else %}
-      Showing <strong>0</strong> of <strong>0</strong> leads
-    {% endif %}
-  </div>
-
-  {% if page_obj.paginator.num_pages > 1 %}
-  <nav aria-label="Lead List Pagination">
-    <ul class="pagination pagination-sm mb-0 shadow-xs">
-      {% if page_obj.has_previous %}
-        <li class="page-item">
-          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}" title="Previous Page">
-            <i class="fa-solid fa-chevron-left"></i>
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-left"></i></span></li>
-      {% endif %}
-
-      {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-          <li class="page-item active"><span class="page-link fw-bold">{{ num }}</span></li>
-        {% elif num > page_obj.number|add:'-4' and num < page_obj.number|add:'4' %}
-          <li class="page-item">
-            <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
-          </li>
+    <!-- Pagination & Records Count Summary -->
+    <div
+      class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3 px-1 py-2 border-top">
+      <div class="text-muted small">
+        {% if total_count > 0 %}
+        Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ total_count }}</strong> leads
+        {% if active_filters_count > 0 %}
+        <span class="badge bg-primary bg-opacity-10 text-primary ms-1 border border-primary-subtle"><i
+            class="fa-solid fa-filter me-1"></i>Filtered</span>
         {% endif %}
-      {% endfor %}
+        {% else %}
+        Showing <strong>0</strong> of <strong>0</strong> leads
+        {% endif %}
+      </div>
 
-      {% if page_obj.has_next %}
-        <li class="page-item">
-          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
-            <i class="fa-solid fa-chevron-right"></i>
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-right"></i></span></li>
+      {% if page_obj.paginator.num_pages > 1 %}
+      <nav aria-label="Lead List Pagination">
+        <ul class="pagination pagination-sm mb-0 shadow-xs">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}"
+              title="Previous Page">
+              <i class="fa-solid fa-chevron-left"></i>
+            </a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-left"></i></span></li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link fw-bold">{{ num }}</span></li>
+          {% elif num > page_obj.number|add:'-4' and num < page_obj.number|add:'4' %} <li class="page-item">
+            <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}" title="Next Page">
+                <i class="fa-solid fa-chevron-right"></i>
+              </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link"><i class="fa-solid fa-chevron-right"></i></span></li>
+            {% endif %}
+        </ul>
+      </nav>
       {% endif %}
-    </ul>
-  </nav>
-  {% endif %}
-</div>
+    </div>
   </div> <!-- /Right Side Main Content -->
 </div> <!-- /Split View Container -->
+
+<!-- Hidden Form for Single Lead Capture -->
+<form id="singleLeadCaptureForm" method="post" action="" style="display: none;">
+  {% csrf_token %}
+</form>
+
+<!-- Modern In-Window Confirmation & Alert Modal -->
+<div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div id="modalIconContainer" class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
+          </div>
+          <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel" style="font-size: 1.1rem;">Confirm Action</h5>
+        </div>
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
+        <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2" style="display: none;"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm" id="modalConfirmBtn">Confirm & Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Bulk Selection Counter & Self-Assign Limit Tracking
+  const bulkSelfAssignLimit = {{ request.user.bulk_self_assign_limit|default:25 }};
+
+  function showInWindowAlert(title, message, iconType = 'warning') {
+    const modalEl = document.getElementById('inWindowActionModal');
+    const modalTitle = document.getElementById('inWindowActionModalLabel');
+    const modalText = document.getElementById('modalMessageText');
+    const modalDetails = document.getElementById('modalDetailsBox');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+
+    modalTitle.textContent = title;
+    modalText.innerHTML = message;
+    modalDetails.style.display = 'none';
+    modalDetails.innerHTML = '';
+
+    if (iconType === 'warning') {
+      modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    } else if (iconType === 'error') {
+      modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    } else {
+      modalIcon.className = 'fa-solid fa-circle-info fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    }
+
+    cancelBtn.style.display = 'none';
+    confirmBtn.onclick = function() {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+    };
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+  }
+
+  function showInWindowConfirm(options) {
+    // options: { title, message, detailsHtml, confirmText, confirmBtnClass, onConfirm }
+    const modalEl = document.getElementById('inWindowActionModal');
+    const modalTitle = document.getElementById('inWindowActionModalLabel');
+    const modalText = document.getElementById('modalMessageText');
+    const modalDetails = document.getElementById('modalDetailsBox');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+
+    modalTitle.textContent = options.title || 'Confirm Action';
+    modalText.innerHTML = options.message || 'Are you sure you want to proceed?';
+    
+    if (options.detailsHtml) {
+      modalDetails.innerHTML = options.detailsHtml;
+      modalDetails.style.display = 'block';
+    } else {
+      modalDetails.style.display = 'none';
+      modalDetails.innerHTML = '';
+    }
+
+    modalIcon.className = options.icon || 'fa-solid fa-circle-question fa-lg';
+    modalIconContainer.className = 'p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center';
+    
+    cancelBtn.style.display = 'inline-block';
+    cancelBtn.textContent = 'Cancel';
+    confirmBtn.className = options.confirmBtnClass || 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+    confirmBtn.textContent = options.confirmText || 'Confirm & Apply';
+
+    confirmBtn.onclick = function() {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+      if (typeof options.onConfirm === 'function') {
+        options.onConfirm();
+      }
+    };
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+  }
+
+  function handleBulkActionChange() {
+    const actionSelect = document.getElementById('adminBulkActionSelect');
+    const action = actionSelect ? actionSelect.value : '';
+
+    const fromContainer = document.getElementById('fromFieldContainer');
+    const toContainer = document.getElementById('toFieldContainer');
+    const fromUserWrapper = document.getElementById('fromUserWrapper');
+    const fromStageWrapper = document.getElementById('fromStageWrapper');
+    const toUserWrapper = document.getElementById('toUserWrapper');
+    const toStageWrapper = document.getElementById('toStageWrapper');
+
+    if (!fromContainer || !toContainer) return;
+
+    if (action === 'assign') {
+      fromContainer.classList.remove('d-none');
+      toContainer.classList.remove('d-none');
+      fromContainer.style.display = 'block';
+      toContainer.style.display = 'block';
+
+      if (fromUserWrapper) { fromUserWrapper.classList.remove('d-none'); fromUserWrapper.style.display = 'block'; }
+      if (fromStageWrapper) { fromStageWrapper.classList.add('d-none'); fromStageWrapper.style.display = 'none'; }
+      if (toUserWrapper) { toUserWrapper.classList.remove('d-none'); toUserWrapper.style.display = 'block'; }
+      if (toStageWrapper) { toStageWrapper.classList.add('d-none'); toStageWrapper.style.display = 'none'; }
+    } else if (action === 'stage') {
+      fromContainer.classList.remove('d-none');
+      toContainer.classList.remove('d-none');
+      fromContainer.style.display = 'block';
+      toContainer.style.display = 'block';
+
+      if (fromUserWrapper) { fromUserWrapper.classList.add('d-none'); fromUserWrapper.style.display = 'none'; }
+      if (fromStageWrapper) { fromStageWrapper.classList.remove('d-none'); fromStageWrapper.style.display = 'block'; }
+      if (toUserWrapper) { toUserWrapper.classList.add('d-none'); toUserWrapper.style.display = 'none'; }
+      if (toStageWrapper) { toStageWrapper.classList.remove('d-none'); toStageWrapper.style.display = 'block'; }
+    } else {
+      fromContainer.classList.add('d-none');
+      toContainer.classList.add('d-none');
+      fromContainer.style.display = 'none';
+      toContainer.style.display = 'none';
+
+      if (fromUserWrapper) { fromUserWrapper.classList.add('d-none'); fromUserWrapper.style.display = 'none'; }
+      if (fromStageWrapper) { fromStageWrapper.classList.add('d-none'); fromStageWrapper.style.display = 'none'; }
+      if (toUserWrapper) { toUserWrapper.classList.add('d-none'); toUserWrapper.style.display = 'none'; }
+      if (toStageWrapper) { toStageWrapper.classList.add('d-none'); toStageWrapper.style.display = 'none'; }
+    }
+  }
+
+  function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.row-check:checked');
+    const count = checkboxes.length;
+    const countSpan = document.getElementById('selectedLeadCount');
+    const badge = document.getElementById('bulkSelfAssignBadge');
+    const btn = document.getElementById('bulkSelfAssignBtn');
+
+    if (countSpan) countSpan.textContent = count;
+
+    if (badge && btn) {
+      if (count > bulkSelfAssignLimit) {
+        badge.classList.remove('bg-success');
+        badge.classList.add('bg-danger');
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-outline-danger');
+      } else {
+        badge.classList.remove('bg-danger');
+        badge.classList.add('bg-success');
+        btn.classList.remove('btn-outline-danger');
+        btn.classList.add('btn-outline-success');
+      }
+    }
+  }
+
+  function toggleAllCheckboxes(masterCheckbox) {
+    document.querySelectorAll('.row-check').forEach(c => {
+      c.checked = masterCheckbox.checked;
+    });
+    updateSelectedCount();
+  }
+
+  function submitBulkSelfAssign() {
+    const checkboxes = document.querySelectorAll('.row-check:checked');
+    const count = checkboxes.length;
+    if (count === 0) {
+      showInWindowAlert("Selection Required", "Please select at least 1 lead to assign to yourself.", "warning");
+      return;
+    }
+    if (count > bulkSelfAssignLimit) {
+      showInWindowAlert(
+        "Limit Exceeded",
+        `You can only bulk self-assign up to <strong>${bulkSelfAssignLimit}</strong> leads at a time, but you have selected <strong>${count}</strong> leads. Please uncheck some leads.`,
+        "error"
+      );
+      return;
+    }
+
+    showInWindowConfirm({
+      title: "Confirm Self-Assignment",
+      message: `Are you sure you want to assign <strong>${count}</strong> selected lead(s) to yourself?`,
+      confirmText: "Yes, Assign to Me",
+      confirmBtnClass: "btn btn-sm btn-success px-4 rounded-pill fw-bold shadow-sm",
+      icon: "fa-solid fa-user-check fa-lg",
+      onConfirm: function() {
+        const actionInput = document.getElementById('bulkActionInput');
+        if (actionInput) actionInput.value = 'self_assign';
+        document.getElementById('leadsBulkActionForm').submit();
+      }
+    });
+  }
+
+  function submitAdminBulkAction() {
+    const checkboxes = document.querySelectorAll('.row-check:checked');
+    const count = checkboxes.length;
+    if (count === 0) {
+      showInWindowAlert("Selection Required", "Please select at least 1 lead to apply bulk action.", "warning");
+      return;
+    }
+
+    const adminSelect = document.getElementById('adminBulkActionSelect');
+    const action = adminSelect ? adminSelect.value.trim() : '';
+
+    if (!action) {
+      showInWindowAlert("Action Required", "select action first", "warning");
+      return;
+    }
+
+    let detailsHtml = `<div><strong>Selected Leads:</strong> ${count}</div>`;
+    let confirmMsg = `Apply bulk action to <strong>${count}</strong> selected leads?`;
+
+    if (action === 'assign') {
+      const toUserSelect = document.getElementById('toUserSelect');
+      const fromUserSelect = document.getElementById('fromUserSelect');
+      const targetUserId = toUserSelect ? toUserSelect.value : '';
+      const targetUserName = toUserSelect && toUserSelect.selectedIndex >= 0 ? toUserSelect.options[toUserSelect.selectedIndex].text : '';
+      const fromUserName = fromUserSelect && fromUserSelect.selectedIndex >= 0 ? fromUserSelect.options[fromUserSelect.selectedIndex].text : 'All / Any';
+
+      if (!targetUserId) {
+        showInWindowAlert("Assignee Required", "Please select a target user (To) to assign the selected leads to.", "warning");
+        return;
+      }
+      confirmMsg = `Are you sure you want to assign <strong>${count}</strong> lead(s) to <strong>${targetUserName}</strong>?`;
+      detailsHtml += `<div><strong>From:</strong> ${fromUserName}</div>`;
+      detailsHtml += `<div><strong>To:</strong> <span class="text-primary fw-bold">${targetUserName}</span></div>`;
+
+    } else if (action === 'stage') {
+      const toStageSelect = document.getElementById('toStageSelect');
+      const fromStageSelect = document.getElementById('fromStageSelect');
+      const targetStageId = toStageSelect ? toStageSelect.value : '';
+      const targetStageName = toStageSelect && toStageSelect.selectedIndex >= 0 ? toStageSelect.options[toStageSelect.selectedIndex].text : '';
+      const fromStageName = fromStageSelect && fromStageSelect.selectedIndex >= 0 ? fromStageSelect.options[fromStageSelect.selectedIndex].text : 'All / Any Stage';
+
+      if (!targetStageId) {
+        showInWindowAlert("Stage Required", "Please select a target stage (To) to update the selected leads to.", "warning");
+        return;
+      }
+      confirmMsg = `Are you sure you want to change stage for <strong>${count}</strong> lead(s) to <strong>${targetStageName}</strong>?`;
+      detailsHtml += `<div><strong>From Stage:</strong> ${fromStageName}</div>`;
+      detailsHtml += `<div><strong>Target Stage:</strong> <span class="text-success fw-bold">${targetStageName}</span></div>`;
+
+    } else if (action === 'archive') {
+      confirmMsg = `Are you sure you want to archive <strong>${count}</strong> selected leads?`;
+      detailsHtml += `<div class="text-danger">Archived leads will be hidden from the active list.</div>`;
+    }
+
+    showInWindowConfirm({
+      title: "Confirm Bulk Action",
+      message: confirmMsg,
+      detailsHtml: detailsHtml,
+      confirmText: "Confirm & Apply",
+      confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
+      icon: "fa-solid fa-layer-group fa-lg",
+      onConfirm: function() {
+        const actionInput = document.getElementById('bulkActionInput');
+        if (actionInput) actionInput.value = action;
+        document.getElementById('leadsBulkActionForm').submit();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.row-check').forEach(c => {
+      c.addEventListener('change', updateSelectedCount);
+    });
+    updateSelectedCount();
+    handleBulkActionChange();
+  });
+
+  function captureSingleLead(actionUrl, leadName) {
+    showInWindowConfirm({
+      title: "Capture Lead",
+      message: `Do you want to capture and assign <strong>${leadName || 'this lead'}</strong> to yourself?`,
+      confirmText: "Capture Now",
+      confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
+      icon: "fa-solid fa-hand-holding-hand fa-lg",
+      onConfirm: function() {
+        const captureForm = document.getElementById('singleLeadCaptureForm');
+        if (captureForm) {
+          captureForm.action = actionUrl;
+          captureForm.submit();
+        } else {
+          window.location.href = actionUrl;
+        }
+      }
+    });
+  }
+</script>
 {% endblock %}

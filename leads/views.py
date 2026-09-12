@@ -13,11 +13,12 @@ from django.utils import timezone
 
 from followups.models import FollowUp, Note, Activity, FollowUpMode, FollowUpStatus
 from admissions.models import Admission
-from accounts.models import User
+from accounts.models import User, Hospital
 from .models import (
     Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, 
     MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
     HospitalDisease, DoctorBranchAvailability, DealStatus, LeadTemperature,
+    AdmissionStatus,
 )
 from .forms import (
     LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
@@ -29,28 +30,31 @@ def _can_edit_lead(user, lead):
     Business-tenant aware edit permission check.
     - Global Super Admin (no hospital): can edit any lead.
     - Tenant user: can only edit leads in their own business (hospital).
-    - Within-business: role-based edit permission applies.
+    - Within-business:
+        - Super Admin / Admin / Manager: can edit any lead in their business.
+        - Counsellor / HR: can ONLY edit leads assigned to themselves (lead.assigned_to == user) or unassigned leads.
     """
     is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
 
     if is_global_admin:
-        return True  # Global admin can edit anything
+        return True
 
     # Business-tenant check: lead must belong to the same business
     if user.hospital:
         if lead.hospital != user.hospital:
             return False
     else:
-        # Non-global-admin without hospital: no access
         return False
 
     # Within-Business Edit Permission Check
-    if user.can_edit_any_lead:
+    if user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER) or user.can_edit_any_lead:
         return True
     if user.role == User.Role.LEAD_ATTENDENT:
-        # Lead Attendants can call, edit, and update patient leads within their hospital
         return True
-    if user.can_edit_own_leads and lead.assigned_to == user:
+    if user.role in (User.Role.COUNSELLOR, User.Role.HR):
+        # Counsellors / HRs can only edit leads assigned to themselves or unassigned leads
+        return (lead.assigned_to == user or lead.assigned_to is None)
+    if user.can_edit_own_leads and (lead.assigned_to == user or lead.assigned_to is None):
         return True
     if lead.assigned_to is None:
         return True
@@ -58,15 +62,16 @@ def _can_edit_lead(user, lead):
 
 def _can_access_lead(user, lead):
     """
-    Business-tenant aware access permission check.
+    Business-tenant aware access permission check (VIEW permission).
     - Global Super Admin (no hospital): can access any lead.
-    - Tenant user: can only access leads in their own business (hospital).
-    - Within-business: role-based access permission applies.
+    - Tenant user: can view leads in their own business (hospital).
+    - Within-business:
+        - All Counsellors, HRs, Managers, Admins can VIEW team leads within their business tenant.
     """
     is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
 
     if is_global_admin:
-        return True  # Global admin can access anything
+        return True
 
     # Business-tenant check
     if user.hospital:
@@ -79,13 +84,13 @@ def _can_access_lead(user, lead):
     if user.role == User.Role.DOCTOR:
         return True
 
-    # Within-Business Access Permission Check
-    if user.can_view_all_leads:
+    # In Academy/CRM, Counsellors, HRs, Managers, Admins within the tenant have VIEW permission
+    if user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER, User.Role.ADMIN, User.Role.SUPER_ADMIN):
         return True
-    if user.can_view_team_leads:
-        team = User.objects.filter(reports_to=user)
-        if lead.assigned_to == user or lead.assigned_to in team:
-            return True
+
+    # Within-Business Access Permission Check
+    if user.can_view_all_leads or user.can_view_team_leads:
+        return True
     if user.can_view_assigned_leads and lead.assigned_to == user:
         return True
     if lead.assigned_to is None:
@@ -112,6 +117,13 @@ def lead_list(request):
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
 
+    # Selected hospital filter for Super Admin
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+
     if request.user.hospital:
         # Tenant user: always scoped to their business
         leads = leads.filter(hospital=request.user.hospital)
@@ -128,7 +140,11 @@ def lead_list(request):
             else:
                 leads = leads.none()
     elif is_global_admin:
-        pass  # Global Super Admin sees all leads
+        if selected_hospital_id:
+            if selected_hospital_id == "none":
+                leads = leads.filter(hospital__isnull=True)
+            elif selected_hospital_id.isdigit():
+                leads = leads.filter(hospital_id=int(selected_hospital_id))
     else:
         leads = leads.none()  # No hospital and not super admin: show nothing
 
@@ -148,6 +164,7 @@ def lead_list(request):
     selected_doctors = request.GET.getlist("doctor")
     selected_assigned = request.GET.getlist("assigned_to")
     selected_deal_statuses = request.GET.getlist("deal_status")
+    selected_admission_statuses = request.GET.getlist("admission_status")
     selected_appointment_statuses = request.GET.getlist("appointment_status")
     selected_priorities = request.GET.getlist("priority")
     selected_temperatures = request.GET.getlist("temperature")
@@ -265,7 +282,7 @@ def lead_list(request):
                     stg_q |= Q(stage__name__iexact=stg_val)
         leads = leads.filter(stg_q)
 
-    # 7. Appointment Status filter
+    # 7. Appointment Status filter (Hospital)
     if selected_appointment_statuses:
         apt_q = Q()
         for apt_val in selected_appointment_statuses:
@@ -281,6 +298,14 @@ def lead_list(request):
                 else:
                     apt_q |= Q(custom_data__appointment_status__icontains=apt_val)
         leads = leads.filter(apt_q)
+
+    # 7b. Admission Status filter (Academy)
+    if selected_admission_statuses:
+        adm_q = Q()
+        for adm_val in selected_admission_statuses:
+            if adm_val:
+                adm_q |= Q(admission_status__iexact=adm_val) | Q(custom_data__admission_status__iexact=adm_val)
+        leads = leads.filter(adm_q)
 
     # 8. Priority & Temperature filter
     if selected_priorities or selected_temperatures:
@@ -499,6 +524,8 @@ def lead_list(request):
             active_leads = active_leads.filter(
                 Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
             )
+    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
     
     used_sc_ids = active_leads.values_list("source_category_id", flat=True).distinct()
     used_ls_ids = active_leads.values_list("lead_source_id", flat=True).distinct()
@@ -510,13 +537,13 @@ def lead_list(request):
     distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
     distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
     
-    # Extract departments and doctors only for hospital users
+    # Extract departments, doctors, and appointment statuses only for hospital users
     filter_departments = []
     filter_doctors = []
     filter_appointment_statuses = []
     filter_priorities = ["Hot", "Warm", "Cold"]
 
-    if request.user.hospital:
+    if request.user.hospital and request.user.is_hospital_user:
         filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
         filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
         if not filter_departments:
@@ -530,10 +557,12 @@ def lead_list(request):
         filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
 
     active_filters_count = (
-        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_campaigns) + len(selected_sources) + len(selected_courses) + len(selected_departments) +
         len(selected_doctors) + len(selected_assigned) + len(selected_deal_statuses) +
+        len(selected_admission_statuses) +
         len(selected_appointment_statuses) + len(selected_priorities) + len(selected_temperatures) +
         len(selected_locations) + len(selected_stages) +
+        (1 if selected_hospital_id else 0) +
         (1 if (date_from or date_to) else 0)
     )
 
@@ -555,19 +584,24 @@ def lead_list(request):
         "filter_departments": filter_departments,
         "filter_doctors": filter_doctors,
         "filter_appointment_statuses": filter_appointment_statuses,
+        "admission_status_choices": AdmissionStatus.choices,
         "filter_priorities": filter_priorities,
         "deal_status_choices": DealStatus.choices,
         "selected_campaigns": selected_campaigns,
         "selected_sources": selected_sources,
+        "selected_courses": selected_courses,
         "selected_departments": selected_departments,
         "selected_doctors": selected_doctors,
         "selected_assigned": selected_assigned,
         "selected_deal_statuses": selected_deal_statuses,
+        "selected_admission_statuses": selected_admission_statuses,
         "selected_appointment_statuses": selected_appointment_statuses,
         "selected_priorities": selected_priorities,
         "selected_temperatures": selected_temperatures,
         "selected_locations": selected_locations,
         "selected_stages": selected_stages,
+        "selected_hospital_id": selected_hospital_id,
+        "businesses": Hospital.objects.filter(is_active=True).order_by("name"),
         "date_from_val": request.GET.get("date_from", "") or request.GET.get("date", ""),
         "date_to_val": request.GET.get("date_to", ""),
         "current_sort": sort_by,
@@ -575,18 +609,454 @@ def lead_list(request):
         "request_get": request.GET,
     }
 
+    # Dynamic employees and statuses for bulk action and filters
+    target_hospital = None
     if request.user.hospital:
-        context["employees"] = User.objects.filter(hospital=request.user.hospital, is_active=True, is_approved=True)
+        target_hospital = request.user.hospital
+    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+
+    if target_hospital:
+        context["employees"] = User.objects.filter(hospital=target_hospital, is_active=True, is_approved=True)
+        context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
+        context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
+        context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
+        # Hospital statuses or default LeadStages
+        hospital_deal_statuses = list(context["hospital_statuses"].values_list("name", flat=True))
+        if hospital_deal_statuses:
+            context["bulk_stages"] = [{"id": s, "name": s} for s in hospital_deal_statuses]
+        else:
+            context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
     else:
         context["employees"] = User.objects.filter(is_active=True, is_approved=True)
+        context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
 
+    # Determine whether current view should show hospital or academy style layout
+    is_viewing_hospital = False
     if request.user.hospital:
-        context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=request.user.hospital)
-        context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
-        context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
+        is_viewing_hospital = request.user.is_hospital_user
+    elif target_hospital:
+        is_viewing_hospital = "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
+    else:
+        is_viewing_hospital = False
 
-    template_name = "leads/nel_lead_list.html" if request.user.is_hospital_user else "leads/zapp_lead_list.html"
+    template_name = "leads/nel_lead_list.html" if is_viewing_hospital else "leads/zapp_lead_list.html"
     return render(request, template_name, context)
+
+
+@login_required
+def my_leads(request):
+    """
+    My Leads View for Zappcode Academy:
+    Shows leads captured by or assigned to the current user (Counsellor, HR, etc.)
+    with comprehensive header filters (Date: Today, Yesterday, Months, Years, Custom;
+    Course, Stage, Admission Status).
+    """
+    from datetime import date, timedelta
+    from django.db.models.functions import TruncMonth, TruncYear
+
+    # Restrict to Academy tenant
+    hospital = request.user.hospital
+    leads = Lead.objects.filter(is_archived=False)
+    if hospital:
+        leads = leads.filter(hospital=hospital)
+    
+    # Strictly leads assigned to the logged in user
+    leads = leads.filter(assigned_to=request.user)
+
+    # Search keyword
+    q = request.GET.get("q", "").strip()
+    if q:
+        leads = leads.filter(
+            Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+            | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
+        )
+
+    # Available distinct years and months with data for dropdowns
+    available_years_raw = Lead.objects.filter(
+        hospital=hospital if hospital else None, inquiry_date__isnull=False
+    ).dates("inquiry_date", "year", order="DESC") if hospital else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "year", order="DESC")
+    available_years = [d.year for d in available_years_raw]
+
+    available_months_raw = Lead.objects.filter(
+        hospital=hospital if hospital else None, inquiry_date__isnull=False
+    ).dates("inquiry_date", "month", order="DESC") if hospital else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "month", order="DESC")
+    available_months = [
+        {"value": d.strftime("%Y-%m"), "label": d.strftime("%B %Y"), "year": d.year, "month": d.month}
+        for d in available_months_raw
+    ]
+
+    # Filters extraction
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+    
+    date_preset = request.GET.get("date_preset", "").strip()
+    selected_month = request.GET.get("month", "").strip()
+    selected_year = request.GET.get("year", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    active_date_label = "All Time"
+
+    if date_preset == "today":
+        leads = leads.filter(Q(inquiry_date=today) | Q(created_at__date=today))
+        active_date_label = f"Today ({today.strftime('%d %b %Y')})"
+    elif date_preset == "yesterday":
+        leads = leads.filter(Q(inquiry_date=yesterday) | Q(created_at__date=yesterday))
+        active_date_label = f"Yesterday ({yesterday.strftime('%d %b %Y')})"
+    elif selected_month:
+        try:
+            parts = selected_month.split("-")
+            y, m = int(parts[0]), int(parts[1])
+            leads = leads.filter(inquiry_date__year=y, inquiry_date__month=m)
+            active_date_label = datetime(y, m, 1).strftime("%B %Y")
+        except Exception:
+            pass
+    elif selected_year:
+        try:
+            y = int(selected_year)
+            leads = leads.filter(inquiry_date__year=y)
+            active_date_label = f"Year {y}"
+        except Exception:
+            pass
+    elif date_from or date_to:
+        if date_from:
+            try:
+                df = datetime.strptime(date_from, "%Y-%m-%d").date()
+                leads = leads.filter(inquiry_date__gte=df)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                dt = datetime.strptime(date_to, "%Y-%m-%d").date()
+                leads = leads.filter(inquiry_date__lte=dt)
+            except ValueError:
+                pass
+        active_date_label = f"Custom: {date_from or 'Start'} to {date_to or 'End'}"
+
+    # Dropdown filters: Course, Stage, Admission Status
+    selected_courses = [c for c in request.GET.getlist("course") if c.isdigit()]
+    selected_stages = [s for s in request.GET.getlist("stage") if s.isdigit()]
+    selected_admission_statuses = [a.strip() for a in request.GET.getlist("admission_status") if a.strip()]
+
+    if selected_courses:
+        leads = leads.filter(course__id__in=selected_courses)
+    if selected_stages:
+        leads = leads.filter(stage__id__in=selected_stages)
+    if selected_admission_statuses:
+        leads = leads.filter(admission_status__in=selected_admission_statuses)
+
+    # Sort
+    sort_by = request.GET.get("sort", "-updated_at")
+    leads = leads.select_related("course", "stage", "assigned_to", "lead_source").order_by(sort_by)
+
+    # Filter counts for badges
+    active_filters_count = (
+        (1 if date_preset or selected_month or selected_year or date_from or date_to else 0)
+        + len(selected_courses) + len(selected_stages) + len(selected_admission_statuses)
+        + (1 if q else 0)
+    )
+
+    # Pagination
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+
+    # Options for dropdowns
+    courses = Course.objects.filter(is_active=True).order_by("name")
+    stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    admission_status_choices = AdmissionStatus.choices
+
+    context = {
+        "active": "my_leads",
+        "page_obj": page_obj,
+        "total_count": paginator.count,
+        "q": q,
+        "courses": courses,
+        "stages": stages,
+        "admission_status_choices": admission_status_choices,
+        "available_years": available_years,
+        "available_months": available_months,
+        "date_preset": date_preset,
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "date_from": date_from,
+        "date_to": date_to,
+        "active_date_label": active_date_label,
+        "selected_courses": selected_courses,
+        "selected_stages": selected_stages,
+        "selected_admission_statuses": selected_admission_statuses,
+        "current_sort": sort_by,
+        "active_filters_count": active_filters_count,
+        "query_params": query_params.urlencode(),
+        "today_str": today.strftime("%Y-%m-%d"),
+    }
+    return render(request, "leads/zapp_my_leads.html", context)
+
+
+@login_required
+def team_history(request):
+    """
+    Teams History View for Zappcode Academy:
+    Shows leads created, assigned, or worked on by team members (Counsellors & HRs).
+    By default displays All Time team leads with instant filters for Today, Yesterday, Months, Years, Custom Dates.
+    Header displays user-wise lead count summary cards. Clicking a user filters to their leads.
+    """
+    from datetime import date, timedelta
+    from followups.models import FollowUp, Note, Activity
+    from django.db.models import Prefetch
+
+    from accounts.models import Hospital
+
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    hospital = request.user.hospital
+    selected_business_id = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
+    if is_global_admin:
+        if selected_business_id and selected_business_id.isdigit():
+            hospital = Hospital.objects.filter(id=int(selected_business_id)).first()
+        elif not hospital:
+            # Default to Zappcode Academy for Academy views
+            hospital = Hospital.objects.filter(name__icontains="zappcode").first() or Hospital.objects.first()
+
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+
+    # Get team members (Counsellor, HR, Manager)
+    team_members = User.objects.filter(
+        is_active=True, is_approved=True,
+        role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
+    )
+    if hospital:
+        team_members = team_members.filter(hospital=hospital)
+    team_members = team_members.order_by("first_name", "username")
+
+    # Base queryset for team leads
+    leads = Lead.objects.filter(is_archived=False)
+    if hospital:
+        leads = leads.filter(hospital=hospital)
+
+    # Search keyword
+    q = request.GET.get("q", "").strip()
+    if q:
+        leads = leads.filter(
+            Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+            | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
+            | Q(assigned_to__first_name__icontains=q) | Q(assigned_to__last_name__icontains=q)
+            | Q(assigned_to__username__icontains=q) | Q(created_by__first_name__icontains=q)
+            | Q(created_by__last_name__icontains=q) | Q(created_by__username__icontains=q)
+        )
+
+    # Date preset (Default to "all" (All Time) so team leads are immediately visible)
+    date_preset = request.GET.get("date_preset", "").strip()
+    selected_month = request.GET.get("month", "").strip()
+    selected_year = request.GET.get("year", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    active_date_label = "All Time"
+
+    if date_preset == "today":
+        leads = leads.filter(
+            Q(inquiry_date=today) | Q(created_at__date=today) | Q(updated_at__date=today)
+            | Q(followups__followup_date=today) | Q(followups__created_at__date=today)
+            | Q(lead_notes__created_at__date=today) | Q(activities__created_at__date=today)
+        )
+        active_date_label = f"Today ({today.strftime('%d %b %Y')})"
+    elif date_preset == "yesterday":
+        leads = leads.filter(
+            Q(inquiry_date=yesterday) | Q(created_at__date=yesterday) | Q(updated_at__date=yesterday)
+            | Q(followups__followup_date=yesterday) | Q(followups__created_at__date=yesterday)
+            | Q(lead_notes__created_at__date=yesterday) | Q(activities__created_at__date=yesterday)
+        )
+        active_date_label = f"Yesterday ({yesterday.strftime('%d %b %Y')})"
+    elif selected_month:
+        try:
+            parts = selected_month.split("-")
+            y, m = int(parts[0]), int(parts[1])
+            leads = leads.filter(
+                Q(inquiry_date__year=y, inquiry_date__month=m)
+                | Q(created_at__year=y, created_at__month=m)
+                | Q(updated_at__year=y, updated_at__month=m)
+                | Q(followups__followup_date__year=y, followups__followup_date__month=m)
+                | Q(followups__created_at__year=y, followups__created_at__month=m)
+                | Q(lead_notes__created_at__year=y, lead_notes__created_at__month=m)
+                | Q(activities__created_at__year=y, activities__created_at__month=m)
+            )
+            active_date_label = datetime(y, m, 1).strftime("%B %Y")
+        except Exception:
+            pass
+    elif selected_year:
+        try:
+            y = int(selected_year)
+            leads = leads.filter(
+                Q(inquiry_date__year=y) | Q(created_at__year=y) | Q(updated_at__year=y)
+                | Q(followups__followup_date__year=y) | Q(followups__created_at__year=y)
+                | Q(lead_notes__created_at__year=y) | Q(activities__created_at__year=y)
+            )
+            active_date_label = f"Year {y}"
+        except Exception:
+            pass
+    elif date_from or date_to:
+        if date_from:
+            try:
+                df = datetime.strptime(date_from, "%Y-%m-%d").date()
+                leads = leads.filter(
+                    Q(inquiry_date__gte=df) | Q(created_at__date__gte=df) | Q(updated_at__date__gte=df)
+                    | Q(followups__followup_date__gte=df) | Q(followups__created_at__date__gte=df)
+                    | Q(lead_notes__created_at__date__gte=df) | Q(activities__created_at__date__gte=df)
+                )
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                dt = datetime.strptime(date_to, "%Y-%m-%d").date()
+                leads = leads.filter(
+                    Q(inquiry_date__lte=dt) | Q(created_at__date__lte=dt) | Q(updated_at__date__lte=dt)
+                    | Q(followups__followup_date__lte=dt) | Q(followups__created_at__date__lte=dt)
+                    | Q(lead_notes__created_at__date__lte=dt) | Q(activities__created_at__date__lte=dt)
+                )
+            except ValueError:
+                pass
+        active_date_label = f"Custom: {date_from or 'Start'} to {date_to or 'End'}"
+
+    # Dropdown filters: Course, Stage, Admission Status (filter out empty strings)
+    selected_courses = [c for c in request.GET.getlist("course") if c.isdigit()]
+    selected_stages = [s for s in request.GET.getlist("stage") if s.isdigit()]
+    selected_admission_statuses = [a.strip() for a in request.GET.getlist("admission_status") if a.strip()]
+
+    if selected_courses:
+        leads = leads.filter(course__id__in=selected_courses)
+    if selected_stages:
+        leads = leads.filter(stage__id__in=selected_stages)
+    if selected_admission_statuses:
+        leads = leads.filter(admission_status__in=selected_admission_statuses)
+
+    # Calculate User-wise Counts for the selected timeframe and dropdown filters (before single user filtering)
+    user_counts = []
+    for member in team_members:
+        member_worked_q = (
+            Q(assigned_to=member) | Q(created_by=member)
+            | Q(followups__created_by=member)
+            | Q(lead_notes__created_by=member)
+            | Q(activities__created_by=member)
+        )
+        c = leads.filter(member_worked_q).distinct().count()
+        user_counts.append({
+            "user": member,
+            "count": c,
+            "is_self": member == request.user,
+        })
+    # Sort user_counts with highest count first
+    user_counts.sort(key=lambda x: x["count"], reverse=True)
+
+    # Filter by specific selected team user if provided
+    selected_user_id = request.GET.get("user_id", "").strip()
+    selected_user = None
+    if selected_user_id and selected_user_id.isdigit():
+        selected_user = team_members.filter(id=int(selected_user_id)).first()
+        if not selected_user:
+            selected_user = User.objects.filter(id=int(selected_user_id)).first()
+        if selected_user:
+            user_filter_q = (
+                Q(assigned_to=selected_user) | Q(created_by=selected_user)
+                | Q(followups__created_by=selected_user)
+                | Q(lead_notes__created_by=selected_user)
+                | Q(activities__created_by=selected_user)
+            )
+            leads = leads.filter(user_filter_q).distinct()
+
+    # Available distinct years and months with data for dropdowns
+    available_years_raw = Lead.objects.filter(
+        hospital=hospital if hospital else None, inquiry_date__isnull=False
+    ).dates("inquiry_date", "year", order="DESC") if hospital else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "year", order="DESC")
+    available_years = [d.year for d in available_years_raw]
+
+    available_months_raw = Lead.objects.filter(
+        hospital=hospital if hospital else None, inquiry_date__isnull=False
+    ).dates("inquiry_date", "month", order="DESC") if hospital else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "month", order="DESC")
+    available_months = [
+        {"value": d.strftime("%Y-%m"), "label": d.strftime("%B %Y"), "year": d.year, "month": d.month}
+        for d in available_months_raw
+    ]
+
+    # Sort & Prefetch for complete update insights
+    sort_by = request.GET.get("sort", "-updated_at")
+    leads = leads.distinct().select_related(
+        "course", "stage", "assigned_to", "created_by", "lead_source"
+    ).prefetch_related(
+        Prefetch("followups", queryset=FollowUp.objects.select_related("created_by").order_by("-followup_date", "-id"), to_attr="prefetched_followups"),
+        Prefetch("activities", queryset=Activity.objects.select_related("created_by").order_by("-created_at", "-id"), to_attr="prefetched_activities"),
+        Prefetch("lead_notes", queryset=Note.objects.select_related("created_by").order_by("-created_at", "-id"), to_attr="prefetched_notes"),
+    ).order_by(sort_by)
+
+    # Filter counts for badges
+    active_filters_count = (
+        (1 if (date_preset and date_preset != "all") or selected_month or selected_year or date_from or date_to else 0)
+        + (1 if selected_user else 0)
+        + len(selected_courses) + len(selected_stages) + len(selected_admission_statuses)
+        + (1 if q else 0)
+    )
+
+    # Pagination
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Attach rich activity objects to each lead on current page
+    for lead in page_obj:
+        fus = getattr(lead, "prefetched_followups", [])
+        lead.latest_followup_obj = fus[0] if fus else None
+        nts = getattr(lead, "prefetched_notes", [])
+        lead.latest_note_obj = nts[0] if nts else None
+        acts = getattr(lead, "prefetched_activities", [])
+        lead.latest_activity_obj = acts[0] if acts else None
+
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+
+    courses = Course.objects.filter(is_active=True).order_by("name")
+    stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    admission_status_choices = AdmissionStatus.choices
+
+    available_businesses = Hospital.objects.filter(is_active=True).order_by("name") if is_global_admin else []
+
+    context = {
+        "active": "team_history",
+        "page_obj": page_obj,
+        "total_count": paginator.count,
+        "q": q,
+        "courses": courses,
+        "stages": stages,
+        "admission_status_choices": admission_status_choices,
+        "team_members": team_members,
+        "user_counts": user_counts,
+        "selected_user": selected_user,
+        "available_years": available_years,
+        "available_months": available_months,
+        "date_preset": date_preset,
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "date_from": date_from,
+        "date_to": date_to,
+        "active_date_label": active_date_label,
+        "selected_courses": selected_courses,
+        "selected_stages": selected_stages,
+        "selected_admission_statuses": selected_admission_statuses,
+        "current_sort": sort_by,
+        "active_filters_count": active_filters_count,
+        "query_params": query_params.urlencode(),
+        "today_str": today.strftime("%Y-%m-%d"),
+        "is_global_admin": is_global_admin,
+        "available_businesses": available_businesses,
+        "current_hospital": hospital,
+    }
+    return render(request, "leads/zapp_team_history.html", context)
 
 
 @login_required
@@ -945,8 +1415,12 @@ def lead_detail(request, pk):
     admission = getattr(lead, "admission", None)
     
     # Retrieve active/approved users for the assignment form
-    employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER])
-    managers = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.MANAGER])
+    if lead.hospital:
+        employees = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER, User.Role.LEAD_ATTENDENT])
+        managers = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+    else:
+        employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER, User.Role.LEAD_ATTENDENT])
+        managers = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
     
     latest_appointment = None
     custom_field_data = []
@@ -960,15 +1434,30 @@ def lead_detail(request, pk):
             if cf.name in cd and cd[cf.name] != "":
                 custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
         
+    can_edit = _can_edit_lead(request.user, lead)
+    is_owner = (lead.assigned_to == request.user or lead.assigned_to is None)
+    can_convert = is_owner or request.user.can_edit_any_lead or request.user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]
+
+    stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    temperatures = LeadTemperature.choices
+    deal_statuses = DealStatus.choices
+    admission_statuses = AdmissionStatus.choices
+
     template = "leads/nel_lead_detail.html" if is_hospital else "leads/zapp_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
         "latest_appointment": latest_appointment,
         "custom_field_data": custom_field_data,
         "followup_modes": FollowUpMode.choices, "followup_statuses": FollowUpStatus.choices,
+        "stages": stages,
+        "temperatures": temperatures,
+        "deal_statuses": deal_statuses,
+        "admission_statuses": admission_statuses,
         "today": timezone.localdate(),
         "employees": employees,
         "managers": managers,
+        "can_edit": can_edit,
+        "can_convert": can_convert,
     })
 
 
@@ -1011,7 +1500,11 @@ def add_note(request, pk):
         Note.objects.create(lead=lead, note=request.POST["note"].strip(), created_by=request.user)
         if lead.assigned_to is None:
             lead.assigned_to = request.user
-            lead.save(update_fields=["assigned_to"])
+        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+            if contacted_stage:
+                lead.stage = contacted_stage
+        lead.save()
         messages.success(request, "Note added.")
     return redirect("leads:lead_detail", pk=pk)
 
@@ -1082,7 +1575,11 @@ def add_followup(request, pk):
         )
         if lead.assigned_to is None:
             lead.assigned_to = request.user
-            lead.save(update_fields=["assigned_to"])
+        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+            if contacted_stage:
+                lead.stage = contacted_stage
+        lead.save()
         messages.success(request, "Follow-up recorded.")
     return redirect("leads:lead_detail", pk=pk)
 
@@ -1095,6 +1592,14 @@ def convert_admission(request, pk):
     if not _can_access_lead(request.user, lead):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
+
+    # Only lead owner (assigned counsellor) or users with Manager/Admin role can convert lead to admission
+    is_owner = (lead.assigned_to == request.user or lead.assigned_to is None)
+    is_admin_or_manager = (request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or request.user.can_edit_any_lead)
+    if not is_owner and not is_admin_or_manager:
+        messages.error(request, "You cannot convert another team member's lead to admission. Only the assigned counselor, manager, or admin can perform admission conversion.")
+        return redirect("leads:lead_detail", pk=pk)
+
     if hasattr(lead, "admission"):
         messages.info(request, "This lead already has an admission record.")
         return redirect("leads:lead_detail", pk=pk)
@@ -1152,16 +1657,18 @@ def lead_self_assign(request, pk):
 
     Activity.objects.create(
         lead=lead,
-        user=request.user,
-        activity_type="STATUS_CHANGE",
-        details=f"Lead captured / self-assigned by {request.user.get_full_name() or request.user.username}.",
+        created_by=request.user,
+        activity_type="ASSIGNMENT",
+        description=f"Lead captured / self-assigned by {request.user.get_full_name() or request.user.username}.",
     )
-    messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you! You can now follow up, edit, or process admission.")
+    messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you!")
     
     next_url = request.GET.get("next") or request.POST.get("next")
     if next_url:
-        return redirect(next_url)
-    return redirect("leads:lead_edit", pk=pk)
+        from django.utils.http import url_has_allowed_host_and_scheme
+        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+    return redirect("leads:lead_detail", pk=pk)
 
 
 @login_required
@@ -1175,17 +1682,88 @@ def assign_lead(request, pk):
         
     if request.method == "POST":
         assignee_id = request.POST.get("assigned_to")
+        manager_id = request.POST.get("assigned_manager")
+        
+        old_assigned = lead.assigned_to
+        old_mgr = lead.assigned_manager
+
         if assignee_id:
             assignee = User.objects.filter(pk=assignee_id, is_active=True).first()
-            if assignee:
-                lead.assigned_to = assignee
-                lead.save(update_fields=["assigned_to"])
-                messages.success(request, f"Lead assigned to {assignee.get_full_name() or assignee.username}.")
+            lead.assigned_to = assignee
+            if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+                if assigned_stage:
+                    lead.stage = assigned_stage
         else:
             lead.assigned_to = None
-            lead.save(update_fields=["assigned_to"])
-            messages.success(request, "Lead unassigned.")
+
+        if manager_id:
+            mgr = User.objects.filter(pk=manager_id, is_active=True).first()
+            lead.assigned_manager = mgr
+        else:
+            lead.assigned_manager = None
+
+        lead.save()
+
+        # Log Activity
+        desc_parts = []
+        if old_assigned != lead.assigned_to:
+            new_name = lead.assigned_to.get_full_name() or lead.assigned_to.username if lead.assigned_to else "Unassigned"
+            old_name = old_assigned.get_full_name() or old_assigned.username if old_assigned else "Unassigned"
+            desc_parts.append(f"Owner changed from '{old_name}' to '{new_name}'")
+        if old_mgr != lead.assigned_manager:
+            new_mgr_name = lead.assigned_manager.get_full_name() or lead.assigned_manager.username if lead.assigned_manager else "None"
+            old_mgr_name = old_mgr.get_full_name() or old_mgr.username if old_mgr else "None"
+            desc_parts.append(f"Manager changed from '{old_mgr_name}' to '{new_mgr_name}'")
             
+        if desc_parts:
+            Activity.objects.create(
+                lead=lead,
+                created_by=request.user,
+                activity_type="ASSIGNMENT",
+                description=f"Lead reassigned by {request.user.get_full_name() or request.user.username}: {', '.join(desc_parts)}.",
+            )
+
+        messages.success(request, f"Lead assignment updated successfully.")
+            
+    return redirect("leads:lead_detail", pk=pk)
+
+
+@login_required
+def lead_quick_update_stage(request, pk):
+    """Allows assigned counselor or manager/admin to quickly switch lead stage/status directly from detail page."""
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
+    
+    can_edit = _can_edit_lead(request.user, lead)
+    if not can_edit:
+        messages.error(request, "Only the assigned counselor or manager can change this lead's stage and status.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    if request.method == "POST":
+        new_stage_id = request.POST.get("stage")
+        new_temp = request.POST.get("temperature")
+        new_admission_status = request.POST.get("admission_status")
+        new_deal_status = request.POST.get("deal_status")
+
+        if new_stage_id and new_stage_id.isdigit():
+            stg = LeadStage.objects.filter(id=int(new_stage_id), is_active=True).first()
+            if stg:
+                lead.stage = stg
+
+        if new_temp in LeadTemperature.values:
+            lead.temperature = new_temp
+
+        if new_admission_status in AdmissionStatus.values:
+            lead.admission_status = new_admission_status
+
+        if new_deal_status in DealStatus.values:
+            lead.deal_status = new_deal_status
+
+        lead.save()
+        messages.success(request, f"Lead stage and status updated successfully!")
+
     return redirect("leads:lead_detail", pk=pk)
 
 
@@ -1200,17 +1778,124 @@ def bulk_action(request):
         messages.warning(request, "No leads selected.")
         return redirect("leads:lead_list")
 
-    if action == "assign":
+    if action == "self_assign":
+        max_limit = getattr(request.user, "bulk_self_assign_limit", 25)
+        selected_count = leads.count()
+        if selected_count > max_limit:
+            messages.error(
+                request,
+                f"Bulk Self-Assign Limit exceeded! Your maximum allowed limit is {max_limit} leads at a time, but you selected {selected_count} leads."
+            )
+            return redirect("leads:lead_list")
+        
+        # Determine candidate leads (unassigned or already assigned to self or accessible)
+        # Non-admin users cannot take away leads already assigned to someone else
+        eligible_leads = leads
+        if not request.user.can_assign_leads:
+            already_assigned_other = leads.filter(assigned_to__isnull=False).exclude(assigned_to=request.user)
+            if already_assigned_other.exists():
+                messages.warning(
+                    request,
+                    f"{already_assigned_other.count()} lead(s) are already assigned to other team members and were skipped."
+                )
+            eligible_leads = leads.filter(Q(assigned_to__isnull=True) | Q(assigned_to=request.user))
+        
+        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+        updated_count = 0
+        for lead in eligible_leads:
+            lead.assigned_to = request.user
+            if assigned_stage and (not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']):
+                lead.stage = assigned_stage
+            lead.save(update_fields=["assigned_to", "stage", "updated_at"])
+            Activity.objects.create(
+                lead=lead,
+                created_by=request.user,
+                activity_type="ASSIGNMENT",
+                description=f"Bulk self-assigned by {request.user.get_full_name() or request.user.username}.",
+            )
+            updated_count += 1
+            
+        if updated_count > 0:
+            messages.success(request, f"🎉 Successfully self-assigned {updated_count} lead(s) to yourself!")
+        else:
+            messages.info(request, "No eligible unassigned leads to assign.")
+        return redirect("leads:lead_list")
+
+    elif action == "assign":
         if not request.user.can_assign_leads:
             messages.error(request, "You don't have permission to assign leads.")
             return redirect("leads:lead_list")
+        
         emp_id = request.POST.get("assign_to")
-        leads.update(assigned_to_id=emp_id or None)
-        messages.success(request, f"{leads.count()} lead(s) assigned.")
+        from_user = request.POST.get("from_user", "").strip()
+        
+        eligible_leads = leads
+        if from_user:
+            if from_user == "unassigned":
+                eligible_leads = leads.filter(assigned_to__isnull=True)
+            elif from_user.isdigit():
+                eligible_leads = leads.filter(assigned_to_id=int(from_user))
+                
+        assignee = User.objects.filter(pk=emp_id, is_active=True).first() if emp_id else None
+        assignee_name = assignee.get_full_name() or assignee.username if assignee else "Unassigned"
+        
+        updated_count = 0
+        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+        for lead in eligible_leads:
+            prev_user = lead.assigned_to
+            lead.assigned_to = assignee
+            if assignee and assigned_stage and (not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']):
+                lead.stage = assigned_stage
+            lead.save(update_fields=["assigned_to", "stage", "updated_at"])
+            Activity.objects.create(
+                lead=lead,
+                created_by=request.user,
+                activity_type="ASSIGNMENT",
+                description=f"Bulk assigned to '{assignee_name}' (was '{prev_user}') by {request.user.get_full_name() or request.user.username}.",
+            )
+            updated_count += 1
+            
+        messages.success(request, f"🎉 {updated_count} lead(s) successfully assigned to {assignee_name}.")
+        return redirect("leads:lead_list")
+
     elif action == "stage":
         stage_id = request.POST.get("stage")
-        leads.update(stage_id=stage_id)
-        messages.success(request, f"{leads.count()} lead(s) updated.")
+        from_stage = request.POST.get("from_stage", "").strip()
+        
+        eligible_leads = leads
+        if from_stage:
+            if from_stage.isdigit():
+                eligible_leads = leads.filter(stage_id=int(from_stage))
+            else:
+                eligible_leads = leads.filter(Q(stage__name__iexact=from_stage) | Q(deal_status__iexact=from_stage))
+        
+        target_stage = LeadStage.objects.filter(pk=stage_id).first() if stage_id and str(stage_id).isdigit() else None
+        target_stage_name = target_stage.name if target_stage else (stage_id or "Updated")
+        
+        updated_count = 0
+        for lead in eligible_leads:
+            prev_stage = str(lead.stage or lead.deal_status)
+            if target_stage:
+                lead.stage = target_stage
+                lead.save(update_fields=["stage", "updated_at"])
+            else:
+                # Custom deal status / stage name
+                lead.deal_status = stage_id
+                if not lead.custom_data:
+                    lead.custom_data = {}
+                lead.custom_data["deal_status"] = stage_id
+                lead.save(update_fields=["deal_status", "custom_data", "updated_at"])
+            Activity.objects.create(
+                lead=lead,
+                created_by=request.user,
+                activity_type="STAGE_CHANGE",
+                description=f"Bulk stage changed from '{prev_stage}' to '{target_stage_name}' by {request.user.get_full_name() or request.user.username}.",
+            )
+            updated_count += 1
+            
+        messages.success(request, f"🎉 {updated_count} lead(s) updated to stage '{target_stage_name}'.")
+        return redirect("leads:lead_list")
+
     elif action == "archive":
         if not _can_archive_lead(request.user):
             messages.error(request, "Only Hospital Admins and Zappcode Super Admins can archive leads.")
@@ -1323,38 +2008,6 @@ def course_edit(request, pk):
     return render(request, "leads/course_edit.html", {
         "form": form, "course": course, "active": "course_master"
     })
-
-
-@login_required
-def assign_lead(request, pk):
-    lead = get_object_or_404(Lead, pk=pk)
-    if not request.user.can_assign_leads:
-        raise PermissionDenied("You do not have permission to assign leads.")
-    if request.method == "POST":
-        assigned_to_id = request.POST.get("assigned_to")
-        assigned_manager_id = request.POST.get("assigned_manager")
-        
-        # Update assigned_to
-        if assigned_to_id:
-            lead.assigned_to_id = assigned_to_id
-            try:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
-                if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-                    lead.stage = assigned_stage
-            except Exception:
-                pass
-        else:
-            lead.assigned_to = None
-            
-        # Update assigned_manager
-        if assigned_manager_id:
-            lead.assigned_manager_id = assigned_manager_id
-        else:
-            lead.assigned_manager = None
-            
-        lead.save()
-        messages.success(request, "Lead assignment updated successfully.")
-    return redirect("leads:lead_detail", pk=pk)
 
 
 # ---------------------------------------------------------------------------
@@ -1781,44 +2434,7 @@ def universal_master_import(request):
     return redirect("leads:universal_masters")
 
 
-@login_required
-def lead_self_assign(request, pk):
-    from accounts.models import User
-    from django.core.exceptions import PermissionDenied
-    lead = get_object_or_404(Lead, pk=pk)
-    
-    if not _can_access_lead(request.user, lead):
-        raise PermissionDenied("You do not have permission to access this lead.")
-        
-    if lead.assigned_to is not None and lead.assigned_to != request.user:
-        if not request.user.can_assign_leads:
-            messages.warning(request, f"This lead is already assigned to {lead.assigned_to.get_full_name() or lead.assigned_to.username}.")
-            return redirect('leads:lead_detail', pk=pk)
-        
-    if request.method == "POST":
-        lead.assigned_to = request.user
-        try:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
-            if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-                lead.stage = assigned_stage
-        except Exception:
-            pass
-        lead.save()
-        
-        Activity.objects.create(
-            lead=lead,
-            created_by=request.user,
-            activity_type="ASSIGNMENT",
-            description=f"Lead captured by {request.user.get_full_name() or request.user.username}.",
-        )
-        messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) captured successfully! It has been added to your leads.")
-        
-    next_url = request.GET.get("next") or request.POST.get("next")
-    if next_url:
-        from django.utils.http import url_has_allowed_host_and_scheme
-        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-            return redirect(next_url)
-    return redirect('leads:lead_detail', pk=pk)
+
 
 @login_required
 def book_appointment(request, pk):

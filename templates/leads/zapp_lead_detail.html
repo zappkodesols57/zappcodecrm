@@ -2,26 +2,43 @@
 {% block title %}{{ lead.name }} · {{ lead.lead_code }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-  <div>
-    <div class="text-muted small">{{ lead.lead_code }}</div>
-    <h4 class="mb-1">{{ lead.name }}
-      <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
-      <span class="badge badge-stage">{{ lead.stage }}</span>
-    </h4>
-    <div class="text-muted small">
-      <i class="fa-solid fa-phone"></i> {{ lead.mobile }}
-      {% if lead.email %} &nbsp;·&nbsp; <i class="fa-solid fa-envelope"></i> {{ lead.email }}{% endif %}
-      {% if lead.city %} &nbsp;·&nbsp; <i class="fa-solid fa-location-dot"></i> {{ lead.city }}{% endif %}
+  <div class="d-flex align-items-start gap-3">
+    <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'leads:lead_list' %}';" class="btn btn-sm btn-light border shadow-2xs rounded-circle d-flex align-items-center justify-content-center mt-1" style="width: 34px; height: 34px;" title="Go Back">
+      <i class="fa-solid fa-arrow-left text-secondary"></i>
+    </button>
+    <div>
+      <div class="text-muted small">{{ lead.lead_code }}</div>
+      <h4 class="mb-1">{{ lead.name }}
+        <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
+        <span class="badge badge-stage">{{ lead.stage }}</span>
+        {% if lead.assigned_to %}
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-semibold">
+            <i class="fa-solid fa-user-check me-1"></i>Owner: {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+          </span>
+        {% else %}
+          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-semibold">
+            <i class="fa-solid fa-circle-question me-1"></i>Unassigned
+          </span>
+        {% endif %}
+      </h4>
+      <div class="text-muted small">
+        <i class="fa-solid fa-phone"></i> {{ lead.mobile }}
+        {% if lead.email %} &nbsp;·&nbsp; <i class="fa-solid fa-envelope"></i> {{ lead.email }}{% endif %}
+        {% if lead.city %} &nbsp;·&nbsp; <i class="fa-solid fa-location-dot"></i> {{ lead.city }}{% endif %}
+      </div>
     </div>
   </div>
   <div class="d-flex gap-2">
+    <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+    {% if can_edit %}
     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-pen"></i> Edit</a>
-    {% if not admission %}
-    {% if request.user.hospital %}
-        <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#appointmentModal"><i class="fa-solid fa-stethoscope"></i> Book Appointment</button>
-    {% else %}
-        <button class="btn btn-sm btn-brand text-white" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap"></i> Convert to Admission</button>
     {% endif %}
+    {% if not admission %}
+      {% if request.user.is_hospital_user %}
+        <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#appointmentModal"><i class="fa-solid fa-stethoscope"></i> Book Appointment</button>
+      {% elif can_convert %}
+        <button class="btn btn-sm btn-brand text-white" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap"></i> Convert to Admission</button>
+      {% endif %}
     {% endif %}
     {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
     <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
@@ -30,6 +47,15 @@
     {% endif %}
   </div>
 </div>
+
+{% if lead.assigned_to and lead.assigned_to != request.user and not can_edit %}
+<div class="alert alert-info py-2 px-3 small border-0 shadow-xs rounded-3 mb-3 d-flex align-items-center gap-2">
+  <i class="fa-solid fa-users-viewfinder text-primary fs-6"></i>
+  <span>
+    <strong>Team Lead View:</strong> This lead belongs to <strong>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</strong>. You can view progress, record follow-ups, and add internal notes. Editing details and converting to admission are reserved for the lead owner.
+  </span>
+</div>
+{% endif %}
 
 <div class="row g-3">
   <div class="col-lg-8">
@@ -51,6 +77,17 @@
           <div class="col-4 text-muted">Assignment / Transfer</div>
           <div class="col-8">
             {% if user.can_assign_leads %}
+              <div class="mb-2">
+                {% if lead.assigned_to %}
+                  <span class="fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>Current Owner: {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                  <span class="badge bg-light text-secondary border ms-1">{{ lead.assigned_to.get_role_display|default:"Counselor" }}</span>
+                {% else %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+                {% endif %}
+                {% if lead.assigned_manager %}
+                  <span class="ms-2 text-muted small">(Manager: {{ lead.assigned_manager.get_full_name|default:lead.assigned_manager.username }})</span>
+                {% endif %}
+              </div>
               <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="row g-2 align-items-center">
                 {% csrf_token %}
                 <div class="col-md-5">
@@ -70,11 +107,19 @@
                   </select>
                 </div>
                 <div class="col-md-2">
-                  <button type="submit" class="btn btn-sm btn-brand text-white w-100 py-1" title="Transfer Lead"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
+                  <button type="submit" class="btn btn-sm btn-brand text-white w-100 py-1" title="Transfer Lead"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Transfer</button>
                 </div>
               </form>
             {% else %}
-              {{ lead.assigned_to|default:"Unassigned" }} {% if lead.assigned_manager %}(Manager: {{ lead.assigned_manager }}){% endif %}
+              {% if lead.assigned_to %}
+                <span class="fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                <span class="badge bg-light text-secondary border ms-1">{{ lead.assigned_to.get_role_display|default:"Counselor" }}</span>
+              {% else %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+              {% endif %}
+              {% if lead.assigned_manager %}
+                <span class="ms-2 text-muted small">(Manager: {{ lead.assigned_manager.get_full_name|default:lead.assigned_manager.username }})</span>
+              {% endif %}
             {% endif %}
           </div>
         </div>

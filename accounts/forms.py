@@ -17,10 +17,17 @@ class CRMUserCreateForm(UserCreationForm):
         label="Daily Calling Target",
         help_text="Assigned daily call target (default 100 calls per day)."
     )
+    bulk_self_assign_limit = forms.IntegerField(
+        required=False,
+        initial=25,
+        min_value=1,
+        label="Bulk Self-Assign Limit",
+        help_text="Maximum number of leads this user can bulk self-assign at once (default: 25)."
+    )
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "can_import_export")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "bulk_self_assign_limit", "can_import_export")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -110,10 +117,12 @@ class CRMUserCreateForm(UserCreationForm):
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
+        bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
         user.custom_permissions["daily_call_target"] = int(daily_target)
+        user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
         if commit:
             user.save()
         return user
@@ -131,10 +140,16 @@ class CRMUserEditForm(forms.ModelForm):
         label="Daily Calling Target",
         help_text="Assigned daily call target (default 100 calls per day)."
     )
+    bulk_self_assign_limit = forms.IntegerField(
+        required=False,
+        min_value=1,
+        label="Bulk Self-Assign Limit",
+        help_text="Maximum number of leads this user can bulk self-assign at once (default: 25)."
+    )
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "can_import_export", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "bulk_self_assign_limit", "can_import_export", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -142,6 +157,7 @@ class CRMUserEditForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             self.fields["can_import_export"].initial = self.instance.can_import_export
             self.fields["daily_call_target"].initial = self.instance.daily_call_target
+            self.fields["bulk_self_assign_limit"].initial = self.instance.bulk_self_assign_limit
 
         if self.user and self.user.hospital:
             allowed = self.user.hospital.get_allowed_roles()
@@ -223,10 +239,12 @@ class CRMUserEditForm(forms.ModelForm):
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
+        bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
         user.custom_permissions["daily_call_target"] = int(daily_target)
+        user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
         if commit:
             user.save()
         return user

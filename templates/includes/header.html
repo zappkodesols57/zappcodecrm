@@ -12,6 +12,51 @@
       </button>
     </div>
   </form>
+
+  {% if is_superadmin_user or user.is_superuser or user.role == 'SUPER_ADMIN' %}
+  <!-- Global Business / Tenant Switcher for Super Admin -->
+  <div class="dropdown ms-1">
+    <button class="btn btn-sm {% if active_business %}btn-primary text-white shadow-xs{% else %}btn-white bg-white text-dark border{% endif %} dropdown-toggle d-flex align-items-center gap-2 py-1 px-3 rounded-pill fw-semibold" type="button" id="globalBusinessFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 32px;" title="Filter All Pages by Business / Organization">
+      <i class="fa-solid fa-building-circle-check {% if not active_business %}text-primary{% endif %}"></i>
+      <span class="text-truncate" style="max-width: 150px;">
+        {% if active_business %}
+          {{ active_business.name }}
+        {% else %}
+          All Businesses
+        {% endif %}
+      </span>
+      {% if active_business %}
+        <span class="badge bg-white text-primary rounded-pill px-1 py-0" style="font-size: 0.65rem;">Active</span>
+      {% endif %}
+    </button>
+    <ul class="dropdown-menu shadow-lg border-0 py-2 mt-1 rounded-3" aria-labelledby="globalBusinessFilterDropdown" style="font-size: 0.82rem; min-width: 230px;">
+      <li class="px-3 py-1 text-muted text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">Filter Data by Business</li>
+      <li>
+        <a class="dropdown-item py-2 d-flex align-items-center justify-content-between {% if not active_business %}active fw-bold{% endif %}" href="{% url 'accounts:switch_business' %}?business_id=all&next={{ request.get_full_path|urlencode }}">
+          <span><i class="fa-solid fa-globe me-2 text-primary"></i> All Businesses (Global)</span>
+          {% if not active_business %}<i class="fa-solid fa-check text-success"></i>{% endif %}
+        </a>
+      </li>
+      <li><hr class="dropdown-divider my-1"></li>
+      {% for b in global_businesses %}
+      <li>
+        <a class="dropdown-item py-2 d-flex align-items-center justify-content-between {% if active_business.id == b.id %}active fw-bold{% endif %}" href="{% url 'accounts:switch_business' %}?business_id={{ b.id }}&next={{ request.get_full_path|urlencode }}">
+          <span class="text-truncate" style="max-width: 170px;"><i class="fa-solid fa-building me-2 text-secondary"></i> {{ b.name }}</span>
+          {% if active_business.id == b.id %}<i class="fa-solid fa-check text-success"></i>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+      {% if active_business %}
+      <li><hr class="dropdown-divider my-1"></li>
+      <li>
+        <a class="dropdown-item py-1 text-danger small d-flex align-items-center gap-2" href="{% url 'accounts:switch_business' %}?business_id=all&next={{ request.get_full_path|urlencode }}">
+          <i class="fa-solid fa-xmark"></i> Clear Business Filter
+        </a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
   <div class="ms-auto d-flex align-items-center gap-2">
     {% if user.role != 'DOCTOR' and user.can_add_leads %}
     <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-brand text-white d-none d-sm-inline-flex align-items-center gap-1">

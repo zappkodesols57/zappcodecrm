@@ -163,6 +163,13 @@
             <span class="badge {% if u.is_hospital_user %}bg-info bg-opacity-10 text-info border border-info-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %} fw-semibold">
               {{ u.custom_role_display }}
             </span>
+            {% if u.role == 'COUNSELLOR' or u.role == 'HR' or u.role == 'LEAD_ATTENDENT' %}
+              <div class="mt-1">
+                <span class="badge bg-secondary-subtle text-dark border" style="font-size: 0.68rem;" title="Bulk Self-Assign Limit">
+                  <i class="fa-solid fa-layer-group me-1 text-primary"></i>Limit: {{ u.bulk_self_assign_limit }}
+                </span>
+              </div>
+            {% endif %}
           </td>
           <td>
             {% if u.department %}
