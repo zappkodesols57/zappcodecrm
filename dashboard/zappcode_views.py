@@ -121,19 +121,39 @@ def management_home(request):
     if request.GET.get("city"):
         filtered_leads = filtered_leads.filter(city__iexact=request.GET.get("city"))
     if request.GET.get("source_category"):
-        filtered_leads = filtered_leads.filter(source_category_id=request.GET.get("source_category"))
-    if request.GET.get("lead_source"):
-        filtered_leads = filtered_leads.filter(lead_source_id=request.GET.get("lead_source"))
-    if request.GET.get("course"):
-        filtered_leads = filtered_leads.filter(course_id=request.GET.get("course"))
-    if request.GET.get("stage"):
-        filtered_leads = filtered_leads.filter(stage_id=request.GET.get("stage"))
+        sc_val = request.GET.get("source_category").strip()
+        if sc_val.isdigit():
+            filtered_leads = filtered_leads.filter(source_category_id=int(sc_val))
+        else:
+            filtered_leads = filtered_leads.filter(source_category__name__iexact=sc_val)
+    if request.GET.get("lead_source") or request.GET.get("lead_source_name"):
+        ls_val = (request.GET.get("lead_source") or request.GET.get("lead_source_name")).strip()
+        if ls_val.isdigit():
+            filtered_leads = filtered_leads.filter(lead_source_id=int(ls_val))
+        else:
+            filtered_leads = filtered_leads.filter(Q(lead_source__name__iexact=ls_val) | Q(custom_data__lead_source__iexact=ls_val))
+    if request.GET.get("course") or request.GET.get("course_name"):
+        c_val = (request.GET.get("course") or request.GET.get("course_name")).strip()
+        if c_val.isdigit():
+            filtered_leads = filtered_leads.filter(course_id=int(c_val))
+        else:
+            filtered_leads = filtered_leads.filter(Q(course__name__iexact=c_val) | Q(custom_data__department__iexact=c_val) | Q(custom_data__course__iexact=c_val))
+    if request.GET.get("stage") or request.GET.get("stage_name"):
+        stg_val = (request.GET.get("stage") or request.GET.get("stage_name")).strip()
+        if stg_val.isdigit():
+            filtered_leads = filtered_leads.filter(stage_id=int(stg_val))
+        else:
+            filtered_leads = filtered_leads.filter(stage__name__iexact=stg_val)
     if request.GET.get("temperature"):
         filtered_leads = filtered_leads.filter(temperature=request.GET.get("temperature"))
     if request.GET.get("deal_status"):
         filtered_leads = filtered_leads.filter(deal_status=request.GET.get("deal_status"))
     if request.GET.get("assigned_to"):
-        filtered_leads = filtered_leads.filter(assigned_to_id=request.GET.get("assigned_to"))
+        asg_val = request.GET.get("assigned_to").strip()
+        if asg_val.isdigit():
+            filtered_leads = filtered_leads.filter(assigned_to_id=int(asg_val))
+        else:
+            filtered_leads = filtered_leads.filter(assigned_to__username__iexact=asg_val)
     if request.GET.get("date_from"):
         filtered_leads = filtered_leads.filter(inquiry_date__gte=request.GET.get("date_from"))
     if request.GET.get("date_to"):
