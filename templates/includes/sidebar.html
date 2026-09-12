@@ -71,17 +71,19 @@
     <!-- Section: Leads & Campaigns (Multiple Tabs) -->
     <div class="nav-section-group">
       <button
-        class="nav-section-btn {% if active not in 'leads_all meta_ads campaign-management' %}collapsed{% endif %}"
+        class="nav-section-btn {% if active not in 'leads_all team_history meta_ads campaign-management' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_leads"
-        aria-expanded="{% if active in 'leads_all meta_ads campaign-management' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'leads_all meta_ads campaign-management team_history' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-bullhorn section-icon"></i><span class="section-title">Leads &
             Campaigns</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all meta_ads campaign-management import import_history' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all meta_ads campaign-management import import_history team_history' %}show{% endif %} nav-sub-items"
         id="sec_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="Lead Management"><i class="fa-solid fa-users"></i> <span class="nav-text">Lead Management</span></a>
+        <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
+          title="Teams History"><i class="fa-solid fa-users-viewfinder"></i> <span class="nav-text">Teams History</span></a>
         <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'import' %}active{% endif %}" href="{% url 'imports:upload' %}"
           title="Import Leads"><i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span>{% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary'></i>{% endif %}</a>
         <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'export' %}active{% endif %}" href="{% url 'imports:export' %}"
@@ -329,16 +331,20 @@
 
     <!-- Section: Lead Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all leads_dup' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all my_leads team_history leads_dup' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_mgmt_leads"
-        aria-expanded="{% if active in 'leads_all' or active in 'leads_dup' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'leads_all' or active in 'my_leads' or active in 'team_history' or active in 'leads_dup' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all leads_dup' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all my_leads team_history leads_dup' %}show{% endif %} nav-sub-items"
         id="sec_mgmt_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
+        <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
+          title="My Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
+        <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
+          title="Teams History"><i class="fa-solid fa-users-viewfinder"></i> <span class="nav-text">Teams History</span></a>
         <a class="nav-link {% if active == 'leads_dup' %}active{% endif %}" href="{% url 'leads:duplicates' %}"
           title="Duplicate Management"><i class="fa-solid fa-clone"></i> <span class="nav-text">Duplicate
             Management</span></a>
@@ -450,16 +456,20 @@
 
     <!-- 2. Section: Lead Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all leads_add leads_dup' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all my_leads team_history leads_add leads_dup' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_leads"
-        aria-expanded="{% if active in 'leads_all' or active in 'leads_add' or active in 'leads_dup' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'leads_all' or active in 'my_leads' or active in 'team_history' or active in 'leads_add' or active in 'leads_dup' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all leads_add leads_dup' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all my_leads team_history leads_add leads_dup' %}show{% endif %} nav-sub-items"
         id="sec_emp_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
+        <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
+          title="My Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
+        <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
+          title="Teams History"><i class="fa-solid fa-users-viewfinder"></i> <span class="nav-text">Teams History</span></a>
         <a class="nav-link {% if active == 'leads_add' %}active{% endif %}" href="{% url 'leads:lead_add' %}"
           title="Add New Lead"><i class="fa-solid fa-user-plus"></i> <span class="nav-text">Add New Lead</span></a>
         <a class="nav-link {% if active == 'leads_dup' %}active{% endif %}" href="{% url 'leads:duplicates' %}"

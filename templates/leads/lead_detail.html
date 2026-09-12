@@ -7,6 +7,15 @@
     <h4 class="mb-1">{{ lead.name }}
       <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
       <span class="badge badge-stage">{{ lead.stage }}</span>
+      {% if lead.assigned_to %}
+        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-semibold">
+          <i class="fa-solid fa-user-check me-1"></i>Owner: {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+        </span>
+      {% else %}
+        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-semibold">
+          <i class="fa-solid fa-circle-question me-1"></i>Unassigned
+        </span>
+      {% endif %}
     </h4>
     <div class="text-muted small">
       <i class="fa-solid fa-phone"></i> {{ lead.mobile }}
@@ -15,9 +24,10 @@
     </div>
   </div>
   <div class="d-flex gap-2">
+    <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-pen"></i> Edit</a>
     {% if not admission %}
-    {% if request.user.hospital %}
+    {% if request.user.is_hospital_user %}
         <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#appointmentModal"><i class="fa-solid fa-stethoscope"></i> Book Appointment</button>
     {% else %}
         <button class="btn btn-sm btn-brand text-white" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap"></i> Convert to Admission</button>
@@ -51,6 +61,17 @@
           <div class="col-4 text-muted">Assignment / Transfer</div>
           <div class="col-8">
             {% if user.can_assign_leads %}
+              <div class="mb-2">
+                {% if lead.assigned_to %}
+                  <span class="fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>Current Owner: {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                  <span class="badge bg-light text-secondary border ms-1">{{ lead.assigned_to.get_role_display|default:"Counselor" }}</span>
+                {% else %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+                {% endif %}
+                {% if lead.assigned_manager %}
+                  <span class="ms-2 text-muted small">(Manager: {{ lead.assigned_manager.get_full_name|default:lead.assigned_manager.username }})</span>
+                {% endif %}
+              </div>
               <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="row g-2 align-items-center">
                 {% csrf_token %}
                 <div class="col-md-5">
@@ -70,11 +91,19 @@
                   </select>
                 </div>
                 <div class="col-md-2">
-                  <button type="submit" class="btn btn-sm btn-brand text-white w-100 py-1" title="Transfer Lead"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
+                  <button type="submit" class="btn btn-sm btn-brand text-white w-100 py-1" title="Transfer Lead"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Transfer</button>
                 </div>
               </form>
             {% else %}
-              {{ lead.assigned_to|default:"Unassigned" }} {% if lead.assigned_manager %}(Manager: {{ lead.assigned_manager }}){% endif %}
+              {% if lead.assigned_to %}
+                <span class="fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                <span class="badge bg-light text-secondary border ms-1">{{ lead.assigned_to.get_role_display|default:"Counselor" }}</span>
+              {% else %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+              {% endif %}
+              {% if lead.assigned_manager %}
+                <span class="ms-2 text-muted small">(Manager: {{ lead.assigned_manager.get_full_name|default:lead.assigned_manager.username }})</span>
+              {% endif %}
             {% endif %}
           </div>
         </div>

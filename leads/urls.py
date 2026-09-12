@@ -5,6 +5,8 @@ app_name = "leads"
 
 urlpatterns = [
     path("", views.lead_list, name="lead_list"),
+    path("my-leads/", views.my_leads, name="my_leads"),
+    path("team-history/", views.team_history, name="team_history"),
     path("add/", views.lead_add, name="lead_add"),
     path("api/check-mobile/", views.check_duplicate_mobile, name="check_duplicate_mobile"),
     path("api/doctor-slots/", views.doctor_slots_api, name="doctor_slots_api"),
@@ -16,6 +18,7 @@ urlpatterns = [
     path("<int:pk>/archive/", views.lead_archive, name="lead_archive"),
     path("<int:pk>/add-note/", views.add_note, name="add_note"),
     path("<int:pk>/add-followup/", views.add_followup, name="add_followup"),
+    path("<int:pk>/quick-update-stage/", views.lead_quick_update_stage, name="lead_quick_update_stage"),
     path("<int:pk>/convert-admission/", views.convert_admission, name="convert_admission"),
     path("bulk-action/", views.bulk_action, name="bulk_action"),
     path("duplicates/", views.duplicates, name="duplicates"),

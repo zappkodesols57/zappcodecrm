@@ -160,7 +160,7 @@ def _create_lead_from_meta(connection, meta_lead_id):
         notify_users = User.objects.filter(is_superuser=True) | User.objects.filter(role__in=['admin', 'manager', 'counsellor', 'nelson_admin', 'nelson_manager'])
         notify_users = notify_users.distinct()
         
-        link = reverse('leads:lead_edit', args=[lead.pk])
+        link = reverse('leads:lead_detail', args=[lead.pk])
         for u in notify_users:
             Notification.objects.create(
                 user=u,

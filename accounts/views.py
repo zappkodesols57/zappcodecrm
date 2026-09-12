@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.core.paginator import Paginator
 
 from audit.models import AuditLog
@@ -121,9 +122,13 @@ def user_list(request):
     pending_users = User.objects.filter(is_approved=False).order_by("-date_joined")
     users_qs = User.objects.filter(is_approved=True).order_by("-date_joined")
     
+    selected_hospital_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
     if request.user.hospital:
         pending_users = pending_users.filter(hospital=request.user.hospital)
         users_qs = users_qs.filter(hospital=request.user.hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        pending_users = pending_users.filter(hospital_id=int(selected_hospital_id))
+        users_qs = users_qs.filter(hospital_id=int(selected_hospital_id))
 
     # Search keyword filter
     if q:
@@ -973,6 +978,11 @@ def user_profile(request):
         elif 'update_password' in request.POST:
             profile_form = UserProfileForm(instance=request.user)
             password_form = PasswordChangeForm(request.user, request.POST)
+            for field in password_form.fields.values():
+                field.widget.attrs.update({
+                    'class': 'form-control',
+                    'placeholder': '••••••••'
+                })
             if password_form.is_valid():
                 user = password_form.save()
                 update_session_auth_hash(request, user)  # Keeps the user logged in
@@ -983,9 +993,35 @@ def user_profile(request):
     else:
         profile_form = UserProfileForm(instance=request.user)
         password_form = PasswordChangeForm(request.user)
+        for field in password_form.fields.values():
+            field.widget.attrs.update({
+                'class': 'form-control',
+                'placeholder': '••••••••'
+            })
 
     return render(request, 'accounts/profile.html', {
         'profile_form': profile_form,
         'password_form': password_form,
         'active': 'profile'
     })
+
+
+@login_required
+def switch_business(request):
+    """
+    Global Business Switcher for Super Admin.
+    Stores selected business ID in session so all views automatically scope to that business.
+    """
+    if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+        return redirect("dashboard:home")
+    
+    business_id = request.GET.get("business_id", "").strip() or request.POST.get("business_id", "").strip()
+    if business_id and business_id != "all" and business_id != "0":
+        request.session["active_business_id"] = business_id
+    else:
+        request.session.pop("active_business_id", None)
+    
+    next_url = request.GET.get("next") or request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("dashboard:superadmin_home")
+    return redirect(next_url)
+
+

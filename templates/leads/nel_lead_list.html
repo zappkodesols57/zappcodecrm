@@ -51,6 +51,7 @@
       {% endif %}
     </button>
 
+    {% if not user.is_superuser and user.role != 'SUPER_ADMIN' and user.role != 'ADMIN' %}
     <!-- Bulk Self-Assign Button with Count Badge -->
     <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
       id="bulkSelfAssignBtn"
@@ -62,6 +63,7 @@
         <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
       </span>
     </button>
+    {% endif %}
 
     <!-- Sort Dropdown Trigger -->
     <div class="dropdown">
@@ -123,30 +125,101 @@
 
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
   <style>
-    .bulk-action-bar .ts-wrapper .ts-control {
-      border: 1px solid #9ca3af !important;
-      background-color: #f1f5f9 !important;
-      border-radius: 0.4rem !important;
-      min-height: calc(1.5em + 0.5rem + 2px);
+    .bulk-action-bar {
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 0.85rem !important;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .bulk-field-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 2px;
     }
   </style>
-  <div class="card bulk-action-bar mb-3 p-3 d-flex flex-row gap-3 align-items-center bg-white shadow-sm" style="border: 1px solid #9ca3af !important; border-radius: 0.75rem;">
-    <span class="fw-bold text-dark small text-uppercase ms-1"><i class="fa-solid fa-layer-group text-primary me-1"></i> Admin Bulk Actions:</span>
-    <select name="admin_bulk_action" id="adminBulkActionSelect" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
-      <option value="assign">Assign to...</option>
-      <option value="stage">Change Stage to...</option>
-      {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-      <option value="archive">Archive</option>
-      {% endif %}
-    </select>
-    <select name="assign_to" class="form-select form-select-sm" style="max-width:200px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
-      <option value="">Hospital Attendant / User</option>
-      {% for e in employees %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-    </select>
-    <select name="stage" class="form-select form-select-sm" style="max-width:180px; border: 1px solid #9ca3af !important; border-radius: 0.4rem; background-color: #f1f5f9 !important;">
-      {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-    </select>
-    <button type="button" class="btn btn-sm btn-primary px-4 fw-bold shadow-sm" onclick="submitAdminBulkAction()">Apply to Selected</button>
+  <div class="card bulk-action-bar mb-3 p-3">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <div class="d-flex align-items-center me-1">
+        <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-3 me-2">
+          <i class="fa-solid fa-layer-group fa-lg"></i>
+        </span>
+        <div>
+          <div class="fw-bold text-dark" style="font-size: 0.88rem;">Bulk Action</div>
+          <div class="text-muted" style="font-size: 0.72rem;">Apply changes to selected leads</div>
+        </div>
+      </div>
+
+      <!-- 1. Action Dropdown -->
+      <div style="min-width: 170px;">
+        <div class="bulk-field-label">Action</div>
+        <select name="admin_bulk_action" id="adminBulkActionSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none" onchange="handleBulkActionChange()">
+          <option value="">-- Select Action --</option>
+          <option value="assign">Assign to...</option>
+          <option value="stage">Change Stage to...</option>
+          {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+          <option value="archive">Archive</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <!-- 2. From Field Container -->
+      <div id="fromFieldContainer" class="d-none" style="min-width: 170px;">
+        <div class="bulk-field-label" id="fromFieldLabel">From</div>
+        <!-- From User Select Wrapper -->
+        <div id="fromUserWrapper" class="d-none">
+          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+            <option value="">All / Any User</option>
+            <option value="unassigned">Unassigned / Open</option>
+            {% for e in employees %}
+            <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- From Stage Select Wrapper -->
+        <div id="fromStageWrapper" class="d-none">
+          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+            <option value="">All / Any Stage</option>
+            {% for s in bulk_stages %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- 3. To Field Container -->
+      <div id="toFieldContainer" class="d-none" style="min-width: 170px;">
+        <div class="bulk-field-label" id="toFieldLabel">To</div>
+        <!-- To User Select Wrapper -->
+        <div id="toUserWrapper" class="d-none">
+          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+            <option value="">-- Select Assignee --</option>
+            {% for e in employees %}
+            <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- To Stage Select Wrapper -->
+        <div id="toStageWrapper" class="d-none">
+          <select name="stage" id="toStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+            <option value="">-- Select Target Stage --</option>
+            {% for s in bulk_stages %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Apply Button -->
+      <div class="ms-auto pt-3 pt-md-0">
+        <button type="button" class="btn btn-sm btn-primary px-4 fw-semibold shadow-sm d-flex align-items-center gap-2" onclick="submitAdminBulkAction()">
+          <i class="fa-solid fa-check-double"></i>
+          <span>Apply to Selected</span>
+        </button>
+      </div>
+    </div>
   </div>
 {% endif %}
 
@@ -297,9 +370,164 @@
   </div> <!-- /Right Side Main Content -->
 </div> <!-- /Split View Container -->
 
+<!-- Modern In-Window Confirmation & Alert Modal -->
+<div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div id="modalIconContainer" class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
+          </div>
+          <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel" style="font-size: 1.1rem;">Confirm Action</h5>
+        </div>
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
+        <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2" style="display: none;"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm" id="modalConfirmBtn">Confirm & Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   // Bulk Selection Counter & Self-Assign Limit Tracking
   const bulkSelfAssignLimit = {{ request.user.bulk_self_assign_limit|default:25 }};
+
+  function showInWindowAlert(title, message, iconType = 'warning') {
+    const modalEl = document.getElementById('inWindowActionModal');
+    const modalTitle = document.getElementById('inWindowActionModalLabel');
+    const modalText = document.getElementById('modalMessageText');
+    const modalDetails = document.getElementById('modalDetailsBox');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+
+    modalTitle.textContent = title;
+    modalText.innerHTML = message;
+    modalDetails.style.display = 'none';
+    modalDetails.innerHTML = '';
+
+    if (iconType === 'warning') {
+      modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    } else if (iconType === 'error') {
+      modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    } else {
+      modalIcon.className = 'fa-solid fa-circle-info fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    }
+
+    cancelBtn.style.display = 'none';
+    confirmBtn.onclick = function() {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+    };
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+  }
+
+  function showInWindowConfirm(options) {
+    // options: { title, message, detailsHtml, confirmText, confirmBtnClass, onConfirm }
+    const modalEl = document.getElementById('inWindowActionModal');
+    const modalTitle = document.getElementById('inWindowActionModalLabel');
+    const modalText = document.getElementById('modalMessageText');
+    const modalDetails = document.getElementById('modalDetailsBox');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+
+    modalTitle.textContent = options.title || 'Confirm Action';
+    modalText.innerHTML = options.message || 'Are you sure you want to proceed?';
+    
+    if (options.detailsHtml) {
+      modalDetails.innerHTML = options.detailsHtml;
+      modalDetails.style.display = 'block';
+    } else {
+      modalDetails.style.display = 'none';
+      modalDetails.innerHTML = '';
+    }
+
+    modalIcon.className = options.icon || 'fa-solid fa-circle-question fa-lg';
+    modalIconContainer.className = 'p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center';
+    
+    cancelBtn.style.display = 'inline-block';
+    cancelBtn.textContent = 'Cancel';
+    confirmBtn.className = options.confirmBtnClass || 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+    confirmBtn.textContent = options.confirmText || 'Confirm & Apply';
+
+    confirmBtn.onclick = function() {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+      if (typeof options.onConfirm === 'function') {
+        options.onConfirm();
+      }
+    };
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+  }
+
+  function handleBulkActionChange() {
+    const actionSelect = document.getElementById('adminBulkActionSelect');
+    const action = actionSelect ? actionSelect.value : '';
+
+    const fromContainer = document.getElementById('fromFieldContainer');
+    const toContainer = document.getElementById('toFieldContainer');
+    const fromUserWrapper = document.getElementById('fromUserWrapper');
+    const fromStageWrapper = document.getElementById('fromStageWrapper');
+    const toUserWrapper = document.getElementById('toUserWrapper');
+    const toStageWrapper = document.getElementById('toStageWrapper');
+
+    if (!fromContainer || !toContainer) return;
+
+    if (action === 'assign') {
+      fromContainer.classList.remove('d-none');
+      toContainer.classList.remove('d-none');
+      fromContainer.style.display = 'block';
+      toContainer.style.display = 'block';
+
+      if (fromUserWrapper) { fromUserWrapper.classList.remove('d-none'); fromUserWrapper.style.display = 'block'; }
+      if (fromStageWrapper) { fromStageWrapper.classList.add('d-none'); fromStageWrapper.style.display = 'none'; }
+      if (toUserWrapper) { toUserWrapper.classList.remove('d-none'); toUserWrapper.style.display = 'block'; }
+      if (toStageWrapper) { toStageWrapper.classList.add('d-none'); toStageWrapper.style.display = 'none'; }
+    } else if (action === 'stage') {
+      fromContainer.classList.remove('d-none');
+      toContainer.classList.remove('d-none');
+      fromContainer.style.display = 'block';
+      toContainer.style.display = 'block';
+
+      if (fromUserWrapper) { fromUserWrapper.classList.add('d-none'); fromUserWrapper.style.display = 'none'; }
+      if (fromStageWrapper) { fromStageWrapper.classList.remove('d-none'); fromStageWrapper.style.display = 'block'; }
+      if (toUserWrapper) { toUserWrapper.classList.add('d-none'); toUserWrapper.style.display = 'none'; }
+      if (toStageWrapper) { toStageWrapper.classList.remove('d-none'); toStageWrapper.style.display = 'block'; }
+    } else {
+      fromContainer.classList.add('d-none');
+      toContainer.classList.add('d-none');
+      fromContainer.style.display = 'none';
+      toContainer.style.display = 'none';
+
+      if (fromUserWrapper) { fromUserWrapper.classList.add('d-none'); fromUserWrapper.style.display = 'none'; }
+      if (fromStageWrapper) { fromStageWrapper.classList.add('d-none'); fromStageWrapper.style.display = 'none'; }
+      if (toUserWrapper) { toUserWrapper.classList.add('d-none'); toUserWrapper.style.display = 'none'; }
+      if (toStageWrapper) { toStageWrapper.classList.add('d-none'); toStageWrapper.style.display = 'none'; }
+    }
+  }
 
   function updateSelectedCount() {
     const checkboxes = document.querySelectorAll('.row-check:checked');
@@ -336,34 +564,99 @@
     const checkboxes = document.querySelectorAll('.row-check:checked');
     const count = checkboxes.length;
     if (count === 0) {
-      alert("Please select at least 1 lead to assign to yourself.");
+      showInWindowAlert("Selection Required", "Please select at least 1 lead to assign to yourself.", "warning");
       return;
     }
     if (count > bulkSelfAssignLimit) {
-      alert(`⚠️ Limit Exceeded: You can only bulk self-assign up to ${bulkSelfAssignLimit} leads at a time, but you have selected ${count} leads. Please uncheck some leads.`);
+      showInWindowAlert(
+        "Limit Exceeded",
+        `You can only bulk self-assign up to <strong>${bulkSelfAssignLimit}</strong> leads at a time, but you have selected <strong>${count}</strong> leads. Please uncheck some leads.`,
+        "error"
+      );
       return;
     }
-    if (confirm(`Assign ${count} selected lead(s) to yourself?`)) {
-      const actionInput = document.getElementById('bulkActionInput');
-      if (actionInput) actionInput.value = 'self_assign';
-      document.getElementById('leadsBulkActionForm').submit();
-    }
+
+    showInWindowConfirm({
+      title: "Confirm Self-Assignment",
+      message: `Are you sure you want to assign <strong>${count}</strong> selected lead(s) to yourself?`,
+      confirmText: "Yes, Assign to Me",
+      confirmBtnClass: "btn btn-sm btn-success px-4 rounded-pill fw-bold shadow-sm",
+      icon: "fa-solid fa-user-check fa-lg",
+      onConfirm: function() {
+        const actionInput = document.getElementById('bulkActionInput');
+        if (actionInput) actionInput.value = 'self_assign';
+        document.getElementById('leadsBulkActionForm').submit();
+      }
+    });
   }
 
   function submitAdminBulkAction() {
     const checkboxes = document.querySelectorAll('.row-check:checked');
-    if (checkboxes.length === 0) {
-      alert("Please select at least 1 lead to apply bulk action.");
+    const count = checkboxes.length;
+    if (count === 0) {
+      showInWindowAlert("Selection Required", "Please select at least 1 lead to apply bulk action.", "warning");
       return;
     }
+
     const adminSelect = document.getElementById('adminBulkActionSelect');
-    const actionInput = document.getElementById('bulkActionInput');
-    if (adminSelect && actionInput) {
-      actionInput.value = adminSelect.value;
+    const action = adminSelect ? adminSelect.value.trim() : '';
+
+    if (!action) {
+      showInWindowAlert("Action Required", "select action first", "warning");
+      return;
     }
-    if (confirm("Apply bulk action to selected leads?")) {
-      document.getElementById('leadsBulkActionForm').submit();
+
+    let detailsHtml = `<div><strong>Selected Leads:</strong> ${count}</div>`;
+    let confirmMsg = `Apply bulk action to <strong>${count}</strong> selected leads?`;
+
+    if (action === 'assign') {
+      const toUserSelect = document.getElementById('toUserSelect');
+      const fromUserSelect = document.getElementById('fromUserSelect');
+      const targetUserId = toUserSelect ? toUserSelect.value : '';
+      const targetUserName = toUserSelect && toUserSelect.selectedIndex >= 0 ? toUserSelect.options[toUserSelect.selectedIndex].text : '';
+      const fromUserName = fromUserSelect && fromUserSelect.selectedIndex >= 0 ? fromUserSelect.options[fromUserSelect.selectedIndex].text : 'All / Any';
+
+      if (!targetUserId) {
+        showInWindowAlert("Assignee Required", "Please select a target user (To) to assign the selected leads to.", "warning");
+        return;
+      }
+      confirmMsg = `Are you sure you want to assign <strong>${count}</strong> lead(s) to <strong>${targetUserName}</strong>?`;
+      detailsHtml += `<div><strong>From:</strong> ${fromUserName}</div>`;
+      detailsHtml += `<div><strong>To:</strong> <span class="text-primary fw-bold">${targetUserName}</span></div>`;
+
+    } else if (action === 'stage') {
+      const toStageSelect = document.getElementById('toStageSelect');
+      const fromStageSelect = document.getElementById('fromStageSelect');
+      const targetStageId = toStageSelect ? toStageSelect.value : '';
+      const targetStageName = toStageSelect && toStageSelect.selectedIndex >= 0 ? toStageSelect.options[toStageSelect.selectedIndex].text : '';
+      const fromStageName = fromStageSelect && fromStageSelect.selectedIndex >= 0 ? fromStageSelect.options[fromStageSelect.selectedIndex].text : 'All / Any Stage';
+
+      if (!targetStageId) {
+        showInWindowAlert("Stage Required", "Please select a target stage (To) to update the selected leads to.", "warning");
+        return;
+      }
+      confirmMsg = `Are you sure you want to change stage for <strong>${count}</strong> lead(s) to <strong>${targetStageName}</strong>?`;
+      detailsHtml += `<div><strong>From Stage:</strong> ${fromStageName}</div>`;
+      detailsHtml += `<div><strong>Target Stage:</strong> <span class="text-success fw-bold">${targetStageName}</span></div>`;
+
+    } else if (action === 'archive') {
+      confirmMsg = `Are you sure you want to archive <strong>${count}</strong> selected leads?`;
+      detailsHtml += `<div class="text-danger">Archived leads will be hidden from the active list.</div>`;
     }
+
+    showInWindowConfirm({
+      title: "Confirm Bulk Action",
+      message: confirmMsg,
+      detailsHtml: detailsHtml,
+      confirmText: "Confirm & Apply",
+      confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
+      icon: "fa-solid fa-layer-group fa-lg",
+      onConfirm: function() {
+        const actionInput = document.getElementById('bulkActionInput');
+        if (actionInput) actionInput.value = action;
+        document.getElementById('leadsBulkActionForm').submit();
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -371,6 +664,7 @@
       c.addEventListener('change', updateSelectedCount);
     });
     updateSelectedCount();
+    handleBulkActionChange();
   });
 </script>
 {% endblock %}

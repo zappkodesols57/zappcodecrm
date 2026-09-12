@@ -59,6 +59,12 @@ def management_home(request):
     selected_business_ids = request.GET.getlist("business")
     if not selected_business_ids and request.GET.get("business"):
         selected_business_ids = [request.GET.get("business")]
+    
+    # Check session active_business_id if no explicit GET filter passed
+    if not selected_business_ids:
+        sess_biz = request.session.get("active_business_id")
+        if sess_biz and str(sess_biz).strip() and str(sess_biz).strip() != "all":
+            selected_business_ids = [str(sess_biz).strip()]
 
     # If nothing selected, or 'all' passed, default to all businesses
     is_all_selected_explicitly = "all" in selected_business_ids

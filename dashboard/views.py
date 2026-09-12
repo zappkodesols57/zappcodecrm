@@ -62,8 +62,16 @@ def home(request):
             else:
                 leads = leads.none()
     elif is_global_admin:
-        # Global Super Admin: can see all leads (or filter by a selected hospital)
-        pass  # No hospital filter - sees everything
+        # Global Super Admin: check if active_business is selected in session or URL
+        selected_hospital_id = (
+            request.GET.get("business", "").strip()
+            or request.GET.get("hospital", "").strip()
+            or str(request.session.get("active_business_id", "")).strip()
+        )
+        if selected_hospital_id and selected_hospital_id.isdigit():
+            leads = leads.filter(hospital_id=int(selected_hospital_id))
+        elif selected_hospital_id == "none":
+            leads = leads.filter(hospital__isnull=True)
     else:
         # Fallback safety: no hospital and not super admin - show nothing
         leads = leads.none()
@@ -110,11 +118,15 @@ def home(request):
         leads = leads.filter(inquiry_date__lte=date_to)
 
     # 2. Compute KPIs based on user filtered leads matching exact requirements
+    import datetime
+    today_start = timezone.make_aware(datetime.datetime.combine(today, datetime.time.min))
+    today_end = timezone.make_aware(datetime.datetime.combine(today, datetime.time.max))
+
     total_leads = leads.count()
     
     # 1. Today's New Leads: Leads created or inquired today
     todays_new_leads = leads.filter(
-        Q(created_at__date=today) | Q(inquiry_date=today)
+        Q(created_at__range=(today_start, today_end)) | Q(inquiry_date=today)
     ).count()
 
     # 2. Call Not Done: Leads pending initial call / 0 follow-ups / uncontacted
@@ -129,18 +141,21 @@ def home(request):
         Q(admission__admission_date=today) | 
         Q(custom_data__admission_date=str(today))
     ).filter(
-        Q(updated_at__date=today) | Q(created_at__date=today) | Q(admission__created_at__date=today) | Q(inquiry_date=today)
+        Q(updated_at__range=(today_start, today_end)) | 
+        Q(created_at__range=(today_start, today_end)) | 
+        Q(admission__created_at__range=(today_start, today_end)) | 
+        Q(inquiry_date=today)
     ).distinct().count()
 
     # 4. Billing Done Today: Payments received today
     billing_today = Payment.objects.filter(
         payment_status=PaymentStatus.SUCCESS,
-        created_at__date=today,
+        created_at__range=(today_start, today_end),
         admission__lead__in=leads
     ).aggregate(s=Sum("amount"))["s"] or 0
     billing_count_today = Payment.objects.filter(
         payment_status=PaymentStatus.SUCCESS,
-        created_at__date=today,
+        created_at__range=(today_start, today_end),
         admission__lead__in=leads
     ).count()
     if billing_count_today == 0:
@@ -328,8 +343,17 @@ def superadmin_home(request):
     today = timezone.localdate()
     user = request.user
 
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
     if user.hospital:
         base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        base_leads = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
+    elif selected_hospital_id == "none":
+        base_leads = Lead.objects.filter(is_archived=False, hospital__isnull=True)
     else:
         base_leads = Lead.objects.filter(is_archived=False)
 
@@ -1053,7 +1077,19 @@ def nel_card_drilldown_api(request):
         selected_date = None
 
     # Base tenant queryset
-    hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.hospital) if user.hospital else Lead.objects.filter(is_archived=False)
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+    if user.hospital:
+        hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        hospital_qs = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
+    elif selected_hospital_id == "none":
+        hospital_qs = Lead.objects.filter(is_archived=False, hospital__isnull=True)
+    else:
+        hospital_qs = Lead.objects.filter(is_archived=False)
 
     # Extract Active Slicer Filters
     campaign_filter = request.GET.get('campaign', '').strip()
@@ -1289,16 +1325,21 @@ def nel_card_drilldown_api(request):
                 all_comments.append(str(extra_note).strip())
         all_comments.extend(lead_comments_map.get(l.id, []))
 
+        is_hosp_lead = bool(l.hospital_id or (l.hospital and l.hospital.is_hospital))
+        course_name = l.course.name if l.course else (cd.get('course') or '')
+        stage_name = l.stage.name if l.stage else (cd.get('stage') or '')
+        admission_status_str = l.get_admission_status_display() if hasattr(l, 'get_admission_status_display') else str(l.admission_status or '')
+
         lead_items.append({
             "id": l.id,
-            "name": l.name or "Anonymous Patient",
+            "name": l.name or ("Anonymous Patient" if is_hosp_lead else "Anonymous Student"),
             "mobile": l.mobile or "-",
             "clean_mobile": mob_digits or "",
             "email": l.email or "-",
             "created_date": l.created_at.strftime('%d-%m-%Y') if l.created_at else str(l.inquiry_date or '-'),
             "inquiry_date": str(l.inquiry_date or '-'),
             "campaign": c_name.strip(),
-            "lead_source": l.lead_source.name if l.lead_source else (cd.get('lead_source') or 'Hospital Form'),
+            "lead_source": l.lead_source.name if l.lead_source else (cd.get('lead_source') or ('Hospital Form' if is_hosp_lead else 'Website / Inquiry')),
             "status": status_str,
             "is_booked": is_booked,
             "temperature": temp_str,
@@ -1308,6 +1349,11 @@ def nel_card_drilldown_api(request):
             "appointment_time": appt_time,
             "whatsapp_message": l.whatsapp_message,
             "department": dept,
+            "course": course_name,
+            "stage": stage_name,
+            "admission_status": admission_status_str,
+            "is_hospital": is_hosp_lead,
+            "business_name": l.hospital.name if l.hospital else "Zappcode Academy",
             "assigned_to": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
             "next_followup": str(l.next_followup_date or '-'),
             "all_comments": all_comments,
@@ -4667,11 +4713,18 @@ def admin_reports_view(request):
         return redirect("dashboard:home")
         
     hospital = user.hospital
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
     
     # 1. Fetch Task Reports submitted to Admin
     task_reports_qs = TaskReminder.objects.filter(is_reported_to_admin=True)
     if hospital:
         task_reports_qs = task_reports_qs.filter(user__hospital=hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        task_reports_qs = task_reports_qs.filter(user__hospital_id=int(selected_hospital_id))
     if user.role == User.Role.MANAGER and not user.is_superuser:
         task_reports_qs = task_reports_qs.filter(Q(user__reports_to=user) | Q(user=user))
         
@@ -4690,6 +4743,8 @@ def admin_reports_view(request):
     daily_reports_qs = DailyReport.objects.all()
     if hospital:
         daily_reports_qs = daily_reports_qs.filter(user__hospital=hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        daily_reports_qs = daily_reports_qs.filter(user__hospital_id=int(selected_hospital_id))
     if user.role == User.Role.MANAGER and not user.is_superuser:
         daily_reports_qs = daily_reports_qs.filter(Q(user__reports_to=user) | Q(user=user))
     if task_user_filter:
@@ -4706,6 +4761,8 @@ def admin_reports_view(request):
     employees = User.objects.filter(is_active=True)
     if hospital:
         employees = employees.filter(hospital=hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        employees = employees.filter(hospital_id=int(selected_hospital_id))
     if user.role == User.Role.MANAGER and not user.is_superuser:
         employees = employees.filter(Q(reports_to=user) | Q(pk=user.pk))
         

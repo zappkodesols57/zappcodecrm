@@ -349,6 +349,34 @@ Features:
         <div class="collapse show" id="groupSystemFilters">
           <div class="ps-2 mb-2">
 
+            <!-- Global Super Admin Business Filter -->
+            {% if businesses and not request.user.hospital %}
+            <div class="py-1 border-bottom pb-2 mb-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subBusinessFilter" role="button" style="font-size: 0.84rem;">
+                <span><i class="fa-solid fa-building me-2 text-primary"></i> Business / Organization</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse show ps-3 pe-1 py-1" id="subBusinessFilter">
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="radio" name="business" value="" id="biz_all" {% if not selected_hospital_id %}checked{% endif %} onchange="document.getElementById('crmDrawerFilterForm').submit()">
+                  <label class="form-check-label text-dark fw-semibold filter-label" for="biz_all" style="font-size: 0.82rem;">
+                    All Businesses
+                  </label>
+                </div>
+                {% for b in businesses %}
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="radio" name="business" value="{{ b.id }}" id="biz_{{ b.id }}" {% if selected_hospital_id == b.id|stringformat:'s' %}checked{% endif %} onchange="document.getElementById('crmDrawerFilterForm').submit()">
+                  <label class="form-check-label text-dark filter-label" for="biz_{{ b.id }}" style="font-size: 0.82rem;">
+                    <i class="fa-solid {% if 'hospital' in b.name.lower or 'clinic' in b.name.lower or 'nelson' in b.name.lower %}fa-hospital text-danger{% else %}fa-graduation-cap text-primary{% endif %} me-1 small"></i>
+                    {{ b.name }}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
             <!-- Date Range (Collapsible or Direct) -->
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
