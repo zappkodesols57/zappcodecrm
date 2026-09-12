@@ -15,6 +15,7 @@ urlpatterns = [
     path("tasks/send-report/", views.task_send_report_to_admin, name="task_send_report"),
 
     path("", views.home, name="home"),
+    path("welcome/", views.welcome_view, name="welcome"),
     path("superadmin/", views.superadmin_home, name="superadmin_home"),
     path("superadmin/card-drilldown-api/", views.nel_card_drilldown_api, name="nel_card_drilldown_api"),
     path("api/live-metrics/", views.live_metrics_api, name="live_metrics_api"),
