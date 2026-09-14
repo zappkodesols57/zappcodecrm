@@ -69,6 +69,16 @@
     </a>
     {% endif %}
     <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+    {% if prev_lead %}
+      <a href="{% url 'leads:lead_detail' prev_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+    {% else %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="alert('You have reached the top of the leads queue.')" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
+    {% endif %}
+    {% if next_lead %}
+      <a href="{% url 'leads:lead_detail' next_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+    {% else %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="alert('You have reached the bottom of the leads queue.')" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
+    {% endif %}
     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
     {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
     <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
@@ -330,32 +340,70 @@
       })();
     </script>
 
-    <!-- Timeline History -->
-    <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-secondary me-2"></i>Activity Timeline</h6>
+  </div>
+
+  <!-- Right Column: Campaign, Source, Owner & Timeline -->
+  <div class="col-lg-4">
+    <!-- Activity Timeline & Remarks -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-primary me-2"></i>Activity Timeline & Remarks</h6>
+        <span class="badge bg-light text-secondary border">{{ timeline|length }} events</span>
       </div>
       <div class="card-body">
-        <div class="timeline">
+        <!-- Lead Confidential Notes / Form Remarks (if present) -->
+        {% if lead.notes %}
+        <div class="p-2 mb-3 rounded-3 bg-light border border-secondary-subtle">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <span class="fw-bold text-dark small"><i class="fa-solid fa-comment-dots text-primary me-1"></i> Form Note / Remarks</span>
+            <span class="badge bg-white text-muted border" style="font-size: 0.68rem;">Original</span>
+          </div>
+          <div class="text-secondary small text-break" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;">{{ lead.notes }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Add Note / Remark Form right inside Timeline -->
+        <form method="post" action="{% url 'leads:add_note' lead.pk %}" class="mb-3">
+          {% csrf_token %}
+          <div class="input-group input-group-sm">
+            <textarea name="note" class="form-control" rows="2" placeholder="Add confidential note or remark..." required style="font-size: 0.82rem;"></textarea>
+            <button class="btn btn-brand text-white px-3" type="submit" title="Add Note to Timeline">
+              <i class="fa-solid fa-paper-plane me-1"></i> Add
+            </button>
+          </div>
+        </form>
+
+        <!-- Timeline Activities & Notes Feed -->
+        <div class="timeline" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">
           {% for item in timeline %}
-          <div class="timeline-item pb-3 mb-3 border-bottom small">
-            <div class="d-flex justify-content-between text-muted">
-              <span><strong>{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}</strong> — {{ item.get_activity_type_display }}</span>
-              <span>{{ item.created_at|date:"d M Y, h:i A" }}</span>
+          <div class="p-2 mb-2 rounded-3 border {% if item.activity_type == 'NOTE' %}bg-warning bg-opacity-10 border-warning-subtle{% elif item.activity_type == 'FOLLOWUP' %}bg-info bg-opacity-10 border-info-subtle{% else %}bg-light-subtle border-light-subtle{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+              <span class="fw-bold {% if item.activity_type == 'NOTE' %}text-warning-emphasis{% elif item.activity_type == 'FOLLOWUP' %}text-info-emphasis{% else %}text-dark{% endif %}">
+                {% if item.activity_type == 'NOTE' %}
+                  <i class="fa-solid fa-note-sticky text-warning me-1"></i>Note
+                {% elif item.activity_type == 'FOLLOWUP' %}
+                  <i class="fa-solid fa-phone-volume text-info me-1"></i>Follow-up
+                {% elif item.activity_type == 'STAGE_CHANGE' %}
+                  <i class="fa-solid fa-arrows-split-up-and-left text-primary me-1"></i>Stage
+                {% elif item.activity_type == 'ASSIGNMENT' %}
+                  <i class="fa-solid fa-user-check text-success me-1"></i>Assignment
+                {% else %}
+                  <i class="fa-solid fa-clock text-secondary me-1"></i>{{ item.get_activity_type_display }}
+                {% endif %}
+                &nbsp;·&nbsp;
+                {% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}
+              </span>
+              <span class="text-muted">{{ item.created_at|date:"d M Y, h:i A" }}</span>
             </div>
-            <div class="text-dark mt-1">{{ item.description }}</div>
+            <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ item.description }}</div>
           </div>
           {% empty %}
-          <div class="text-muted text-center py-3 small">No activity recorded yet.</div>
+          <div class="text-muted text-center py-4 small"><i class="fa-solid fa-clock me-1"></i> No activity recorded yet.</div>
           {% endfor %}
         </div>
       </div>
     </div>
 
-  </div>
-
-  <!-- Right Column: Campaign, Source & Owner -->
-  <div class="col-lg-4">
     <!-- Patient Attribution & Lead Source -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
       <div class="card-header bg-white py-3 border-bottom">
@@ -380,20 +428,6 @@
             {{ lead.effective_created_display }}
           </span>
         </div>
-      </div>
-    </div>
-
-    <!-- Quick Notes -->
-    <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-regular fa-note-sticky text-warning me-2"></i>Internal Notes</h6>
-      </div>
-      <div class="card-body">
-        <form method="post" action="{% url 'leads:add_note' lead.pk %}">
-          {% csrf_token %}
-          <textarea name="notes" class="form-control form-control-sm mb-2" rows="3" placeholder="Add confidential notes...">{{ lead.notes }}</textarea>
-          <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-floppy-disk me-1"></i> Save Notes</button>
-        </form>
       </div>
     </div>
   </div>

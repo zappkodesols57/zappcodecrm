@@ -44,7 +44,8 @@ def _can_edit_lead(user, lead):
         if lead.hospital != user.hospital:
             return False
     else:
-        return False
+        if lead.hospital is not None:
+            return False
 
     # Within-Business Edit Permission Check
     if user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER) or user.can_edit_any_lead:
@@ -78,7 +79,8 @@ def _can_access_lead(user, lead):
         if lead.hospital != user.hospital:
             return False
     else:
-        return False
+        if lead.hospital is not None:
+            return False
 
     # Doctor within same business can view patient leads
     if user.role == User.Role.DOCTOR:
@@ -134,7 +136,7 @@ def lead_list(request):
             elif request.user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif request.user.can_view_assigned_leads:
+            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
                 # Counsellors / Staff see their own assigned leads, created by them, or unassigned leads they can capture
                 leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
             else:
@@ -146,7 +148,17 @@ def lead_list(request):
             elif selected_hospital_id.isdigit():
                 leads = leads.filter(hospital_id=int(selected_hospital_id))
     else:
-        leads = leads.none()  # No hospital and not super admin: show nothing
+        # Academy user without hospital assignment
+        leads = leads.filter(hospital__isnull=True)
+        if not request.user.can_view_all_leads:
+            if request.user.can_view_team_leads:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+            elif request.user.role == User.Role.MANAGER:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+                leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -1438,6 +1450,40 @@ def lead_detail(request, pk):
     is_owner = (lead.assigned_to == request.user or lead.assigned_to is None)
     can_convert = is_owner or request.user.can_edit_any_lead or request.user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]
 
+    # --- Queue Navigation (Prev / Next Lead) ---
+    # Tenant scoping: Zappcode user sees only Zappcode leads, Nelson user sees only Nelson leads
+    tenant_leads = Lead.objects.filter(is_archived=False)
+    if request.user.hospital:
+        tenant_leads = tenant_leads.filter(hospital=request.user.hospital)
+    elif lead.hospital:
+        tenant_leads = tenant_leads.filter(hospital=lead.hospital)
+    else:
+        tenant_leads = tenant_leads.filter(hospital__isnull=True)
+
+    # Respect user visibility / permissions within tenant
+    if not request.user.can_view_all_leads and not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+        if request.user.can_view_team_leads:
+            team = User.objects.filter(reports_to=request.user)
+            tenant_leads = tenant_leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+        elif request.user.role == User.Role.MANAGER:
+            team = User.objects.filter(reports_to=request.user)
+            tenant_leads = tenant_leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+        elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+            tenant_leads = tenant_leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
+
+    # Queue ordering is latest leads on top (-created_at, -id)
+    # Prev Lead = Newer / Higher up in queue (created_at > lead.created_at)
+    prev_lead = tenant_leads.filter(
+        Q(created_at__gt=lead.created_at) |
+        Q(created_at=lead.created_at, id__gt=lead.id)
+    ).order_by('created_at', 'id').first()
+
+    # Next Lead = Older / Lower down in queue (created_at < lead.created_at)
+    next_lead = tenant_leads.filter(
+        Q(created_at__lt=lead.created_at) |
+        Q(created_at=lead.created_at, id__lt=lead.id)
+    ).order_by('-created_at', '-id').first()
+
     stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
     temperatures = LeadTemperature.choices
     deal_statuses = DealStatus.choices
@@ -1446,6 +1492,8 @@ def lead_detail(request, pk):
     template = "leads/nel_lead_detail.html" if is_hospital else "leads/zapp_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
+        "prev_lead": prev_lead,
+        "next_lead": next_lead,
         "latest_appointment": latest_appointment,
         "custom_field_data": custom_field_data,
         "followup_modes": FollowUpMode.choices, "followup_statuses": FollowUpStatus.choices,

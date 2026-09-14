@@ -30,6 +30,16 @@
   </div>
   <div class="d-flex gap-2">
     <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+    {% if prev_lead %}
+      <a href="{% url 'leads:lead_detail' prev_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+    {% else %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="alert('You have reached the top of the leads queue.')" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
+    {% endif %}
+    {% if next_lead %}
+      <a href="{% url 'leads:lead_detail' next_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+    {% else %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="alert('You have reached the bottom of the leads queue.')" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
+    {% endif %}
     {% if can_edit %}
     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-pen"></i> Edit</a>
     {% endif %}
@@ -245,41 +255,66 @@
       })();
     </script>
 
-    <div class="card">
-      <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Timeline</h6>
-        <ul class="list-unstyled small" style="max-height:420px; overflow-y:auto;">
-          {% for a in timeline %}
-          <li class="d-flex gap-2 mb-2 pb-2 border-bottom">
-            <div class="text-muted text-nowrap" style="width:120px;">{{ a.created_at|date:"d-m-Y H:i" }}</div>
-            <div><span class="badge badge-stage">{{ a.get_activity_type_display }}</span> {{ a.description }}</div>
-          </li>
-          {% empty %}
-          <li class="empty-state"><i class="fa-solid fa-clock"></i>No activity yet.</li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
   </div>
 
   <div class="col-lg-4">
-    <div class="card mb-3">
+    <!-- Activity Timeline & Remarks -->
+    <div class="card mb-3 border-0 shadow-sm rounded-4">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-primary me-2"></i>Timeline & Remarks</h6>
+        <span class="badge bg-light text-secondary border">{{ timeline|length }} updates</span>
+      </div>
       <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Add Note</h6>
-        <form method="post" action="{% url 'leads:add_note' lead.pk %}">
+        <!-- Lead Form Notes & Inquiry Remark (if present) -->
+        {% if lead.notes %}
+        <div class="p-2 mb-3 rounded-3 bg-light border border-secondary-subtle">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <span class="fw-bold text-dark small"><i class="fa-solid fa-comment-dots text-primary me-1"></i> Form Note / Remarks</span>
+            <span class="badge bg-white text-muted border" style="font-size: 0.68rem;">Original</span>
+          </div>
+          <div class="text-secondary small text-break" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;">{{ lead.notes }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Add Note / Remark Form right inside Timeline -->
+        <form method="post" action="{% url 'leads:add_note' lead.pk %}" class="mb-3">
           {% csrf_token %}
-          <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Internal note..."></textarea>
-          <button class="btn btn-sm btn-brand text-white">Add Note</button>
+          <div class="input-group input-group-sm">
+            <textarea name="note" class="form-control" rows="2" placeholder="Write remark or note..." required style="font-size: 0.82rem;"></textarea>
+            <button class="btn btn-brand text-white px-3" type="submit" title="Add Note to Timeline">
+              <i class="fa-solid fa-paper-plane me-1"></i> Add
+            </button>
+          </div>
         </form>
-        <hr>
-        <ul class="list-unstyled small mb-0" style="max-height:260px; overflow-y:auto;">
-          {% for n in lead.lead_notes.all %}
-          <li class="mb-2 pb-2 border-bottom">
-            <div class="text-muted" style="font-size:.72rem;">{{ n.created_at|date:"d-m-Y H:i" }} — {{ n.created_by|default:"—" }}</div>
-            {{ n.note }}
-          </li>
-          {% empty %}<li class="text-muted">No notes yet.</li>{% endfor %}
-        </ul>
+
+        <!-- Timeline Activities & Notes Feed -->
+        <div class="timeline-feed" style="max-height: 460px; overflow-y: auto; padding-right: 4px;">
+          {% for a in timeline %}
+          <div class="p-2 mb-2 rounded-3 border {% if a.activity_type == 'NOTE' %}bg-warning bg-opacity-10 border-warning-subtle{% elif a.activity_type == 'FOLLOWUP' %}bg-info bg-opacity-10 border-info-subtle{% else %}bg-light-subtle border-light-subtle{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+              <span class="fw-bold {% if a.activity_type == 'NOTE' %}text-warning-emphasis{% elif a.activity_type == 'FOLLOWUP' %}text-info-emphasis{% else %}text-dark{% endif %}">
+                {% if a.activity_type == 'NOTE' %}
+                  <i class="fa-solid fa-note-sticky text-warning me-1"></i>Note
+                {% elif a.activity_type == 'FOLLOWUP' %}
+                  <i class="fa-solid fa-phone-volume text-info me-1"></i>Follow-up
+                {% elif a.activity_type == 'STAGE_CHANGE' %}
+                  <i class="fa-solid fa-arrows-split-up-and-left text-primary me-1"></i>Stage
+                {% elif a.activity_type == 'ASSIGNMENT' %}
+                  <i class="fa-solid fa-user-check text-success me-1"></i>Assignment
+                {% else %}
+                  <i class="fa-solid fa-clock text-secondary me-1"></i>{{ a.get_activity_type_display }}
+                {% endif %}
+                &nbsp;·&nbsp;
+                {% if a.created_by %}{{ a.created_by.get_full_name|default:a.created_by.username }}{% else %}System{% endif %}
+              </span>
+              <span class="text-muted">{{ a.created_at|date:"d M Y, h:i A" }}</span>
+            </div>
+            <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ a.description }}</div>
+          </div>
+          {% empty %}
+          <div class="text-center text-muted py-4 small"><i class="fa-solid fa-clock me-1"></i> No activity recorded yet.</div>
+          {% endfor %}
+        </div>
       </div>
     </div>
 
