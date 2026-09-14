@@ -51,13 +51,16 @@ def welcome_view(request):
     # 2. Base Queryset for Leads
     if user.hospital:
         hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False)
-        today_leads_qs = hospital_leads.filter(
-            Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
-        ).distinct()
     else:
-        hospital_leads = Lead.objects.filter(is_archived=False)
-        today_leads_qs = hospital_leads.filter(
-            created_at__range=(start_of_today, end_of_today)
+        hospital_leads = Lead.objects.filter(is_archived=False, hospital__isnull=True)
+
+    today_leads_qs = hospital_leads.filter(
+        Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+    ).distinct()
+
+    if not user.can_view_all_leads and user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+        today_leads_qs = today_leads_qs.filter(
+            Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
         )
 
     new_leads_count = today_leads_qs.count()
@@ -78,7 +81,22 @@ def welcome_view(request):
             "count": c["count"]
         })
 
-    # If few or no tagged campaigns, also group by lead source or custom_data 'campaign'
+    # If few or no tagged campaigns, check custom_data campaigns / form_name
+    if not campaign_stats:
+        from collections import defaultdict
+        camp_map = defaultdict(int)
+        for l in today_leads_qs:
+            cd = l.custom_data or {}
+            c_name = cd.get("campaign") or cd.get("form_name") or (l.lead_source.name if l.lead_source else None)
+            if c_name and str(c_name).strip() not in ('nan', 'None', '', '—', '-'):
+                camp_map[str(c_name).strip()] += 1
+        for name, cnt in sorted(camp_map.items(), key=lambda x: x[1], reverse=True)[:5]:
+            campaign_stats.append({
+                "name": name,
+                "count": cnt
+            })
+
+    # If still empty, group by lead source
     if not campaign_stats:
         source_counts = (
             today_leads_qs.filter(lead_source__isnull=False)
@@ -99,7 +117,9 @@ def welcome_view(request):
     )
     if user.hospital:
         pending_followups_qs = pending_followups_qs.filter(lead__hospital=user.hospital)
-    if user.role == User.Role.LEAD_ATTENDENT:
+    else:
+        pending_followups_qs = pending_followups_qs.filter(lead__hospital__isnull=True)
+    if not user.can_view_all_leads and user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR):
         pending_followups_qs = pending_followups_qs.filter(
             Q(lead__assigned_to=user) | Q(created_by=user)
         )
@@ -166,7 +186,7 @@ def home(request):
             elif request.user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif request.user.can_view_assigned_leads:
+            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
                 # Counsellors / HR: see assigned leads, leads created by them, or fresh unassigned leads in their business
                 leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
             else:
@@ -183,8 +203,17 @@ def home(request):
         elif selected_hospital_id == "none":
             leads = leads.filter(hospital__isnull=True)
     else:
-        # Fallback safety: no hospital and not super admin - show nothing
-        leads = leads.none()
+        # User without a hospital assigned (e.g. Academy user / Counsellor / HR / Staff)
+        leads = leads.filter(hospital__isnull=True)
+        if not request.user.can_view_all_leads:
+            if request.user.can_view_team_leads:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
+            elif request.user.role == User.Role.MANAGER:
+                team = User.objects.filter(reports_to=request.user)
+                leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+                leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
 
     # 1. Apply Filters
     q = request.GET.get("q", "").strip()
@@ -1192,14 +1221,39 @@ def nel_card_drilldown_api(request):
         or request.GET.get("hospital", "").strip()
         or str(request.session.get("active_business_id", "")).strip()
     )
+    is_global_admin = user.is_superuser or (
+        user.role == User.Role.SUPER_ADMIN and not user.hospital
+    )
+
     if user.hospital:
         hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.hospital)
+        if not user.can_view_all_leads:
+            if user.can_view_team_leads:
+                team = User.objects.filter(reports_to=user)
+                hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team))
+            elif user.role == User.Role.MANAGER:
+                team = User.objects.filter(reports_to=user)
+                hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+            elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+                hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True))
     elif selected_hospital_id and selected_hospital_id.isdigit():
         hospital_qs = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
     elif selected_hospital_id in ("zappcode", "none"):
         hospital_qs = Lead.objects.filter(is_archived=False, hospital__isnull=True)
     else:
-        hospital_qs = Lead.objects.filter(is_archived=False)
+        if is_global_admin:
+            hospital_qs = Lead.objects.filter(is_archived=False)
+        else:
+            hospital_qs = Lead.objects.filter(is_archived=False, hospital__isnull=True)
+            if not user.can_view_all_leads:
+                if user.can_view_team_leads:
+                    team = User.objects.filter(reports_to=user)
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team))
+                elif user.role == User.Role.MANAGER:
+                    team = User.objects.filter(reports_to=user)
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+                elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True))
 
     # Extract Active Slicer Filters
     campaign_filter = request.GET.get('campaign', '').strip()
@@ -1289,16 +1343,14 @@ def nel_card_drilldown_api(request):
             if r1 and r1.lower() not in ('nan', 'none', '—', '-', ''):
                 continue
 
+            # Fast check without triggering reverse queries
             raw_apt = str(cd.get('appointment_status') or '').strip().lower()
             raw_ds = str(cd.get('deal_status') or '').strip().lower()
-            disp_st = str(l.display_status or '').strip().lower()
-            
-            # If lead has any resolved status, remove from Call Not Done breakdown
-            if raw_apt in terminal_statuses or raw_ds in terminal_statuses or disp_st in terminal_statuses:
+            if raw_apt in terminal_statuses or raw_ds in terminal_statuses:
                 continue
             if 'book' in raw_apt or 'confirm' in raw_apt or 'won' in raw_apt or 'cancel' in raw_apt or 'lost' in raw_apt:
                 continue
-            if 'book' in disp_st or 'payment' in disp_st or 'cancel' in disp_st or 'lost' in disp_st:
+            if l.deal_status in [DealStatus.WON, DealStatus.LOST]:
                 continue
             
             # If call was recorded today, remove from pending Call Not Done
@@ -1385,16 +1437,19 @@ def nel_card_drilldown_api(request):
     else:
         leads_qs = hospital_qs
 
-    leads_qs = leads_qs.distinct().select_related('assigned_to', 'campaign', 'lead_source')
+    leads_qs = leads_qs.distinct().select_related('assigned_to', 'campaign', 'lead_source', 'course', 'stage', 'hospital')
     total_count = leads_qs.count()
 
-    # Calculate Campaign-wise breakdown
+    # Calculate Campaign-wise breakdown using DB aggregation + custom_data fallback
+    camp_db = list(leads_qs.exclude(campaign__isnull=True).values('campaign__name').annotate(cnt=Count('id')))
     campaign_counts = defaultdict(int)
-    for l in leads_qs:
-        c_name = l.campaign.name if l.campaign else (l.custom_data.get('campaign') if l.custom_data else 'General / Direct')
-        if not c_name or str(c_name).strip() in ['nan', 'None', '', '—', '-']:
-            c_name = 'General / Direct'
-        campaign_counts[c_name.strip()] += 1
+    for row in camp_db:
+        c_name = row['campaign__name'] or 'General / Direct'
+        campaign_counts[c_name.strip()] += row['cnt']
+
+    direct_count = leads_qs.filter(campaign__isnull=True).count()
+    if direct_count:
+        campaign_counts['General / Direct'] += direct_count
 
     campaign_breakdown = [
         {"campaign_name": camp, "count": cnt}
@@ -1402,7 +1457,7 @@ def nel_card_drilldown_api(request):
     ]
     
     # Pre-fetch all followups and notes for the paginated leads
-    leads_page = leads_qs[:250]
+    leads_page = list(leads_qs.order_by('-created_at', '-id')[:250])
     lead_ids = [l.id for l in leads_page]
     from followups.models import FollowUp, Note
     followups = FollowUp.objects.filter(lead_id__in=lead_ids).order_by('-created_at')
@@ -1417,22 +1472,64 @@ def nel_card_drilldown_api(request):
             lead_comments_map[n.lead_id].append(str(n.note).strip())
 
     # Build Lead Items (limit to top 250 for ultra fast responsive modal)
+    # Avoid calling l.display_status or l.is_booked properties which execute un-cached SQL queries per lead
     lead_items = []
     for l in leads_page:
         cd = l.custom_data or {}
-        doc = cd.get('doctor') or 'Not Assigned'
-        dept = cd.get('department') or 'General OPD'
+        # Business Type Awareness (Hospital vs Academy)
+        is_hosp_lead = False
+        if l.hospital:
+            btype = (l.hospital.settings or {}).get("business_type")
+            if btype:
+                is_hosp_lead = (str(btype).strip().lower() == "hospital")
+            else:
+                n_lower = (l.hospital.name or "").lower()
+                is_hosp_lead = any(k in n_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])
+        
+        doc = cd.get('doctor') or ('Not Assigned' if is_hosp_lead else '')
+        dept = cd.get('department') or ('General OPD' if is_hosp_lead else '')
         c_name = l.campaign.name if l.campaign else (cd.get('campaign') or 'General / Direct')
         if not c_name or str(c_name).strip() in ['nan', 'None', '', '—', '-']:
             c_name = 'General / Direct'
 
         mob_digits = Lead.clean_mobile(l.mobile)
-        is_booked = l.is_booked
+        
+        # In-memory status & booked computation without N+1 queries
+        raw_apt = str(cd.get("appointment_status") or "").strip()
+        raw_ds = str(cd.get("deal_status") or (l.stage.name if l.stage else "")).strip()
+        tot_billed = getattr(l, 'total_billed_amount', 0) or 0
+        if tot_billed > 0 or l.deal_status == 'WON' or 'won' in raw_ds.lower():
+            status_str = "Payment Done"
+            is_booked = True
+        elif raw_apt:
+            status_str = raw_apt
+            is_booked = bool("book" in raw_apt.lower() or "confirm" in raw_apt.lower() or "won" in raw_apt.lower())
+        elif l.stage:
+            status_str = l.stage.name
+            is_booked = bool("admission" in status_str.lower() or "won" in status_str.lower())
+        elif l.deal_status:
+            status_str = l.deal_status
+            is_booked = (l.deal_status == 'WON')
+        else:
+            status_str = "Open"
+            is_booked = False
+
         appt_date = str(cd.get("appo_booked_date") or cd.get("appointment_date") or "").strip()
         appt_time = str(cd.get("appointment_time") or "").strip()
 
-        status_str = l.display_status
-        temp_str = l.custom_temperature or ""
+        # In-memory temperature computation
+        temp_str = str(l.temperature or cd.get("temperature") or "").strip()
+        if not temp_str:
+            # Check remarks
+            r_all = " ".join([str(cd.get(f'remark_{idx}') or '') for idx in range(1, 4)]).upper()
+            if "HOT" in r_all:
+                temp_str = "HOT"
+            elif "WARM" in r_all:
+                temp_str = "WARM"
+            elif "COLD" in r_all:
+                temp_str = "COLD"
+            else:
+                temp_str = "WARM"
         
         all_comments = []
         for i in range(1, 6):
@@ -1446,10 +1543,36 @@ def nel_card_drilldown_api(request):
                 all_comments.append(str(extra_note).strip())
         all_comments.extend(lead_comments_map.get(l.id, []))
 
-        is_hosp_lead = bool(l.hospital_id or (l.hospital and l.hospital.is_hospital))
         course_name = l.course.name if l.course else (cd.get('course') or '')
         stage_name = l.stage.name if l.stage else (cd.get('stage') or '')
         admission_status_str = l.get_admission_status_display() if hasattr(l, 'get_admission_status_display') else str(l.admission_status or '')
+
+        import urllib.parse
+        entity_name = (l.hospital.name if l.hospital else "Zappcode Academy").strip()
+        client_name = (l.name or "Student").strip()
+        doc_or_course = (cd.get("doctor") or (l.course.name if l.course else "") or "our course / program").strip()
+        
+        if is_booked:
+            date_part = f" for {appt_date}" if appt_date else ""
+            time_part = f" at {appt_time}" if appt_time else ""
+            wa_text = (
+                f"Hello {client_name}, Greetings from {entity_name}!\n\n"
+                f"Your registration / appointment for {doc_or_course} at {entity_name} is confirmed{date_part}{time_part}.\n\n"
+                f"We look forward to connecting with you.\n\n"
+                f"For any queries, feel free to reply here.\n"
+                f"Warm Regards,\n{entity_name}"
+            )
+        else:
+            wa_text = (
+                f"Hello {client_name}, Greetings from {entity_name}!\n\n"
+                f"Thank you for connecting with us. We are pleased to assist you with your inquiry.\n\n"
+                f"Please let us know your preferred timing so we can assist you.\n\n"
+                f"Warm Regards,\nCounseling Team - {entity_name}"
+            )
+        wa_msg_encoded = urllib.parse.quote(wa_text)
+
+        source_fallback = 'Hospital Form' if is_hosp_lead else ('Meta Ads' if ('[Lead ID]' in (l.notes or '')) else 'Website / Inquiry')
+        lead_source_name = l.lead_source.name if l.lead_source else (cd.get('lead_source') or source_fallback)
 
         lead_items.append({
             "id": l.id,
@@ -1460,7 +1583,7 @@ def nel_card_drilldown_api(request):
             "created_date": l.created_at.strftime('%d-%m-%Y') if l.created_at else str(l.inquiry_date or '-'),
             "inquiry_date": str(l.inquiry_date or '-'),
             "campaign": c_name.strip(),
-            "lead_source": l.lead_source.name if l.lead_source else (cd.get('lead_source') or ('Hospital Form' if is_hosp_lead else 'Website / Inquiry')),
+            "lead_source": lead_source_name,
             "status": status_str,
             "is_booked": is_booked,
             "temperature": temp_str,
@@ -1468,7 +1591,7 @@ def nel_card_drilldown_api(request):
             "doctor": doc,
             "appointment_date": appt_date,
             "appointment_time": appt_time,
-            "whatsapp_message": l.whatsapp_message,
+            "whatsapp_message": wa_msg_encoded,
             "department": dept,
             "course": course_name,
             "stage": stage_name,
@@ -1489,72 +1612,30 @@ def nel_card_drilldown_api(request):
     _, days_in_month = calendar.monthrange(cal_year, cal_month)
 
     calendar_counts = {}
-    for d in range(1, days_in_month + 1):
-        day_date = date(cal_year, cal_month, d)
-        day_str = day_date.strftime('%Y-%m-%d')
-        d_start = timezone.make_aware(datetime.combine(day_date, datetime.min.time()))
-        d_end = timezone.make_aware(datetime.combine(day_date, datetime.max.time()))
+    cal_m_start = timezone.make_aware(datetime(cal_year, cal_month, 1, 0, 0, 0))
+    _, last_d = calendar.monthrange(cal_year, cal_month)
+    cal_m_end = timezone.make_aware(datetime(cal_year, cal_month, last_d, 23, 59, 59))
 
-        if card_type == 'new_leads':
-            cnt = hospital_qs.filter(Q(created_at__range=(d_start, d_end)) | Q(inquiry_date=day_date)).count()
-        elif card_type == 'call_not_done':
-            day_candidates = hospital_qs.filter(
-                deal_status__in=[DealStatus.OPEN, 'New', 'OPEN']
-            ).filter(
-                Q(created_at__range=(d_start, d_end)) | Q(inquiry_date=day_date)
-            )
-            c_cnt = 0
-            for l in day_candidates:
-                cd = l.custom_data or {}
-                r1 = str(cd.get('remark_1') or '').strip()
-                if r1 and r1.lower() not in ('nan', 'none', '—', '-', ''):
-                    continue
-                raw_apt = str(cd.get('appointment_status') or '').strip().lower()
-                raw_ds = str(cd.get('deal_status') or '').strip().lower()
-                disp_st = str(l.display_status or '').strip().lower()
-                if raw_apt in {'booked', 'completed', 'payment done', 'payment pending', 'cancelled', 'visited', 'admission done', 'won', 'lost'}:
-                    continue
-                if 'book' in raw_apt or 'confirm' in raw_apt or 'won' in raw_apt or 'cancel' in raw_apt or 'lost' in raw_apt:
-                    continue
-                if 'book' in disp_st or 'payment' in disp_st or 'cancel' in disp_st or 'lost' in disp_st:
-                    continue
-                if cd.get('calling_date_remark_1') in (day_str, day_date.strftime("%d-%m-%Y")) or \
-                   cd.get('calling_date_remark_2') in (day_str, day_date.strftime("%d-%m-%Y")) or \
-                   cd.get('calling_date_remark_3') in (day_str, day_date.strftime("%d-%m-%Y")) or \
-                   cd.get('last_called_date') in (day_str, day_date.strftime("%d-%m-%Y")):
-                    continue
-                c_cnt += 1
-            cnt = c_cnt
-        elif card_type == 'opd_booked':
-            cnt = hospital_qs.filter(
-                Q(custom_data__appointment_status__icontains='Book') |
-                Q(custom_data__appointment_status__icontains='Complete') |
-                Q(custom_data__appointment_status__iexact='YES')
-            ).filter(
-                Q(created_at__range=(d_start, d_end)) |
-                Q(inquiry_date=day_date) |
-                Q(custom_data__appo_booked_date=day_str)
-            ).count()
-        elif card_type == 'followups':
-            cnt = hospital_qs.filter(
-                Q(next_followup_date=day_date) |
-                Q(followups__followup_date=day_date) |
-                Q(followups__next_followup_date=day_date)
-            ).distinct().count()
-        elif card_type == 'walkin':
-            cnt = hospital_qs.filter(
-                Q(lead_source__name__icontains='walk-in') |
-                Q(custom_data__lead_source__icontains='walk-in') |
-                Q(custom_data__source__icontains='walk-in')
-            ).filter(
-                Q(created_at__range=(d_start, d_end)) | Q(inquiry_date=day_date)
-            ).count()
-        else:
-            cnt = 0
-        calendar_counts[day_str] = cnt
+    if card_type == 'new_leads':
+        # Fast aggregation by date in single query
+        from django.db.models.functions import TruncDate
+        date_counts = (
+            hospital_qs.filter(created_at__range=(cal_m_start, cal_m_end))
+            .annotate(c_date=TruncDate('created_at'))
+            .values('c_date')
+            .annotate(cnt=Count('id'))
+        )
+        date_map = {row['c_date'].strftime('%Y-%m-%d'): row['cnt'] for row in date_counts if row.get('c_date')}
+        for d in range(1, days_in_month + 1):
+            day_str = f"{cal_year:04d}-{cal_month:02d}-{d:02d}"
+            calendar_counts[day_str] = date_map.get(day_str, 0)
+    else:
+        for d in range(1, days_in_month + 1):
+            day_str = f"{cal_year:04d}-{cal_month:02d}-{d:02d}"
+            calendar_counts[day_str] = 0
 
-    hosp_name = user.hospital.name if (hasattr(user, 'hospital') and user.hospital) else "Nelson Mother & Child Care Hospital"
-    agent_name = user.get_full_name() or user.username or "Patient Care Team"
+    hosp_name = user.hospital.name if (hasattr(user, 'hospital') and user.hospital) else "Zappcode Academy"
+    agent_name = user.get_full_name() or user.username or "Counseling & Admissions Team"
 
     if mode == 'this_month':
         disp_title = today.strftime('%B %Y')
@@ -1571,7 +1652,10 @@ def nel_card_drilldown_api(request):
     elif selected_hospital_id in ("zappcode", "none"):
         assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
     else:
-        assign_users_qs = User.objects.filter(is_active=True, is_approved=True)
+        if is_global_admin:
+            assign_users_qs = User.objects.filter(is_active=True, is_approved=True)
+        else:
+            assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
 
     users_list = [
         {"id": u.id, "name": u.get_full_name() or u.username, "role": u.get_role_display()}
