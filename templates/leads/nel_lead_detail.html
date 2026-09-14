@@ -3,94 +3,99 @@
 
 {% block content %}
 <!-- Top Header & Actions -->
-<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-  <div class="d-flex align-items-start gap-3">
-    <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'leads:lead_list' %}';" class="btn btn-sm btn-light border shadow-2xs rounded-circle d-flex align-items-center justify-content-center mt-1" style="width: 34px; height: 34px;" title="Go Back">
-      <i class="fa-solid fa-arrow-left text-secondary"></i>
-    </button>
-    <div>
-      <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
-      <h4 class="mb-1 fw-bold text-dark d-flex align-items-center gap-2 flex-wrap">{{ lead.name }}
-        {% if lead.display_status == 'Payment Done' %}
-          <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
-        {% elif lead.display_status == 'Booking Confirmed' %}
-          <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed ({{ lead.remark_detail }})</span>
-        {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
-          <span class="badge badge-booking-pending"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
-        {% elif lead.display_status == 'Booked' %}
-          <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
-        {% elif lead.display_status == 'Follow-up Needed' %}
-          <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
-          {% if lead.next_followup_date %}
-            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
+<div class="row align-items-center mb-3 g-2">
+  <div class="col-12 col-xl-6 col-lg-5">
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'leads:lead_list' %}';" class="btn btn-sm btn-light border shadow-2xs rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" title="Go Back">
+        <i class="fa-solid fa-arrow-left text-secondary"></i>
+      </button>
+      <div class="text-truncate">
+        <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h4 class="mb-0 fw-bold text-dark d-inline">{{ lead.name }}</h4>
+          {% if lead.display_status == 'Payment Done' %}
+            <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
+          {% elif lead.display_status == 'Booking Confirmed' %}
+            <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed ({{ lead.remark_detail }})</span>
+          {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
+            <span class="badge badge-booking-pending"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
+          {% elif lead.display_status == 'Booked' %}
+            <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
+          {% elif lead.display_status == 'Follow-up Needed' %}
+            <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
+            {% if lead.next_followup_date %}
+              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
+            {% endif %}
+          {% elif lead.display_status == 'Payment Pending' %}
+            <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
+          {% elif lead.display_status == 'New' %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
+          {% elif lead.display_status == 'Open' %}
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
+          {% elif lead.display_status == 'Assigned' %}
+            <span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
+          {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
+            <span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
+          {% else %}
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
           {% endif %}
-        {% elif lead.display_status == 'Payment Pending' %}
-          <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
-        {% elif lead.display_status == 'New' %}
-          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
-        {% elif lead.display_status == 'Open' %}
-          <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
-        {% elif lead.display_status == 'Assigned' %}
-          <span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
-        {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
-          <span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
-        {% else %}
-          <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
-        {% endif %}
 
-        {% if lead.custom_temperature %}
-          {% if lead.custom_temperature == 'Hot' %}
-            <span class="badge badge-hot"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
-          {% elif lead.custom_temperature == 'Warm' %}
-            <span class="badge badge-warm"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
-          {% elif lead.custom_temperature == 'Cold' %}
-            <span class="badge badge-cold"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
-          {% elif lead.custom_temperature == 'Freeze' %}
-            <span class="badge badge-freeze"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
+          {% if lead.custom_temperature %}
+            {% if lead.custom_temperature == 'Hot' %}
+              <span class="badge badge-hot"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
+            {% elif lead.custom_temperature == 'Warm' %}
+              <span class="badge badge-warm"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
+            {% elif lead.custom_temperature == 'Cold' %}
+              <span class="badge badge-cold"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
+            {% elif lead.custom_temperature == 'Freeze' %}
+              <span class="badge badge-freeze"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
+            {% endif %}
           {% endif %}
-        {% endif %}
-      </h4>
-      <div class="text-muted small d-flex gap-3 mt-1">
-        <span><i class="fa-solid fa-phone text-secondary me-1"></i><strong>{{ lead.mobile }}</strong></span>
-        {% if lead.city or lead.custom_data.location %}
-          <span><i class="fa-solid fa-location-dot text-danger me-1"></i>{{ lead.custom_data.location|default:lead.city }}</span>
-        {% endif %}
-        {% if lead.custom_data.gender %}
-          <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
-        {% endif %}
+        </div>
+        <div class="text-muted small d-flex gap-3 mt-1 flex-wrap">
+          <span><i class="fa-solid fa-phone text-secondary me-1"></i><strong>{{ lead.mobile }}</strong></span>
+          {% if lead.city or lead.custom_data.location %}
+            <span><i class="fa-solid fa-location-dot text-danger me-1"></i>{{ lead.custom_data.location|default:lead.city }}</span>
+          {% endif %}
+          {% if lead.custom_data.gender %}
+            <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
-  <div class="d-flex gap-2 align-items-center flex-wrap">
-    <!-- 1-Click Dynamic WhatsApp Message to Patient -->
-    {% if lead.mobile %}
-    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
-      <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
-    </a>
-    {% endif %}
-    <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
-    {% if prev_lead %}
-      <a href="{% url 'leads:lead_detail' prev_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
-    {% else %}
-      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="alert('You have reached the top of the leads queue.')" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
-    {% endif %}
-    {% if next_lead %}
-      <a href="{% url 'leads:lead_detail' next_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
-    {% else %}
-      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="alert('You have reached the bottom of the leads queue.')" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
-    {% endif %}
-    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
-    {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-    <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
-      <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
-    </a>
-    {% endif %}
+  <div class="col-12 col-xl-6 col-lg-7">
+    <div class="d-flex gap-2 justify-content-lg-end align-items-center flex-wrap">
+      <!-- 1-Click Dynamic WhatsApp Message to Patient -->
+      {% if lead.mobile %}
+      <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
+        <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
+      </a>
+      {% endif %}
+      <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+      {% if prev_lead %}
+        <a href="{% url 'leads:lead_detail' prev_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
+      {% endif %}
+      {% if next_lead %}
+        <a href="{% url 'leads:lead_detail' next_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
+      {% endif %}
+      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
+      {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+      <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
+        <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
+      </a>
+      {% endif %}
+    </div>
   </div>
 </div>
 
 <div class="row g-3">
   <!-- Left Column: Patient & Hospital Info -->
-  <div class="col-lg-8">
+  <div class="col-lg-6">
 
     <!-- Hospital Consultation & Appointment Info -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -248,14 +253,16 @@
               <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
             </div>
             <div class="col-md-3">
-              <select name="followup_mode" class="form-select form-select-sm no-tom-select">
+              <select name="followup_mode" class="form-select form-select-sm no-tom-select" required>
+                <option value="" disabled selected>Follow up action</option>
                 {% for val, label in followup_modes %}
                   <option value="{{ val }}">{{ label }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-3">
-              <select name="followup_status" class="form-select form-select-sm no-tom-select">
+              <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
+                <option value="" disabled selected>Follow up status</option>
                 {% for val, label in followup_statuses %}
                   <option value="{{ val }}">{{ label }}</option>
                 {% endfor %}
@@ -343,7 +350,7 @@
   </div>
 
   <!-- Right Column: Campaign, Source, Owner & Timeline -->
-  <div class="col-lg-4">
+  <div class="col-lg-6">
     <!-- Activity Timeline & Remarks -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
       <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
@@ -432,4 +439,58 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Popup for Queue Boundary (Top / Bottom of Leads Queue) -->
+<div class="modal fade" id="queueBoundaryModal" tabindex="-1" aria-labelledby="queueBoundaryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+            <i class="fa-solid fa-circle-info fs-5"></i>
+          </div>
+          <h6 class="modal-title fw-bold text-dark mb-0" id="queueBoundaryModalLabel">Leads Queue</h6>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <p class="text-secondary mb-0" id="queueBoundaryModalText" style="font-size: 0.95rem; line-height: 1.5;"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0 pb-3 px-4">
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill shadow-xs" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showQueueModal(title, message) {
+    const titleEl = document.getElementById('queueBoundaryModalLabel');
+    const textEl = document.getElementById('queueBoundaryModalText');
+    if (titleEl) titleEl.textContent = title;
+    if (textEl) textEl.textContent = message;
+    const modalEl = document.getElementById('queueBoundaryModal');
+    if (modalEl) {
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const queueModalEl = document.getElementById('queueBoundaryModal');
+    if (queueModalEl) {
+      queueModalEl.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        if (button) {
+          const title = button.getAttribute('data-modal-title') || 'Notice';
+          const message = button.getAttribute('data-modal-message') || 'Queue boundary reached.';
+          const titleEl = document.getElementById('queueBoundaryModalLabel');
+          const textEl = document.getElementById('queueBoundaryModalText');
+          if (titleEl) titleEl.textContent = title;
+          if (textEl) textEl.textContent = message;
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

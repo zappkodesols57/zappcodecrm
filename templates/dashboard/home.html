@@ -149,76 +149,74 @@
 <div class="row g-3 mb-4">
   
   <!-- 1. Today's New Leads -->
-  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
-    <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #3b82f6 !important;" onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'primary')" title="Click to view full records & calendar breakdown">
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #3b82f6 !important;" onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'primary')" title="Click to view fresh leads & records">
       <div class="d-flex align-items-center justify-content-between mb-1">
         <span class="label text-muted small fw-bold text-uppercase">Today's New Leads</span>
         <i class="fa-solid fa-sparkles text-primary"></i>
       </div>
       <div class="value fs-3 fw-bold text-dark">{{ kpis.todays_new|default:0 }}</div>
-      <small class="text-primary mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</small>
+      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
+        <span class="text-primary fw-medium"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Active</span>
+      </div>
     </div>
   </div>
 
   <!-- 2. Call Not Done (Pending First Call / Uncontacted) -->
-  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+  <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #f59e0b !important;" onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'warning')" title="Click to view pending calls & calling queue">
       <div class="d-flex align-items-center justify-content-between mb-1">
         <span class="label text-muted small fw-bold text-uppercase">Call Not Done</span>
         <i class="fa-solid fa-phone-slash text-warning"></i>
       </div>
       <div class="value fs-3 fw-bold text-dark">{{ kpis.call_not_done|default:0 }}</div>
-      <small class="text-warning mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-headset me-1"></i>Pending Calls</small>
+      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
+        <span class="text-warning fw-medium"><i class="fa-solid fa-headset me-1"></i>Pending First Calls</span>
+        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Calling Queue</span>
+      </div>
     </div>
   </div>
 
-  <!-- 3. Admission Today -->
-  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
-    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #10b981 !important;" onclick="openUniversalCardDrilldown('opd_booked', 'Admission Today', 'success')" title="Click to view enrolled admissions & confirmed deals">
+  <!-- 3. Admission & Billing Today (Merged Single KPI Card with Breakdown) -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #10b981 !important;" onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Billing Today', 'success')" title="Click to view admissions & billing records">
       <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Admission Today</span>
-        <i class="fa-solid fa-user-graduate text-success"></i>
+        <span class="label text-muted small fw-bold text-uppercase">Admission & Billing Today</span>
+        <div class="d-flex gap-1">
+          <i class="fa-solid fa-user-graduate text-success"></i>
+          <i class="fa-solid fa-receipt text-purple" style="color: #8b5cf6;"></i>
+        </div>
       </div>
-      <div class="value fs-3 fw-bold text-dark">{{ kpis.admission_today|default:0 }}</div>
-      <small class="text-success mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-circle-check me-1"></i>Enrolled Students</small>
+      <div class="d-flex align-items-baseline gap-2">
+        <div class="value fs-3 fw-bold text-dark">{{ kpis.admission_today|default:0 }}</div>
+        <small class="text-muted fw-semibold">Admissions</small>
+      </div>
+      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
+        <span class="text-success fw-medium"><i class="fa-solid fa-circle-check me-1"></i>Admissions: <strong>{{ kpis.admission_today|default:0 }}</strong></span>
+        <span class="text-secondary fw-medium"><i class="fa-solid fa-credit-card me-1"></i>Billing: <strong class="text-dark">{% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}</strong></span>
+      </div>
     </div>
   </div>
 
-  <!-- 4. Billing Done Today -->
-  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
-    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #8b5cf6 !important;" onclick="openUniversalCardDrilldown('opd_booked', 'Billing Done Today', 'purple')" title="Click to view payments & billing records">
-      <div class="value fs-3 fw-bold text-dark">
-        {% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}
-      </div>
+  <!-- 4. Follow-ups Queue (Upcoming & Overdue Merged Single KPI Card with Breakdown) -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card kpi-4 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #06b6d4 !important;" onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'info')" title="Click to view upcoming and overdue follow-ups">
       <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Billing Done Today</span>
-        <i class="fa-solid fa-receipt text-purple" style="color: #8b5cf6;"></i>
+        <span class="label text-muted small fw-bold text-uppercase">Follow-ups Queue</span>
+        <div class="d-flex gap-1">
+          <i class="fa-solid fa-calendar-days text-info"></i>
+          <i class="fa-solid fa-bell-slash text-danger"></i>
+        </div>
       </div>
-      <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-credit-card me-1"></i>Payments Collected</small>
-    </div>
-  </div>
-
-  <!-- 5. Upcoming Follow-ups -->
-  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
-    <div class="kpi-card kpi-4 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #06b6d4 !important;" onclick="openUniversalCardDrilldown('followups', 'Upcoming Follow-ups', 'info')" title="Click to view scheduled follow-ups">
-      <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Upcoming Follow-ups</span>
-        <i class="fa-solid fa-calendar-days text-info"></i>
+      <div class="d-flex align-items-baseline gap-2">
+        <div class="value fs-3 fw-bold text-dark">{{ kpis.total_followups|default:kpis.upcoming_followups|default:0 }}</div>
+        <small class="text-muted fw-semibold">Total Due</small>
       </div>
-      <div class="value fs-3 fw-bold text-dark">{{ kpis.upcoming_followups|default:0 }}</div>
-      <small class="text-info mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-clock me-1"></i>Scheduled Ahead</small>
-    </div>
-  </div>
-
-  <!-- 6. Overdue Follow-ups -->
-  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
-    <div class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #ef4444 !important;" onclick="openUniversalCardDrilldown('followups', 'Overdue Follow-ups', 'danger')" title="Click to view overdue follow-ups queue">
-      <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Overdue Follow-ups</span>
-        <i class="fa-solid fa-bell-slash text-danger"></i>
+      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
+        <span class="text-info fw-medium"><i class="fa-solid fa-clock me-1"></i>Upcoming: <strong>{{ kpis.upcoming_followups|default:0 }}</strong></span>
+        <span class="text-danger fw-medium"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue: <strong>{{ kpis.overdue_followups|default:0 }}</strong></span>
       </div>
-      <div class="value fs-3 fw-bold text-dark">{{ kpis.overdue_followups|default:kpis.overdue|default:0 }}</div>
-      <small class="text-danger mt-1 d-block" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>Action Required</small>
     </div>
   </div>
 
@@ -582,7 +580,7 @@
   const cardBaseNameMap = {
       'new_leads': "Today's New Leads",
       'call_not_done': 'Call Not Done',
-      'opd_booked': 'Admission Today',
+      'opd_booked': 'Admissions & Billing Today',
       'followups': 'Follow-ups Queue',
       'walkin': 'Walk-in Leads',
   };

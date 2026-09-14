@@ -252,45 +252,41 @@
       <i class="fa-solid fa-book-open-reader me-1"></i> Course & Lead Status
     </div>
     <div class="row g-3 mb-4">
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_course">Course Interested <span class="req-star">*</span></label>
         {{ form.course }}
       </div>
-      <div class="col-md-3">
-        <label class="form-label" for="id_lead_type">Lead Type</label>
-        {{ form.lead_type }}
-      </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_temperature">Lead Temperature</label>
         {{ form.temperature }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_stage">Lead Stage <span class="req-star">*</span></label>
         {{ form.stage }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_deal_status">Deal Status</label>
         {{ form.deal_status }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_admission_status">Admission Status <span class="req-star">*</span></label>
         {{ form.admission_status }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_inquiry_date">Inquiry Date <span class="req-star">*</span></label>
         {{ form.inquiry_date }}
       </div>
 
       <!-- Dynamic Conditional Fields based on Admission Status -->
-      <div class="col-md-3 d-none" id="div_followup_date">
+      <div class="col-md-4 d-none" id="div_followup_date">
         <label class="form-label" for="custom_followup_date">Next Follow-up Date <span class="req-star">*</span></label>
         <input type="date" name="custom_followup_date" id="custom_followup_date" class="form-control">
       </div>
-      <div class="col-md-3 d-none" id="div_admission_date">
+      <div class="col-md-4 d-none" id="div_admission_date">
         <label class="form-label" for="custom_admission_date">Admission Date <span class="req-star">*</span></label>
         <input type="date" name="custom_admission_date" id="custom_admission_date" class="form-control">
       </div>
-      <div class="col-md-6 d-none" id="div_cancellation_reason">
+      <div class="col-md-8 d-none" id="div_cancellation_reason">
         <label class="form-label" for="custom_cancellation_reason">Reason for Cancellation <span class="req-star">*</span></label>
         <input type="text" name="custom_cancellation_reason" id="custom_cancellation_reason" class="form-control" placeholder="Enter reason why lead cancelled / lost...">
       </div>
@@ -301,65 +297,48 @@
       <i class="fa-solid fa-bullhorn me-1"></i> Lead Source & Attribution
     </div>
     <div class="row g-3 mb-4">
-      <div class="col-md-3">
-        <label class="form-label" for="id_source_category">Source Category</label>
-        {{ form.source_category }}
-      </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_lead_source">Lead Source</label>
         {{ form.lead_source }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_campaign">Campaign</label>
         {{ form.campaign }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_ad_platform">Ad Platform</label>
         {{ form.ad_platform }}
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="id_campaign_id_text">Campaign Tracking Code</label>
         {{ form.campaign_id_text }}
       </div>
-      <div class="col-md-3">
-        <label class="form-label" for="id_referral_type">Referral Type</label>
-        {{ form.referral_type }}
+    </div>
+
+    <!-- Referral Fields (Conditionally shown only when Lead Source is Referral) -->
+    <div id="referral_fields_container" class="p-3 mb-4 rounded-3 border bg-light d-none" style="border: 1.5px dashed #6366f1 !important;">
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <i class="fa-solid fa-user-group text-primary fs-6"></i>
+        <h6 class="fw-bold text-dark mb-0" style="font-size: 0.88rem;">Referral Information</h6>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill small">Active on Referral Source</span>
       </div>
-      <div class="col-md-3">
-        <label class="form-label" for="id_referral_person">Referral Person</label>
-        {{ form.referral_person }}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label" for="id_referral_contact">Referral Contact</label>
-        {{ form.referral_contact }}
-      </div>
-      <div class="col-md-12">
-        <label class="form-label" for="id_referral_notes">Referral Notes</label>
-        {{ form.referral_notes }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_landing_page">Landing Page</label>
-        {{ form.landing_page }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_utm_source">UTM Source</label>
-        {{ form.utm_source }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_utm_medium">UTM Medium</label>
-        {{ form.utm_medium }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_utm_campaign">UTM Campaign</label>
-        {{ form.utm_campaign }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_utm_term">UTM Term</label>
-        {{ form.utm_term }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_utm_content">UTM Content</label>
-        {{ form.utm_content }}
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label" for="id_referral_type">Referral Type</label>
+          {{ form.referral_type }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="id_referral_person">Referral Person Name</label>
+          {{ form.referral_person }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="id_referral_contact">Referral Contact / Phone</label>
+          {{ form.referral_contact }}
+        </div>
+        <div class="col-md-12">
+          <label class="form-label" for="id_referral_notes">Referral Notes / Context</label>
+          {{ form.referral_notes }}
+        </div>
       </div>
     </div>
 
@@ -604,7 +583,31 @@ document.addEventListener("DOMContentLoaded", function() {
     admissionStatusSelect.addEventListener("change", handleAdmissionStatusChange);
   }
 
-  // ─── 4. Form Validation & Highlight Required Fields ───
+  // ─── 4. Dynamic Referral Fields Conditional Visibility ───
+  const leadSourceSelect = document.getElementById("id_lead_source");
+  const referralContainer = document.getElementById("referral_fields_container");
+
+  function handleLeadSourceChange() {
+    if (!leadSourceSelect || !referralContainer) return;
+    
+    // Check both selected option text and value for "referral"
+    const selectedOption = leadSourceSelect.options[leadSourceSelect.selectedIndex];
+    const text = selectedOption ? (selectedOption.textContent || "").toLowerCase() : "";
+    const val = (leadSourceSelect.value || "").toLowerCase();
+
+    if (text.includes("referral") || val.includes("referral")) {
+      referralContainer.classList.remove("d-none");
+    } else {
+      referralContainer.classList.add("d-none");
+    }
+  }
+
+  if (leadSourceSelect) {
+    handleLeadSourceChange();
+    leadSourceSelect.addEventListener("change", handleLeadSourceChange);
+  }
+
+  // ─── 5. Form Validation & Highlight Required Fields ───
   const form = document.getElementById("zappLeadForm");
   const errorBox = document.getElementById("formValidationErrorBox");
 

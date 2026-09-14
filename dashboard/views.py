@@ -13,7 +13,7 @@ from django.utils import timezone
 from leads.models import Lead, LeadSource, SourceCategory, Course, Campaign, LeadStage, Appointment, AppointmentStatus, DealStatus, LeadTemperature
 from admissions.models import Admission
 from payments.models import Payment, PaymentStatus
-from accounts.models import User
+from accounts.models import User, Hospital
 from dashboard.models import DailyReport, TaskReminder
 from notifications.models import Notification
 from imports.models import ImportJob
@@ -432,6 +432,7 @@ def home(request):
             "billing_count_today": billing_count_today,
             "upcoming_followups": upcoming_followups,
             "overdue_followups": overdue_followups,
+            "total_followups": upcoming_followups + overdue_followups,
             "uncontacted": todays_new_leads,
             "contacted_today": total_leads - call_not_done,
             "booked_today": admission_today,
@@ -1366,17 +1367,26 @@ def nel_card_drilldown_api(request):
 
     elif card_type == 'opd_booked':
         b_base = hospital_qs.filter(
+            Q(admission_status="ADMISSION_DONE") |
+            Q(deal_status=DealStatus.WON) |
+            Q(admission__isnull=False) |
             Q(custom_data__appointment_status__icontains='Book') |
             Q(custom_data__appointment_status__icontains='Confirm') |
             Q(custom_data__appointment_status__icontains='Approv') |
             Q(custom_data__appointment_status__icontains='Complete') |
-            Q(custom_data__appointment_status__iexact='YES')
+            Q(custom_data__appointment_status__iexact='YES') |
+            (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
         )
         if selected_date:
             sel_alt_str = selected_date.strftime("%d-%m-%Y")
             leads_qs = b_base.filter(
                 Q(created_at__range=(start_dt, end_dt)) |
                 Q(inquiry_date=selected_date) |
+                Q(updated_at__range=(start_dt, end_dt)) |
+                Q(admission__admission_date=selected_date) |
+                Q(admission__created_at__range=(start_dt, end_dt)) |
+                Q(custom_data__admission_date=sel_date_str) |
+                Q(custom_data__admission_date=sel_alt_str) |
                 Q(custom_data__appo_booked_date=sel_date_str) |
                 Q(custom_data__appo_booked_date=sel_alt_str) |
                 Q(custom_data__appointment_date=sel_date_str) |
@@ -1393,28 +1403,34 @@ def nel_card_drilldown_api(request):
             leads_qs = b_base
 
     elif card_type == 'followups':
-        booked_exclude_modal = (
-            Q(custom_data__appointment_status__icontains='Book') |
-            Q(custom_data__appointment_status__icontains='Confirm') |
-            Q(deal_status__in=[DealStatus.WON, DealStatus.LOST])
+        # Safely find ids with booked/confirmed appointment status to avoid SQLite JSONField exclude bug on empty dicts
+        booked_appointment_lead_ids = list(
+            hospital_qs.filter(
+                Q(custom_data__appointment_status__icontains='Book') |
+                Q(custom_data__appointment_status__icontains='Confirm')
+            ).values_list('id', flat=True)
         )
+        base_followups = hospital_qs.exclude(
+            deal_status__in=[DealStatus.WON, DealStatus.LOST]
+        ).exclude(id__in=booked_appointment_lead_ids)
+
         if selected_date:
-            leads_qs = hospital_qs.filter(
+            leads_qs = base_followups.filter(
                 Q(next_followup_date=selected_date) |
                 Q(followups__followup_date=selected_date) |
                 Q(followups__next_followup_date=selected_date)
-            ).exclude(booked_exclude_modal)
+            )
         elif month_range_start and month_range_end:
-            leads_qs = hospital_qs.filter(
+            leads_qs = base_followups.filter(
                 Q(next_followup_date__range=(m_start_date, m_end_date)) |
                 Q(followups__followup_date__range=(m_start_date, m_end_date)) |
                 Q(followups__next_followup_date__range=(m_start_date, m_end_date))
-            ).exclude(booked_exclude_modal)
+            )
         else:
-            leads_qs = hospital_qs.filter(
+            leads_qs = base_followups.filter(
                 Q(next_followup_date__isnull=False) |
                 Q(followups__isnull=False)
-            ).exclude(booked_exclude_modal)
+            )
 
     elif card_type == 'walkin':
         w_base = hospital_qs.filter(
@@ -2386,37 +2402,80 @@ def management_home(request):
 
 
 
+def _get_effective_hospital(request):
+    """
+    Resolves the effective hospital/business for reports:
+    1. If user has a hospital attached, returns that hospital.
+    2. For Super Admin / Global Admin: checks GET 'business'/'hospital' or session 'active_business_id'.
+    3. Returns (hospital_object, is_filtered_by_hospital).
+    """
+    user = request.user
+    if user.hospital:
+        return user.hospital
+    selected_biz_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+    if selected_biz_id and selected_biz_id.isdigit():
+        return Hospital.objects.filter(id=int(selected_biz_id)).first()
+    return None
+
+
 @login_required
 def source_report(request):
+    effective_hospital = _get_effective_hospital(request)
     rows = []
     for src in LeadSource.objects.all():
         leads_qs = Lead.objects.filter(lead_source=src, is_archived=False)
+        if effective_hospital:
+            leads_qs = leads_qs.filter(hospital=effective_hospital)
         total = leads_qs.count()
         if total == 0:
             continue
         interested = leads_qs.filter(temperature__in=["HOT", "WARM"]).count()
         visits = leads_qs.filter(stage__name__icontains="visit").count()
         admissions_qs = Admission.objects.filter(lead__lead_source=src)
+        if effective_hospital:
+            admissions_qs = admissions_qs.filter(lead__hospital=effective_hospital)
         admissions = admissions_qs.count()
-        revenue = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS, admission__lead__lead_source=src).aggregate(s=Sum("amount"))["s"] or 0
+        payments_qs = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS, admission__lead__lead_source=src)
+        if effective_hospital:
+            payments_qs = payments_qs.filter(admission__lead__hospital=effective_hospital)
+        revenue = payments_qs.aggregate(s=Sum("amount"))["s"] or 0
         rows.append({
             "source": src.name, "leads": total, "interested": interested, "visits": visits,
             "admissions": admissions, "conversion": round(admissions / total * 100, 1),
             "revenue": revenue,
         })
     rows.sort(key=lambda r: -r["leads"])
-    return render(request, "dashboard/source_report.html", {"active": "reports_source", "rows": rows})
+    return render(request, "dashboard/source_report.html", {
+        "active": "reports_source",
+        "rows": rows,
+        "current_hospital": effective_hospital,
+    })
 
 
 @login_required
 def campaign_report(request):
+    effective_hospital = _get_effective_hospital(request)
     rows = []
-    for camp in Campaign.objects.all():
+    campaigns_qs = Campaign.objects.all()
+    if effective_hospital:
+        campaigns_qs = campaigns_qs.filter(hospital=effective_hospital)
+    for camp in campaigns_qs:
         leads_qs = Lead.objects.filter(campaign=camp, is_archived=False)
+        if effective_hospital:
+            leads_qs = leads_qs.filter(hospital=effective_hospital)
         total = leads_qs.count()
         admissions_qs = Admission.objects.filter(lead__campaign=camp)
+        if effective_hospital:
+            admissions_qs = admissions_qs.filter(lead__hospital=effective_hospital)
         admissions = admissions_qs.count()
-        revenue = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS, admission__lead__campaign=camp).aggregate(s=Sum("amount"))["s"] or 0
+        payments_qs = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS, admission__lead__campaign=camp)
+        if effective_hospital:
+            payments_qs = payments_qs.filter(admission__lead__hospital=effective_hospital)
+        revenue = payments_qs.aggregate(s=Sum("amount"))["s"] or 0
         cost = float(camp.cost or 0)
         rows.append({
             "campaign": camp.name, "platform": camp.platform, "leads": total, "admissions": admissions,
@@ -2425,26 +2484,42 @@ def campaign_report(request):
             "cost_per_admission": round(cost / admissions, 2) if admissions else 0,
             "conversion": round(admissions / total * 100, 1) if total else 0,
         })
-    return render(request, "dashboard/campaign_report.html", {"active": "reports_campaign", "rows": rows})
+    return render(request, "dashboard/campaign_report.html", {
+        "active": "reports_campaign",
+        "rows": rows,
+        "current_hospital": effective_hospital,
+    })
 
 
 @login_required
 def employee_report(request):
     from accounts.models import User
+    effective_hospital = _get_effective_hospital(request)
     rows = []
-    for emp in User.objects.filter(is_active_employee=True):
+    employees_qs = User.objects.filter(is_active_employee=True)
+    if effective_hospital:
+        employees_qs = employees_qs.filter(hospital=effective_hospital)
+    for emp in employees_qs:
         leads_qs = Lead.objects.filter(assigned_to=emp, is_archived=False)
+        if effective_hospital:
+            leads_qs = leads_qs.filter(hospital=effective_hospital)
         total = leads_qs.count()
         if total == 0:
             continue
-        followups = emp.followup_set.count() if hasattr(emp, "followup_set") else 0
-        admissions = Admission.objects.filter(lead__assigned_to=emp).count()
+        admissions_qs = Admission.objects.filter(lead__assigned_to=emp)
+        if effective_hospital:
+            admissions_qs = admissions_qs.filter(lead__hospital=effective_hospital)
+        admissions = admissions_qs.count()
         rows.append({
             "employee": emp.get_full_name() or emp.username, "leads": total,
             "admissions": admissions, "conversion": round(admissions / total * 100, 1),
         })
     rows.sort(key=lambda r: -r["leads"])
-    return render(request, "dashboard/employee_report.html", {"active": "reports_employee", "rows": rows})
+    return render(request, "dashboard/employee_report.html", {
+        "active": "reports_employee",
+        "rows": rows,
+        "current_hospital": effective_hospital,
+    })
 
 
 @login_required
@@ -2927,8 +3002,9 @@ def management_daily_reports(request):
         
     reports = DailyReport.objects.select_related("user").all()
     
-    if user.hospital:
-        reports = reports.filter(user__hospital=user.hospital)
+    effective_hospital = _get_effective_hospital(request)
+    if effective_hospital:
+        reports = reports.filter(user__hospital=effective_hospital)
         
     # If user is a MANAGER and not Super Admin, show reports of users who report to this manager + themselves
     if user.role == User.Role.MANAGER and not user.is_superuser:
@@ -2991,8 +3067,8 @@ def management_daily_reports(request):
         
     # Get active/approved employees for filter dropdown
     employees = User.objects.filter(is_active=True, is_approved=True)
-    if user.hospital:
-        employees = employees.filter(hospital=user.hospital)
+    if effective_hospital:
+        employees = employees.filter(hospital=effective_hospital)
     if user.role == User.Role.MANAGER and not user.is_superuser:
         employees = employees.filter(Q(reports_to=user) | Q(pk=user.pk))
     
@@ -3001,6 +3077,7 @@ def management_daily_reports(request):
         "reports": reports,
         "employees": employees,
         "request_get": request.GET,
+        "current_hospital": effective_hospital,
     })
 
 @login_required

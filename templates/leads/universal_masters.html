@@ -84,12 +84,50 @@
     </div>
   </div>
 
+  <!-- Business Tabs for Super Admin / Multi-business Access -->
+  {% if is_global_admin and available_businesses %}
+  <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-2" style="border: 1px solid #e2e8f0 !important;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-2 py-1">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-light text-secondary border px-2.5 py-1.5 rounded-pill small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+          <i class="fa-solid fa-layer-group text-primary me-1"></i> Form Templates:
+        </span>
+        <div class="nav nav-pills gap-2">
+          <!-- Universal Default Form Template (For New Businesses) -->
+          <a href="?business=default" class="nav-link rounded-pill px-3 py-1.5 fw-semibold small transition-all {% if is_default_tab %}active bg-dark text-white shadow-sm{% else %}bg-light text-secondary border hover-bg-light{% endif %}" style="font-size: 0.82rem;">
+            <i class="fa-solid fa-wand-magic-sparkles text-warning me-1.5"></i>
+            Default Lead Form (All New Businesses)
+            {% if is_default_tab %}
+              <span class="badge bg-white text-dark ms-1.5 px-1.5 py-0.5 rounded-pill" style="font-size: 0.68rem;">Active</span>
+            {% endif %}
+          </a>
+
+          {% for b in available_businesses %}
+          <a href="?business={{ b.id }}" class="nav-link rounded-pill px-3 py-1.5 fw-semibold small transition-all {% if not is_default_tab and current_hospital.id == b.id %}active bg-primary text-white shadow-sm{% else %}bg-light text-secondary border hover-bg-light{% endif %}" style="font-size: 0.82rem;">
+            <i class="fa-solid {% if 'academy' in b.name|lower %}fa-graduation-cap{% else %}fa-hospital{% endif %} me-1.5"></i>
+            {{ b.name }}
+            {% if not is_default_tab and current_hospital.id == b.id %}
+              <span class="badge bg-white text-primary ms-1.5 px-1.5 py-0.5 rounded-pill" style="font-size: 0.68rem;">Active</span>
+            {% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="text-muted small pe-2 d-none d-md-block">
+        <i class="fa-solid fa-info-circle text-primary me-1"></i> Managing fields for: <strong class="text-dark">{% if is_default_tab %}Universal Default Form Template{% else %}{{ current_hospital.name }}{% endif %}</strong>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Form Fields Table Card -->
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
     <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
         <i class="fa-solid fa-table-columns text-primary fs-6"></i>
-        <h6 class="fw-bold text-dark mb-0">Form Fields & Display Order</h6>
+        <h6 class="fw-bold text-dark mb-0">
+          Form Fields & Display Order ({% if is_default_tab %}Default Template — Applied to New Businesses{% else %}{{ current_hospital.name }}{% endif %})
+        </h6>
       </div>
       <span class="badge bg-light text-muted border px-2 py-1 rounded-pill small">
         Total Fields: {{ all_fields|length }}
@@ -189,12 +227,13 @@
                   <button class="btn btn-light border action-icon-btn text-primary" title="Edit Field" data-bs-toggle="modal" data-bs-target="#editFieldModal{{ field.id }}">
                     <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i>
                   </button>
-                  <a href="{% url 'leads:custom_field_toggle' field.id %}" class="btn btn-light border action-icon-btn {% if field.is_active %}text-warning{% else %}text-success{% endif %}" title="{% if field.is_active %}Hide from lead form{% else %}Show on lead form{% endif %}">
+                  <a href="{% url 'leads:custom_field_toggle' field.id %}?business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-light border action-icon-btn {% if field.is_active %}text-warning{% else %}text-success{% endif %}" title="{% if field.is_active %}Hide from lead form{% else %}Show on lead form{% endif %}">
                     <i class="fa-solid {% if field.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}" style="font-size: 0.75rem;"></i>
                   </a>
                   {% if not field.is_system %}
                   <form method="post" action="{% url 'leads:custom_field_delete' field.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete custom field \'{{ field.label }}\'?');">
                     {% csrf_token %}
+                    <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
                     <button type="submit" class="btn btn-light border action-icon-btn text-danger" title="Delete Field">
                       <i class="fa-solid fa-trash-can" style="font-size: 0.75rem;"></i>
                     </button>
@@ -207,7 +246,7 @@
             <tr>
               <td colspan="8" class="text-center py-5 text-muted">
                 <i class="fa-solid fa-pen-ruler fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                <h6 class="fw-bold">No custom fields configured</h6>
+                <h6 class="fw-bold">No custom fields configured for {% if is_default_tab %}Default Template{% else %}{{ current_hospital.name }}{% endif %}</h6>
                 <button class="btn btn-sm btn-primary rounded-pill px-4 mt-2" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
                   <i class="fa-solid fa-plus me-1"></i> Add First Field
                 </button>
@@ -229,6 +268,7 @@
     <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
       <form method="post" action="{% url 'leads:custom_field_add' %}">
         {% csrf_token %}
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
         <div class="modal-header border-0 pb-0 pt-4 px-4">
           <div class="d-flex align-items-center gap-2">
             <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
@@ -335,6 +375,7 @@
     <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
       <form method="post" action="{% url 'leads:custom_field_edit' cf.id %}">
         {% csrf_token %}
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
         <div class="modal-header border-0 pb-0 pt-4 px-4">
           <div class="d-flex align-items-center gap-2">
             <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">

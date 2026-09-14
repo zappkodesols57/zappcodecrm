@@ -153,10 +153,14 @@
             <td>{{ a.admission_date|date:"d-m-Y" }}</td>
             <td>
               {% if a.payment_plan == 'EMI' %}
-              <span class="badge text-bg-warning" style="font-size: 0.72rem;">EMI</span>
+              <span class="badge text-bg-warning" style="font-size: 0.72rem;">EMI ({{ a.emi_months|default:3 }}M)</span>
+              {% elif a.payment_option == 'ONE_TIME_CASH' %}
+              <span class="badge text-bg-light text-secondary border" style="font-size: 0.72rem;">One Time Cash</span>
               {% else %}
-              <span class="badge text-bg-light text-secondary border" style="font-size: 0.72rem;">Full Pay</span>
+              <span class="badge text-bg-light text-secondary border" style="font-size: 0.72rem;">One Time UPI</span>
               {% endif %}
+              {% if a.batch %}<small class="d-block text-muted" style="font-size: 0.68rem;"><i class="fa-solid fa-users me-1"></i>{{ a.batch }}</small>{% endif %}
+              {% if a.tutor %}<small class="d-block text-muted" style="font-size: 0.68rem;"><i class="fa-solid fa-chalkboard-user me-1"></i>{{ a.tutor }}</small>{% endif %}
             </td>
             <td class="text-end">₹{{ a.total_fee|floatformat:0 }}</td>
             <td class="text-end text-danger">

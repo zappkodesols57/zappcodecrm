@@ -62,3 +62,14 @@ def _lead_activity_and_audit(sender, instance, created, **kwargs):
             old_value=f"{prev.source_category}/{prev.lead_source}",
             new_value=f"{instance.source_category}/{instance.lead_source}",
         )
+
+
+@receiver(post_save, sender="accounts.Hospital")
+def _auto_seed_business_lead_form_fields(sender, instance, created, **kwargs):
+    """Automatically populates default lead form fields when a new Hospital/Business is created."""
+    if created:
+        try:
+            from leads.views import _ensure_business_core_fields
+            _ensure_business_core_fields(instance)
+        except Exception:
+            pass

@@ -10,15 +10,27 @@
       <div class="card-body p-4">
         <form method="post">
           {% csrf_token %}
-          
+
           <div class="mb-3">
-            <label class="form-label text-muted small text-uppercase fw-semibold">Course Name</label>
+            <label class="form-label text-muted small text-uppercase fw-semibold">Course Name <span
+                class="text-danger">*</span></label>
             {{ form.name }}
             {% if form.name.errors %}
             <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
             {% endif %}
           </div>
-          
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase fw-semibold"><i
+                class="fa-solid fa-building text-primary me-1"></i>Business / Organization</label>
+            {{ form.hospital }}
+            <div class="form-text text-muted small">Select the business this course belongs to (e.g. Zappcode Academy).
+              When business filter is active, only its courses are shown.</div>
+            {% if form.hospital.errors %}
+            <div class="text-danger small mt-1">{{ form.hospital.errors.0 }}</div>
+            {% endif %}
+          </div>
+
           <div class="row g-3 mb-3">
             <div class="col-6">
               <label class="form-label text-muted small text-uppercase fw-semibold">Base Price (₹)</label>
@@ -35,12 +47,38 @@
               {% endif %}
             </div>
           </div>
-          
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label text-muted small text-uppercase fw-semibold">Tutor / Trainer Name</label>
+              {{ form.tutor }}
+              {% if form.tutor.errors %}
+              <div class="text-danger small mt-1">{{ form.tutor.errors.0 }}</div>
+              {% endif %}
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small text-uppercase fw-semibold">Batch Name / Code</label>
+              {{ form.batch }}
+              {% if form.batch.errors %}
+              <div class="text-danger small mt-1">{{ form.batch.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase fw-semibold">Batch Timing / Schedule</label>
+            {{ form.batch_time }}
+            {% if form.batch_time.errors %}
+            <div class="text-danger small mt-1">{{ form.batch_time.errors.0 }}</div>
+            {% endif %}
+          </div>
+
           <div class="mb-4 form-check">
             {{ form.is_active }}
-            <label class="form-check-label text-muted small text-uppercase fw-semibold" style="margin-left: 5px;">Active Status</label>
+            <label class="form-check-label text-muted small text-uppercase fw-semibold" style="margin-left: 5px;">Active
+              Status</label>
           </div>
-          
+
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-brand text-white w-50">Save Changes</button>
             <a href="{% url 'leads:course_master' %}" class="btn btn-outline-secondary w-50">Cancel</a>

@@ -229,6 +229,9 @@
         <input type="hidden" name="date_preset" id="team_hidden_date_preset" value="{{ date_preset }}">
         <input type="hidden" name="month" id="team_hidden_month" value="{{ selected_month }}">
         <input type="hidden" name="year" id="team_hidden_year" value="{{ selected_year }}">
+        {% if current_hospital %}
+        <input type="hidden" name="business" value="{{ current_hospital.id }}">
+        {% endif %}
 
         {% if active_filters_count > 0 %}
         <a href="{% url 'leads:team_history' %}" class="btn btn-sm btn-link text-danger text-decoration-none fw-semibold ms-auto small p-0">
