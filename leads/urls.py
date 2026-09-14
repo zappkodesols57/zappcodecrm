@@ -18,13 +18,17 @@ urlpatterns = [
     path("<int:pk>/archive/", views.lead_archive, name="lead_archive"),
     path("<int:pk>/add-note/", views.add_note, name="add_note"),
     path("<int:pk>/add-followup/", views.add_followup, name="add_followup"),
+    path("<int:pk>/followup/<int:fu_id>/update/", views.update_followup_status, name="update_followup_status"),
     path("<int:pk>/quick-update-stage/", views.lead_quick_update_stage, name="lead_quick_update_stage"),
     path("<int:pk>/convert-admission/", views.convert_admission, name="convert_admission"),
     path("bulk-action/", views.bulk_action, name="bulk_action"),
     path("duplicates/", views.duplicates, name="duplicates"),
     path("masters/", views.masters, name="masters"),
     path("course-master/", views.course_master, name="course_master"),
+    path("course-master/import/", views.course_excel_import, name="course_excel_import"),
+    path("course-master/sample-download/", views.course_sample_download, name="course_sample_download"),
     path("masters/course/<int:pk>/edit/", views.course_edit, name="course_edit"),
+    path("masters/course/<int:pk>/archive/", views.course_archive, name="course_archive"),
     path("masters/<str:kind>/<int:pk>/toggle/", views.master_toggle, name="master_toggle"),
 
     # Universal Master System routes

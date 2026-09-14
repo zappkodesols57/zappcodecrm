@@ -4,7 +4,7 @@ from django.utils import timezone
 from django import forms
 from django.db import models
 from django.db.models import Q
-from accounts.models import User
+from accounts.models import User, Hospital
 from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag
 
 
@@ -319,10 +319,23 @@ class CampaignForm(forms.ModelForm):
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
-        fields = ["name", "base_price", "max_discount", "is_active"]
+        fields = ["name", "hospital", "base_price", "max_discount", "tutor", "batch", "batch_time", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "e.g. Full Stack Python Developer"}),
+            "hospital": forms.Select(attrs={"class": "form-select"}),
+            "base_price": forms.NumberInput(attrs={"placeholder": "0"}),
+            "max_discount": forms.NumberInput(attrs={"placeholder": "0"}),
+            "tutor": forms.TextInput(attrs={"placeholder": "Trainer / Tutor Name (e.g. Rahul Sharma)"}),
+            "batch": forms.TextInput(attrs={"placeholder": "Batch Name / Code (e.g. Morning Batch A)"}),
+            "batch_time": forms.TextInput(attrs={"placeholder": "e.g. 10:00 AM - 12:00 PM"}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "hospital" in self.fields:
+            self.fields["hospital"].queryset = Hospital.objects.filter(is_active=True).order_by("name")
+            self.fields["hospital"].required = False
+            self.fields["hospital"].empty_label = "Universal / All Businesses (or Select Specific)"
         for name, field in self.fields.items():
             if name == "is_active":
                 field.widget.attrs["class"] = "form-check-input"

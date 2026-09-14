@@ -60,7 +60,11 @@ class Course(models.Model):
     name = models.CharField(max_length=150)
     base_price = models.PositiveIntegerField(default=0, help_text="Base course fee in Rupees")
     max_discount = models.PositiveIntegerField(default=0, help_text="Maximum allowed discount in Rupees")
+    tutor = models.CharField(max_length=150, blank=True, help_text="Tutor / Trainer / Instructor Name")
+    batch = models.CharField(max_length=150, blank=True, help_text="Batch Name / Code (e.g. Batch A, Morning Batch, Full-Stack Python June)")
+    batch_time = models.CharField(max_length=100, blank=True, help_text="Batch Timing (e.g. 10:00 AM - 12:00 PM)")
     is_active = models.BooleanField(default=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         ordering = ["name"]

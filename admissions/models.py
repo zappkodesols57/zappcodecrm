@@ -10,6 +10,12 @@ class PaymentPlan(models.TextChoices):
     EMI = "EMI", "Installment / EMI Plan"
 
 
+class PaymentOption(models.TextChoices):
+    ONE_TIME_CASH = "ONE_TIME_CASH", "One Time Cash"
+    ONE_TIME_UPI = "ONE_TIME_UPI", "One Time UPI"
+    EMI = "EMI", "EMI (Monthly Installments)"
+
+
 class CourseStatus(models.TextChoices):
     NOT_STARTED = "NOT_STARTED", "Not Started"
     STARTED = "STARTED", "Started"
@@ -29,6 +35,12 @@ class Admission(models.Model):
     extra_discount_reason = models.TextField(blank=True)
     final_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_plan = models.CharField(max_length=15, choices=PaymentPlan.choices, default=PaymentPlan.FULL)
+    payment_option = models.CharField(max_length=20, choices=PaymentOption.choices, default=PaymentOption.ONE_TIME_UPI, blank=True)
+    emi_months = models.PositiveIntegerField(default=0, blank=True, null=True)
+    monthly_emi_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True, null=True)
+    date_of_joining = models.DateField(null=True, blank=True)
+    tutor = models.CharField(max_length=150, blank=True)
+    batch = models.CharField(max_length=150, blank=True)
     course_status = models.CharField(max_length=15, choices=CourseStatus.choices, default=CourseStatus.ONGOING)
     assigned_counselor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     notes = models.TextField(blank=True)

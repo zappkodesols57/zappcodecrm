@@ -1,3 +1,5 @@
+import json
+# CRM Views - Auto-reloaded for schema sync
 from collections import defaultdict
 from datetime import datetime
 
@@ -11,7 +13,7 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
-from followups.models import FollowUp, Note, Activity, FollowUpMode, FollowUpStatus
+from followups.models import FollowUp, Note, Activity, ActivityType, FollowUpMode, FollowUpStatus
 from admissions.models import Admission
 from accounts.models import User, Hospital
 from .models import (
@@ -828,7 +830,11 @@ def team_history(request):
     )
 
     hospital = request.user.hospital
-    selected_business_id = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
+    selected_business_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
     if is_global_admin:
         if selected_business_id and selected_business_id.isdigit():
             hospital = Hospital.objects.filter(id=int(selected_business_id)).first()
@@ -949,16 +955,10 @@ def team_history(request):
     if selected_admission_statuses:
         leads = leads.filter(admission_status__in=selected_admission_statuses)
 
-    # Calculate User-wise Counts for the selected timeframe and dropdown filters (before single user filtering)
+    # Calculate User-wise Counts for current owner (assigned_to) in the selected timeframe & dropdown filters
     user_counts = []
     for member in team_members:
-        member_worked_q = (
-            Q(assigned_to=member) | Q(created_by=member)
-            | Q(followups__created_by=member)
-            | Q(lead_notes__created_by=member)
-            | Q(activities__created_by=member)
-        )
-        c = leads.filter(member_worked_q).distinct().count()
+        c = leads.filter(assigned_to=member).count()
         user_counts.append({
             "user": member,
             "count": c,
@@ -967,7 +967,7 @@ def team_history(request):
     # Sort user_counts with highest count first
     user_counts.sort(key=lambda x: x["count"], reverse=True)
 
-    # Filter by specific selected team user if provided
+    # Filter by specific selected team user (current owner) if provided
     selected_user_id = request.GET.get("user_id", "").strip()
     selected_user = None
     if selected_user_id and selected_user_id.isdigit():
@@ -975,13 +975,7 @@ def team_history(request):
         if not selected_user:
             selected_user = User.objects.filter(id=int(selected_user_id)).first()
         if selected_user:
-            user_filter_q = (
-                Q(assigned_to=selected_user) | Q(created_by=selected_user)
-                | Q(followups__created_by=selected_user)
-                | Q(lead_notes__created_by=selected_user)
-                | Q(activities__created_by=selected_user)
-            )
-            leads = leads.filter(user_filter_q).distinct()
+            leads = leads.filter(assigned_to=selected_user)
 
     # Available distinct years and months with data for dropdowns
     available_years_raw = Lead.objects.filter(
@@ -1424,6 +1418,7 @@ def lead_detail(request, pk):
         return redirect("leads:lead_list")
 
     timeline = lead.activities.all()[:200]
+    followups = lead.followups.select_related("created_by").all()[:50]
     admission = getattr(lead, "admission", None)
     
     # Retrieve active/approved users for the assignment form
@@ -1489,15 +1484,27 @@ def lead_detail(request, pk):
     deal_statuses = DealStatus.choices
     admission_statuses = AdmissionStatus.choices
 
+    courses_qs = Course.objects.filter(is_active=True, hospital=lead.hospital) if lead.hospital else Course.objects.filter(is_active=True)
+    course_data = {
+        str(c.id): {
+            "name": c.name,
+            "base_price": float(c.base_price),
+            "max_discount": float(c.max_discount),
+        }
+        for c in courses_qs
+    }
+
     template = "leads/nel_lead_detail.html" if is_hospital else "leads/zapp_lead_detail.html"
     return render(request, template, {
-        "active": "leads_all", "lead": lead, "timeline": timeline, "admission": admission,
+        "active": "leads_all", "lead": lead, "timeline": timeline, "followups": followups, "admission": admission,
         "prev_lead": prev_lead,
         "next_lead": next_lead,
         "latest_appointment": latest_appointment,
         "custom_field_data": custom_field_data,
         "followup_modes": FollowUpMode.choices, "followup_statuses": FollowUpStatus.choices,
         "stages": stages,
+        "courses": courses_qs,
+        "course_data_json": json.dumps(course_data),
         "temperatures": temperatures,
         "deal_statuses": deal_statuses,
         "admission_statuses": admission_statuses,
@@ -1633,6 +1640,52 @@ def add_followup(request, pk):
 
 
 @login_required
+def update_followup_status(request, pk, fu_id):
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
+    if not _can_access_lead(request.user, lead):
+        messages.error(request, "You do not have permission to access this lead.")
+        return redirect("leads:lead_list")
+    
+    fu = get_object_or_404(FollowUp, id=fu_id, lead=lead)
+    if request.method == "POST":
+        new_status = request.POST.get("followup_status")
+        update_note = request.POST.get("update_note", "").strip()
+        next_date_str = request.POST.get("next_followup_date", "").strip()
+        next_time_str = request.POST.get("next_followup_time", "").strip()
+
+        if new_status and new_status in FollowUpStatus.values:
+            old_status_display = fu.get_followup_status_display()
+            fu.followup_status = new_status
+            if update_note:
+                fu.comment = f"{fu.comment}\n[Update by {request.user.get_full_name() or request.user.username}]: {update_note}".strip()
+            
+            if next_date_str:
+                try:
+                    fu.next_followup_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+            if next_time_str:
+                try:
+                    fu.next_followup_time = datetime.strptime(next_time_str, "%H:%M").time()
+                except ValueError:
+                    pass
+
+            fu.save()
+            
+            # Log Activity so timeline shows the status update
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.FOLLOWUP,
+                description=f"Follow-up status updated from {old_status_display} to {fu.get_followup_status_display()}" + (f" - Note: {update_note}" if update_note else ""),
+                created_by=request.user,
+            )
+            messages.success(request, f"Follow-up status updated to {fu.get_followup_status_display()}.")
+    return redirect("leads:lead_detail", pk=pk)
+
+
+@login_required
 def convert_admission(request, pk):
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
@@ -1652,9 +1705,18 @@ def convert_admission(request, pk):
         messages.info(request, "This lead already has an admission record.")
         return redirect("leads:lead_detail", pk=pk)
     if request.method == "POST":
+        course_id = request.POST.get("course")
+        selected_course = lead.course
+        if course_id and course_id.isdigit():
+            c_obj = Course.objects.filter(id=int(course_id)).first()
+            if c_obj:
+                selected_course = c_obj
+                lead.course = c_obj
+                lead.save(update_fields=["course"])
+
         total_fee = float(request.POST.get("total_fee") or 0)
         discount = float(request.POST.get("discount") or 0)
-        max_discount = float(lead.course.max_discount) if lead.course else 0.0
+        max_discount = float(selected_course.max_discount) if selected_course else 0.0
         extra_reason = request.POST.get("extra_discount_reason", "").strip()
 
         # Backend validation
@@ -1662,25 +1724,58 @@ def convert_admission(request, pk):
             messages.error(request, "Reason for extra discount is required since the discount exceeds the course maximum allowed discount limit.")
             return redirect("leads:lead_detail", pk=pk)
 
+        payment_option = request.POST.get("payment_option", "ONE_TIME_UPI").strip()
+        payment_plan = "EMI" if payment_option == "EMI" else "FULL"
+        
+        emi_months = int(request.POST.get("emi_months") or 0) if payment_option == "EMI" else 0
+        monthly_emi_amount = float(request.POST.get("monthly_emi_amount") or 0) if payment_option == "EMI" else 0.0
+        date_of_joining = request.POST.get("date_of_joining") or None
+        tutor = request.POST.get("tutor", "").strip()
+        batch = request.POST.get("batch", "").strip()
+        admission_date = request.POST.get("admission_date") or timezone.localdate()
+
         # Update Lead stage to Admission dynamically when converted
         admission_stage = LeadStage.objects.filter(name__icontains="admission", is_active=True).first()
         if admission_stage:
             lead.stage = admission_stage
             lead.deal_status = "WON"
-            lead.save(update_fields=["stage", "deal_status"])
+            lead.admission_status = "ADMISSION_DONE"
+            lead.save(update_fields=["stage", "deal_status", "admission_status"])
 
-        Admission.objects.create(
+        adm = Admission.objects.create(
             lead=lead,
             student_name=lead.name,
-            course=lead.course,
-            admission_date=request.POST.get("admission_date") or timezone.localdate(),
+            course=selected_course,
+            admission_date=admission_date,
             total_fee=total_fee,
             discount=discount,
             max_allowed_discount=max_discount,
             extra_discount_reason=extra_reason if discount > max_discount else "",
+            payment_plan=payment_plan,
+            payment_option=payment_option,
+            emi_months=emi_months,
+            monthly_emi_amount=monthly_emi_amount,
+            date_of_joining=date_of_joining,
+            tutor=tutor,
+            batch=batch,
             assigned_counselor=lead.assigned_to,
         )
-        messages.success(request, "Lead converted to admission.")
+
+        # Automatically schedule EMI installments if EMI plan selected
+        if payment_option == "EMI" and emi_months > 0 and monthly_emi_amount > 0:
+            from admissions.models import Installment
+            from dateutil.relativedelta import relativedelta
+            import datetime
+            base_date = datetime.date.fromisoformat(str(admission_date)) if isinstance(admission_date, str) else admission_date
+            for m in range(1, emi_months + 1):
+                due_d = base_date + relativedelta(months=m)
+                Installment.objects.create(
+                    admission=adm,
+                    amount=monthly_emi_amount,
+                    due_date=due_d,
+                )
+
+        messages.success(request, f"Lead converted to admission successfully ({selected_course.name if selected_course else 'General'}).")
         return redirect("admissions:list")
     return redirect("leads:lead_detail", pk=pk)
 
@@ -2003,24 +2098,67 @@ def masters(request):
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def course_master(request):
+    user_hospital = request.user.hospital
+    active_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
+    show_archived = request.GET.get("archived") == "1"
+
+    target_biz = None
+    if user_hospital:
+        target_biz = user_hospital
+    elif active_biz_id and active_biz_id.isdigit():
+        target_biz = Hospital.objects.filter(id=int(active_biz_id), is_active=True).first()
+
     if request.method == "POST":
         form = CourseForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "New Course added to Master.")
+            new_course = form.save(commit=False)
+            if not new_course.hospital and target_biz:
+                new_course.hospital = target_biz
+            new_course.save()
+            messages.success(request, f"New course '{new_course.name}' added successfully.")
             return redirect("leads:course_master")
         else:
             messages.error(request, f"Could not add course: {form.errors.as_text()}")
         return redirect("leads:course_master")
 
-    # Display official courses (exclude legacy unformatted import courses)
-    courses = Course.objects.exclude(is_active=False, base_price=0)
+    courses = Course.objects.all().order_by("name")
+    
+    # Filter by business if tenant user or business filter selected
+    if target_biz:
+        courses = courses.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
+    
+    # Filter by archived status
+    if show_archived:
+        courses = courses.filter(is_archived=True)
+    else:
+        courses = courses.filter(is_archived=False)
+
+    all_businesses = Hospital.objects.filter(is_active=True).order_by("name")
     form = CourseForm()
+    if target_biz:
+        form.fields["hospital"].initial = target_biz.id
+
     return render(request, "leads/course_master.html", {
         "active": "course_master",
         "courses": courses,
-        "form": form
+        "form": form,
+        "target_biz": target_biz,
+        "all_businesses": all_businesses,
+        "show_archived": show_archived,
+        "archived_count": Course.objects.filter(is_archived=True).count(),
+        "active_count": Course.objects.filter(is_archived=False).count(),
     })
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def course_archive(request, pk):
+    course = get_object_or_404(Course, pk=pk)
+    course.is_archived = not course.is_archived
+    course.save(update_fields=["is_archived"])
+    action_text = "archived" if course.is_archived else "restored"
+    messages.success(request, f"Course '{course.name}' {action_text} successfully.")
+    return redirect("leads:course_master")
 
 
 @login_required
@@ -2047,7 +2185,7 @@ def course_edit(request, pk):
         form = CourseForm(request.POST, instance=course)
         if form.is_valid():
             form.save()
-            messages.success(request, "Course updated.")
+            messages.success(request, f"Course '{course.name}' updated successfully.")
             return redirect("leads:course_master")
         else:
             messages.error(request, f"Could not update: {form.errors.as_text()}")
@@ -2058,58 +2196,319 @@ def course_edit(request, pk):
     })
 
 
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def course_excel_import(request):
+    """
+    Import Courses from Excel / CSV:
+    If a course already exists (by name, case-insensitive), update its fields:
+    base_price, max_discount, tutor, batch, batch_time, is_active.
+    If it doesn't exist, create it.
+    """
+    if request.method == "POST" and request.FILES.get("course_excel"):
+        import openpyxl
+        import io
+        excel_file = request.FILES["course_excel"]
+        hospital = request.user.hospital
+
+        try:
+            filename = excel_file.name.lower()
+            wb = openpyxl.load_workbook(excel_file, data_only=True)
+            sheet = wb.active
+
+            rows = list(sheet.iter_rows(values_only=True))
+            if not rows:
+                messages.error(request, "The uploaded Excel file is empty.")
+                return redirect("leads:course_master")
+
+            header = [str(col).strip().lower() if col is not None else "" for col in rows[0]]
+
+            # Helper to find column index by matching aliases
+            def find_col(aliases):
+                for idx, col_name in enumerate(header):
+                    clean = col_name.replace("_", " ").replace("-", " ")
+                    for alias in aliases:
+                        if alias.lower() in clean:
+                            return idx
+                return None
+
+            idx_name = find_col(["course name", "course", "name", "subject", "title"])
+            idx_price = find_col(["base price", "price", "fee", "fees", "cost", "total fee"])
+            idx_discount = find_col(["max allowed discount", "max discount", "discount", "allowed discount"])
+            idx_tutor = find_col(["tuitor", "tutor", "trainer", "faculty", "instructor", "teacher"])
+            idx_batch = find_col(["batch name", "batch code", "batch"])
+            idx_time = find_col(["batch time", "timing", "batch timing", "time", "schedule"])
+            idx_active = find_col(["status", "is active", "active"])
+
+            if idx_name is None:
+                messages.error(request, "Could not find a 'Course Name' column in the uploaded Excel file.")
+                return redirect("leads:course_master")
+
+            created_count = 0
+            updated_count = 0
+
+            for row in rows[1:]:
+                if not row or not any(row):
+                    continue
+
+                raw_name = str(row[idx_name]).strip() if idx_name < len(row) and row[idx_name] is not None else ""
+                if not raw_name or raw_name.lower() in ("none", "nan", ""):
+                    continue
+
+                # Parse price
+                base_price = 0
+                if idx_price is not None and idx_price < len(row) and row[idx_price] is not None:
+                    try:
+                        base_price = int(float(str(row[idx_price]).replace("₹", "").replace(",", "").strip()))
+                    except (ValueError, TypeError):
+                        base_price = 0
+
+                # Parse max discount
+                max_discount = 0
+                if idx_discount is not None and idx_discount < len(row) and row[idx_discount] is not None:
+                    try:
+                        max_discount = int(float(str(row[idx_discount]).replace("₹", "").replace(",", "").strip()))
+                    except (ValueError, TypeError):
+                        max_discount = 0
+
+                # Tutor
+                tutor = ""
+                if idx_tutor is not None and idx_tutor < len(row) and row[idx_tutor] is not None:
+                    tutor = str(row[idx_tutor]).strip()
+                    if tutor.lower() in ("none", "nan"):
+                        tutor = ""
+
+                # Batch
+                batch = ""
+                if idx_batch is not None and idx_batch < len(row) and row[idx_batch] is not None:
+                    batch = str(row[idx_batch]).strip()
+                    if batch.lower() in ("none", "nan"):
+                        batch = ""
+
+                # Batch Time
+                batch_time = ""
+                if idx_time is not None and idx_time < len(row) and row[idx_time] is not None:
+                    batch_time = str(row[idx_time]).strip()
+                    if batch_time.lower() in ("none", "nan"):
+                        batch_time = ""
+
+                # Active status
+                is_active = True
+                if idx_active is not None and idx_active < len(row) and row[idx_active] is not None:
+                    val_str = str(row[idx_active]).strip().lower()
+                    if val_str in ("0", "false", "no", "inactive", "disabled"):
+                        is_active = False
+
+                # Query existing course
+                course_qs = Course.objects.filter(name__iexact=raw_name)
+                if hospital:
+                    course_obj = course_qs.filter(hospital=hospital).first() or course_qs.first()
+                else:
+                    course_obj = course_qs.first()
+
+                if course_obj:
+                    # Update existing course with new information
+                    course_obj.base_price = base_price
+                    course_obj.max_discount = max_discount
+                    if tutor:
+                        course_obj.tutor = tutor
+                    if batch:
+                        course_obj.batch = batch
+                    if batch_time:
+                        course_obj.batch_time = batch_time
+                    course_obj.is_active = is_active
+                    course_obj.save()
+                    updated_count += 1
+                else:
+                    # Create new course
+                    Course.objects.create(
+                        hospital=hospital,
+                        name=raw_name,
+                        base_price=base_price,
+                        max_discount=max_discount,
+                        tutor=tutor,
+                        batch=batch,
+                        batch_time=batch_time,
+                        is_active=is_active,
+                    )
+                    created_count += 1
+
+            messages.success(
+                request,
+                f"Course Excel Import completed: {created_count} new course(s) created, {updated_count} course(s) updated."
+            )
+        except Exception as e:
+            messages.error(request, f"Failed to import courses from Excel: {str(e)}")
+
+    return redirect("leads:course_master")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def course_sample_download(request):
+    """Generate and return sample Excel file template for course import."""
+    import openpyxl
+    from django.http import HttpResponse
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Courses"
+
+    headers = ["Course Name", "Base Price", "Max Allowed Discount", "Tutor", "Batch Name", "Batch Time", "Status"]
+    ws.append(headers)
+
+    sample_rows = [
+        ["Full Stack Python Developer", 65000, 15000, "Rahul Sharma", "Python Morning Batch A", "10:00 AM - 12:00 PM", "Active"],
+        ["Data Science & Machine Learning", 75000, 20000, "Pooja Verma", "Weekend DS Batch", "02:00 PM - 05:00 PM", "Active"],
+        ["Data Analytics Master", 45000, 12000, "Amit Patel", "Batch DA-2", "04:00 PM - 06:00 PM", "Active"],
+        ["Digital Marketing & SEO", 35000, 8000, "Sneha Joshi", "Fastrack Batch", "11:00 AM - 01:00 PM", "Active"],
+    ]
+    for row in sample_rows:
+        ws.append(row)
+
+    # Style header row
+    for col in ws.iter_cols(min_row=1, max_row=1):
+        for cell in col:
+            cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            cell.fill = openpyxl.styles.PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = 'attachment; filename="Course_Master_Sample.xlsx"'
+    wb.save(response)
+    return response
+
+
 # ---------------------------------------------------------------------------
 # Universal Master Management (Master & Sub-Master System)
 # ---------------------------------------------------------------------------
 
-@login_required
-@user_passes_test(lambda u: u.can_manage_masters)
-def universal_master_list(request):
-    groups = MasterGroup.objects.prefetch_related("items").all()
-    selected_group_id = request.GET.get("group_id")
-    
-    selected_group = None
-    if selected_group_id:
-        selected_group = groups.filter(pk=selected_group_id).first()
-    if not selected_group and groups.exists():
-        selected_group = groups.first()
+def _get_business_for_custom_fields(request):
+    """Resolve target hospital for Custom Lead Form view & operations."""
+    user = request.user
+    if user.hospital:
+        return user.hospital
+    # For Super Admin: check GET parameter, session, or default
+    biz_val = (
+        request.GET.get("business", "").strip()
+        or request.POST.get("business", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+    if biz_val.lower() == "default":
+        return "default"
+    if biz_val and biz_val.isdigit():
+        target = Hospital.objects.filter(id=int(biz_val), is_active=True).first()
+        if target:
+            return target
+    # Default to Nelson Hospital or first active hospital
+    return Hospital.objects.filter(is_active=True).order_by("id").first()
 
-    items = []
-    if selected_group:
-        if request.user.hospital:
-            items = selected_group.items.filter(hospital=request.user.hospital)
-        else:
-            # Global Super Admin: see all items across all businesses
-            items = selected_group.items.all()
 
-    from leads.models import LeadCustomField
-    h = request.user.hospital
+def _ensure_business_core_fields(h):
+    """Initializes core lead form fields for a business if not yet initialized."""
+    from leads.models import LeadCustomField, HospitalDisease, HospitalBranch, Course, LeadStage
     
-    # Ensure default core fields exist in DB for this hospital if not yet initialized
-    core_field_defs = [
-        ('name', 'Patient Name', 'TEXT', 1, True, True, 'Enter full patient name', ''),
-        ('mobile', 'Mobile Number', 'TEXT', 2, True, True, '10-digit mobile number', ''),
-        ('age', 'Age', 'NUMBER', 3, False, True, 'e.g. 35', ''),
-        ('gender', 'Gender', 'DROPDOWN', 4, False, True, 'Select Gender', 'Male, Female, Other'),
-        ('comments', 'Comments / Notes', 'TEXTAREA', 5, False, True, 'Enter patient notes...', ''),
-        ('location', 'Location', 'DROPDOWN', 6, False, True, 'Select Location', 'Nagpur, Wardha, Hinganghat, Chandrapur, Amravati, Bhandara, Yavatmal, Gondia'),
-        ('doctor', 'Doctor', 'DROPDOWN', 7, False, True, 'Select Doctor', 'Dr. Pradeep Patil, Dr. Rahul Sharma, Dr. Priya Deshmukh, Dr. Amit Verma'),
-        ('department', 'Department', 'DROPDOWN', 8, False, True, 'Select Department', 'Cardiology, Neurology, Orthopedics, Pediatrics, Oncology, Gynecology, General Medicine'),
-        ('lead_source', 'Lead Source', 'DROPDOWN', 9, False, True, 'Select Lead Source', 'Google Ads, Facebook / Instagram, Walk-in, Doctor Referral, Website, Newspaper, Camp / Event'),
-        ('appointment_status', 'Appointment Status', 'DROPDOWN', 10, False, True, 'Select Status', 'Interested, Booked, Visited, Follow-up Needed, Cancelled / Rescheduled, Not Interested'),
-        ('campaign', 'Campaign', 'DROPDOWN', 11, False, True, 'Select Campaign', 'Summer Health Checkup, Cardiology Camp, Free OPD Camp, Digital Awareness 2026')
+    # ── Universal Default Lead Form Fields (for new businesses / system template) ──
+    default_lead_form_fields = [
+        ('lead_id', 'Lead ID', 'TEXT', 1, False, True, 'Auto-generated ID (System)', '', True),
+        ('name', 'Full Name', 'TEXT', 2, True, True, 'Enter full name', '', True),
+        ('mobile', 'Phone Number', 'TEXT', 3, True, True, 'Phone with country code (e.g. +91 9876543210)', '', True),
+        ('email', 'Email Address', 'TEXT', 4, False, True, 'e.g. client@example.com', '', True),
+        ('industry_category', 'Industry / Category', 'DROPDOWN', 5, False, True, 'Select Industry', 'Healthcare, Academy, Travel, E-commerce, Other', True),
+        ('lead_source', 'Lead Source', 'DROPDOWN', 6, False, True, 'Select Lead Source', 'Website, Social Media, Referral, Ad Campaign, Walk-in, Call, Event, Partner', True),
+        ('stage', 'Lead Status / Pipeline Stage', 'DROPDOWN', 7, True, True, 'Select Status', 'New, Contacted, Qualified, Proposal Sent, Negotiation, Converted, Lost', True),
+        ('assigned_to', 'Lead Owner / Assigned To', 'DROPDOWN', 8, False, True, 'Select Owner / Counselor', 'Dynamic user list', True),
+        ('lead_score', 'Lead Score', 'NUMBER', 9, False, True, 'e.g. 85', '', True),
+        ('city', 'City', 'TEXT', 10, False, True, 'Enter city name', '', True),
+        ('country', 'Country', 'DROPDOWN', 11, False, True, 'Select Country', 'India, United States, United Kingdom, Canada, Australia, UAE, Other', True),
+        ('preferred_contact_method', 'Preferred Contact Method', 'DROPDOWN', 12, False, True, 'Select Contact Method', 'Call, Email, WhatsApp, SMS', True),
+        ('preferred_language', 'Preferred Language', 'DROPDOWN', 13, False, True, 'Select Language', 'English, Hindi, Marathi, Gujarati, Spanish, French, Other', True),
+        ('budget_range', 'Budget Range', 'DROPDOWN', 14, False, True, 'Select Budget', 'Under ₹25,000, ₹25,000 - ₹50,000, ₹50,000 - ₹1,00,000, ₹1,00,000 - ₹2,50,000, Above ₹2,50,000', True),
+        ('notes', 'Notes / Remarks', 'TEXTAREA', 15, False, True, 'Free text notes, conversation summary, or remarks...', '', True),
+        ('tags', 'Tags', 'TEXT', 16, False, True, 'Tags for segmentation (comma-separated)', '', True),
+        ('created_at_date', 'Created Date', 'DATE', 17, False, True, 'System date (auto)', '', True),
+        ('last_contacted_date', 'Last Contacted Date', 'DATE', 18, False, True, 'Date of last interaction', '', True),
+        ('next_followup_date', 'Next Follow-up Date', 'DATE', 19, False, True, 'Next scheduled follow-up date', '', True),
+        ('utm_source_campaign', 'UTM Source / Campaign', 'TEXT', 20, False, True, 'Marketing attribution tracking', '', True),
+        ('marketing_consent', 'Marketing Consent (Opt-in)', 'CHECKBOX', 21, False, True, 'Compliance opt-in confirmed', '', True),
     ]
-    if h:
-        for f_name, f_lbl, f_type, f_ord, f_req, f_act, f_ph, f_opt in core_field_defs:
-            if not LeadCustomField.objects.filter(hospital=h, name=f_name).exists():
-                LeadCustomField.objects.create(
-                    hospital=h, name=f_name, label=f_lbl, field_type=f_type,
-                    order=f_ord, is_required=f_req, is_active=f_act,
-                    placeholder=f_ph, options=f_opt, is_system=True
-                )
 
-    if h:
-        # Automatically sync current options for special master fields so admin modal displays them
+    # If initializing the default template (hospital is None / "default")
+    if h is None or h == "default":
+        for f_name, f_lbl, f_type, f_ord, f_req, f_act, f_ph, f_opt, f_sys in default_lead_form_fields:
+            if not LeadCustomField.objects.filter(hospital__isnull=True, name=f_name).exists():
+                LeadCustomField.objects.create(
+                    hospital=None, name=f_name, label=f_lbl, field_type=f_type,
+                    order=f_ord, is_required=f_req, is_active=f_act,
+                    placeholder=f_ph, options=f_opt, is_system=f_sys
+                )
+        return
+
+    is_academy = "academy" in h.name.lower() or "zappcode" in h.name.lower()
+    is_nelson = "nelson" in h.name.lower() or "hospital" in h.name.lower()
+
+    if is_academy:
+        core_field_defs = [
+            ('name', 'Student Name', 'TEXT', 1, True, True, 'Enter full student name', ''),
+            ('mobile', 'Mobile Number', 'TEXT', 2, True, True, '10-digit mobile number', ''),
+            ('alternate_mobile', 'Alternate Mobile', 'TEXT', 3, False, True, '10-digit alternate mobile', ''),
+            ('email', 'Email Address', 'TEXT', 4, False, True, 'e.g. student@gmail.com', ''),
+            ('state', 'State', 'DROPDOWN', 5, True, True, 'Select State', 'Maharashtra, Madhya Pradesh, Gujarat, Karnataka, Delhi, Other'),
+            ('city', 'City', 'DROPDOWN', 6, True, True, 'Select City', 'Nagpur, Pune, Mumbai, Nashik, Aurangabad, Wardha, Amravati, Chandrapur, Bhandara, Gondia, Other'),
+            ('location', 'Area / Location', 'TEXT', 7, False, True, 'Area or locality in city', ''),
+            ('education', 'Education Category', 'DROPDOWN', 8, True, True, 'Select Education Category', 'Engineering, Medical, Management, Arts & Commerce, Polytechnic / Diploma, School Student, Other'),
+            ('qualification', 'Qualification / Degree', 'DROPDOWN', 9, True, True, 'Select Qualification', 'B.Tech / B.E, BCA, MCA, B.Sc, M.Sc, Diploma, 12th Standard, Other'),
+            ('graduation_year', 'Graduation / Passing Year', 'TEXT', 10, False, True, 'e.g. 2025, 2026', ''),
+            ('course', 'Course Interested', 'DROPDOWN', 11, True, True, 'Select Course', 'Data Analytics, Data Science, Full Stack Python, Full Stack Java, Digital Marketing, AI & Machine Learning, Software Testing'),
+            ('temperature', 'Lead Temperature', 'DROPDOWN', 12, False, True, 'Select Temperature', 'HOT, WARM, COLD'),
+            ('stage', 'Lead Stage', 'DROPDOWN', 13, True, True, 'Select Stage', 'New, Contacted, Follow Up, Demo Attended, Interested, Admission Confirmed, Lost / Dropped'),
+            ('deal_status', 'Deal Status', 'DROPDOWN', 14, False, True, 'Select Deal Status', 'OPEN, WON, LOST, ON_HOLD'),
+            ('admission_status', 'Admission Status', 'DROPDOWN', 15, True, True, 'Select Admission Status', 'NOT_APPLIED, APPLIED, INTERESTED, ADMISSION_DONE, CANCELLED'),
+            ('inquiry_date', 'Inquiry Date', 'DATE', 16, True, True, 'Select inquiry date', ''),
+            ('lead_source', 'Lead Source', 'DROPDOWN', 17, False, True, 'Select Source', 'Meta Ads, Google Ads, Direct Walk-in, College Visit, JustDial, Website Form, Referral, Student Referral'),
+            ('campaign', 'Campaign', 'DROPDOWN', 18, False, True, 'Select Campaign', 'ZA Meta Campaign 2026, Summer Batch Campaign, Python Masters, B2B Zappkode'),
+        ]
+    elif is_nelson:
+        core_field_defs = [
+            ('name', 'Patient Name', 'TEXT', 1, True, True, 'Enter full patient name', ''),
+            ('mobile', 'Mobile Number', 'TEXT', 2, True, True, '10-digit mobile number', ''),
+            ('age', 'Age', 'NUMBER', 3, False, True, 'e.g. 35', ''),
+            ('gender', 'Gender', 'DROPDOWN', 4, False, True, 'Select Gender', 'Male, Female, Other'),
+            ('comments', 'Comments / Notes', 'TEXTAREA', 5, False, True, 'Enter patient notes...', ''),
+            ('location', 'Location', 'DROPDOWN', 6, False, True, 'Select Location', 'Nagpur, Wardha, Hinganghat, Chandrapur, Amravati, Bhandara, Yavatmal, Gondia'),
+            ('doctor', 'Doctor', 'DROPDOWN', 7, False, True, 'Select Doctor', 'Dr. Pradeep Patil, Dr. Rahul Sharma, Dr. Priya Deshmukh, Dr. Amit Verma'),
+            ('department', 'Department', 'DROPDOWN', 8, False, True, 'Select Department', 'Cardiology, Neurology, Orthopedics, Pediatrics, Oncology, Gynecology, General Medicine'),
+            ('lead_source', 'Lead Source', 'DROPDOWN', 9, False, True, 'Select Lead Source', 'Google Ads, Facebook / Instagram, Walk-in, Doctor Referral, Website, Newspaper, Camp / Event'),
+            ('appointment_status', 'Appointment Status', 'DROPDOWN', 10, False, True, 'Select Status', 'Interested, Booked, Visited, Follow-up Needed, Cancelled / Rescheduled, Not Interested'),
+            ('campaign', 'Campaign', 'DROPDOWN', 11, False, True, 'Select Campaign', 'Summer Health Checkup, Cardiology Camp, Free OPD Camp, Digital Awareness 2026'),
+            ('hospital_branch', 'Hospital Branch', 'DROPDOWN', 12, True, True, 'Select Branch', 'Dhantoli, Main Branch'),
+            ('disease', 'Disease', 'DROPDOWN', 13, False, True, 'Select Disease', ''),
+        ]
+    else:
+        # Any other / new business automatically inherits the Default Custom Lead Form!
+        core_field_defs = [
+            (f_name, f_lbl, f_type, f_ord, f_req, f_act, f_ph, f_opt)
+            for f_name, f_lbl, f_type, f_ord, f_req, f_act, f_ph, f_opt, _ in default_lead_form_fields
+        ]
+
+    for f_name, f_lbl, f_type, f_ord, f_req, f_act, f_ph, f_opt in core_field_defs:
+        if not LeadCustomField.objects.filter(hospital=h, name=f_name).exists():
+            LeadCustomField.objects.create(
+                hospital=h, name=f_name, label=f_lbl, field_type=f_type,
+                order=f_ord, is_required=f_req, is_active=f_act,
+                placeholder=f_ph, options=f_opt, is_system=True
+            )
+
+    # Sync dynamic choices from other tables if available
+    if is_academy:
+        cf_course = LeadCustomField.objects.filter(hospital=h, name="course").first()
+        if cf_course:
+            course_names = list(Course.objects.filter(is_active=True).values_list("name", flat=True)[:15])
+            if course_names:
+                cf_course.options = ", ".join(course_names)
+                cf_course.save(update_fields=["options"])
+    elif is_nelson:
         cf_disease = LeadCustomField.objects.filter(hospital=h, name="disease").first()
         if cf_disease:
             dis_names = list(HospitalDisease.objects.filter(hospital=h, is_active=True).values_list("name", flat=True))
@@ -2124,14 +2523,44 @@ def universal_master_list(request):
                 cf_branch.options = ", ".join(branch_names)
                 cf_branch.save(update_fields=["options"])
 
-        all_fields_qs = LeadCustomField.objects.filter(hospital=h).order_by('order', 'id')
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def universal_master_list(request):
+    from leads.models import LeadCustomField
+    from accounts.models import Hospital
+
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    # Ensure default universal fields are seeded
+    _ensure_business_core_fields("default")
+
+    h = _get_business_for_custom_fields(request)
+    if h != "default":
+        _ensure_business_core_fields(h)
+
+    available_businesses = list(Hospital.objects.filter(is_active=True).order_by("id")) if is_global_admin else []
+    if request.user.hospital and not available_businesses:
+        available_businesses = [request.user.hospital]
+
+    if h == "default":
+        all_fields_qs = LeadCustomField.objects.filter(hospital__isnull=True).order_by('order', 'id')
+        current_hospital = None
+        is_default_tab = True
     else:
-        # Global Super Admin: see all custom fields across all businesses
-        all_fields_qs = LeadCustomField.objects.all().order_by('order', 'id')
+        all_fields_qs = LeadCustomField.objects.filter(hospital=h).order_by('order', 'id') if h else LeadCustomField.objects.all().order_by('order', 'id')
+        current_hospital = h
+        is_default_tab = False
 
     return render(request, "leads/universal_masters.html", {
         "active": "universal_masters",
         "all_fields": all_fields_qs,
+        "current_hospital": current_hospital,
+        "is_default_tab": is_default_tab,
+        "available_businesses": available_businesses,
+        "is_global_admin": is_global_admin,
     })
 
 
@@ -2141,6 +2570,10 @@ def custom_field_add(request):
     from leads.models import LeadCustomField
     from django.utils.text import slugify
     from django.db.models import Max, F
+    
+    target_hospital = _get_business_for_custom_fields(request)
+    target_hospital_obj = None if target_hospital == "default" else target_hospital
+
     if request.method == "POST":
         label = request.POST.get("label", "").strip()
         field_type = request.POST.get("field_type", "TEXT")
@@ -2149,8 +2582,9 @@ def custom_field_add(request):
         help_text = request.POST.get("help_text", "").strip()
         is_required = request.POST.get("is_required") == "on"
         order_raw = request.POST.get("order", "").strip()
+        biz_param = request.POST.get("business", "").strip() or ("default" if target_hospital == "default" else (str(target_hospital.id) if target_hospital else ""))
 
-        qs = LeadCustomField.objects.filter(hospital=request.user.hospital)
+        qs = LeadCustomField.objects.filter(hospital=target_hospital_obj)
 
         try:
             order_val = int(order_raw) if order_raw else None
@@ -2158,25 +2592,22 @@ def custom_field_add(request):
             order_val = None
 
         if order_val is None or order_val <= 0:
-            # Add to the end: max order + 1
             max_order = qs.aggregate(m=Max('order'))['m'] or 0
             order = max_order + 1
         else:
             order = order_val
-            # Shift all subsequent fields with order >= specified order by +1
             qs.filter(order__gte=order).update(order=F('order') + 1)
 
         if label:
             name = slugify(label).replace("-", "_")
-            # Ensure unique name per hospital
             base_name = name
             count = 1
-            while LeadCustomField.objects.filter(hospital=request.user.hospital, name=name).exists():
+            while LeadCustomField.objects.filter(hospital=target_hospital_obj, name=name).exists():
                 name = f"{base_name}_{count}"
                 count += 1
 
             LeadCustomField.objects.create(
-                hospital=request.user.hospital,
+                hospital=target_hospital_obj,
                 name=name,
                 label=label,
                 field_type=field_type,
@@ -2188,10 +2619,13 @@ def custom_field_add(request):
                 is_active=True,
             )
             messages.success(request, f"New custom form field '{label}' added at position #{order} successfully.")
-            return redirect("/leads/universal-masters/?tab=custom_fields")
+            redirect_url = f"/leads/universal-masters/?tab=custom_fields&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=custom_fields"
+            return redirect(redirect_url)
         messages.error(request, "Field label is required.")
-    return redirect("/leads/universal-masters/?tab=custom_fields")
-
+    
+    biz_param = request.GET.get("business", "").strip() or ("default" if target_hospital == "default" else (str(target_hospital.id) if target_hospital else ""))
+    redirect_url = f"/leads/universal-masters/?tab=custom_fields&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=custom_fields"
+    return redirect(redirect_url)
 
 
 @login_required
@@ -2199,10 +2633,14 @@ def custom_field_add(request):
 def custom_field_edit(request, pk):
     from leads.models import LeadCustomField
     field = get_object_or_404(LeadCustomField, pk=pk)
-    if field.hospital != request.user.hospital:
+    
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    if not is_superadmin and field.hospital != request.user.hospital:
         messages.error(request, "Permission denied.")
         return redirect("/leads/universal-masters/?tab=custom_fields")
         
+    biz_param = request.POST.get("business", "").strip() or (str(field.hospital.id) if field.hospital else "default")
+
     if request.method == "POST":
         label = request.POST.get("label", "").strip()
         field_type = request.POST.get("field_type", "TEXT")
@@ -2227,17 +2665,13 @@ def custom_field_edit(request, pk):
             field.is_required = is_required
             field.is_active = is_active
             
-            # Fetch all fields in current order
-            all_fields = list(LeadCustomField.objects.filter(hospital=request.user.hospital).order_by('order', 'id'))
+            all_fields = list(LeadCustomField.objects.filter(hospital=field.hospital).order_by('order', 'id'))
             
             if order > 0 and order != old_order:
-                # Remove field from current list position
                 all_fields = [f for f in all_fields if f.pk != field.pk]
-                # Insert at new 0-indexed position (order - 1)
                 insert_idx = max(0, min(order - 1, len(all_fields)))
                 all_fields.insert(insert_idx, field)
                 
-                # Reassign clean contiguous orders: 1, 2, 3...
                 for idx, f in enumerate(all_fields):
                     f.order = idx + 1
                     if f.pk == field.pk:
@@ -2248,7 +2682,6 @@ def custom_field_edit(request, pk):
             else:
                 field.save()
 
-            # Automatically sync updated options into corresponding MasterGroup/MasterItems
             FIELD_TO_GROUP_MAP = {
                 "appointment_status": "Appointment Statuses",
                 "lead_source": "Lead Sources",
@@ -2264,19 +2697,20 @@ def custom_field_edit(request, pk):
                 mg, _ = MasterGroup.objects.get_or_create(name=group_name)
                 new_opts = [o.strip() for o in options.split(",") if o.strip()]
                 if new_opts:
-                    # Deactivate or remove old items not in new list
-                    mg.items.filter(hospital=request.user.hospital).exclude(name__in=new_opts).delete()
+                    mg.items.filter(hospital=field.hospital).exclude(name__in=new_opts).delete()
                     for idx, opt_name in enumerate(new_opts):
                         MasterItem.objects.update_or_create(
                             group=mg,
-                            hospital=request.user.hospital,
+                            hospital=field.hospital,
                             name=opt_name,
                             defaults={"order": idx + 1, "is_active": True}
                         )
                 
             messages.success(request, f"Form field '{label}' updated successfully.")
-        return redirect("/leads/universal-masters/")
-    return redirect("/leads/universal-masters/")
+        redirect_url = f"/leads/universal-masters/?business={biz_param}" if biz_param else "/leads/universal-masters/"
+        return redirect(redirect_url)
+    redirect_url = f"/leads/universal-masters/?business={biz_param}" if biz_param else "/leads/universal-masters/"
+    return redirect(redirect_url)
 
 
 @login_required
@@ -2284,14 +2718,18 @@ def custom_field_edit(request, pk):
 def custom_field_toggle(request, pk):
     from leads.models import LeadCustomField
     field = get_object_or_404(LeadCustomField, pk=pk)
-    if field.hospital != request.user.hospital:
+    
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    if not is_superadmin and field.hospital != request.user.hospital:
         messages.error(request, "Permission denied.")
         return redirect("/leads/universal-masters/?tab=custom_fields")
         
     field.is_active = not field.is_active
     field.save(update_fields=["is_active"])
     messages.success(request, f"Field '{field.label}' is now {'Active' if field.is_active else 'Hidden'}.")
-    return redirect("/leads/universal-masters/?tab=custom_fields")
+    biz_param = request.GET.get("business", "").strip() or (str(field.hospital.id) if field.hospital else "default")
+    redirect_url = f"/leads/universal-masters/?tab=custom_fields&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=custom_fields"
+    return redirect(redirect_url)
 
 
 @login_required
@@ -2299,14 +2737,18 @@ def custom_field_toggle(request, pk):
 def custom_field_delete(request, pk):
     from leads.models import LeadCustomField
     field = get_object_or_404(LeadCustomField, pk=pk)
-    if field.hospital != request.user.hospital:
+    
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    if not is_superadmin and field.hospital != request.user.hospital:
         messages.error(request, "Permission denied.")
         return redirect("/leads/universal-masters/?tab=custom_fields")
         
     label = field.label
+    biz_param = request.POST.get("business", "").strip() or (str(field.hospital.id) if field.hospital else "default")
     field.delete()
     messages.success(request, f"Custom form field '{label}' removed from lead form.")
-    return redirect("/leads/universal-masters/?tab=custom_fields")
+    redirect_url = f"/leads/universal-masters/?tab=custom_fields&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=custom_fields"
+    return redirect(redirect_url)
 
 
 @login_required

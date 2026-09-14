@@ -35,8 +35,11 @@
     </div>
     <div class="col-md-3">
       <div class="d-flex gap-1">
+        {% if current_hospital %}
+          <input type="hidden" name="business" value="{{ current_hospital.id }}">
+        {% endif %}
         <button class="btn btn-sm btn-brand text-white w-50" type="submit">Filter</button>
-        <a href="{% url 'dashboard:management_daily_reports' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Reset</a>
+        <a href="{% url 'dashboard:management_daily_reports' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Reset</a>
       </div>
     </div>
   </div>

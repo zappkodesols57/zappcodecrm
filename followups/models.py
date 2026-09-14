@@ -17,6 +17,8 @@ class FollowUpMode(models.TextChoices):
 class FollowUpStatus(models.TextChoices):
     PENDING = "PENDING", "Pending"
     COMPLETED = "COMPLETED", "Completed"
+    CALL_BACK = "CALL_BACK", "Call Back"
+    DNP = "DNP", "Do Not Pickup (DNP)"
     NOT_CONNECTED = "NOT_CONNECTED", "Not Connected"
     INTERESTED = "INTERESTED", "Interested"
     NOT_INTERESTED = "NOT_INTERESTED", "Not Interested"
