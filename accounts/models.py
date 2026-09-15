@@ -181,7 +181,7 @@ class User(AbstractUser):
 
     @property
     def can_manage_masters(self):
-        return self.has_dynamic_permission("manage_masters", default=self.role in (self.Role.SUPER_ADMIN,))
+        return self.has_dynamic_permission("manage_masters", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
 
     @property
     def can_import_export(self):

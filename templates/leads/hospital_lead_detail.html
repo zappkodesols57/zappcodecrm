@@ -213,6 +213,71 @@
       </div>
     </div>
 
+
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-secondary me-2"></i>Activity Timeline</h6>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for item in timeline %}
+          <div class="timeline-item pb-3 mb-3 border-bottom small">
+            <div class="d-flex justify-content-between text-muted">
+              <span><strong>{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}</strong> — {{ item.get_activity_type_display }}</span>
+              <span>{{ item.created_at|date:"d M Y, h:i A" }}</span>
+            </div>
+            <div class="text-dark mt-1">{{ item.description }}</div>
+          </div>
+          {% empty %}
+          <div class="text-muted text-center py-3 small">No activity recorded yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Scheduled Follow-ups Section -->
+    {% if followups %}
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Scheduled Follow-ups
+        </h6>
+        <span class="badge bg-light text-secondary border rounded-pill">{{ followups|length }} follow-up{% if followups|length > 1 %}s{% endif %}</span>
+      </div>
+      <div class="card-body p-3">
+        <div class="d-flex flex-column gap-2" style="max-height: 280px; overflow-y: auto;">
+          {% for fu in followups %}
+          <div class="p-3 rounded-3 border bg-white shadow-xs">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="d-flex align-items-center gap-1 flex-wrap">
+                <span class="badge {% if fu.followup_status == 'COMPLETED' %}bg-success{% elif fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' or fu.followup_status == 'CALL_BACK' %}bg-info text-dark{% elif fu.followup_status == 'CANCELLED' or fu.followup_status == 'NOT_INTERESTED' %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size: 0.72rem;">
+                  {{ fu.get_followup_status_display }}
+                </span>
+                <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">{{ fu.get_followup_mode_display }}</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#updateFollowupModal{{ fu.id }}" title="Update Follow-up Status">
+                <i class="fa-solid fa-pen-to-square"></i> Update Status
+              </button>
+            </div>
+            <div class="text-muted small d-flex justify-content-between align-items-center mb-1" style="font-size: 0.75rem;">
+              <span><i class="fa-regular fa-calendar me-1"></i>{{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+              {% if fu.created_by %}<span class="text-truncate" style="max-width: 140px;"><i class="fa-solid fa-user me-1"></i>By: {{ fu.created_by.get_full_name|default:fu.created_by.username }}</span>{% endif %}
+            </div>
+            {% if fu.next_followup_date %}
+            <div class="small text-info mb-1" style="font-size: 0.73rem;">
+              <i class="fa-solid fa-arrow-right me-1"></i>Next Scheduled: <strong>{{ fu.next_followup_date|date:"d M Y" }}{% if fu.next_followup_time %} at {{ fu.next_followup_time|time:"h:i A" }}{% endif %}</strong>
+            </div>
+            {% endif %}
+            {% if fu.comment %}
+            <div class="text-dark small text-break p-2 bg-light rounded mt-1" style="font-size: 0.78rem; line-height: 1.4; white-space: pre-wrap;">{{ fu.comment }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Add Follow-up & Interaction Section -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
       <div class="card-header bg-white py-3 border-bottom">
@@ -321,28 +386,6 @@
       })();
     </script>
 
-    <!-- Timeline History -->
-    <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-secondary me-2"></i>Activity Timeline</h6>
-      </div>
-      <div class="card-body">
-        <div class="timeline">
-          {% for item in timeline %}
-          <div class="timeline-item pb-3 mb-3 border-bottom small">
-            <div class="d-flex justify-content-between text-muted">
-              <span><strong>{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}</strong> — {{ item.get_activity_type_display }}</span>
-              <span>{{ item.created_at|date:"d M Y, h:i A" }}</span>
-            </div>
-            <div class="text-dark mt-1">{{ item.description }}</div>
-          </div>
-          {% empty %}
-          <div class="text-muted text-center py-3 small">No activity recorded yet.</div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
   </div>
 
   <!-- Right Column: Campaign, Source & Owner -->
@@ -393,4 +436,55 @@
     </div>
   </div>
 </div>
+{% for fu in followups %}
+<div class="modal fade" id="updateFollowupModal{{ fu.id }}" tabindex="-1" aria-labelledby="updateFollowupModalLabel{{ fu.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header bg-light border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="modal-title fw-bold text-dark mb-0" id="updateFollowupModalLabel{{ fu.id }}">
+            <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>Update Follow-up Status
+          </h6>
+          <span class="text-muted small" style="font-size: 0.75rem;">Scheduled: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'leads:update_followup_status' lead.pk fu.id %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
+            <select name="followup_status" class="form-select form-select-sm" required>
+              {% for val, label in followup_statuses %}
+                <option value="{{ val }}" {% if fu.followup_status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text text-muted" style="font-size: 0.72rem;">Update this follow-up (e.g. Completed, Rescheduled, Call Back, Pending, Cancelled)</div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-7">
+              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Reschedule Date (If applicable)</label>
+              <input type="date" name="next_followup_date" class="form-control form-control-sm" value="{% if fu.next_followup_date %}{{ fu.next_followup_date|date:'Y-m-d' }}{% endif %}" min="{{ today|date:'Y-m-d' }}">
+            </div>
+            <div class="col-5">
+              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
+              <input type="time" name="next_followup_time" class="form-control form-control-sm" value="{% if fu.next_followup_time %}{{ fu.next_followup_time|time:'H:i' }}{% endif %}">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Update Note / Remarks</label>
+            <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call/interaction or notes for this status update..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-0 py-2 px-4 d-flex justify-content-between">
+          <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-brand text-white px-4 fw-semibold rounded-pill shadow-sm">
+            <i class="fa-solid fa-check me-1"></i> Save Update
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
 {% endblock %}

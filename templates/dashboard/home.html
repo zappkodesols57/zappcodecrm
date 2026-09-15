@@ -3,326 +3,387 @@
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  .kpi-link {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  .kpi-link:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
-  }
-  .btn-outline-brand {
-    color: var(--brand);
-    border-color: var(--brand);
-  }
-  .btn-outline-brand:hover {
-    background-color: var(--brand);
-    color: #fff;
-  }
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-  .animate-pulse {
-    animation: pulse 2s infinite ease-in-out;
-  }
+    .kpi-link {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
 
-  /* Interactive Drilldown Calendar & Pill Styles */
-  .cal-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-  }
-  .cal-header-cell {
-    text-align: center;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #64748b;
-    text-transform: uppercase;
-    padding-bottom: 4px;
-  }
-  .cal-day-cell {
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    padding: 6px 2px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    min-height: 48px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
-  .cal-day-cell:hover {
-    border-color: #4f46e5;
-    background: #f5f3ff;
-    transform: translateY(-2px);
-  }
-  .cal-day-cell.active-day {
-    border-color: #4f46e5;
-    background: #4f46e5 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
-  }
-  .cal-day-cell.active-day .cal-day-num,
-  .cal-day-cell.active-day .cal-day-count {
-    color: #ffffff !important;
-  }
-  .cal-day-cell.has-leads {
-    border-color: #c7d2fe;
-    background: #eef2ff;
-  }
-  .cal-day-num {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #1e293b;
-    line-height: 1;
-  }
-  .cal-day-count {
-    font-size: 0.68rem;
-    font-weight: 800;
-    margin-top: 3px;
-    padding: 1px 4px;
-    border-radius: 10px;
-    line-height: 1;
-  }
-  .nav-time-pill {
-    border: 1px solid #cbd5e1;
-    background: #ffffff;
-    color: #334155;
-    font-size: 0.8rem;
-    font-weight: 600;
-    border-radius: 50rem;
-    padding: 4px 12px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .nav-time-pill:hover,
-  .nav-time-pill.active {
-    background: #4f46e5;
-    border-color: #4f46e5;
-    color: #ffffff;
-  }
-  .cal-day-cell.disabled-day {
-    opacity: 0.35 !important;
-    cursor: not-allowed !important;
-    background: #f1f5f9 !important;
-    border-color: #e2e8f0 !important;
-    pointer-events: none !important;
-  }
-  .nav-time-pill.disabled-pill {
-    opacity: 0.4 !important;
-    cursor: not-allowed !important;
-    pointer-events: none !important;
-  }
-  .cursor-pointer {
-    cursor: pointer !important;
-  }
+    .kpi-link:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .btn-outline-brand {
+        color: var(--brand);
+        border-color: var(--brand);
+    }
+
+    .btn-outline-brand:hover {
+        background-color: var(--brand);
+        color: #fff;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .animate-pulse {
+        animation: pulse 2s infinite ease-in-out;
+    }
+
+    /* Interactive Drilldown Calendar & Pill Styles */
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+    }
+
+    .cal-header-cell {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        padding-bottom: 4px;
+    }
+
+    .cal-day-cell {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        padding: 6px 2px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        min-height: 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .cal-day-cell:hover {
+        border-color: #4f46e5;
+        background: #f5f3ff;
+        transform: translateY(-2px);
+    }
+
+    .cal-day-cell.active-day {
+        border-color: #4f46e5;
+        background: #4f46e5 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
+    }
+
+    .cal-day-cell.active-day .cal-day-num,
+    .cal-day-cell.active-day .cal-day-count {
+        color: #ffffff !important;
+    }
+
+    .cal-day-cell.has-leads {
+        border-color: #c7d2fe;
+        background: #eef2ff;
+    }
+
+    .cal-day-num {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1;
+    }
+
+    .cal-day-count {
+        font-size: 0.68rem;
+        font-weight: 800;
+        margin-top: 3px;
+        padding: 1px 4px;
+        border-radius: 10px;
+        line-height: 1;
+    }
+
+    .nav-time-pill {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 50rem;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .nav-time-pill:hover,
+    .nav-time-pill.active {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #ffffff;
+    }
+
+    .cal-day-cell.disabled-day {
+        opacity: 0.35 !important;
+        cursor: not-allowed !important;
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0 !important;
+        pointer-events: none !important;
+    }
+
+    .nav-time-pill.disabled-pill {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+    }
+
+    .cursor-pointer {
+        cursor: pointer !important;
+    }
 </style>
 {% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Dashboard</h4>
-  {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
+    <h4 class="mb-0">Dashboard</h4>
+    {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
     {% if pending_approvals_count > 0 %}
-      <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse"><i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s) Pending</a>
+    <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse"><i
+            class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s) Pending</a>
     {% endif %}
-  {% endif %}
+    {% endif %}
 </div>
 
 {% if request.user.role == 'COUNSELLOR' or request.user.role == 'HR' %}
-  {% if kpis.total_leads == 0 %}
-  <div class="alert border-0 mb-3 d-flex align-items-start gap-3" style="background: linear-gradient(135deg,#eff6ff,#dbeafe); border-left:4px solid #3b82f6 !important; border-radius:0.75rem;">
+{% if kpis.total_leads == 0 %}
+<div class="alert border-0 mb-3 d-flex align-items-start gap-3"
+    style="background: linear-gradient(135deg,#eff6ff,#dbeafe); border-left:4px solid #3b82f6 !important; border-radius:0.75rem;">
     <div style="font-size:1.5rem; margin-top:2px;">👋</div>
     <div>
-      <div class="fw-bold text-primary mb-1">Koi leads assign nahi hui abhi tak</div>
-      <div class="text-muted small">Aapka dashboard data tab dikhayega jab aapka Manager aapko leads assign karega ya aap unassigned leads capture karenge. Tab tak aap apni daily report submit kar sakte hain.</div>
-      <a href="{% url 'dashboard:submit_daily_report' %}" class="btn btn-sm btn-outline-primary mt-2"><i class="fa-solid fa-file-signature me-1"></i> Submit Daily Report</a>
+        <div class="fw-bold text-primary mb-1">Koi leads assign nahi hui abhi tak</div>
+        <div class="text-muted small">Aapka dashboard data tab dikhayega jab aapka Manager aapko leads assign karega ya
+            aap unassigned leads capture karenge. Tab tak aap apni daily report submit kar sakte hain.</div>
+        <a href="{% url 'dashboard:submit_daily_report' %}" class="btn btn-sm btn-outline-primary mt-2"><i
+                class="fa-solid fa-file-signature me-1"></i> Submit Daily Report</a>
     </div>
-  </div>
-  {% endif %}
+</div>
+{% endif %}
 {% endif %}
 
 <!-- ─── EXACT 6 COUNSELLOR / HR KPI CARDS (Interactive Click with Prev, Today, Next, All, Calendar) ─── -->
 <div class="row g-3 mb-4">
-  
-  <!-- 1. Today's New Leads -->
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #3b82f6 !important;" onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'primary')" title="Click to view fresh leads & records">
-      <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Today's New Leads</span>
-        <i class="fa-solid fa-sparkles text-primary"></i>
-      </div>
-      <div class="value fs-3 fw-bold text-dark">{{ kpis.todays_new|default:0 }}</div>
-      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
-        <span class="text-primary fw-medium"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</span>
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Active</span>
-      </div>
-    </div>
-  </div>
 
-  <!-- 2. Call Not Done (Pending First Call / Uncontacted) -->
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #f59e0b !important;" onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'warning')" title="Click to view pending calls & calling queue">
-      <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Call Not Done</span>
-        <i class="fa-solid fa-phone-slash text-warning"></i>
-      </div>
-      <div class="value fs-3 fw-bold text-dark">{{ kpis.call_not_done|default:0 }}</div>
-      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
-        <span class="text-warning fw-medium"><i class="fa-solid fa-headset me-1"></i>Pending First Calls</span>
-        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Calling Queue</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. Admission & Billing Today (Merged Single KPI Card with Breakdown) -->
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #10b981 !important;" onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Billing Today', 'success')" title="Click to view admissions & billing records">
-      <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Admission & Billing Today</span>
-        <div class="d-flex gap-1">
-          <i class="fa-solid fa-user-graduate text-success"></i>
-          <i class="fa-solid fa-receipt text-purple" style="color: #8b5cf6;"></i>
+    <!-- 1. Today's New Leads -->
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+            style="border-left: 4px solid #3b82f6 !important;"
+            onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'primary')"
+            title="Click to view fresh leads & records">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="label text-muted small fw-bold text-uppercase">Today's New Leads</span>
+                <i class="fa-solid fa-sparkles text-primary"></i>
+            </div>
+            <div class="value fs-3 fw-bold text-dark">{{ kpis.todays_new|default:0 }}</div>
+            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
+                style="font-size: 0.75rem;">
+                <span class="text-primary fw-medium"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View
+                    Fresh Leads</span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Active</span>
+            </div>
         </div>
-      </div>
-      <div class="d-flex align-items-baseline gap-2">
-        <div class="value fs-3 fw-bold text-dark">{{ kpis.admission_today|default:0 }}</div>
-        <small class="text-muted fw-semibold">Admissions</small>
-      </div>
-      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
-        <span class="text-success fw-medium"><i class="fa-solid fa-circle-check me-1"></i>Admissions: <strong>{{ kpis.admission_today|default:0 }}</strong></span>
-        <span class="text-secondary fw-medium"><i class="fa-solid fa-credit-card me-1"></i>Billing: <strong class="text-dark">{% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}</strong></span>
-      </div>
     </div>
-  </div>
 
-  <!-- 4. Follow-ups Queue (Upcoming & Overdue Merged Single KPI Card with Breakdown) -->
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="kpi-card kpi-4 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer" style="border-left: 4px solid #06b6d4 !important;" onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'info')" title="Click to view upcoming and overdue follow-ups">
-      <div class="d-flex align-items-center justify-content-between mb-1">
-        <span class="label text-muted small fw-bold text-uppercase">Follow-ups Queue</span>
-        <div class="d-flex gap-1">
-          <i class="fa-solid fa-calendar-days text-info"></i>
-          <i class="fa-solid fa-bell-slash text-danger"></i>
+    <!-- 2. Call Not Done (Pending First Call / Uncontacted) -->
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+            style="border-left: 4px solid #f59e0b !important;"
+            onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'warning')"
+            title="Click to view pending calls & calling queue">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="label text-muted small fw-bold text-uppercase">Call Not Done</span>
+                <i class="fa-solid fa-phone-slash text-warning"></i>
+            </div>
+            <div class="value fs-3 fw-bold text-dark">{{ kpis.call_not_done|default:0 }}</div>
+            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
+                style="font-size: 0.75rem;">
+                <span class="text-warning fw-medium"><i class="fa-solid fa-headset me-1"></i>Pending First Calls</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Calling Queue</span>
+            </div>
         </div>
-      </div>
-      <div class="d-flex align-items-baseline gap-2">
-        <div class="value fs-3 fw-bold text-dark">{{ kpis.total_followups|default:kpis.upcoming_followups|default:0 }}</div>
-        <small class="text-muted fw-semibold">Total Due</small>
-      </div>
-      <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.75rem;">
-        <span class="text-info fw-medium"><i class="fa-solid fa-clock me-1"></i>Upcoming: <strong>{{ kpis.upcoming_followups|default:0 }}</strong></span>
-        <span class="text-danger fw-medium"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue: <strong>{{ kpis.overdue_followups|default:0 }}</strong></span>
-      </div>
     </div>
-  </div>
+
+    <!-- 3. Admission & Billing Today (Merged Single KPI Card with Breakdown) -->
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+            style="border-left: 4px solid #10b981 !important;"
+            onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Billing Today', 'success')"
+            title="Click to view admissions & billing records">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="label text-muted small fw-bold text-uppercase">Admission & Billing Today</span>
+                <div class="d-flex gap-1">
+                    <i class="fa-solid fa-user-graduate text-success"></i>
+                    <i class="fa-solid fa-receipt text-purple" style="color: #8b5cf6;"></i>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <div class="value fs-3 fw-bold text-dark">{{ kpis.admission_today|default:0 }}</div>
+                <small class="text-muted fw-semibold">Admissions</small>
+            </div>
+            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
+                style="font-size: 0.75rem;">
+                <span class="text-success fw-medium"><i class="fa-solid fa-circle-check me-1"></i>Admissions: <strong>{{
+                        kpis.admission_today|default:0 }}</strong></span>
+                <span class="text-secondary fw-medium"><i class="fa-solid fa-credit-card me-1"></i>Billing: <strong
+                        class="text-dark">{% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else
+                        %}{{ kpis.billing_count_today|default:0 }}{% endif %}</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Follow-ups Queue (Upcoming & Overdue Merged Single KPI Card with Breakdown) -->
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="kpi-card kpi-4 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+            style="border-left: 4px solid #06b6d4 !important;"
+            onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'info')"
+            title="Click to view upcoming and overdue follow-ups">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="label text-muted small fw-bold text-uppercase">Follow-ups Queue</span>
+                <div class="d-flex gap-1">
+                    <i class="fa-solid fa-calendar-days text-info"></i>
+                    <i class="fa-solid fa-bell-slash text-danger"></i>
+                </div>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+                <div class="value fs-3 fw-bold text-dark">{{
+                    kpis.total_followups|default:kpis.upcoming_followups|default:0 }}</div>
+                <small class="text-muted fw-semibold">Total Due</small>
+            </div>
+            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
+                style="font-size: 0.75rem;">
+                <span class="text-info fw-medium"><i class="fa-solid fa-clock me-1"></i>Upcoming: <strong>{{
+                        kpis.upcoming_followups|default:0 }}</strong></span>
+                <span class="text-danger fw-medium"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue:
+                    <strong>{{ kpis.overdue_followups|default:0 }}</strong></span>
+            </div>
+        </div>
+    </div>
 
 </div>
 
 <!-- ─── CHARTS SECTION (Side-by-Side Modern Clean Layout) ─── -->
 <div class="row g-3 mb-4">
-  <!-- Lead Stage Funnel -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>My Lead Stage Funnel</h6>
-        <span class="badge bg-light text-muted border small">Funnel</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="funnelChart"></canvas></div>
+    <!-- Lead Stage Funnel -->
+    <div class="col-md-6">
+        <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>My Lead Stage
+                    Funnel</h6>
+                <span class="badge bg-light text-muted border small">Funnel</span>
+            </div>
+            <div style="height: 240px; position: relative;"><canvas id="funnelChart"></canvas></div>
+        </div>
     </div>
-  </div>
 
-  <!-- Monthly Lead Trend -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up me-2 text-info"></i>Monthly Activity Trend</h6>
-        <span class="badge bg-light text-muted border small">Timeline</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="trendChart"></canvas></div>
+    <!-- Monthly Lead Trend -->
+    <div class="col-md-6">
+        <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up me-2 text-info"></i>Monthly
+                    Activity Trend</h6>
+                <span class="badge bg-light text-muted border small">Timeline</span>
+            </div>
+            <div style="height: 240px; position: relative;"><canvas id="trendChart"></canvas></div>
+        </div>
     </div>
-  </div>
 </div>
 
 <div class="row g-3 mb-4">
-  <!-- Lead Source Distribution -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px; border-top: 3px solid #6366f1 !important;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source Distribution</h6>
-        <span class="badge bg-light text-muted border small">Channels</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="sourceChart"></canvas></div>
+    <!-- Lead Source Distribution -->
+    <div class="col-md-6">
+        <div class="card p-3 h-100 shadow-sm border-0"
+            style="border-radius: 14px; border-top: 3px solid #6366f1 !important;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source
+                    Distribution</h6>
+                <span class="badge bg-light text-muted border small">Channels</span>
+            </div>
+            <div style="height: 240px; position: relative;"><canvas id="sourceChart"></canvas></div>
+        </div>
     </div>
-  </div>
 
-  <!-- Course-wise Leads -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px; border-top: 3px solid #10b981 !important;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-graduation-cap me-2 text-success"></i>Course-wise Distribution</h6>
-        <span class="badge bg-light text-muted border small">Courses</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="courseChart"></canvas></div>
+    <!-- Course-wise Leads -->
+    <div class="col-md-6">
+        <div class="card p-3 h-100 shadow-sm border-0"
+            style="border-radius: 14px; border-top: 3px solid #10b981 !important;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-dark fw-bold mb-0"><i
+                        class="fa-solid fa-graduation-cap me-2 text-success"></i>Course-wise Distribution</h6>
+                <span class="badge bg-light text-muted border small">Courses</span>
+            </div>
+            <div style="height: 240px; position: relative;"><canvas id="courseChart"></canvas></div>
+        </div>
     </div>
-  </div>
 </div>
 
 {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
 <div class="card mb-4 shadow-sm border-0">
-  <div class="card-header bg-white py-3 border-0 d-flex align-items-center gap-2">
-    <i class="fa-solid fa-users-gear text-primary fs-5"></i>
-    <h5 class="card-title mb-0 fw-bold">Team Activity Today</h5>
-  </div>
-  <div class="table-responsive">
-    <table class="table mb-0 align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Employee Name</th>
-          <th>Role</th>
-          <th>Outgoing Calls</th>
-          <th>Incoming Calls</th>
-          <th>WhatsApp Sent</th>
-          <th>SMS Sent</th>
-          <th>Email Sent</th>
-          <th>Total Entries Today</th>
-          <th class="text-end">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for stat in team_stats %}
-        <tr>
-          <td>
-            <div class="fw-bold">{{ stat.member.get_full_name|default:stat.member.username }}</div>
-            <div class="text-muted small">@{{ stat.member.username }}</div>
-          </td>
-          <td><span class="badge text-bg-light border">{{ stat.member.get_role_display }}</span></td>
-          <td><span class="badge text-bg-success">{{ stat.outgoing_calls }}</span></td>
-          <td><span class="badge text-bg-info">{{ stat.incoming_calls }}</span></td>
-          <td>{{ stat.whatsapp }}</td>
-          <td>{{ stat.sms }}</td>
-          <td>{{ stat.email }}</td>
-          <td><strong class="text-dark fs-6">{{ stat.total_entries }}</strong></td>
-          <td class="text-end">
-            <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}" class="btn btn-sm btn-outline-brand"><i class="fa-solid fa-file-invoice me-1"></i>View Daily Entry Log</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="9">
-            <div class="empty-state text-center py-4 text-muted">
-              <i class="fa-solid fa-users-slash fs-3 mb-2"></i>
-              <div>No active Counselor or HR team members found.</div>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <div class="card-header bg-white py-3 border-0 d-flex align-items-center gap-2">
+        <i class="fa-solid fa-users-gear text-primary fs-5"></i>
+        <h5 class="card-title mb-0 fw-bold">Team Activity Today</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Employee Name</th>
+                    <th>Role</th>
+                    <th>Outgoing Calls</th>
+                    <th>Incoming Calls</th>
+                    <th>WhatsApp Sent</th>
+                    <th>SMS Sent</th>
+                    <th>Email Sent</th>
+                    <th>Total Entries Today</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in team_stats %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ stat.member.get_full_name|default:stat.member.username }}</div>
+                        <div class="text-muted small">@{{ stat.member.username }}</div>
+                    </td>
+                    <td><span class="badge text-bg-light border">{{ stat.member.get_role_display }}</span></td>
+                    <td><span class="badge text-bg-success">{{ stat.outgoing_calls }}</span></td>
+                    <td><span class="badge text-bg-info">{{ stat.incoming_calls }}</span></td>
+                    <td>{{ stat.whatsapp }}</td>
+                    <td>{{ stat.sms }}</td>
+                    <td>{{ stat.email }}</td>
+                    <td><strong class="text-dark fs-6">{{ stat.total_entries }}</strong></td>
+                    <td class="text-end">
+                        <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}"
+                            class="btn btn-sm btn-outline-brand"><i class="fa-solid fa-file-invoice me-1"></i>View Daily
+                            Entry Log</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state text-center py-4 text-muted">
+                            <i class="fa-solid fa-users-slash fs-3 mb-2"></i>
+                            <div>No active Counselor or HR team members found.</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endif %}
 
@@ -331,41 +392,50 @@
 <!-- ========================================================================= -->
 <div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle"
     aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 96vw;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 92vw;">
         <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
 
             <!-- Modal Header with Time Navigator Pills -->
-            <div class="modal-header bg-light border-bottom py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div
+                class="modal-header bg-light border-bottom py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div class="d-flex align-items-center gap-2">
                     <span id="drilldownCardBadgeIcon" class="badge bg-primary p-2 rounded-3 fs-6">
                         <i class="fa-solid fa-table-cells-large"></i>
                     </span>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="universalCardModalTitle">
+                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2"
+                            id="universalCardModalTitle">
                             Card Leads Breakdown
                         </h5>
                         <p class="text-muted small mb-0" id="universalCardModalSubtitle">
-                            Viewing records for: <strong id="drilldownActiveDateLabel" class="text-primary">Today</strong> (<span id="drilldownTotalBadge">0</span> records)
+                            Viewing records for: <strong id="drilldownActiveDateLabel"
+                                class="text-primary">Today</strong> (<span id="drilldownTotalBadge">0</span> records)
                         </p>
                     </div>
                 </div>
 
                 <!-- Interactive Time Modes (Today / Previous / Next / All / Custom) -->
                 <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')" title="Previous Day">
+                    <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')"
+                        title="Previous Day">
                         <i class="fa-solid fa-chevron-left me-1"></i> Prev
                     </button>
-                    <button type="button" class="nav-time-pill active" id="pillToday" onclick="drilldownSetMode('today')" title="Today's Leads">
+                    <button type="button" class="nav-time-pill active" id="pillToday"
+                        onclick="drilldownSetMode('today')" title="Today's Leads">
                         <i class="fa-solid fa-sun me-1"></i> Today
                     </button>
-                    <button type="button" class="nav-time-pill" id="pillNext" onclick="drilldownSetMode('next')" title="Next Day">
+                    <button type="button" class="nav-time-pill" id="pillNext" onclick="drilldownSetMode('next')"
+                        title="Next Day">
                         Next <i class="fa-solid fa-chevron-right ms-1"></i>
                     </button>
-                    <button type="button" class="nav-time-pill" id="pillAll" onclick="drilldownSetMode('all')" title="All Time Leads">
+                    <button type="button" class="nav-time-pill" id="pillAll" onclick="drilldownSetMode('all')"
+                        title="All Time Leads">
                         <i class="fa-solid fa-database me-1"></i> All
                     </button>
-                    <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()" title="Pick Any Specific Date with Live Count">
-                        <i class="fa-solid fa-calendar-days me-1"></i> Custom Date <i class="fa-solid fa-chevron-down ms-1"></i>
+                    <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()"
+                        title="Pick Any Specific Date with Live Count">
+                        <i class="fa-solid fa-calendar-days me-1"></i> Custom Date <i
+                            class="fa-solid fa-chevron-down ms-1"></i>
                     </button>
                     <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -374,21 +444,44 @@
             <!-- Modal Body -->
             <div class="modal-body p-4 bg-light bg-opacity-25">
 
-                <!-- Custom Interactive Calendar Heatmap Picker (Collapsible) -->
-                <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3" style="display: none; background: #ffffff;">
+                <!-- Custom Interactive Calendar Heatmap Picker & Date Range (Collapsible) -->
+                <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3"
+                    style="display: none; background: #ffffff;">
                     <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                                 <i class="fa-solid fa-calendar-days text-primary"></i>
-                                Select Any Date (<span id="calMonthTitle">Calendar</span>)
+                                Select Any Date / Date Range (<span id="calMonthTitle">Calendar</span>)
                             </h6>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
-                                    <i class="fa-solid fa-chevron-left"></i> Prev Month
-                                </button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
-                                    Next Month <i class="fa-solid fa-chevron-right"></i>
-                                </button>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <div class="d-flex align-items-center gap-1 bg-light p-1 rounded-pill border">
+                                    <span class="small text-muted fw-bold ps-2" style="font-size: 0.72rem;">From:</span>
+                                    <input type="date" id="drilldownStartDateInput"
+                                        class="form-control form-control-sm border-0 bg-transparent py-0 px-1"
+                                        style="font-size: 0.78rem; width: 125px;"
+                                        onchange="onDrilldownStartDateChange(this.value)">
+                                    <span class="small text-muted fw-bold" style="font-size: 0.72rem;">To:</span>
+                                    <input type="date" id="drilldownEndDateInput"
+                                        class="form-control form-control-sm border-0 bg-transparent py-0 px-1"
+                                        style="font-size: 0.78rem; width: 125px;"
+                                        onchange="onDrilldownEndDateChange(this.value)">
+                                    <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fw-bold"
+                                        onclick="applyDrilldownDateRange()">
+                                        <i class="fa-solid fa-check me-1"></i> Apply Range
+                                    </button>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button"
+                                        class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                                        onclick="changeCalMonth(-1)">
+                                        <i class="fa-solid fa-chevron-left"></i> Prev Month
+                                    </button>
+                                    <button type="button"
+                                        class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                                        onclick="changeCalMonth(1)">
+                                        Next Month <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -409,17 +502,21 @@
                 </div>
 
                 <!-- Campaign Wise Filter Bar (Active Campaigns & Counts) -->
-                <div id="drilldownCampaignBarWrapper" class="card shadow-sm border-0 mb-3 bg-white rounded-3" style="display: none;">
+                <div id="drilldownCampaignBarWrapper" class="card shadow-sm border-0 mb-3 bg-white rounded-3"
+                    style="display: none;">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-primary bg-opacity-10 text-primary p-1 rounded">
                                     <i class="fa-solid fa-bullhorn"></i>
                                 </span>
-                                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Campaign-wise Records</span>
-                                <span class="badge bg-light text-muted border rounded-pill" id="campaignsTotalCountBadge">0 Campaigns</span>
+                                <span class="fw-bold text-dark small text-uppercase"
+                                    style="letter-spacing: 0.5px;">Campaign-wise Records</span>
+                                <span class="badge bg-light text-muted border rounded-pill"
+                                    id="campaignsTotalCountBadge">0 Campaigns</span>
                             </div>
-                            <span class="text-muted small" style="font-size: 0.75rem;">Click any campaign to filter records</span>
+                            <span class="text-muted small" style="font-size: 0.75rem;">Click any campaign to filter
+                                records</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap" id="drilldownCampaignPillsContainer">
                             <!-- Populated dynamically with active campaigns and counts -->
@@ -428,16 +525,21 @@
                 </div>
 
                 <!-- Bulk Assignment Floating Bar -->
-                <div id="drilldownBulkActionBar" class="card shadow-sm border-0 mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2" style="display: none; border-left: 4px solid var(--primary) !important;">
+                <div id="drilldownBulkActionBar"
+                    class="card shadow-sm border-0 mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2"
+                    style="display: none; border-left: 4px solid var(--primary) !important;">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0 Leads Selected</span>
+                        <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0
+                            Leads Selected</span>
                         <span class="text-muted small">Choose an employee to assign the selected leads:</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill" style="min-width: 180px;">
+                        <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill"
+                            style="min-width: 180px;">
                             <option value="">-- Select Employee --</option>
                         </select>
-                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="executeDrilldownBulkAssign()">
+                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold"
+                            onclick="executeDrilldownBulkAssign()">
                             <i class="fa-solid fa-user-check me-1"></i> Bulk Assign
                         </button>
                     </div>
@@ -445,22 +547,28 @@
 
                 <!-- Leads Table Section -->
                 <div class="card shadow-sm border-0 bg-white rounded-3">
-                    <div class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
+                    <div
+                        class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
                             <span class="fw-bold text-dark" id="leadsTableHeading">Lead Records</span>
-                            <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0 Leads</span>
+                            <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0
+                                Leads</span>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <input type="text" id="drilldownSearchInput" class="form-control form-control-sm rounded-pill" placeholder="Search in this list..." style="width: 220px;" oninput="filterDrilldownTable()">
+                            <input type="text" id="drilldownSearchInput"
+                                class="form-control form-control-sm rounded-pill" placeholder="Search in this list..."
+                                style="width: 220px;" oninput="filterDrilldownTable()">
                         </div>
                     </div>
 
-                    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
-                        <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable" style="font-size: 0.85rem;">
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable"
+                            style="font-size: 0.85rem;">
                             <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
                                 <tr>
                                     <th class="py-2 px-3" style="width: 40px;">
-                                        <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
+                                        <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input"
+                                            onchange="toggleDrilldownSelectAll(this)">
                                     </th>
                                     <th class="py-2">Lead / Student</th>
                                     <th class="py-2">Contact</th>
@@ -470,7 +578,9 @@
                                     <th class="py-2">Status / Admission</th>
                                     <th class="py-2" style="min-width: 150px;">Assigned To</th>
                                     <th class="py-2" style="min-width: 180px;">Comments</th>
-                                    <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">Action</th>
+                                    <th class="py-2 px-3 position-sticky end-0 bg-light"
+                                        style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
+                                        Action</th>
                                 </tr>
                             </thead>
                             <tbody id="drilldownTableBody">
@@ -488,17 +598,19 @@
                         <div id="drilldownEmptyState" class="text-center py-5 text-muted" style="display: none;">
                             <i class="fa-regular fa-folder-open fs-2 mb-2 d-block text-secondary"></i>
                             <div class="fw-semibold">No lead records found for this selection.</div>
-                            <small class="text-muted">Try selecting a different date or clearing active campaign filters.</small>
+                            <small class="text-muted">Try selecting a different date or clearing active campaign
+                                filters.</small>
                         </div>
                     </div>
                 </div>
 
             </div>
-            
+
             <!-- Modal Footer -->
             <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between">
                 <small class="text-muted">Showing top records for selected date filter.</small>
-                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4"
+                    data-bs-dismiss="modal">Close</button>
             </div>
 
         </div>
@@ -520,8 +632,10 @@
                     <option value="">-- Unassigned --</option>
                 </select>
                 <div class="d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" onclick="saveSingleAssign()">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                        data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3"
+                        onclick="saveSingleAssign()">Save</button>
                 </div>
             </div>
         </div>
@@ -531,570 +645,752 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-  const chartData = {{ chart_data|safe }};
-  const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#64748b','#eab308','#14b8a6'];
+    const chartData = {{ chart_data| safe }};
+    const palette = ['#6366f1', '#f97316', '#0ea5e9', '#10b981', '#ec4899', '#64748b', '#eab308', '#14b8a6'];
 
-  if (document.getElementById('sourceChart')) {
-    new Chart(document.getElementById('sourceChart'), {
-      type: 'doughnut',
-      data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
-    });
-  }
+    const isMobileScreen = window.innerWidth < 768;
+    if (document.getElementById('sourceChart')) {
+        new Chart(document.getElementById('sourceChart'), {
+            type: 'doughnut',
+            data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette, borderWidth: 2, borderColor: '#ffffff' }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: 4 },
+                plugins: {
+                    legend: {
+                        position: isMobileScreen ? 'bottom' : 'right',
+                        labels: { boxWidth: 10, padding: 6, font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
 
-  if (document.getElementById('funnelChart')) {
-    new Chart(document.getElementById('funnelChart'), {
-      type: 'bar',
-      data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#4f46e5' }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-  }
+    if (document.getElementById('funnelChart')) {
+        new Chart(document.getElementById('funnelChart'), {
+            type: 'bar',
+            data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#4f46e5' }] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
 
-  if (document.getElementById('trendChart')) {
-    new Chart(document.getElementById('trendChart'), {
-      type: 'line',
-      data: { labels: chartData.trend.labels, datasets: [{ label: 'Leads', data: chartData.trend.counts, borderColor: '#0ea5e9', tension: .3, fill: false }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-  }
+    if (document.getElementById('trendChart')) {
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: { labels: chartData.trend.labels, datasets: [{ label: 'Leads', data: chartData.trend.counts, borderColor: '#0ea5e9', tension: .3, fill: false }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
 
-  if (document.getElementById('courseChart')) {
-    new Chart(document.getElementById('courseChart'), {
-      type: 'bar',
-      data: { labels: chartData.course.labels, datasets: [{ label: 'Leads', data: chartData.course.counts, backgroundColor: '#10b981' }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-  }
+    if (document.getElementById('courseChart')) {
+        new Chart(document.getElementById('courseChart'), {
+            type: 'bar',
+            data: { labels: chartData.course.labels, datasets: [{ label: 'Leads', data: chartData.course.counts, backgroundColor: '#10b981' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
 
-  // -------------------------------------------------------------
-  // UNIVERSAL CARD DRILLDOWN JS ENGINE
-  // -------------------------------------------------------------
-  let currentDrilldownCard = 'new_leads';
-  let currentDrilldownCardTitle = 'New Leads';
-  let currentDrilldownMode = 'today';
-  let currentDrilldownDate = 'today';
-  let currentCalYear = new Date().getFullYear();
-  let currentCalMonth = new Date().getMonth() + 1;
-  let cachedLeadItems = [];
+    // -------------------------------------------------------------
+    // UNIVERSAL CARD DRILLDOWN JS ENGINE
+    // -------------------------------------------------------------
+    let currentDrilldownCard = 'new_leads';
+    let currentDrilldownCardTitle = 'New Leads';
+    let currentDrilldownMode = 'today';
+    let currentDrilldownDate = 'today';
+    let currentCalYear = new Date().getFullYear();
+    let currentCalMonth = new Date().getMonth() + 1;
+    let cachedLeadItems = [];
 
-  const cardBaseNameMap = {
-      'new_leads': "Today's New Leads",
-      'call_not_done': 'Call Not Done',
-      'opd_booked': 'Admissions & Billing Today',
-      'followups': 'Follow-ups Queue',
-      'walkin': 'Walk-in Leads',
-  };
+    const cardBaseNameMap = {
+        'new_leads': "Today's New Leads",
+        'call_not_done': 'Call Not Done',
+        'opd_booked': 'Admissions & Billing Today',
+        'followups': 'Follow-ups Queue',
+        'walkin': 'Walk-in Leads',
+    };
 
-  const cardIconMap = {
-      'new_leads': { icon: 'fa-sparkles', colorClass: 'bg-primary' },
-      'call_not_done': { icon: 'fa-phone-slash', colorClass: 'bg-warning' },
-      'opd_booked': { icon: 'fa-user-graduate', colorClass: 'bg-success' },
-      'followups': { icon: 'fa-calendar-days', colorClass: 'bg-info' },
-      'walkin': { icon: 'fa-person-walking', colorClass: 'bg-secondary' },
-  };
+    const cardIconMap = {
+        'new_leads': { icon: 'fa-sparkles', colorClass: 'bg-primary' },
+        'call_not_done': { icon: 'fa-phone-slash', colorClass: 'bg-warning' },
+        'opd_booked': { icon: 'fa-user-graduate', colorClass: 'bg-success' },
+        'followups': { icon: 'fa-calendar-days', colorClass: 'bg-info' },
+        'walkin': { icon: 'fa-person-walking', colorClass: 'bg-secondary' },
+    };
 
-  const todayStrGlobal = new Date().toISOString().split('T')[0];
+    const todayStrGlobal = new Date().toISOString().split('T')[0];
 
-  function isFutureDateAllowed() {
-      return currentDrilldownCard === 'opd_booked' || currentDrilldownCard === 'followups';
-  }
+    function isFutureDateAllowed() {
+        return currentDrilldownCard === 'opd_booked' || currentDrilldownCard === 'followups';
+    }
 
-  function updateModalDynamicTitle(dateDisplay) {
-      const baseName = cardBaseNameMap[currentDrilldownCard] || 'Leads';
-      const modalTitleEl = document.getElementById('universalCardModalTitle');
-      const leadsTableHeading = document.getElementById('leadsTableHeading');
+    function updateModalDynamicTitle(dateDisplay) {
+        const baseName = cardBaseNameMap[currentDrilldownCard] || 'Leads';
+        const modalTitleEl = document.getElementById('universalCardModalTitle');
+        const leadsTableHeading = document.getElementById('leadsTableHeading');
 
-      if (modalTitleEl) {
-          if (dateDisplay && dateDisplay.toLowerCase() !== 'all time') {
-              modalTitleEl.innerText = `${baseName} for ${dateDisplay}`;
-          } else if (dateDisplay && dateDisplay.toLowerCase() === 'all time') {
-              modalTitleEl.innerText = `All ${baseName}`;
-          } else {
-              modalTitleEl.innerText = `${baseName} Breakdown`;
-          }
-      }
-      if (leadsTableHeading) {
-          leadsTableHeading.innerText = `${baseName} Records`;
-      }
-  }
+        if (modalTitleEl) {
+            if (dateDisplay && dateDisplay.toLowerCase() !== 'all time') {
+                modalTitleEl.innerText = `${baseName} for ${dateDisplay}`;
+            } else if (dateDisplay && dateDisplay.toLowerCase() === 'all time') {
+                modalTitleEl.innerText = `All ${baseName}`;
+            } else {
+                modalTitleEl.innerText = `${baseName} Breakdown`;
+            }
+        }
+        if (leadsTableHeading) {
+            leadsTableHeading.innerText = `${baseName} Records`;
+        }
+    }
 
-  function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
-      currentDrilldownCard = cardType;
-      currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
+    function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
+        currentDrilldownCard = cardType;
+        currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
 
-      currentDrilldownMode = 'today';
-      currentDrilldownDate = todayStrGlobal;
-      updateModalDynamicTitle('Today');
-      updatePillUI('today');
+        currentDrilldownMode = 'today';
+        currentDrilldownDate = todayStrGlobal;
+        updateModalDynamicTitle('Today');
+        updatePillUI('today');
 
-      currentCalYear = new Date().getFullYear();
-      currentCalMonth = new Date().getMonth() + 1;
+        currentCalYear = new Date().getFullYear();
+        currentCalMonth = new Date().getMonth() + 1;
 
-      const iconConfig = cardIconMap[cardType] || { icon: 'fa-table-cells-large', colorClass: 'bg-primary' };
-      const badgeEl = document.getElementById('drilldownCardBadgeIcon');
-      if (badgeEl) {
-          badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
-          badgeEl.innerHTML = `<i class="fa-solid ${iconConfig.icon}"></i>`;
-      }
+        const iconConfig = cardIconMap[cardType] || { icon: 'fa-table-cells-large', colorClass: 'bg-primary' };
+        const badgeEl = document.getElementById('drilldownCardBadgeIcon');
+        if (badgeEl) {
+            badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
+            badgeEl.innerHTML = `<i class="fa-solid ${iconConfig.icon}"></i>`;
+        }
 
-      // Configure Next Day Pill
-      const pillNext = document.getElementById('pillNext');
-      if (pillNext) {
-          if (isFutureDateAllowed()) {
-              pillNext.classList.remove('disabled-pill');
-              pillNext.disabled = false;
-              pillNext.title = 'Next Day';
-          } else {
-              pillNext.classList.add('disabled-pill');
-              pillNext.disabled = true;
-              pillNext.title = 'Future dates are only available for Booked & Follow-ups';
-          }
-      }
+        // Configure Next Day Pill
+        const pillNext = document.getElementById('pillNext');
+        if (pillNext) {
+            if (isFutureDateAllowed()) {
+                pillNext.classList.remove('disabled-pill');
+                pillNext.disabled = false;
+                pillNext.title = 'Next Day';
+            } else {
+                pillNext.classList.add('disabled-pill');
+                pillNext.disabled = true;
+                pillNext.title = 'Future dates are only available for Booked & Follow-ups';
+            }
+        }
 
-      document.getElementById('drilldownCalendarWrapper').style.display = 'none';
-      document.getElementById('drilldownSearchInput').value = '';
+        document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+        document.getElementById('drilldownSearchInput').value = '';
+        const startInputReset = document.getElementById('drilldownStartDateInput');
+        const endInputReset = document.getElementById('drilldownEndDateInput');
+        if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
+        if (endInputReset) { endInputReset.value = ''; endInputReset.min = ''; }
 
-      // Show Modal & Fetch
-      const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
-      modal.show();
+        // Show Modal & Fetch
+        const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
+        modal.show();
 
-      fetchDrilldownData();
-  }
+        fetchDrilldownData();
+    }
 
-  function drilldownSetMode(mode) {
-      if (mode === 'next' && !isFutureDateAllowed()) {
-          return;
-      }
-      currentDrilldownMode = mode;
-      updatePillUI(mode);
-      if (mode !== 'custom') {
-          document.getElementById('drilldownCalendarWrapper').style.display = 'none';
-      }
-      fetchDrilldownData();
-  }
+    function drilldownSetMode(mode) {
+        if (mode === 'next' && !isFutureDateAllowed()) {
+            return;
+        }
+        currentDrilldownMode = mode;
+        updatePillUI(mode);
+        if (mode !== 'custom') {
+            document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+        }
+        fetchDrilldownData();
+    }
 
-  function drilldownToggleCalendar() {
-      const calWrapper = document.getElementById('drilldownCalendarWrapper');
-      if (calWrapper.style.display === 'none') {
-          calWrapper.style.display = 'block';
-          updatePillUI('custom');
-          currentDrilldownMode = 'custom';
-          fetchDrilldownData();
-      } else {
-          calWrapper.style.display = 'none';
-      }
-  }
+    function drilldownToggleCalendar() {
+        const calWrapper = document.getElementById('drilldownCalendarWrapper');
+        if (calWrapper.style.display === 'none') {
+            calWrapper.style.display = 'block';
+            updatePillUI('custom');
+            currentDrilldownMode = 'custom';
+            fetchDrilldownData();
+        } else {
+            calWrapper.style.display = 'none';
+        }
+    }
 
-  function updatePillUI(mode) {
-      ['pillPrev', 'pillToday', 'pillNext', 'pillAll', 'pillCustom'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.classList.remove('active');
-      });
+    function updatePillUI(mode) {
+        ['pillPrev', 'pillToday', 'pillNext', 'pillAll', 'pillCustom'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active');
+        });
 
-      const pillNext = document.getElementById('pillNext');
-      if (pillNext) {
-          if (isFutureDateAllowed()) {
-              pillNext.classList.remove('disabled-pill');
-              pillNext.disabled = false;
-          } else {
-              pillNext.classList.add('disabled-pill');
-              pillNext.disabled = true;
-          }
-      }
+        const pillNext = document.getElementById('pillNext');
+        if (pillNext) {
+            if (isFutureDateAllowed()) {
+                pillNext.classList.remove('disabled-pill');
+                pillNext.disabled = false;
+            } else {
+                pillNext.classList.add('disabled-pill');
+                pillNext.disabled = true;
+            }
+        }
 
-      if (mode === 'today') document.getElementById('pillToday')?.classList.add('active');
-      else if (mode === 'previous') document.getElementById('pillPrev')?.classList.add('active');
-      else if (mode === 'next' && isFutureDateAllowed()) document.getElementById('pillNext')?.classList.add('active');
-      else if (mode === 'all') document.getElementById('pillAll')?.classList.add('active');
-      else if (mode === 'custom') document.getElementById('pillCustom')?.classList.add('active');
-  }
+        if (mode === 'today') document.getElementById('pillToday')?.classList.add('active');
+        else if (mode === 'previous') document.getElementById('pillPrev')?.classList.add('active');
+        else if (mode === 'next' && isFutureDateAllowed()) document.getElementById('pillNext')?.classList.add('active');
+        else if (mode === 'all') document.getElementById('pillAll')?.classList.add('active');
+        else if (mode === 'custom') document.getElementById('pillCustom')?.classList.add('active');
+    }
 
-  function changeCalMonth(delta) {
-      const now = new Date();
-      const currentRealYear = now.getFullYear();
-      const currentRealMonth = now.getMonth() + 1;
+    function changeCalMonth(delta) {
+        const now = new Date();
+        const currentRealYear = now.getFullYear();
+        const currentRealMonth = now.getMonth() + 1;
 
-      if (delta > 0 && !isFutureDateAllowed()) {
-          if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
-              return;
-          }
-      }
+        if (delta > 0 && !isFutureDateAllowed()) {
+            if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
+                return;
+            }
+        }
 
-      currentCalMonth += delta;
-      if (currentCalMonth > 12) {
-          currentCalMonth = 1;
-          currentCalYear += 1;
-      } else if (currentCalMonth < 1) {
-          currentCalMonth = 12;
-          currentCalYear -= 1;
-      }
-      fetchDrilldownData();
-  }
+        currentCalMonth += delta;
+        if (currentCalMonth > 12) {
+            currentCalMonth = 1;
+            currentCalYear += 1;
+        } else if (currentCalMonth < 1) {
+            currentCalMonth = 12;
+            currentCalYear -= 1;
+        }
+        fetchDrilldownData();
+    }
 
-  function selectCalendarDate(dateStr) {
-      if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
-          return;
-      }
-      currentDrilldownDate = dateStr;
-      currentDrilldownMode = 'custom';
-      updatePillUI('custom');
-      fetchDrilldownData();
-  }
+    let currentDrilldownStartDate = '';
+    let currentDrilldownEndDate = '';
 
-  let cachedHospitalName = "{{ request.user.hospital.name|default:'Zappcode Academy'|escapejs }}";
-  let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Admissions & Support Team'|escapejs }}";
-  let selectedCampaignFilter = null;
-  let cachedAssignableUsers = [];
-  let canUserAssign = false;
-  let selectedDrilldownLeadIds = new Set();
+    function onDrilldownStartDateChange(val) {
+        const endInput = document.getElementById('drilldownEndDateInput');
+        if (endInput) {
+            endInput.min = val || '';
+            if (val && endInput.value && endInput.value < val) {
+                endInput.value = val;
+            }
+        }
+    }
 
-  function fetchDrilldownData() {
-      const loadingEl = document.getElementById('drilldownLoadingState');
-      const emptyEl = document.getElementById('drilldownEmptyState');
-      const tbody = document.getElementById('drilldownTableBody');
+    function onDrilldownEndDateChange(val) {
+        const startInput = document.getElementById('drilldownStartDateInput');
+        if (startInput) {
+            startInput.max = val || '';
+            if (val && startInput.value && startInput.value > val) {
+                startInput.value = val;
+            }
+        }
+    }
 
-      loadingEl.style.display = 'block';
-      emptyEl.style.display = 'none';
-      tbody.innerHTML = '';
-      selectedCampaignFilter = null;
-      selectedDrilldownLeadIds.clear();
-      updateBulkActionBar();
+    function selectCalendarDate(dateStr) {
+        if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
+            return;
+        }
+        currentDrilldownDate = dateStr;
+        currentDrilldownMode = 'custom';
+        currentDrilldownStartDate = '';
+        currentDrilldownEndDate = '';
+        updatePillUI('custom');
+        fetchDrilldownData();
+    }
 
-      const searchParams = new URLSearchParams(window.location.search);
-      searchParams.set('card_type', currentDrilldownCard);
-      searchParams.set('mode', currentDrilldownMode);
-      searchParams.set('target_date', currentDrilldownDate);
-      searchParams.set('year', currentCalYear);
-      searchParams.set('month', currentCalMonth);
+    function applyDrilldownDateRange() {
+        const startInput = document.getElementById('drilldownStartDateInput');
+        const endInput = document.getElementById('drilldownEndDateInput');
+        let startVal = startInput ? startInput.value : '';
+        let endVal = endInput ? endInput.value : '';
 
-      const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
+        if (!startVal && !endVal) {
+            alert('Please select at least one date for the date range.');
+            return;
+        }
 
-      fetch(url)
-          .then(res => res.json())
-          .then(data => {
-              loadingEl.style.display = 'none';
-              if (data.status === 'success') {
-                  cachedLeadItems = data.lead_items || [];
-                  cachedAssignableUsers = data.users || [];
-                  canUserAssign = !!data.can_assign;
+        if (startVal && !endVal) endVal = startVal;
+        if (endVal && !startVal) startVal = endVal;
 
-                  if (data.hospital_name) cachedHospitalName = data.hospital_name;
-                  if (data.agent_name) cachedAgentName = data.agent_name;
+        if (startVal > endVal) {
+            const temp = startVal;
+            startVal = endVal;
+            endVal = temp;
+            if (startInput) startInput.value = startVal;
+            if (endInput) endInput.value = endVal;
+        }
 
-                  if (data.selected_date !== 'all') {
-                      currentDrilldownDate = data.selected_date;
-                  }
+        currentDrilldownMode = 'date_range';
+        currentDrilldownStartDate = startVal;
+        currentDrilldownEndDate = endVal;
+        updatePillUI('custom');
+        fetchDrilldownData();
+    }
 
-                  updateModalDynamicTitle(data.selected_date_display);
-                  populateBulkAssignDropdown(cachedAssignableUsers);
+    let cachedHospitalName = "{{ request.user.hospital.name|default:'Zappcode Academy'|escapejs }}";
+    let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Admissions & Support Team'|escapejs }}";
+    let selectedCampaignFilter = null;
+    let cachedAssignableUsers = [];
+    let canUserAssign = false;
+    let selectedDrilldownLeadIds = new Set();
 
-                  document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
-                  document.getElementById('drilldownTotalBadge').innerText = data.total_count;
-                  document.getElementById('leadsTableCountBadge').innerText = `${data.total_count} Leads`;
-                  document.getElementById('calMonthTitle').innerText = data.cal_month_name;
+    function fetchDrilldownData() {
+        const loadingEl = document.getElementById('drilldownLoadingState');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        const tbody = document.getElementById('drilldownTableBody');
 
-                  renderCampaignPills(data.campaign_breakdown || [], data.total_count);
-                  renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
-                  renderDrilldownTable(cachedLeadItems);
-              }
-          })
-          .catch(err => {
-              loadingEl.style.display = 'none';
-              console.error("Failed to load drilldown data:", err);
-          });
-  }
+        loadingEl.style.display = 'block';
+        emptyEl.style.display = 'none';
+        tbody.innerHTML = '';
+        selectedCampaignFilter = null;
+        selectedDrilldownLeadIds.clear();
+        updateBulkActionBar();
 
-  function populateBulkAssignDropdown(users) {
-      const sel = document.getElementById('drilldownBulkAssignSelect');
-      if (!sel) return;
-      sel.innerHTML = '<option value="">-- Select Employee --</option>';
-      users.forEach(u => {
-          const opt = document.createElement('option');
-          opt.value = u.id;
-          opt.textContent = `${u.name} (${u.role})`;
-          sel.appendChild(opt);
-      });
-  }
+        // Use fresh URLSearchParams - do NOT copy window.location.search as it contains
+        // dashboard-level date filters (time_filter, start_date, end_date) that conflict
+        // with the drilldown's own date parameters and return 0 results.
+        const searchParams = new URLSearchParams();
+        searchParams.set('card_type', currentDrilldownCard);
+        searchParams.set('mode', currentDrilldownMode);
+        searchParams.set('target_date', currentDrilldownDate);
+        searchParams.set('start_date', currentDrilldownStartDate);
+        searchParams.set('end_date', currentDrilldownEndDate);
+        searchParams.set('year', currentCalYear);
+        searchParams.set('month', currentCalMonth);
 
-  function toggleDrilldownSelectAll(masterCheckbox) {
-      const isChecked = masterCheckbox.checked;
-      const checkboxes = document.querySelectorAll('.drilldown-row-checkbox');
-      checkboxes.forEach(cb => {
-          cb.checked = isChecked;
-          const leadId = parseInt(cb.value);
-          if (isChecked) {
-              selectedDrilldownLeadIds.add(leadId);
-          } else {
-              selectedDrilldownLeadIds.delete(leadId);
-          }
-      });
-      updateBulkActionBar();
-  }
+        const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
-  function toggleDrilldownRowSelect(checkbox, leadId) {
-      if (checkbox.checked) {
-          selectedDrilldownLeadIds.add(leadId);
-      } else {
-          selectedDrilldownLeadIds.delete(leadId);
-      }
-      const allCbs = document.querySelectorAll('.drilldown-row-checkbox');
-      const masterCb = document.getElementById('drilldownSelectAllCheckbox');
-      if (masterCb && allCbs.length > 0) {
-          masterCb.checked = (selectedDrilldownLeadIds.size === allCbs.length);
-      }
-      updateBulkActionBar();
-  }
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                loadingEl.style.display = 'none';
+                if (data.status === 'success') {
+                    cachedLeadItems = data.lead_items || [];
+                    cachedAssignableUsers = data.users || [];
+                    canUserAssign = !!data.can_assign;
 
-  function updateBulkActionBar() {
-      const bar = document.getElementById('drilldownBulkActionBar');
-      const badge = document.getElementById('drilldownSelectedCountBadge');
-      const count = selectedDrilldownLeadIds.size;
-      if (count > 0 && canUserAssign) {
-          bar.style.display = 'flex';
-          badge.innerText = `${count} Leads Selected`;
-      } else {
-          bar.style.display = 'none';
-      }
-  }
+                    if (data.hospital_name) cachedHospitalName = data.hospital_name;
+                    if (data.agent_name) cachedAgentName = data.agent_name;
+                    if (data.business_mode) cachedBusinessMode = data.business_mode;
 
-  function executeDrilldownBulkAssign() {
-      const assignSelect = document.getElementById('drilldownBulkAssignSelect');
-      const assignToId = assignSelect ? assignSelect.value : '';
-      if (!assignToId) {
-          alert('Please select an employee to assign the leads to.');
-          return;
-      }
-      if (selectedDrilldownLeadIds.size === 0) {
-          alert('Please select at least one lead.');
-          return;
-      }
+                    if (data.selected_date !== 'all') {
+                        currentDrilldownDate = data.selected_date;
+                    }
 
-      const postData = {
-          lead_ids: Array.from(selectedDrilldownLeadIds),
-          assigned_to_id: assignToId
-      };
+                    updateModalDynamicTitle(data.selected_date_display);
+                    populateBulkAssignDropdown(cachedAssignableUsers);
 
-      fetch('/leads/bulk-assign-api/', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': getCsrfToken()
-          },
-          body: JSON.stringify(postData)
-      })
-      .then(res => res.json())
-      .then(data => {
-          if (data.status === 'success') {
-              fetchDrilldownData();
-          } else {
-              alert(data.message || 'Failed to bulk assign leads.');
-          }
-      })
-      .catch(err => {
-          console.error("Bulk assign error:", err);
-          alert('An error occurred while bulk assigning leads.');
-      });
-  }
+                    document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
+                    document.getElementById('drilldownTotalBadge').innerText = data.total_count;
+                    document.getElementById('leadsTableCountBadge').innerText = `${data.total_count} Leads`;
+                    document.getElementById('calMonthTitle').innerText = data.cal_month_name;
 
-  function openSingleAssignModal(leadId, leadName, currentAssignedId) {
-      document.getElementById('singleAssignLeadId').value = leadId;
-      document.getElementById('singleAssignModalTitle').innerText = `Assign: ${leadName}`;
-      
-      const sel = document.getElementById('singleAssignUserSelect');
-      sel.innerHTML = '<option value="">-- Unassigned --</option>';
-      cachedAssignableUsers.forEach(u => {
-          const opt = document.createElement('option');
-          opt.value = u.id;
-          opt.textContent = `${u.name} (${u.role})`;
-          if (u.id === currentAssignedId) {
-              opt.selected = true;
-          }
-          sel.appendChild(opt);
-      });
+                    renderCampaignPills(data.campaign_breakdown || [], data.total_count);
+                    renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
+                    renderDrilldownTable(cachedLeadItems, cachedBusinessMode);
+                }
+            })
+            .catch(err => {
+                loadingEl.style.display = 'none';
+                console.error("Failed to load drilldown data:", err);
+            });
+    }
 
-      const modal = new bootstrap.Modal(document.getElementById('drilldownSingleAssignModal'));
-      modal.show();
-  }
+    function populateBulkAssignDropdown(users) {
+        const sel = document.getElementById('drilldownBulkAssignSelect');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Select Employee --</option>';
+        users.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = `${u.name} (${u.role})`;
+            sel.appendChild(opt);
+        });
+    }
 
-  function saveSingleAssign() {
-      const leadId = document.getElementById('singleAssignLeadId').value;
-      const assignSelect = document.getElementById('singleAssignUserSelect');
-      const assignToId = assignSelect ? assignSelect.value : '';
+    function toggleDrilldownSelectAll(masterCheckbox) {
+        const isChecked = masterCheckbox.checked;
+        const checkboxes = document.querySelectorAll('.drilldown-row-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+            const leadId = parseInt(cb.value);
+            if (isChecked) {
+                selectedDrilldownLeadIds.add(leadId);
+            } else {
+                selectedDrilldownLeadIds.delete(leadId);
+            }
+        });
+        updateBulkActionBar();
+    }
 
-      fetch(`/leads/${leadId}/quick-assign/`, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': getCsrfToken()
-          },
-          body: JSON.stringify({ assigned_to_id: assignToId })
-      })
-      .then(res => res.json())
-      .then(data => {
-          if (data.status === 'success') {
-              const modalEl = document.getElementById('drilldownSingleAssignModal');
-              const modal = bootstrap.Modal.getInstance(modalEl);
-              if (modal) modal.hide();
-              fetchDrilldownData();
-          } else {
-              alert(data.message || 'Failed to assign lead.');
-          }
-      })
-      .catch(err => {
-          console.error("Single assign error:", err);
-          alert('An error occurred while assigning the lead.');
-      });
-  }
+    function toggleDrilldownRowSelect(checkbox, leadId) {
+        if (checkbox.checked) {
+            selectedDrilldownLeadIds.add(leadId);
+        } else {
+            selectedDrilldownLeadIds.delete(leadId);
+        }
+        const allCbs = document.querySelectorAll('.drilldown-row-checkbox');
+        const masterCb = document.getElementById('drilldownSelectAllCheckbox');
+        if (masterCb && allCbs.length > 0) {
+            masterCb.checked = (selectedDrilldownLeadIds.size === allCbs.length);
+        }
+        updateBulkActionBar();
+    }
 
-  function renderCampaignPills(campaigns, totalCount) {
-      const wrapper = document.getElementById('drilldownCampaignBarWrapper');
-      const container = document.getElementById('drilldownCampaignPillsContainer');
-      const totalBadge = document.getElementById('campaignsTotalCountBadge');
+    function updateBulkActionBar() {
+        const bar = document.getElementById('drilldownBulkActionBar');
+        const badge = document.getElementById('drilldownSelectedCountBadge');
+        const count = selectedDrilldownLeadIds.size;
+        if (count > 0 && canUserAssign) {
+            bar.style.display = 'flex';
+            badge.innerText = `${count} Leads Selected`;
+        } else {
+            bar.style.display = 'none';
+        }
+    }
 
-      if (!campaigns || campaigns.length === 0) {
-          wrapper.style.display = 'none';
-          return;
-      }
+    function executeDrilldownBulkAssign() {
+        const assignSelect = document.getElementById('drilldownBulkAssignSelect');
+        const assignToId = assignSelect ? assignSelect.value : '';
+        if (!assignToId) {
+            alert('Please select an employee to assign the leads to.');
+            return;
+        }
+        if (selectedDrilldownLeadIds.size === 0) {
+            alert('Please select at least one lead.');
+            return;
+        }
 
-      wrapper.style.display = 'block';
-      totalBadge.innerText = `${campaigns.length} Sources / Campaigns`;
-      container.innerHTML = '';
+        const postData = {
+            lead_ids: Array.from(selectedDrilldownLeadIds),
+            assigned_to_id: assignToId
+        };
 
-      // All Campaigns Pill
-      const allPill = document.createElement('button');
-      allPill.type = 'button';
-      allPill.className = `btn btn-sm ${selectedCampaignFilter === null ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1`;
-      allPill.innerHTML = `<span>All Sources</span> <span class="badge bg-white text-dark rounded-pill">${totalCount}</span>`;
-      allPill.onclick = () => {
-          selectedCampaignFilter = null;
-          renderCampaignPills(campaigns, totalCount);
-          filterDrilldownTable();
-      };
-      container.appendChild(allPill);
+        fetch('/leads/bulk-assign-api/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(postData)
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    fetchDrilldownData();
+                } else {
+                    alert(data.message || 'Failed to bulk assign leads.');
+                }
+            })
+            .catch(err => {
+                console.error("Bulk assign error:", err);
+                alert('An error occurred while bulk assigning leads.');
+            });
+    }
 
-      // Individual Campaign Pills
-      campaigns.forEach(c => {
-          const pill = document.createElement('button');
-          pill.type = 'button';
-          const isSelected = (selectedCampaignFilter === c.campaign_name);
-          pill.className = `btn btn-sm ${isSelected ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1`;
-          pill.innerHTML = `<span>${c.campaign_name}</span> <span class="badge ${isSelected ? 'bg-white text-dark' : 'bg-primary text-white'} rounded-pill">${c.count}</span>`;
-          pill.onclick = () => {
-              selectedCampaignFilter = isSelected ? null : c.campaign_name;
-              renderCampaignPills(campaigns, totalCount);
-              filterDrilldownTable();
-          };
-          container.appendChild(pill);
-      });
-  }
+    function openSingleAssignModal(leadId, leadName, currentAssignedId) {
+        document.getElementById('singleAssignLeadId').value = leadId;
+        document.getElementById('singleAssignModalTitle').innerText = `Assign: ${leadName}`;
 
-  function renderCalendarGrid(year, month, calendarCounts, selectedDateStr) {
-      const container = document.getElementById('calDaysContainer');
-      container.innerHTML = '';
+        const sel = document.getElementById('singleAssignUserSelect');
+        sel.innerHTML = '<option value="">-- Unassigned --</option>';
+        cachedAssignableUsers.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = `${u.name} (${u.role})`;
+            if (u.id === currentAssignedId) {
+                opt.selected = true;
+            }
+            sel.appendChild(opt);
+        });
 
-      const firstDayIndex = new Date(year, month - 1, 1).getDay();
-      const daysInMonth = new Date(year, month, 0).getDate();
+        const modal = new bootstrap.Modal(document.getElementById('drilldownSingleAssignModal'));
+        modal.show();
+    }
 
-      // Empty prefix cells for proper day-of-week alignment
-      for (let i = 0; i < firstDayIndex; i++) {
-          const emptyCell = document.createElement('div');
-          emptyCell.className = 'cal-day-cell text-muted bg-light bg-opacity-25 border-0';
-          emptyCell.style.cursor = 'default';
-          container.appendChild(emptyCell);
-      }
+    function saveSingleAssign() {
+        const leadId = document.getElementById('singleAssignLeadId').value;
+        const assignSelect = document.getElementById('singleAssignUserSelect');
+        const assignToId = assignSelect ? assignSelect.value : '';
 
-      // Day cells
-      for (let day = 1; day <= daysInMonth; day++) {
-          const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const count = calendarCounts[dayStr] || 0;
-          const isSelected = (dayStr === selectedDateStr);
-          const isFuture = (!isFutureDateAllowed() && dayStr > todayStrGlobal);
+        fetch(`/leads/${leadId}/quick-assign/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ assigned_to_id: assignToId })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const modalEl = document.getElementById('drilldownSingleAssignModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    fetchDrilldownData();
+                } else {
+                    alert(data.message || 'Failed to assign lead.');
+                }
+            })
+            .catch(err => {
+                console.error("Single assign error:", err);
+                alert('An error occurred while assigning the lead.');
+            });
+    }
 
-          const cell = document.createElement('div');
-          cell.className = `cal-day-cell ${isSelected ? 'active-day' : ''} ${count > 0 && !isSelected ? 'has-leads' : ''} ${isFuture ? 'disabled-day' : ''}`;
-          
-          let countBadgeHTML = '';
-          if (count > 0) {
-              countBadgeHTML = `<span class="cal-day-count ${isSelected ? 'bg-white text-primary' : 'bg-primary text-white'}">${count}</span>`;
-          } else {
-              countBadgeHTML = `<span class="cal-day-count text-muted opacity-50">0</span>`;
-          }
+    function renderCampaignPills(campaigns, totalCount) {
+        const wrapper = document.getElementById('drilldownCampaignBarWrapper');
+        const container = document.getElementById('drilldownCampaignPillsContainer');
+        const totalBadge = document.getElementById('campaignsTotalCountBadge');
 
-          cell.innerHTML = `
+        if (!campaigns || campaigns.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+
+        wrapper.style.display = 'block';
+        totalBadge.innerText = `${campaigns.length} Sources / Campaigns`;
+        container.innerHTML = '';
+
+        // All Campaigns Pill
+        const allPill = document.createElement('button');
+        allPill.type = 'button';
+        allPill.className = `btn btn-sm ${selectedCampaignFilter === null ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1`;
+        allPill.innerHTML = `<span>All Sources</span> <span class="badge bg-white text-dark rounded-pill">${totalCount}</span>`;
+        allPill.onclick = () => {
+            selectedCampaignFilter = null;
+            renderCampaignPills(campaigns, totalCount);
+            filterDrilldownTable();
+        };
+        container.appendChild(allPill);
+
+        // Individual Campaign Pills
+        campaigns.forEach(c => {
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            const isSelected = (selectedCampaignFilter === c.campaign_name);
+            pill.className = `btn btn-sm ${isSelected ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1`;
+            pill.innerHTML = `<span>${c.campaign_name}</span> <span class="badge ${isSelected ? 'bg-white text-dark' : 'bg-primary text-white'} rounded-pill">${c.count}</span>`;
+            pill.onclick = () => {
+                selectedCampaignFilter = isSelected ? null : c.campaign_name;
+                renderCampaignPills(campaigns, totalCount);
+                filterDrilldownTable();
+            };
+            container.appendChild(pill);
+        });
+    }
+
+    function renderCalendarGrid(year, month, calendarCounts, selectedDateStr) {
+        const container = document.getElementById('calDaysContainer');
+        container.innerHTML = '';
+
+        const firstDayIndex = new Date(year, month - 1, 1).getDay();
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // Empty prefix cells for proper day-of-week alignment
+        for (let i = 0; i < firstDayIndex; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'cal-day-cell text-muted bg-light bg-opacity-25 border-0';
+            emptyCell.style.cursor = 'default';
+            container.appendChild(emptyCell);
+        }
+
+        // Day cells
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const count = calendarCounts[dayStr] || 0;
+            const isSelected = (dayStr === selectedDateStr);
+            const isFuture = (!isFutureDateAllowed() && dayStr > todayStrGlobal);
+
+            const cell = document.createElement('div');
+            cell.className = `cal-day-cell ${isSelected ? 'active-day' : ''} ${count > 0 && !isSelected ? 'has-leads' : ''} ${isFuture ? 'disabled-day' : ''}`;
+
+            let countBadgeHTML = '';
+            if (count > 0) {
+                countBadgeHTML = `<span class="cal-day-count ${isSelected ? 'bg-white text-primary' : 'bg-primary text-white'}">${count}</span>`;
+            } else {
+                countBadgeHTML = `<span class="cal-day-count text-muted opacity-50">0</span>`;
+            }
+
+            cell.innerHTML = `
               <div class="cal-day-num">${day}</div>
               ${countBadgeHTML}
           `;
 
-          if (!isFuture) {
-              cell.onclick = () => selectCalendarDate(dayStr);
-          }
-          container.appendChild(cell);
-      }
-  }
+            if (!isFuture) {
+                cell.onclick = () => selectCalendarDate(dayStr);
+            }
+            container.appendChild(cell);
+        }
+    }
 
-  function getWhatsAppUrl(mobile, name, courseOrDoctor) {
-      const cleanMob = String(mobile || '').replace(/\D/g, '');
-      const validMob = cleanMob.length === 10 ? `91${cleanMob}` : cleanMob;
-      const studentName = name || 'Student';
-      const entity = cachedHospitalName || 'Zappcode Academy';
-      const greeting = `Hello ${studentName},\n\nThank you for reaching out to ${entity}. We received your inquiry regarding our course/services (${courseOrDoctor || 'Inquiry'}). How can we assist you today?\n\nBest regards,\n${cachedAgentName}`;
-      return `https://wa.me/${validMob}?text=${encodeURIComponent(greeting)}`;
-  }
+    function getWhatsAppUrl(mobile, name, courseOrDoctor) {
+        const cleanMob = String(mobile || '').replace(/\D/g, '');
+        const validMob = cleanMob.length === 10 ? `91${cleanMob}` : cleanMob;
+        const studentName = name || 'Student';
+        const entity = cachedHospitalName || 'Zappcode Academy';
+        const greeting = `Hello ${studentName},\n\nThank you for reaching out to ${entity}. We received your inquiry regarding our course/services (${courseOrDoctor || 'Inquiry'}). How can we assist you today?\n\nBest regards,\n${cachedAgentName}`;
+        return `https://wa.me/${validMob}?text=${encodeURIComponent(greeting)}`;
+    }
 
-  function renderDrilldownTable(items) {
-      const tbody = document.getElementById('drilldownTableBody');
-      const emptyEl = document.getElementById('drilldownEmptyState');
-      tbody.innerHTML = '';
+    let cachedBusinessMode = 'academy';
 
-      if (!items || items.length === 0) {
-          emptyEl.style.display = 'block';
-          document.getElementById('leadsTableCountBadge').innerText = '0 Leads';
-          return;
-      }
+    function renderDrilldownTableHeaders(bMode) {
+        const thead = document.querySelector('#drilldownLeadsTable thead tr');
+        if (!thead) return;
 
-      emptyEl.style.display = 'none';
-      document.getElementById('leadsTableCountBadge').innerText = `${items.length} Leads`;
+        let col1Title = 'NAME';
+        let col3Title = 'SOURCE / CAMPAIGN';
+        let col4Title = 'COURSE / SERVICE';
+        let col7Title = 'ASSIGNED TO';
+        let col9Title = 'ACTION';
 
-      items.forEach(item => {
-          const tr = document.createElement('tr');
-          const isChecked = selectedDrilldownLeadIds.has(item.id);
+        if (bMode === 'hospital') {
+            col1Title = 'PATIENT';
+            col3Title = 'SOURCE';
+            col4Title = 'DEPARTMENT';
+            col7Title = 'ASSIGNED TO';
+            col9Title = 'ACTIONS';
+        } else if (bMode === 'academy') {
+            col1Title = 'NAME';
+            col3Title = 'SOURCE / CAMPAIGN';
+            col4Title = 'COURSE / SERVICE';
+            col7Title = 'ASSIGNED TO';
+            col9Title = 'ACTION';
+        } else {
+            // 'all' businesses view
+            col1Title = 'LEAD NAME';
+            col3Title = 'SOURCE / CAMPAIGN';
+            col4Title = 'COURSE / DEPARTMENT';
+            col7Title = 'ASSIGNED TO';
+            col9Title = 'ACTION';
+        }
 
-          // Temp Badge
-          let tempBadge = `<span class="badge bg-light text-secondary border">Uncontacted</span>`;
-          if (item.temperature) {
-              const t = item.temperature.toUpperCase();
-              if (t.includes('HOT')) tempBadge = `<span class="badge bg-danger text-white"><i class="fa-solid fa-fire me-1"></i>Hot</span>`;
-              else if (t.includes('WARM')) tempBadge = `<span class="badge bg-warning text-dark"><i class="fa-solid fa-bolt me-1"></i>Warm</span>`;
-              else if (t.includes('COLD')) tempBadge = `<span class="badge bg-info text-dark">Cold</span>`;
-          }
+        thead.innerHTML = `
+          <th class="py-2 px-3" style="width: 40px;">
+              <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
+          </th>
+          <th class="py-2">${col1Title}</th>
+          <th class="py-2">CONTACT</th>
+          <th class="py-2">${col3Title}</th>
+          <th class="py-2">${col4Title}</th>
+          <th class="py-2">TEMPERATURE</th>
+          <th class="py-2">STATUS</th>
+          <th class="py-2" style="min-width: 150px;">${col7Title}</th>
+          <th class="py-2" style="min-width: 180px;">COMMENTS</th>
+          <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">${col9Title}</th>
+      `;
+    }
 
-          // Status Badge
-          let statusBadge = `<span class="badge bg-light text-dark border">${item.status || item.stage || 'Open'}</span>`;
-          if (item.is_booked || (item.status && item.status.toLowerCase().includes('book')) || (item.admission_status && item.admission_status.toLowerCase().includes('done'))) {
-              statusBadge = `<span class="badge bg-success text-white"><i class="fa-solid fa-check me-1"></i>Enrolled / Booked</span>`;
-          }
+    function renderDrilldownTable(items, bMode) {
+        const currentMode = bMode || cachedBusinessMode || 'academy';
+        renderDrilldownTableHeaders(currentMode);
 
-          // Comments / Notes
-          let commentsHtml = '<span class="text-muted small">—</span>';
-          if (item.all_comments && item.all_comments.length > 0) {
-              const latest = item.all_comments[0];
-              const moreCount = item.all_comments.length > 1 ? ` <span class="badge bg-light text-primary border" title="${item.all_comments.slice(1).join(' | ')}">+${item.all_comments.length - 1}</span>` : '';
-              commentsHtml = `<span class="small text-dark" title="${item.all_comments.join(' | ')}">${latest.substring(0, 45)}${latest.length > 45 ? '...' : ''}</span>${moreCount}`;
-          }
+        const tbody = document.getElementById('drilldownTableBody');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        tbody.innerHTML = '';
 
-          // Assign button / badge
-          let assignHtml = `<span class="badge bg-light text-muted border">${item.assigned_to}</span>`;
-          if (canUserAssign) {
-              assignHtml = `
+        if (!items || items.length === 0) {
+            emptyEl.style.display = 'block';
+            document.getElementById('leadsTableCountBadge').innerText = '0 Leads';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+        document.getElementById('leadsTableCountBadge').innerText = `${items.length} Leads`;
+
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+            const isChecked = selectedDrilldownLeadIds.has(item.id);
+
+            // Temp Badge
+            let tempBadge = `<span class="badge bg-light text-secondary border">Uncontacted</span>`;
+            if (item.temperature) {
+                const t = item.temperature.toUpperCase();
+                if (t.includes('HOT')) tempBadge = `<span class="badge bg-danger text-white"><i class="fa-solid fa-fire me-1"></i>Hot</span>`;
+                else if (t.includes('WARM')) tempBadge = `<span class="badge bg-warning text-dark"><i class="fa-solid fa-bolt me-1"></i>Warm</span>`;
+                else if (t.includes('COLD')) tempBadge = `<span class="badge bg-info text-dark">Cold</span>`;
+                else if (t.includes('FREEZE')) tempBadge = `<span class="badge bg-secondary text-white">Freeze</span>`;
+            }
+
+            // Status Badge
+            const displaySt = item.appointment_status || item.status || item.stage || 'Open';
+            let statusBadge = `<span class="badge bg-light text-dark border">${displaySt}</span>`;
+            const stLower = displaySt.toLowerCase();
+            if (item.is_booked || stLower.includes('book') || (item.admission_status && item.admission_status.toLowerCase().includes('done')) || stLower.includes('payment done') || stLower.includes('won')) {
+                statusBadge = `<span class="badge bg-success text-white"><i class="fa-solid fa-check me-1"></i>${item.is_hospital ? 'Payment Done' : 'Enrolled / Done'}</span>`;
+            } else if (stLower.includes('confirm')) {
+                statusBadge = `<span class="badge bg-primary text-white"><i class="fa-solid fa-calendar-check me-1"></i>Confirmed</span>`;
+            }
+
+            // Comments / Notes
+            let commentsHtml = '<span class="text-muted small">—</span>';
+            if (item.all_comments && item.all_comments.length > 0) {
+                const lis = item.all_comments.map(c => `<li class="mb-1">${c}</li>`).join('');
+                commentsHtml = `<ul class="mb-0 ps-3 text-start text-muted small" style="list-style-type: disc; font-size: 0.72rem;">${lis}</ul>`;
+            }
+
+            // Column 3: Source / Campaign cell rendering based on business mode
+            let sourceColumnHtml = '';
+            if (currentMode === 'hospital') {
+                sourceColumnHtml = `
+                  <div class="text-dark fw-semibold text-truncate" title="${item.lead_source}">${item.lead_source}</div>
+                  ${item.campaign && item.campaign !== 'Nelson General Campaign' && item.campaign !== 'nan' ? `<div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${item.campaign}">${item.campaign}</div>` : ''}
+              `;
+            } else if (currentMode === 'academy') {
+                sourceColumnHtml = `
+                  <div class="text-dark fw-semibold text-truncate" title="${item.lead_source}">${item.lead_source}</div>
+                  <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${item.campaign || 'Direct / Organic'}">${item.campaign || 'Direct / Organic'}</div>
+              `;
+            } else {
+                // 'all' business view
+                sourceColumnHtml = `
+                  <div class="text-truncate mb-1" title="${item.business_name}">
+                      <span class="badge ${item.is_hospital ? 'bg-info bg-opacity-10 text-info border' : 'bg-primary bg-opacity-10 text-primary border'} text-truncate" style="max-width: 100%;">
+                          <i class="fa-solid ${item.is_hospital ? 'fa-hospital' : 'fa-building'} me-1"></i>${item.business_name}
+                      </span>
+                  </div>
+                  <div class="text-dark fw-semibold text-truncate" style="font-size: 0.75rem;" title="${item.lead_source}">${item.lead_source}</div>
+                  ${item.campaign && item.campaign !== 'nan' ? `<div class="text-muted small text-truncate" style="font-size: 0.7rem;" title="${item.campaign}">${item.campaign}</div>` : ''}
+              `;
+            }
+
+            // Column 4: Department / Course cell rendering based on business mode
+            let deptCourseHtml = '';
+            if (currentMode === 'hospital') {
+                deptCourseHtml = `
+                  <div class="text-dark fw-semibold small"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${item.doctor || 'Doctor Not Assigned'}</div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">${item.department || 'General OPD'}</div>
+              `;
+            } else if (currentMode === 'academy') {
+                deptCourseHtml = `
+                  <div class="text-dark fw-semibold small"><i class="fa-solid fa-graduation-cap text-primary me-1"></i>${item.course || 'General Training'}</div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">${item.stage || 'Inquiry / Lead'}</div>
+              `;
+            } else {
+                if (item.is_hospital) {
+                    deptCourseHtml = `
+                      <div class="text-dark fw-semibold small"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${item.doctor || 'Doctor Not Assigned'}</div>
+                      <div class="text-muted small" style="font-size: 0.72rem;">${item.department || 'General OPD'}</div>
+                  `;
+                } else {
+                    deptCourseHtml = `
+                      <div class="text-dark fw-semibold small"><i class="fa-solid fa-graduation-cap text-primary me-1"></i>${item.course || 'General Training'}</div>
+                      <div class="text-muted small" style="font-size: 0.72rem;">${item.stage || 'Inquiry'}</div>
+                  `;
+                }
+            }
+
+            // Assign button / badge
+            let assignHtml = `<span class="badge bg-light text-muted border">${item.assigned_to}</span>`;
+            if (canUserAssign) {
+                assignHtml = `
                   <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0 d-inline-flex align-items-center gap-1" onclick="openSingleAssignModal(${item.id}, '${item.name.replace(/'/g, "\\'")}', ${item.assigned_to_id || 'null'})" title="Change Assigned Employee">
                       <i class="fa-solid fa-user-pen"></i> <span>${item.assigned_to}</span>
                   </button>
               `;
-          }
+            }
 
-          const waUrl = getWhatsAppUrl(item.clean_mobile || item.mobile, item.name, item.course || item.doctor);
+            const waUrl = getWhatsAppUrl(item.clean_mobile || item.mobile, item.name, item.course || item.doctor);
 
-          tr.innerHTML = `
+            tr.innerHTML = `
               <td class="py-2 px-3">
                   <input type="checkbox" class="form-check-input drilldown-row-checkbox" value="${item.id}" ${isChecked ? 'checked' : ''} onchange="toggleDrilldownRowSelect(this, ${item.id})">
               </td>
@@ -1102,68 +1398,80 @@
                   <div class="fw-bold text-dark d-flex align-items-center gap-1">
                       <a href="${item.detail_url}" target="_blank" class="text-dark text-decoration-none hover-primary">${item.name}</a>
                   </div>
-                  <div class="text-muted small" style="font-size: 0.72rem;">Created: ${item.created_date}</div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">Added: ${item.created_date}</div>
               </td>
               <td class="py-2">
                   <div class="fw-semibold text-dark">${item.mobile || '-'}</div>
                   <div class="text-muted small" style="font-size: 0.72rem;">${item.email && item.email !== '-' ? item.email : ''}</div>
               </td>
-              <td class="py-2">
-                  <span class="badge bg-light text-dark border mb-1">${item.campaign || 'Direct'}</span>
-                  <div class="text-muted small" style="font-size: 0.72rem;">${item.lead_source}</div>
+              <td class="py-2" style="max-width: 140px;">
+                  ${sourceColumnHtml}
               </td>
               <td class="py-2">
-                  ${item.is_hospital ? `
-                      <div class="text-dark fw-semibold small">${item.doctor || '-'}</div>
-                      <div class="text-muted small" style="font-size: 0.72rem;">${item.department || 'General OPD'}</div>
-                  ` : `
-                      <div class="text-dark fw-semibold small"><i class="fa-solid fa-graduation-cap text-primary me-1"></i>${item.course || 'General Training'}</div>
-                      <div class="text-muted small" style="font-size: 0.72rem;">${item.stage || 'Inquiry'}</div>
-                  `}
+                  ${deptCourseHtml}
               </td>
               <td class="py-2">${tempBadge}</td>
               <td class="py-2">${statusBadge}</td>
               <td class="py-2">${assignHtml}</td>
-              <td class="py-2">${commentsHtml}</td>
+              <td class="py-2">
+                  <div class="text-muted small text-wrap text-start" style="min-width: 180px; max-width: 300px;">${commentsHtml}</div>
+              </td>
               <td class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6;">
                   <div class="d-flex align-items-center gap-1">
-                      ${item.clean_mobile ? `<a href="tel:${item.clean_mobile}" class="btn btn-xs btn-outline-success rounded-circle p-1" title="Call ${item.clean_mobile}" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;"><i class="fa-solid fa-phone" style="font-size: 0.75rem;"></i></a>` : ''}
-                      ${item.clean_mobile ? `<a href="${waUrl}" target="_blank" class="btn btn-xs btn-outline-success rounded-circle p-1" title="WhatsApp" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;"><i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i></a>` : ''}
-                      <a href="${item.detail_url}" target="_blank" class="btn btn-xs btn-outline-primary rounded-circle p-1" title="View Lead" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;"><i class="fa-solid fa-eye" style="font-size: 0.75rem;"></i></a>
-                      <a href="${item.edit_url}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-circle p-1" title="Edit Lead" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;"><i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i></a>
+                      ${(item.clean_mobile || item.mobile) ? `
+                          <a href="tel:${item.clean_mobile || item.mobile}" class="btn btn-xs btn-outline-success rounded-circle p-1" title="Call Lead" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">
+                              <i class="fa-solid fa-phone" style="font-size: 0.7rem;"></i>
+                          </a>
+                          <a href="${waUrl}" target="_blank" class="btn btn-xs btn-success rounded-circle p-1" title="WhatsApp Message" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">
+                              <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
+                          </a>
+                      ` : ''}
+                      <a href="${item.detail_url}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0" title="View Lead Profile" style="font-size: 0.75rem;">
+                          <i class="fa-solid fa-eye me-1"></i> View
+                      </a>
+                      <a href="${item.edit_url}" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0" title="Edit Lead Form" style="font-size: 0.75rem;">
+                          <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                      </a>
                   </div>
               </td>
           `;
-          tbody.appendChild(tr);
-      });
-  }
+            tbody.appendChild(tr);
+        });
+    }
 
-  function filterDrilldownTable() {
-      const searchVal = (document.getElementById('drilldownSearchInput')?.value || '').toLowerCase().trim();
-      let filtered = cachedLeadItems;
+    function filterDrilldownTable() {
+        const searchVal = (document.getElementById('drilldownSearchInput')?.value || '').toLowerCase().trim();
+        let filtered = cachedLeadItems;
 
-      if (selectedCampaignFilter) {
-          filtered = filtered.filter(l => l.campaign === selectedCampaignFilter);
-      }
+        if (selectedCampaignFilter) {
+            const targetCamp = selectedCampaignFilter.toLowerCase().trim();
+            filtered = filtered.filter(l => {
+                const leadCamp = (l.campaign || '').toLowerCase().trim();
+                if (targetCamp === 'nan' || targetCamp === 'general / direct') {
+                    return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
+                }
+                return leadCamp === targetCamp;
+            });
+        }
 
-      if (searchVal) {
-          filtered = filtered.filter(l => {
-              const name = (l.name || '').toLowerCase();
-              const mob = (l.mobile || '').toLowerCase();
-              const email = (l.email || '').toLowerCase();
-              const course = (l.course || '').toLowerCase();
-              const camp = (l.campaign || '').toLowerCase();
-              const st = (l.status || '').toLowerCase();
-              return name.includes(searchVal) || mob.includes(searchVal) || email.includes(searchVal) || course.includes(searchVal) || camp.includes(searchVal) || st.includes(searchVal);
-          });
-      }
+        if (searchVal) {
+            filtered = filtered.filter(l => {
+                const name = (l.name || '').toLowerCase();
+                const mob = (l.mobile || '').toLowerCase();
+                const email = (l.email || '').toLowerCase();
+                const course = (l.course || '').toLowerCase();
+                const camp = (l.campaign || '').toLowerCase();
+                const st = (l.status || '').toLowerCase();
+                return name.includes(searchVal) || mob.includes(searchVal) || email.includes(searchVal) || course.includes(searchVal) || camp.includes(searchVal) || st.includes(searchVal);
+            });
+        }
 
-      renderDrilldownTable(filtered);
-  }
+        renderDrilldownTable(filtered);
+    }
 
-  function getCsrfToken() {
-      const cookieValue = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
-      return cookieValue ? cookieValue.split('=')[1] : '';
-  }
+    function getCsrfToken() {
+        const cookieValue = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+        return cookieValue ? cookieValue.split('=')[1] : '';
+    }
 </script>
 {% endblock %}

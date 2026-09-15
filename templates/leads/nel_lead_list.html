@@ -126,51 +126,105 @@
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
   <style>
     .bulk-action-bar {
-      border: 1px solid #cbd5e1 !important;
+      border: 1.5px solid #c7d2fe !important;
       border-radius: 0.85rem !important;
-      background: #ffffff;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08);
     }
     .bulk-field-label {
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 2px;
+      color: #6366f1;
+      margin-bottom: 4px;
+    }
+    .bulk-select {
+      font-size: 0.83rem !important;
+      font-weight: 500;
+      background-color: #ffffff !important;
+      border: 1.5px solid #a5b4fc !important;
+      border-radius: 8px !important;
+      color: #1e293b !important;
+      box-shadow: 0 1px 4px rgba(99, 102, 241, 0.08) !important;
+      padding: 5px 32px 5px 10px !important;
+      appearance: auto !important;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .bulk-select:focus {
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
+      outline: none !important;
+    }
+    .bulk-select:hover {
+      border-color: #818cf8 !important;
+    }
+    .bulk-select-primary {
+      border-color: #6366f1 !important;
+      background: linear-gradient(to right, #eff0ff, #ffffff) !important;
+    }
+    .bulk-apply-btn {
+      background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+      border: none !important;
+      border-radius: 10px !important;
+      font-size: 0.85rem !important;
+      padding: 7px 20px !important;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35) !important;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .bulk-apply-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45) !important;
     }
   </style>
-  <div class="card bulk-action-bar mb-3 p-3">
+  <div class="card bulk-action-bar mb-3 px-4 py-3">
     <div class="d-flex flex-wrap align-items-center gap-3">
+
+      <!-- Label + Live Count -->
       <div class="d-flex align-items-center me-1">
-        <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-3 me-2">
-          <i class="fa-solid fa-layer-group fa-lg"></i>
+        <span class="badge p-2 rounded-3 me-2" style="background: linear-gradient(135deg,#6366f1,#4f46e5);">
+          <i class="fa-solid fa-layer-group text-white fa-lg"></i>
         </span>
         <div>
-          <div class="fw-bold text-dark" style="font-size: 0.88rem;">Bulk Action</div>
-          <div class="text-muted" style="font-size: 0.72rem;">Apply changes to selected leads</div>
+          <div class="fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 0.88rem; letter-spacing: -0.2px;">
+            Bulk Action
+            <!-- Live selected count badge -->
+            <span id="bulkSelectedCountBadge"
+              style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; font-weight:700;
+                     padding:2px 10px 2px 7px; border-radius:20px;
+                     background:#f1f5f9; color:#94a3b8; border:1.5px solid #e2e8f0;
+                     transition:all 0.2s ease;">
+              <i class="fa-solid fa-check-square" style="font-size:0.7rem;"></i>
+              <span id="bulkSelectedCountNum">0</span> selected
+            </span>
+          </div>
+          <div class="text-muted" style="font-size: 0.7rem;">Select leads below, then choose an action</div>
         </div>
       </div>
 
       <!-- 1. Action Dropdown -->
-      <div style="min-width: 170px;">
-        <div class="bulk-field-label">Action</div>
-        <select name="admin_bulk_action" id="adminBulkActionSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none" onchange="handleBulkActionChange()">
-          <option value="">-- Select Action --</option>
-          <option value="assign">Assign to...</option>
-          <option value="stage">Change Stage to...</option>
+      <div style="min-width: 185px;">
+        <div class="bulk-field-label">
+          <i class="fa-solid fa-list-check me-1"></i>Action
+        </div>
+        <select name="admin_bulk_action" id="adminBulkActionSelect"
+          class="form-select form-select-sm bulk-select bulk-select-primary"
+          onchange="handleBulkActionChange()">
+          <option value="">&#9660; Select Action</option>
+          <option value="assign">&#128101; Assign to...</option>
+          <option value="stage">&#127919; Change Stage to...</option>
           {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-          <option value="archive">Archive</option>
+          <option value="archive">&#128465; Archive</option>
           {% endif %}
         </select>
       </div>
 
       <!-- 2. From Field Container -->
-      <div id="fromFieldContainer" class="d-none" style="min-width: 170px;">
-        <div class="bulk-field-label" id="fromFieldLabel">From</div>
-        <!-- From User Select Wrapper -->
+      <div id="fromFieldContainer" class="d-none" style="min-width: 185px;">
+        <div class="bulk-field-label"><i class="fa-solid fa-arrow-right-from-bracket me-1"></i><span id="fromFieldLabel">From</span></div>
         <div id="fromUserWrapper" class="d-none">
-          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm bulk-select">
             <option value="">All / Any User</option>
             <option value="unassigned">Unassigned / Open</option>
             {% for e in employees %}
@@ -178,9 +232,8 @@
             {% endfor %}
           </select>
         </div>
-        <!-- From Stage Select Wrapper -->
         <div id="fromStageWrapper" class="d-none">
-          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm bulk-select">
             <option value="">All / Any Stage</option>
             {% for s in bulk_stages %}
             <option value="{{ s.id }}">{{ s.name }}</option>
@@ -190,21 +243,19 @@
       </div>
 
       <!-- 3. To Field Container -->
-      <div id="toFieldContainer" class="d-none" style="min-width: 170px;">
-        <div class="bulk-field-label" id="toFieldLabel">To</div>
-        <!-- To User Select Wrapper -->
+      <div id="toFieldContainer" class="d-none" style="min-width: 185px;">
+        <div class="bulk-field-label"><i class="fa-solid fa-arrow-right-to-bracket me-1"></i><span id="toFieldLabel">To</span></div>
         <div id="toUserWrapper" class="d-none">
-          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
-            <option value="">-- Select Assignee --</option>
+          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm bulk-select">
+            <option value="">&#8212; Select Assignee &#8212;</option>
             {% for e in employees %}
             <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
             {% endfor %}
           </select>
         </div>
-        <!-- To Stage Select Wrapper -->
         <div id="toStageWrapper" class="d-none">
-          <select name="stage" id="toStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
-            <option value="">-- Select Target Stage --</option>
+          <select name="stage" id="toStageSelect" class="form-select form-select-sm bulk-select">
+            <option value="">&#8212; Select Target Stage &#8212;</option>
             {% for s in bulk_stages %}
             <option value="{{ s.id }}">{{ s.name }}</option>
             {% endfor %}
@@ -214,11 +265,13 @@
 
       <!-- Apply Button -->
       <div class="ms-auto pt-3 pt-md-0">
-        <button type="button" class="btn btn-sm btn-primary px-4 fw-semibold shadow-sm d-flex align-items-center gap-2" onclick="submitAdminBulkAction()">
+        <button type="button" class="btn btn-primary bulk-apply-btn d-flex align-items-center gap-2 fw-semibold"
+          onclick="submitAdminBulkAction()">
           <i class="fa-solid fa-check-double"></i>
           <span>Apply to Selected</span>
         </button>
       </div>
+
     </div>
   </div>
 {% endif %}
@@ -537,6 +590,24 @@
     const btn = document.getElementById('bulkSelfAssignBtn');
 
     if (countSpan) countSpan.textContent = count;
+
+    // Update the bulk action bar live count badge
+    const bulkCountNum = document.getElementById('bulkSelectedCountNum');
+    const bulkCountBadge = document.getElementById('bulkSelectedCountBadge');
+    if (bulkCountNum) bulkCountNum.textContent = count;
+    if (bulkCountBadge) {
+      if (count > 0) {
+        bulkCountBadge.style.background = 'linear-gradient(135deg,#6366f1,#4f46e5)';
+        bulkCountBadge.style.color = '#ffffff';
+        bulkCountBadge.style.borderColor = '#6366f1';
+        bulkCountBadge.style.transform = 'scale(1.05)';
+      } else {
+        bulkCountBadge.style.background = '#f1f5f9';
+        bulkCountBadge.style.color = '#94a3b8';
+        bulkCountBadge.style.borderColor = '#e2e8f0';
+        bulkCountBadge.style.transform = 'scale(1)';
+      }
+    }
 
     if (badge && btn) {
       if (count > bulkSelfAssignLimit) {

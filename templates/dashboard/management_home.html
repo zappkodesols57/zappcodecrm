@@ -608,7 +608,7 @@
 <!-- ========================================================================= -->
 <div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle"
     aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 96vw;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 92vw;">
         <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
 
             <!-- Modal Header with Time Navigator Pills -->
@@ -651,21 +651,32 @@
             <!-- Modal Body -->
             <div class="modal-body p-4 bg-light bg-opacity-25">
 
-                <!-- Custom Interactive Calendar Heatmap Picker (Collapsible) -->
+                <!-- Custom Interactive Calendar Heatmap Picker & Date Range (Collapsible) -->
                 <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3" style="display: none; background: #ffffff;">
                     <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                                 <i class="fa-solid fa-calendar-days text-primary"></i>
-                                Select Any Date (<span id="calMonthTitle">Calendar</span>)
+                                Select Any Date / Date Range (<span id="calMonthTitle">Calendar</span>)
                             </h6>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
-                                    <i class="fa-solid fa-chevron-left"></i> Prev Month
-                                </button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
-                                    Next Month <i class="fa-solid fa-chevron-right"></i>
-                                </button>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <div class="d-flex align-items-center gap-1 bg-light p-1 rounded-pill border">
+                                    <span class="small text-muted fw-bold ps-2" style="font-size: 0.72rem;">From:</span>
+                                    <input type="date" id="drilldownStartDateInput" class="form-control form-control-sm border-0 bg-transparent py-0 px-1" style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownStartDateChange(this.value)">
+                                    <span class="small text-muted fw-bold" style="font-size: 0.72rem;">To:</span>
+                                    <input type="date" id="drilldownEndDateInput" class="form-control form-control-sm border-0 bg-transparent py-0 px-1" style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownEndDateChange(this.value)">
+                                    <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fw-bold" onclick="applyDrilldownDateRange()">
+                                        <i class="fa-solid fa-check me-1"></i> Apply Range
+                                    </button>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
+                                        <i class="fa-solid fa-chevron-left"></i> Prev Month
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
+                                        Next Month <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -732,7 +743,7 @@
                         </div>
                     </div>
 
-                    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
                         <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable" style="font-size: 0.85rem;">
                             <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
                                 <tr>
@@ -882,6 +893,10 @@ function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
 
     document.getElementById('drilldownCalendarWrapper').style.display = 'none';
     document.getElementById('drilldownSearchInput').value = '';
+    const startInputReset = document.getElementById('drilldownStartDateInput');
+    const endInputReset = document.getElementById('drilldownEndDateInput');
+    if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
+    if (endInputReset) { endInputReset.value = ''; endInputReset.min = ''; }
 
     // Show Modal & Fetch
     const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
@@ -960,12 +975,66 @@ function changeCalMonth(delta) {
     fetchDrilldownData();
 }
 
+let currentDrilldownStartDate = '';
+let currentDrilldownEndDate = '';
+
+function onDrilldownStartDateChange(val) {
+    const endInput = document.getElementById('drilldownEndDateInput');
+    if (endInput) {
+        endInput.min = val || '';
+        if (val && endInput.value && endInput.value < val) {
+            endInput.value = val;
+        }
+    }
+}
+
+function onDrilldownEndDateChange(val) {
+    const startInput = document.getElementById('drilldownStartDateInput');
+    if (startInput) {
+        startInput.max = val || '';
+        if (val && startInput.value && startInput.value > val) {
+            startInput.value = val;
+        }
+    }
+}
+
 function selectCalendarDate(dateStr) {
     if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
         return;
     }
     currentDrilldownDate = dateStr;
     currentDrilldownMode = 'custom';
+    currentDrilldownStartDate = '';
+    currentDrilldownEndDate = '';
+    updatePillUI('custom');
+    fetchDrilldownData();
+}
+
+function applyDrilldownDateRange() {
+    const startInput = document.getElementById('drilldownStartDateInput');
+    const endInput = document.getElementById('drilldownEndDateInput');
+    let startVal = startInput ? startInput.value : '';
+    let endVal = endInput ? endInput.value : '';
+
+    if (!startVal && !endVal) {
+        alert('Please select at least one date for the date range.');
+        return;
+    }
+
+    if (startVal && !endVal) endVal = startVal;
+    if (endVal && !startVal) startVal = endVal;
+
+    if (startVal > endVal) {
+        const temp = startVal;
+        startVal = endVal;
+        endVal = temp;
+        if (startInput) startInput.value = startVal;
+        if (endInput) endInput.value = endVal;
+    }
+
+    currentDrilldownMode = 'date_range';
+    currentDrilldownStartDate = startVal;
+    currentDrilldownEndDate = endVal;
     updatePillUI('custom');
     fetchDrilldownData();
 }
@@ -989,10 +1058,15 @@ function fetchDrilldownData() {
     selectedDrilldownLeadIds.clear();
     updateBulkActionBar();
 
-    const searchParams = new URLSearchParams(window.location.search);
+    // Use fresh URLSearchParams - do NOT copy window.location.search as it contains
+    // dashboard-level date filters (time_filter, start_date, end_date) that conflict
+    // with the drilldown's own date parameters and return 0 results.
+    const searchParams = new URLSearchParams();
     searchParams.set('card_type', currentDrilldownCard);
     searchParams.set('mode', currentDrilldownMode);
     searchParams.set('target_date', currentDrilldownDate);
+    searchParams.set('start_date', currentDrilldownStartDate);
+    searchParams.set('end_date', currentDrilldownEndDate);
     searchParams.set('year', currentCalYear);
     searchParams.set('month', currentCalMonth);
 
@@ -1009,6 +1083,7 @@ function fetchDrilldownData() {
 
                 if (data.hospital_name) cachedHospitalName = data.hospital_name;
                 if (data.agent_name) cachedAgentName = data.agent_name;
+                if (data.business_mode) cachedBusinessMode = data.business_mode;
 
                 if (data.selected_date !== 'all') {
                     currentDrilldownDate = data.selected_date;
@@ -1024,7 +1099,7 @@ function fetchDrilldownData() {
 
                 renderCampaignPills(data.campaign_breakdown || [], data.total_count);
                 renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
-                renderDrilldownTable(cachedLeadItems);
+                renderDrilldownTable(cachedLeadItems, cachedBusinessMode);
             }
         })
         .catch(err => {
@@ -1209,7 +1284,14 @@ function selectCampaignFilter(campName) {
 
     let filtered = cachedLeadItems;
     if (selectedCampaignFilter) {
-        filtered = cachedLeadItems.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+        const targetCamp = selectedCampaignFilter.toLowerCase().trim();
+        filtered = cachedLeadItems.filter(l => {
+            const leadCamp = (l.campaign || '').toLowerCase().trim();
+            if (targetCamp === 'nan' || targetCamp === 'general / direct') {
+                return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
+            }
+            return leadCamp === targetCamp;
+        });
     }
 
     const query = (document.getElementById('drilldownSearchInput').value || '').toLowerCase().trim();
@@ -1277,7 +1359,59 @@ function renderCalendarGrid(year, month, countsMap, activeDate) {
     }
 }
 
-function renderDrilldownTable(leads) {
+let cachedBusinessMode = 'all';
+
+function renderDrilldownTableHeaders(bMode) {
+    const thead = document.querySelector('#drilldownLeadsTable thead tr');
+    if (!thead) return;
+
+    let col1Title = 'Lead / Candidate';
+    let col3Title = 'Business / Source';
+    let col4Title = 'Dept / Course';
+    let col7Title = 'Assigned To';
+    let col9Title = 'Action';
+
+    if (bMode === 'hospital') {
+        col1Title = 'PATIENT';
+        col3Title = 'SOURCE';
+        col4Title = 'DEPARTMENT';
+        col7Title = 'ASSIGNED TO';
+        col9Title = 'ACTIONS';
+    } else if (bMode === 'academy') {
+        col1Title = 'NAME';
+        col3Title = 'SOURCE / CAMPAIGN';
+        col4Title = 'COURSE / SERVICE';
+        col7Title = 'ASSIGNED TO';
+        col9Title = 'ACTION';
+    } else {
+        // 'all' businesses view
+        col1Title = 'LEAD NAME';
+        col3Title = 'SOURCE / CAMPAIGN';
+        col4Title = 'COURSE / DEPARTMENT';
+        col7Title = 'ASSIGNED TO';
+        col9Title = 'ACTION';
+    }
+
+    thead.innerHTML = `
+        <th class="py-2 px-3" style="width: 40px;">
+            <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
+        </th>
+        <th class="py-2">${col1Title}</th>
+        <th class="py-2">CONTACT</th>
+        <th class="py-2">${col3Title}</th>
+        <th class="py-2">${col4Title}</th>
+        <th class="py-2">TEMPERATURE</th>
+        <th class="py-2">STATUS</th>
+        <th class="py-2" style="min-width: 150px;">${col7Title}</th>
+        <th class="py-2" style="min-width: 180px;">COMMENTS</th>
+        <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">${col9Title}</th>
+    `;
+}
+
+function renderDrilldownTable(leads, bMode) {
+    const currentMode = bMode || cachedBusinessMode || 'all';
+    renderDrilldownTableHeaders(currentMode);
+
     const tbody = document.getElementById('drilldownTableBody');
     const emptyEl = document.getElementById('drilldownEmptyState');
     tbody.innerHTML = '';
@@ -1303,6 +1437,8 @@ function renderDrilldownTable(leads) {
             tempBadge = `<span class="badge badge-cold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>`;
         } else if (tempUpper === 'FREEZE') {
             tempBadge = `<span class="badge badge-freeze"><i class="fa-regular fa-snowflake me-1"></i>Freeze</span>`;
+        } else {
+            tempBadge = `<span class="badge bg-light text-secondary border">Uncontacted</span>`;
         }
 
         // Status Badge
@@ -1381,18 +1517,55 @@ function renderDrilldownTable(leads) {
             commentsHtml = `<ul class="mb-0 ps-3 text-start" style="list-style-type: disc;">${lis}</ul>`;
         }
 
-        // Department / Course Representation
-        let deptCourseHtml = '';
-        if (lead.is_hospital) {
-            deptCourseHtml = `
-                <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor}</div>
-                <div class="text-muted small" style="font-size: 0.72rem;">${lead.department}</div>
+        // Column 3: Source / Campaign cell rendering based on business mode
+        let sourceColumnHtml = '';
+        if (currentMode === 'hospital') {
+            sourceColumnHtml = `
+                <div class="text-dark fw-semibold text-truncate" title="${lead.lead_source}">${lead.lead_source}</div>
+                ${lead.campaign && lead.campaign !== 'Nelson General Campaign' && lead.campaign !== 'nan' ? `<div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${lead.campaign}">${lead.campaign}</div>` : ''}
+            `;
+        } else if (currentMode === 'academy') {
+            sourceColumnHtml = `
+                <div class="text-dark fw-semibold text-truncate" title="${lead.lead_source}">${lead.lead_source}</div>
+                <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${lead.campaign || 'Direct / Organic'}">${lead.campaign || 'Direct / Organic'}</div>
             `;
         } else {
+            // 'all' business view: show business badge + source/campaign
+            sourceColumnHtml = `
+                <div class="text-truncate mb-1" title="${lead.business_name}">
+                    <span class="badge ${lead.is_hospital ? 'bg-info bg-opacity-10 text-info border' : 'bg-primary bg-opacity-10 text-primary border'} text-truncate" style="max-width: 100%;">
+                        <i class="fa-solid ${lead.is_hospital ? 'fa-hospital' : 'fa-building'} me-1"></i>${lead.business_name}
+                    </span>
+                </div>
+                <div class="text-dark fw-semibold text-truncate" style="font-size: 0.75rem;" title="${lead.lead_source}">${lead.lead_source}</div>
+                ${lead.campaign && lead.campaign !== 'nan' ? `<div class="text-muted small text-truncate" style="font-size: 0.7rem;" title="${lead.campaign}">${lead.campaign}</div>` : ''}
+            `;
+        }
+
+        // Column 4: Department / Course cell rendering based on business mode
+        let deptCourseHtml = '';
+        if (currentMode === 'hospital') {
+            deptCourseHtml = `
+                <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor || 'Doctor Not Assigned'}</div>
+                <div class="text-muted small" style="font-size: 0.72rem;">${lead.department || 'General OPD'}</div>
+            `;
+        } else if (currentMode === 'academy') {
             deptCourseHtml = `
                 <div class="text-dark fw-semibold"><i class="fa-solid fa-graduation-cap text-indigo me-1"></i>${lead.course || 'General Training'}</div>
-                <div class="text-muted small" style="font-size: 0.72rem;">${lead.stage || 'Inquiry'}</div>
+                <div class="text-muted small" style="font-size: 0.72rem;">${lead.stage || 'Inquiry / Lead'}</div>
             `;
+        } else {
+            if (lead.is_hospital) {
+                deptCourseHtml = `
+                    <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor || 'Doctor Not Assigned'}</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">${lead.department || 'General OPD'}</div>
+                `;
+            } else {
+                deptCourseHtml = `
+                    <div class="text-dark fw-semibold"><i class="fa-solid fa-graduation-cap text-indigo me-1"></i>${lead.course || 'General Training'}</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">${lead.stage || 'Inquiry'}</div>
+                `;
+            }
         }
 
         // Status / Admission Representation
@@ -1434,9 +1607,8 @@ function renderDrilldownTable(leads) {
                 <div class="text-dark fw-semibold">${lead.mobile}</div>
                 <div class="text-muted small" style="font-size: 0.72rem;">${lead.email !== '-' ? lead.email : ''}</div>
             </td>
-            <td style="max-width: 130px;">
-                <div class="text-truncate" title="${lead.business_name}"><span class="badge ${lead.is_hospital ? 'bg-info bg-opacity-10 text-info border' : 'bg-primary bg-opacity-10 text-primary border'} text-truncate" style="max-width: 100%;"><i class="fa-solid ${lead.is_hospital ? 'fa-hospital' : 'fa-building'} me-1"></i>${lead.business_name}</span></div>
-                <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${lead.lead_source} • ${lead.campaign}">${lead.lead_source}</div>
+            <td style="max-width: 140px;">
+                ${sourceColumnHtml}
             </td>
             <td>
                 ${deptCourseHtml}
@@ -1557,6 +1729,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   // 3. Source Doughnut Charts per Business
+  const isMobileScreen = window.innerWidth < 768;
   const sourceCharts = {{ business_source_charts_json|safe }};
   sourceCharts.forEach((item, idx) => {
     const canvasId = `sourceChart_${idx + 1}`;
@@ -1576,6 +1749,9 @@ document.addEventListener("DOMContentLoaded", function() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: {
+            padding: 4
+          },
           onClick: (e, elements) => {
             if (elements.length > 0 && item.labels) {
               const clickedIdx = elements[0].index;
@@ -1585,8 +1761,8 @@ document.addEventListener("DOMContentLoaded", function() {
           },
           plugins: {
             legend: {
-              position: 'right',
-              labels: { boxWidth: 10, font: { size: 10 } }
+              position: isMobileScreen ? 'bottom' : 'right',
+              labels: { boxWidth: 10, padding: 6, font: { size: 10, family: "'Outfit', sans-serif" } }
             }
           }
         }
@@ -1614,6 +1790,9 @@ document.addEventListener("DOMContentLoaded", function() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: {
+            padding: 4
+          },
           onClick: (e, elements) => {
             if (elements.length > 0 && item.labels) {
               const clickedIdx = elements[0].index;
@@ -1623,8 +1802,8 @@ document.addEventListener("DOMContentLoaded", function() {
           },
           plugins: {
             legend: {
-              position: 'right',
-              labels: { boxWidth: 10, font: { size: 10 } }
+              position: isMobileScreen ? 'bottom' : 'right',
+              labels: { boxWidth: 10, padding: 6, font: { size: 10, family: "'Outfit', sans-serif" } }
             }
           }
         }

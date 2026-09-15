@@ -29,13 +29,25 @@ def _followup_activity(sender, instance, created, **kwargs):
     lead.next_followup_date = upcoming.next_followup_date if upcoming else None
     lead.next_followup_time = upcoming.next_followup_time if upcoming else None
     lead.followup_count = lead.followups.count()
+
+    update_kwargs = {
+        "last_followup_date": lead.last_followup_date,
+        "next_followup_date": lead.next_followup_date,
+        "next_followup_time": lead.next_followup_time,
+        "followup_count": lead.followup_count,
+    }
+    from leads.models import LeadTemperature, LeadStage
+    if lead.temperature == LeadTemperature.UNCONTACTED or lead.temperature == "UNCONTACTED":
+        lead.temperature = LeadTemperature.WARM
+        update_kwargs["temperature"] = LeadTemperature.WARM
+    if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+        fu_stage = LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+        if fu_stage:
+            lead.stage = fu_stage
+            update_kwargs["stage"] = fu_stage
+
     Lead = lead.__class__
-    Lead.objects.filter(pk=lead.pk).update(
-        last_followup_date=lead.last_followup_date,
-        next_followup_date=lead.next_followup_date,
-        next_followup_time=lead.next_followup_time,
-        followup_count=lead.followup_count,
-    )
+    Lead.objects.filter(pk=lead.pk).update(**update_kwargs)
 
 
 @receiver(post_save, sender=Note)

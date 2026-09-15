@@ -634,12 +634,17 @@ class Lead(models.Model):
         appt_st_up = appt_st.upper()
         attendant = cd.get("lead_attendant") or (self.assigned_to.get_full_name() if self.assigned_to else "")
 
-        # Check appointment confirmation status from linked Appointment record
-        latest_apt = self.appointments.order_by('-id').first() if self.pk else None
+        # Check appointment confirmation status from linked Appointment record without N+1 query storm
+        latest_apt = None
         has_doctor_approved = False
-        if latest_apt:
-            has_doctor_approved = (latest_apt.status in [AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED])
+        if hasattr(self, '_prefetched_objects_cache') and 'appointments' in self._prefetched_objects_cache:
+            apts = list(self.appointments.all())
+            if apts:
+                latest_apt = sorted(apts, key=lambda a: a.id, reverse=True)[0]
+                has_doctor_approved = (latest_apt.status in [AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED])
         elif cd.get('appointment_confirmed_at'):
+            has_doctor_approved = True
+        elif 'CONFIRM' in appt_st_up or 'APPROV' in appt_st_up or 'BOOK' in appt_st_up or appt_st_up == 'YES':
             has_doctor_approved = True
 
         # 1. Payment Done (total bill > 0 or deal status Won)
@@ -831,6 +836,19 @@ class Lead(models.Model):
             self.lead_code = next_lead_code()
         if not self.temperature or self.temperature.strip() not in LeadTemperature.values:
             self.temperature = LeadTemperature.UNCONTACTED
+        if not self.stage_id:
+            default_stage = (
+                LeadStage.objects.filter(name__iexact='New').first()
+                or LeadStage.objects.order_by('order', 'id').first()
+            )
+            if not default_stage:
+                # Create default 'New' stage if table is completely empty
+                default_stage, _ = LeadStage.objects.get_or_create(
+                    name="New",
+                    defaults={"order": 1, "is_active": True}
+                )
+            if default_stage:
+                self.stage = default_stage
         is_new = self._state.adding
         if is_new:
             # freeze original attribution at creation time — rule: never overwrite later

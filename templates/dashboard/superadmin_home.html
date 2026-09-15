@@ -66,14 +66,28 @@
 
     .stats-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1rem;
         margin-bottom: 1.25rem;
     }
 
+    @media (max-width: 768px) {
+        .stats-kpi-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .stats-kpi-grid {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+    }
+
     .revenue-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
@@ -150,9 +164,16 @@
 
     .charts-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.25rem;
         margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
     }
 
     .chart-card {
@@ -163,6 +184,24 @@
         padding: 1.25rem 1.5rem;
         display: flex;
         flex-direction: column;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .chart-container-wrapper {
+        position: relative;
+        height: 290px;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    @media (max-width: 576px) {
+        .chart-container-wrapper {
+            height: 250px;
+        }
+        .chart-card {
+            padding: 1rem;
+        }
     }
 
     .chart-header {
@@ -228,10 +267,17 @@
             </a>
             {% endif %}
 
-            <!-- 3. Today Date Badge -->
+            <!-- 3. Active Date Range / Today Date Badge -->
+            {% if custom_start and custom_end %}
+            <div class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-1"
+                style="font-size: 0.8rem; font-weight: 600;">
+                <i class="ph ph-calendar-blank"></i> {{ custom_start }} to {{ custom_end }}
+            </div>
+            {% else %}
             <div class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm" style="font-size: 0.8rem; font-weight: 600;">
                 <i class="ph ph-calendar-blank text-primary me-1"></i> Today: {{ today|date:"d M Y" }}
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -242,7 +288,7 @@
                     <!-- 1. Campaign Filter -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">CAMPAIGN</label>
-                        <select name="campaign" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="campaign" class="form-select custom-filter-select" >
                             <option value="">All Campaigns</option>
                             {% for camp in campaigns %}
                             <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
@@ -253,7 +299,7 @@
                     <!-- 2. Source Filter -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">LEAD SOURCE</label>
-                        <select name="source" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="source" class="form-select custom-filter-select" >
                             <option value="">All Lead Sources</option>
                             {% for src in lead_sources %}
                             <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
@@ -264,7 +310,7 @@
                     <!-- 3. Department Filter -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">DEPARTMENT</label>
-                        <select name="department" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="department" class="form-select custom-filter-select" >
                             <option value="">All Departments</option>
                             {% for dept in departments %}
                             <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}</option>
@@ -275,7 +321,7 @@
                     <!-- 4. Doctor Filter -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">DOCTOR NAME</label>
-                        <select name="doctor" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="doctor" class="form-select custom-filter-select" >
                             <option value="">All Doctors</option>
                             {% for doc in doctors %}
                             <option value="{{ doc }}" {% if current_doctor == doc %}selected{% endif %}>{{ doc }}</option>
@@ -286,7 +332,7 @@
                     <!-- 5. Location Filter -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">LOCATION</label>
-                        <select name="location" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="location" class="form-select custom-filter-select" >
                             <option value="">All Locations</option>
                             {% for loc in locations %}
                             <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>{{ loc }}</option>
@@ -297,7 +343,7 @@
                     <!-- 6. Payments Breakdown Filter -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">PAYMENT / BILL FILTER</label>
-                        <select name="payment_type" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="payment_type" class="form-select custom-filter-select" >
                             <option value="">All Leads (Paid & Unpaid)</option>
                             <option value="all_paid" {% if current_payment_type == 'all_paid' %}selected{% endif %}>Won (All Paid Leads)</option>
                             <option value="opd" {% if current_payment_type == 'opd' %}selected{% endif %}>Has OPD Bill</option>
@@ -311,7 +357,7 @@
                     <!-- 7. Month Filter -->
                     <div class="col-md-2 col-sm-4">
                         <label class="filter-label">MONTH</label>
-                        <select name="month" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="month" class="form-select custom-filter-select" >
                             <option value="">All Months</option>
                             {% for m in months %}
                             <option value="{{ m }}" {% if current_month == m %}selected{% endif %}>{{ m }}</option>
@@ -322,7 +368,7 @@
                     <!-- 8. Year Filter -->
                     <div class="col-md-2 col-sm-4">
                         <label class="filter-label">YEAR</label>
-                        <select name="year" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="year" class="form-select custom-filter-select" >
                             <option value="">All Years</option>
                             {% for y in available_years %}
                             <option value="{{ y }}" {% if current_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
@@ -333,7 +379,7 @@
                     <!-- 9. Week Day Filter -->
                     <div class="col-md-2 col-sm-4">
                         <label class="filter-label">WEEK DAY</label>
-                        <select name="weekday" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="weekday" class="form-select custom-filter-select" >
                             <option value="">All Week Days</option>
                             {% for wd in weekdays %}
                             <option value="{{ wd }}" {% if current_weekday == wd %}selected{% endif %}>{{ wd }}</option>
@@ -344,7 +390,7 @@
                     <!-- 10. Gender Filter -->
                     <div class="col-md-2 col-sm-4">
                         <label class="filter-label">GENDER</label>
-                        <select name="gender" class="form-select custom-filter-select" onchange="this.form.submit()">
+                        <select name="gender" class="form-select custom-filter-select" >
                             <option value="">All Genders</option>
                             <option value="FEMALE" {% if current_gender == 'FEMALE' %}selected{% endif %}>Female</option>
                             <option value="MALE" {% if current_gender == 'MALE' %}selected{% endif %}>Male</option>
@@ -355,12 +401,12 @@
                     <!-- 11. Custom Date Range Inputs (Locked to today's max date) -->
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">FROM DATE</label>
-                        <input type="date" name="start_date" id="filterStartDate" class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}" max="{{ today_str }}">
+                        <input type="date" name="start_date" id="filterStartDate" class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}" max="{{ today_str }}" onchange="onFilterStartDateChange(this.value)">
                     </div>
 
                     <div class="col-md-3 col-sm-6">
                         <label class="filter-label">TO DATE</label>
-                        <input type="date" name="end_date" id="filterEndDate" class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}" max="{{ today_str }}">
+                        <input type="date" name="end_date" id="filterEndDate" class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}" max="{{ today_str }}" onchange="onFilterEndDateChange(this.value)">
                     </div>
                 </div>
 
@@ -374,7 +420,7 @@
     </div>
 
     <!-- Main KPIs Cards Grid -->
-    <div class="stats-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+    <div class="stats-kpi-grid">
         <!-- 1. Today's New Leads (Interactive Clickable Card) -->
         <div class="stat-card c-leads cursor-pointer shadow-sm position-relative" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#todaysLeadsBreakdownModal" title="Click to view Today's Campaign & Status Breakdown">
             <div class="stat-header">
@@ -429,7 +475,7 @@
                     </select>
                 </div>
             </div>
-            <div style="position: relative; height: 290px; width: 100%;">
+            <div class="chart-container-wrapper">
                 <canvas id="locationChart"></canvas>
             </div>
         </div>
@@ -450,7 +496,7 @@
                     </select>
                 </div>
             </div>
-            <div style="position: relative; height: 290px; width: 100%;">
+            <div class="chart-container-wrapper">
                 <canvas id="departmentChart"></canvas>
             </div>
         </div>
@@ -466,7 +512,7 @@
                 </h5>
                 <span class="badge bg-light text-muted border">Interactive</span>
             </div>
-            <div style="position: relative; height: 290px; width: 100%;">
+            <div class="chart-container-wrapper">
                 <canvas id="monthChart"></canvas>
             </div>
         </div>
@@ -479,7 +525,7 @@
                 </h5>
                 <span class="badge bg-light text-muted border">Outcomes</span>
             </div>
-            <div style="position: relative; height: 290px; width: 100%;">
+            <div class="chart-container-wrapper">
                 <canvas id="finalStatusChart"></canvas>
             </div>
         </div>
@@ -503,7 +549,7 @@
                     </select>
                 </div>
             </div>
-            <div style="position: relative; height: 290px; width: 100%;">
+            <div class="chart-container-wrapper">
                 <canvas id="doctorChart"></canvas>
             </div>
         </div>
@@ -524,7 +570,7 @@
                     </select>
                 </div>
             </div>
-            <div style="position: relative; height: 290px; width: 100%;">
+            <div class="chart-container-wrapper">
                 <canvas id="campaignChart"></canvas>
             </div>
         </div>
@@ -540,7 +586,7 @@
                 </h5>
                 <span class="badge bg-light text-muted border">Click to Filter</span>
             </div>
-            <div style="position: relative; height: 270px; width: 100%;">
+            <div class="chart-container-wrapper" style="height: 270px;">
                 <canvas id="appointmentStatusChart"></canvas>
             </div>
         </div>
@@ -553,7 +599,7 @@
                 </h5>
                 <span class="badge bg-light text-muted border">Click to Filter</span>
             </div>
-            <div style="position: relative; height: 270px; width: 100%;">
+            <div class="chart-container-wrapper" style="height: 270px;">
                 <canvas id="weekdayChart"></canvas>
             </div>
         </div>
@@ -707,12 +753,19 @@
                 labels: labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: colorPalette || ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B']
+                    backgroundColor: colorPalette || ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '60%',
+                layout: {
+                    padding: { top: 4, bottom: 4, left: 4, right: 4 }
+                },
                 onClick: (e, elements) => {
                     if (elements.length > 0 && filterParam) {
                         const idx = elements[0].index;
@@ -721,10 +774,20 @@
                     }
                 },
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    legend: {
+                        position: 'bottom',
+                        align: 'center',
+                        labels: {
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 6,
+                            usePointStyle: true,
+                            font: { size: 10, family: "'Outfit', sans-serif", weight: '500' }
+                        }
+                    },
                     tooltip: {
                         callbacks: {
-                            label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN'); }
+                            label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN') + ' leads'; }
                         }
                     }
                 }
@@ -864,6 +927,51 @@
         chartInstances['weekdayChart'].data.labels = wdEntries.map(e => e[0]);
         chartInstances['weekdayChart'].data.datasets[0].data = wdEntries.map(e => e[1]);
         chartInstances['weekdayChart'].update();
+    });
+
+    function onFilterStartDateChange(val) {
+        const endInput = document.getElementById('filterEndDate');
+        if (endInput) {
+            endInput.min = val || '';
+            if (val && endInput.value && endInput.value < val) {
+                endInput.value = val;
+            }
+        }
+    }
+
+    function onFilterEndDateChange(val) {
+        const startInput = document.getElementById('filterStartDate');
+        if (startInput) {
+            startInput.max = val || '';
+            if (val && startInput.value && startInput.value > val) {
+                startInput.value = val;
+            }
+        }
+    }
+
+    // Intercept filter form submit to remove empty parameters and avoid conflicting time_filter
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterForm = document.getElementById('interactiveFilterForm');
+        if (filterForm) {
+            filterForm.addEventListener('submit', function(e) {
+                const startVal = document.getElementById('filterStartDate')?.value;
+                const endVal = document.getElementById('filterEndDate')?.value;
+                const timeFilterHidden = document.getElementById('filterTimeFilterHidden');
+                
+                // If custom date range is provided, drop time_filter=today hidden input
+                if ((startVal || endVal) && timeFilterHidden) {
+                    timeFilterHidden.disabled = true;
+                }
+
+                // Disable all empty inputs/selects so URL is clean and doesn't send &campaign=&source=...
+                const fields = filterForm.querySelectorAll('input, select');
+                fields.forEach(field => {
+                    if (!field.value || field.value.trim() === '') {
+                        field.disabled = true;
+                    }
+                });
+            });
+        }
     });
 </script>
 {% endblock %}

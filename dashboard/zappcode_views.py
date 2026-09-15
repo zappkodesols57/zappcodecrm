@@ -17,6 +17,9 @@ from leads.models import (
     LeadSource,
     LeadStage,
     SourceCategory,
+    LeadTemperature,
+    DealStatus,
+    AdmissionStatus,
 )
 from payments.models import Payment, PaymentStatus
 
@@ -162,7 +165,17 @@ def management_home(request):
     # ── 5. Overall Aggregated KPIs (Combined unified values) ────────────────────
     total_leads = filtered_leads.count()
     new_leads = filtered_leads.filter(inquiry_date__gte=today - timedelta(days=7)).count()
-    uncontacted = filtered_leads.filter(temperature="UNCONTACTED").count()
+    
+    uncontacted_filter = (
+        Q(temperature=LeadTemperature.UNCONTACTED) &
+        Q(followup_count=0) &
+        Q(next_followup_date__isnull=True) &
+        Q(deal_status__in=[DealStatus.OPEN, 'New', 'OPEN']) &
+        Q(admission_status__in=[AdmissionStatus.NOT_APPLIED, '', None]) &
+        Q(admission__isnull=True) &
+        (Q(stage__isnull=True) | Q(stage__name__in=['New', 'Fresh', 'Uncontacted', 'new', 'fresh', 'uncontacted']))
+    )
+    uncontacted = filtered_leads.filter(uncontacted_filter).distinct().count()
     not_picked = filtered_leads.filter(temperature="NOT_PICKED").count()
     hot = filtered_leads.filter(temperature="HOT").count()
     warm = filtered_leads.filter(temperature="WARM").count()
@@ -172,7 +185,10 @@ def management_home(request):
     followups_today = FollowUp.objects.filter(lead_id__in=lead_ids, followup_date=today).count()
     overdue = FollowUp.objects.filter(lead_id__in=lead_ids, followup_date__lt=today, followup_status="PENDING").count()
     
-    admissions_count = Admission.objects.filter(lead_id__in=lead_ids).count()
+    admissions_filter = (
+        Q(admission_status="ADMISSION_DONE") | Q(deal_status="WON") | Q(stage__name__icontains="admission") | Q(admission__isnull=False)
+    )
+    admissions_count = filtered_leads.filter(admissions_filter).distinct().count()
     visits_count = filtered_leads.filter(Q(stage__name__icontains="visit") | Q(custom_data__appointment_status__icontains="Visit")).count()
     total_revenue = Payment.objects.filter(admission__lead_id__in=lead_ids, payment_status=PaymentStatus.SUCCESS).aggregate(s=Sum("amount"))["s"] or 0
     conversion_rate = round(admissions_count / total_leads * 100, 1) if total_leads else 0.0
@@ -198,7 +214,7 @@ def management_home(request):
 
             b_total = b_leads.count()
             b_lead_ids = b_leads.values_list("id", flat=True)
-            b_admissions = Admission.objects.filter(lead_id__in=b_lead_ids).count()
+            b_admissions = b_leads.filter(admissions_filter).distinct().count()
             b_rev = Payment.objects.filter(admission__lead_id__in=b_lead_ids, payment_status=PaymentStatus.SUCCESS).aggregate(s=Sum("amount"))["s"] or 0
             b_conv = round(b_admissions / b_total * 100, 1) if b_total else 0.0
 
@@ -211,7 +227,7 @@ def management_home(request):
                 "bg": b["bg"],
                 "border": b["border"],
                 "total_leads": b_total,
-                "uncontacted": b_leads.filter(temperature="UNCONTACTED").count(),
+                "uncontacted": b_leads.filter(uncontacted_filter).distinct().count(),
                 "overdue": b_overdue,
                 "admissions": b_admissions,
                 "conversion_rate": b_conv,
