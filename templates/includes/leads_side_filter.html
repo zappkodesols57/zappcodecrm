@@ -350,7 +350,7 @@ Features:
           <div class="ps-2 mb-2">
 
             <!-- Global Super Admin Business Filter -->
-            {% if businesses and not request.user.hospital %}
+            {% if is_superadmin_user and request.user.role == 'SUPER_ADMIN' and not request.user.hospital and businesses %}
             <div class="py-1 border-bottom pb-2 mb-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subBusinessFilter" role="button" style="font-size: 0.84rem;">
@@ -709,6 +709,8 @@ Features:
 
       <!-- Hidden Sort Input -->
       <input type="hidden" name="sort" id="drawerSortInput" value="{{ current_sort|default:'-created_at' }}">
+      <!-- Keep sidebar open after filter apply -->
+      <input type="hidden" name="filter_open" value="1">
 
       <!-- Bottom Action Bar (Apply Filter, Export & Clear) -->
       <div class="p-3 bg-white border-top shadow-sm">

@@ -57,22 +57,46 @@
 <!-- Search Card -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-body p-3">
-        <form method="GET" action="" class="row g-2 align-items-center">
+        <div class="row g-2 align-items-center">
             <div class="col-md-9 col-12">
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name or Phone Number..." value="{{ q }}">
+                    <input type="text" id="myLeadsSearchInput" class="form-control border-start-0 ps-0"
+                        placeholder="Search by Patient Name or Phone Number..." value="{{ q }}"
+                        onkeyup="if(event.key==='Enter'){ syncSearchAndSubmit(); }">
                 </div>
             </div>
             <div class="col-md-3 col-12 d-flex gap-2">
-                <button type="submit" class="btn btn-primary rounded-pill flex-grow-1"><i class="fa-solid fa-search me-1"></i> Search</button>
+                <button type="button" class="btn btn-primary rounded-pill flex-grow-1" onclick="syncSearchAndSubmit()">
+                    <i class="fa-solid fa-search me-1"></i> Search
+                </button>
                 <button class="btn btn-light border rounded-pill px-3" type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Filter Sidebar">
                     <i class="fa-solid fa-sliders text-primary"></i>
                 </button>
             </div>
-        </form>
+        </div>
     </div>
 </div>
+<script>
+function syncSearchAndSubmit() {
+    var searchInput = document.getElementById('myLeadsSearchInput');
+    var drawerForm = document.getElementById('crmDrawerFilterForm');
+    if (!drawerForm) return;
+    // Set q value in the drawer form before submitting
+    var existing = drawerForm.querySelector('input[name="q"]');
+    if (existing) {
+        existing.value = searchInput ? searchInput.value : '';
+    } else {
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'q';
+        hidden.value = searchInput ? searchInput.value : '';
+        drawerForm.appendChild(hidden);
+    }
+    drawerForm.submit();
+}
+</script>
+
 
 <!-- Results Card -->
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">

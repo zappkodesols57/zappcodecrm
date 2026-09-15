@@ -1012,7 +1012,8 @@ def switch_business(request):
     Global Business Switcher for Super Admin.
     Stores selected business ID in session so all views automatically scope to that business.
     """
-    if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+    if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN) or request.user.hospital:
+        messages.error(request, "Permission denied. Only Global Super Admins can switch businesses.")
         return redirect("dashboard:home")
     
     business_id = request.GET.get("business_id", "").strip() or request.POST.get("business_id", "").strip()

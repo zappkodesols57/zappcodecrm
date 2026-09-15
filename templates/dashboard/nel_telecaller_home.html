@@ -316,39 +316,43 @@
 
     </div>
 
-    <!-- MAIN BODY: My Recent Leads & Today's Tasks -->
-    <div class="row g-4">
+    <!-- ROW 1: Follow-ups Queue & Upcoming OPD / Appointments (Equally Sized) -->
+    <div class="row g-4 mb-4">
         
-        <!-- Left Column: My Recent Leads (Latest 10 Entries) -->
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+        <!-- Left Column: Follow-ups Queue (col-lg-6) -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
                 <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <i class="ph-bold ph-user-circle-gear text-primary"></i>
-                            My Recent Leads
+                            <span class="badge p-2 rounded-3 bg-purple bg-opacity-10 text-purple border border-purple-subtle" style="color: #7c3aed; background: rgba(124, 58, 237, 0.1);">
+                                <i class="ph-bold ph-clock-countdown fs-5"></i>
+                            </span>
+                            Follow-ups Queue
+                            <span class="badge rounded-pill px-2 py-1 ms-1 text-white" style="font-size: 0.8rem; background: #7c3aed;">
+                                {{ pending_and_upcoming_followups_count }}
+                            </span>
                         </h5>
-                        <small class="text-muted">Latest patient records updated in your active calling queue</small>
+                        <small class="text-muted">All active follow-ups: Billing, Call, & Appointments</small>
                     </div>
-                    <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold d-flex align-items-center gap-1">
-                        <span>View All My Leads</span>
-                        <i class="ph ph-arrow-right"></i>
-                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" onclick="openUniversalCardDrilldown('followups', 'Follow-ups', 'bg-purple')">
+                        <span>Calendar View</span>
+                        <i class="ph ph-calendar-blank"></i>
+                    </button>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
+                <div class="card-body p-0 flex-grow-1 d-flex flex-column">
+                    <div class="table-responsive flex-grow-1" style="max-height: 380px; overflow-y: auto;">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
                                 <tr>
                                     <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold text-center">Status</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Recent Remark</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Category</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Due Date</th>
                                     <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for lead in my_recent_leads %}
+                                {% for lead in pending_and_upcoming_followups %}
                                 <tr>
                                     <td class="px-4">
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
@@ -359,59 +363,48 @@
                                         </div>
                                     </td>
                                     <td>
-                                        {% if lead.custom_doctor %}
-                                            <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-stethoscope me-1"></i> {{ lead.custom_doctor }}</span></div>
-                                        {% endif %}
-                                        {% if lead.custom_dept %}
-                                            <div class="small fw-semibold text-secondary mt-1">{{ lead.custom_dept }}</div>
-                                        {% elif not lead.custom_doctor %}
-                                            <span class="text-muted small">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if lead.custom_deal_status == 'Payment Done' %}
-                                            <span class="badge badge-payment-done px-2 py-1"><i class="ph-bold ph-check-circle me-1"></i>Payment Done</span>
-                                        {% elif lead.custom_deal_status == 'Booking Confirmed' %}
-                                            <span class="badge badge-booking-confirmed px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booking Confirmed</span>
-                                        {% elif lead.custom_deal_status == 'Awaiting Approval from Doctor' or lead.custom_deal_status == 'Booking Approval Pending' %}
-                                            <span class="badge badge-booking-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Awaiting Approval from Doctor</span>
-                                        {% elif lead.custom_deal_status == 'Booked' %}
-                                            <span class="badge badge-booking px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booked</span>
-                                        {% elif lead.custom_deal_status == 'Follow-up Needed' %}
-                                            <span class="badge badge-followup-needed px-2 py-1"><i class="ph-bold ph-clock me-1"></i>Follow-up</span>
-                                            {% if lead.next_followup_date %}
-                                                <div class="small text-muted mt-1" style="font-size: 0.7rem;"><i class="ph-bold ph-calendar me-1"></i>{{ lead.next_followup_date|date:"d M, y" }}</div>
-                                            {% endif %}
-                                        {% elif lead.custom_deal_status == 'Payment Pending' %}
-                                            <span class="badge badge-payment-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Payment Pending</span>
-                                        {% elif lead.custom_deal_status == 'Assigned' %}
-                                            <span class="badge badge-assigned px-2 py-1"><i class="ph-bold ph-user-check me-1"></i>Assigned</span>
-                                        {% elif lead.custom_deal_status == 'Lost' or lead.custom_deal_status == 'Cancelled' or lead.custom_deal_status == 'Not Interested' %}
-                                            <span class="badge badge-lost px-2 py-1"><i class="ph-bold ph-prohibit me-1"></i>{{ lead.custom_deal_status }}</span>
+                                        {% if lead.followup_category == 'Billing Follow-up' %}
+                                             <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
+                                                <i class="ph-bold ph-currency-inr me-1"></i>Billing
+                                            </span>
+                                        {% elif lead.followup_category == 'Appointment Follow-up' %}
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                                                <i class="ph-bold ph-calendar-check me-1"></i>Appointment
+                                            </span>
                                         {% else %}
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.custom_deal_status|default:'Open' }}</span>
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                                <i class="ph-bold ph-phone-call me-1"></i>Call
+                                            </span>
                                         {% endif %}
                                     </td>
-                                    <td style="max-width: 180px;">
-                                        <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.custom_data.remark_1|default:lead.notes|default:'No remarks recorded' }}">
-                                            {{ lead.custom_data.remark_1|default:lead.notes|default:'—' }}
-                                        </span>
+                                    <td>
+                                        <div class="fw-bold {% if lead.is_overdue %}text-danger{% elif lead.next_followup_date == today_date %}text-success{% else %}text-dark{% endif %}">
+                                            <i class="ph ph-calendar me-1"></i>
+                                            {{ lead.next_followup_date|date:"d M Y" }}
+                                        </div>
+                                        {% if lead.is_overdue %}
+                                            <span class="badge bg-danger text-white" style="font-size: 0.65rem;">Overdue</span>
+                                        {% elif lead.next_followup_date == today_date %}
+                                            <span class="badge bg-success text-white" style="font-size: 0.65rem;">Today</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Upcoming</span>
+                                        {% endif %}
                                     </td>
                                     <td class="px-4 text-end text-nowrap">
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
                                             <i class="ph ph-eye"></i>
                                         </a>
-                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Edit & Call Lead">
-                                            <i class="ph ph-pencil-simple"></i>
+                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Record Follow-up Interaction">
+                                            <i class="ph ph-phone-call"></i>
                                         </a>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-5">
-                                        <div class="text-muted mb-2"><i class="ph ph-tray fs-1 opacity-25"></i></div>
-                                        <h6 class="fw-bold text-dark">No assigned leads in your queue yet</h6>
-                                        <p class="text-muted small mb-0">Open <strong>Call Not Done</strong> or <strong>New Enquiries</strong> to pick leads and start calling.</p>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="text-muted mb-2"><i class="ph ph-check-circle fs-1 opacity-25"></i></div>
+                                        <h6 class="fw-bold text-dark">No pending or upcoming follow-ups</h6>
+                                        <p class="text-muted small mb-0">Schedule next follow-up dates while editing leads to keep track here.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -422,82 +415,9 @@
             </div>
         </div>
 
-        <!-- Right Column: Today's Tasks -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
-                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <i class="ph-bold ph-list-checks text-warning"></i>
-                            Today's Tasks
-                        </h5>
-                        <small class="text-muted">Assigned by Management or Self</small>
-                    </div>
-                    <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
-                        <i class="ph-bold ph-plus text-primary"></i>
-                    </a>
-                </div>
-                <div class="card-body p-4">
-                    {% if todays_tasks %}
-                        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
-                            {% for task in todays_tasks %}
-                            <li class="p-3 rounded-3 bg-light border border-light-subtle position-relative d-flex align-items-start gap-3">
-                                <div class="mt-1">
-                                    {% if task.priority == 'URGENT' %}
-                                        <i class="ph-fill ph-warning-circle text-danger fs-5"></i>
-                                    {% elif task.priority == 'HIGH' %}
-                                        <i class="ph-fill ph-lightning text-warning fs-5"></i>
-                                    {% else %}
-                                        <i class="ph-fill ph-check-circle text-primary fs-5"></i>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ task.title }}</span>
-                                        {% if task.due_time %}
-                                            <span class="badge bg-white text-muted border small" style="font-size: 0.7rem;"><i class="ph ph-clock me-1"></i>{{ task.due_time|time:"h:i A" }}</span>
-                                        {% endif %}
-                                    </div>
-                                    {% if task.description %}
-                                        <p class="small text-muted mb-2" style="font-size: 0.8rem;">{{ task.description }}</p>
-                                    {% endif %}
-
-                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light-subtle">
-                                        {% if task.lead %}
-                                            <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="small fw-semibold text-primary text-decoration-none" style="font-size: 0.75rem;">
-                                                <i class="ph ph-user me-1"></i>{{ task.lead.name }}
-                                            </a>
-                                        {% else %}
-                                            <span class="small text-muted" style="font-size: 0.75rem;">General Task</span>
-                                        {% endif %}
-
-                                        {% if task.user != request.user %}
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">By {{ task.user.get_full_name|default:task.user.username }}</span>
-                                        {% else %}
-                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Self</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="ph ph-calendar-check fs-2 mb-2 opacity-50 text-success d-block"></i>
-                            <p class="text-muted small mb-0">No pending tasks for today. Click <strong>+</strong> above to add a task.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-    </div>
-    <!-- ROW 2: Upcoming OPD / Appointments & Pending Follow-ups -->
-    <div class="row g-4 mt-1">
-        
-        <!-- Left Column: Upcoming OPD / Appointments Booked -->
+        <!-- Right Column: Upcoming OPD / Appointments (col-lg-6) -->
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
                 <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
@@ -516,10 +436,10 @@
                         <i class="ph ph-calendar-blank"></i>
                     </button>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
+                <div class="card-body p-0 flex-grow-1 d-flex flex-column">
+                    <div class="table-responsive flex-grow-1" style="max-height: 380px; overflow-y: auto;">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
                                 <tr>
                                     <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
                                     <th class="border-0 py-3 text-muted small text-uppercase fw-bold">OPD Date & Time</th>
@@ -582,40 +502,41 @@
             </div>
         </div>
 
-        <!-- Right Column: Pending & Upcoming Follow-ups -->
+    </div>
+
+    <!-- ROW 2: My Recent Leads & Today's Tasks (Equally Sized) -->
+    <div class="row g-4">
+        
+        <!-- Left Column: My Recent Leads (col-lg-6) -->
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
                 <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <span class="badge p-2 rounded-3 bg-purple bg-opacity-10 text-purple border border-purple-subtle" style="color: #7c3aed; background: rgba(124, 58, 237, 0.1);">
-                                <i class="ph-bold ph-clock-countdown fs-5"></i>
-                            </span>
-                            Follow-ups Queue
-                            <span class="badge rounded-pill px-2 py-1 ms-1 text-white" style="font-size: 0.8rem; background: #7c3aed;">
-                                {{ pending_and_upcoming_followups_count }}
-                            </span>
+                            <i class="ph-bold ph-user-circle-gear text-primary"></i>
+                            My Recent Leads
                         </h5>
-                        <small class="text-muted">All active follow-ups: Billing, Call, & Appointments</small>
+                        <small class="text-muted">Latest patient records updated in your active calling queue</small>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" onclick="openUniversalCardDrilldown('followups', 'Follow-ups', 'bg-purple')">
-                        <span>Calendar View</span>
-                        <i class="ph ph-calendar-blank"></i>
-                    </button>
+                    <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold d-flex align-items-center gap-1">
+                        <span>View All</span>
+                        <i class="ph ph-arrow-right"></i>
+                    </a>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
+                <div class="card-body p-0 flex-grow-1 d-flex flex-column">
+                    <div class="table-responsive flex-grow-1" style="max-height: 380px; overflow-y: auto;">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
                                 <tr>
                                     <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Category</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Due Date</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold text-center">Status</th>
+                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Recent Remark</th>
                                     <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for lead in pending_and_upcoming_followups %}
+                                {% for lead in my_recent_leads %}
                                 <tr>
                                     <td class="px-4">
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
@@ -626,48 +547,59 @@
                                         </div>
                                     </td>
                                     <td>
-                                        {% if lead.followup_category == 'Billing Follow-up' %}
-                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
-                                                <i class="ph-bold ph-currency-inr me-1"></i>Billing
-                                            </span>
-                                        {% elif lead.followup_category == 'Appointment Follow-up' %}
-                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
-                                                <i class="ph-bold ph-calendar-check me-1"></i>Appointment
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
-                                                <i class="ph-bold ph-phone-call me-1"></i>Call
-                                            </span>
+                                        {% if lead.custom_doctor %}
+                                            <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-stethoscope me-1"></i> {{ lead.custom_doctor }}</span></div>
+                                        {% endif %}
+                                        {% if lead.custom_dept %}
+                                            <div class="small fw-semibold text-secondary mt-1">{{ lead.custom_dept }}</div>
+                                        {% elif not lead.custom_doctor %}
+                                            <span class="text-muted small">-</span>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        <div class="fw-bold {% if lead.is_overdue %}text-danger{% elif lead.next_followup_date == today_date %}text-success{% else %}text-dark{% endif %}">
-                                            <i class="ph ph-calendar me-1"></i>
-                                            {{ lead.next_followup_date|date:"d M Y" }}
-                                        </div>
-                                        {% if lead.is_overdue %}
-                                            <span class="badge bg-danger text-white" style="font-size: 0.65rem;">Overdue</span>
-                                        {% elif lead.next_followup_date == today_date %}
-                                            <span class="badge bg-success text-white" style="font-size: 0.65rem;">Today</span>
+                                    <td class="text-center">
+                                        {% if lead.custom_deal_status == 'Payment Done' %}
+                                            <span class="badge badge-payment-done px-2 py-1"><i class="ph-bold ph-check-circle me-1"></i>Payment Done</span>
+                                        {% elif lead.custom_deal_status == 'Booking Confirmed' %}
+                                            <span class="badge badge-booking-confirmed px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booking Confirmed</span>
+                                        {% elif lead.custom_deal_status == 'Awaiting Approval from Doctor' or lead.custom_deal_status == 'Booking Approval Pending' %}
+                                            <span class="badge badge-booking-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Awaiting Approval from Doctor</span>
+                                        {% elif lead.custom_deal_status == 'Booked' %}
+                                            <span class="badge badge-booking px-2 py-1"><i class="ph-bold ph-calendar-check me-1"></i>Booked</span>
+                                        {% elif lead.custom_deal_status == 'Follow-up Needed' %}
+                                            <span class="badge badge-followup-needed px-2 py-1"><i class="ph-bold ph-clock me-1"></i>Follow-up</span>
+                                            {% if lead.next_followup_date %}
+                                                <div class="small text-muted mt-1" style="font-size: 0.7rem;"><i class="ph-bold ph-calendar me-1"></i>{{ lead.next_followup_date|date:"d M, y" }}</div>
+                                            {% endif %}
+                                        {% elif lead.custom_deal_status == 'Payment Pending' %}
+                                            <span class="badge badge-payment-pending px-2 py-1"><i class="ph-bold ph-clock-countdown me-1"></i>Payment Pending</span>
+                                        {% elif lead.custom_deal_status == 'Assigned' %}
+                                            <span class="badge badge-assigned px-2 py-1"><i class="ph-bold ph-user-check me-1"></i>Assigned</span>
+                                        {% elif lead.custom_deal_status == 'Lost' or lead.custom_deal_status == 'Cancelled' or lead.custom_deal_status == 'Not Interested' %}
+                                            <span class="badge badge-lost px-2 py-1"><i class="ph-bold ph-prohibit me-1"></i>{{ lead.custom_deal_status }}</span>
                                         {% else %}
-                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Upcoming</span>
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.custom_deal_status|default:'Open' }}</span>
                                         {% endif %}
+                                    </td>
+                                    <td style="max-width: 150px;">
+                                        <span class="small text-secondary text-truncate d-inline-block" style="max-width: 150px;" title="{{ lead.custom_data.remark_1|default:lead.notes|default:'No remarks recorded' }}">
+                                            {{ lead.custom_data.remark_1|default:lead.notes|default:'—' }}
+                                        </span>
                                     </td>
                                     <td class="px-4 text-end text-nowrap">
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
                                             <i class="ph ph-eye"></i>
                                         </a>
-                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Record Follow-up Interaction">
-                                            <i class="ph ph-phone-call"></i>
+                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Edit & Call Lead">
+                                            <i class="ph ph-pencil-simple"></i>
                                         </a>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center py-5">
-                                        <div class="text-muted mb-2"><i class="ph ph-check-circle fs-1 opacity-25"></i></div>
-                                        <h6 class="fw-bold text-dark">No pending or upcoming follow-ups</h6>
-                                        <p class="text-muted small mb-0">Schedule next follow-up dates while editing leads to keep track here.</p>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted mb-2"><i class="ph ph-tray fs-1 opacity-25"></i></div>
+                                        <h6 class="fw-bold text-dark">No assigned leads in your queue yet</h6>
+                                        <p class="text-muted small mb-0">Open <strong>Call Not Done</strong> or <strong>New Enquiries</strong> to pick leads and start calling.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -678,32 +610,104 @@
             </div>
         </div>
 
+        <!-- Right Column: Today's Tasks (col-lg-6) -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
+                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-list-checks text-warning"></i>
+                            Today's Tasks
+                        </h5>
+                        <small class="text-muted">Assigned by Management or Self</small>
+                    </div>
+                    <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
+                        <i class="ph-bold ph-plus text-primary"></i>
+                    </a>
+                </div>
+                <div class="card-body p-4 flex-grow-1" style="max-height: 380px; overflow-y: auto;">
+                    {% if todays_tasks %}
+                        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
+                            {% for task in todays_tasks %}
+                            <li class="p-3 rounded-3 bg-light border border-light-subtle position-relative d-flex align-items-start gap-3">
+                                <div class="mt-1">
+                                    {% if task.priority == 'URGENT' %}
+                                        <i class="ph-fill ph-warning-circle text-danger fs-5"></i>
+                                    {% elif task.priority == 'HIGH' %}
+                                        <i class="ph-fill ph-lightning text-warning fs-5"></i>
+                                    {% else %}
+                                        <i class="ph-fill ph-check-circle text-primary fs-5"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ task.title }}</span>
+                                        {% if task.due_time %}
+                                            <span class="badge bg-white text-muted border small" style="font-size: 0.7rem;"><i class="ph ph-clock me-1"></i>{{ task.due_time|time:"h:i A" }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if task.description %}
+                                        <p class="small text-muted mb-2" style="font-size: 0.8rem;">{{ task.description }}</p>
+                                    {% endif %}
+
+                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light-subtle">
+                                        {% if task.lead %}
+                                            <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="small fw-semibold text-primary text-decoration-none" style="font-size: 0.75rem;">
+                                                <i class="ph ph-user me-1"></i>{{ task.lead.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="small text-muted" style="font-size: 0.75rem;">General Task</span>
+                                        {% endif %}
+
+                                        {% if task.user != request.user %}
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">By {{ task.user.get_full_name|default:task.user.username }}</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Self</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="ph ph-calendar-check fs-1 mb-2 opacity-50 text-success d-block"></i>
+                            <p class="text-muted small mb-0">No pending tasks for today. Click <strong>+</strong> above to add a task.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>
 
 <!-- UNIVERSAL CARD DRILLDOWN MODAL -->
 <div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 96vw;">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 92vw;">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
             
-            <!-- Modal Header -->
-            <div class="modal-header border-bottom px-4 py-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                    <span id="drilldownCardBadgeIcon" class="badge p-2 rounded-3 fs-6 bg-primary">
-                        <i class="ph ph-squares-four"></i>
-                    </span>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="universalCardModalTitle">Metrics Breakdown</h5>
-                        <div class="d-flex align-items-center gap-2 mt-1">
-                            <span class="badge bg-light text-dark border px-2 py-1" id="drilldownActiveDateLabel">{{ today_date|date:"d F Y" }}</span>
-                            <span class="badge bg-primary px-2 py-1" id="drilldownTotalBadge">0</span>
+            <!-- Modal Header — 2 row layout: Title row + Nav Pills row -->
+            <div class="modal-header border-bottom px-4 py-3 bg-white d-flex flex-column align-items-stretch gap-2">
+                <!-- Row 1: Title + Close button -->
+                <div class="d-flex align-items-center justify-content-between w-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <span id="drilldownCardBadgeIcon" class="badge p-2 rounded-3 fs-6 bg-primary">
+                            <i class="ph ph-squares-four"></i>
+                        </span>
+                        <div>
+                            <h5 class="modal-title fw-bold text-dark mb-0" id="universalCardModalTitle">Metrics Breakdown</h5>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <span class="badge bg-light text-dark border px-2 py-1" id="drilldownActiveDateLabel">{{ today_date|date:"d F Y" }}</span>
+                                <span class="badge bg-primary px-2 py-1" id="drilldownTotalBadge">0</span>
+                            </div>
                         </div>
                     </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-
-                <!-- Navigation Controls -->
-                <div class="d-flex align-items-center gap-1 flex-wrap ms-auto">
+                <!-- Row 2: Navigation Pills — always fits within modal width -->
+                <div class="d-flex align-items-center gap-1 flex-wrap">
                     <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')" title="Previous Day">
                         <i class="ph ph-caret-left me-1"></i> Prev Day
                     </button>
@@ -719,7 +723,6 @@
                     <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()" title="Pick Any Specific Date with Live Count">
                         <i class="ph ph-calendar me-1"></i> Custom Date <i class="ph ph-caret-down ms-1"></i>
                     </button>
-                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
 
@@ -729,18 +732,29 @@
                 <!-- Custom Interactive Calendar Heatmap Picker -->
                 <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3" style="display: none; background: #ffffff;">
                     <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                                 <i class="ph ph-calendar text-primary"></i>
-                                Select Any Date (<span id="calMonthTitle">September 2026</span>)
+                                Select Any Date / Date Range (<span id="calMonthTitle">September 2026</span>)
                             </h6>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
-                                    <i class="ph ph-caret-left"></i> Prev Month
-                                </button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
-                                    Next Month <i class="ph ph-caret-right"></i>
-                                </button>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <div class="d-flex align-items-center gap-1 bg-light p-1 rounded-pill border">
+                                    <span class="small text-muted fw-bold ps-2" style="font-size: 0.72rem;">From:</span>
+                                    <input type="date" id="drilldownStartDateInput" class="form-control form-control-sm border-0 bg-transparent py-0 px-1" style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownStartDateChange(this.value)">
+                                    <span class="small text-muted fw-bold" style="font-size: 0.72rem;">To:</span>
+                                    <input type="date" id="drilldownEndDateInput" class="form-control form-control-sm border-0 bg-transparent py-0 px-1" style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownEndDateChange(this.value)">
+                                    <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fw-bold" onclick="applyDrilldownDateRange()">
+                                        <i class="ph ph-check me-1"></i> Apply Range
+                                    </button>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
+                                        <i class="ph ph-caret-left"></i> Prev Month
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
+                                        Next Month <i class="ph ph-caret-right"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -791,19 +805,19 @@
                         </div>
                     </div>
                     
-                    <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
                         <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable" style="font-size: 0.85rem;">
                             <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
                                 <tr>
-                                    <th class="py-2 px-3">Patient Name</th>
-                                    <th class="py-2">Contact</th>
-                                    <th class="py-2" style="max-width: 110px;">Source / Campaign</th>
-                                    <th class="py-2">Doctor / Dept</th>
-                                    <th class="py-2">Temp</th>
-                                    <th class="py-2">Status</th>
-                                    <th class="py-2">Attendant</th>
-                                    <th class="py-2" style="min-width: 200px;">Comments</th>
-                                    <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">Action</th>
+                                    <th class="py-2 px-3">PATIENT</th>
+                                    <th class="py-2">CONTACT</th>
+                                    <th class="py-2" style="max-width: 130px;">SOURCE</th>
+                                    <th class="py-2">DEPARTMENT</th>
+                                    <th class="py-2">TEMPERATURE</th>
+                                    <th class="py-2">STATUS</th>
+                                    <th class="py-2">ASSIGNED TO</th>
+                                    <th class="py-2" style="min-width: 200px;">COMMENTS</th>
+                                    <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody id="drilldownTableBody">
@@ -939,6 +953,10 @@
 
         document.getElementById('drilldownCalendarWrapper').style.display = 'none';
         document.getElementById('drilldownSearchInput').value = '';
+        const startInputReset = document.getElementById('drilldownStartDateInput');
+        const endInputReset = document.getElementById('drilldownEndDateInput');
+        if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
+        if (endInputReset) { endInputReset.value = ''; endInputReset.min = ''; }
 
         // Show Modal & Fetch
         const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
@@ -1017,12 +1035,66 @@
         fetchDrilldownData();
     }
 
+    let currentDrilldownStartDate = '';
+    let currentDrilldownEndDate = '';
+
+    function onDrilldownStartDateChange(val) {
+        const endInput = document.getElementById('drilldownEndDateInput');
+        if (endInput) {
+            endInput.min = val || '';
+            if (val && endInput.value && endInput.value < val) {
+                endInput.value = val;
+            }
+        }
+    }
+
+    function onDrilldownEndDateChange(val) {
+        const startInput = document.getElementById('drilldownStartDateInput');
+        if (startInput) {
+            startInput.max = val || '';
+            if (val && startInput.value && startInput.value > val) {
+                startInput.value = val;
+            }
+        }
+    }
+
     function selectCalendarDate(dateStr) {
         if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
             return;
         }
         currentDrilldownDate = dateStr;
         currentDrilldownMode = 'custom';
+        currentDrilldownStartDate = '';
+        currentDrilldownEndDate = '';
+        updatePillUI('custom');
+        fetchDrilldownData();
+    }
+
+    function applyDrilldownDateRange() {
+        const startInput = document.getElementById('drilldownStartDateInput');
+        const endInput = document.getElementById('drilldownEndDateInput');
+        let startVal = startInput ? startInput.value : '';
+        let endVal = endInput ? endInput.value : '';
+
+        if (!startVal && !endVal) {
+            alert('Please select at least one date for the date range.');
+            return;
+        }
+
+        if (startVal && !endVal) endVal = startVal;
+        if (endVal && !startVal) startVal = endVal;
+
+        if (startVal > endVal) {
+            const temp = startVal;
+            startVal = endVal;
+            endVal = temp;
+            if (startInput) startInput.value = startVal;
+            if (endInput) endInput.value = endVal;
+        }
+
+        currentDrilldownMode = 'date_range';
+        currentDrilldownStartDate = startVal;
+        currentDrilldownEndDate = endVal;
         updatePillUI('custom');
         fetchDrilldownData();
     }
@@ -1042,10 +1114,17 @@
         tbody.innerHTML = '';
         selectedCampaignFilter = null;
 
-        const searchParams = new URLSearchParams(window.location.search);
+        // Use a fresh URLSearchParams - do NOT copy window.location.search as it contains
+        // dashboard-level date filters (time_filter, start_date, end_date) that would
+        // conflict with the drilldown's own date parameters and return 0 results.
+        const searchParams = new URLSearchParams();
         searchParams.set('card_type', currentDrilldownCard);
         searchParams.set('mode', currentDrilldownMode);
         searchParams.set('target_date', currentDrilldownDate);
+        if (currentDrilldownMode === 'date_range') {
+            searchParams.set('start_date', currentDrilldownStartDate);
+            searchParams.set('end_date', currentDrilldownEndDate);
+        }
         searchParams.set('year', currentCalYear);
         searchParams.set('month', currentCalMonth);
 
@@ -1147,7 +1226,14 @@
         // Filter lead items by selected campaign
         let filtered = cachedLeadItems;
         if (selectedCampaignFilter) {
-            filtered = cachedLeadItems.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+            const targetCamp = selectedCampaignFilter.toLowerCase().trim();
+            filtered = cachedLeadItems.filter(l => {
+                const leadCamp = (l.campaign || '').toLowerCase().trim();
+                if (targetCamp === 'nan' || targetCamp === 'general / direct') {
+                    return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
+                }
+                return leadCamp === targetCamp;
+            });
         }
 
         // Apply quick search if typed

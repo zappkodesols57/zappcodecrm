@@ -580,10 +580,19 @@ class HospitalLeadForm(forms.ModelForm):
             self.fields["assigned_to"].label = "Assign To / Lead Owner"
             self.fields["assigned_to"].widget.attrs.update({"class": "form-select"})
             if user and user.hospital:
-                self.fields["assigned_to"].queryset = User.objects.filter(hospital=user.hospital, is_active=True)
+                self.fields["assigned_to"].queryset = User.objects.filter(
+                    hospital=user.hospital,
+                    role=User.Role.LEAD_ATTENDENT,
+                    is_active=True,
+                    is_approved=True
+                ).order_by("first_name", "username")
             else:
-                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True)
-            self.fields["assigned_to"].empty_label = "-- Select User / Attendant --"
+                self.fields["assigned_to"].queryset = User.objects.filter(
+                    role=User.Role.LEAD_ATTENDENT,
+                    is_active=True,
+                    is_approved=True
+                ).order_by("first_name", "username")
+            self.fields["assigned_to"].empty_label = "-- Select Lead Attendant --"
             
             is_manager_or_admin = user and (user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or user.can_assign_leads or user.is_superuser)
             if not is_manager_or_admin:
@@ -591,7 +600,7 @@ class HospitalLeadForm(forms.ModelForm):
                 self.fields["assigned_to"].initial = user.pk if user else None
                 self.fields["assigned_to"].disabled = True
             else:
-                if not self.instance.pk and user:
+                if not self.instance.pk and user and user.role == User.Role.LEAD_ATTENDENT:
                     self.fields["assigned_to"].initial = user.pk
                 
         # Populate Master Data dropdowns dynamically
@@ -748,12 +757,21 @@ class HospitalLeadForm(forms.ModelForm):
                 self.fields["assigned_to"].empty_label = None
                 self.fields["assigned_to"].initial = user
             elif user and user.hospital:
-                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
-                self.fields["assigned_to"].empty_label = "-- Select Attendant / Staff --"
+                self.fields["assigned_to"].queryset = User.objects.filter(
+                    hospital=user.hospital,
+                    role=User.Role.LEAD_ATTENDENT,
+                    is_active=True,
+                    is_approved=True
+                ).order_by("first_name", "username")
+                self.fields["assigned_to"].empty_label = "-- Select Lead Attendant --"
             else:
-                # Global Super Admin: show all active users
-                self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True)
-                self.fields["assigned_to"].empty_label = "-- Select Attendant / Staff --"
+                # Global Super Admin: show active lead attendants
+                self.fields["assigned_to"].queryset = User.objects.filter(
+                    role=User.Role.LEAD_ATTENDENT,
+                    is_active=True,
+                    is_approved=True
+                ).order_by("first_name", "username")
+                self.fields["assigned_to"].empty_label = "-- Select Lead Attendant --"
             
         # Dynamically load Admin-Configured Custom Form Fields (Non-system only)
         from leads.models import LeadCustomField
@@ -1130,6 +1148,29 @@ class HospitalLeadForm(forms.ModelForm):
             camp_obj = Campaign.objects.filter(name__iexact=camp_name, is_active=True).first()
             if camp_obj:
                 instance.campaign = camp_obj
+
+        # Ensure stage is set (cannot be null)
+        from leads.models import LeadStage
+        if not getattr(instance, 'stage_id', None):
+            assigned_stage = None
+            if has_payment or is_already_completed:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Payment Done').first() or \
+                                 LeadStage.objects.filter(name__iexact='Admission').first()
+            elif is_cancelled_or_not_interested:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Lost').first()
+            elif is_followup_needed or fu_date:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Follow-up').first()
+            elif is_booking_selected:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Interested').first() or \
+                                 LeadStage.objects.filter(name__iexact='Visit Planned').first()
+            elif instance.assigned_to:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first()
+
+            if not assigned_stage:
+                assigned_stage = LeadStage.objects.filter(name__iexact='New').first() or \
+                                 LeadStage.objects.filter(order=1).first() or \
+                                 LeadStage.objects.first()
+            instance.stage = assigned_stage
 
         instance.custom_data = cd
         def _save_related():

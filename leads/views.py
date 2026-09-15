@@ -239,52 +239,119 @@ def lead_list(request):
             if emp_val == "unassigned":
                 emp_q |= Q(assigned_to__isnull=True)
             elif emp_val and emp_val.isdigit():
-                emp_q |= Q(assigned_to_id=int(emp_val))
+                uid = int(emp_val)
+                # Include leads assigned to this user OR created by this user
+                # (mirrors the base scope which shows created_by leads to the user)
+                emp_q |= Q(assigned_to_id=uid) | Q(created_by_id=uid)
         leads = leads.filter(emp_q)
 
-    # 6. Deal Status & Stage filter
+    # 6. Deal Status / Stage filter
+    # -----------------------------------------------------------------------
+    # display_status labels are computed by the `custom_deal_status` @property
+    # and are NOT stored in any single DB column. We translate each label into
+    # positive Q() conditions that match the relevant DB fields.
+    # -----------------------------------------------------------------------
     if selected_deal_statuses:
         st_q = Q()
         for ds_val in selected_deal_statuses:
             if not ds_val:
                 continue
-            v_lower = ds_val.lower().strip()
-            sub_q = Q(deal_status__iexact=ds_val) | Q(custom_data__deal_status__iexact=ds_val) | Q(stage__name__iexact=ds_val)
-            
-            if 'book' in v_lower:
-                sub_q |= (
+            v = ds_val.strip()
+            v_up = v.upper()
+
+            # ---- Payment Done ----
+            if 'PAYMENT DONE' in v_up or v_up in ('WON', 'ADMISSION DONE', 'ADMISSION'):
+                sub_q = (
+                    Q(deal_status=DealStatus.WON) |
+                    Q(custom_data__total_paid__gt='0') |
+                    Q(custom_data__total__gt='0') |
+                    Q(custom_data__deal_status__icontains='Payment Done') |
+                    Q(custom_data__deal_status__icontains='Won') |
+                    Q(custom_data__deal_status__icontains='Admission Done')
+                )
+
+            # ---- Booking Confirmed / Awaiting Approval / Booked ----
+            elif any(k in v_up for k in ('BOOKING CONFIRMED', 'BOOKING APPROVAL', 'AWAITING APPROVAL', 'BOOKED')):
+                sub_q = (
                     Q(custom_data__appointment_status__icontains='Book') |
-                    Q(custom_data__appointment_status__icontains='Booking') |
+                    Q(custom_data__appointment_status__icontains='Confirm') |
+                    Q(custom_data__appointment_status__icontains='Approv') |
+                    Q(custom_data__appointment_status__icontains='Await') |
                     Q(custom_data__appointment_status__iexact='YES') |
                     Q(custom_data__appo_booked_date__isnull=False)
                 )
-            elif 'payment' in v_lower or 'won' in v_lower:
-                sub_q |= (
-                    Q(deal_status=DealStatus.WON) |
-                    Q(custom_data__deal_status__icontains='Won') |
-                    Q(custom_data__deal_status__icontains='Payment Done') |
-                    Q(custom_data__total_paid__gt='0') |
-                    Q(custom_data__total__gt='0')
+
+            # ---- Payment Pending ----
+            elif 'PAYMENT PENDING' in v_up or 'BILLING PENDING' in v_up:
+                sub_q = (
+                    Q(custom_data__appointment_status__icontains='Complet') |
+                    Q(custom_data__appointment_status__icontains='Done') |
+                    Q(custom_data__appointment_status__icontains='Visit')
                 )
-            elif 'cancel' in v_lower:
-                sub_q |= (
-                    Q(deal_status=DealStatus.LOST) |
+
+            # ---- Follow-up Needed ----
+            elif 'FOLLOW' in v_up:
+                sub_q = (
+                    Q(custom_data__appointment_status__icontains='Follow') |
+                    Q(next_followup_date__isnull=False) |
+                    Q(custom_data__deal_status__icontains='Follow')
+                )
+
+            # ---- Not Interested ----
+            elif 'NOT INT' in v_up or 'NOT INTERESTED' in v_up:
+                sub_q = (
+                    Q(custom_data__appointment_status__icontains='Not Int') |
+                    Q(custom_data__deal_status__icontains='Not Int') |
+                    Q(deal_status=DealStatus.LOST, custom_data__appointment_status__icontains='Not Int')
+                )
+
+            # ---- Cancelled ----
+            elif 'CANCEL' in v_up:
+                sub_q = (
                     Q(custom_data__appointment_status__icontains='Cancel') |
                     Q(custom_data__deal_status__icontains='Cancel')
                 )
-            elif 'lost' in v_lower or 'not int' in v_lower:
-                sub_q |= (
+
+            # ---- Lost ----
+            elif v_up == 'LOST':
+                sub_q = (
                     Q(deal_status=DealStatus.LOST) |
-                    Q(custom_data__deal_status__icontains='Lost') |
-                    Q(custom_data__appointment_status__icontains='Not Int')
+                    Q(custom_data__deal_status__icontains='Lost')
                 )
-            elif 'open' in v_lower:
-                sub_q |= Q(deal_status=DealStatus.OPEN) | Q(deal_status='New') | Q(custom_data__deal_status__iexact='Open')
-            elif 'assigned' in v_lower:
-                sub_q |= Q(assigned_to__isnull=False) | Q(custom_data__deal_status__iexact='Assigned')
-            
+
+            # ---- Assigned (has an attendant assigned) ----
+            elif 'ASSIGNED' in v_up:
+                sub_q = (
+                    Q(assigned_to__isnull=False) |
+                    Q(custom_data__deal_status__iexact='Assigned')
+                )
+
+            # ---- New (added today, unassigned) ----
+            elif v_up == 'NEW':
+                today_date = timezone.localdate()
+                sub_q = (
+                    Q(assigned_to__isnull=True) &
+                    (Q(created_at__date=today_date) | Q(inquiry_date=today_date))
+                )
+
+            # ---- Open (unassigned, older than today) ----
+            elif v_up == 'OPEN':
+                today_date = timezone.localdate()
+                sub_q = Q(assigned_to__isnull=True) & ~(
+                    Q(created_at__date=today_date) | Q(inquiry_date=today_date)
+                )
+
+            # ---- Fallback: try DB field + custom_data + stage name match ----
+            else:
+                sub_q = (
+                    Q(deal_status__iexact=ds_val) |
+                    Q(custom_data__deal_status__iexact=ds_val) |
+                    Q(stage__name__iexact=ds_val)
+                )
+
             st_q |= sub_q
         leads = leads.filter(st_q)
+
 
     if selected_stages:
         stg_q = Q()
@@ -395,8 +462,15 @@ def lead_list(request):
         )
     elif quick_filter == "call_not_done":
         leads = leads.filter(
-            Q(followup_count=0) | Q(temperature="UNCONTACTED")
-        )
+            deal_status__in=[DealStatus.OPEN, 'New', 'OPEN'],
+            admission_status__in=[AdmissionStatus.NOT_APPLIED, '', None],
+            admission__isnull=True,
+            temperature=LeadTemperature.UNCONTACTED,
+            followup_count=0,
+            next_followup_date__isnull=True,
+        ).filter(
+            Q(stage__isnull=True) | Q(stage__name__in=['New', 'Fresh', 'Uncontacted', 'new', 'fresh', 'uncontacted'])
+        ).distinct()
     elif quick_filter == "admission_today":
         leads = leads.filter(
             Q(admission_status="ADMISSION_DONE") | Q(deal_status="WON") | Q(admission__admission_date=today) | Q(custom_data__admission_date=str(today))
@@ -551,34 +625,47 @@ def lead_list(request):
     distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
     distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
     
-    # Extract departments, doctors, and appointment statuses only for hospital users
-    filter_departments = []
-    filter_doctors = []
-    filter_appointment_statuses = []
+    # Determine whether current view should show hospital or academy style layout
+    target_hospital = None
+    if request.user.hospital:
+        target_hospital = request.user.hospital
+    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+
+    is_viewing_hospital = False
+    if request.user.hospital:
+        is_viewing_hospital = request.user.is_hospital_user
+    elif target_hospital:
+        is_viewing_hospital = "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
+    else:
+        is_viewing_hospital = False
+
+    # Extract departments, doctors, and appointment statuses only for hospital views
+    # And courses / admission statuses only for academy views
+    if is_viewing_hospital:
+        courses_qs = Course.objects.none()
+        adm_status_choices = []
+        if target_hospital:
+            filter_departments = list(HospitalDepartment.objects.filter(hospital=target_hospital, is_active=True).values_list("name", flat=True))
+            filter_doctors = list(HospitalDoctor.objects.filter(hospital=target_hospital, is_active=True).values_list("name", flat=True))
+            if not filter_departments:
+                filter_departments = list(MasterGroup.get_active_choices("Departments").filter(hospital=target_hospital).values_list("name", flat=True))
+            if not filter_doctors:
+                filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=target_hospital).values_list("name", flat=True))
+            if not filter_doctors:
+                filter_doctors = list(User.objects.filter(hospital=target_hospital, role=User.Role.DOCTOR, is_active=True).values_list("first_name", flat=True))
+        filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
+    else:
+        courses_qs = Course.objects.filter(id__in=used_course_ids)
+        adm_status_choices = AdmissionStatus.choices
+        filter_departments = []
+        filter_doctors = []
+        filter_appointment_statuses = []
+
     filter_priorities = ["Hot", "Warm", "Cold"]
 
-    if request.user.hospital and request.user.is_hospital_user:
-        filter_departments = list(HospitalDepartment.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
-        filter_doctors = list(HospitalDoctor.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True))
-        if not filter_departments:
-            filter_departments = list(MasterGroup.get_active_choices("Departments").filter(hospital=request.user.hospital).values_list("name", flat=True))
-        if not filter_doctors:
-            filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=request.user.hospital).values_list("name", flat=True))
-        if not filter_departments:
-            filter_departments = ["Gynaecology", "Paediatrics", "NICU / PICU", "Obstetrics", "General OPD"]
-        if not filter_doctors:
-            filter_doctors = list(User.objects.filter(hospital=request.user.hospital, role=User.Role.DOCTOR, is_active=True).values_list("first_name", flat=True))
-        filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
-
-    active_filters_count = (
-        len(selected_campaigns) + len(selected_sources) + len(selected_courses) + len(selected_departments) +
-        len(selected_doctors) + len(selected_assigned) + len(selected_deal_statuses) +
-        len(selected_admission_statuses) +
-        len(selected_appointment_statuses) + len(selected_priorities) + len(selected_temperatures) +
-        len(selected_locations) + len(selected_stages) +
-        (1 if selected_hospital_id else 0) +
-        (1 if (date_from or date_to) else 0)
-    )
+    # Businesses dropdown is ONLY for global superadmin (no user.hospital)
+    available_businesses = Hospital.objects.filter(is_active=True).order_by("name") if (is_global_admin and not request.user.hospital) else Hospital.objects.none()
 
     context = {
         "query_params": query_params.urlencode(),
@@ -590,7 +677,7 @@ def lead_list(request):
         "source_categories": SourceCategory.objects.filter(id__in=used_sc_ids),
         "lead_sources": LeadSource.objects.filter(id__in=used_ls_ids),
         "campaigns": Campaign.objects.filter(id__in=used_camp_ids),
-        "courses": Course.objects.filter(id__in=used_course_ids),
+        "courses": courses_qs,
         "stages": LeadStage.objects.filter(id__in=used_stage_ids),
         "cities": distinct_cities,
         "locations": distinct_locations,
@@ -598,7 +685,7 @@ def lead_list(request):
         "filter_departments": filter_departments,
         "filter_doctors": filter_doctors,
         "filter_appointment_statuses": filter_appointment_statuses,
-        "admission_status_choices": AdmissionStatus.choices,
+        "admission_status_choices": adm_status_choices,
         "filter_priorities": filter_priorities,
         "deal_status_choices": DealStatus.choices,
         "selected_campaigns": selected_campaigns,
@@ -615,7 +702,7 @@ def lead_list(request):
         "selected_locations": selected_locations,
         "selected_stages": selected_stages,
         "selected_hospital_id": selected_hospital_id,
-        "businesses": Hospital.objects.filter(is_active=True).order_by("name"),
+        "businesses": available_businesses,
         "date_from_val": request.GET.get("date_from", "") or request.GET.get("date", ""),
         "date_to_val": request.GET.get("date_to", ""),
         "current_sort": sort_by,
@@ -623,19 +710,11 @@ def lead_list(request):
         "request_get": request.GET,
     }
 
-    # Dynamic employees and statuses for bulk action and filters
-    target_hospital = None
-    if request.user.hospital:
-        target_hospital = request.user.hospital
-    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
-        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
-
     if target_hospital:
         context["employees"] = User.objects.filter(hospital=target_hospital, is_active=True, is_approved=True)
         context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
         context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
         context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
-        # Hospital statuses or default LeadStages
         hospital_deal_statuses = list(context["hospital_statuses"].values_list("name", flat=True))
         if hospital_deal_statuses:
             context["bulk_stages"] = [{"id": s, "name": s} for s in hospital_deal_statuses]
@@ -644,15 +723,6 @@ def lead_list(request):
     else:
         context["employees"] = User.objects.filter(is_active=True, is_approved=True)
         context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
-
-    # Determine whether current view should show hospital or academy style layout
-    is_viewing_hospital = False
-    if request.user.hospital:
-        is_viewing_hospital = request.user.is_hospital_user
-    elif target_hospital:
-        is_viewing_hospital = "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
-    else:
-        is_viewing_hospital = False
 
     template_name = "leads/nel_lead_list.html" if is_viewing_hospital else "leads/zapp_lead_list.html"
     return render(request, template_name, context)
@@ -1122,6 +1192,19 @@ def lead_add(request):
                 custom_dict["cancellation_reason"] = custom_reason
             lead.custom_data = custom_dict
 
+            # Safeguard: Ensure stage is never null
+            if not getattr(lead, "stage_id", None):
+                default_stg = None
+                if lead.assigned_to:
+                    default_stg = LeadStage.objects.filter(name__iexact="Assigned").first()
+                if not default_stg:
+                    default_stg = (
+                        LeadStage.objects.filter(name__iexact="New").first()
+                        or LeadStage.objects.filter(order=1).first()
+                        or LeadStage.objects.first()
+                    )
+                lead.stage = default_stg
+
             lead.save()
             form.save_m2m()
             messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) saved successfully! ✅")
@@ -1519,9 +1602,9 @@ def lead_detail(request, pk):
 def _can_archive_lead(user):
     if user.is_superuser:
         return True
-    if user.role == User.Role.SUPER_ADMIN:
+    if user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN]:
         return True
-    if user.hospital and user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]:
+    if user.hospital and user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]:
         return True
     return False
 
@@ -1631,9 +1714,11 @@ def add_followup(request, pk):
         if lead.assigned_to is None:
             lead.assigned_to = request.user
         if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
-            if contacted_stage:
-                lead.stage = contacted_stage
+            fu_stage = LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+            if fu_stage:
+                lead.stage = fu_stage
+        if lead.temperature == LeadTemperature.UNCONTACTED or lead.temperature == 'UNCONTACTED':
+            lead.temperature = LeadTemperature.WARM
         lead.save()
         messages.success(request, "Follow-up recorded.")
     return redirect("leads:lead_detail", pk=pk)

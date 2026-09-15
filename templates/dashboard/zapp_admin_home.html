@@ -288,10 +288,21 @@
   const chartData = {{ chart_data|safe }};
   const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#64748b','#eab308','#14b8a6'];
 
+  const isMobileScreen = window.innerWidth < 768;
   new Chart(document.getElementById('sourceChart'), {
     type: 'doughnut',
-    data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
+    data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette, borderWidth: 2, borderColor: '#ffffff' }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: 4 },
+      plugins: {
+        legend: {
+          position: isMobileScreen ? 'bottom' : 'right',
+          labels: { boxWidth: 10, padding: 6, font: { size: 10 } }
+        }
+      }
+    }
   });
 
   new Chart(document.getElementById('funnelChart'), {
