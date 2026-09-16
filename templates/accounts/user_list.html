@@ -77,10 +77,11 @@
 <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
   <div class="card-body p-3 p-md-4">
     <form method="get" class="row g-2 align-items-center" id="userFilterForm">
+      <input type="hidden" name="page" id="userFilterPage" value="1">
       <div class="col-12 col-md-4">
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input type="search" name="q" id="userLiveSearch" class="form-control bg-light border-start-0" placeholder="Search name, username, phone, email, dept..." value="{{ q }}" oninput="liveFilterUsersTable()">
+          <input type="search" name="q" id="userSearchInput" class="form-control bg-light border-start-0" placeholder="Search name, username, phone, email, dept across all records..." value="{{ q }}" autocomplete="off">
         </div>
       </div>
       
@@ -287,20 +288,50 @@
 </div>
 
 <script>
-  function liveFilterUsersTable() {
-    const input = document.getElementById("userLiveSearch");
-    if (!input) return;
-    const filter = input.value.toLowerCase().trim();
-    const rows = document.querySelectorAll("#usersMasterTable tbody tr.user-row");
-    rows.forEach(row => {
-      const text = row.innerText.toLowerCase();
-      if (text.includes(filter)) {
-        row.style.display = "";
-      } else {
-        row.style.display = "none";
+  document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("userSearchInput");
+    const filterForm = document.getElementById("userFilterForm");
+    if (!searchInput || !filterForm) return;
+
+    let debounceTimeout = null;
+
+    // Focus and move cursor to end if query is present
+    if (searchInput.value) {
+      const len = searchInput.value.length;
+      searchInput.focus();
+      try {
+        searchInput.setSelectionRange(len, len);
+      } catch (err) {}
+    }
+
+    function triggerDatabaseSearch() {
+      const pageInput = document.getElementById("userFilterPage");
+      if (pageInput) pageInput.value = "1";
+      filterForm.submit();
+    }
+
+    searchInput.addEventListener("input", function() {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(function() {
+        triggerDatabaseSearch();
+      }, 500);
+    });
+
+    // Immediate submit on search clear (clicking the 'x' in type="search")
+    searchInput.addEventListener("search", function() {
+      clearTimeout(debounceTimeout);
+      triggerDatabaseSearch();
+    });
+
+    // Immediate submit on pressing Enter
+    searchInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        clearTimeout(debounceTimeout);
+        triggerDatabaseSearch();
       }
     });
-  }
+  });
 </script>
 
 </div>

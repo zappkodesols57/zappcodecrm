@@ -690,11 +690,12 @@ def superadmin_home(request):
     gender_filter = request.GET.get('gender', '').strip()
     age_group_filter = request.GET.get('age_group', '').strip()
     payment_type_filter = request.GET.get('payment_type', '').strip() # 'all_paid', 'opd', 'pharmacy', 'ipd', 'investigation', 'unpaid'
+    final_status_filter = request.GET.get('final_lead_status', '').strip()
 
     # 3. Apply Filters:
     # If any specific slicer filter is applied, the restrictive date filter (e.g. time_filter=today)
     # is automatically removed so the filter applies across ALL leads (all_time), unless custom dates are provided.
-    has_specific_dropdown = any([year_filter, month_filter, weekday_filter, campaign_filter, source_filter, department_filter, doctor_filter, location_filter, gender_filter, age_group_filter, payment_type_filter])
+    has_specific_dropdown = any([year_filter, month_filter, weekday_filter, campaign_filter, source_filter, department_filter, doctor_filter, location_filter, gender_filter, age_group_filter, payment_type_filter, final_status_filter])
     
     if custom_start or custom_end:
         time_filter = 'custom'
@@ -809,6 +810,38 @@ def superadmin_home(request):
         base_leads = base_leads.filter(custom_data__investigation_bill__gt='0')
     elif payment_type_filter == 'unpaid':
         base_leads = base_leads.exclude(deal_status=DealStatus.WON)
+
+    # Final Lead Status (Doughnut Slicer) filter
+    if final_status_filter:
+        fls_norm = final_status_filter.strip().upper()
+        if fls_norm == 'PAYMENT DONE':
+            base_leads = base_leads.filter(
+                Q(deal_status=DealStatus.WON) |
+                Q(custom_data__total_paid__gt='0') |
+                Q(custom_data__total__gt='0') |
+                Q(custom_data__deal_status__icontains='won') |
+                Q(custom_data__deal_status__icontains='Payment Done')
+            )
+        elif fls_norm == 'BOOKING CONFIRMED':
+            base_leads = base_leads.filter(
+                Q(custom_data__appointment_status__icontains='book') |
+                Q(custom_data__appointment_status__icontains='confirm') |
+                Q(custom_data__appointment_confirmed_at__isnull=False)
+            )
+        elif fls_norm == 'LOST':
+            base_leads = base_leads.filter(
+                Q(deal_status=DealStatus.LOST) |
+                Q(custom_data__deal_status__icontains='Lost') |
+                Q(custom_data__appointment_status__icontains='cancel') |
+                Q(custom_data__appointment_status__icontains='lost')
+            )
+        else:
+            base_leads = base_leads.filter(
+                Q(custom_data__priority__iexact=final_status_filter) |
+                Q(custom_data__appointment_status__iexact=final_status_filter) |
+                Q(custom_data__deal_status__iexact=final_status_filter) |
+                Q(temperature__iexact=final_status_filter)
+            )
 
     # 4. Aggregations & Analytical Calculations for Nelson Hospital
     from collections import defaultdict
@@ -1221,7 +1254,7 @@ def superadmin_home(request):
     has_active_filters = any([
         time_filter not in ['today', ''], custom_start, custom_end, year_filter, month_filter, weekday_filter,
         campaign_filter, source_filter, department_filter, doctor_filter, location_filter,
-        gender_filter, age_group_filter, payment_type_filter
+        gender_filter, age_group_filter, payment_type_filter, final_status_filter
     ])
 
     context = {
@@ -1262,6 +1295,7 @@ def superadmin_home(request):
         "current_month": month_filter,
         "current_weekday": weekday_filter,
         "current_payment_type": payment_type_filter,
+        "current_final_status": final_status_filter,
         "time_filter": time_filter,
         "custom_start": custom_start,
         "custom_end": custom_end,
@@ -1399,6 +1433,7 @@ def nel_card_drilldown_api(request):
     gender_filter = request.GET.get('gender', '').strip()
     age_group_filter = request.GET.get('age_group', '').strip()
     payment_type_filter = request.GET.get('payment_type', '').strip()
+    final_status_filter = request.GET.get('final_lead_status', '').strip()
 
     if campaign_filter:
         hospital_qs = hospital_qs.filter(Q(campaign__name__iexact=campaign_filter) | Q(custom_data__campaign__iexact=campaign_filter))
@@ -1427,6 +1462,37 @@ def nel_card_drilldown_api(request):
         hospital_qs = hospital_qs.filter(custom_data__investigation_bill__gt='0')
     elif payment_type_filter == 'unpaid':
         hospital_qs = hospital_qs.exclude(deal_status=DealStatus.WON)
+
+    if final_status_filter:
+        fls_norm = final_status_filter.strip().upper()
+        if fls_norm == 'PAYMENT DONE':
+            hospital_qs = hospital_qs.filter(
+                Q(deal_status=DealStatus.WON) |
+                Q(custom_data__total_paid__gt='0') |
+                Q(custom_data__total__gt='0') |
+                Q(custom_data__deal_status__icontains='won') |
+                Q(custom_data__deal_status__icontains='Payment Done')
+            )
+        elif fls_norm == 'BOOKING CONFIRMED':
+            hospital_qs = hospital_qs.filter(
+                Q(custom_data__appointment_status__icontains='book') |
+                Q(custom_data__appointment_status__icontains='confirm') |
+                Q(custom_data__appointment_confirmed_at__isnull=False)
+            )
+        elif fls_norm == 'LOST':
+            hospital_qs = hospital_qs.filter(
+                Q(deal_status=DealStatus.LOST) |
+                Q(custom_data__deal_status__icontains='Lost') |
+                Q(custom_data__appointment_status__icontains='cancel') |
+                Q(custom_data__appointment_status__icontains='lost')
+            )
+        else:
+            hospital_qs = hospital_qs.filter(
+                Q(custom_data__priority__iexact=final_status_filter) |
+                Q(custom_data__appointment_status__iexact=final_status_filter) |
+                Q(custom_data__deal_status__iexact=final_status_filter) |
+                Q(temperature__iexact=final_status_filter)
+            )
 
     start_dt = timezone.make_aware(datetime.combine(selected_date, datetime.min.time())) if selected_date else None
     end_dt = timezone.make_aware(datetime.combine(selected_date, datetime.max.time())) if selected_date else None
@@ -1784,24 +1850,6 @@ def nel_card_drilldown_api(request):
     else:
         disp_title = "All Time Records"
 
-    # Eligible assignable users for bulk assignment inside modal strictly filtered by selected business
-    if user.hospital:
-        assign_users_qs = User.objects.filter(hospital=user.hospital, is_active=True, is_approved=True)
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        assign_users_qs = User.objects.filter(hospital_id=int(selected_hospital_id), is_active=True, is_approved=True)
-    elif selected_hospital_id in ("zappcode", "none"):
-        assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
-    else:
-        if is_global_admin:
-            assign_users_qs = User.objects.filter(is_active=True, is_approved=True)
-        else:
-            assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
-
-    users_list = [
-        {"id": u.id, "name": u.get_full_name() or u.username, "role": u.get_role_display()}
-        for u in assign_users_qs.order_by("first_name", "username")
-    ]
-
     # Determine business mode: 'hospital', 'academy', or 'all'
     if user.hospital:
         h_type = (user.hospital.settings or {}).get("business_type", "hospital")
@@ -1829,6 +1877,47 @@ def nel_card_drilldown_api(request):
                 business_mode = "all"
         else:
             business_mode = "academy"
+
+    # Eligible assignable users for bulk assignment inside modal strictly filtered by selected business
+    from django.db.models import Case, When, Value, IntegerField
+    if user.hospital:
+        assign_users_qs = User.objects.filter(hospital=user.hospital, is_active=True, is_approved=True)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        assign_users_qs = User.objects.filter(hospital_id=int(selected_hospital_id), is_active=True, is_approved=True)
+    elif selected_hospital_id in ("zappcode", "none"):
+        assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
+    else:
+        if is_global_admin:
+            assign_users_qs = User.objects.filter(is_active=True, is_approved=True)
+        else:
+            assign_users_qs = User.objects.filter(hospital__isnull=True, is_active=True, is_approved=True)
+
+    if business_mode == "hospital":
+        # Hospital leads are assigned strictly to Lead Attendants (telecallers)
+        assign_users_qs = assign_users_qs.filter(role=User.Role.LEAD_ATTENDENT).order_by("username")
+    else:
+        # Exclude doctors from lead assignments for academy/other modes
+        assign_users_qs = assign_users_qs.exclude(role=User.Role.DOCTOR).annotate(
+            role_priority=Case(
+                When(role=User.Role.COUNSELLOR, then=Value(1)),
+                When(role=User.Role.HR, then=Value(2)),
+                When(role=User.Role.MANAGER, then=Value(3)),
+                When(role=User.Role.ADMIN, then=Value(4)),
+                default=Value(5),
+                output_field=IntegerField()
+            )
+        ).order_by("role_priority", "username")
+
+    users_list = [
+        {
+            "id": u.id,
+            "username": u.username,
+            "name": u.get_full_name() or u.username,
+            "role": u.get_role_display(),
+            "role_key": u.role,
+        }
+        for u in assign_users_qs
+    ]
 
     return JsonResponse({
         "status": "success",
