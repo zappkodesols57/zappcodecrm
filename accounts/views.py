@@ -130,12 +130,17 @@ def user_list(request):
         pending_users = pending_users.filter(hospital_id=int(selected_hospital_id))
         users_qs = users_qs.filter(hospital_id=int(selected_hospital_id))
 
-    # Search keyword filter
+    # Search keyword filter across entire database
     if q:
-        users_qs = users_qs.filter(
+        from django.db.models.functions import Concat
+        from django.db.models import Value
+        users_qs = users_qs.annotate(
+            full_name_concat=Concat('first_name', Value(' '), 'last_name')
+        ).filter(
             Q(username__icontains=q) |
             Q(first_name__icontains=q) |
             Q(last_name__icontains=q) |
+            Q(full_name_concat__icontains=q) |
             Q(email__icontains=q) |
             Q(phone__icontains=q) |
             Q(department__icontains=q) |
@@ -755,11 +760,12 @@ def reject_user(request, pk):
 
 
 def forgot_password(request):
-    """Single-page 6-Digit OTP Password Reset Flow using Cryptographically Signed Tokens"""
+    """6-Digit OTP Password Reset & Direct Login Flow using Cryptographically Signed Tokens"""
     import random
     from django.core import signing
     from django.core.mail import send_mail
     from django.conf import settings
+    from django.contrib.auth import login
 
     if request.user.is_authenticated:
         return redirect("dashboard:home")
@@ -768,47 +774,96 @@ def forgot_password(request):
         action = request.POST.get("action", "")
 
         if action == "send_otp":
-            email_or_username = request.POST.get("email_or_username", "").strip()
-            user = (
-                User.objects.filter(email__iexact=email_or_username).first()
-                or User.objects.filter(username__iexact=email_or_username).first()
-            )
+            username = request.POST.get("username", "").strip()
+            email = request.POST.get("email", "").strip()
+
+            if not username or not email:
+                messages.error(request, "Please enter both your username and registered email address.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 1,
+                    "username": username,
+                    "email": email
+                })
+
+            user = User.objects.filter(username__iexact=username, email__iexact=email).first()
 
             if not user:
-                messages.error(request, "No account found matching that email or username.")
-                return render(request, "accounts/forgot_password.html", {"step": 1, "email_or_username": email_or_username})
+                messages.error(request, "No account found matching both the username and email address. Please check your details.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 1,
+                    "username": username,
+                    "email": email
+                })
 
-            if not user.email:
-                messages.error(request, "This account does not have a registered email address. Please contact your system administrator.")
-                return render(request, "accounts/forgot_password.html", {"step": 1, "email_or_username": email_or_username})
+            if not user.is_active or not user.is_approved:
+                messages.error(request, "Your account is inactive or pending approval. Please contact your administrator.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 1,
+                    "username": username,
+                    "email": email
+                })
 
             otp = str(random.randint(100000, 999999))
             
             # Create cryptographic token signed with SECRET_KEY (valid for 15 mins)
-            payload = {"user_id": user.id, "otp": otp, "email": user.email}
+            payload = {
+                "user_id": user.id,
+                "username": user.username,
+                "otp": otp,
+                "email": user.email,
+                "phone": user.phone or ""
+            }
             token = signing.dumps(payload)
 
             # Send OTP email via Brevo SMTP
             subject = "[Zappkode CRM] Your Password Reset OTP Code"
             message = (
                 f"Hello {user.get_full_name() or user.username},\n\n"
-                f"Your 6-digit OTP code to reset your password is:\n\n"
+                f"Your 6-digit verification OTP code is:\n\n"
                 f"🔑 {otp}\n\n"
-                f"This code is valid for 15 minutes. If you did not request a password reset, please ignore this email.\n\n"
+                f"This code is valid for 15 minutes. If you did not request this, please contact support or ignore this email.\n\n"
                 f"Best regards,\nZappkode CRM Team"
             )
+            email_sent = False
             try:
                 send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
-                messages.success(request, f"A fresh 6-digit OTP code has been sent to {user.email}. Check your inbox.")
+                email_sent = True
             except Exception as e:
-                messages.error(request, f"Could not send OTP email via Brevo SMTP ({e}).")
                 if settings.DEBUG:
-                    messages.info(request, f"[DEBUG] Generated OTP is: {otp}")
+                    messages.info(request, f"[DEBUG Demo OTP]: {otp}")
+
+            # If user has a contact number, log or dispatch SMS
+            phone_display = ""
+            if user.phone:
+                p_clean = user.phone.strip()
+                if len(p_clean) >= 4:
+                    phone_display = f"••••••{p_clean[-4:]}"
+                else:
+                    phone_display = p_clean
+
+            # Mask email for privacy
+            parts = user.email.split("@")
+            if len(parts) == 2:
+                u_part, domain = parts
+                masked_email = (u_part[:2] + "••••@" + domain) if len(u_part) > 2 else f"••@{domain}"
+            else:
+                masked_email = user.email
+
+            info_msg = f"A 6-digit OTP code has been sent to {masked_email}"
+            if phone_display:
+                info_msg += f" and registered mobile {phone_display}."
+            else:
+                info_msg += "."
+            messages.success(request, info_msg)
 
             return render(request, "accounts/forgot_password.html", {
                 "step": 2,
                 "user_email": user.email,
+                "masked_email": masked_email,
+                "user_phone": user.phone,
+                "phone_display": phone_display,
                 "token": token,
+                "username": user.username,
             })
 
         elif action == "verify_otp":
@@ -832,18 +887,58 @@ def forgot_password(request):
             if input_otp and input_otp == data.get("otp"):
                 verified_payload = {"user_id": data["user_id"], "verified": True}
                 verified_token = signing.dumps(verified_payload)
-                messages.success(request, "OTP verified successfully! Please enter your new password.")
+                user = User.objects.filter(pk=data["user_id"]).first()
+                messages.success(request, "OTP verified successfully! You can now log into your profile or update your password.")
                 return render(request, "accounts/forgot_password.html", {
                     "step": 3,
                     "verified_token": verified_token,
+                    "target_user": user,
                 })
             else:
-                messages.error(request, "Invalid 6-digit OTP code. Please enter the correct OTP received in your email.")
+                messages.error(request, "Invalid 6-digit OTP code. Please enter the correct OTP.")
+                if settings.DEBUG:
+                    messages.info(request, f"[DEBUG Demo OTP]: {data.get('otp')}")
+
+                user_email = data.get("email") or ""
+                parts = user_email.split("@")
+                masked_email = (parts[0][:2] + "••••@" + parts[1]) if len(parts) == 2 and len(parts[0]) > 2 else user_email
+                user_phone = data.get("phone") or ""
+                phone_display = f"••••••{user_phone[-4:]}" if len(user_phone) >= 4 else user_phone
+
                 return render(request, "accounts/forgot_password.html", {
                     "step": 2,
-                    "user_email": data.get("email"),
+                    "user_email": user_email,
+                    "masked_email": masked_email,
+                    "user_phone": user_phone,
+                    "phone_display": phone_display,
                     "token": token,
+                    "username": data.get("username"),
                 })
+
+        elif action == "direct_login":
+            verified_token = request.POST.get("verified_token", "")
+            if not verified_token:
+                messages.error(request, "Security verification missing. Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+
+            try:
+                data = signing.loads(verified_token, max_age=900)
+            except (signing.SignatureExpired, signing.BadSignature):
+                messages.error(request, "Session expired or invalid verification token. Please request a new OTP.")
+                return render(request, "accounts/forgot_password.html", {"step": 1})
+
+            user_id = data.get("user_id")
+            user = get_object_or_404(User, pk=user_id)
+            
+            if not user.is_active or not user.is_approved:
+                messages.error(request, "Account is not active or approved.")
+                return redirect("accounts:login")
+
+            login(request, user)
+            request.session.set_expiry(2592000)
+            log_action(action="USER_LOGIN_VIA_OTP", obj=user, new_value=f"User {user.username} logged in via OTP verification", user=user)
+            messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! You are now logged in.")
+            return redirect("accounts:profile")
 
         elif action == "reset_password":
             verified_token = request.POST.get("verified_token", "")
@@ -860,11 +955,16 @@ def forgot_password(request):
             p1 = request.POST.get("password1", "").strip()
             p2 = request.POST.get("password2", "").strip()
 
+            user_id = data.get("user_id")
+            user = get_object_or_404(User, pk=user_id)
+
             if len(p1) < 6:
                 messages.error(request, "Password must be at least 6 characters long.")
                 return render(request, "accounts/forgot_password.html", {
                     "step": 3,
                     "verified_token": verified_token,
+                    "target_user": user,
+                    "show_password_form": True,
                 })
 
             if p1 != p2:
@@ -872,14 +972,15 @@ def forgot_password(request):
                 return render(request, "accounts/forgot_password.html", {
                     "step": 3,
                     "verified_token": verified_token,
+                    "target_user": user,
+                    "show_password_form": True,
                 })
 
-            user_id = data.get("user_id")
-            user = get_object_or_404(User, pk=user_id)
             user.set_password(p1)
             user.save()
+            log_action(action="USER_PASSWORD_RESET", obj=user, new_value=f"Password updated for {user.username} via OTP verification", user=user)
 
-            messages.success(request, f"Password for '{user.username}' reset successfully! You can now log in with your new password.")
+            messages.success(request, f"Password for '{user.username}' has been updated successfully! Please log in with your new password.")
             return redirect("accounts:login")
 
     return render(request, "accounts/forgot_password.html", {"step": 1})

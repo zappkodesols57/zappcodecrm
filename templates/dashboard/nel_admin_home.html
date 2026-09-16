@@ -418,6 +418,17 @@
             </a>
             {% endif %}
 
+            {% if current_final_status %}
+            <!-- Active Final Status Slicer Chip -->
+            <div class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-3 py-1 rounded-pill d-flex align-items-center gap-2"
+                style="font-size: 0.8rem; font-weight: 600;">
+                <span>Status: <strong>{{ current_final_status }}</strong></span>
+                <a href="javascript:void(0)" onclick="applyFilterParam('final_lead_status', '{{ current_final_status }}')" class="text-danger text-decoration-none" title="Remove Status Filter">
+                    <i class="ph ph-x-circle fw-bold"></i>
+                </a>
+            </div>
+            {% endif %}
+
             <!-- 3. Time Filter Toggle: Today vs This Month -->
             <div class="btn-group shadow-sm rounded-pill p-1 bg-white border" role="group">
                 <a href="{% url 'dashboard:superadmin_home' %}?time_filter=today"
@@ -593,6 +604,10 @@
                         class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}"
                         max="{{ today_str }}" onchange="onFilterEndDateChange(this.value)">
                 </div>
+
+                {% if current_final_status %}
+                <input type="hidden" name="final_lead_status" value="{{ current_final_status }}">
+                {% endif %}
             </div>
 
             <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-2 border-top">
@@ -754,7 +769,7 @@
             <h5 class="chart-title">
                 <i class="ph-bold ph-chart-pie-slice text-primary"></i> Final Lead Status
             </h5>
-            <span class="badge bg-light text-muted border">Outcomes</span>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="ph-bold ph-cursor-click me-1"></i>Click to Filter Dashboard</span>
         </div>
         <div class="chart-container-wrapper">
             <canvas id="finalStatusChart"></canvas>
@@ -1016,17 +1031,17 @@
 
                 <!-- Bulk Assignment Floating Bar -->
                 <div id="drilldownBulkActionBar"
-                    class="card shadow-sm border-0 mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2"
+                    class="card shadow-sm border-0 mb-3 bg-white rounded-3 p-2 flex-row align-items-center justify-content-between flex-wrap gap-2"
                     style="display: none; border-left: 4px solid var(--primary) !important;">
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0
                             Leads Selected</span>
-                        <span class="text-muted small">Choose an employee to assign the selected leads:</span>
+                        <span class="text-muted small">Choose a lead attendant to assign the selected leads:</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill"
                             style="min-width: 180px;">
-                            <option value="">-- Select Employee --</option>
+                            <option value="">-- Select Lead Attendant --</option>
                         </select>
                         <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold"
                             onclick="executeDrilldownBulkAssign()">
@@ -1145,6 +1160,11 @@
                     x: { beginAtZero: true, grid: { display: isHorizontal } },
                     y: { grid: { display: !isHorizontal } }
                 },
+                onHover: (e, elements) => {
+                    if (e && e.native && e.native.target) {
+                        e.native.target.style.cursor = (elements && elements.length > 0) ? 'pointer' : 'default';
+                    }
+                },
                 onClick: (e, elements) => {
                     if (elements.length > 0 && filterParam) {
                         const idx = elements[0].index;
@@ -1180,7 +1200,7 @@
                     backgroundColor: colorPalette || ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B'],
                     borderWidth: 2,
                     borderColor: '#ffffff',
-                    hoverOffset: 4
+                    hoverOffset: 6
                 }]
             },
             options: {
@@ -1190,11 +1210,22 @@
                 layout: {
                     padding: { top: 4, bottom: 4, left: 4, right: 4 }
                 },
+                onHover: (e, elements) => {
+                    if (e && e.native && e.native.target) {
+                        e.native.target.style.cursor = (elements && elements.length > 0) ? 'pointer' : 'default';
+                    }
+                },
                 onClick: (e, elements) => {
-                    if (elements.length > 0 && filterParam) {
+                    if (elements.length > 0) {
                         const idx = elements[0].index;
                         const label = labels[idx];
-                        applyFilterParam(filterParam, label);
+                        if (filterParam === 'redirect_deal_status') {
+                            window.location.href = `/leads/?deal_status=${encodeURIComponent(label)}`;
+                        } else if (filterParam === 'redirect_appointment_status') {
+                            window.location.href = `/leads/?appointment_status=${encodeURIComponent(label)}`;
+                        } else if (filterParam) {
+                            applyFilterParam(filterParam, label);
+                        }
                     }
                 },
                 plugins: {
@@ -1211,7 +1242,9 @@
                     },
                     tooltip: {
                         callbacks: {
-                            label: function (ctx) { return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN') + ' leads'; }
+                            label: function (ctx) { 
+                                return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN') + ' leads (Click to filter dashboard)'; 
+                            }
                         }
                     }
                 }
@@ -1312,8 +1345,8 @@
         chartInstances['monthChart'].data.datasets[0].data = monthEntries.map(e => e[1]);
         chartInstances['monthChart'].update();
 
-        // 4. Final Lead Status (Doughnut)
-        chartInstances['finalStatusChart'] = createDoughnutChart('finalStatusChart', '', insights.final_lead_status_distribution, [
+        // 4. Final Lead Status (Doughnut) - Slices the Dashboard
+        chartInstances['finalStatusChart'] = createDoughnutChart('finalStatusChart', 'final_lead_status', insights.final_lead_status_distribution, [
             '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#14B8A6'
         ]);
 
@@ -1326,7 +1359,7 @@
         updateCampaignChart();
 
         // 7. Appointment Status (Doughnut)
-        chartInstances['appointmentStatusChart'] = createDoughnutChart('appointmentStatusChart', '', insights.appointment_status_distribution, [
+        chartInstances['appointmentStatusChart'] = createDoughnutChart('appointmentStatusChart', 'redirect_appointment_status', insights.appointment_status_distribution, [
             '#10B981', '#64748B', '#EF4444', '#F59E0B', '#3B82F6'
         ]);
 
@@ -1618,6 +1651,11 @@
         searchParams.set('year', currentCalYear);
         searchParams.set('month', currentCalMonth);
 
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        if (currentUrlParams.get('final_lead_status')) {
+            searchParams.set('final_lead_status', currentUrlParams.get('final_lead_status'));
+        }
+
         const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
         fetch(url)
@@ -1666,12 +1704,40 @@
     function populateBulkAssignDropdown(users) {
         const sel = document.getElementById('drilldownBulkAssignSelect');
         if (!sel) return;
-        sel.innerHTML = '<option value="">-- Select Employee --</option>';
-        users.forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u.id;
-            opt.textContent = `${u.name} (${u.role})`;
-            sel.appendChild(opt);
+
+        const optionsList = [];
+        (users || []).forEach(u => {
+            const uname = u.username || u.name || '';
+            const fullName = (u.name && uname && u.name.toLowerCase() !== uname.toLowerCase()) ? ` (${u.name})` : '';
+            const roleSuffix = (u.role && u.role_key !== 'LEAD_ATTENDENT' && u.role !== 'Lead Attendant') ? ` - ${u.role}` : '';
+            optionsList.push({
+                value: String(u.id),
+                text: `${uname}${fullName}${roleSuffix}`
+            });
+        });
+
+        // 1. If TomSelect instance exists, populate TomSelect internal options
+        if (sel.tomselect) {
+            const ts = sel.tomselect;
+            ts.clear();
+            ts.clearOptions();
+            ts.settings.placeholder = '-- Select Lead Attendant --';
+            if (ts.input) ts.input.setAttribute('placeholder', '-- Select Lead Attendant --');
+            if (ts.control_input) ts.control_input.setAttribute('placeholder', '-- Select Lead Attendant --');
+            optionsList.forEach(opt => {
+                ts.addOption({ value: opt.value, text: opt.text });
+            });
+            ts.setValue('', true);
+            ts.refreshOptions(false);
+        }
+
+        // 2. Also keep native <select> options in sync
+        sel.innerHTML = '<option value="">-- Select Lead Attendant --</option>';
+        optionsList.forEach(opt => {
+            const elOpt = document.createElement('option');
+            elOpt.value = opt.value;
+            elOpt.textContent = opt.text;
+            sel.appendChild(elOpt);
         });
     }
 
@@ -1718,9 +1784,9 @@
 
     function executeDrilldownBulkAssign() {
         const assignSelect = document.getElementById('drilldownBulkAssignSelect');
-        const assignToId = assignSelect ? assignSelect.value : '';
+        const assignToId = (assignSelect && assignSelect.tomselect) ? assignSelect.tomselect.getValue() : (assignSelect ? assignSelect.value : '');
         if (!assignToId) {
-            alert('Please select an employee to assign the leads to.');
+            alert('Please select a lead attendant to assign the leads to.');
             return;
         }
         if (selectedDrilldownLeadIds.size === 0) {
@@ -2142,7 +2208,8 @@
                 let opts = `<option value="">Unassigned</option>`;
                 cachedAssignableUsers.forEach(u => {
                     const isSel = (lead.assigned_to_id && lead.assigned_to_id === u.id) ? 'selected' : '';
-                    opts += `<option value="${u.id}" ${isSel}>${u.name}</option>`;
+                    const uname = u.username || u.name;
+                    opts += `<option value="${u.id}" ${isSel}>${uname}</option>`;
                 });
                 assignedToHtml = `
                     <select class="form-select form-select-sm rounded-pill border-light-subtle shadow-xs py-0 px-2" style="font-size:0.75rem; width:130px;" onchange="executeSingleLeadAssign(${lead.id}, this.value)">

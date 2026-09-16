@@ -51,6 +51,14 @@
       {% if lead.custom_data.gender %}
         <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
       {% endif %}
+      <span>
+        <i class="fa-solid fa-user-check text-success me-1"></i>Lead Owner:
+        <strong class="text-dark">{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</strong>
+      </span>
+      <span>
+        <i class="fa-regular fa-calendar-days text-primary me-1"></i>Created:
+        <strong class="text-dark">{{ lead.effective_created_display }}</strong>
+      </span>
     </div>
   </div>
   <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -388,39 +396,8 @@
 
   </div>
 
-  <!-- Right Column: Campaign, Source & Owner -->
+  <!-- Right Column: Quick Notes -->
   <div class="col-lg-4">
-    <!-- Patient Attribution & Lead Source -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-bullhorn text-primary me-2"></i>Source & Campaign</h6>
-      </div>
-      <div class="card-body small">
-        <div class="mb-2">
-          <span class="text-muted d-block">Lead Source:</span>
-          <strong>{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</strong>
-        </div>
-        <div class="mb-2">
-          <span class="text-muted d-block">Campaign:</span>
-          <strong>{{ lead.custom_data.campaign|default:lead.campaign|default:"—" }}</strong>
-        </div>
-        <div class="mb-2">
-          <span class="text-muted d-block">Lead Owner (Attendant):</span>
-          <span class="badge bg-light text-dark border"><i class="fa-solid fa-user-check text-success me-1"></i>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</span>
-        </div>
-        <div>
-          <span class="text-muted d-block">Created On:</span>
-          <span>
-            {% if lead.created_at %}
-              {{ lead.created_at|date:"d M Y, h:i A" }}
-            {% else %}
-              {{ lead.inquiry_date|date:"d M Y" }}{% if lead.custom_data.lead_received_time %}, {{ lead.custom_data.lead_received_time }}{% endif %}
-            {% endif %}
-          </span>
-        </div>
-      </div>
-    </div>
-
     <!-- Quick Notes -->
     <div class="card border-0 shadow-sm rounded-4">
       <div class="card-header bg-white py-3 border-bottom">

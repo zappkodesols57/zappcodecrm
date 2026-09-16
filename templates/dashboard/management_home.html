@@ -1111,12 +1111,37 @@ function fetchDrilldownData() {
 function populateBulkAssignDropdown(users) {
     const sel = document.getElementById('drilldownBulkAssignSelect');
     if (!sel) return;
+
+    const optionsList = [];
+    (users || []).forEach(u => {
+        const uname = u.username || u.name || '';
+        const fullName = (u.name && uname && u.name.toLowerCase() !== uname.toLowerCase()) ? ` (${u.name})` : '';
+        optionsList.push({
+            value: String(u.id),
+            text: `${uname}${fullName} (${u.role})`
+        });
+    });
+
+    if (sel.tomselect) {
+        const ts = sel.tomselect;
+        ts.clear();
+        ts.clearOptions();
+        ts.settings.placeholder = '-- Select Employee --';
+        if (ts.input) ts.input.setAttribute('placeholder', '-- Select Employee --');
+        if (ts.control_input) ts.control_input.setAttribute('placeholder', '-- Select Employee --');
+        optionsList.forEach(opt => {
+            ts.addOption({ value: opt.value, text: opt.text });
+        });
+        ts.setValue('', true);
+        ts.refreshOptions(false);
+    }
+
     sel.innerHTML = '<option value="">-- Select Employee --</option>';
-    users.forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.id;
-        opt.textContent = `${u.name} (${u.role})`;
-        sel.appendChild(opt);
+    optionsList.forEach(opt => {
+        const elOpt = document.createElement('option');
+        elOpt.value = opt.value;
+        elOpt.textContent = opt.text;
+        sel.appendChild(elOpt);
     });
 }
 
@@ -1163,7 +1188,7 @@ function updateBulkActionBar() {
 
 function executeDrilldownBulkAssign() {
     const assignSelect = document.getElementById('drilldownBulkAssignSelect');
-    const assignToId = assignSelect ? assignSelect.value : '';
+    const assignToId = (assignSelect && assignSelect.tomselect) ? assignSelect.tomselect.getValue() : (assignSelect ? assignSelect.value : '');
     if (!assignToId) {
         alert('Please select an employee to assign the leads to.');
         return;
