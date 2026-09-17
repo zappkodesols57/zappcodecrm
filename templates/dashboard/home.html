@@ -146,6 +146,69 @@
     .cursor-pointer {
         cursor: pointer !important;
     }
+
+    /* Modern Uniform KPI Cards */
+    .dashboard-kpi-card {
+        background: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 14px !important;
+        padding: 1.1rem 1.25rem !important;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 145px;
+    }
+
+    .dashboard-kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .dashboard-kpi-card .kpi-label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .dashboard-kpi-card .kpi-value {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: #0f172a;
+    }
+
+    .dashboard-kpi-card .kpi-footer {
+        margin-top: 0.75rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid #f1f5f9;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* Drilldown Table Action Buttons */
+    .drilldown-action-btn {
+        width: 28px !important;
+        height: 28px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 50% !important;
+        font-size: 0.72rem !important;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }
+
+    .drilldown-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -180,19 +243,21 @@
 
     <!-- 1. Today's New Leads -->
     <div class="col-12 col-sm-6 col-lg-3">
-        <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
             style="border-left: 4px solid #3b82f6 !important;"
             onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'primary')"
             title="Click to view fresh leads & records">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-                <span class="label text-muted small fw-bold text-uppercase">Today's New Leads</span>
-                <i class="fa-solid fa-sparkles text-primary"></i>
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="kpi-label">Today's New Leads</span>
+                    <span class="badge bg-primary-subtle text-primary p-2 rounded-circle" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-user-plus text-primary"></i>
+                    </span>
+                </div>
+                <div class="kpi-value">{{ kpis.todays_new|default:0 }}</div>
             </div>
-            <div class="value fs-3 fw-bold text-dark">{{ kpis.todays_new|default:0 }}</div>
-            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
-                style="font-size: 0.75rem;">
-                <span class="text-primary fw-medium"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View
-                    Fresh Leads</span>
+            <div class="kpi-footer text-muted">
+                <span class="text-primary fw-semibold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</span>
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Active</span>
             </div>
         </div>
@@ -200,75 +265,82 @@
 
     <!-- 2. Call Not Done (Pending First Call / Uncontacted) -->
     <div class="col-12 col-sm-6 col-lg-3">
-        <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
             style="border-left: 4px solid #f59e0b !important;"
             onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'warning')"
             title="Click to view pending calls & calling queue">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-                <span class="label text-muted small fw-bold text-uppercase">Call Not Done</span>
-                <i class="fa-solid fa-phone-slash text-warning"></i>
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="kpi-label">Call Not Done</span>
+                    <span class="badge bg-warning-subtle text-warning p-2 rounded-circle" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-phone-slash"></i>
+                    </span>
+                </div>
+                <div class="kpi-value">{{ kpis.call_not_done|default:0 }}</div>
             </div>
-            <div class="value fs-3 fw-bold text-dark">{{ kpis.call_not_done|default:0 }}</div>
-            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
-                style="font-size: 0.75rem;">
-                <span class="text-warning fw-medium"><i class="fa-solid fa-headset me-1"></i>Pending First Calls</span>
-                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Calling Queue</span>
+            <div class="kpi-footer text-muted">
+                <span class="text-warning fw-semibold"><i class="fa-solid fa-headset me-1"></i>Pending Calls</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Queue</span>
             </div>
         </div>
     </div>
 
     <!-- 3. Admission & Billing Today (Merged Single KPI Card with Breakdown) -->
     <div class="col-12 col-sm-6 col-lg-3">
-        <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
             style="border-left: 4px solid #10b981 !important;"
             onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Billing Today', 'success')"
             title="Click to view admissions & billing records">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-                <span class="label text-muted small fw-bold text-uppercase">Admission & Billing Today</span>
-                <div class="d-flex gap-1">
-                    <i class="fa-solid fa-user-graduate text-success"></i>
-                    <i class="fa-solid fa-receipt text-purple" style="color: #8b5cf6;"></i>
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="kpi-label">Admission & Billing</span>
+                    <div class="d-flex gap-1">
+                        <span class="badge bg-success-subtle text-success p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-user-graduate" style="font-size: 0.75rem;"></i>
+                        </span>
+                        <span class="badge bg-purple-subtle text-purple p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: #f3e8ff; color: #8b5cf6;">
+                            <i class="fa-solid fa-receipt" style="font-size: 0.75rem;"></i>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="kpi-value">{{ kpis.admission_today|default:0 }}</div>
+                    <small class="text-muted fw-semibold">Admissions</small>
                 </div>
             </div>
-            <div class="d-flex align-items-baseline gap-2">
-                <div class="value fs-3 fw-bold text-dark">{{ kpis.admission_today|default:0 }}</div>
-                <small class="text-muted fw-semibold">Admissions</small>
-            </div>
-            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
-                style="font-size: 0.75rem;">
-                <span class="text-success fw-medium"><i class="fa-solid fa-circle-check me-1"></i>Admissions: <strong>{{
-                        kpis.admission_today|default:0 }}</strong></span>
-                <span class="text-secondary fw-medium"><i class="fa-solid fa-credit-card me-1"></i>Billing: <strong
-                        class="text-dark">{% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else
-                        %}{{ kpis.billing_count_today|default:0 }}{% endif %}</strong></span>
+            <div class="kpi-footer text-muted">
+                <span class="text-success fw-semibold"><i class="fa-solid fa-circle-check me-1"></i>Adm: {{ kpis.admission_today|default:0 }}</span>
+                <span class="text-secondary fw-semibold"><i class="fa-solid fa-credit-card me-1"></i>Bill: {% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}</span>
             </div>
         </div>
     </div>
 
     <!-- 4. Follow-ups Queue (Upcoming & Overdue Merged Single KPI Card with Breakdown) -->
     <div class="col-12 col-sm-6 col-lg-3">
-        <div class="kpi-card kpi-4 text-decoration-none d-block kpi-link h-100 p-3 rounded-4 shadow-sm cursor-pointer"
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
             style="border-left: 4px solid #06b6d4 !important;"
             onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'info')"
             title="Click to view upcoming and overdue follow-ups">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-                <span class="label text-muted small fw-bold text-uppercase">Follow-ups Queue</span>
-                <div class="d-flex gap-1">
-                    <i class="fa-solid fa-calendar-days text-info"></i>
-                    <i class="fa-solid fa-bell-slash text-danger"></i>
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="kpi-label">Follow-ups Queue</span>
+                    <div class="d-flex gap-1">
+                        <span class="badge bg-info-subtle text-info p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-calendar-days" style="font-size: 0.75rem;"></i>
+                        </span>
+                        <span class="badge bg-danger-subtle text-danger p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-bell-slash" style="font-size: 0.75rem;"></i>
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="kpi-value">{{ kpis.total_followups|default:0 }}</div>
+                    <small class="text-muted fw-semibold">Total Due</small>
                 </div>
             </div>
-            <div class="d-flex align-items-baseline gap-2">
-                <div class="value fs-3 fw-bold text-dark">{{
-                    kpis.total_followups|default:kpis.upcoming_followups|default:0 }}</div>
-                <small class="text-muted fw-semibold">Total Due</small>
-            </div>
-            <div class="mt-2 pt-1 border-top d-flex align-items-center justify-content-between text-muted"
-                style="font-size: 0.75rem;">
-                <span class="text-info fw-medium"><i class="fa-solid fa-clock me-1"></i>Upcoming: <strong>{{
-                        kpis.upcoming_followups|default:0 }}</strong></span>
-                <span class="text-danger fw-medium"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue:
-                    <strong>{{ kpis.overdue_followups|default:0 }}</strong></span>
+            <div class="kpi-footer text-muted">
+                <span class="text-info fw-semibold"><i class="fa-solid fa-clock me-1"></i>Upcoming: {{ kpis.upcoming_followups|default:0 }}</span>
+                <span class="text-danger fw-semibold"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue: {{ kpis.overdue_followups|default:0 }}</span>
             </div>
         </div>
     </div>
@@ -711,14 +783,14 @@
     };
 
     const cardIconMap = {
-        'new_leads': { icon: 'fa-sparkles', colorClass: 'bg-primary' },
+        'new_leads': { icon: 'fa-user-plus', colorClass: 'bg-primary' },
         'call_not_done': { icon: 'fa-phone-slash', colorClass: 'bg-warning' },
         'opd_booked': { icon: 'fa-user-graduate', colorClass: 'bg-success' },
         'followups': { icon: 'fa-calendar-days', colorClass: 'bg-info' },
         'walkin': { icon: 'fa-person-walking', colorClass: 'bg-secondary' },
     };
 
-    const todayStrGlobal = new Date().toISOString().split('T')[0];
+    const todayStrGlobal = '{% now "Y-m-d" %}' || new Date().toISOString().split('T')[0];
 
     function isFutureDateAllowed() {
         return currentDrilldownCard === 'opd_booked' || currentDrilldownCard === 'followups';
@@ -1441,21 +1513,21 @@
               <td class="py-2">
                   <div class="text-muted small text-wrap text-start" style="min-width: 180px; max-width: 300px;">${commentsHtml}</div>
               </td>
-              <td class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6;">
-                  <div class="d-flex align-items-center gap-1">
+              <td class="py-2 px-3 position-sticky end-0 bg-white" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
+                  <div class="d-flex align-items-center gap-1 justify-content-center">
                       ${(item.clean_mobile || item.mobile) ? `
-                          <a href="tel:${item.clean_mobile || item.mobile}" class="btn btn-xs btn-outline-success rounded-circle p-1" title="Call Lead" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">
-                              <i class="fa-solid fa-phone" style="font-size: 0.7rem;"></i>
+                          <a href="tel:${item.clean_mobile || item.mobile}" class="btn btn-outline-success drilldown-action-btn" title="Call Lead">
+                              <i class="fa-solid fa-phone"></i>
                           </a>
-                          <a href="${waUrl}" target="_blank" class="btn btn-xs btn-success rounded-circle p-1" title="WhatsApp Message" style="width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;">
-                              <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
+                          <a href="${waUrl}" target="_blank" class="btn btn-success text-white drilldown-action-btn" title="WhatsApp Message">
+                              <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
                           </a>
                       ` : ''}
-                      <a href="${item.detail_url}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0" title="View Lead Profile" style="font-size: 0.75rem;">
-                          <i class="fa-solid fa-eye me-1"></i> View
+                      <a href="${item.detail_url}" target="_blank" class="btn btn-outline-secondary drilldown-action-btn" title="View Lead Details">
+                          <i class="fa-regular fa-eye"></i>
                       </a>
-                      <a href="${item.edit_url}" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0" title="Edit Lead Form" style="font-size: 0.75rem;">
-                          <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                      <a href="${item.edit_url}" target="_blank" class="btn btn-outline-primary drilldown-action-btn" title="Edit Lead">
+                          <i class="fa-solid fa-pen"></i>
                       </a>
                   </div>
               </td>
