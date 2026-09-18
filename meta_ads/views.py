@@ -83,9 +83,18 @@ def create_or_update_meta_lead(connection, data):
         logger.info(f"Duplicate Meta lead skipped (external_lead_id/notes): {meta_lead_id}")
         return None
 
+    # Ensure mobile is sanitized and strictly within 20 chars (handles dummy Meta test leads and extended strings)
+    mobile_raw = str(data.get("clean_mobile") or data.get("phone") or "").strip()
+    digits_only = "".join(ch for ch in mobile_raw if ch.isdigit())
+    if digits_only:
+        mobile_num = digits_only[-15:]
+    elif mobile_raw:
+        mobile_num = mobile_raw[:20]
+    else:
+        mobile_num = "9999999999"
+
     # Also prevent duplicate if mobile matches and created recently
-    mobile_num = data.get("clean_mobile") or data.get("phone", "")
-    if mobile_num and len(mobile_num) >= 10:
+    if len(mobile_num) >= 10:
         clean_10 = mobile_num[-10:]
         if Lead.objects.filter(mobile__endswith=clean_10, ad_platform="Meta", created_at__gte=timezone.now() - timezone.timedelta(hours=24)).exists():
             logger.info(f"Duplicate Meta lead skipped (recent mobile): {clean_10}")
@@ -114,9 +123,9 @@ def create_or_update_meta_lead(connection, data):
     campaign_obj = Campaign.objects.filter(name__iexact=campaign_name).first()
     if not campaign_obj and campaign_name:
         campaign_obj = Campaign.objects.create(
-            name=campaign_name,
+            name=campaign_name[:150],
             platform="FACEBOOK",
-            campaign_id=data.get("campaign_id", ""),
+            campaign_id=data.get("campaign_id", "")[:150],
             hospital=hospital,
             is_active=True
         )
@@ -149,11 +158,11 @@ def create_or_update_meta_lead(connection, data):
         notes_lines.append(" | ".join(data.get("other_details")))
 
     lead = Lead.objects.create(
-        name=data.get("name") or "Meta Lead",
-        mobile=mobile_num,
-        email=data.get("email", ""),
-        city=data.get("city", ""),
-        location=data.get("city", ""),
+        name=(data.get("name") or "Meta Lead")[:150],
+        mobile=mobile_num[:20],
+        email=(data.get("email") or "")[:254],
+        city=(data.get("city") or "")[:100],
+        location=(data.get("city") or "")[:255],
         course=course_obj,
         hospital=hospital,
         stage=stage,
