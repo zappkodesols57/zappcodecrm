@@ -84,4 +84,5 @@ sync_hospital_masters.py
 inspect_*.py
 scratch/
 *.xml
+celerybeat-schedule*
 

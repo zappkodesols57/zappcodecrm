@@ -294,3 +294,24 @@ LOGGING = {
         },
     },
 }
+
+# ---------------------------------------------------------------------------
+# Celery Configuration
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/0")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = os.environ.get("TIME_ZONE", "Asia/Kolkata")
+CELERY_ENABLE_UTC = False
+
+# Celery Beat Schedule (Runs every 3 minutes to auto-sync Meta leads)
+CELERY_SYNC_INTERVAL = float(os.environ.get("CELERY_SYNC_INTERVAL", 180.0))  # Default 3 minutes (180s)
+CELERY_BEAT_SCHEDULE = {
+    "sync-meta-leads-periodic": {
+        "task": "meta_ads.tasks.sync_meta_leads_task",
+        "schedule": CELERY_SYNC_INTERVAL,
+    },
+}
+
