@@ -172,6 +172,17 @@ class User(AbstractUser):
             return 25
 
     @property
+    def can_self_assign(self):
+        # Explicit admin roles should never self-assign leads by default (only telecallers, counsellors, HR, attendants)
+        if self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN):
+            return bool(self.custom_permissions.get("allow_self_assign", False) or self.custom_permissions.get("can_self_assign", False))
+        if "allow_self_assign" in self.custom_permissions:
+            return bool(self.custom_permissions["allow_self_assign"])
+        if "can_self_assign" in self.custom_permissions:
+            return bool(self.custom_permissions["can_self_assign"])
+        return self.role in (self.Role.COUNSELLOR, self.Role.HR, self.Role.LEAD_ATTENDENT, self.Role.MANAGER)
+
+    @property
     def can_manage_users(self):
         return self.has_dynamic_permission("manage_users", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER))
 

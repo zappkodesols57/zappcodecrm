@@ -73,10 +73,20 @@ class LeadForm(forms.ModelForm):
             # Filter assigned_to and assigned_manager by hospital / entity
             if "assigned_to" in self.fields:
                 if user and getattr(user, "hospital", None):
-                    self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
+                    # For hospital, only Lead Attendants, Counsellors, and HR should be eligible assignees
+                    self.fields["assigned_to"].queryset = User.objects.filter(
+                        is_active=True,
+                        is_approved=True,
+                        hospital=user.hospital,
+                        role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR]
+                    ).order_by("first_name", "username")
                 else:
-                    # Global Super Admin: show all users
-                    self.fields["assigned_to"].queryset = User.objects.filter(is_active=True, is_approved=True)
+                    # Global Super Admin: assign to Counsellor, HR, Lead Attendant
+                    self.fields["assigned_to"].queryset = User.objects.filter(
+                        is_active=True,
+                        is_approved=True,
+                        role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT]
+                    ).order_by("first_name", "username")
             if "assigned_manager" in self.fields:
                 if user and getattr(user, "hospital", None):
                     self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
@@ -563,8 +573,10 @@ class HospitalLeadForm(forms.ModelForm):
             curr_st = str(self.fields['appointment_status'].initial or cd.get('appointment_status') or '').strip().upper()
             from leads.models import Appointment
             has_appt = Appointment.objects.filter(lead=self.instance).exists()
-            if has_appt or any(k in curr_st for k in ['COMPLET', 'PAYMENT', 'CONFIRM', 'APPROVED', 'SCHEDULED', 'BOOK']):
-                self.fields['appointment_status'].initial = 'Booking'
+            if 'CONSULT' in curr_st:
+                self.fields['appointment_status'].initial = 'Consultation Booking'
+            elif has_appt or any(k in curr_st for k in ['COMPLET', 'PAYMENT', 'CONFIRM', 'APPROVED', 'SCHEDULED', 'BOOK', 'OPD']):
+                self.fields['appointment_status'].initial = 'OPD Booking'
 
             # If appointment_time is not in custom_data, load from Appointment relation
             if not self.fields['appointment_time'].initial:
@@ -710,12 +722,16 @@ class HospitalLeadForm(forms.ModelForm):
             curr_appt = self.fields["appointment_status"].initial
             if curr_appt:
                 opt_dict = {o[0].lower(): o[0] for o in appt_status_options}
-                if str(curr_appt).lower() not in opt_dict:
-                    # If 'Booked' and 'Booking' is in choices, map initial to 'Booking'
-                    if str(curr_appt).lower() == 'booked' and 'booking' in opt_dict:
-                        self.fields["appointment_status"].initial = opt_dict['booking']
-                    elif str(curr_appt).lower() == 'booking' and 'booked' in opt_dict:
-                        self.fields["appointment_status"].initial = opt_dict['booked']
+                curr_lower = str(curr_appt).lower()
+                if curr_lower not in opt_dict:
+                    # Map legacy 'booked' or 'booking' to 'opd booking' if available
+                    if curr_lower in ['booked', 'booking', 'opd booking']:
+                        for candidate in ['opd booking', 'booking', 'booked']:
+                            if candidate in opt_dict:
+                                self.fields["appointment_status"].initial = opt_dict[candidate]
+                                break
+                    elif 'consult' in curr_lower and 'consultation booking' in opt_dict:
+                        self.fields["appointment_status"].initial = opt_dict['consultation booking']
                     else:
                         appt_status_options.insert(0, (str(curr_appt), str(curr_appt)))
             self.fields["appointment_status"].choices = [("", "-- Select Appointment Status --")] + appt_status_options

@@ -367,29 +367,21 @@
               {% endif %}
             </td>
             <td class="ps-4">
-              {% if lead.display_status == 'Payment Done' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold">
-                  <i class="fa-solid fa-receipt me-1"></i>{{ lead.remark_detail }}
-                </span>
-              {% elif lead.display_status == 'Booked' %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
-                  <i class="fa-solid fa-calendar-day me-1"></i>{{ lead.remark_detail }}
-                </span>
-              {% elif lead.remark_detail == 'Hot' %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-fire me-1"></i>Hot</span>
-              {% elif lead.remark_detail == 'Warm' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle fw-bold"><i class="fa-solid fa-sun me-1"></i>Warm</span>
-              {% elif lead.remark_detail == 'Cold' %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle fw-bold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>
-              {% elif lead.remark_detail == 'Freeze' %}
-                <span class="badge bg-dark bg-opacity-10 text-dark border border-secondary fw-bold"><i class="fa-solid fa-icicles me-1 text-info"></i>Freeze</span>
-              {% elif lead.display_status == 'Payment Pending' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
-                  <i class="fa-solid fa-triangle-exclamation me-1"></i>Billing Pending
-                </span>
-              {% else %}
-                <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.remark_detail }}">{{ lead.remark_detail }}</span>
-              {% endif %}
+              {% with rem=lead.interaction_remark %}
+                {% if rem and rem != '—' %}
+                  <span class="small text-secondary text-truncate d-inline-block" style="max-width: 200px;" title="{{ rem }}">{{ rem }}</span>
+                {% elif lead.custom_temperature == 'Hot' %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-fire me-1"></i>Hot</span>
+                {% elif lead.custom_temperature == 'Warm' %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle fw-bold"><i class="fa-solid fa-sun me-1"></i>Warm</span>
+                {% elif lead.custom_temperature == 'Cold' %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle fw-bold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>
+                {% elif lead.custom_temperature == 'Freeze' %}
+                  <span class="badge bg-dark bg-opacity-10 text-dark border border-secondary fw-bold"><i class="fa-solid fa-icicles me-1 text-info"></i>Freeze</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              {% endwith %}
             </td>
             <td class="ps-4"><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
             <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>

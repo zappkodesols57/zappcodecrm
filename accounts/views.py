@@ -690,15 +690,36 @@ def user_delete(request, pk):
 @login_required
 @user_passes_test(_is_admin)
 def audit_log(request):
-    logs = AuditLog.objects.select_related("user").all()
-    action = request.GET.get("action")
+    logs = AuditLog.objects.select_related("user")
+    
+    # Scope to current hospital for hospital admin/users
+    selected_hospital_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
+    if request.user.hospital:
+        logs = logs.filter(user__hospital=request.user.hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        logs = logs.filter(user__hospital_id=int(selected_hospital_id))
+
+    action = request.GET.get("action", "").strip()
     if action:
         logs = logs.filter(action=action)
+        
+    total_count = logs.count()
     paginator = Paginator(logs, 50)
     page = paginator.get_page(request.GET.get("page"))
+    
+    actions_qs = AuditLog.objects.all()
+    if request.user.hospital:
+        actions_qs = actions_qs.filter(user__hospital=request.user.hospital)
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        actions_qs = actions_qs.filter(user__hospital_id=int(selected_hospital_id))
+
     return render(request, "accounts/audit_log.html", {
-        "active": "audit", "page_obj": page,
-        "actions": AuditLog.objects.values_list("action", flat=True).distinct(),
+        "active": "audit", 
+        "page_obj": page,
+        "paginator": paginator,
+        "total_count": total_count,
+        "selected_action": action,
+        "actions": actions_qs.values_list("action", flat=True).distinct(),
     })
 
 

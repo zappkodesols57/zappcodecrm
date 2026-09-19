@@ -17,6 +17,12 @@ class CRMUserCreateForm(UserCreationForm):
         label="Daily Calling Target",
         help_text="Assigned daily call target (default 100 calls per day)."
     )
+    allow_self_assign = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Allow Self-Assign Leads",
+        help_text="Check to allow this employee to self-assign unassigned leads from dashboards and lead lists."
+    )
     bulk_self_assign_limit = forms.IntegerField(
         required=False,
         initial=25,
@@ -27,7 +33,7 @@ class CRMUserCreateForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "bulk_self_assign_limit", "can_import_export")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -117,11 +123,13 @@ class CRMUserCreateForm(UserCreationForm):
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
+        allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
         user.custom_permissions["daily_call_target"] = int(daily_target)
+        user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
         if commit:
             user.save()
@@ -133,6 +141,11 @@ class CRMUserEditForm(forms.ModelForm):
         required=False, 
         label="Allow Lead Data Import & Export (Excel/CSV)",
         help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
+    )
+    allow_self_assign = forms.BooleanField(
+        required=False,
+        label="Allow Self-Assign Leads",
+        help_text="Check to allow this employee to self-assign unassigned leads from dashboards and lead lists."
     )
     daily_call_target = forms.IntegerField(
         required=False,
@@ -149,7 +162,7 @@ class CRMUserEditForm(forms.ModelForm):
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "bulk_self_assign_limit", "can_import_export", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -157,6 +170,7 @@ class CRMUserEditForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             self.fields["can_import_export"].initial = self.instance.can_import_export
             self.fields["daily_call_target"].initial = self.instance.daily_call_target
+            self.fields["allow_self_assign"].initial = self.instance.can_self_assign
             self.fields["bulk_self_assign_limit"].initial = self.instance.bulk_self_assign_limit
 
         if self.user and self.user.hospital:
@@ -239,11 +253,13 @@ class CRMUserEditForm(forms.ModelForm):
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
+        allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
         user.custom_permissions["daily_call_target"] = int(daily_target)
+        user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
         if commit:
             user.save()

@@ -58,14 +58,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
-    <h4 class="fw-bold text-dark mb-1"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Lead Import History</h4>
+    <h4 class="fw-bold text-dark mb-1">Lead Import History</h4>
     <p class="text-muted small mb-0">Track all uploaded lead batches, view lead lists, and share upload reports on WhatsApp.</p>
   </div>
   <div class="d-flex gap-2 align-items-center flex-wrap">
-    <button type="button" class="btn btn-whatsapp-theme rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappHistoryModal">
-      <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send Upload Summary
+    <button type="button" class="btn btn-whatsapp-theme btn-sm rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappHistoryModal" style="height: 34px; display: inline-flex; align-items: center;">
+      Send Upload Summary
     </button>
-    <a href="{% url 'imports:upload' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3"><i class="fa-solid fa-file-import me-1"></i> New Import</a>
+    <a href="{% url 'imports:upload' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3" style="height: 34px; display: inline-flex; align-items: center;">New Import</a>
   </div>
 </div>
 
@@ -73,21 +73,21 @@
 <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3">
   <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div class="d-flex align-items-center gap-1 flex-wrap">
-      <span class="text-muted small fw-bold me-2"><i class="fa-solid fa-calendar-day text-primary me-1"></i> Date Filter:</span>
+      <span class="text-muted small fw-bold me-2">Date Filter:</span>
       <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">
-        <i class="fa-solid fa-sun"></i> Today
+        Today
       </a>
       <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">
-        <i class="fa-solid fa-clock-rotate-left"></i> Yesterday
+        Yesterday
       </a>
       <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">
-        <i class="fa-solid fa-calendar-week"></i> Last 7 Days
+        Last 7 Days
       </a>
       <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">
-        <i class="fa-solid fa-calendar-days"></i> This Month
+        This Month
       </a>
       <a href="?date_preset=all_time" class="filter-pill-btn {% if date_preset == 'all_time' %}active{% endif %}">
-        <i class="fa-solid fa-infinity"></i> All Time
+        All Time
       </a>
     </div>
 
@@ -95,13 +95,13 @@
     <form method="GET" class="d-flex align-items-center gap-2 mb-0">
       <input type="hidden" name="date_preset" value="custom">
       <div class="input-group input-group-sm" style="max-width: 320px;">
-        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date">
+        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date" style="height: 34px;">
         <span class="input-group-text bg-light text-muted small">to</span>
-        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date">
-        <button class="btn btn-outline-primary btn-sm" type="submit"><i class="fa-solid fa-filter"></i></button>
+        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date" style="height: 34px;">
+        <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center justify-content-center" type="submit" style="height: 34px; width: 34px;"><i class="fa-solid fa-filter"></i></button>
       </div>
       {% if date_preset != 'all_time' %}
-        <a href="?date_preset=all_time" class="btn btn-sm btn-outline-secondary rounded-pill" title="Reset filter">
+        <a href="?date_preset=all_time" class="btn btn-sm btn-outline-secondary rounded-pill d-inline-flex align-items-center justify-content-center" title="Reset filter" style="height: 34px; width: 34px;">
           <i class="fa-solid fa-xmark"></i>
         </a>
       {% endif %}
@@ -114,47 +114,48 @@
     <table class="table table-hover align-middle mb-0">
       <thead class="bg-light">
         <tr>
-          <th class="border-0 px-3 py-3 text-muted small text-uppercase">File Name</th>
-          <th class="border-0 py-3 text-muted small text-uppercase">Uploaded By</th>
-          <th class="border-0 py-3 text-muted small text-uppercase">Status</th>
+          <th class="border-0 px-3 py-3 text-muted small text-uppercase" style="max-width: 280px;">File Name</th>
+          <th class="border-0 py-3 text-muted small text-uppercase" style="white-space: nowrap;">Uploaded By</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center" style="white-space: nowrap;">Status</th>
           <th class="border-0 py-3 text-muted small text-uppercase text-center">Total</th>
           <th class="border-0 py-3 text-muted small text-uppercase text-center">Imported</th>
           <th class="border-0 py-3 text-muted small text-uppercase text-center">Updated</th>
           <th class="border-0 py-3 text-muted small text-uppercase text-center">Duplicate</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center">Date & Time</th>
-          <th class="border-0 px-3 py-3 text-muted small text-uppercase text-end">Actions</th>
+          <th class="border-0 py-3 text-muted small text-uppercase text-center" style="white-space: nowrap;">Date & Time</th>
+          <th class="border-0 px-3 py-3 text-muted small text-uppercase text-end" style="min-width: 250px; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for j in jobs %}
         <tr>
-          <td class="px-3">
-            <div class="fw-bold text-dark">{{ j.original_filename|default:"Upload Batch" }}</div>
-            {% if j.sheet_name %}<small class="text-muted">Sheet: {{ j.sheet_name }}</small>{% endif %}
+          <td class="px-3" style="max-width: 280px;">
+            <div class="fw-bold text-dark text-break" title="{{ j.original_filename|default:'Upload Batch' }}" style="font-size: 0.88rem; word-break: break-all;">{{ j.original_filename|default:"Upload Batch" }}</div>
+            {% if j.sheet_name %}<small class="text-muted d-block">Sheet: {{ j.sheet_name }}</small>{% endif %}
           </td>
-          <td>
+          <td style="white-space: nowrap;">
             <span class="small fw-semibold text-dark">{{ j.created_by.get_full_name|default:j.created_by.username|default:"System" }}</span>
           </td>
-          <td><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
+          <td class="text-center"><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
           <td class="text-center fw-bold">{{ j.total_rows }}</td>
           <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">{{ j.imported_count }}</span></td>
           <td class="text-center">{{ j.updated_count }}</td>
           <td class="text-center">{{ j.duplicate_count }}</td>
-          <td class="text-center text-muted small">{{ j.created_at|date:"d-m-Y H:i" }}</td>
-          <td class="px-3 text-end">
-            <div class="d-flex gap-1 align-items-center justify-content-end">
+          <td class="text-center text-muted small" style="white-space: nowrap;">{{ j.created_at|date:"d-m-Y H:i" }}</td>
+          <td class="px-3 text-end" style="white-space: nowrap;">
+            <div class="d-inline-flex gap-1 align-items-center justify-content-end" style="flex-wrap: nowrap;">
               <!-- Single File WhatsApp Share -->
-              <button type="button" class="btn btn-sm btn-outline-success rounded-3" title="Share this file upload report on WhatsApp"
+              <button type="button" class="btn btn-sm btn-outline-success rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0" title="Share this file upload report on WhatsApp"
+                style="height: 32px; width: 34px; padding: 0;"
                 onclick="openSingleJobWhatsApp('{{ j.original_filename|escapejs }}', '{{ j.imported_count }}', '{{ j.updated_count }}', '{{ j.duplicate_count }}', '{{ j.total_rows }}', '{{ j.created_at|date:'d-m-Y H:i' }}')">
                 <i class="fa-brands fa-whatsapp"></i>
               </button>
-              <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary rounded-3" title="View Leads Imported from this File">
-                <i class="fa-solid fa-users me-1"></i> View Leads
+              <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary rounded-3 d-inline-flex align-items-center justify-content-center px-2 flex-shrink-0 text-nowrap" title="View Leads Imported from this File" style="height: 32px; font-size: 0.82rem; font-weight: 600; white-space: nowrap;">
+                View Leads
               </a>
-              <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary rounded-3">Details</a>
-              <form method="post" action="{% url 'imports:delete_job' j.pk %}" onsubmit="return confirmAction('Are you sure you want to delete this import? This will delete the job history and all leads imported by this excel file.');" style="display:inline;">
+              <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary rounded-3 d-inline-flex align-items-center justify-content-center px-2.5 flex-shrink-0 text-nowrap" style="height: 32px; font-size: 0.82rem; white-space: nowrap;">Details</a>
+              <form method="post" action="{% url 'imports:delete_job' j.pk %}" onsubmit="return confirmAction('Are you sure you want to delete this import? This will delete the job history and all leads imported by this excel file.');" style="display:inline-flex; margin: 0;">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="Delete Import File & Leads">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0" title="Delete Import File & Leads" style="height: 32px; width: 34px; padding: 0;">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </form>
@@ -162,7 +163,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="9"><div class="empty-state"><i class="fa-solid fa-file-excel"></i>No imports found for {{ preset_label }}.</div></td></tr>
+        <tr><td colspan="9"><div class="empty-state">No imports found for {{ preset_label }}.</div></td></tr>
         {% endfor %}
       </tbody>
     </table>
