@@ -724,95 +724,62 @@ class Lead(models.Model):
         return self.custom_deal_status
 
     @property
+    def interaction_remark(self):
+        """
+        Returns the actual text remark / note logged for patient interaction:
+        - Prioritizes custom_data calling remarks (remark_3, remark_2, remark_1, followup_remark, comments)
+        - Then checks latest FollowUp record comment
+        - Then checks Lead.notes
+        - Returns '—' if no textual remark exists.
+        """
+        cd = self.custom_data or {}
+
+        def is_clean_text(v):
+            if not v:
+                return False
+            s = str(v).strip()
+            return bool(s and s.lower() not in ('nan', 'none', '—', '-', '', 'null', 'nil', 'na', 'n/a'))
+
+        # 1. Check custom_data calling remarks in reverse order (most recent first)
+        for k in ['remark_3', 'remark_2', 'remark_1', 'followup_remark', 'cancellation_reason', 'comments']:
+            val = cd.get(k)
+            if is_clean_text(val):
+                return str(val).strip()
+
+        # 2. Check latest FollowUp record comment
+        if hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
+            fus = list(self.followups.all())
+            if fus:
+                for fu in fus:
+                    if is_clean_text(fu.comment):
+                        return str(fu.comment).strip()
+        else:
+            latest_fu = self.followups.exclude(comment__in=['', None]).order_by('-id').first()
+            if latest_fu and is_clean_text(latest_fu.comment):
+                return str(latest_fu.comment).strip()
+
+        # 3. Check Lead.notes
+        if is_clean_text(self.notes):
+            return str(self.notes).strip()
+
+        return "—"
+
+    @property
     def remark_detail(self):
         """
-        Dynamic remark based on lifecycle:
-        - If Payment Done: Total billed amount (e.g. ₹47,226)
-        - If Booked / Booking Confirmed: Appointment date & time (or Slot Scheduled)
-        - If Payment Pending: 'Billing Pending'
-        - If Lost / Cancelled: Reason or specific remark
-        - If New (Added Today, unassigned & untouched): 'New Enquiry'
-        - If Open:
-            - If created_date < today and untouched/unassigned: 'Hot'
-            - If attendant assigned and untouched: 'Hot'
-            - Remark 1 is 'Call Not Received' / unanswered: 'Warm'
-            - Remark 2 is also 'Call Not Received' / unanswered: 'Cold'
-            - Remark 3 is also 'Call Not Received' / unanswered: 'Freeze'
-            - Otherwise: Actual calling note or temperature
+        Returns the actual text remark / note logged for patient interactions.
+        Never returns currency amounts or appointment dates.
         """
-        st = self.display_status
-        cd = self.custom_data or {}
-        tot = self.total_billed_amount
+        rem = self.interaction_remark
+        if rem and rem != "—":
+            return rem
 
-        if st == "Payment Done":
-            if tot > 0:
-                return f"₹{tot:,.0f}" if tot.is_integer() else f"₹{tot:,.2f}"
-            return "₹0"
+        # If no actual textual remark exists, return temperature classification or '—'
+        temp = self.custom_temperature
+        if temp:
+            return temp
 
-        if st in ("Booked", "Booking Confirmed", "Awaiting Approval from Doctor", "Booking Approval Pending"):
-            appo_date = cd.get("appo_booked_date") or cd.get("appointment_date") or self.next_followup_date
-            appo_time = cd.get("appointment_time")
-            if appo_date and appo_time and str(appo_time).strip() not in ('-', 'None', ''):
-                return f"{appo_date} ({appo_time})"
-            elif appo_date:
-                return f"{appo_date}"
-            return "Slot Scheduled"
-
-        if st == "Payment Pending":
-            return "Billing Pending"
-
-        if st in ("Lost", "Cancelled", "Not Interested"):
-            reason = cd.get("cancellation_reason") or cd.get("remark_1") or cd.get("remark_2") or cd.get("remark_3")
-            if reason and str(reason).strip().lower() not in ("nan", "none", ""):
-                return str(reason).strip()[:40]
-            return st
-
-        if st == "New":
-            return "Hot"
-
-        # For Open / Assigned (and other active leads):
-        r1 = str(cd.get("remark_1") or "").strip()
-        r2 = str(cd.get("remark_2") or "").strip()
-        r3 = str(cd.get("remark_3") or "").strip()
-
-        def is_clean_val(v):
-            return bool(v and v.lower() not in ("nan", "none", "—", "-", ""))
-
-        def is_call_not_rec(v):
-            if not is_clean_val(v):
-                return False
-            v_up = v.upper()
-            return any(k in v_up for k in [
-                "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
-                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED"
-            ])
-
-        has_r1 = is_clean_val(r1)
-        has_r2 = is_clean_val(r2)
-        has_r3 = is_clean_val(r3)
-
-        # Condition 1: No calling remark taken yet -> Hot
-        if not has_r1 and not has_r2 and not has_r3:
-            return "Hot"
-
-        # Condition 2: 3rd remark is Call Not Received -> Freeze
-        if is_call_not_rec(r3):
-            return "Freeze"
-
-        # Condition 3: 2nd remark is Call Not Received -> Cold
-        if is_call_not_rec(r2):
-            return "Cold"
-
-        # Condition 4: 1st remark is Call Not Received -> Warm
-        if is_call_not_rec(r1):
-            return "Warm"
-
-        # Fallback to latest human note or temperature
-        for rk_val in [r3, r2, r1, str(cd.get("comments") or "").strip()]:
-            if is_clean_val(rk_val):
-                return rk_val[:40]
-
-        return self.custom_temperature or "Warm"
+        return "—"
 
     @property
     def display_next_followup_date(self):

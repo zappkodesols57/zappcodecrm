@@ -141,10 +141,67 @@
     padding: 4px 0;
   }
   .sidebar .nav-sub-items .nav-link {
-    padding: .48rem 1rem .48rem 1.35rem;
+    padding: .5rem 1rem .5rem 1.15rem;
+    font-size: .88rem;
+    gap: .5rem;
+  }
+  /* Nested Sub-sub items / accordion */
+  .sidebar .nav-sub-item-btn {
+    background: transparent;
+    border: none;
+    color: #cfd0e6;
+    padding: .5rem 1rem .5rem 1.15rem;
+    font-size: .88rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+    transition: all .15s ease;
+    border-left: 3px solid transparent;
+    text-align: left;
+  }
+  .sidebar .nav-sub-item-btn:hover {
+    background: rgba(255, 255, 255, .05);
+    color: #fff;
+  }
+  .sidebar .nav-sub-item-btn:not(.collapsed) {
+    color: #c7d2fe;
+    font-weight: 600;
+  }
+  .sidebar .nav-sub-item-btn .sub-arrow {
+    font-size: .62rem;
+    transition: transform .2s ease;
+    opacity: .7;
+    margin-left: auto;
+  }
+  .sidebar .nav-sub-item-btn:not(.collapsed) .sub-arrow {
+    transform: rotate(180deg);
+  }
+  .sidebar .nav-sub-sub-items {
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 6px;
+    margin: 2px 8px 4px 12px;
+    padding: 3px 0;
+    border-left: 2px solid rgba(129, 140, 248, 0.35);
+  }
+  .sidebar .nav-sub-sub-items .nav-link {
+    padding: .42rem .8rem .42rem 1.15rem;
+    font-size: .83rem;
   }
 
-  /* Minimized Sidebar */
+  /* Expanded Sidebar (Default): Show only text, hide decorative module icons */
+  body:not(.sidebar-minimized) .sidebar .nav-link i,
+  body:not(.sidebar-minimized) .sidebar .nav-section-btn .section-icon,
+  body:not(.sidebar-minimized) .sidebar .nav-sub-item-btn .section-icon {
+    display: none !important;
+  }
+  body:not(.sidebar-minimized) .sidebar .nav-section-btn .section-arrow,
+  body:not(.sidebar-minimized) .sidebar .nav-sub-item-btn .sub-arrow {
+    display: inline-block !important;
+  }
+
+  /* Minimized Sidebar: Show ONLY module icons, hide text & arrows */
   body.sidebar-minimized .sidebar {
     width: var(--sidebar-collapsed-w) !important;
   }
@@ -157,28 +214,45 @@
   body.sidebar-minimized .sidebar .brand-text,
   body.sidebar-minimized .sidebar .section-title,
   body.sidebar-minimized .sidebar .section-arrow,
+  body.sidebar-minimized .sidebar .sub-arrow,
   body.sidebar-minimized .sidebar .nav-text {
     display: none !important;
   }
   body.sidebar-minimized .sidebar .nav-section-btn {
-    justify-content: center;
-    padding: .85rem 0;
+    justify-content: center !important;
+    padding: .85rem 0 !important;
+    text-align: center !important;
   }
   body.sidebar-minimized .sidebar .nav-section-btn .section-icon {
-    margin-right: 0;
-    font-size: 1.1rem;
+    display: inline-block !important;
+    margin-right: 0 !important;
+    font-size: 1.15rem !important;
+    width: auto !important;
   }
-  body.sidebar-minimized .sidebar .nav-sub-items {
-    margin: 2px 2px;
-    background: transparent;
+  body.sidebar-minimized .sidebar .nav-sub-item-btn {
+    justify-content: center !important;
+    padding: .65rem 0 !important;
+    text-align: center !important;
+  }
+  body.sidebar-minimized .sidebar .nav-sub-item-btn .section-icon {
+    display: inline-block !important;
+    margin-right: 0 !important;
+    font-size: 1.05rem !important;
+    width: auto !important;
+  }
+  body.sidebar-minimized .sidebar .nav-sub-items,
+  body.sidebar-minimized .sidebar .nav-sub-sub-items {
+    display: none !important;
   }
   body.sidebar-minimized .sidebar .nav-link {
-    justify-content: center;
-    padding: .6rem 0;
+    justify-content: center !important;
+    padding: .6rem 0 !important;
   }
   body.sidebar-minimized .sidebar .nav-link i {
-    width: auto;
-    font-size: 1.05rem;
+    display: inline-block !important;
+    width: auto !important;
+    font-size: 1.05rem !important;
+    margin: 0 !important;
   }
 
   /* Sidebar Toggle Button in Brand or Bottom */
@@ -412,6 +486,33 @@
   .ts-control.focus, .ts-wrapper.focus .ts-control {
     border-color: #4f46e5 !important;
     box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.18) !important;
+  }
+  /* Standalone / Modal Native Selects */
+  select.form-select.no-tom-select,
+  select.modal-select {
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 7px !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 0.88rem !important;
+    font-weight: 500 !important;
+    padding: 0.45rem 2rem 0.45rem 0.85rem !important;
+    line-height: 1.5 !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 16px 12px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+  }
+  select.form-select.no-tom-select:focus,
+  select.modal-select:focus {
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.18) !important;
+    outline: none !important;
   }
 </style>
 {% block extra_head %}{% endblock %}

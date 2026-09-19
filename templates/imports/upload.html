@@ -92,20 +92,20 @@
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
       <h4 class="fw-bold text-dark mb-1">
-        <i class="fa-solid fa-file-import text-primary me-2"></i>Import Leads Data
+        Import Leads Data
       </h4>
       <p class="text-muted small mb-0">Upload {% if is_hospital %}campaign{% else %}course{% endif %} Excel/XML sheets and instantly share daily summaries on WhatsApp.</p>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <!-- WhatsApp Report Button -->
       <button type="button" class="btn btn-whatsapp-theme btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#whatsappUploadPageModal">
-        <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Send WhatsApp Report
+        Send WhatsApp Report
       </button>
       <a href="{% url 'imports:download_template' %}" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-none">
-        <i class="fa-solid fa-file-excel me-1"></i> Download Template
+        Download Template
       </a>
       <a href="{% url 'imports:history' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-none">
-        <i class="fa-solid fa-clock-rotate-left me-1"></i> Import History
+        Import History
       </a>
     </div>
   </div>
@@ -114,7 +114,7 @@
   <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-2 px-3">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div class="d-flex align-items-center gap-1 flex-wrap">
-        <span class="text-muted small fw-bold me-1"><i class="fa-solid fa-calendar-day text-primary me-1"></i> Report Period:</span>
+        <span class="text-muted small fw-bold me-1">Report Period:</span>
         <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">Today</a>
         <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">Yesterday</a>
         <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">Last 7 Days</a>
@@ -135,9 +135,9 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link mode-tab-btn active" id="campaign-tab" data-bs-toggle="tab" data-bs-target="#campaign-mode" type="button" role="tab">
             {% if is_hospital %}
-              <i class="fa-solid fa-bullhorn text-primary me-2"></i>Campaign Leads
+              Campaign Leads
             {% else %}
-              <i class="fa-solid fa-graduation-cap text-primary me-2"></i>Course Leads (Ad/Direct)
+              Course Leads (Ad/Direct)
             {% endif %}
           </button>
         </li>
@@ -146,7 +146,7 @@
         {% if can_import_previous %}
         <li class="nav-item" role="presentation">
           <button class="nav-link mode-tab-btn" id="previous-tab" data-bs-toggle="tab" data-bs-target="#previous-mode" type="button" role="tab">
-            <i class="fa-solid fa-database text-warning me-2"></i>Master Sheet (Previous Leads)
+            Master Sheet (Previous Leads)
           </button>
         </li>
         {% endif %}

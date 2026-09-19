@@ -1,56 +1,112 @@
 {% extends "base.html" %}
 {% block title %}Export Leads{% endblock %}
 {% block content %}
+<style>
+  .export-filter-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .export-card-header {
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 0.85rem;
+    border-top-right-radius: 0.85rem;
+  }
+  .export-field-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 0.35rem;
+    display: block;
+  }
+  #exportForm .form-control,
+  #exportForm .form-select {
+    height: 38px;
+    min-height: 38px;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 7px;
+    font-size: 0.875rem;
+    color: #1e293b;
+    background-color: #ffffff;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  #exportForm .form-control:focus,
+  #exportForm .form-select:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+    outline: none !important;
+  }
+</style>
+
 <div class="container-fluid px-3 px-md-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-file-export text-primary me-2"></i> Export Leads</h4>
-    <a href="{% url 'imports:export' %}?download=1" class="btn btn-primary bg-gradient text-white shadow-sm rounded-pill px-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+        <span class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+          <i class="fa-solid fa-file-export"></i>
+        </span>
+        <span>Export Leads</span>
+      </h4>
+      <span class="text-muted small">Filter and export leads to Excel/CSV format</span>
+    </div>
+    <a href="{% url 'imports:export' %}?download=1" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3 shadow-sm">
       <i class="fa-solid fa-download me-1"></i> Export All Leads (Total)
     </a>
   </div>
 
   <div class="row">
     <div class="col-12">
-      <div class="card shadow-sm border-0 rounded-4 mb-4">
-        <div class="card-header bg-primary bg-gradient text-white fw-bold py-3 px-4 border-0 rounded-top-4 d-flex align-items-center justify-content-between">
-          <span><i class="fa-solid fa-filter me-2"></i> Select Export Filters</span>
-          <span class="small opacity-75">Filter and download custom reports</span>
+      <div class="card export-filter-card mb-4">
+        <div class="export-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+              <i class="fa-solid fa-filter"></i>
+            </span>
+            <span class="fw-bold text-dark" style="font-size: 0.95rem;">Select Export Filters</span>
+          </div>
+          <span class="small text-muted">Customize parameters to download targeted reports</span>
         </div>
-        <div class="card-body p-4 bg-light bg-opacity-50">
+        <div class="card-body p-4">
           <form id="exportForm" method="get" action="{% url 'imports:export' %}">
             <input type="hidden" name="download" value="1">
             
             <div class="row g-3 mb-3">
               <!-- Date Filters -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Inquiry Date From</label>
-                <input type="date" name="date_from" class="form-control form-control-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-regular fa-calendar me-1 text-primary"></i>Inquiry Date From</label>
+                <input type="date" name="date_from" class="form-control">
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Inquiry Date To</label>
-                <input type="date" name="date_to" class="form-control form-control-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-regular fa-calendar-check me-1 text-primary"></i>Inquiry Date To</label>
+                <input type="date" name="date_to" class="form-control">
               </div>
             </div>
 
             <div class="row g-3 mb-3">
               <!-- Search query -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Search (Name, Mobile, Email, etc.)</label>
-                <input type="search" name="q" class="form-control form-control-md shadow-sm border-0" placeholder="Search keyword...">
+                <label class="export-field-label"><i class="fa-solid fa-magnifying-glass me-1 text-primary"></i>Search (Name, Mobile, Email, etc.)</label>
+                <input type="search" name="q" class="form-control" placeholder="Search keyword...">
               </div>
               <!-- City / Location filter -->
               <div class="col-md-6">
                 {% if is_hospital %}
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Location</label>
-                <select name="location" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-location-dot me-1 text-primary"></i>Location</label>
+                <select name="location" class="form-select no-tom-select">
                   <option value="">All Locations</option>
                   {% for loc in nelson_locations %}
                     <option value="{{ loc }}">{{ loc }}</option>
                   {% endfor %}
                 </select>
                 {% else %}
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">City</label>
-                <select name="city" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-location-dot me-1 text-primary"></i>City</label>
+                <select name="city" class="form-select no-tom-select">
                   <option value="">All Cities</option>
                   {% for c in cities %}
                     <option value="{{ c }}">{{ c }}</option>
@@ -63,8 +119,8 @@
             <div class="row g-3 mb-3">
               <!-- Lead Source -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Lead Source</label>
-                <select name="lead_source" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-bullhorn me-1 text-primary"></i>Lead Source</label>
+                <select name="lead_source" class="form-select no-tom-select">
                   <option value="">All Sources</option>
                   {% if is_hospital %}
                     {% for ls in nelson_lead_sources %}
@@ -79,8 +135,8 @@
               </div>
               <!-- Campaign -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Campaign</label>
-                <select name="campaign" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-rectangle-ad me-1 text-primary"></i>Campaign</label>
+                <select name="campaign" class="form-select no-tom-select">
                   <option value="">All Campaigns</option>
                   {% if is_hospital %}
                     {% for camp in nelson_campaigns %}
@@ -99,8 +155,8 @@
               {% if not is_hospital %}
               <!-- Course -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Course</label>
-                <select name="course" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-graduation-cap me-1 text-primary"></i>Course</label>
+                <select name="course" class="form-select no-tom-select">
                   <option value="">All Courses</option>
                   {% for c in courses %}
                     <option value="{{ c.id }}">{{ c.name }}</option>
@@ -111,8 +167,8 @@
 
               <!-- Lead Stage -->
               <div class="{% if is_hospital %}col-md-6{% else %}col-md-6{% endif %}">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Lead Stage</label>
-                <select name="stage" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-bars-progress me-1 text-primary"></i>Lead Stage</label>
+                <select name="stage" class="form-select no-tom-select">
                   <option value="">All Stages</option>
                   {% for s in stages %}
                     <option value="{{ s.id }}">{{ s.name }}</option>
@@ -121,8 +177,8 @@
               </div>
               <!-- Assigned To -->
               <div class="{% if is_hospital %}col-md-6{% else %}col-md-6{% endif %}">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Assigned To</label>
-                <select name="assigned_to" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-user-check me-1 text-primary"></i>Assigned To</label>
+                <select name="assigned_to" class="form-select no-tom-select">
                   <option value="">All Employees</option>
                   {% for emp in employees %}
                     <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }}</option>
@@ -134,8 +190,8 @@
             <div class="row g-3 mb-4">
               <!-- Temperature -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Temperature</label>
-                <select name="temperature" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-fire me-1 text-primary"></i>Temperature</label>
+                <select name="temperature" class="form-select no-tom-select">
                   <option value="">All Temperatures</option>
                   <option value="UNCONTACTED">Uncontacted</option>
                   <option value="HOT">Hot</option>
@@ -147,8 +203,8 @@
 
               <!-- Deal Status -->
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Deal Status</label>
-                <select name="deal_status" class="form-select form-select-md shadow-sm border-0">
+                <label class="export-field-label"><i class="fa-solid fa-handshake me-1 text-primary"></i>Deal Status</label>
+                <select name="deal_status" class="form-select no-tom-select">
                   <option value="">All Deal Statuses</option>
                   {% if is_hospital %}
                     {% for ds in nelson_deal_statuses %}
@@ -164,13 +220,13 @@
               </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="d-flex justify-content-end gap-3 pt-3 border-top border-secondary-subtle">
-              <button type="button" class="btn btn-info text-white btn-lg shadow-sm px-4 rounded-pill" id="previewBtn">
-                <i class="fa-solid fa-eye me-2"></i> Preview Data
+            <!-- Action Buttons: Clean, modern, compact -->
+            <div class="d-flex justify-content-end align-items-center gap-2 pt-3 border-top">
+              <button type="button" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3 py-1.5 shadow-sm" id="previewBtn" style="font-size: 0.84rem;">
+                <i class="fa-solid fa-eye me-1"></i> Preview Data
               </button>
-              <button type="submit" class="btn btn-success btn-lg shadow-sm px-4 rounded-pill" id="exportBtn">
-                <i class="fa-solid fa-file-excel me-2"></i> Export Filtered Leads
+              <button type="submit" class="btn btn-sm btn-primary fw-semibold rounded-pill px-4 py-1.5 shadow-sm" id="exportBtn" style="font-size: 0.84rem;">
+                <i class="fa-solid fa-file-excel me-1"></i> Export Filtered Leads
               </button>
             </div>
           </form>

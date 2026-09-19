@@ -130,6 +130,31 @@
     if (innerToggleBtn) {
       innerToggleBtn.addEventListener('click', toggleSidebar);
     }
+
+    // When clicking a section icon while minimized, auto-expand sidebar and reveal its subtabs
+    document.querySelectorAll('.sidebar .nav-section-btn, .sidebar .nav-sub-item-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        if (document.body.classList.contains('sidebar-minimized')) {
+          e.preventDefault();
+          e.stopPropagation();
+          // Expand sidebar
+          document.body.classList.remove('sidebar-minimized');
+          localStorage.setItem('sidebar_minimized', 'false');
+
+          // Open targeted collapse cleanly
+          const targetSelector = btn.getAttribute('data-bs-target');
+          if (targetSelector) {
+            const targetEl = document.querySelector(targetSelector);
+            if (targetEl && window.bootstrap && window.bootstrap.Collapse) {
+              const bsCollapse = bootstrap.Collapse.getOrCreateInstance(targetEl, { toggle: false });
+              bsCollapse.show();
+              btn.classList.remove('collapsed');
+              btn.setAttribute('aria-expanded', 'true');
+            }
+          }
+        }
+      });
+    });
   });
 </script>
 

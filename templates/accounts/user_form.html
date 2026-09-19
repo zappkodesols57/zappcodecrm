@@ -184,8 +184,22 @@
     const deptDiv = document.getElementById("div_id_department");
     const specDiv = document.getElementById("div_id_speciality");
     const hospDiv = document.getElementById("div_id_hospital");
+    const allowSelfAssignDiv = document.getElementById("div_id_allow_self_assign");
+    const allowSelfAssignInput = document.getElementById("id_allow_self_assign");
     const bulkLimitDiv = document.getElementById("div_id_bulk_self_assign_limit");
+    const bulkLimitInput = document.getElementById("id_bulk_self_assign_limit");
     const reportsToSelect = document.getElementById("id_reports_to");
+
+    if (allowSelfAssignInput) {
+      allowSelfAssignInput.addEventListener("change", function() {
+        if (bulkLimitDiv) {
+          bulkLimitDiv.style.display = this.checked ? "block" : "none";
+          if (this.checked && bulkLimitInput && (!bulkLimitInput.value || parseInt(bulkLimitInput.value) <= 0)) {
+            bulkLimitInput.value = "25";
+          }
+        }
+      });
+    }
 
     // Clear initial role pre-selection if mode is Add Mode
     {% if not obj %}
@@ -226,11 +240,18 @@
       if (!roleField) return;
       
       const isDoctor = roleField.value === "DOCTOR";
-      const isEligibleForBulkAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
+      const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT", "MANAGER"].includes(roleField.value);
       
       if (deptDiv) deptDiv.style.display = isDoctor ? "block" : "none";
       if (specDiv) specDiv.style.display = isDoctor ? "block" : "none";
-      if (bulkLimitDiv) bulkLimitDiv.style.display = isEligibleForBulkAssign ? "block" : "none";
+      
+      if (allowSelfAssignDiv) {
+        allowSelfAssignDiv.style.display = isEligibleForSelfAssign ? "block" : "none";
+      }
+      if (bulkLimitDiv) {
+        const isSelfAssignChecked = allowSelfAssignInput ? allowSelfAssignInput.checked : true;
+        bulkLimitDiv.style.display = (isEligibleForSelfAssign && isSelfAssignChecked) ? "block" : "none";
+      }
       
       if (!isDoctor) {
         const deptSelect = document.getElementById("id_department");

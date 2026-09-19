@@ -14,13 +14,13 @@
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <h4 class="mb-0 fw-bold text-dark d-inline">{{ lead.name }}</h4>
           {% if lead.display_status == 'Payment Done' %}
-            <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
+            <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done{% if lead.total_billed_amount > 0 %} (₹{{ lead.total_billed_amount|floatformat:0 }}){% endif %}</span>
           {% elif lead.display_status == 'Booking Confirmed' %}
-            <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed ({{ lead.remark_detail }})</span>
+            <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed</span>
           {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
             <span class="badge badge-booking-pending"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
           {% elif lead.display_status == 'Booked' %}
-            <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
+            <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked</span>
           {% elif lead.display_status == 'Follow-up Needed' %}
             <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
             {% if lead.next_followup_date %}
@@ -201,51 +201,6 @@
       </div>
     </div>
 
-    <!-- Telecaller Calling Remarks History -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-headset text-info me-2"></i>Attendant Calling Remarks</h6>
-      </div>
-      <div class="card-body">
-        <div class="list-group list-group-flush">
-          {% if lead.custom_data.remark_1 or lead.custom_data.calling_date_remark_1 %}
-          <div class="list-group-item px-0 py-2">
-            <div class="d-flex justify-content-between small mb-1">
-              <strong>Remark 1 (Initial Call)</strong>
-              <span class="text-muted">{{ lead.custom_data.calling_date_remark_1|default:"" }}</span>
-            </div>
-            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_1|default:"No notes recorded" }}</p>
-          </div>
-          {% endif %}
-
-          {% if lead.custom_data.remark_2 or lead.custom_data.calling_date_remark_2 %}
-          <div class="list-group-item px-0 py-2">
-            <div class="d-flex justify-content-between small mb-1">
-              <strong>Remark 2 (Follow-up Call)</strong>
-              <span class="text-muted">{{ lead.custom_data.calling_date_remark_2|default:"" }} {{ lead.custom_data.calling_time_remark_2|default:"" }}</span>
-            </div>
-            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_2|default:"No notes recorded" }}</p>
-          </div>
-          {% endif %}
-
-          {% if lead.custom_data.remark_3 or lead.custom_data.calling_date_remark_3 %}
-          <div class="list-group-item px-0 py-2">
-            <div class="d-flex justify-content-between small mb-1">
-              <strong>Remark 3 (Final Status)</strong>
-              <span class="text-muted">{{ lead.custom_data.calling_date_remark_3|default:"" }}</span>
-            </div>
-            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_3|default:"No notes recorded" }}</p>
-          </div>
-          {% endif %}
-
-          {% if not lead.custom_data.remark_1 and not lead.custom_data.remark_2 and not lead.custom_data.remark_3 %}
-          <div class="text-muted text-center py-2 small">No calling remarks recorded yet.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-
   </div>
 
   <!-- Right Column: Campaign, Source, Owner & Timeline -->
@@ -310,17 +265,73 @@
       </div>
     </div>
 
-    <!-- Scheduled Follow-ups Section -->
-    {% if followups %}
+    <!-- Scheduled Follow-ups & Add Follow-up Section -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark">
-          <i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Scheduled Follow-ups
-        </h6>
-        <span class="badge bg-light text-secondary border rounded-pill">{{ followups|length }} follow-up{% if followups|length > 1 %}s{% endif %}</span>
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Scheduled Follow-ups
+          </h6>
+          {% if followups %}
+          <span class="badge bg-light text-secondary border rounded-pill">{{ followups|length }} follow-up{% if followups|length > 1 %}s{% endif %}</span>
+          {% endif %}
+        </div>
+        <!-- Toggle Button for Add Follow-up Form -->
+        <button class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
+          type="button" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="{% if not followups %}true{% else %}false{% endif %}" aria-controls="addFollowupCollapse"
+          style="font-size: 0.78rem;">
+          <i class="fa-solid fa-plus"></i> Add Follow-up
+        </button>
       </div>
+
+      <!-- Collapsible Add Follow-up Section -->
+      <div class="collapse {% if not followups %}show{% endif %}" id="addFollowupCollapse">
+        <div class="p-3 bg-light border-bottom">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="fw-bold small text-dark"><i class="fa-solid fa-calendar-plus text-primary me-1"></i> New Follow-up Entry</span>
+            <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-label="Close" style="font-size: 0.7rem;"></button>
+          </div>
+          <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
+            {% csrf_token %}
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
+              </div>
+              <div class="col-md-2">
+                <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
+              </div>
+              <div class="col-md-3">
+                <select name="followup_mode" class="form-select form-select-sm no-tom-select" required>
+                  <option value="" disabled selected>Follow up action</option>
+                  {% for val, label in followup_modes %}
+                    <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
+                  <option value="" disabled selected>Follow up status</option>
+                  {% for val, label in followup_statuses %}
+                    <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <!-- Real-time time error alert -->
+            <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.78rem;">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
+            </div>
+            <div class="input-group">
+              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment..." required>
+              <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Save Follow-up</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <div class="card-body p-3">
-        <div class="d-flex flex-column gap-2" style="max-height: 280px; overflow-y: auto;">
+        {% if followups %}
+        <div class="d-flex flex-column gap-2" style="max-height: 320px; overflow-y: auto;">
           {% for fu in followups %}
           <div class="p-3 rounded-3 border bg-white shadow-xs">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -349,51 +360,13 @@
           </div>
           {% endfor %}
         </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Add Follow-up & Interaction Section -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Add Follow-up</h6>
-      </div>
-      <div class="card-body">
-        <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
-          {% csrf_token %}
-          <div class="row g-2 mb-2">
-            <div class="col-md-4">
-              <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
-            </div>
-            <div class="col-md-2">
-              <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-3">
-              <select name="followup_mode" class="form-select form-select-sm no-tom-select" required>
-                <option value="" disabled selected>Follow up action</option>
-                {% for val, label in followup_modes %}
-                  <option value="{{ val }}">{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3">
-              <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
-                <option value="" disabled selected>Follow up status</option>
-                {% for val, label in followup_statuses %}
-                  <option value="{{ val }}">{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-          <!-- Real-time time error alert -->
-          <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.78rem;">
-            <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
-          </div>
-          <div class="input-group">
-            <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment..." required>
-            <button type="submit" class="btn btn-sm btn-brand text-white" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Add</button>
-          </div>
-        </form>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="fa-regular fa-calendar-xmark fs-3 mb-2 opacity-50 d-block"></i>
+          <div class="small fw-semibold">No scheduled follow-ups yet</div>
+          <div class="small text-muted mb-2">Click "+ Add Follow-up" above to schedule the next follow-up call or visit.</div>
+        </div>
+        {% endif %}
       </div>
     </div>
     <script>
@@ -483,7 +456,7 @@
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
-            <select name="followup_status" class="form-select form-select-sm" required>
+            <select name="followup_status" class="form-select form-select-sm no-tom-select modal-select" required>
               {% for val, label in followup_statuses %}
                 <option value="{{ val }}" {% if fu.followup_status == val %}selected{% endif %}>{{ label }}</option>
               {% endfor %}

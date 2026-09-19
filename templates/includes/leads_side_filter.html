@@ -24,7 +24,7 @@ Features:
         <span
           class="btn btn-sm btn-white border px-3 py-1 fw-bold text-primary d-inline-flex align-items-center gap-1 shadow-xs"
           style="border-radius: 6px; font-size: 0.82rem; background: #ffffff;">
-          <i class="fa-solid fa-filter" style="font-size: 0.75rem;"></i> Filter
+          Filter
         </span>
 
         <!-- Sort Options Dropdown -->
@@ -33,7 +33,6 @@ Features:
             class="btn btn-sm btn-light border px-2 py-1 text-dark d-inline-flex align-items-center gap-1 dropdown-toggle fw-semibold"
             type="button" id="crmSortDropdown" data-bs-toggle="dropdown" aria-expanded="false"
             style="border-radius: 6px; font-size: 0.82rem;" title="Sort leads by...">
-            <i class="fa-solid fa-arrow-down-short-wide text-primary" style="font-size: 0.75rem;"></i>
             <span>Sort: </span>
             <span class="text-primary" style="font-size: 0.78rem;">
               {% if current_sort == 'created_at' %}Oldest First
@@ -138,7 +137,7 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attStatusFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-list-check me-2 text-primary"></i> Status / Stage</span>
+              <span>Status / Stage</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attStatusFilter">
@@ -174,7 +173,7 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attCourseFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-graduation-cap me-2 text-primary"></i> Course Interested</span>
+              <span>Course Interested</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attCourseFilter">
@@ -194,7 +193,7 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attDateFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-regular fa-calendar me-2 text-primary"></i> Inquiry Date</span>
+              <span>Inquiry Date</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse {% if date_from_val or date_to_val %}show{% endif %} ps-2 pe-1 pt-2" id="attDateFilter">
@@ -213,20 +212,20 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attAssignedFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-user-check me-2 text-primary"></i> Assigned To</span>
+              <span>Assigned To</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attAssignedFilter">
               <div class="form-check mb-1 filter-item-row">
                 <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="{{ request.user.id }}" id="att_assigned_me" {% if request.user.id|stringformat:'s' in selected_assigned %}checked{% endif %}>
                 <label class="form-check-label text-primary fw-semibold filter-label" for="att_assigned_me" style="font-size: 0.82rem;">
-                  <i class="fa-solid fa-user me-1"></i> My Leads (Assigned to Me)
+                  My Leads (Assigned to Me)
                 </label>
               </div>
               <div class="form-check mb-1 filter-item-row">
                 <input class="form-check-input filter-checkbox" type="checkbox" name="assigned_to" value="unassigned" id="att_assigned_unassigned" {% if 'unassigned' in selected_assigned %}checked{% endif %}>
                 <label class="form-check-label text-danger fw-semibold filter-label" for="att_assigned_unassigned" style="font-size: 0.82rem;">
-                  <i class="fa-solid fa-circle-question me-1"></i> Unassigned / Open Leads
+                  Unassigned / Open Leads
                 </label>
               </div>
             </div>
@@ -237,7 +236,7 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attSourcesFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-share-nodes me-2 text-primary"></i> Lead Source</span>
+              <span>Lead Source</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attSourcesFilter">
@@ -267,7 +266,7 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attCampaignsFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-bullseye me-2 text-primary"></i> Campaign</span>
+              <span>Campaign</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attCampaignsFilter">
@@ -297,7 +296,7 @@ Features:
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attAdmissionStatusFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-graduation-cap me-2 text-primary"></i> Admission Status</span>
+              <span>Admission Status</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attAdmissionStatusFilter">
@@ -317,7 +316,7 @@ Features:
           <div class="py-2">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attDeptFilter" role="button" style="font-size: 0.86rem;">
-              <span><i class="fa-solid fa-stethoscope me-2 text-primary"></i> Department</span>
+              <span>Department</span>
               <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
             </a>
             <div class="collapse show ps-2 pe-1 pt-2" id="attDeptFilter">
@@ -354,7 +353,7 @@ Features:
             <div class="py-1 border-bottom pb-2 mb-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subBusinessFilter" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-building me-2 text-primary"></i> Business / Organization</span>
+                <span>Business / Organization</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse show ps-3 pe-1 py-1" id="subBusinessFilter">
@@ -368,7 +367,6 @@ Features:
                 <div class="form-check mb-1 filter-item-row">
                   <input class="form-check-input filter-checkbox" type="radio" name="business" value="{{ b.id }}" id="biz_{{ b.id }}" {% if selected_hospital_id == b.id|stringformat:'s' %}checked{% endif %} onchange="document.getElementById('crmDrawerFilterForm').submit()">
                   <label class="form-check-label text-dark filter-label" for="biz_{{ b.id }}" style="font-size: 0.82rem;">
-                    <i class="fa-solid {% if 'hospital' in b.name.lower or 'clinic' in b.name.lower or 'nelson' in b.name.lower %}fa-hospital text-danger{% else %}fa-graduation-cap text-primary{% endif %} me-1 small"></i>
                     {{ b.name }}
                   </label>
                 </div>
@@ -381,7 +379,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subDateRange" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-regular fa-calendar me-2 text-muted"></i> Date Period</span>
+                <span>Date Period</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if date_from_val or date_to_val %}show{% endif %} ps-3 pe-1 py-1"
@@ -404,7 +402,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subCampaigns" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-bullseye me-2 text-muted"></i> Campaigns</span>
+                <span>Campaigns</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_campaigns %}show{% endif %} ps-3 pe-1 py-1" id="subCampaigns">
@@ -434,7 +432,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subSources" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-share-nodes me-2 text-muted"></i> Lead Sources</span>
+                <span>Lead Sources</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_sources %}show{% endif %} ps-3 pe-1 py-1" id="subSources">
@@ -464,7 +462,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subAssigned" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-user-check me-2 text-muted"></i> Assigned To</span>
+                <span>Assigned To</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_assigned %}show{% endif %} ps-3 pe-1 py-1" id="subAssigned">
@@ -504,7 +502,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subCourse" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-graduation-cap me-2 text-muted"></i> Course Interested</span>
+                <span>Course Interested</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_courses %}show{% endif %} ps-3 pe-1 py-1" id="subCourse">
@@ -525,7 +523,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subStages" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-diagram-project me-2 text-muted"></i> Lead Stage</span>
+                <span>Lead Stage</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_stages %}show{% endif %} ps-3 pe-1 py-1" id="subStages">
@@ -546,7 +544,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subDept" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-hospital me-2 text-muted"></i> Department</span>
+                <span>Department</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_departments %}show{% endif %} ps-3 pe-1 py-1" id="subDept">
@@ -567,7 +565,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subDoctors" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-user-doctor me-2 text-muted"></i> Doctor</span>
+                <span>Doctor</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_doctors %}show{% endif %} ps-3 pe-1 py-1" id="subDoctors">
@@ -587,7 +585,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-list-check me-2 text-muted"></i> Lead Status</span>
+                <span>Lead Status</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_deal_statuses or selected_stages %}show{% endif %} ps-3 pe-1 py-1"
@@ -617,7 +615,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subAdmStatus" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-graduation-cap me-2 text-muted"></i> Admission Status</span>
+                <span>Admission Status</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_admission_statuses %}show{% endif %} ps-3 pe-1 py-1"
@@ -639,7 +637,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subApptStatus" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-regular fa-calendar-check me-2 text-muted"></i> Appointment Status</span>
+                <span>Appointment Status</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_appointment_statuses %}show{% endif %} ps-3 pe-1 py-1"
@@ -660,7 +658,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subPriority" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-fire me-2 text-muted"></i> Priority / Temperature</span>
+                <span>Priority / Temperature</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_priorities or selected_temperatures %}show{% endif %} ps-3 pe-1 py-1"
@@ -685,7 +683,7 @@ Features:
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subLocation" role="button" style="font-size: 0.84rem;">
-                <span><i class="fa-solid fa-location-dot me-2 text-muted"></i> City / Location</span>
+                <span>City / Location</span>
                 <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
               </a>
               <div class="collapse {% if selected_locations %}show{% endif %} ps-3 pe-1 py-1" id="subLocation">
@@ -719,7 +717,6 @@ Features:
             <button type="submit"
               class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2 fw-bold text-nowrap shadow-sm"
               style="height: 38px; border-radius: 7px; font-size: 0.88rem; background-color: #2563eb; border-color: #2563eb;">
-              <i class="fa-solid fa-filter small"></i>
               <span>Apply Filters</span>
             </button>
           </div>
@@ -729,7 +726,6 @@ Features:
                 class="btn btn-outline-success dropdown-toggle w-100 d-inline-flex align-items-center justify-content-center gap-1 fw-semibold text-nowrap"
                 type="button" id="drawerExportDropdown" data-bs-toggle="dropdown" aria-expanded="false"
                 style="height: 34px; border-radius: 7px; font-size: 0.82rem;" title="Export filtered leads">
-                <i class="fa-solid fa-file-export small"></i>
                 <span>Export</span>
               </button>
               <ul class="dropdown-menu dropdown-menu-start shadow border-0 py-1" aria-labelledby="drawerExportDropdown"

@@ -32,14 +32,18 @@ def meta_webhook(request):
         token = request.GET.get("hub.verify_token")
         challenge = request.GET.get("hub.challenge")
 
-        expected_token = "zappcode_meta_webhook_secret_2026"
+        valid_tokens = {
+            "zappcode_meta_webhook_secret_2026",
+            "zappcode_academy_verify_2026",
+            "nelson_hospital_verify_2026",
+        }
         if connection and connection.webhook_verify_token:
-            expected_token = connection.webhook_verify_token
-        elif hasattr(settings, "META_WEBHOOK_VERIFY_TOKEN"):
-            expected_token = settings.META_WEBHOOK_VERIFY_TOKEN
+            valid_tokens.add(connection.webhook_verify_token)
+        if hasattr(settings, "META_WEBHOOK_VERIFY_TOKEN"):
+            valid_tokens.add(settings.META_WEBHOOK_VERIFY_TOKEN)
 
-        if mode == "subscribe" and (token == expected_token or token == "zappcode_meta_webhook_secret_2026"):
-            logger.info("✅ Meta webhook verified successfully.")
+        if mode == "subscribe" and token in valid_tokens:
+            logger.info(f"✅ Meta webhook verified successfully with token: {token}")
             return HttpResponse(challenge, content_type="text/plain")
         
         logger.warning(f"❌ Meta webhook verification failed. Received token: {token}")
@@ -100,8 +104,16 @@ def create_or_update_meta_lead(connection, data):
             logger.info(f"Duplicate Meta lead skipped (recent mobile): {clean_10}")
             return None
 
-    # Hospital association -> Default to Zappcode Academy for Zappcode Meta leads
-    hospital = Hospital.objects.filter(name__icontains="Zappcode").first() or getattr(connection, "hospital", None) or Hospital.objects.first()
+    # Hospital association -> Check connection or fallback to matching hospital
+    conn_name = (getattr(connection, "name", "") or "").lower()
+    if "nelson" in conn_name:
+        hospital = Hospital.objects.filter(name__icontains="Nelson").first()
+    elif getattr(connection, "hospital", None):
+        hospital = connection.hospital
+    elif "zappcode" in conn_name:
+        hospital = Hospital.objects.filter(name__icontains="Zappcode").first()
+    else:
+        hospital = Hospital.objects.filter(name__icontains="Nelson").first() or Hospital.objects.first()
 
     # 1. Stage
     stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.filter(is_active=True).order_by("order").first()
@@ -300,15 +312,29 @@ def campaign_dashboard(request):
         total_clicks = sum(c.get("clicks", 0) for c in campaigns)
         total_impressions = sum(c.get("impressions", 0) for c in campaigns)
 
+    # Filter Meta leads by hospital:
+    # Only show leads that belong to the current user's hospital (or the connection's hospital)
+    user_hospital = getattr(request.user, "hospital", None)
+    lead_filter = {"ad_platform": "Meta"}
+    if user_hospital:
+        lead_filter["hospital"] = user_hospital
+    elif connection and hasattr(connection, "hospital") and connection.hospital:
+        lead_filter["hospital"] = connection.hospital
+    elif connection and "nelson" in (connection.name or "").lower():
+        from accounts.models import Hospital
+        nelson_hosp = Hospital.objects.filter(name__icontains="Nelson").first()
+        if nelson_hosp:
+            lead_filter["hospital"] = nelson_hosp
+
     # Recent leads from Meta
     recent_meta_leads = (
-        Lead.objects.filter(ad_platform="Meta")
+        Lead.objects.filter(**lead_filter)
         .select_related("stage", "assigned_to")
         .order_by("-created_at")[:10]
     )
 
-    # Lead funnel data (Meta leads only)
-    meta_leads_qs = Lead.objects.filter(ad_platform="Meta")
+    # Lead funnel data (Meta leads only for this hospital)
+    meta_leads_qs = Lead.objects.filter(**lead_filter)
     stages = LeadStage.objects.filter(is_active=True).order_by("order")
     funnel = [
         {"name": s.name, "count": meta_leads_qs.filter(stage=s).count()}
@@ -381,8 +407,20 @@ def sync_campaigns(request):
 @login_required
 def recent_leads_json(request):
     """AJAX endpoint — returns latest Meta leads as JSON for live feed."""
+    user_hospital = getattr(request.user, "hospital", None)
+    lead_filter = {"ad_platform": "Meta"}
+    if user_hospital:
+        lead_filter["hospital"] = user_hospital
+    else:
+        connection = MetaAdsConnection.objects.filter(is_active=True).first()
+        if connection and "nelson" in (connection.name or "").lower():
+            from accounts.models import Hospital
+            nelson_hosp = Hospital.objects.filter(name__icontains="Nelson").first()
+            if nelson_hosp:
+                lead_filter["hospital"] = nelson_hosp
+
     leads = (
-        Lead.objects.filter(ad_platform="Meta")
+        Lead.objects.filter(**lead_filter)
         .order_by("-created_at")[:15]
         .values("id", "lead_code", "name", "mobile", "utm_campaign", "created_at", "stage__name")
     )
@@ -438,6 +476,58 @@ def sync_leads_now(request):
     except Exception as e:
         logger.error(f"Error in sync_leads_now: {e}")
         messages.error(request, f"Error syncing leads from Meta: {str(e)}")
+
+    return redirect("meta_ads:dashboard")
+
+
+@login_required
+def update_meta_token(request):
+    """
+    Allow Nelson Admin / authorized managers to update the Meta Page Access Token
+    (temporary/short-lived or long-lived) directly from the Meta Ads page.
+    """
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    if request.method != "POST":
+        return redirect("meta_ads:dashboard")
+
+    # Check permission (Nelson Admin / Manager or Superadmin)
+    if not (getattr(request.user, "can_manage_campaigns", False) or request.user.is_superuser or request.user.role in ["ADMIN", "MANAGER", "SUPER_ADMIN"]):
+        messages.error(request, "Permission denied to update Meta configuration.")
+        return redirect("meta_ads:dashboard")
+
+    new_token = request.POST.get("page_access_token", "").strip()
+    ad_account_id = request.POST.get("ad_account_id", "").strip()
+    page_id = request.POST.get("page_id", "").strip()
+    verify_token = request.POST.get("webhook_verify_token", "").strip()
+
+    if not new_token:
+        messages.error(request, "❌ Token cannot be empty.")
+        return redirect("meta_ads:dashboard")
+
+    connection = MetaAdsConnection.objects.filter(is_active=True).first()
+    if not connection:
+        # Create connection for Nelson Hospital if not existing
+        connection = MetaAdsConnection.objects.create(
+            name="Nelson Hospital",
+            page_access_token=new_token,
+            ad_account_id=ad_account_id or "",
+            page_id=page_id or "",
+            webhook_verify_token=verify_token or "nelson_hospital_verify_2026",
+            is_active=True
+        )
+        messages.success(request, "✅ Meta Ads Connection created and token updated successfully!")
+    else:
+        connection.page_access_token = new_token
+        if ad_account_id:
+            connection.ad_account_id = ad_account_id.replace("act_", "").strip()
+        if page_id:
+            connection.page_id = page_id
+        if verify_token:
+            connection.webhook_verify_token = verify_token
+        connection.save()
+        messages.success(request, "✅ Meta Page Access Token updated successfully!")
 
     return redirect("meta_ads:dashboard")
 

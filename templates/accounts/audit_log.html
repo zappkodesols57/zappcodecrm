@@ -1,34 +1,107 @@
 {% extends "base.html" %}
 {% block title %}Audit Log{% endblock %}
 {% block content %}
-<h4 class="mb-3">Audit Log</h4>
-<div class="card">
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3 bg-white p-3 p-md-4 rounded-4 shadow-sm border border-light">
+  <div>
+    <h4 class="fw-bold text-dark mb-0">Audit Log</h4>
+    <p class="text-muted small mb-0 mt-1">Track actions, logins, updates, and changes across the system.</p>
+  </div>
+  {% if actions %}
+  <div>
+    <form method="get" class="d-flex align-items-center gap-2">
+      <select name="action" class="form-select form-select-sm rounded-3" onchange="this.form.submit()" style="min-width: 180px;">
+        <option value="">All Actions</option>
+        {% for a in actions %}
+        <option value="{{ a }}" {% if selected_action == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+      {% if selected_action %}
+      <a href="{% url 'accounts:audit_log' %}" class="btn btn-sm btn-light border rounded-3 px-2 text-nowrap">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
   <div class="table-responsive">
-    <table class="table mb-0">
-      <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Object</th><th>Old</th><th>New</th><th>IP</th></tr></thead>
+    <table class="table table-hover align-middle mb-0">
+      <thead class="bg-light">
+        <tr>
+          <th class="border-0 px-3 py-3 text-muted small text-uppercase">Time</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">User</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">Action</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">Object</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">Old</th>
+          <th class="border-0 py-3 text-muted small text-uppercase">New</th>
+          <th class="border-0 px-3 py-3 text-muted small text-uppercase">IP</th>
+        </tr>
+      </thead>
       <tbody>
         {% for log in page_obj %}
         <tr>
-          <td class="text-nowrap">{{ log.created_at|date:"d-m-Y H:i" }}</td>
-          <td>{{ log.user|default:"System" }}</td>
-          <td><span class="badge badge-stage">{{ log.action }}</span></td>
+          <td class="px-3 text-nowrap small text-muted">{{ log.created_at|date:"d-m-Y H:i" }}</td>
+          <td>
+            <span class="fw-semibold text-dark">{{ log.user|default:"System" }}</span>
+          </td>
+          <td>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-2 px-2 py-1" style="font-size: 0.72rem;">{{ log.action }}</span>
+          </td>
           <td>{{ log.model_name }} — {{ log.object_repr }}</td>
-          <td class="text-truncate" style="max-width:160px;">{{ log.old_value }}</td>
-          <td class="text-truncate" style="max-width:160px;">{{ log.new_value }}</td>
-          <td>{{ log.ip_address|default:"—" }}</td>
+          <td class="text-truncate text-muted small" style="max-width:160px;" title="{{ log.old_value }}">{{ log.old_value|default:"—" }}</td>
+          <td class="text-truncate text-muted small" style="max-width:160px;" title="{{ log.new_value }}">{{ log.new_value|default:"—" }}</td>
+          <td class="px-3 text-nowrap small text-muted">{{ log.ip_address|default:"—" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="7"><div class="empty-state"><i class="fa-solid fa-shield-halved"></i>No audit entries yet.</div></td></tr>
+        <tr><td colspan="7" class="text-center py-4 text-muted">No audit entries found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="card-footer bg-white py-3 px-4 border-top d-flex flex-wrap justify-content-between align-items-center gap-2 rounded-bottom-4">
+    <div class="small text-muted">
+      Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ total_count }}</strong> logs
+    </div>
+    <nav aria-label="Audit log navigation">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link rounded-2 me-1" href="?page=1{% if selected_action %}&action={{ selected_action }}{% endif %}">First</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link rounded-2 me-1" href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}">Prev</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link rounded-2 me-1">Prev</span></li>
+        {% endif %}
+
+        {% for p in paginator.page_range %}
+          {% if p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
+            <li class="page-item {% if page_obj.number == p %}active{% endif %}">
+              <a class="page-link rounded-2 me-1" href="?page={{ p }}{% if selected_action %}&action={{ selected_action }}{% endif %}">{{ p }}</a>
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link rounded-2 me-1" href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}">Next</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link rounded-2" href="?page={{ paginator.num_pages }}{% if selected_action %}&action={{ selected_action }}{% endif %}">Last</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link rounded-2">Next</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% elif total_count > 0 %}
+  <div class="card-footer bg-white py-2 px-4 border-top text-muted small rounded-bottom-4">
+    Showing all {{ total_count }} audit log entries
+  </div>
+  {% endif %}
 </div>
-{% if page_obj.has_other_pages %}
-<nav class="mt-3"><ul class="pagination pagination-sm">
-  {% for i in page_obj.paginator.page_range %}
-  <li class="page-item {% if page_obj.number == i %}active{% endif %}"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
-  {% endfor %}
-</ul></nav>
-{% endif %}
 {% endblock %}

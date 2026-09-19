@@ -431,7 +431,7 @@
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
-            <select name="followup_status" class="form-select form-select-sm" required>
+            <select name="followup_status" class="form-select form-select-sm no-tom-select modal-select" required>
               {% for val, label in followup_statuses %}
                 <option value="{{ val }}" {% if fu.followup_status == val %}selected{% endif %}>{{ label }}</option>
               {% endfor %}

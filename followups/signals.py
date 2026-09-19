@@ -16,14 +16,17 @@ def _followup_activity(sender, instance, created, **kwargs):
     # Refresh denormalized cache on Lead
     today_date = __import__('datetime').date.today()
     latest = lead.followups.order_by("-followup_date", "-followup_time").first()
+    
+    # Only active/pending follow-ups should set upcoming next_followup_date
+    pending_fus = lead.followups.filter(
+        followup_status__in=['PENDING', 'CALL_BACK', 'RESCHEDULED'],
+        next_followup_date__isnull=False
+    )
     # Get the nearest upcoming follow-up (soonest future next_followup_date)
-    upcoming = lead.followups.filter(
-        next_followup_date__isnull=False,
-        next_followup_date__gte=today_date
-    ).order_by("next_followup_date").first()
-    # If no future follow-up, take the most recently scheduled one (so old dates still show)
+    upcoming = pending_fus.filter(next_followup_date__gte=today_date).order_by("next_followup_date").first()
+    # If no future pending follow-up, take the most recently scheduled pending one
     if not upcoming:
-        upcoming = lead.followups.filter(next_followup_date__isnull=False).order_by("-next_followup_date").first()
+        upcoming = pending_fus.order_by("-next_followup_date").first()
 
     lead.last_followup_date = latest.followup_date if latest else lead.last_followup_date
     lead.next_followup_date = upcoming.next_followup_date if upcoming else None

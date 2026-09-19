@@ -7,10 +7,10 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-4 rounded-4 shadow-sm border border-light">
     <div>
       <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
-          <i class="fa-solid fa-hospital-user me-1"></i> Hospital Master Settings
+        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-2 fw-semibold" style="font-size: 0.75rem;">
+          Hospital Master Settings
         </span>
-        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-2" style="font-size: 0.75rem;">
           {{ hospital.name }}
         </span>
       </div>
@@ -18,81 +18,85 @@
       <p class="text-muted small mb-0 mt-1">Manage Hospital Branches, Clinical Departments, Doctors, Diseases, and Cascading Availability.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-      <button type="button" class="btn btn-success rounded-pill px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalExcelImport">
-        <i class="fa-solid fa-hospital-user me-1"></i> Import Hospital Master
+      <button type="button" class="btn btn-success rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalExcelImport">
+        Import Hospital Master
       </button>
-      <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm fw-semibold" id="btnAddNewRecord" onclick="openActiveTabModal()">
-        <i class="fa-solid fa-plus me-1"></i> Add Record
+      <button type="button" class="btn btn-primary rounded-3 px-4 shadow-sm fw-semibold" id="btnAddNewRecord" onclick="openActiveTabModal()">
+        Add Record
       </button>
     </div>
   </div>
 
 <style>
+  .custom-tab-container {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
   .custom-hospital-tab {
-    color: #64748b !important;
-    font-weight: 500;
-    border: none !important;
-    border-bottom: 3px solid transparent !important;
-    border-radius: 0 !important;
+    color: #475569 !important;
+    font-weight: 600;
+    font-size: 0.88rem;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
     background: transparent !important;
+    padding: 8px 18px !important;
     transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
   }
   .custom-hospital-tab:hover {
-    color: #2563eb !important;
-    background: rgba(37, 99, 235, 0.04) !important;
+    color: #1e293b !important;
+    background: #e2e8f0 !important;
   }
   .custom-hospital-tab.active {
-    color: #2563eb !important;
-    font-weight: 700 !important;
-    border-bottom: 3px solid #2563eb !important;
-    background: transparent !important;
+    color: #1d4ed8 !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
   }
 </style>
 
   <!-- Main Master Tabs Card -->
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
-    <div class="card-header bg-white border-bottom pt-2 pb-0 px-4">
-      <ul class="nav nav-tabs border-bottom-0 gap-3" id="hospitalMasterTabs" role="tablist">
+    <div class="card-header bg-white border-bottom py-3 px-4">
+      <div class="custom-tab-container" id="hospitalMasterTabs" role="tablist">
         <!-- 0. Hospital Profile Tab -->
-        <li class="nav-item" role="presentation">
-          <a class="nav-link custom-hospital-tab {% if active_tab == 'profile' %}active{% endif %} px-4 py-3" 
-             id="tab-profile-btn" data-bs-toggle="tab" href="#tab-profile" role="tab">
-            <i class="fa-solid fa-id-card-clip me-2"></i> Hospital Profile
-          </a>
-        </li>
+        <a class="custom-hospital-tab nav-link {% if active_tab == 'profile' %}active{% endif %}" 
+           id="tab-profile-btn" data-bs-toggle="tab" href="#tab-profile" role="tab">
+          Hospital Profile
+        </a>
         <!-- 1. Branches Tab -->
-        <li class="nav-item" role="presentation">
-          <a class="nav-link custom-hospital-tab {% if active_tab == 'branches' %}active{% endif %} px-4 py-3" 
-             id="tab-branches-btn" data-bs-toggle="tab" href="#tab-branches" role="tab">
-            <i class="fa-solid fa-code-branch me-2"></i> Hospital Branches
-            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ branches.count }}</span>
-          </a>
-        </li>
+        <a class="custom-hospital-tab nav-link {% if active_tab == 'branches' %}active{% endif %}" 
+           id="tab-branches-btn" data-bs-toggle="tab" href="#tab-branches" role="tab">
+          Hospital Branches
+          <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ branches.count }}</span>
+        </a>
         <!-- 2. Departments Tab -->
-        <li class="nav-item" role="presentation">
-          <a class="nav-link custom-hospital-tab {% if active_tab == 'departments' %}active{% endif %} px-4 py-3" 
-             id="tab-depts-btn" data-bs-toggle="tab" href="#tab-departments" role="tab">
-            <i class="fa-solid fa-building-user me-2"></i> Departments
-            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ departments.count }}</span>
-          </a>
-        </li>
+        <a class="custom-hospital-tab nav-link {% if active_tab == 'departments' %}active{% endif %}" 
+           id="tab-depts-btn" data-bs-toggle="tab" href="#tab-departments" role="tab">
+          Departments
+          <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ departments.count }}</span>
+        </a>
         <!-- 3. Doctors Tab -->
-        <li class="nav-item" role="presentation">
-          <a class="nav-link custom-hospital-tab {% if active_tab == 'doctors' %}active{% endif %} px-4 py-3" 
-             id="tab-doctors-btn" data-bs-toggle="tab" href="#tab-doctors" role="tab">
-            <i class="fa-solid fa-user-doctor me-2"></i> Doctors
-            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ doctors.count }}</span>
-          </a>
-        </li>
+        <a class="custom-hospital-tab nav-link {% if active_tab == 'doctors' %}active{% endif %}" 
+           id="tab-doctors-btn" data-bs-toggle="tab" href="#tab-doctors" role="tab">
+          Doctors
+          <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ doctors.count }}</span>
+        </a>
         <!-- 4. Diseases Tab -->
-        <li class="nav-item" role="presentation">
-          <a class="nav-link custom-hospital-tab {% if active_tab == 'diseases' %}active{% endif %} px-4 py-3" 
-             id="tab-diseases-btn" data-bs-toggle="tab" href="#tab-diseases" role="tab">
-            <i class="fa-solid fa-virus-covid me-2"></i> Diseases / Conditions
-            <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-pill">{{ diseases.count }}</span>
-          </a>
-        </li>
-      </ul>
+        <a class="custom-hospital-tab nav-link {% if active_tab == 'diseases' %}active{% endif %}" 
+           id="tab-diseases-btn" data-bs-toggle="tab" href="#tab-diseases" role="tab">
+          Diseases / Conditions
+          <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ diseases.count }}</span>
+        </a>
+      </div>
     </div>
 
     <div class="card-body p-4">
@@ -150,8 +154,8 @@
                   </div>
 
                   <div class="col-md-12 mt-4 pt-2 border-top d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
-                      <i class="fa-solid fa-floppy-disk me-1"></i> Save Hospital Profile
+                    <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold shadow-sm">
+                      Save Hospital Profile
                     </button>
                   </div>
                 </div>
@@ -165,18 +169,18 @@
                   {% if hospital.logo %}
                     <img src="{{ hospital.logo.url }}" alt="{{ hospital.name }}" class="img-fluid mb-2" style="max-height: 70px; object-fit: contain;">
                   {% else %}
-                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width: 70px; height: 70px;">
-                      <i class="fa-solid fa-hospital fs-2"></i>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-inline-flex align-items-center justify-content-center mb-2" style="width: 70px; height: 70px; font-size: 1.5rem; font-weight: 700;">
+                      {{ hospital.name|slice:":2"|upper }}
                     </div>
                   {% endif %}
                   <h6 class="fw-bold text-dark mb-0">{{ hospital.name }}</h6>
-                  <span class="badge bg-success bg-opacity-10 text-success rounded-pill mt-1">Active Hospital Organization</span>
+                  <span class="badge bg-success bg-opacity-10 text-success rounded-2 mt-1">Active Hospital Organization</span>
                 </div>
                 <div class="py-3 small d-flex flex-column gap-2 text-muted">
-                  <div><strong class="text-dark"><i class="fa-solid fa-hashtag text-secondary me-1"></i> Reg No:</strong> {{ hospital.registration_no|default:'Not Provided' }}</div>
-                  <div><strong class="text-dark"><i class="fa-solid fa-phone text-secondary me-1"></i> Phone:</strong> {{ hospital.phone|default:'Not Provided' }}</div>
-                  <div><strong class="text-dark"><i class="fa-solid fa-envelope text-secondary me-1"></i> Email:</strong> {{ hospital.contact_email|default:'Not Provided' }}</div>
-                  <div><strong class="text-dark"><i class="fa-solid fa-location-dot text-secondary me-1"></i> Address:</strong> {{ hospital.address|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark">Reg No:</strong> {{ hospital.registration_no|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark">Phone:</strong> {{ hospital.phone|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark">Email:</strong> {{ hospital.contact_email|default:'Not Provided' }}</div>
+                  <div><strong class="text-dark">Address:</strong> {{ hospital.address|default:'Not Provided' }}</div>
                 </div>
               </div>
             </div>
@@ -192,11 +196,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <div class="input-group input-group-sm" style="width: 270px;">
-                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="branchSearchInput" class="form-control form-control-sm border-start-0" placeholder="Search branch, city, code..." onkeyup="filterBranchTable()">
+                <input type="text" id="branchSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search branch, city, code..." onkeyup="filterBranchTable()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-pill px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalAddBranch">
-                <i class="fa-solid fa-plus"></i>
+              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#modalAddBranch">
                 <span>Add Branch</span>
               </button>
             </div>
@@ -219,11 +221,11 @@
                   <td class="px-3">
                     <div class="fw-bold text-dark">{{ b.name }}</div>
                     {% if b.is_main_branch %}
-                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.7rem;"><i class="fa-solid fa-star me-1"></i> Main Branch</span>
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-2" style="font-size: 0.7rem;">Main Branch</span>
                     {% endif %}
                   </td>
                   <td>
-                    <div><span class="badge bg-light text-dark border">{{ b.code|default:"-" }}</span></div>
+                    <div><span class="badge bg-light text-dark border rounded-2">{{ b.code|default:"-" }}</span></div>
                     <small class="text-muted">{{ b.city|default:"-" }}</small>
                   </td>
                   <td>
@@ -231,24 +233,26 @@
                     <small class="text-muted text-truncate d-inline-block" style="max-width: 200px;">{{ b.address|default:"-" }}</small>
                   </td>
                   <td>
-                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1 rounded-2">
                       {{ b.departments.count }} Departments
                     </span>
                   </td>
                   <td>
                     {% if b.is_active %}
-                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Active</span>
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-2">Active</span>
                     {% else %}
-                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Inactive</span>
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end">
-                    <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1 text-nowrap" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}">
-                      <i class="fa-solid {% if b.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if b.is_active %}Deactivate{% else %}Activate{% endif %}
-                    </a>
-                    <button class="btn btn-sm btn-light border rounded-pill px-3 text-nowrap" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})">
-                      <i class="fa-solid fa-pen text-primary"></i> Edit
-                    </button>
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 170px;">
+                    <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                      <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-3 py-1 text-nowrap" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}">
+                        {% if b.is_active %}Deactivate{% else %}Activate{% endif %}
+                      </a>
+                      <button class="btn btn-sm btn-light border rounded-3 px-3 py-1 text-nowrap" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})">
+                        Edit
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {% empty %}
@@ -270,11 +274,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <div class="input-group input-group-sm" style="width: 270px;">
-                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="deptSearchInput" class="form-control form-control-sm border-start-0" placeholder="Search department, code..." onkeyup="filterDeptTable()">
+                <input type="text" id="deptSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search department, code..." onkeyup="filterDeptTable()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-pill px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalAddDept">
-                <i class="fa-solid fa-plus"></i>
+              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#modalAddDept">
                 <span>Add Department</span>
               </button>
             </div>
@@ -299,38 +301,42 @@
                     <div class="fw-bold text-dark">{{ d.name }}</div>
                     {% if d.description %}<small class="text-muted">{{ d.description }}</small>{% endif %}
                   </td>
-                  <td><span class="badge bg-light text-dark border">{{ d.code|default:"-" }}</span></td>
+                  <td><span class="badge bg-light text-dark border rounded-2">{{ d.code|default:"-" }}</span></td>
                   <td>
-                    {% for b in d.branches.all %}
-                      <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 mb-1 d-inline-block">{{ b.name }}</span>
-                    {% empty %}
-                      <span class="text-muted small">All Branches</span>
-                    {% endfor %}
+                    <div class="d-flex flex-column align-items-start gap-1">
+                      {% for b in d.branches.all %}
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 rounded-2 text-start">{{ b.name }}</span>
+                      {% empty %}
+                        <span class="text-muted small">All Branches</span>
+                      {% endfor %}
+                    </div>
                   </td>
                   <td>
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 rounded-2">
                       {{ d.doctors.count }} Doctors
                     </span>
                   </td>
                   <td>
-                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1 rounded-2">
                       {{ d.diseases.count }} Diseases
                     </span>
                   </td>
                   <td>
                     {% if d.is_active %}
-                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Active</span>
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-2">Active</span>
                     {% else %}
-                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Inactive</span>
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end">
-                    <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="btn btn-sm {% if d.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1 text-nowrap" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}">
-                      <i class="fa-solid {% if d.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if d.is_active %}Deactivate{% else %}Activate{% endif %}
-                    </a>
-                    <button class="btn btn-sm btn-light border rounded-pill px-3 text-nowrap" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
-                      <i class="fa-solid fa-pen text-primary"></i> Edit
-                    </button>
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 170px;">
+                    <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                      <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="btn btn-sm {% if d.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-3 py-1 text-nowrap" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}">
+                        {% if d.is_active %}Deactivate{% else %}Activate{% endif %}
+                      </a>
+                      <button class="btn btn-sm btn-light border rounded-3 px-3 py-1 text-nowrap" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
+                        Edit
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {% empty %}
@@ -352,11 +358,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <div class="input-group input-group-sm" style="width: 270px;">
-                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="docSearchInput" class="form-control form-control-sm border-start-0" placeholder="Search doctor, dept, user..." onkeyup="filterDoctorTable()">
+                <input type="text" id="docSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search doctor, dept, user..." onkeyup="filterDoctorTable()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-pill px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center gap-1" onclick="openAddDoctorModal()">
-                <i class="fa-solid fa-plus"></i>
+              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" onclick="openAddDoctorModal()">
                 <span>Add Doctor</span>
               </button>
             </div>
@@ -383,21 +387,21 @@
                       <small class="text-muted d-block">{{ doc.qualification|default:doc.specialization }}</small>
                     {% endif %}
                     {% if doc.user %}
-                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-0 mt-1" style="font-size: 0.7rem;" title="Linked Login Account">
-                        <i class="fa-solid fa-user-doctor me-1"></i> @{{ doc.user.username }}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 mt-1 rounded-2" style="font-size: 0.7rem;" title="Linked Login Account">
+                        @{{ doc.user.username }}
                       </span>
                     {% else %}
-                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-0 mt-1" style="font-size: 0.7rem;">
-                        <i class="fa-solid fa-triangle-exclamation me-1"></i> No Login Linked
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1 mt-1 rounded-2" style="font-size: 0.7rem;">
+                        No Login Linked
                       </span>
                     {% endif %}
                   </td>
                   <td>
                     {% for d in doc.departments.all %}
-                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 fw-semibold me-1 mb-1 d-inline-block">{{ d.name }}</span>
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 fw-semibold me-1 mb-1 d-inline-block rounded-2">{{ d.name }}</span>
                     {% empty %}
                       {% if doc.department %}
-                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 fw-semibold">{{ doc.department.name }}</span>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 fw-semibold rounded-2">{{ doc.department.name }}</span>
                       {% else %}
                         <span class="text-muted small">No Dept</span>
                       {% endif %}
@@ -405,51 +409,55 @@
                     {% if doc.specialization %}<div class="small text-muted mt-1">{{ doc.specialization }}</div>{% endif %}
                   </td>
                   <td>
-                    {% for b in doc.branches.all %}
-                      <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 mb-1 d-inline-block">{{ b.name }}</span>
-                    {% empty %}
-                      <span class="text-muted small">All Branches</span>
-                    {% endfor %}
+                    <div class="d-flex flex-column align-items-start gap-1">
+                      {% for b in doc.branches.all %}
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1 rounded-2 text-start">{{ b.name }}</span>
+                      {% empty %}
+                        <span class="text-muted small">All Branches</span>
+                      {% endfor %}
+                    </div>
                   </td>
                   <td>
                     <div class="fw-bold text-success">₹{{ doc.consultation_fee|floatformat:0 }}</div>
                   </td>
                   <td>
-                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1 rounded-2">
                       {{ doc.associated_diseases.count }} Conditions
                     </span>
                   </td>
                   <td>
                     {% if doc.is_active %}
-                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Active</span>
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-2">Active</span>
                     {% else %}
-                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Inactive</span>
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end">
-                    {% if doc.user %}
-                    <a href="{% url 'accounts:doctor_schedule_manage' doc.user.id %}" class="btn btn-sm btn-light border rounded-pill px-2 me-1" title="Manage Schedule / Leave Calendar">
-                      <i class="fa-solid fa-calendar-days text-success"></i>
-                    </a>
-                    {% endif %}
-                    <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-3 me-1 text-nowrap" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
-                      <i class="fa-solid {% if doc.is_active %}fa-ban text-danger{% else %}fa-check text-success{% endif %} me-1"></i> {% if doc.is_active %}Deactivate{% else %}Activate{% endif %}
-                    </a>
-                    <button class="btn btn-sm btn-light border rounded-pill px-3 text-nowrap btn-edit-doctor" 
-                            data-id="{{ doc.id }}"
-                            data-name="{{ doc.name }}"
-                            data-departments="[{% for d in doc.departments.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% empty %}{% if doc.department %}{{ doc.department.id }}{% endif %}{% endfor %}]"
-                            data-user="{% if doc.user %}{{ doc.user.id }}{% endif %}"
-                            data-qual="{{ doc.qualification|default:'' }}"
-                            data-spec="{{ doc.specialization|default:'' }}"
-                            data-phone="{{ doc.contact_number|default:'' }}"
-                            data-email="{{ doc.email|default:'' }}"
-                            data-fee="{{ doc.consultation_fee|floatformat:0 }}"
-                            data-diseases="[{% for d in doc.associated_diseases.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
-                            data-branches="[{% for b in doc.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
-                            onclick="openEditDoctorModal(this)">
-                      <i class="fa-solid fa-pen text-primary"></i> Edit
-                    </button>
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 220px;">
+                    <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                      {% if doc.user %}
+                      <a href="{% url 'accounts:doctor_schedule_manage' doc.user.id %}" class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" title="Manage Schedule / Leave Calendar">
+                        Schedule
+                      </a>
+                      {% endif %}
+                      <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-3 py-1 text-nowrap" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
+                        {% if doc.is_active %}Deactivate{% else %}Activate{% endif %}
+                      </a>
+                      <button class="btn btn-sm btn-light border rounded-3 px-3 py-1 text-nowrap btn-edit-doctor" 
+                              data-id="{{ doc.id }}"
+                              data-name="{{ doc.name }}"
+                              data-departments="[{% for d in doc.departments.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% empty %}{% if doc.department %}{{ doc.department.id }}{% endif %}{% endfor %}]"
+                              data-user="{% if doc.user %}{{ doc.user.id }}{% endif %}"
+                              data-qual="{{ doc.qualification|default:'' }}"
+                              data-spec="{{ doc.specialization|default:'' }}"
+                              data-phone="{{ doc.contact_number|default:'' }}"
+                              data-email="{{ doc.email|default:'' }}"
+                              data-fee="{{ doc.consultation_fee|floatformat:0 }}"
+                              data-diseases="[{% for d in doc.associated_diseases.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
+                              data-branches="[{% for b in doc.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
+                              onclick="openEditDoctorModal(this)">
+                        Edit
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {% empty %}
@@ -471,11 +479,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <div class="input-group input-group-sm" style="width: 270px;">
-                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="diseaseSearchInput" class="form-control form-control-sm border-start-0" placeholder="Search disease, symptom..." onkeyup="filterDiseaseCards()">
+                <input type="text" id="diseaseSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search disease, symptom..." onkeyup="filterDiseaseCards()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-pill px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center gap-1" onclick="openAddDiseaseModal()">
-                <i class="fa-solid fa-plus"></i>
+              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" onclick="openAddDiseaseModal()">
                 <span>Add Disease</span>
               </button>
             </div>
@@ -488,13 +494,13 @@
               <div class="card border rounded-4 shadow-none h-100 bg-white">
                 <div class="card-header bg-light bg-opacity-50 py-2 px-3 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
                   <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-2 py-1">
-                      <i class="fa-solid fa-stethoscope me-1"></i> {{ d.name }}
+                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-2 py-1 rounded-2">
+                      {{ d.name }}
                     </span>
                     <span class="small text-muted">({{ d.diseases.count }} conditions)</span>
                   </div>
-                  <button class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 small" onclick="openAddDiseaseModalForDept({{ d.id }}, '{{ d.name|escapejs }}')">
-                    <i class="fa-solid fa-plus me-1"></i> Add Under {{ d.name }}
+                  <button class="btn btn-sm btn-outline-primary rounded-3 py-1 px-2 small" onclick="openAddDiseaseModalForDept({{ d.id }}, '{{ d.name|escapejs }}')">
+                    Add Under {{ d.name }}
                   </button>
                 </div>
                 <div class="card-body p-0">
@@ -516,20 +522,20 @@
                             {% if dis.description %}<div class="text-muted" style="font-size: 0.72rem;">{{ dis.description }}</div>{% endif %}
                           </td>
                           <td class="py-2">
-                            <span class="badge bg-light text-dark border">{{ dis.code|default:"-" }}</span>
+                            <span class="badge bg-light text-dark border rounded-2">{{ dis.code|default:"-" }}</span>
                           </td>
                           <td class="py-2">
                             {% if dis.is_active %}
-                              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-0" style="font-size: 0.65rem;">Active</span>
+                              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-0 rounded-2" style="font-size: 0.65rem;">Active</span>
                             {% else %}
-                              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle py-0" style="font-size: 0.65rem;">Inactive</span>
+                              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle py-0 rounded-2" style="font-size: 0.65rem;">Inactive</span>
                             {% endif %}
                           </td>
                           <td class="px-3 py-2 text-end">
-                            <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="btn btn-sm {% if dis.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-pill px-2 py-0 me-1" style="font-size: 0.72rem;" title="{% if dis.is_active %}Deactivate Disease{% else %}Activate Disease{% endif %}">
-                              <i class="fa-solid {% if dis.is_active %}fa-ban{% else %}fa-check{% endif %}"></i> {% if dis.is_active %}Deactivate{% else %}Activate{% endif %}
+                            <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="btn btn-sm {% if dis.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-0 me-1" style="font-size: 0.72rem;" title="{% if dis.is_active %}Deactivate Disease{% else %}Activate Disease{% endif %}">
+                              {% if dis.is_active %}Deactivate{% else %}Activate{% endif %}
                             </a>
-                            <button class="btn btn-sm btn-light border rounded-pill px-2 py-0" 
+                            <button class="btn btn-sm btn-light border rounded-3 px-2 py-0" 
                                     data-id="{{ dis.id }}"
                                     data-name="{{ dis.name }}"
                                     data-code="{{ dis.code|default:'' }}"
@@ -537,7 +543,7 @@
                                     data-deptname="{{ dis.department.name }}"
                                     data-desc="{{ dis.description|default:'' }}"
                                     onclick="openEditDiseaseModal(this)">
-                              <i class="fa-solid fa-pen text-primary" style="font-size: 0.75rem;"></i> Edit
+                              Edit
                             </button>
                           </td>
                         </tr>
@@ -610,8 +616,8 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Branch</button>
+          <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Save Branch</button>
         </div>
       </form>
     </div>
@@ -647,7 +653,7 @@
               <div class="form-check mb-2">
                 <input class="form-check-input dept_branch_cb" type="checkbox" name="branches" value="{{ b.id }}" id="dept_b_{{ b.id }}">
                 <label class="form-check-label small fw-medium text-dark cursor-pointer" for="dept_b_{{ b.id }}">
-                  <i class="fa-solid fa-code-branch text-primary me-1 small"></i> {{ b.name }} {% if b.city %}<span class="text-muted">({{ b.city }})</span>{% endif %}
+                  {{ b.name }} {% if b.city %}<span class="text-muted">({{ b.city }})</span>{% endif %}
                 </label>
               </div>
               {% empty %}
@@ -661,8 +667,8 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Department</button>
+          <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Save Department</button>
         </div>
       </form>
     </div>
@@ -686,10 +692,10 @@
             <div class="col-12">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="form-label small fw-semibold text-dark mb-0">
-                  <i class="fa-solid fa-user-doctor text-primary me-1"></i> Doctor Login Account <span class="text-danger">*</span>
+                  Doctor Login Account <span class="text-danger">*</span>
                 </label>
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.7rem;">
-                  <i class="fa-solid fa-arrows-rotate me-1"></i> Auto-Map
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-2" style="font-size: 0.7rem;">
+                  Auto-Map
                 </span>
               </div>
               <select name="user" id="doc_user" class="form-select border-primary no-tom-select" required onchange="onDoctorUserSelected(this)" style="font-size: 0.88rem; position: relative; z-index: 1060;">
@@ -710,7 +716,7 @@
               <div id="doc_user_sync_hint" class="small mt-1" style="display: none;"></div>
               {% if not doctor_users %}
               <div class="alert alert-warning py-2 px-3 small mt-2 mb-0 rounded-3">
-                <i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>No Doctor users found.</strong> Please create a Doctor in <a href="{% url 'accounts:user_add' %}" target="_blank" class="alert-link fw-bold">User Management</a>.
+                <strong>No Doctor users found.</strong> Please create a Doctor in <a href="{% url 'accounts:user_add' %}" target="_blank" class="alert-link fw-bold">User Management</a>.
               </div>
               {% endif %}
             </div>
@@ -740,7 +746,7 @@
                 <div class="form-check mb-1">
                   <input class="form-check-input doc_dept_cb" type="checkbox" name="departments" value="{{ d.id }}" id="doc_dept_{{ d.id }}" onchange="filterDoctorDiseasesBySelectedDepartments()">
                   <label class="form-check-label small text-dark cursor-pointer" for="doc_dept_{{ d.id }}">
-                    <i class="fa-solid fa-building-user text-primary me-1 small"></i> {{ d.name }}
+                    {{ d.name }}
                   </label>
                 </div>
                 {% empty %}
@@ -794,14 +800,14 @@
             <div class="col-12">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="form-label small fw-semibold text-dark mb-0">
-                  <i class="fa-solid fa-virus-covid text-info me-1"></i> Treatable Conditions (Filtered by Department)
+                  Treatable Conditions (Filtered by Department)
                 </label>
                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAllVisibleDiseases()">Select All</button>
               </div>
               <div class="p-3 border rounded-3 bg-light" style="max-height: 160px; overflow-y: auto;">
                 <div class="row g-1" id="doctor_disease_container">
                   <div id="no_disease_dept_msg" class="col-12 text-muted small py-3 text-center" style="display: none;">
-                    <i class="fa-solid fa-layer-group text-primary me-1"></i> Please check one or more Clinical Departments above.
+                    Please check one or more Clinical Departments above.
                   </div>
                   {% for dis in diseases %}
                   <div class="col-md-6 doc_disease_item" data-dept-id="{{ dis.department_id }}" style="display: none;">
@@ -822,8 +828,8 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Doctor</button>
+          <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Save Doctor</button>
         </div>
       </form>
     </div>
@@ -861,7 +867,7 @@
                     <div class="form-check p-2 bg-white border rounded-3">
                       <input class="form-check-input ms-0 me-2 dis_dept_radio" type="radio" name="department" value="{{ d.id }}" id="dis_dept_radio_{{ d.id }}" required>
                       <label class="form-check-label small fw-semibold text-dark cursor-pointer w-100" for="dis_dept_radio_{{ d.id }}">
-                        <i class="fa-solid fa-stethoscope text-primary me-1"></i> {{ d.name }}
+                        {{ d.name }}
                       </label>
                     </div>
                   </div>
@@ -879,8 +885,8 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Disease</button>
+          <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Save Disease</button>
         </div>
       </form>
     </div>
@@ -896,7 +902,7 @@
         <div class="modal-header border-0 pb-0">
           <div>
             <h5 class="modal-title fw-bold text-dark mb-1">
-              <i class="fa-solid fa-file-excel text-success me-2"></i> Bulk Import Hospital Masters
+              Bulk Import Hospital Masters
             </h5>
             <p class="text-muted small mb-0">Upload an Excel (.xlsx) or CSV (.csv) file containing Branches, Departments, Doctors and Diseases.</p>
           </div>
@@ -906,7 +912,7 @@
           <!-- Required Format Alert -->
           <div class="alert alert-info border-0 rounded-3 mb-3 p-3 small">
             <div class="fw-bold mb-2 text-primary">
-              <i class="fa-solid fa-table-list me-1"></i> Expected Excel Columns Structure:
+              Expected Excel Columns Structure:
             </div>
             <div class="table-responsive bg-white rounded-2 border p-1 mb-2">
               <table class="table table-sm table-bordered mb-0 small text-center">
@@ -942,8 +948,8 @@
             </div>
             <div class="d-flex justify-content-between align-items-center">
               <span class="text-muted">Rows will automatically create Branches, Departments, Doctors and link Diseases!</span>
-              <a href="{% url 'leads:hospital_master_sample_download' %}" class="btn btn-xs btn-outline-primary rounded-pill px-3 py-1 fw-semibold">
-                <i class="fa-solid fa-download me-1"></i> Download Sample CSV
+              <a href="{% url 'leads:hospital_master_sample_download' %}" class="btn btn-xs btn-outline-primary rounded-3 px-3 py-1 fw-semibold">
+                Download Sample CSV
               </a>
             </div>
           </div>
@@ -955,9 +961,9 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold shadow-sm">
-            <i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload & Import
+          <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success rounded-3 px-4 fw-semibold shadow-sm">
+            Upload & Import
           </button>
         </div>
       </form>

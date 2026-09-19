@@ -711,7 +711,13 @@ def lead_list(request):
     }
 
     if target_hospital:
-        context["employees"] = User.objects.filter(hospital=target_hospital, is_active=True, is_approved=True)
+        # For hospitals, leads are assigned to Lead Attendants (or Counsellors/HR if configured), never to Doctors or Admins
+        context["employees"] = User.objects.filter(
+            hospital=target_hospital,
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            is_active=True,
+            is_approved=True
+        ).order_by("first_name", "last_name", "username")
         context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
         context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
         context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
@@ -721,7 +727,12 @@ def lead_list(request):
         else:
             context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
     else:
-        context["employees"] = User.objects.filter(is_active=True, is_approved=True)
+        # For Academy / generic, assign to Counsellors and HR (and Lead Attendants if present)
+        context["employees"] = User.objects.filter(
+            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT],
+            is_active=True,
+            is_approved=True
+        ).order_by("first_name", "last_name", "username")
         context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
 
     template_name = "leads/nel_lead_list.html" if is_viewing_hospital else "leads/zapp_lead_list.html"
@@ -915,14 +926,32 @@ def team_history(request):
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
 
-    # Get team members (Counsellor, HR, Manager)
-    team_members = User.objects.filter(
-        is_active=True, is_approved=True,
-        role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
-    )
+    # Determine team member roles based on business type
+    # Hospital businesses use LEAD_ATTENDENT & DOCTOR; academies use COUNSELLOR, HR, MANAGER
+    is_hospital_business = False
     if hospital:
-        team_members = team_members.filter(hospital=hospital)
-    team_members = team_members.order_by("first_name", "username")
+        btype = (hospital.settings or {}).get("business_type", "")
+        if not btype:
+            name_lower = (hospital.name or "").lower()
+            if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
+                btype = "hospital"
+        is_hospital_business = str(btype).strip().lower() == "hospital"
+
+    if is_hospital_business:
+        team_roles = [User.Role.LEAD_ATTENDENT, User.Role.DOCTOR, User.Role.MANAGER, User.Role.ADMIN]
+    else:
+        team_roles = [User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
+
+    # Get team members strictly scoped to the current hospital/business
+    if hospital:
+        team_members = User.objects.filter(
+            is_active=True, is_approved=True,
+            role__in=team_roles,
+            hospital=hospital,
+        ).order_by("first_name", "username")
+    else:
+        # No hospital context — show no one to avoid cross-tenant leakage
+        team_members = User.objects.none()
 
     # Base queryset for team leads
     leads = Lead.objects.filter(is_archived=False)
@@ -1013,37 +1042,54 @@ def team_history(request):
                 pass
         active_date_label = f"Custom: {date_from or 'Start'} to {date_to or 'End'}"
 
-    # Dropdown filters: Course, Stage, Admission Status (filter out empty strings)
-    selected_courses = [c for c in request.GET.getlist("course") if c.isdigit()]
-    selected_stages = [s for s in request.GET.getlist("stage") if s.isdigit()]
-    selected_admission_statuses = [a.strip() for a in request.GET.getlist("admission_status") if a.strip()]
+    # For hospital businesses: no course/stage/admission filters needed
+    # (these are Zappcode Academy-specific)
 
-    if selected_courses:
-        leads = leads.filter(course__id__in=selected_courses)
-    if selected_stages:
-        leads = leads.filter(stage__id__in=selected_stages)
-    if selected_admission_statuses:
-        leads = leads.filter(admission_status__in=selected_admission_statuses)
+    # Build separate attendant and doctor querysets for hospital filter dropdowns
+    attendants = User.objects.none()
+    doctors = User.objects.none()
+    if hospital and is_hospital_business:
+        attendants = User.objects.filter(
+            is_active=True, is_approved=True,
+            role=User.Role.LEAD_ATTENDENT,
+            hospital=hospital,
+        ).order_by("first_name", "last_name")
+        doctors = User.objects.filter(
+            is_active=True, is_approved=True,
+            role=User.Role.DOCTOR,
+            hospital=hospital,
+        ).order_by("first_name", "last_name")
 
-    # Calculate User-wise Counts for current owner (assigned_to) in the selected timeframe & dropdown filters
+    # For Zappcode Academy: keep user_counts for card display (not used for hospital)
     user_counts = []
-    for member in team_members:
-        c = leads.filter(assigned_to=member).count()
-        user_counts.append({
-            "user": member,
-            "count": c,
-            "is_self": member == request.user,
-        })
-    # Sort user_counts with highest count first
-    user_counts.sort(key=lambda x: x["count"], reverse=True)
+    if not is_hospital_business:
+        for member in team_members:
+            c = leads.filter(assigned_to=member).count()
+            user_counts.append({"user": member, "count": c, "is_self": member == request.user})
+        user_counts.sort(key=lambda x: x["count"], reverse=True)
 
-    # Filter by specific selected team user (current owner) if provided
+    # Filter by selected Lead Attendant (assigned_to)
+    selected_attendant_id = request.GET.get("attendant_id", "").strip()
+    selected_attendant = None
+    if selected_attendant_id and selected_attendant_id.isdigit():
+        selected_attendant = attendants.filter(id=int(selected_attendant_id)).first()
+        if selected_attendant:
+            leads = leads.filter(assigned_to=selected_attendant)
+
+    # Filter by selected Doctor (stored as name string in custom_data__doctor)
+    selected_doctor_id = request.GET.get("doctor_id", "").strip()
+    selected_doctor = None
+    if selected_doctor_id and selected_doctor_id.isdigit():
+        selected_doctor = doctors.filter(id=int(selected_doctor_id)).first()
+        if selected_doctor:
+            doctor_name = selected_doctor.get_full_name() or selected_doctor.username
+            leads = leads.filter(custom_data__doctor__icontains=doctor_name)
+
+    # Legacy: keep selected_user for zappcode template compatibility
     selected_user_id = request.GET.get("user_id", "").strip()
     selected_user = None
-    if selected_user_id and selected_user_id.isdigit():
+    if not is_hospital_business and selected_user_id and selected_user_id.isdigit():
         selected_user = team_members.filter(id=int(selected_user_id)).first()
-        if not selected_user:
-            selected_user = User.objects.filter(id=int(selected_user_id)).first()
         if selected_user:
             leads = leads.filter(assigned_to=selected_user)
 
@@ -1074,8 +1120,9 @@ def team_history(request):
     # Filter counts for badges
     active_filters_count = (
         (1 if (date_preset and date_preset != "all") or selected_month or selected_year or date_from or date_to else 0)
+        + (1 if selected_attendant else 0)
+        + (1 if selected_doctor else 0)
         + (1 if selected_user else 0)
-        + len(selected_courses) + len(selected_stages) + len(selected_admission_statuses)
         + (1 if q else 0)
     )
 
@@ -1107,9 +1154,15 @@ def team_history(request):
         "page_obj": page_obj,
         "total_count": paginator.count,
         "q": q,
-        "courses": courses,
-        "stages": stages,
-        "admission_status_choices": admission_status_choices,
+        # Hospital-specific filters
+        "attendants": attendants,
+        "doctors": doctors,
+        "selected_attendant": selected_attendant,
+        "selected_doctor": selected_doctor,
+        # Academy-specific filters (kept for zapp template)
+        "courses": Course.objects.filter(is_active=True).order_by("name"),
+        "stages": LeadStage.objects.filter(is_active=True).order_by("order", "name"),
+        "admission_status_choices": AdmissionStatus.choices,
         "team_members": team_members,
         "user_counts": user_counts,
         "selected_user": selected_user,
@@ -1121,9 +1174,9 @@ def team_history(request):
         "date_from": date_from,
         "date_to": date_to,
         "active_date_label": active_date_label,
-        "selected_courses": selected_courses,
-        "selected_stages": selected_stages,
-        "selected_admission_statuses": selected_admission_statuses,
+        "selected_courses": [],
+        "selected_stages": [],
+        "selected_admission_statuses": [],
         "current_sort": sort_by,
         "active_filters_count": active_filters_count,
         "query_params": query_params.urlencode(),
@@ -1131,8 +1184,10 @@ def team_history(request):
         "is_global_admin": is_global_admin,
         "available_businesses": available_businesses,
         "current_hospital": hospital,
+        "is_hospital_business": is_hospital_business,
     }
-    return render(request, "leads/zapp_team_history.html", context)
+    template = "leads/nel_team_history.html" if is_hospital_business else "leads/zapp_team_history.html"
+    return render(request, template, context)
 
 
 @login_required
@@ -1871,6 +1926,10 @@ def lead_self_assign(request, pk):
     if not lead:
         return redirect("leads:lead_list")
     
+    if not getattr(request.user, "can_self_assign", True):
+        messages.error(request, "You do not have permission to self-assign leads. Please contact your administrator.")
+        return redirect("leads:lead_detail", pk=pk)
+
     # Allow user to capture / self-assign if lead is unassigned or if user has access
     if lead.assigned_to and lead.assigned_to != request.user and not request.user.can_assign_leads:
         messages.warning(request, f"Lead is already assigned to {lead.assigned_to.get_full_name() or lead.assigned_to.username}.")
@@ -1997,35 +2056,71 @@ def lead_quick_update_stage(request, pk):
 
 @login_required
 def bulk_action(request):
-    if request.method != "POST":
-        return redirect("leads:lead_list")
-    ids = request.POST.getlist("selected")
-    action = request.POST.get("bulk_action")
-    leads = Lead.objects.filter(pk__in=ids)
-    if not leads.exists():
-        messages.warning(request, "No leads selected.")
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or request.headers.get("accept") == "application/json"
+        or "application/json" in request.headers.get("accept", "")
+        or request.content_type == "application/json"
+        or request.POST.get("format") == "json"
+    )
+
+    def respond(status_type, message_text, extra_data=None):
+        if is_ajax:
+            resp = {"status": status_type, "message": message_text}
+            if extra_data:
+                resp.update(extra_data)
+            return JsonResponse(resp, status=200 if status_type == "success" else 400)
+        if status_type == "success":
+            messages.success(request, message_text)
+        elif status_type == "warning":
+            messages.warning(request, message_text)
+        elif status_type == "info":
+            messages.info(request, message_text)
+        else:
+            messages.error(request, message_text)
         return redirect("leads:lead_list")
 
+    if request.method != "POST":
+        return respond("error", "Invalid request method.")
+
+    # Support JSON payload or Form data
+    ids = request.POST.getlist("selected")
+    action = request.POST.get("bulk_action")
+    if not ids and request.content_type == "application/json":
+        try:
+            import json
+            body_data = json.loads(request.body.decode("utf-8") or "{}")
+            ids = body_data.get("selected") or body_data.get("lead_ids") or []
+            action = body_data.get("bulk_action") or action
+        except Exception:
+            pass
+
+    leads = Lead.objects.filter(pk__in=ids)
+    if not leads.exists():
+        return respond("warning", "No leads selected.")
+
     if action == "self_assign":
+        if request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN] or not getattr(request.user, "can_self_assign", True):
+            return respond("error", "Admins and Superadmins cannot self-assign leads. Please assign leads to team members.")
+
         max_limit = getattr(request.user, "bulk_self_assign_limit", 25)
         selected_count = leads.count()
         if selected_count > max_limit:
-            messages.error(
-                request,
+            return respond(
+                "error",
                 f"Bulk Self-Assign Limit exceeded! Your maximum allowed limit is {max_limit} leads at a time, but you selected {selected_count} leads."
             )
-            return redirect("leads:lead_list")
         
         # Determine candidate leads (unassigned or already assigned to self or accessible)
         # Non-admin users cannot take away leads already assigned to someone else
         eligible_leads = leads
-        if not request.user.can_assign_leads:
+        is_admin_user = request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or request.user.can_assign_leads
+        if not is_admin_user:
             already_assigned_other = leads.filter(assigned_to__isnull=False).exclude(assigned_to=request.user)
             if already_assigned_other.exists():
-                messages.warning(
-                    request,
-                    f"{already_assigned_other.count()} lead(s) are already assigned to other team members and were skipped."
-                )
+                warning_msg = f"{already_assigned_other.count()} lead(s) are already assigned to other team members and were skipped."
+                if not is_ajax:
+                    messages.warning(request, warning_msg)
             eligible_leads = leads.filter(Q(assigned_to__isnull=True) | Q(assigned_to=request.user))
         
         assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
@@ -2044,15 +2139,14 @@ def bulk_action(request):
             updated_count += 1
             
         if updated_count > 0:
-            messages.success(request, f"🎉 Successfully self-assigned {updated_count} lead(s) to yourself!")
+            return respond("success", f"🎉 Successfully self-assigned {updated_count} lead(s) to yourself!", {"updated_count": updated_count})
         else:
-            messages.info(request, "No eligible unassigned leads to assign.")
-        return redirect("leads:lead_list")
+            return respond("info", "No eligible unassigned leads to assign.")
 
     elif action == "assign":
-        if not request.user.can_assign_leads:
-            messages.error(request, "You don't have permission to assign leads.")
-            return redirect("leads:lead_list")
+        is_admin_user = request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or request.user.can_assign_leads
+        if not is_admin_user:
+            return respond("error", "You don't have permission to assign leads to other team members.")
         
         emp_id = request.POST.get("assign_to")
         from_user = request.POST.get("from_user", "").strip()
@@ -2083,8 +2177,7 @@ def bulk_action(request):
             )
             updated_count += 1
             
-        messages.success(request, f"🎉 {updated_count} lead(s) successfully assigned to {assignee_name}.")
-        return redirect("leads:lead_list")
+        return respond("success", f"🎉 {updated_count} lead(s) successfully assigned to {assignee_name}.", {"updated_count": updated_count})
 
     elif action == "stage":
         stage_id = request.POST.get("stage")

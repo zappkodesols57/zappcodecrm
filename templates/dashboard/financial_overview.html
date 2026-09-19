@@ -43,16 +43,16 @@
 <!-- Top Header & Filter Info -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
   <div>
-    <div class="text-muted small fw-bold"><i class="fa-solid fa-chart-line text-primary me-1"></i> Hospital Financial Intelligence</div>
+    <div class="text-muted small fw-bold">{% if hospital_name %}{{ hospital_name }} &bull; {% endif %}Financial Intelligence</div>
     <h3 class="mb-1 fw-bold text-dark" style="letter-spacing: -0.5px;">Financial Overview & Campaign ROI</h3>
-    <p class="text-muted mb-0">Track revenue generated from patient leads, campaign costs, returns, timing, and billing transaction history.</p>
+    <p class="text-muted mb-0">Track revenue generated from leads, campaign costs, returns, timing, and billing transaction history for {% if hospital_name %}<strong>{{ hospital_name }}</strong>{% else %}all records{% endif %}.</p>
   </div>
   <div class="d-flex gap-2">
-    <a href="{% url 'dashboard:nelson_module' 'campaign-management' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm fw-semibold">
-      <i class="fa-solid fa-bullhorn me-1"></i> Manage Campaigns
+    <a href="{% url 'dashboard:nelson_module' 'campaign-management' %}" class="btn btn-outline-primary rounded-3 px-3 shadow-sm fw-semibold d-inline-flex align-items-center" style="height: 34px;">
+      Manage Campaigns
     </a>
-    <button class="btn btn-light border rounded-pill px-3 shadow-sm fw-semibold text-secondary" onclick="window.print()">
-      <i class="fa-solid fa-print me-1"></i> Print Report
+    <button class="btn btn-light border rounded-3 px-3 shadow-sm fw-semibold text-secondary d-inline-flex align-items-center" onclick="window.print()" style="height: 34px;">
+      Print Report
     </button>
   </div>
 </div>
@@ -62,16 +62,11 @@
   <!-- 1. Total Gross Revenue -->
   <div class="col-sm-6 col-lg-3">
     <div class="fin-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <span class="text-muted small fw-semibold text-uppercase">Gross Revenue</span>
-          <h3 class="fw-bold text-dark mt-1 mb-0">₹{{ total_gross_revenue|floatformat:2 }}</h3>
-          <div class="small text-muted mt-2">
-            <span class="text-success fw-bold"><i class="fa-solid fa-hospital-user me-1"></i>OPD ₹{{ total_opd_revenue|floatformat:0 }}</span> · Pharm ₹{{ total_pharmacy_revenue|floatformat:0 }}
-          </div>
-        </div>
-        <div class="fin-stat-icon stat-revenue">
-          <i class="fa-solid fa-indian-rupee-sign"></i>
+      <div>
+        <span class="text-muted small fw-semibold text-uppercase">Gross Revenue</span>
+        <h3 class="fw-bold text-dark mt-1 mb-0">₹{{ total_gross_revenue|floatformat:2 }}</h3>
+        <div class="small text-muted mt-2">
+          <span class="text-success fw-bold">OPD ₹{{ total_opd_revenue|floatformat:0 }}</span> · Pharm ₹{{ total_pharmacy_revenue|floatformat:0 }}
         </div>
       </div>
     </div>
@@ -80,16 +75,11 @@
   <!-- 2. Campaign Spend / Cost -->
   <div class="col-sm-6 col-lg-3">
     <div class="fin-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <span class="text-muted small fw-semibold text-uppercase">Campaign Costs</span>
-          <h3 class="fw-bold text-dark mt-1 mb-0">₹{{ total_campaign_cost|floatformat:2 }}</h3>
-          <div class="small text-muted mt-2">
-            <span class="text-secondary fw-semibold">{{ total_campaigns_count }} Campaigns</span> ({{ active_campaigns_count }} Active)
-          </div>
-        </div>
-        <div class="fin-stat-icon stat-cost">
-          <i class="fa-solid fa-receipt"></i>
+      <div>
+        <span class="text-muted small fw-semibold text-uppercase">Campaign Costs</span>
+        <h3 class="fw-bold text-dark mt-1 mb-0">₹{{ total_campaign_cost|floatformat:2 }}</h3>
+        <div class="small text-muted mt-2">
+          <span class="text-secondary fw-semibold">{{ total_campaigns_count }} Campaigns</span> ({{ active_campaigns_count }} Active)
         </div>
       </div>
     </div>
@@ -98,18 +88,13 @@
   <!-- 3. Net Returns / Profit -->
   <div class="col-sm-6 col-lg-3">
     <div class="fin-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <span class="text-muted small fw-semibold text-uppercase">Net Returns</span>
-          <h3 class="fw-bold mt-1 mb-0 {% if net_profit >= 0 %}text-primary{% else %}text-danger{% endif %}">
-            ₹{{ net_profit|floatformat:2 }}
-          </h3>
-          <div class="small text-muted mt-2">
-            <span>Avg Revenue / Lead: <strong>₹{{ revenue_per_lead_overall|floatformat:1 }}</strong></span>
-          </div>
-        </div>
-        <div class="fin-stat-icon stat-profit">
-          <i class="fa-solid fa-hand-holding-dollar"></i>
+      <div>
+        <span class="text-muted small fw-semibold text-uppercase">Net Returns</span>
+        <h3 class="fw-bold mt-1 mb-0 {% if net_profit >= 0 %}text-primary{% else %}text-danger{% endif %}">
+          ₹{{ net_profit|floatformat:2 }}
+        </h3>
+        <div class="small text-muted mt-2">
+          <span>Avg Revenue / Lead: <strong>₹{{ revenue_per_lead_overall|floatformat:1 }}</strong></span>
         </div>
       </div>
     </div>
@@ -118,17 +103,87 @@
   <!-- 4. Overall ROI & Cost Per Lead -->
   <div class="col-sm-6 col-lg-3">
     <div class="fin-card p-3 h-100">
-      <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <span class="text-muted small fw-semibold text-uppercase">Overall ROI</span>
+        <h3 class="fw-bold text-dark mt-1 mb-0">{{ roi_percentage|floatformat:1 }}%</h3>
+        <div class="small text-muted mt-2">
+          <span class="text-info fw-bold">Avg CPL: ₹{{ cost_per_lead_overall|floatformat:1 }}</span> ({{ total_leads_overall }} Leads)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- FINANCIAL CHARTS SECTION                                         -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+  <!-- Chart 1: Revenue vs Campaign vs Cost -->
+  <div class="col-lg-6">
+    <div class="card fin-card border-0 h-100 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <span class="text-muted small fw-semibold text-uppercase">Overall ROI</span>
-          <h3 class="fw-bold text-dark mt-1 mb-0">{{ roi_percentage|floatformat:1 }}%</h3>
-          <div class="small text-muted mt-2">
-            <span class="text-info fw-bold">Avg CPL: ₹{{ cost_per_lead_overall|floatformat:1 }}</span> ({{ total_leads_overall }} Leads)
-          </div>
+          <h6 class="fw-bold text-dark mb-0">Revenue vs Campaign vs Cost</h6>
+          <small class="text-muted">Marketing spend vs total revenue generated per campaign</small>
         </div>
-        <div class="fin-stat-icon stat-roi">
-          <i class="fa-solid fa-percent"></i>
+      </div>
+      <div style="position: relative; height: 310px;">
+        <canvas id="campaignRevCostChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 2: Timeline for Cost vs Revenue (with Campaign Filter) -->
+  <div class="col-lg-6">
+    <div class="card fin-card border-0 h-100 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <h6 class="fw-bold text-dark mb-0">Timeline: Cost vs Revenue</h6>
+          <small class="text-muted">Monthly financial flow & returns trend</small>
         </div>
+        <div>
+          <select id="timelineCampaignFilter" class="form-select form-select-sm rounded-3 fw-semibold border-secondary-subtle" style="min-width: 170px;" onchange="updateTimelineChart()">
+            <option value="ALL">All Campaigns (Overall)</option>
+            {% for c_name in campaign_names %}
+              <option value="{{ c_name }}">{{ c_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div style="position: relative; height: 310px;">
+        <canvas id="timelineCostRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Chart 3: Lead Attendant vs Revenue -->
+  <div class="col-lg-6">
+    <div class="card fin-card border-0 h-100 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h6 class="fw-bold text-dark mb-0">Lead Attendant vs Revenue</h6>
+          <small class="text-muted">Top counsellors / attendants by patient bill revenue generated</small>
+        </div>
+      </div>
+      <div style="position: relative; height: 280px;">
+        <canvas id="attendantRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 4: Doctor vs Revenue -->
+  <div class="col-lg-6">
+    <div class="card fin-card border-0 h-100 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h6 class="fw-bold text-dark mb-0">Doctor vs Revenue</h6>
+          <small class="text-muted">Top treating doctors by patient revenue generated</small>
+        </div>
+      </div>
+      <div style="position: relative; height: 280px;">
+        <canvas id="doctorRevChart"></canvas>
       </div>
     </div>
   </div>
@@ -138,10 +193,10 @@
 <div class="card fin-card border-0 mb-4">
   <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
     <div>
-      <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-bullhorn text-primary me-2"></i>Campaign Returns, Cost & Lead Analytics</h5>
+      <h5 class="mb-0 fw-bold text-dark">Campaign Returns, Cost & Lead Analytics</h5>
       <small class="text-muted">Detailed performance per marketing campaign, start/end dates, budget spend, leads count, and direct returns.</small>
     </div>
-    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-2">
+    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-3 px-3 py-1.5 fw-semibold">
       {{ campaigns_financial_data|length }} Campaigns Monitored
     </span>
   </div>
@@ -170,24 +225,23 @@
               {% if c.obj.ad_name %}<div class="small text-muted" style="font-size: 0.72rem;">Ad: {{ c.obj.ad_name }}</div>{% endif %}
             </td>
             <td>
-              <span class="badge bg-light text-secondary border px-2 py-1">{{ c.obj.platform|default:"Meta Ads" }}</span>
+              <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-3 fw-semibold">{{ c.obj.platform|default:"Meta Ads" }}</span>
             </td>
             <td>
               <div class="small text-dark">
                 {% if c.start_date %}
-                  <i class="fa-regular fa-calendar me-1 text-muted"></i>{{ c.start_date|date:"d M Y" }}
-                  {% if c.end_date %} to {{ c.end_date|date:"d M Y" }}{% endif %}
+                  {{ c.start_date|date:"d M Y" }}{% if c.end_date %} to {{ c.end_date|date:"d M Y" }}{% endif %}
                 {% else %}
                   <span class="text-muted">Ongoing</span>
                 {% endif %}
               </div>
             </td>
             <td class="text-center">
-              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">{{ c.leads_count }}</span>
+              <div class="fw-bold text-dark" style="font-size: 0.95rem;">{{ c.leads_count }}</div>
               <div class="small text-muted" style="font-size: 0.7rem;">CPL: ₹{{ c.cpl|floatformat:1 }}</div>
             </td>
             <td class="text-center">
-              <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1 fw-bold">{{ c.booked_count }}</span>
+              <div class="fw-bold text-success" style="font-size: 0.95rem;">{{ c.booked_count }}</div>
             </td>
             <td>
               <strong class="text-danger">₹{{ c.cost|floatformat:2 }}</strong>
@@ -202,26 +256,25 @@
             </td>
             <td class="text-center">
               {% if c.roi >= 0 %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1"><i class="fa-solid fa-arrow-trend-up me-1"></i>{{ c.roi|floatformat:1 }}%</span>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-3 px-2.5 py-1 fw-semibold">{{ c.roi|floatformat:1 }}%</span>
               {% else %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-2 py-1"><i class="fa-solid fa-arrow-trend-down me-1"></i>{{ c.roi|floatformat:1 }}%</span>
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-3 px-2.5 py-1 fw-semibold">{{ c.roi|floatformat:1 }}%</span>
               {% endif %}
             </td>
             <td class="pe-4 text-center">
               {% if c.is_active %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1">Active</span>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-3 px-2.5 py-1 fw-semibold">Active</span>
               {% else %}
-                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary rounded-pill px-2 py-1">Ended</span>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle rounded-3 px-2.5 py-1 fw-semibold">Ended</span>
               {% endif %}
             </td>
           </tr>
           {% empty %}
           <tr>
             <td colspan="10" class="text-center py-5 text-muted">
-              <i class="fa-solid fa-bullhorn fa-3x opacity-50 mb-2"></i>
               <h6 class="fw-bold">No campaigns registered yet</h6>
               <p class="small mb-2">Add marketing campaigns to begin tracking lead costs, revenue generation, and ROI.</p>
-              <a href="{% url 'dashboard:nelson_module' 'campaign-management' %}" class="btn btn-sm btn-primary rounded-pill px-3">Add Campaign</a>
+              <a href="{% url 'dashboard:nelson_module' 'campaign-management' %}" class="btn btn-sm btn-primary rounded-3 px-3">Add Campaign</a>
             </td>
           </tr>
           {% endfor %}
@@ -235,10 +288,10 @@
 <div class="card fin-card border-0">
   <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
     <div>
-      <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-success me-2"></i>Patient Billing & Revenue History</h5>
+      <h5 class="mb-0 fw-bold text-dark">Patient Billing & Revenue History</h5>
       <small class="text-muted">Real-time breakdown of OPD, Pharmacy, and Total billing transactions attributed to leads and patients.</small>
     </div>
-    <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-2">
+    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-3 px-3 py-1.5 fw-semibold">
       Recent {{ financial_history|length }} Transactions
     </span>
   </div>
@@ -262,7 +315,7 @@
           {% for rec in financial_history %}
           <tr>
             <td class="ps-4 text-muted small">
-              <i class="fa-regular fa-clock me-1 text-primary"></i><strong>{{ rec.date|date:"d M Y" }}</strong>
+              <strong>{{ rec.date|date:"d M Y" }}</strong>
             </td>
             <td>
               <a href="{% url 'leads:lead_detail' rec.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">
@@ -271,7 +324,7 @@
               <div class="small text-muted" style="font-size: 0.72rem;">Mobile: {{ rec.lead.mobile }}</div>
             </td>
             <td>
-              <span class="badge bg-light text-dark border px-2 py-1">{{ rec.type }}</span>
+              <span class="badge bg-light text-dark border px-2.5 py-1 rounded-3">{{ rec.type }}</span>
             </td>
             <td>
               <div class="text-dark small fw-semibold">{{ rec.department }}</div>
@@ -287,18 +340,17 @@
               <strong class="text-success fs-6">₹{{ rec.total|floatformat:2 }}</strong>
             </td>
             <td>
-              <span class="badge bg-light-subtle text-dark border px-2 py-1">{{ rec.appointment_status }}</span>
+              <span class="badge bg-light-subtle text-dark border px-2.5 py-1 rounded-3">{{ rec.appointment_status }}</span>
             </td>
             <td class="pe-4 text-center">
-              <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2 py-1">
-                <i class="fa-solid fa-circle-check me-1"></i>{{ rec.status }}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-3 px-2.5 py-1 fw-semibold">
+                {{ rec.status }}
               </span>
             </td>
           </tr>
           {% empty %}
           <tr>
             <td colspan="9" class="text-center py-5 text-muted">
-              <i class="fa-solid fa-file-invoice-dollar fa-3x opacity-50 mb-2"></i>
               <h6 class="fw-bold">No billing transaction history found</h6>
               <p class="small mb-0">Bills recorded on patient lead forms (OPD, Pharmacy, Total) will appear in this ledger automatically.</p>
             </td>
@@ -309,4 +361,256 @@
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  // 1. Raw Data Injection
+  const campaignChartData = {{ campaign_chart_json|safe }};
+  const timelineData = {{ timeline_data_json|safe }};
+  const attendantChartData = {{ attendant_chart_json|safe }};
+  const doctorChartData = {{ doctor_chart_json|safe }};
+
+  // Helper formatter
+  const formatCurrency = (val) => '₹' + Number(val).toLocaleString('en-IN');
+
+  // Chart Global Defaults
+  Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+  Chart.defaults.color = "#64748b";
+
+  // ──────────────────────────────────────────────────────────
+  // 1. REVENUE VS CAMPAIGN VS COST (Bar Comparison)
+  // ──────────────────────────────────────────────────────────
+  const ctxCamp = document.getElementById('campaignRevCostChart').getContext('2d');
+  new Chart(ctxCamp, {
+    type: 'bar',
+    data: {
+      labels: campaignChartData.labels,
+      datasets: [
+        {
+          label: 'Revenue (₹)',
+          data: campaignChartData.revenues,
+          backgroundColor: 'rgba(16, 185, 129, 0.85)',
+          borderColor: '#10b981',
+          borderWidth: 1,
+          borderRadius: 6,
+          barPercentage: 0.6,
+        },
+        {
+          label: 'Campaign Cost (₹)',
+          data: campaignChartData.costs,
+          backgroundColor: 'rgba(239, 68, 68, 0.85)',
+          borderColor: '#ef4444',
+          borderWidth: 1,
+          borderRadius: 6,
+          barPercentage: 0.6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { boxWidth: 14, font: { weight: '600', size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { size: 11 },
+            callback: function(val, index) {
+              const label = this.getLabelForValue(val);
+              return label.length > 15 ? label.substr(0, 15) + '...' : label;
+            }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(226, 232, 240, 0.6)' },
+          ticks: {
+            callback: (val) => formatCurrency(val)
+          }
+        }
+      }
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // 2. TIMELINE: COST VS REVENUE (Line Chart with Campaign Filter)
+  // ──────────────────────────────────────────────────────────
+  const ctxTimeline = document.getElementById('timelineCostRevChart').getContext('2d');
+  let timelineChart = new Chart(ctxTimeline, {
+    type: 'line',
+    data: {
+      labels: timelineData.all_months,
+      datasets: [
+        {
+          label: 'Revenue (₹)',
+          data: timelineData.overall.revenue,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderWidth: 2.5,
+          tension: 0.35,
+          fill: true,
+          pointBackgroundColor: '#10b981',
+          pointRadius: 4,
+        },
+        {
+          label: 'Cost (₹)',
+          data: timelineData.overall.cost,
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          borderWidth: 2.5,
+          tension: 0.35,
+          fill: true,
+          pointBackgroundColor: '#ef4444',
+          pointRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { boxWidth: 14, font: { weight: '600', size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(226, 232, 240, 0.6)' },
+          ticks: { callback: (val) => formatCurrency(val) }
+        }
+      }
+    }
+  });
+
+  function updateTimelineChart() {
+    const selectedCamp = document.getElementById('timelineCampaignFilter').value;
+    if (selectedCamp === 'ALL') {
+      timelineChart.data.datasets[0].data = timelineData.overall.revenue;
+      timelineChart.data.datasets[1].data = timelineData.overall.cost;
+    } else {
+      const campData = timelineData.by_campaign[selectedCamp] || { revenue: [], cost: [] };
+      timelineChart.data.datasets[0].data = campData.revenue;
+      timelineChart.data.datasets[1].data = campData.cost;
+    }
+    timelineChart.update();
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // 3. LEAD ATTENDANT VS REVENUE (Horizontal Bar)
+  // ──────────────────────────────────────────────────────────
+  const ctxAtt = document.getElementById('attendantRevChart').getContext('2d');
+  new Chart(ctxAtt, {
+    type: 'bar',
+    data: {
+      labels: attendantChartData.labels,
+      datasets: [{
+        label: 'Revenue (₹)',
+        data: attendantChartData.revenues,
+        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+        borderColor: '#4f46e5',
+        borderWidth: 1,
+        borderRadius: 6,
+        barPercentage: 0.65,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `Revenue: ${formatCurrency(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: 'rgba(226, 232, 240, 0.6)' },
+          ticks: { callback: (val) => formatCurrency(val) }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { weight: '600', size: 11 } }
+        }
+      }
+    }
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // 4. DOCTOR VS REVENUE (Bar Chart)
+  // ──────────────────────────────────────────────────────────
+  const ctxDoc = document.getElementById('doctorRevChart').getContext('2d');
+  new Chart(ctxDoc, {
+    type: 'bar',
+    data: {
+      labels: doctorChartData.labels,
+      datasets: [{
+        label: 'Revenue (₹)',
+        data: doctorChartData.revenues,
+        backgroundColor: [
+          'rgba(14, 165, 233, 0.85)',
+          'rgba(99, 102, 241, 0.85)',
+          'rgba(245, 158, 11, 0.85)',
+          'rgba(16, 185, 129, 0.85)',
+          'rgba(236, 72, 153, 0.85)',
+          'rgba(168, 85, 247, 0.85)',
+          'rgba(100, 116, 139, 0.85)',
+          'rgba(20, 184, 166, 0.85)'
+        ],
+        borderRadius: 6,
+        barPercentage: 0.65,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `Revenue: ${formatCurrency(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { size: 11 },
+            callback: function(val, index) {
+              const label = this.getLabelForValue(val);
+              return label.length > 14 ? label.substr(0, 14) + '...' : label;
+            }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(226, 232, 240, 0.6)' },
+          ticks: { callback: (val) => formatCurrency(val) }
+        }
+      }
+    }
+  });
+</script>
 {% endblock %}
