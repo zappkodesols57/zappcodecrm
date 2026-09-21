@@ -1790,6 +1790,10 @@ def update_followup_status(request, pk, fu_id):
     
     fu = get_object_or_404(FollowUp, id=fu_id, lead=lead)
     if request.method == "POST":
+        if fu.followup_status == FollowUpStatus.DONE:
+            messages.warning(request, "This follow-up is already marked as Done and cannot be updated.")
+            return redirect("leads:lead_detail", pk=pk)
+
         new_status = request.POST.get("followup_status")
         update_note = request.POST.get("update_note", "").strip()
         next_date_str = request.POST.get("next_followup_date", "").strip()
@@ -1799,29 +1803,39 @@ def update_followup_status(request, pk, fu_id):
             old_status_display = fu.get_followup_status_display()
             fu.followup_status = new_status
             if update_note:
-                fu.comment = f"{fu.comment}\n[Update by {request.user.get_full_name() or request.user.username}]: {update_note}".strip()
+                existing_comment = (fu.comment or "").strip()
+                author_name = request.user.get_full_name() or request.user.username
+                note_entry = f"[Update by {author_name}]: {update_note}"
+                fu.comment = f"{existing_comment}\n{note_entry}".strip() if existing_comment else note_entry
             
-            if next_date_str:
-                try:
-                    fu.next_followup_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
-                except ValueError:
-                    pass
-            if next_time_str:
-                try:
-                    fu.next_followup_time = datetime.strptime(next_time_str, "%H:%M").time()
-                except ValueError:
-                    pass
+            if new_status == FollowUpStatus.DONE:
+                fu.next_followup_date = None
+                fu.next_followup_time = None
+            else:
+                if next_date_str:
+                    try:
+                        fu.next_followup_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                    except (ValueError, TypeError):
+                        pass
+                if next_time_str:
+                    try:
+                        fu.next_followup_time = datetime.strptime(next_time_str, "%H:%M").time()
+                    except (ValueError, TypeError):
+                        pass
 
             fu.save()
             
             # Log Activity so timeline shows the status update
+            status_display = "Follow-up Done" if new_status == FollowUpStatus.DONE else fu.get_followup_status_display()
             Activity.objects.create(
                 lead=lead,
                 activity_type=ActivityType.FOLLOWUP,
-                description=f"Follow-up status updated from {old_status_display} to {fu.get_followup_status_display()}" + (f" - Note: {update_note}" if update_note else ""),
+                description=f"Follow-up status updated from {old_status_display} to {status_display}" + (f" - Note: {update_note}" if update_note else ""),
                 created_by=request.user,
             )
-            messages.success(request, f"Follow-up status updated to {fu.get_followup_status_display()}.")
+            messages.success(request, f"Follow-up status updated to {status_display}.")
+        else:
+            messages.warning(request, "Please select a valid follow-up status.")
     return redirect("leads:lead_detail", pk=pk)
 
 
@@ -1922,20 +1936,38 @@ def convert_admission(request, pk):
 
 @login_required
 def lead_self_assign(request, pk):
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or request.headers.get("accept") == "application/json"
+        or "application/json" in request.headers.get("accept", "")
+    )
+
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
+        if is_ajax:
+            return JsonResponse({"status": "error", "message": "Lead not found."}, status=404)
         return redirect("leads:lead_list")
     
     if not getattr(request.user, "can_self_assign", True):
-        messages.error(request, "You do not have permission to self-assign leads. Please contact your administrator.")
+        err_msg = "You do not have permission to self-assign leads. Please contact your administrator."
+        if is_ajax:
+            return JsonResponse({"status": "error", "message": err_msg}, status=403)
+        messages.error(request, err_msg)
         return redirect("leads:lead_detail", pk=pk)
 
     # Allow user to capture / self-assign if lead is unassigned or if user has access
     if lead.assigned_to and lead.assigned_to != request.user and not request.user.can_assign_leads:
-        messages.warning(request, f"Lead is already assigned to {lead.assigned_to.get_full_name() or lead.assigned_to.username}.")
+        warn_msg = f"Lead is already assigned to {lead.assigned_to.get_full_name() or lead.assigned_to.username}."
+        if is_ajax:
+            return JsonResponse({"status": "warning", "message": warn_msg}, status=400)
+        messages.warning(request, warn_msg)
         return redirect("leads:lead_detail", pk=pk)
 
+    user_full_name = request.user.get_full_name() or request.user.username
     lead.assigned_to = request.user
+    if isinstance(lead.custom_data, dict):
+        lead.custom_data['lead_attendant'] = user_full_name
+
     if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
         assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
         if assigned_stage:
@@ -1946,9 +1978,20 @@ def lead_self_assign(request, pk):
         lead=lead,
         created_by=request.user,
         activity_type="ASSIGNMENT",
-        description=f"Lead captured / self-assigned by {request.user.get_full_name() or request.user.username}.",
+        description=f"Lead captured / self-assigned by {user_full_name}.",
     )
-    messages.success(request, f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you!")
+    success_msg = f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you!"
+
+    if is_ajax:
+        return JsonResponse({
+            "status": "success",
+            "message": success_msg,
+            "lead_id": lead.pk,
+            "assigned_to": user_full_name,
+            "assigned_to_id": request.user.pk
+        })
+
+    messages.success(request, success_msg)
     
     next_url = request.GET.get("next") or request.POST.get("next")
     if next_url:
@@ -2682,10 +2725,18 @@ def _ensure_business_core_fields(h):
     if is_academy:
         cf_course = LeadCustomField.objects.filter(hospital=h, name="course").first()
         if cf_course:
-            course_names = list(Course.objects.filter(is_active=True).values_list("name", flat=True)[:15])
+            course_names = list(Course.objects.filter(is_active=True, hospital=h).values_list("name", flat=True)[:15]) or list(Course.objects.filter(is_active=True).values_list("name", flat=True)[:15])
             if course_names:
                 cf_course.options = ", ".join(course_names)
                 cf_course.save(update_fields=["options"])
+
+        cf_camp = LeadCustomField.objects.filter(hospital=h, name="campaign").first()
+        if cf_camp:
+            academy_camps = list(Campaign.objects.filter(hospital=h, is_active=True).values_list("name", flat=True))
+            if academy_camps:
+                cf_camp.options = ", ".join(academy_camps)
+                cf_camp.save(update_fields=["options"])
+
     elif is_nelson:
         cf_disease = LeadCustomField.objects.filter(hospital=h, name="disease").first()
         if cf_disease:
@@ -2700,6 +2751,13 @@ def _ensure_business_core_fields(h):
             if branch_names:
                 cf_branch.options = ", ".join(branch_names)
                 cf_branch.save(update_fields=["options"])
+
+        cf_camp = LeadCustomField.objects.filter(hospital=h, name="campaign").first()
+        if cf_camp:
+            hosp_camps = list(Campaign.objects.filter(hospital=h, is_active=True).values_list("name", flat=True))
+            if hosp_camps:
+                cf_camp.options = ", ".join(hosp_camps)
+                cf_camp.save(update_fields=["options"])
 
 
 @login_required

@@ -1268,6 +1268,26 @@
 
     el.disabled = !!isDisabled;
 
+    // Helper for fuzzy match (e.g. 'rahul' vs 'Dr. rahul')
+    function findMatchingOpt(val, list) {
+      if (!val) return null;
+      const cleanVal = val.toLowerCase().replace(/^(dr\.?|doctor)\s+/i, '').trim();
+      return list.find(o => {
+        const oVal = (o.value || '').toLowerCase().replace(/^(dr\.?|doctor)\s+/i, '').trim();
+        const oTxt = (o.text || '').toLowerCase().replace(/^(dr\.?|doctor)\s+/i, '').trim();
+        return oVal === cleanVal || oTxt === cleanVal || o.value.toLowerCase() === val.toLowerCase();
+      });
+    }
+
+    // If preselectedVal is not in optionsList, append it so it never resets
+    if (preselectedVal && !isDisabled) {
+      const match = findMatchingOpt(preselectedVal, optionsList);
+      if (!match) {
+        const dispName = preselectedVal.toLowerCase().startsWith('dr') ? preselectedVal : `Dr. ${preselectedVal}`;
+        optionsList.unshift({ value: preselectedVal, text: dispName });
+      }
+    }
+
     // 1. If TomSelect instance exists on element
     if (el.tomselect) {
       const ts = el.tomselect;
@@ -1292,8 +1312,9 @@
         ts.addOption({ value: opt.value, text: opt.text });
       });
 
-      if (!isDisabled && preselectedVal && optionsList.some(o => o.value.toLowerCase() === preselectedVal.toLowerCase())) {
-        ts.setValue(preselectedVal, true);
+      const matched = findMatchingOpt(preselectedVal, optionsList);
+      if (!isDisabled && matched) {
+        ts.setValue(matched.value, true);
       } else {
         ts.setValue('', true);
       }
@@ -1304,12 +1325,19 @@
     // 2. Fallback plain standard <select>
     let html = `<option value="">${placeholderText || '-- Select --'}</option>`;
     if (!isDisabled) {
+      const matched = findMatchingOpt(preselectedVal, optionsList);
       optionsList.forEach(opt => {
-        const isSel = (preselectedVal && opt.value.toLowerCase() === preselectedVal.toLowerCase()) ? 'selected' : '';
+        const isSel = (matched && opt.value === matched.value) ? 'selected' : '';
         html += `<option value="${opt.value}" ${isSel}>${opt.text}</option>`;
       });
     }
     el.innerHTML = html;
+    if (!isDisabled && preselectedVal) {
+      const matched = findMatchingOpt(preselectedVal, optionsList);
+      if (matched) {
+        el.value = matched.value;
+      }
+    }
   }
 
   const bSelect = findField(['dyn_hospital_branch', 'hospital_branch', 'dyn_branch', 'branch']);
@@ -1350,8 +1378,10 @@
         } else {
           setSelectOptions(dSelect, [], '-- No Departments in this Branch --', '', true);
         }
-        // Trigger department change to refresh doctors & diseases
-        onDepartmentChanged(initialSavedDoc, initialSavedDisease);
+        // Current doc/disease values to preserve
+        const currentDoc = (docSelect && docSelect.tomselect ? docSelect.tomselect.getValue() : (docSelect ? docSelect.value : '')) || initialSavedDoc;
+        const currentDisease = (disSelect && disSelect.tomselect ? disSelect.tomselect.getValue() : (disSelect ? disSelect.value : '')) || initialSavedDisease;
+        onDepartmentChanged(currentDoc, currentDisease);
       })
       .catch(e => console.error('Error fetching branch data:', e));
   }
@@ -1387,9 +1417,9 @@
             fetchDoctorSlots();
           }
         } else {
-          setSelectOptions(docSelect, [], '-- No Doctors in this Department --', '', true);
+          setSelectOptions(docSelect, [], '-- No Doctors in this Department --', docToRestore, false);
           if (bookingDoctorSelect) {
-            setSelectOptions(bookingDoctorSelect, [], '-- No Doctors in this Department --', '', true);
+            setSelectOptions(bookingDoctorSelect, [], '-- No Doctors in this Department --', docToRestore, false);
           }
         }
 

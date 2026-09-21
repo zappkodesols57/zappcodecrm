@@ -69,6 +69,7 @@ Thumbs.db
 *.csv
 
 # Temporary scripts
+fix_gyn_leads.py
 check_nginx.py
 deploy_main.py
 deploy_remote.py

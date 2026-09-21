@@ -2494,10 +2494,13 @@
         // 2. Filter lead items by selected campaign
         if (selectedCampaignFilter) {
             const targetCamp = selectedCampaignFilter.toLowerCase().trim();
+            const directKeywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', ''];
             filtered = filtered.filter(l => {
                 const leadCamp = (l.campaign || '').toLowerCase().trim();
-                if (targetCamp === 'nan' || targetCamp === 'general / direct') {
-                    return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
+                const isTargetDirect = directKeywords.includes(targetCamp);
+                const isLeadDirect = directKeywords.includes(leadCamp);
+                if (isTargetDirect) {
+                    return isLeadDirect;
                 }
                 return leadCamp === targetCamp;
             });

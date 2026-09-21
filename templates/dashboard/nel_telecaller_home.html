@@ -623,9 +623,15 @@
                         </h5>
                         <small class="text-muted">Assigned by Management or Self</small>
                     </div>
-                    <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
-                        <i class="ph-bold ph-plus text-primary"></i>
-                    </a>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" title="View All Tasks">
+                            <span>View All</span>
+                            <i class="ph ph-arrow-right"></i>
+                        </a>
+                        <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
+                            <i class="ph-bold ph-plus text-primary"></i>
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body p-4 flex-grow-1" style="max-height: 380px; overflow-y: auto;">
                     {% if todays_tasks %}
@@ -1750,10 +1756,13 @@
         // 2. Filter lead items by selected campaign
         if (selectedCampaignFilter) {
             const targetCamp = selectedCampaignFilter.toLowerCase().trim();
+            const directKeywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', ''];
             filtered = filtered.filter(l => {
                 const leadCamp = (l.campaign || '').toLowerCase().trim();
-                if (targetCamp === 'nan' || targetCamp === 'general / direct') {
-                    return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
+                const isTargetDirect = directKeywords.includes(targetCamp);
+                const isLeadDirect = directKeywords.includes(leadCamp);
+                if (isTargetDirect) {
+                    return isLeadDirect;
                 }
                 return leadCamp === targetCamp;
             });
@@ -1824,6 +1833,10 @@
     }
 
     function renderDrilldownTable(leads) {
+        const tbody = document.getElementById('drilldownTableBody');
+        const emptyEl = document.getElementById('drilldownEmptyState');
+        if (tbody) tbody.innerHTML = '';
+
         const thead = document.querySelector('#drilldownLeadsTable thead tr');
         if (thead) {
             const showCheckbox = (currentDrilldownCard !== 'telecaller_opd_booked');
@@ -1845,11 +1858,11 @@
         }
 
         if (!leads || leads.length === 0) {
-            emptyEl.style.display = 'block';
+            if (emptyEl) emptyEl.style.display = 'block';
             return;
         }
 
-        emptyEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'none';
 
         leads.forEach(lead => {
             const tr = document.createElement('tr');
@@ -1976,6 +1989,11 @@
                     <div class="text-muted small text-wrap text-start" style="font-size: 0.72rem; min-width: 250px; max-width: 350px;">${commentsHtml}</div>
                 </td>
                 <td class="px-3 text-nowrap position-sticky end-0 bg-white" style="z-index: 2; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
+                    ${(!lead.assigned_to_id || lead.assigned_to === 'Unassigned' || !lead.assigned_to) ? `
+                        <button type="button" class="btn btn-xs btn-primary rounded-pill px-2 py-1 me-1 shadow-xs fw-bold" style="font-size: 0.75rem;" onclick="captureDrilldownLead(${lead.id})" title="Capture & Assign to Me">
+                            <i class="ph-bold ph-hand-palm me-1"></i> Capture
+                        </button>
+                    ` : ''}
                     ${directCallBtn}
                     ${whatsappBtn}
                     <a href="${lead.detail_url}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Profile">
@@ -1990,26 +2008,46 @@
         });
     }
 
+    function captureDrilldownLead(leadId) {
+        const leadObj = (cachedLeadItems || []).find(l => l.id === leadId);
+        const patientName = leadObj ? leadObj.name : 'this patient';
+
+        showInWindowConfirm({
+            title: "Capture Patient Lead",
+            message: `Do you want to capture and assign <strong>${patientName}</strong> to yourself?`,
+            detailsHtml: `<div class="text-primary"><i class="fa-solid fa-circle-info me-1"></i>This patient will be assigned directly to your queue.</div>`,
+            confirmText: "Capture Now",
+            confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
+            icon: "ph-bold ph-hand-palm fa-lg",
+            onConfirm: function() {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+                fetch(`/leads/${leadId}/self-assign/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showInWindowAlert("Lead Captured", data.message || "Patient successfully captured and assigned to you!", "info");
+                        // Refresh drilldown modal data to reflect new assignment
+                        fetchDrilldownData();
+                    } else {
+                        showInWindowAlert("Capture Failed", data.message || "Could not capture this lead.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Capture lead error:", err);
+                    showInWindowAlert("Network Error", "An error occurred while communicating with the server.", "error");
+                });
+            }
+        });
+    }
+
     function filterDrilldownTable() {
-        const query = document.getElementById('drilldownSearchInput').value.toLowerCase().trim();
-        let filtered = cachedLeadItems;
-
-        if (selectedCampaignFilter) {
-            filtered = filtered.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
-        }
-
-        if (query) {
-            filtered = filtered.filter(l =>
-                l.name.toLowerCase().includes(query) ||
-                l.mobile.toLowerCase().includes(query) ||
-                l.doctor.toLowerCase().includes(query) ||
-                l.department.toLowerCase().includes(query) ||
-                l.campaign.toLowerCase().includes(query) ||
-                l.lead_source.toLowerCase().includes(query)
-            );
-        }
-        document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
-        renderDrilldownTable(filtered);
+        applyAllDrilldownFilters();
     }
 </script>
 {% endblock %}

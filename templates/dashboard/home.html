@@ -864,6 +864,9 @@
         currentCalYear = new Date().getFullYear();
         currentCalMonth = new Date().getMonth() + 1;
 
+        // Reset campaign filter when a NEW card is opened (fresh start)
+        selectedCampaignFilter = null;
+
         const iconConfig = cardIconMap[cardType] || { icon: 'fa-table-cells-large', colorClass: 'bg-primary' };
         const badgeEl = document.getElementById('drilldownCardBadgeIcon');
         if (badgeEl) {
@@ -1148,7 +1151,8 @@
         loadingEl.style.display = 'block';
         emptyEl.style.display = 'none';
         tbody.innerHTML = '';
-        selectedCampaignFilter = null;
+        // NOTE: Do NOT reset selectedCampaignFilter here — the campaign pill filter
+        // should persist when the user changes date so leads stay filtered by campaign.
         selectedDrilldownLeadIds.clear();
         updateBulkActionBar();
 
@@ -1200,7 +1204,10 @@
 
                     renderCampaignPills(data.campaign_breakdown || [], data.total_count);
                     renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
-                    renderDrilldownTable(cachedLeadItems, cachedBusinessMode);
+
+                    // Apply active campaign/search filter on the freshly fetched data
+                    // instead of always showing all leads after a date change.
+                    filterDrilldownTable();
                 }
             })
             .catch(err => {

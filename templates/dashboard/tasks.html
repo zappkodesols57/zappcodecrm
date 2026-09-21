@@ -2,6 +2,27 @@
 {% block title %}Tasks & Reminders{% endblock %}
 {% block content %}
 
+<style>
+  /* Fix custom compact select dropdowns clipping text in table & pagination */
+  .task-status-select {
+    width: 135px !important;
+    min-height: 32px !important;
+    line-height: 1.4 !important;
+    font-size: 0.8rem !important;
+    padding: 0.25rem 1.75rem 0.25rem 0.65rem !important;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+  .task-pagesize-select {
+    width: 75px !important;
+    min-height: 30px !important;
+    line-height: 1.4 !important;
+    font-size: 0.8rem !important;
+    padding: 0.2rem 1.5rem 0.2rem 0.5rem !important;
+    vertical-align: middle;
+  }
+</style>
+
 <!-- Header & Quick Actions -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
@@ -174,7 +195,7 @@
                         <td>
                             <form method="POST" action="{% url 'dashboard:task_update_status' task.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <select name="status" class="form-select form-select-sm no-tom-select border rounded-1 py-1 px-2 fw-medium {% if task.status == 'COMPLETED' %}bg-success-subtle text-success border-success-subtle{% elif task.status == 'IN_PROGRESS' %}bg-info-subtle text-primary border-info-subtle{% elif task.status == 'CANCELLED' %}bg-light text-muted border{% else %}bg-light text-dark border{% endif %}" onchange="this.form.submit()" style="width: 115px; font-size: 0.75rem; height: 28px;">
+                                <select name="status" class="form-select form-select-sm task-status-select no-tom-select border rounded-2 fw-medium {% if task.status == 'COMPLETED' %}bg-success-subtle text-success border-success-subtle{% elif task.status == 'IN_PROGRESS' %}bg-info-subtle text-primary border-info-subtle{% elif task.status == 'CANCELLED' %}bg-light text-muted border{% else %}bg-light text-dark border{% endif %}" onchange="this.form.submit()">
                                     <option value="PENDING" {% if task.status == 'PENDING' %}selected{% endif %}>Pending</option>
                                     <option value="IN_PROGRESS" {% if task.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
                                     <option value="COMPLETED" {% if task.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
@@ -215,7 +236,7 @@
         <!-- Page Size Selector -->
         <div class="d-flex align-items-center gap-1">
             <span class="text-muted small" style="font-size: 0.75rem;">Show:</span>
-            <select class="form-select form-select-sm no-tom-select py-0 px-2 border rounded-1" style="width: 75px; height: 26px; font-size: 0.75rem;" onchange="location.href='?{{ query_params }}&page=1&page_size=' + this.value;">
+            <select class="form-select form-select-sm task-pagesize-select no-tom-select border rounded-1" onchange="location.href='?{{ query_params }}&page=1&page_size=' + this.value;">
                 <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
                 <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
                 <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>

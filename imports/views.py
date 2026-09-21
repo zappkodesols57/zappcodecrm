@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-
+import re
 import pandas as pd
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -208,20 +208,26 @@ def upload(request):
     is_hospital = bool(user.hospital or (user.is_hospital_user and not is_super_admin_no_hospital))
 
     # Available campaigns & courses with current leads count
-    from django.db.models import Count
+    from django.db.models import Count, Q
+    all_hospitals = []
+    if is_super_admin_no_hospital:
+        all_hospitals = Hospital.objects.filter(is_active=True).annotate(
+            leads_count=Count("leads", filter=Q(leads__is_archived=False))
+        ).order_by("name")
+
     if user.hospital:
         campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
+    elif is_super_admin_no_hospital and all_hospitals.exists():
+        first_h = all_hospitals.first()
+        campaigns = HospitalCampaign.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital=first_h, is_archived=False).count()
     else:
         campaigns = HospitalCampaign.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        # Global Super Admin: count all leads not scoped to any specific business
         current_leads_count = Lead.objects.filter(is_archived=False).count()
-
-    all_hospitals = []
-    if is_super_admin_no_hospital:
-        all_hospitals = Hospital.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("name")
 
     today = timezone.localdate()
     date_preset = request.GET.get('date_preset', 'today')
@@ -313,13 +319,23 @@ def upload(request):
 
     # Only show files that actually created/imported leads (> 0) in this period
     recent_jobs = period_jobs_qs.filter(imported_count__gt=0).order_by('-created_at')[:15]
-    hospital_name = user.hospital.name if (user.hospital and is_hospital) else "Zappcode Academy"
+    if user.hospital:
+        hospital_name = user.hospital.name
+    elif is_super_admin_no_hospital and all_hospitals.exists():
+        hospital_name = all_hospitals.first().name
+    else:
+        hospital_name = "Zappcode Academy"
+
+    can_manage_master_data = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN))
+    can_delete_master_data = bool(user.is_superuser or user.role == User.Role.SUPER_ADMIN or (user.role == User.Role.ADMIN and user.can_delete_master_data))
 
     context = {
         "active": "import",
         "is_hospital": is_hospital,
         "is_super_admin_no_hospital": is_super_admin_no_hospital,
         "can_import_previous": can_import_previous,
+        "can_manage_master_data": can_manage_master_data,
+        "can_delete_master_data": can_delete_master_data,
         "available_campaigns": campaigns,
         "available_courses": courses,
         "campaigns_data": campaigns_data,
@@ -432,6 +448,74 @@ def ajax_create_campaign(request):
             "platform": campaign.platform,
             "hospital_id": campaign.hospital_id,
         }
+    })
+
+
+@login_required
+@user_passes_test(_can_user_access_import)
+def ajax_business_data(request):
+    """
+    Returns campaigns, courses, business type, and lead count for a given hospital/business ID.
+    Used for seamless dynamic switching on the import page by Super Admin.
+    """
+    hospital_id = request.GET.get("hospital_id", "").strip()
+    hospital = None
+    if hospital_id:
+        hospital = Hospital.objects.filter(pk=hospital_id).first()
+    elif request.user.hospital:
+        hospital = request.user.hospital
+
+    is_hospital = True
+    if hospital:
+        btype = (hospital.settings or {}).get("business_type")
+        if btype:
+            is_hospital = (str(btype).strip().lower() == "hospital")
+        else:
+            name_lower = (hospital.name or "").lower()
+            is_hospital = not ("academy" in name_lower or "zappcode" in name_lower)
+    elif not request.user.hospital:
+        # Default global super admin without selected business
+        is_hospital = False
+
+    from django.db.models import Count
+    if hospital:
+        campaigns = list(
+            HospitalCampaign.objects.filter(hospital=hospital, is_active=True)
+            .annotate(leads_count=Count("leads"))
+            .order_by("-id")
+            .values("id", "name", "platform", "leads_count")
+        )
+        courses = list(
+            Course.objects.filter(hospital=hospital, is_active=True)
+            .annotate(leads_count=Count("leads"))
+            .order_by("-id")
+            .values("id", "name", "leads_count")
+        )
+        total_leads = Lead.objects.filter(hospital=hospital, is_archived=False).count()
+        business_name = hospital.name
+    else:
+        campaigns = list(
+            HospitalCampaign.objects.filter(is_active=True)
+            .annotate(leads_count=Count("leads"))
+            .order_by("-id")
+            .values("id", "name", "platform", "leads_count")
+        )
+        courses = list(
+            Course.objects.filter(is_active=True)
+            .annotate(leads_count=Count("leads"))
+            .order_by("-id")
+            .values("id", "name", "leads_count")
+        )
+        total_leads = Lead.objects.filter(is_archived=False).count()
+        business_name = "All Businesses"
+
+    return JsonResponse({
+        "success": True,
+        "is_hospital": is_hospital,
+        "business_name": business_name,
+        "total_leads": total_leads,
+        "campaigns": campaigns,
+        "courses": courses,
     })
 
 
@@ -582,8 +666,49 @@ def campaign_import_execute(request):
 def _execute_campaign_leads_import(request, rows, campaign, target_hospital, original_filename, default_strategy=None):
     """Core function to create/update Lead records with transaction safety and update Campaign start/end dates."""
     from leads.models import MasterGroup, MasterItem, LeadCustomField
+    from followups.models import FollowUp, FollowUpStatus, FollowUpMode
     default_cat, _ = SourceCategory.objects.get_or_create(name="Digital Marketing", defaults={"order": 1})
     stage_new = LeadStage.objects.filter(name__iexact="New").first() or LeadStage.objects.first()
+
+    # Pre-cache stages for status mapping
+    stage_cache = {s.name.strip().lower(): s for s in LeadStage.objects.all()}
+
+    # Pre-cache users for instant attendant matching
+    user_cache = {}
+    user_hospital = target_hospital or request.user.hospital
+    all_active_users = list(User.objects.filter(is_active=True).select_related('hospital'))
+    for u in all_active_users:
+        u_key_list = []
+        if u.username:
+            u_key_list.append(u.username.strip().lower())
+        fname = (u.get_full_name() or "").strip().lower()
+        if fname:
+            u_key_list.append(fname)
+        if u.first_name:
+            u_key_list.append(u.first_name.strip().lower())
+        
+        for k in u_key_list:
+            if user_hospital:
+                if u.hospital_id == user_hospital.id:
+                    user_cache[k] = u
+                elif k not in user_cache:
+                    user_cache[k] = u
+            else:
+                if k not in user_cache:
+                    user_cache[k] = u
+
+    def fast_resolve_user(raw_val):
+        if not raw_val:
+            return None
+        s = str(raw_val).strip().lower()
+        if s in ("", "-", "nan", "nat", "none", "null"):
+            return None
+        if s in user_cache:
+            return user_cache[s]
+        for k, u in user_cache.items():
+            if k in s or s in k:
+                return u
+        return None
 
     job = ImportJob.objects.create(
         original_filename=original_filename,
@@ -598,6 +723,7 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
 
     source_cache = {}
     extracted_dates = []
+    followups_to_create = []
 
     with transaction.atomic():
         for r in rows:
@@ -613,6 +739,32 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
             custom_data = r.get("custom_data", {})
             raw_meta = r.get("raw_metadata", {})
             external_id = r.get("external_lead_id", "")
+
+            # Resolve Assigned Attendant
+            attendant_raw = r.get("attendant_raw", "")
+            assigned_user = fast_resolve_user(attendant_raw)
+
+            # Resolve Stage & Deal Status
+            final_status_raw = str(r.get("final_status_raw") or "").strip().lower()
+            lead_stage = stage_new
+            lead_deal_status = "OPEN"
+
+            if "lost" in final_status_raw:
+                lead_deal_status = "LOST"
+                if "lost" in stage_cache:
+                    lead_stage = stage_cache["lost"]
+            elif "hold" in final_status_raw:
+                lead_deal_status = "HOLD"
+                if "hold" in stage_cache:
+                    lead_stage = stage_cache["hold"]
+            elif "won" in final_status_raw or "admission" in final_status_raw:
+                lead_deal_status = "WON"
+                if "complete" in stage_cache:
+                    lead_stage = stage_cache["complete"]
+                elif "admission" in stage_cache:
+                    lead_stage = stage_cache["admission"]
+            elif final_status_raw in stage_cache:
+                lead_stage = stage_cache[final_status_raw]
 
             # If duplicate and user chose to discard
             if r.get("is_duplicate") and action == "discard":
@@ -653,6 +805,8 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                         existing.city = r.get("city")
                     if course_obj and not existing.course:
                         existing.course = course_obj
+                    if assigned_user:
+                        existing.assigned_to = assigned_user
                     if campaign:
                         existing.campaign = campaign
                     if notes:
@@ -662,37 +816,67 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                     existing.import_job = job
                     existing.save()
                     updated_count += 1
-                    continue
+                    lead_record = existing
+            else:
+                # Create New Lead
+                lead_code = generate_lead_code(hospital=target_hospital)
+                
+                new_lead = Lead.objects.create(
+                    lead_code=lead_code,
+                    name=name,
+                    mobile=mobile,
+                    email=email,
+                    city=r.get("city", ""),
+                    location=r.get("city", ""),
+                    course=course_obj,
+                    hospital=target_hospital,
+                    campaign=campaign,
+                    assigned_to=assigned_user,
+                    source_category=default_cat,
+                    lead_source=lead_source_obj,
+                    stage=lead_stage,
+                    temperature="HOT",
+                    deal_status=lead_deal_status,
+                    admission_status="NOT_APPLIED",
+                    inquiry_date=inquiry_date,
+                    notes=notes,
+                    custom_data=custom_data,
+                    raw_source_metadata=raw_meta,
+                    external_lead_id=external_id,
+                    import_source_file=original_filename,
+                    import_job=job,
+                    created_by=request.user,
+                )
+                imported_count += 1
+                lead_record = new_lead
 
-            # Create New Lead
-            lead_code = generate_lead_code(hospital=target_hospital)
-            
-            new_lead = Lead.objects.create(
-                lead_code=lead_code,
-                name=name,
-                mobile=mobile,
-                email=email,
-                city=r.get("city", ""),
-                location=r.get("city", ""),
-                course=course_obj,
-                hospital=target_hospital,
-                campaign=campaign,
-                source_category=default_cat,
-                lead_source=lead_source_obj,
-                stage=stage_new,
-                temperature="HOT",
-                deal_status="OPEN",
-                admission_status="NOT_APPLIED",
-                inquiry_date=inquiry_date,
-                notes=notes,
-                custom_data=custom_data,
-                raw_source_metadata=raw_meta,
-                external_lead_id=external_id,
-                import_source_file=original_filename,
-                import_job=job,
-                created_by=request.user,
-            )
-            imported_count += 1
+            # Queue follow-ups if present in row
+            fu1_d = r.get("fu1_date")
+            fu1_rem = r.get("fu1_remark")
+            fu2_d = r.get("fu2_date")
+            fu2_rem = r.get("fu2_remark")
+
+            fu_items = [
+                (fu1_d, fu1_rem),
+                (fu2_d, fu2_rem),
+            ]
+            for f_date_str, f_rem in fu_items:
+                if f_date_str or f_rem:
+                    parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else inquiry_date
+                    st_choice = FollowUpStatus.COMPLETED if parsed_fu_date <= timezone.localdate() else FollowUpStatus.PENDING
+                    followups_to_create.append(FollowUp(
+                        lead=lead_record,
+                        followup_date=parsed_fu_date,
+                        followup_mode=FollowUpMode.CALL,
+                        followup_status=st_choice,
+                        comment=f_rem or "Follow-up logged via leads import",
+                        created_by=request.user,
+                        imported_from_excel=True,
+                    ))
+
+        # Bulk insert follow-ups
+        if followups_to_create:
+            FollowUp.objects.bulk_create(followups_to_create, batch_size=500)
 
         # Automatically update Campaign start_date (earliest date) and end_date (latest date)
         if campaign and extracted_dates:
@@ -1015,14 +1199,18 @@ def run_import(request, pk):
                     cf_loc.save(update_fields=["options"])
 
         custom_data_payload = {}
-        if parsed["doctor"]:
-            custom_data_payload["doctor"] = parsed["doctor"]
-        if parsed["department"]:
-            custom_data_payload["department"] = parsed["department"]
-        if parsed["age"]:
-            custom_data_payload["age"] = parsed["age"]
-        if parsed["gender"]:
-            custom_data_payload["gender"] = parsed["gender"]
+        if parsed.get("doctor") and str(parsed["doctor"]).strip().lower() not in ("nan", "none", "null", "-", "nat"):
+            custom_data_payload["doctor"] = str(parsed["doctor"]).strip()
+        if parsed.get("department") and str(parsed["department"]).strip().lower() not in ("nan", "none", "null", "-", "nat"):
+            custom_data_payload["department"] = str(parsed["department"]).strip()
+        if parsed.get("age") is not None and pd.notna(parsed["age"]):
+            c_age = str(parsed["age"]).strip()
+            if c_age.lower() not in ("nan", "none", "null", "-", "nat", ""):
+                if c_age.endswith(".0"):
+                    c_age = c_age[:-2]
+                custom_data_payload["age"] = c_age
+        if parsed.get("gender") and str(parsed["gender"]).strip().lower() not in ("nan", "none", "null", "-", "nat"):
+            custom_data_payload["gender"] = str(parsed["gender"]).strip()
 
         if existing and on_duplicate == "update":
             existing.city = parsed["city"] or existing.city
@@ -1034,6 +1222,8 @@ def run_import(request, pk):
             if parsed["notes"]:
                 existing.notes = (existing.notes + "\n" + parsed["notes"]).strip()
             if custom_data_payload:
+                if not isinstance(existing.custom_data, dict):
+                    existing.custom_data = {}
                 existing.custom_data.update(custom_data_payload)
             existing.import_job = job
             existing.import_source_file = job.original_filename
@@ -1586,6 +1776,12 @@ def quick_import(request):
         elif request.user.hospital and "zappcode" not in (request.user.hospital.name or "").lower():
             user_hospital = request.user.hospital
 
+        # Optional manual campaign association for historical data
+        selected_campaign_id = request.POST.get("campaign_id")
+        selected_campaign = None
+        if selected_campaign_id:
+            selected_campaign = HospitalCampaign.objects.filter(pk=selected_campaign_id).first()
+
         # Dynamic Column Matcher
         def find_matching_col(aliases):
             for col in cols:
@@ -1595,27 +1791,83 @@ def quick_import(request):
                         return col
             return None
 
-        col_name = find_matching_col(["your_name", "your name", "patient name", "full name", "lead name", "customer name", "client name", "user name", "name", "first name", "naam"])
-        col_mobile = find_matching_col(["phone_number", "phone number", "mobile number", "mobile", "phone", "contact number", "contact", "call number", "whatsapp number", "whatsapp", "cell"])
-        col_email = find_matching_col(["email address", "e-mail", "email", "mail"])
-        col_city = find_matching_col(["city", "location", "address", "area", "town", "district"])
-        col_course = find_matching_col(["course / service", "course", "service", "program", "stream", "specialization"])
-        col_gender = find_matching_col(["gender", "sex", "m/f"])
-        col_age = find_matching_col(["age", "years", "yrs"])
-        col_doctor = find_matching_col(["doctor", "dr name", "consultant", "physician", "surgeon"])
+        # Nelson Master File & General Lead Columns Mapping
+        col_date = find_matching_col(["lead receive date", "lead_receive_date", "receive date", "inquiry date", "created at", "created_at", "lead date", "lead time", "date", "created time"])
+        col_name = find_matching_col(["patient name", "patient_name", "your_name", "your name", "full name", "lead name", "customer name", "client name", "user name", "name", "first name", "naam"])
+        col_mobile = find_matching_col(["contact", "contact number", "contact no", "phone_number", "phone number", "mobile number", "mobile", "phone", "call number", "whatsapp number", "whatsapp", "cell"])
+        col_city = find_matching_col(["location", "city", "address", "area", "town", "district"])
         col_dept = find_matching_col(["department", "speciality", "dept", "specialization"])
+        col_doctor = find_matching_col(["doctor", "dr name", "consultant", "physician", "surgeon"])
+        col_assigned = find_matching_col(["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"])
         col_campaign = find_matching_col(["campaign name", "campaign", "ad name", "ad set name"])
         col_source = find_matching_col(["lead source", "source", "platform", "publisher platform", "channel", "origin"])
-        col_assigned = find_matching_col(["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"])
-        col_date = find_matching_col(["created at", "created_at", "inquiry date", "lead date", "lead time", "date", "created time"])
-        col_notes = find_matching_col(["remark", "comment", "issue", "note", "notes", "symptom", "problem", "query", "समस्या", "रोग"])
+        col_appt_status = find_matching_col(["appointment status", "appointment_status", "appo book", "appo_book", "appointment state"])
+        col_notes = find_matching_col(["remarks", "remark", "comment", "issue", "note", "notes", "symptom", "problem", "query", "समस्या", "रोग"])
+        col_branch = find_matching_col(["hosptal branch", "hospital branch", "branch", "hospital_branch"])
+        col_recv_time = find_matching_col(["lead receive time", "receive time", "lead_receive_time", "inquiry time"])
+        col_calling_time = find_matching_col(["lead calling time", "calling time", "lead_calling_time", "first calling time"])
+        col_gender = find_matching_col(["gender", "sex", "m/f"])
+        col_age = find_matching_col(["age", "years", "yrs"])
+        col_appt_date = find_matching_col(["appointment date", "appointment_date", "appo booked date", "appo_booked_date"])
+
+        # Follow-ups columns (1st, 2nd, 3rd)
+        col_fu1_date = find_matching_col(["first follow up date", "first followup date", "1st follow up date", "1st followup date", "calling_date_remark_1", "follow up 1 date"])
+        col_fu1_remark = find_matching_col(["first follow up remark", "first followup remark", "1st follow up remark", "1st followup remark", "remark 1", "remark_1", "follow up 1 remark"])
+        col_fu1_time = find_matching_col(["first follow up calling time", "1st follow up calling time", "calling_time_remark_1", "calling_time_remark_2", "first followup calling time"])
+
+        col_fu2_date = find_matching_col(["second follow up date", "second followup date", "2nd follow up date", "2nd followup date", "calling_date_remark_2", "follow up 2 date"])
+        col_fu2_remark = find_matching_col(["second follow up remark", "second followup remark", "2nd follow up remark", "2nd followup remark", "remark 2", "remark_2", "follow up 2 remark"])
+
+        col_fu3_date = find_matching_col(["third follow up date", "third followup date", "3rd follow up date", "3rd followup date", "calling_date_remark_3", "follow up 3 date"])
+        col_fu3_remark = find_matching_col(["third follow up remark", "third followup remark", "3rd follow up remark", "3rd followup remark", "remark 3", "remark_3", "follow up 3 remark"])
+
+        # Final Status, Visit, UHID, Bills, Periods
+        col_final_status = find_matching_col(["final status", "final_status", "deal status", "deal_status", "done"])
+        col_visit_date = find_matching_col(["visit date", "visit_date", "hospital visit date"])
+        col_uhid = find_matching_col(["uhid id no", "uhid no", "uhid", "uhid_id_no", "patient id"])
+        col_pharmacy_bill = find_matching_col(["pharmacy bill", "pharmacy_bill", "pharmacy"])
+        col_opd_bill = find_matching_col(["opd bill", "opd_bill", "opd"])
+        col_ipd_bill = find_matching_col(["ipd bill", "ipd_bill", "ipd no", "ipd_no", "ipd"])
+        col_investigation_bill = find_matching_col(["investigation bill", "investigation", "investigation_bill", "lab bill"])
+        col_total_bill = find_matching_col(["total bill", "total_bill", "total amount", "total paid", "total"])
+        col_month = find_matching_col(["month"])
+        col_year = find_matching_col(["year"])
+        col_weekdays = find_matching_col(["weekdays", "weekday", "day"])
+        col_course = find_matching_col(["course / service", "course", "service", "program", "stream", "specialization"])
+        col_email = find_matching_col(["email address", "e-mail", "email", "mail"])
+
+        def clean_val_str(v):
+            if v is None:
+                return ""
+            if pd.isna(v):
+                return ""
+            s = str(v).strip()
+            if s.lower() in ("nan", "none", "null", "-", "na", "nat", ""):
+                return ""
+            if s.endswith(".0") and re.match(r"^\d+\.0$", s):
+                return s[:-2]
+            return s
+
+        def parse_clean_date(raw):
+            if not raw or pd.isna(raw):
+                return None
+            return cleaning.parse_date(raw)
+
+        def parse_clean_decimal(raw):
+            if raw is None or pd.isna(raw):
+                return 0.0
+            cleaned_s = re.sub(r"[^\d.]", "", str(raw).strip())
+            try:
+                return float(cleaned_s) if cleaned_s else 0.0
+            except (ValueError, TypeError):
+                return 0.0
 
         if not col_mobile:
             job.delete()
             messages.error(
                 request, 
-                "Could not detect Mobile Number column in your file. "
-                "Please make sure your sheet has a column for Phone / Mobile (e.g. 'phone_number', 'Mobile Number', 'Phone', 'Contact')."
+                "Could not detect Mobile / Contact column in your file. "
+                "Please make sure your sheet has a column for Contact / Phone / Mobile (e.g. 'Contact', 'phone_number', 'Mobile Number', 'Phone')."
             )
             return redirect("imports:upload")
             
@@ -1625,6 +1877,77 @@ def quick_import(request):
         imported = updated = skipped = duplicate = invalid = 0
         unknown_counter = 1
         
+        # 1. Pre-cache all active users for instant attendant matching (eliminates remote DB queries in loop)
+        user_cache = {}
+        all_active_users = list(User.objects.filter(is_active=True).select_related('hospital'))
+        for u in all_active_users:
+            u_key_list = []
+            if u.username:
+                u_key_list.append(u.username.strip().lower())
+            fname = (u.get_full_name() or "").strip().lower()
+            if fname:
+                u_key_list.append(fname)
+            if u.first_name:
+                u_key_list.append(u.first_name.strip().lower())
+            
+            for k in u_key_list:
+                if user_hospital:
+                    if u.hospital_id == user_hospital.id:
+                        user_cache[k] = u
+                    elif k not in user_cache:
+                        user_cache[k] = u
+                else:
+                    if k not in user_cache:
+                        user_cache[k] = u
+
+        def fast_resolve_user(raw_val):
+            if not raw_val:
+                return None
+            s = str(raw_val).strip().lower()
+            if s in ("", "-", "nan", "nat", "none", "null"):
+                return None
+            if s in user_cache:
+                return user_cache[s]
+            for k, u in user_cache.items():
+                if k in s or s in k:
+                    return u
+            return None
+
+        # 2. Pre-cache campaigns and courses for the hospital
+        campaign_cache = {}
+        camp_qs = HospitalCampaign.objects.all()
+        if user_hospital:
+            camp_qs = camp_qs.filter(hospital=user_hospital)
+        for c in camp_qs:
+            campaign_cache[c.name.strip().lower()] = c
+
+        course_cache = {}
+        course_qs = Course.objects.all()
+        if user_hospital:
+            course_qs = course_qs.filter(hospital=user_hospital)
+        for crs in course_qs:
+            course_cache[crs.name.strip().lower()] = crs
+
+        # 3. Pre-cache lead sources
+        source_cache = {}
+        for src in LeadSource.objects.select_related('category').all():
+            source_cache[src.name.strip().lower()] = src
+
+        # 4. Pre-cache existing leads mobile numbers
+        existing_mobile_map = {}
+        for lead_id, raw_mob in Lead.objects.values_list("id", "mobile"):
+            if raw_mob:
+                cleaned = Lead.clean_mobile(raw_mob)
+                if cleaned and cleaned not in existing_mobile_map:
+                    existing_mobile_map[cleaned] = lead_id
+
+        # 5. Pre-generate starting lead sequence to avoid querying DB for every row
+        year = timezone.now().year
+        hosp_prefix = "NL-" if (user_hospital and "nelson" in (user_hospital.name or "").lower()) else "LD-"
+        full_prefix = f"{hosp_prefix}{year}-"
+        last_lead = Lead.objects.filter(lead_code__startswith=full_prefix).order_by("-lead_code").first()
+        current_seq = (int(last_lead.lead_code.split("-")[-1]) if (last_lead and last_lead.lead_code and "-" in last_lead.lead_code) else 0)
+
         start_idx = 0
         if len(df) > 0 and col_name:
             first_row_name = str(df.iloc[0].get(col_name, "")).strip().lower()
@@ -1632,6 +1955,8 @@ def quick_import(request):
             if "rahul kumar" in first_row_name or "9876543210" in first_row_mobile:
                 start_idx = 1
                 
+        followups_to_create = []
+
         for idx in range(start_idx, len(df)):
             row = df.iloc[idx]
             row_num = idx + 2
@@ -1662,24 +1987,72 @@ def quick_import(request):
                 invalid += 1
                 continue
                 
-            email = str(row.get(col_email, "") or "").strip() if col_email else ""
-            city = str(row.get(col_city, "") or "").strip() if col_city else ""
-            course_val = str(row.get(col_course, "") or "").strip() if col_course else ""
-            gender = str(row.get(col_gender, "") or "").strip() if col_gender else ""
-            age_val = row.get(col_age, "") if col_age else ""
-            doctor_val = str(row.get(col_doctor, "") or "").strip() if col_doctor else ""
-            dept_val = str(row.get(col_dept, "") or "").strip() if col_dept else ""
-            campaign_val = str(row.get(col_campaign, "") or "").strip() if col_campaign else ""
-            source_raw = str(row.get(col_source, "") or "").strip() if col_source else ""
-            assigned_raw = str(row.get(col_assigned, "") or "").strip() if col_assigned else ""
-            assigned_user = _resolve_assigned_user(assigned_raw, hospital=user_hospital)
+            # Basic fields
+            email = clean_val_str(row.get(col_email)) if col_email else ""
+            city = clean_val_str(row.get(col_city)) if col_city else ""
+            course_val = clean_val_str(row.get(col_course)) if col_course else ""
+            gender = clean_val_str(row.get(col_gender)) if col_gender else ""
+            age_val = row.get(col_age) if col_age else ""
+            doctor_val = clean_val_str(row.get(col_doctor)) if col_doctor else ""
+            dept_val = clean_val_str(row.get(col_dept)) if col_dept else ""
+            campaign_val = clean_val_str(row.get(col_campaign)) if col_campaign else ""
+            source_raw = clean_val_str(row.get(col_source)) if col_source else ""
+            assigned_raw = clean_val_str(row.get(col_assigned)) if col_assigned else ""
+            assigned_user = fast_resolve_user(assigned_raw)
             date_raw = row.get(col_date) if col_date else None
-            inquiry_date = cleaning.parse_date(date_raw) or timezone.localdate()
+            inquiry_date = parse_clean_date(date_raw) or timezone.localdate()
+
+            # Nelson Specific Fields
+            appt_status_val = clean_val_str(row.get(col_appt_status)) if col_appt_status else ""
+            branch_val = clean_val_str(row.get(col_branch)) if col_branch else ""
+            recv_time_val = clean_val_str(row.get(col_recv_time)) if col_recv_time else ""
+            calling_time_val = clean_val_str(row.get(col_calling_time)) if col_calling_time else ""
+            appt_date_raw = row.get(col_appt_date) if col_appt_date else None
+            appt_date_val = parse_clean_date(appt_date_raw)
+
+            # Follow-ups (1, 2, 3)
+            fu1_date_raw = row.get(col_fu1_date) if col_fu1_date else None
+            fu1_date = parse_clean_date(fu1_date_raw)
+            fu1_remark = clean_val_str(row.get(col_fu1_remark)) if col_fu1_remark else ""
+            fu1_time = clean_val_str(row.get(col_fu1_time)) if col_fu1_time else ""
+
+            fu2_date_raw = row.get(col_fu2_date) if col_fu2_date else None
+            fu2_date = parse_clean_date(fu2_date_raw)
+            fu2_remark = clean_val_str(row.get(col_fu2_remark)) if col_fu2_remark else ""
+
+            fu3_date_raw = row.get(col_fu3_date) if col_fu3_date else None
+            fu3_date = parse_clean_date(fu3_date_raw)
+            fu3_remark = clean_val_str(row.get(col_fu3_remark)) if col_fu3_remark else ""
+
+            # Financial, Status & Details
+            final_status_val = clean_val_str(row.get(col_final_status)) if col_final_status else ""
+            visit_date_raw = row.get(col_visit_date) if col_visit_date else None
+            visit_date_val = parse_clean_date(visit_date_raw)
+            uhid_val = clean_val_str(row.get(col_uhid)) if col_uhid else ""
+            pharmacy_bill_val = parse_clean_decimal(row.get(col_pharmacy_bill)) if col_pharmacy_bill else 0.0
+            opd_bill_val = parse_clean_decimal(row.get(col_opd_bill)) if col_opd_bill else 0.0
+            ipd_bill_val = parse_clean_decimal(row.get(col_ipd_bill)) if col_ipd_bill else 0.0
+            investigation_bill_val = clean_val_str(row.get(col_investigation_bill)) if col_investigation_bill else ""
+            total_bill_val = parse_clean_decimal(row.get(col_total_bill)) if col_total_bill else 0.0
+            if total_bill_val == 0.0 and (pharmacy_bill_val or opd_bill_val or ipd_bill_val):
+                total_bill_val = pharmacy_bill_val + opd_bill_val + ipd_bill_val
+
+            month_val = clean_val_str(row.get(col_month)) if col_month else ""
+            year_val = clean_val_str(row.get(col_year)) if col_year else ""
+            weekdays_val = clean_val_str(row.get(col_weekdays)) if col_weekdays else ""
+            base_notes = clean_val_str(row.get(col_notes)) if col_notes else ""
             
-            base_notes = str(row.get(col_notes, "") or "").strip() if col_notes else ""
+            # Auto-gather unmapped / survey questions
+            known_cols = [c for c in [
+                col_name, col_mobile, col_email, col_city, col_course, col_gender, col_age, 
+                col_doctor, col_dept, col_campaign, col_source, col_assigned, col_date, col_notes,
+                col_appt_status, col_branch, col_recv_time, col_calling_time, col_appt_date,
+                col_fu1_date, col_fu1_remark, col_fu1_time, col_fu2_date, col_fu2_remark,
+                col_fu3_date, col_fu3_remark, col_final_status, col_visit_date, col_uhid,
+                col_pharmacy_bill, col_opd_bill, col_ipd_bill, col_investigation_bill, col_total_bill,
+                col_month, col_year, col_weekdays
+            ] if c]
             
-            # Auto-gather survey questions from other columns (e.g. Hindi/Marathi questions, pregnant months, etc.)
-            known_cols = [c for c in [col_name, col_mobile, col_email, col_city, col_course, col_gender, col_age, col_doctor, col_dept, col_campaign, col_source, col_assigned, col_date, col_notes] if c]
             survey_notes = []
             for col in cols:
                 if col not in known_cols:
@@ -1700,43 +2073,59 @@ def quick_import(request):
             
             source_cat, source_name, _ = cleaning.normalize_source(source_raw)
             
-            existing = Lead.objects.filter(mobile=mobile).first()
-            if not existing:
-                existing = next((l for l in Lead.objects.only("id", "mobile") if Lead.clean_mobile(l.mobile) == mobile), None)
+            # Fast in-memory duplicate lookup
+            cleaned_mob = Lead.clean_mobile(mobile)
+            existing_id = existing_mobile_map.get(cleaned_mob)
+            existing = None
+            if existing_id:
+                if on_duplicate == "skip":
+                    duplicate += 1
+                    continue
+                else:
+                    existing = Lead.objects.filter(pk=existing_id).first()
                 
-            if existing and on_duplicate == "skip":
-                duplicate += 1
-                continue
-                
-            cat, src = _get_or_create_source(source_cat, source_name)
+            # Fast cached source retrieval
+            src_key = (source_name or "Meta Ads").strip().lower()
+            src = source_cache.get(src_key)
+            cat = src.category if src else None
+            if not src and source_name:
+                cat, src = _get_or_create_source(source_cat, source_name)
+                if src:
+                    source_cache[src_key] = src
             
-            # Course matching
+            # Fast cached course matching
             course_obj = None
-            if course_val and course_val.lower() not in ("nan", "none", "null", "-"):
-                course_obj = Course.objects.filter(
-                    Q(name__iexact=course_val) | Q(name__icontains=course_val)
-                ).first()
+            if course_val:
+                crs_key = course_val.strip().lower()
+                course_obj = course_cache.get(crs_key)
                 if not course_obj:
                     course_obj = Course.objects.create(
                         name=course_val,
                         hospital=user_hospital,
                         is_active=True
                     )
+                    course_cache[crs_key] = course_obj
 
-            campaign_obj = None
-            if campaign_val:
-                if user_hospital:
-                    campaign_obj, _ = HospitalCampaign.objects.get_or_create(
-                        hospital=user_hospital,
-                        name=campaign_val,
-                        defaults={"platform": source_name or "Meta Ads", "is_active": True}
-                    )
-                else:
-                    campaign_obj, _ = HospitalCampaign.objects.get_or_create(
-                        name=campaign_val,
-                        defaults={"platform": source_name or "Meta Ads", "is_active": True}
-                    )
+            # Fast cached campaign matching
+            campaign_obj = selected_campaign
+            if not campaign_obj and campaign_val:
+                camp_key = campaign_val.strip().lower()
+                campaign_obj = campaign_cache.get(camp_key)
+                if not campaign_obj:
+                    if user_hospital:
+                        campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                            hospital=user_hospital,
+                            name=campaign_val,
+                            defaults={"platform": source_name or "Meta Ads", "is_active": True}
+                        )
+                    else:
+                        campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                            name=campaign_val,
+                            defaults={"platform": source_name or "Meta Ads", "is_active": True}
+                        )
+                    campaign_cache[camp_key] = campaign_obj
                     
+            # Populate Custom Data Payload with all Nelson master attributes
             custom_data_payload = {}
             if course_val:
                 custom_data_payload["course"] = course_val
@@ -1744,13 +2133,75 @@ def quick_import(request):
                 custom_data_payload["doctor"] = doctor_val
             if dept_val:
                 custom_data_payload["department"] = dept_val
-            if age_val:
-                custom_data_payload["age"] = age_val
+            if pd.notna(age_val):
+                clean_age_str = str(age_val).strip()
+                if clean_age_str.lower() not in ("nan", "none", "null", "-", "nat", ""):
+                    if clean_age_str.endswith(".0"):
+                        clean_age_str = clean_age_str[:-2]
+                    custom_data_payload["age"] = clean_age_str
             if gender:
                 custom_data_payload["gender"] = gender
+            if appt_status_val:
+                custom_data_payload["appointment_status"] = appt_status_val
+            if branch_val:
+                custom_data_payload["hospital_branch"] = branch_val
+                custom_data_payload["nelson_dantoli"] = branch_val
+            if recv_time_val:
+                custom_data_payload["lead_received_time"] = recv_time_val
+            if calling_time_val:
+                custom_data_payload["lead_calling_time"] = calling_time_val
+            if appt_date_val:
+                custom_data_payload["appo_booked_date"] = str(appt_date_val)
+
+            # Follow-ups (dates & remarks stored in custom_data for fast instant rendering)
+            if fu1_date:
+                custom_data_payload["calling_date_remark_1"] = str(fu1_date)
+            if fu1_remark:
+                custom_data_payload["remark_1"] = fu1_remark
+            if fu1_time:
+                custom_data_payload["calling_time_remark_1"] = fu1_time
+                custom_data_payload["calling_time_remark_2"] = fu1_time
+
+            if fu2_date:
+                custom_data_payload["calling_date_remark_2"] = str(fu2_date)
+            if fu2_remark:
+                custom_data_payload["remark_2"] = fu2_remark
+
+            if fu3_date:
+                custom_data_payload["calling_date_remark_3"] = str(fu3_date)
+            if fu3_remark:
+                custom_data_payload["remark_3"] = fu3_remark
+
+            # Financial & Visit details
+            if final_status_val:
+                custom_data_payload["deal_status"] = final_status_val
+                custom_data_payload["done"] = final_status_val
+            if visit_date_val:
+                custom_data_payload["visit_date"] = str(visit_date_val)
+            if uhid_val:
+                custom_data_payload["uhid_id_no"] = uhid_val
+            if pharmacy_bill_val:
+                custom_data_payload["pharmacy_bill"] = pharmacy_bill_val
+            if opd_bill_val:
+                custom_data_payload["opd_bill"] = opd_bill_val
+            if ipd_bill_val:
+                custom_data_payload["ipd_bill"] = ipd_bill_val
+            if investigation_bill_val:
+                custom_data_payload["investigation"] = investigation_bill_val
+            if total_bill_val:
+                custom_data_payload["total"] = total_bill_val
+                custom_data_payload["total_paid"] = total_bill_val
+            if month_val:
+                custom_data_payload["month"] = month_val
+            if year_val:
+                custom_data_payload["year"] = year_val
+            if weekdays_val:
+                custom_data_payload["weekdays"] = weekdays_val
+
             if not custom_data_payload.get("priority"):
                 custom_data_payload["priority"] = "Hot"
                 
+            lead_obj = None
             if existing and on_duplicate == "update":
                 existing.city = city or existing.city
                 existing.email = email or existing.email
@@ -1763,13 +2214,19 @@ def quick_import(request):
                 if combined_notes:
                     existing.notes = (existing.notes + "\n" + combined_notes).strip()
                 if custom_data_payload:
+                    if not isinstance(existing.custom_data, dict):
+                        existing.custom_data = {}
                     existing.custom_data.update(custom_data_payload)
                 existing.import_job = job
                 existing.import_source_file = job.original_filename
                 existing.save()
+                lead_obj = existing
                 updated += 1
             else:
-                Lead.objects.create(
+                current_seq += 1
+                gen_code = f"{full_prefix}{current_seq:06d}"
+                lead_obj = Lead.objects.create(
+                    lead_code=gen_code,
                     name=name, mobile=mobile, alternate_mobile=alt_mobile,
                     email=email, city=city, location=city,
                     course=course_obj,
@@ -1783,7 +2240,42 @@ def quick_import(request):
                     import_source_file=job.original_filename, import_source_sheet="Sheet1",
                     import_source_row=row_num, import_job=job,
                 )
+                existing_mobile_map[cleaned_mob] = lead_obj.id
                 imported += 1
+
+            # Queue FollowUp entries to bulk_create in one single DB operation
+            if lead_obj:
+                fu_entries = [
+                    (fu1_date, fu1_remark, fu1_time or None),
+                    (fu2_date, fu2_remark, None),
+                    (fu3_date, fu3_remark, None),
+                ]
+                for f_date, f_remark, f_time in fu_entries:
+                    if f_date or f_remark:
+                        actual_fu_date = f_date or inquiry_date
+                        status_choice = FollowUpStatus.COMPLETED if f_date and f_date <= timezone.localdate() else FollowUpStatus.PENDING
+                        parsed_time = None
+                        if f_time:
+                            for t_fmt in ["%H:%M:%S", "%H:%M", "%I:%M %p", "%I:%M%p"]:
+                                try:
+                                    parsed_time = datetime.strptime(f_time.strip(), t_fmt).time()
+                                    break
+                                except Exception:
+                                    pass
+                        followups_to_create.append(FollowUp(
+                            lead=lead_obj,
+                            followup_date=actual_fu_date,
+                            followup_time=parsed_time,
+                            followup_mode=FollowUpMode.CALL,
+                            followup_status=status_choice,
+                            comment=f_remark or "Follow-up logged via master file upload",
+                            created_by=request.user,
+                            imported_from_excel=True,
+                        ))
+
+        # Bulk insert all queued follow-ups in single batch
+        if followups_to_create:
+            FollowUp.objects.bulk_create(followups_to_create, batch_size=500)
 
         job.imported_count = imported
         job.updated_count = updated
@@ -1820,3 +2312,156 @@ def delete_import(request, pk):
         job.delete()
         messages.success(request, f"Import history item and its {leads_count} associated leads have been deleted successfully.")
     return redirect("imports:history")
+
+
+@login_required
+def export_business_master_data(request):
+    """
+    Exports all active leads of a business into an Excel (.xlsx) file.
+    Available to Admins and Super Admins.
+    """
+    user = request.user
+    if not (user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN)):
+        messages.error(request, "Permission denied. Only Admins and Super Admins can export master data.")
+        return redirect("imports:upload")
+
+    target_hospital_id = request.GET.get("target_hospital_id")
+    target_hospital = None
+    if user.role == User.Role.SUPER_ADMIN and target_hospital_id:
+        target_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
+    elif user.hospital:
+        target_hospital = user.hospital
+
+    leads_qs = Lead.objects.select_related(
+        "course", "stage", "lead_source", "campaign", "assigned_to", "hospital"
+    ).filter(is_archived=False)
+
+    if target_hospital:
+        leads_qs = leads_qs.filter(hospital=target_hospital)
+        biz_name = target_hospital.name
+    else:
+        biz_name = "All_Businesses"
+
+    is_hospital = False
+    if target_hospital:
+        btype = (target_hospital.settings or {}).get("business_type")
+        if btype:
+            is_hospital = (str(btype).strip().lower() == "hospital")
+        else:
+            name_low = (target_hospital.name or "").lower()
+            is_hospital = not ("academy" in name_low or "zappcode" in name_low)
+
+    rows = []
+    for l in leads_qs.order_by("-id"):
+        cd = l.custom_data or {}
+        if not isinstance(cd, dict):
+            cd = {}
+
+        if is_hospital:
+            rows.append({
+                "Lead Code": l.lead_code,
+                "Inquiry Date": str(l.inquiry_date or ""),
+                "Patient Name": l.name,
+                "Contact / Mobile": l.mobile,
+                "Alternate Contact": l.alternate_mobile or "",
+                "Location / City": l.city or l.location or cd.get("location", ""),
+                "Department": cd.get("department", ""),
+                "Doctor / Consultant": cd.get("doctor", ""),
+                "Assigned To": l.assigned_to.get_full_name() if l.assigned_to else (cd.get("assigned_to", "") or ""),
+                "Campaign Name": l.campaign.name if l.campaign else (cd.get("campaign", "") or ""),
+                "Lead Source": l.lead_source.name if l.lead_source else (cd.get("lead_source", "") or ""),
+                "Appointment Status": cd.get("appointment_status", "") or l.display_status,
+                "Hospital Branch": cd.get("hospital_branch", "") or cd.get("nelson_dantoli", ""),
+                "Gender": cd.get("gender", ""),
+                "Age": cd.get("age", ""),
+                "Appointment Date": cd.get("appo_booked_date", ""),
+                "1st Follow up Date": cd.get("calling_date_remark_1", ""),
+                "1st Follow up Remark": cd.get("remark_1", ""),
+                "2nd Follow up Date": cd.get("calling_date_remark_2", ""),
+                "2nd Follow up Remark": cd.get("remark_2", ""),
+                "3rd Follow up Date": cd.get("calling_date_remark_3", ""),
+                "3rd Follow up Remark": cd.get("remark_3", ""),
+                "Final Status": cd.get("deal_status", "") or l.get_deal_status_display(),
+                "Visit Date": cd.get("visit_date", ""),
+                "UHID ID NO": cd.get("uhid_id_no", ""),
+                "Pharmacy Bill": cd.get("pharmacy_bill", 0),
+                "OPD Bill": cd.get("opd_bill", 0),
+                "IPD Bill": cd.get("ipd_bill", 0),
+                "Investigation Bill": cd.get("investigation", ""),
+                "Total Bill": cd.get("total", 0),
+                "Month": cd.get("month", ""),
+                "Year": cd.get("year", ""),
+                "Weekdays": cd.get("weekdays", ""),
+                "Remarks": l.notes or "",
+            })
+        else:
+            rows.append({
+                "Lead Code": l.lead_code,
+                "Inquiry Date": str(l.inquiry_date or ""),
+                "Student Name": l.name,
+                "Mobile / Phone": l.mobile,
+                "Email": l.email,
+                "City": l.city,
+                "Course / Program": l.course.name if l.course else (cd.get("course", "") or ""),
+                "Stage": str(l.stage),
+                "Campaign Name": l.campaign.name if l.campaign else "",
+                "Lead Source": l.lead_source.name if l.lead_source else "",
+                "Assigned Counsellor": l.assigned_to.get_full_name() if l.assigned_to else "",
+                "Deal Status": l.get_deal_status_display(),
+                "Admission Status": l.get_admission_status_display(),
+                "Notes / Query": l.notes or "",
+            })
+
+    df = pd.DataFrame(rows)
+    clean_biz_str = re.sub(r"[^\w\-]+", "_", biz_name).strip("_")
+    filename = f"{clean_biz_str}_master_leads_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    df.to_excel(response, index=False, sheet_name="Master Leads")
+    return response
+
+
+@login_required
+def delete_business_master_data(request):
+    """
+    Deletes all leads of a business.
+    Allowed for:
+    - Super Admin: always.
+    - Business Admin: only if granted `can_delete_master_data` permission by Super Admin.
+    Requires POST request.
+    """
+    if request.method != "POST":
+        return redirect("imports:upload")
+
+    user = request.user
+    if not (user.is_superuser or user.role == User.Role.SUPER_ADMIN or (user.role == User.Role.ADMIN and user.can_delete_master_data)):
+        messages.error(request, "Permission denied. You do not have authorization to delete master lead data.")
+        return redirect("imports:upload")
+
+    target_hospital_id = request.POST.get("target_hospital_id")
+    target_hospital = None
+    if user.role == User.Role.SUPER_ADMIN and target_hospital_id:
+        target_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
+    elif user.hospital:
+        target_hospital = user.hospital
+
+    leads_qs = Lead.objects.filter(is_archived=False)
+    if target_hospital:
+        leads_qs = leads_qs.filter(hospital=target_hospital)
+        biz_name = target_hospital.name
+    else:
+        biz_name = "All Businesses"
+
+    total_count = leads_qs.count()
+    if total_count == 0:
+        messages.info(request, f"No active leads found for {biz_name} to delete.")
+        return redirect("imports:upload")
+
+    # Fast bulk delete with cascade cleanup
+    leads_qs.delete()
+
+    messages.success(
+        request, 
+        f"Master data purge complete! Successfully deleted {total_count} leads for '{biz_name}'."
+    )
+    return redirect("imports:upload")

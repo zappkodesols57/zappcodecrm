@@ -102,13 +102,13 @@
           <span class="text-muted small">Choose how you want to handle all {{ stats.duplicates }} existing contact records:</span>
         </div>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-sm btn-outline-danger fw-bold" onclick="applyBulkAction('discard')">
+          <button type="button" class="btn btn-sm btn-outline-danger fw-bold btn-bulk-res" onclick="applyBulkAction('discard', this)">
             <i class="fa-solid fa-trash me-1"></i> Discard All Duplicates (Skip)
           </button>
-          <button type="button" class="btn btn-sm btn-outline-success fw-bold" onclick="applyBulkAction('keep')">
+          <button type="button" class="btn btn-sm btn-outline-success fw-bold btn-bulk-res" onclick="applyBulkAction('keep', this)">
             <i class="fa-solid fa-clone me-1"></i> Keep All (Create New Lead)
           </button>
-          <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="applyBulkAction('update')">
+          <button type="button" class="btn btn-sm btn-outline-primary fw-bold btn-bulk-res" onclick="applyBulkAction('update', this)">
             <i class="fa-solid fa-pen-to-square me-1"></i> Update Existing Records
           </button>
         </div>
@@ -145,9 +145,23 @@
               <!-- Name & Initial Tag -->
               <td>
                 <div class="fw-bold text-dark">{{ r.name }}</div>
-                <div class="small">
+                <div class="small d-flex flex-wrap gap-1 mt-1">
                   <span class="badge bg-danger text-white py-0 px-1" style="font-size: 0.68rem;">HOT</span>
-                  <span class="badge bg-primary text-white py-0 px-1" style="font-size: 0.68rem;">NEW</span>
+                  {% if r.attendant_raw %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-0 px-1" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-user-check me-1"></i>{{ r.attendant_raw }}
+                  </span>
+                  {% endif %}
+                  {% if r.doctor_raw %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle py-0 px-1" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-user-doctor me-1"></i>{{ r.doctor_raw }}
+                  </span>
+                  {% endif %}
+                  {% if r.city %}
+                  <span class="badge bg-light text-secondary border py-0 px-1" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-location-dot me-1"></i>{{ r.city }}
+                  </span>
+                  {% endif %}
                 </div>
               </td>
 
@@ -190,47 +204,64 @@
                 {% endif %}
               </td>
 
-              <!-- Action Selector -->
-              <td class="px-3 text-end">
-                {% if r.is_duplicate %}
-                <select name="action_{{ forloop.counter0 }}" class="form-select form-select-sm dup-action-select" style="font-size: 0.8rem;">
-                  <option value="discard" selected>Discard (Skip)</option>
-                  <option value="keep">Keep (Create New)</option>
-                  <option value="update">Update Existing</option>
-                </select>
-                {% else %}
-                <input type="hidden" name="action_{{ forloop.counter0 }}" value="create">
-                <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-plus me-1"></i> Will Create</span>
-                {% endif %}
-              </td>
+                <!-- Action Selector -->
+                <td class="px-3 text-end">
+                  {% if r.is_duplicate %}
+                  <select name="action_{{ forloop.counter0 }}" class="form-select form-select-sm dup-action-select no-tom-select" style="font-size: 0.8rem; min-width: 150px;">
+                    <option value="discard" selected>Discard (Skip)</option>
+                    <option value="keep">Keep (Create New)</option>
+                    <option value="update">Update Existing</option>
+                  </select>
+                  {% else %}
+                  <input type="hidden" name="action_{{ forloop.counter0 }}" value="create">
+                  <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-plus me-1"></i> Will Create</span>
+                  {% endif %}
+                </td>
 
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-footer bg-light p-3 d-flex justify-content-between align-items-center">
+          <a href="{% url 'imports:upload' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-times me-1"></i> Cancel
+          </a>
+          <button type="submit" class="btn btn-success fw-bold px-4 py-2 shadow-sm rounded-3">
+            <i class="fa-solid fa-check-double me-1"></i> Confirm & Import Leads Now
+          </button>
+        </div>
+
       </div>
 
-      <div class="card-footer bg-light p-3 d-flex justify-content-between align-items-center">
-        <a href="{% url 'imports:upload' %}" class="btn btn-outline-secondary btn-sm">
-          <i class="fa-solid fa-times me-1"></i> Cancel
-        </a>
-        <button type="submit" class="btn btn-success fw-bold px-4 py-2 shadow-sm rounded-3">
-          <i class="fa-solid fa-check-double me-1"></i> Confirm & Import Leads Now
-        </button>
-      </div>
+    </form>
 
-    </div>
-
-  </form>
-
+  </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-  function applyBulkAction(actionValue) {
+  function applyBulkAction(actionValue, btnEl) {
+    // 1. Update all duplicate action selects (both native and TomSelect if active)
     const selects = document.querySelectorAll('.dup-action-select');
     selects.forEach(sel => {
       sel.value = actionValue;
+      if (sel.tomselect) {
+        sel.tomselect.setValue(actionValue, true);
+      }
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
     });
+
+    // 2. Visual highlight on bulk buttons
+    const bulkBtns = document.querySelectorAll('.btn-bulk-res');
+    bulkBtns.forEach(b => {
+      b.classList.remove('active', 'shadow');
+    });
+    if (btnEl) {
+      btnEl.classList.add('active', 'shadow');
+    }
   }
 </script>
 {% endblock %}

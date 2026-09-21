@@ -144,14 +144,18 @@ class User(AbstractUser):
         """
         Check if the user has a specific permission.
         1. Checks custom_permissions for an individual override.
-        2. Falls back to HospitalRolePermission for their hospital and role.
+        2. Falls back to HospitalRolePermission for their hospital and role (cached on user instance).
         3. Returns the default if not configured.
         """
         if perm_key in self.custom_permissions:
             return self.custom_permissions[perm_key]
         
         if self.hospital:
-            role_perm = HospitalRolePermission.objects.filter(hospital=self.hospital, role=self.role).first()
+            if not hasattr(self, '_cached_hospital_role_perm'):
+                self._cached_hospital_role_perm = HospitalRolePermission.objects.filter(
+                    hospital=self.hospital, role=self.role
+                ).first()
+            role_perm = self._cached_hospital_role_perm
             if role_perm and perm_key in role_perm.permissions:
                 return role_perm.permissions[perm_key]
                 
@@ -225,6 +229,15 @@ class User(AbstractUser):
     @property
     def can_delete_leads(self):
         return self.has_dynamic_permission("delete_leads", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+    @property
+    def can_delete_master_data(self):
+        """Permission to delete/purge master lead data. Super Admin always can; Business Admin can only if granted permission."""
+        if self.role == self.Role.SUPER_ADMIN:
+            return True
+        if self.role == self.Role.ADMIN:
+            return bool(self.has_dynamic_permission("delete_master_data", default=False))
+        return False
 
     @property
     def is_read_only(self):

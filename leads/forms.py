@@ -688,6 +688,13 @@ class HospitalLeadForm(forms.ModelForm):
                     all_doc_names.add(doc_val.lower())
                     combined_doctors.append((doc_val, doc_lbl))
                     
+            init_doc = self.fields.get("doctor") and self.fields["doctor"].initial
+            if init_doc:
+                clean_init_doc = str(init_doc).strip()
+                if clean_init_doc.lower() not in all_doc_names:
+                    lbl = f"Dr. {clean_init_doc}" if not clean_init_doc.lower().startswith("dr") else clean_init_doc
+                    combined_doctors.insert(0, (clean_init_doc, lbl))
+
             if init_dept:
                 self.fields["doctor"].choices = [("", "-- Select Doctor --")] + combined_doctors
             else:

@@ -4,32 +4,10 @@
 <!-- Zoho CRM Style Top Title Bar with View Filter Switcher & Action Tools -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div class="d-flex align-items-center gap-3">
-        <!-- View Switcher Dropdown (Zoho CRM 'All Leads ▾' title filter) -->
-        <div class="dropdown">
-            <button class="btn btn-link text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2" type="button" id="searchViewFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.25rem;">
-                <span>All Leads</span>
-                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.8rem;"></i>
-            </button>
-            <ul class="dropdown-menu shadow border-0 py-2" aria-labelledby="searchViewFilterDropdown" style="min-width: 240px; font-size: 0.88rem; z-index: 1060;">
-                <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Switch Lead View</h6></li>
-                <li>
-                    <a class="dropdown-item d-flex align-items-center justify-content-between py-2 active fw-bold" href="{% url 'dashboard:telecaller_search' %}">
-                        <span><i class="fa-solid fa-list-ul me-2 text-primary"></i> All Patient Leads</span>
-                        <span class="badge bg-light text-secondary border rounded-pill">{{ total_count|default:0 }}</span>
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item d-flex align-items-center justify-content-between py-2" href="{% url 'dashboard:telecaller_my_leads' %}">
-                        <span><i class="fa-solid fa-user-check me-2 text-success"></i> My Assigned Leads</span>
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item d-flex align-items-center justify-content-between py-2" href="{% url 'dashboard:telecaller_new_enquiries' %}">
-                        <span><i class="fa-solid fa-bell me-2 text-warning"></i> Fresh / New Enquiries</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
+        <!-- Title Heading -->
+        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.25rem;">
+            <span>All Leads</span>
+        </h5>
         <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">{{ total_count }} records</span>
     </div>
 
