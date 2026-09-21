@@ -106,7 +106,7 @@ class TaskReminder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["status", "due_date", "due_time", "-created_at"]
+        ordering = ["-due_date", "due_time", "-created_at"]
 
     def __str__(self):
         return f"{self.title} ({self.get_status_display()})"

@@ -1,3 +1,4 @@
+import re
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -199,56 +200,134 @@ def auto_generate_master_data_profiles(hospital=None):
     Scans Lead custom_data & relations to auto-generate temporary User profiles
     and HospitalDoctor entries for uncreated Lead Attendants and Doctors.
     Default Temporary Password: 'Nelson@123'
+    Optimized for sub-second execution using in-memory set lookups.
     """
     from django.db.models import Q
-    from leads.models import Lead, HospitalDoctor
+    from leads.models import Lead, HospitalDoctor, HospitalDepartment, MasterGroup, MasterItem
+    from django.db import connection
     import re
 
     # 1. Gather distinct Lead Attendant names and Doctor names from Lead records
-    lead_qs = Lead.objects.all()
-    if hospital:
-        lead_qs = lead_qs.filter(hospital=hospital)
-
+    # Try fast database-level JSON extraction if possible, fallback to Python generator
     attendants = set()
     doctors = set()
 
-    for (cd,) in lead_qs.values_list('custom_data'):
-        cd = cd or {}
-        att = cd.get('lead_attendant')
-        doc = cd.get('doctor')
-        
-        if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
-            attendants.add(str(att).strip())
-        if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
-            for d in str(doc).split(','):
-                d_clean = d.strip()
-                if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
-                    doctors.add(d_clean)
+    extracted_via_sql = False
+    try:
+        with connection.cursor() as cursor:
+            if hospital:
+                cursor.execute("""
+                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
+                    FROM leads_lead 
+                    WHERE hospital_id = %s
+                      AND custom_data IS NOT NULL 
+                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
+                """, ['$.doctor', hospital.id, '$.doctor'])
+                raw_docs = [r[0] for r in cursor.fetchall() if r[0]]
+
+                cursor.execute("""
+                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
+                    FROM leads_lead 
+                    WHERE hospital_id = %s
+                      AND custom_data IS NOT NULL 
+                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
+                """, ['$.lead_attendant', hospital.id, '$.lead_attendant'])
+                raw_atts = [r[0] for r in cursor.fetchall() if r[0]]
+            else:
+                cursor.execute("""
+                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
+                    FROM leads_lead 
+                    WHERE custom_data IS NOT NULL 
+                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
+                """, ['$.doctor', '$.doctor'])
+                raw_docs = [r[0] for r in cursor.fetchall() if r[0]]
+
+                cursor.execute("""
+                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
+                    FROM leads_lead 
+                    WHERE custom_data IS NOT NULL 
+                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
+                """, ['$.lead_attendant', '$.lead_attendant'])
+                raw_atts = [r[0] for r in cursor.fetchall() if r[0]]
+
+            for att in raw_atts:
+                if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
+                    attendants.add(str(att).strip())
+
+            for doc in raw_docs:
+                if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
+                    for d in str(doc).split(','):
+                        d_clean = d.strip()
+                        if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
+                            doctors.add(d_clean)
+            extracted_via_sql = True
+    except Exception:
+        extracted_via_sql = False
+
+    if not extracted_via_sql:
+        lead_qs = Lead.objects.all()
+        if hospital:
+            lead_qs = lead_qs.filter(hospital=hospital)
+        lead_qs = lead_qs.exclude(custom_data={}).exclude(custom_data__isnull=True).values_list('custom_data', flat=True)
+
+        for cd in lead_qs.iterator(chunk_size=1000):
+            if not cd:
+                continue
+            att = cd.get('lead_attendant')
+            doc = cd.get('doctor')
+            
+            if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
+                attendants.add(str(att).strip())
+            if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
+                for d in str(doc).split(','):
+                    d_clean = d.strip()
+                    if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
+                        doctors.add(d_clean)
+
+    # 2. Pre-fetch existing Users into in-memory maps to avoid N+1 queries
+    all_users = list(User.objects.all().only(
+        'id', 'username', 'first_name', 'last_name', 'role', 'hospital_id', 
+        'phone', 'email', 'speciality', 'department', 'is_active', 'is_active_employee'
+    ))
+    user_by_uname = {u.username.lower(): u for u in all_users}
+    user_by_name = {(u.first_name.strip().lower(), u.last_name.strip().lower()): u for u in all_users if u.first_name}
+    existing_unames = set(user_by_uname.keys())
+
+    # Pre-fetch existing HospitalDoctors & MasterItems
+    hdoc_qs = HospitalDoctor.objects.all()
+    if hospital:
+        hdoc_qs = hdoc_qs.filter(hospital=hospital)
+    existing_hdocs = list(hdoc_qs)
+    hdoc_by_user_id = {d.user_id: d for d in existing_hdocs if d.user_id}
+    hdoc_by_name = {re.sub(r'^(?:dr\.?|doctor)\s*', '', d.name.strip(), flags=re.IGNORECASE).lower(): d for d in existing_hdocs}
+
+    doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+    existing_master_items = set()
+    if doc_grp:
+        mi_qs = MasterItem.objects.filter(group=doc_grp)
+        if hospital:
+            mi_qs = mi_qs.filter(hospital=hospital)
+        existing_master_items = {m.lower() for m in mi_qs.values_list('name', flat=True)}
 
     created_users = []
 
-    # 2. Auto-generate Temporary User Profiles for Lead Attendants
+    # 3. Auto-generate Temporary User Profiles for Lead Attendants
     for att_name in attendants:
-        # Check if matching user exists
         names = att_name.split()
         first_n = names[0]
         last_n = " ".join(names[1:]) if len(names) > 1 else ""
 
-        # Normalize username
         base_username = re.sub(r'[^a-zA-Z0-9]', '', att_name).lower()
         if not base_username:
             continue
 
-        existing_user = User.objects.filter(
-            Q(username__iexact=base_username) | 
-            Q(first_name__iexact=first_n, last_name__iexact=last_n)
-        ).first()
+        name_key = (first_n.lower(), last_n.lower())
+        existing_user = user_by_uname.get(base_username) or user_by_name.get(name_key)
 
         if not existing_user:
-            # Generate unique username
             uname = base_username
             idx = 1
-            while User.objects.filter(username=uname).exists():
+            while uname in existing_unames:
                 uname = f"{base_username}{idx}"
                 idx += 1
 
@@ -263,10 +342,13 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_approved=True,
             )
             created_users.append(new_user)
+            user_by_uname[uname.lower()] = new_user
+            user_by_name[name_key] = new_user
+            existing_unames.add(uname.lower())
 
-    # 3. Auto-generate Temporary User & HospitalDoctor Profiles for Doctors
+    # 4. Auto-generate Temporary User & HospitalDoctor Profiles for Doctors
     for doc_name in doctors:
-        clean_doc_name = re.sub(r"^(dr\.?|doctor)\s+", "", doc_name, flags=re.IGNORECASE).strip()
+        clean_doc_name = re.sub(r"^(?:dr\.?|doctor)\s*", "", str(doc_name).strip(), flags=re.IGNORECASE).strip()
         if not clean_doc_name:
             continue
 
@@ -275,15 +357,13 @@ def auto_generate_master_data_profiles(hospital=None):
         last_n = " ".join(doc_names[1:]) if len(doc_names) > 1 else ""
         raw_uname = f"dr_{re.sub(r'[^a-zA-Z0-9]', '', clean_doc_name).lower()}"
 
-        existing_user = User.objects.filter(
-            Q(username__iexact=raw_uname) | 
-            Q(first_name__iexact=first_n, last_name__iexact=last_n)
-        ).first()
+        name_key = (first_n.lower(), last_n.lower())
+        existing_user = user_by_uname.get(raw_uname) or user_by_name.get(name_key)
 
         if not existing_user:
             uname = raw_uname
             idx = 1
-            while User.objects.filter(username__iexact=uname).exists():
+            while uname in existing_unames:
                 uname = f"{raw_uname}{idx}"
                 idx += 1
 
@@ -298,15 +378,42 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_approved=True,
             )
             created_users.append(existing_user)
+            user_by_uname[uname.lower()] = existing_user
+            user_by_name[name_key] = existing_user
+            existing_unames.add(uname.lower())
 
-        # Ensure sync to HospitalDoctor model
+        # Ensure sync to HospitalDoctor model and MasterItem efficiently
         if hospital and existing_user and existing_user.role == User.Role.DOCTOR:
-            sync_doctor_profile(existing_user)
+            clean_lower = clean_doc_name.lower()
+            hdoc = hdoc_by_user_id.get(existing_user.id) or hdoc_by_name.get(clean_lower)
+            if not hdoc:
+                hdoc = HospitalDoctor.objects.create(
+                    hospital=hospital,
+                    user=existing_user,
+                    name=clean_doc_name,
+                    contact_number=existing_user.phone or "",
+                    email=existing_user.email or "",
+                    specialization=existing_user.speciality or "",
+                    is_active=existing_user.is_active and existing_user.is_active_employee,
+                )
+                hdoc_by_user_id[existing_user.id] = hdoc
+                hdoc_by_name[clean_lower] = hdoc
+            elif hdoc.user_id != existing_user.id:
+                hdoc.user = existing_user
+                hdoc.save(update_fields=['user'])
+                hdoc_by_user_id[existing_user.id] = hdoc
+
+            if doc_grp and clean_lower not in existing_master_items:
+                MasterItem.objects.get_or_create(
+                    group=doc_grp,
+                    hospital=hospital,
+                    name=clean_doc_name,
+                    defaults={"is_active": True}
+                )
+                existing_master_items.add(clean_lower)
 
     return created_users
 
-
-import re
 
 def sync_doctor_profile(user):
     """
@@ -317,8 +424,8 @@ def sync_doctor_profile(user):
     from leads.models import HospitalDoctor, HospitalDepartment, MasterGroup, MasterItem
     
     doc_name = user.get_full_name().strip() or user.username
-    # Clean redundant 'Dr.' or 'Doctor' prefixes
-    clean_name = re.sub(r"^(dr\.?|doctor)\s+", "", doc_name, flags=re.IGNORECASE).strip()
+    # Clean redundant 'Dr.' or 'Doctor' prefixes (handles DR.NAME and DR. NAME)
+    clean_name = re.sub(r"^(?:dr\.?|doctor)\s*", "", doc_name, flags=re.IGNORECASE).strip()
     if not clean_name:
         clean_name = doc_name
 
@@ -327,6 +434,7 @@ def sync_doctor_profile(user):
         doc = HospitalDoctor.objects.filter(hospital=user.hospital, name__iexact=clean_name).first()
 
     if not doc:
+        # Check if another doctor record with user_id exists
         doc = HospitalDoctor.objects.create(
             hospital=user.hospital,
             user=user,
@@ -337,6 +445,12 @@ def sync_doctor_profile(user):
             is_active=user.is_active and user.is_active_employee,
         )
     else:
+        # Avoid duplicate user assignment error
+        if doc.user_id != user.id:
+            # Check if user already has a HospitalDoctor profile
+            user_doc = HospitalDoctor.objects.filter(hospital=user.hospital, user=user).first()
+            if user_doc and user_doc.id != doc.id:
+                user_doc.delete()
         doc.user = user
         doc.name = clean_name
         if user.phone:

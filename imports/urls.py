@@ -18,4 +18,7 @@ urlpatterns = [
     path("job/<int:pk>/", views.job_detail, name="job_detail"),
     path("job/<int:pk>/delete/", views.delete_import, name="delete_job"),
     path("export/", views.export_leads, name="export"),
+    path("ajax/business-data/", views.ajax_business_data, name="ajax_business_data"),
+    path("master-data/export/", views.export_business_master_data, name="export_business_master_data"),
+    path("master-data/delete/", views.delete_business_master_data, name="delete_business_master_data"),
 ]

@@ -672,7 +672,7 @@
           <div class="row g-2 mb-3">
             <div class="col-7">
               <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Reschedule Date (If applicable)</label>
-              <input type="date" name="next_followup_date" class="form-control form-control-sm" value="{% if fu.next_followup_date %}{{ fu.next_followup_date|date:'Y-m-d' }}{% endif %}" min="{{ today|date:'Y-m-d' }}">
+              <input type="date" name="next_followup_date" class="form-control form-control-sm" value="{% if fu.next_followup_date %}{{ fu.next_followup_date|date:'Y-m-d' }}{% endif %}">
             </div>
             <div class="col-5">
               <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>

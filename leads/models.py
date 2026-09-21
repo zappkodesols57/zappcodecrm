@@ -642,10 +642,16 @@ class Lead(models.Model):
             if apts:
                 latest_apt = sorted(apts, key=lambda a: a.id, reverse=True)[0]
                 has_doctor_approved = (latest_apt.status in [AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED])
-        elif cd.get('appointment_confirmed_at'):
+        elif self.pk:
+            latest_apt = self.appointments.order_by('-id').first()
+            if latest_apt:
+                has_doctor_approved = (latest_apt.status in [AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED])
+
+        if not latest_apt and cd.get('appointment_confirmed_at'):
             has_doctor_approved = True
-        elif 'CONFIRM' in appt_st_up or 'APPROV' in appt_st_up or 'BOOK' in appt_st_up or appt_st_up == 'YES':
-            has_doctor_approved = True
+        elif not latest_apt and not (cd.get('appo_booked_date') or 'AWAIT' in appt_st_up or 'PENDING' in appt_st_up):
+            if 'CONFIRM' in appt_st_up or 'APPROV' in appt_st_up:
+                has_doctor_approved = True
 
         # 1. Payment Done (total bill > 0 or deal status Won)
         if tot > 0 or self.deal_status == DealStatus.WON or raw_ds.lower() in ("won", "won (payment done)", "admission", "admission done", "payment done"):
@@ -827,6 +833,21 @@ class Lead(models.Model):
             self.original_utm_campaign = self.utm_campaign
             self.original_referral_person = self.referral_person
             self.original_landing_page = self.landing_page
+
+        # Clean custom_data of any invalid JSON values (like float NaN / None strings)
+        if isinstance(self.custom_data, dict):
+            import math
+            cleaned_cd = {}
+            for k, v in self.custom_data.items():
+                if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    continue
+                if str(v).strip().lower() in ("nan", "nat"):
+                    continue
+                cleaned_cd[str(k)] = v
+            self.custom_data = cleaned_cd
+        elif self.custom_data is None:
+            self.custom_data = {}
+
         super().save(*args, **kwargs)
 
     @property

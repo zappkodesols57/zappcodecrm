@@ -10,6 +10,11 @@ class CRMUserCreateForm(UserCreationForm):
         label="Allow Lead Data Import & Export (Excel/CSV)",
         help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
     )
+    can_delete_master_data = forms.BooleanField(
+        required=False,
+        label="Allow Delete / Purge Master Data",
+        help_text="Super Admin only: Grant this business Admin permission to delete / purge master leads."
+    )
     daily_call_target = forms.IntegerField(
         required=False,
         initial=100,
@@ -33,7 +38,7 @@ class CRMUserCreateForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -71,6 +76,11 @@ class CRMUserCreateForm(UserCreationForm):
 
         if "hospital" in self.fields:
             self.fields["hospital"].label = "Business"
+
+        # Only Super Admin can view/toggle can_delete_master_data permission
+        if not (self.user and self.user.role == User.Role.SUPER_ADMIN):
+            if "can_delete_master_data" in self.fields:
+                del self.fields["can_delete_master_data"]
             
         for name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
@@ -122,12 +132,14 @@ class CRMUserCreateForm(UserCreationForm):
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
+        can_del_master = self.cleaned_data.get("can_delete_master_data", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
+        user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
@@ -141,6 +153,11 @@ class CRMUserEditForm(forms.ModelForm):
         required=False, 
         label="Allow Lead Data Import & Export (Excel/CSV)",
         help_text="Check to allow this employee to import and export lead data from Excel/CSV files."
+    )
+    can_delete_master_data = forms.BooleanField(
+        required=False,
+        label="Allow Delete / Purge Master Data",
+        help_text="Super Admin only: Grant this business Admin permission to delete / purge master leads."
     )
     allow_self_assign = forms.BooleanField(
         required=False,
@@ -162,13 +179,14 @@ class CRMUserEditForm(forms.ModelForm):
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             self.fields["can_import_export"].initial = self.instance.can_import_export
+            self.fields["can_delete_master_data"].initial = self.instance.has_dynamic_permission("delete_master_data", default=False)
             self.fields["daily_call_target"].initial = self.instance.daily_call_target
             self.fields["allow_self_assign"].initial = self.instance.can_self_assign
             self.fields["bulk_self_assign_limit"].initial = self.instance.bulk_self_assign_limit
@@ -201,6 +219,11 @@ class CRMUserEditForm(forms.ModelForm):
 
         if "hospital" in self.fields:
             self.fields["hospital"].label = "Business"
+
+        # Only Super Admin can view/toggle can_delete_master_data permission for admins
+        if not (self.user and self.user.role == User.Role.SUPER_ADMIN):
+            if "can_delete_master_data" in self.fields:
+                del self.fields["can_delete_master_data"]
             
         for name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
@@ -252,12 +275,14 @@ class CRMUserEditForm(forms.ModelForm):
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
         can_imp = self.cleaned_data.get("can_import_export", False)
+        can_del_master = self.cleaned_data.get("can_delete_master_data", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
         if not user.custom_permissions:
             user.custom_permissions = {}
         user.custom_permissions["import_export"] = can_imp
+        user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)

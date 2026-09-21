@@ -210,15 +210,64 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         "contact_no", "whatsapp", "whatsapp_number", "call_number", "cell"
     ]
     email_cols = ["email", "e_mail", "email_address", "mail"]
-    date_cols = ["created_time", "created_at", "date", "inquiry_date", "lead_date", "time"]
+    date_cols = ["created_time", "created_at", "date", "inquiry_date", "lead_date", "lead_created_date", "time"]
     platform_cols = ["platform", "source", "publisher_platform", "lead_source", "channel"]
+    attendant_cols = [
+        "lead_attendent", "lead_attendant", "attendent", "attendant", 
+        "assigned_to", "assigned", "telecaller", "caller", "counsellor", "agent", "executive"
+    ]
+    doctor_cols = ["doctor", "dr_name", "consultant", "physician", "surgeon", "dr"]
+    gender_cols = ["gender", "sex", "m/f"]
+    address_cols = ["adderess", "address", "location", "city", "area", "town", "district"]
+    due_date_cols = ["due_date", "edd", "expected_delivery_date"]
     
-    # Find survey / remark questions (e.g. "how_many_months_pregnant_are_you?", "question", "symptom", "problem")
-    survey_cols = [col for col in df.columns if "?" in str(col) or any(k in str(col).lower() for k in ["pregnant", "query", "remark", "month", "समस्या", "रोग"])]
+    # Financial & clinical bills
+    uhid_cols = ["uhid_no", "uhid_id_no", "uhid", "patient_id"]
+    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date"]
+    pharmacy_bill_cols = ["pharmacy_bill", "pharmacy"]
+    opd_bill_cols = ["opd_bill", "opd"]
+    ipd_bill_cols = ["ipd_bill", "ipd_no", "ipd"]
+    investigation_bill_cols = ["investigation_bill", "investigation", "lab_bill"]
+    total_bill_cols = ["total", "total_bill", "total_amount", "total_paid"]
+    final_status_cols = ["final_status", "deal_status", "status", "stage"]
+
+    # Follow up columns
+    fu1_date_cols = ["first_follow_up_date", "first_followup_date", "1st_follow_up_date", "follow_up_1_date"]
+    fu1_remark_cols = ["first_follow_up_remark", "first_followup_remark", "1st_follow_up_remark", "remark_1", "follow_up_1_remark"]
+    fu2_date_cols = ["second_follow_up_date", "second_followup_date", "2nd_follow_up_date", "follow_up_2_date"]
+    fu2_remark_cols = ["second_follow_up_remark", "second_followup_remark", "2nd_follow_up_remark", "remark_2", "follow_up_2_remark"]
+
+    # Excluded from survey/generic notes because they are recognized structured columns
+    structured_col_keys = set(
+        name_cols + phone_cols + email_cols + date_cols + platform_cols +
+        attendant_cols + doctor_cols + gender_cols + address_cols + due_date_cols +
+        uhid_cols + opd_done_date_cols + pharmacy_bill_cols + opd_bill_cols + ipd_bill_cols +
+        investigation_bill_cols + total_bill_cols + final_status_cols +
+        fu1_date_cols + fu1_remark_cols + fu2_date_cols + fu2_remark_cols +
+        ["sr_no", "sr_no.", "campaign_name", "campaign", "patient_update"]
+    )
+
+    # Find survey / remark questions
+    survey_cols = []
+    for col in df.columns:
+        c_clean = col_map.get(col, "")
+        if c_clean in structured_col_keys:
+            continue
+        if "?" in str(col) or any(k in c_clean for k in ["pregnant", "query", "month", "समस्या", "रोग", "symptom", "problem"]):
+            survey_cols.append(col)
 
     unknown_counter = 1
 
     for idx, row in df.iterrows():
+        # Helper to extract clean string value
+        def get_col_val(candidate_cols):
+            for orig_col, clean_c in col_map.items():
+                if (clean_c in candidate_cols or any(cand == clean_c for cand in candidate_cols)) and pd.notna(row.get(orig_col)):
+                    s = str(row.get(orig_col)).strip()
+                    if s and s.lower() not in ("nan", "none", "null", "-", "na", "nat"):
+                        return s
+            return ""
+
         # 1. Phone
         phone_val = ""
         for orig_col, clean_c in col_map.items():
@@ -242,34 +291,25 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         # 3. Name (Direct Column -> or Fallback to Email -> or Sequenced Unknown Patient)
         name_val = ""
         for orig_col, clean_c in col_map.items():
-            # Exact or partial match on name keywords
             if (clean_c in name_cols or any(nk in clean_c for nk in ["your_name", "full_name", "patient_name", "lead_name", "customer_name"])) and pd.notna(row.get(orig_col)):
                 raw_n = str(row.get(orig_col)).strip()
                 if raw_n and raw_n.lower() not in ("nan", "none", "null", "-", "na", "nat"):
                     name_val = raw_n
                     break
 
-        # If name not found in name column, extract from email (e.g. shabana.khan@gmail.com -> Shabana Khan)
+        # If name not found in name column, extract from email
         if not name_val and email_val:
             email_user = email_val.split("@")[0]
-            # Replace dots, numbers, underscores with space
             clean_email_name = re.sub(r"[0-9_\.\-]+", " ", email_user).strip().title()
             if len(clean_email_name) >= 2:
                 name_val = clean_email_name
 
-        # If still no name, give numbered unique sequence e.g. "Unknown Patient 1", "Unknown Patient 2"
         if not name_val:
             name_val = f"Unknown Patient {unknown_counter}"
             unknown_counter += 1
 
         # 4. Platform / Source
-        platform_val = ""
-        for orig_col, clean_c in col_map.items():
-            if clean_c in platform_cols and pd.notna(row.get(orig_col)):
-                platform_val = str(row.get(orig_col)).strip()
-                if platform_val:
-                    break
-
+        platform_val = get_col_val(platform_cols)
         canonical_platform = "Meta Ads"
         plat_lower = platform_val.lower()
         if "ig" in plat_lower or "insta" in plat_lower:
@@ -294,14 +334,8 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                 inquiry_date_val = parse_flexible_date(row.get(orig_col))
                 break
 
-        # 6. City / Location
-        city_val = ""
-        for orig_col, clean_c in col_map.items():
-            if clean_c in ["city", "location", "area", "address", "district"] and pd.notna(row.get(orig_col)):
-                raw_c = str(row.get(orig_col)).strip()
-                if raw_c and raw_c.lower() not in ("nan", "none", "null", "-", "na"):
-                    city_val = raw_c
-                    break
+        # 6. City / Address
+        city_val = get_col_val(address_cols)
 
         # 7. Course / Program
         course_name_val = ""
@@ -312,14 +346,89 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                     course_name_val = raw_crs
                     break
 
-        # 8. Survey questions, timeline & remarks
+        # 8. Lead Attendant & Doctor
+        attendant_raw = get_col_val(attendant_cols)
+        doctor_raw = get_col_val(doctor_cols)
+        gender_raw = get_col_val(gender_cols)
+        due_date_raw = get_col_val(due_date_cols)
+
+        # 9. Follow-up 1 & 2 details
+        fu1_date_raw = get_col_val(fu1_date_cols)
+        fu1_remark_raw = get_col_val(fu1_remark_cols)
+        fu2_date_raw = get_col_val(fu2_date_cols)
+        fu2_remark_raw = get_col_val(fu2_remark_cols)
+
+        # 10. Financial / Billing fields
+        uhid_raw = get_col_val(uhid_cols)
+        opd_done_date_raw = get_col_val(opd_done_date_cols)
+        pharmacy_bill_raw = get_col_val(pharmacy_bill_cols)
+        opd_bill_raw = get_col_val(opd_bill_cols)
+        ipd_bill_raw = get_col_val(ipd_bill_cols)
+        investigation_bill_raw = get_col_val(investigation_bill_cols)
+        total_bill_raw = get_col_val(total_bill_cols)
+        final_status_raw = get_col_val(final_status_cols)
+        patient_update_raw = get_col_val(["patient_update", "update"])
+
+        # 11. Survey questions & custom data
         survey_notes = []
         custom_data_survey = {}
         if city_val:
             custom_data_survey["city"] = city_val
+            custom_data_survey["location"] = city_val
         if course_name_val:
             custom_data_survey["course"] = course_name_val
+        if gender_raw:
+            custom_data_survey["gender"] = gender_raw.upper() if gender_raw.lower() in ("m", "f", "male", "female") else gender_raw.title()
+        if doctor_raw:
+            custom_data_survey["doctor"] = doctor_raw
+        if due_date_raw:
+            custom_data_survey["due_date"] = due_date_raw
+        if uhid_raw:
+            custom_data_survey["uhid_id_no"] = uhid_raw
+        if opd_done_date_raw:
+            custom_data_survey["visit_date"] = str(parse_flexible_date(opd_done_date_raw))
+        if pharmacy_bill_raw:
+            try:
+                custom_data_survey["pharmacy_bill"] = float(re.sub(r"[^\d.]", "", pharmacy_bill_raw))
+            except Exception:
+                pass
+        if opd_bill_raw:
+            try:
+                custom_data_survey["opd_bill"] = float(re.sub(r"[^\d.]", "", opd_bill_raw))
+            except Exception:
+                pass
+        if ipd_bill_raw:
+            try:
+                custom_data_survey["ipd_bill"] = float(re.sub(r"[^\d.]", "", ipd_bill_raw))
+            except Exception:
+                pass
+        if investigation_bill_raw:
+            custom_data_survey["investigation"] = investigation_bill_raw
+        if total_bill_raw:
+            try:
+                custom_data_survey["total"] = float(re.sub(r"[^\d.]", "", total_bill_raw))
+                custom_data_survey["total_paid"] = custom_data_survey["total"]
+            except Exception:
+                pass
 
+        if final_status_raw:
+            custom_data_survey["deal_status"] = final_status_raw
+            custom_data_survey["done"] = final_status_raw
+
+        # Follow-ups in custom_data
+        if fu1_date_raw:
+            custom_data_survey["calling_date_remark_1"] = str(parse_flexible_date(fu1_date_raw))
+        if fu1_remark_raw:
+            custom_data_survey["remark_1"] = fu1_remark_raw
+        if fu2_date_raw:
+            custom_data_survey["calling_date_remark_2"] = str(parse_flexible_date(fu2_date_raw))
+        if fu2_remark_raw:
+            custom_data_survey["remark_2"] = fu2_remark_raw
+
+        if not custom_data_survey.get("priority"):
+            custom_data_survey["priority"] = "Hot"
+
+        # Survey questions (only truly unmapped questions)
         for s_col in survey_cols:
             s_val = row.get(s_col)
             if pd.notna(s_val) and str(s_val).strip():
@@ -328,17 +437,12 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                 survey_notes.append(f"{clean_label}: {clean_val}")
                 custom_data_survey[s_col] = clean_val
 
-        # Also capture timeline or form name if present
-        for extra_col in ["Timeline", "timeline", "Form Name", "form_name"]:
-            if extra_col in df.columns and pd.notna(row.get(extra_col)):
-                val_extra = str(row.get(extra_col)).strip()
-                if val_extra and val_extra.lower() not in ("nan", "none", "null"):
-                    custom_data_survey[extra_col.lower().replace(" ", "_")] = val_extra
-                    survey_notes.append(f"{extra_col}: {val_extra}")
+        if patient_update_raw:
+            survey_notes.append(f"Patient Update: {patient_update_raw}")
 
         notes_combined = "\n".join(survey_notes)
 
-        # 9. Raw Metadata dictionary
+        # Raw Metadata dictionary
         raw_meta = {}
         for col in df.columns:
             val = row.get(col)
@@ -365,6 +469,15 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             "raw_metadata": raw_meta,
             "external_lead_id": external_id,
             "campaign_name": target_campaign.name if target_campaign else raw_meta.get('campaign_name', raw_meta.get('Form Name', '')),
+            "attendant_raw": attendant_raw,
+            "doctor_raw": doctor_raw,
+            "gender_raw": gender_raw,
+            "due_date_raw": due_date_raw,
+            "final_status_raw": final_status_raw,
+            "fu1_date": str(parse_flexible_date(fu1_date_raw)) if fu1_date_raw else None,
+            "fu1_remark": fu1_remark_raw,
+            "fu2_date": str(parse_flexible_date(fu2_date_raw)) if fu2_date_raw else None,
+            "fu2_remark": fu2_remark_raw,
         })
 
     return processed_rows

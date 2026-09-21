@@ -26,7 +26,7 @@
             <!-- Call Date -->
             <div class="col-md-3 col-sm-6">
                 <label class="form-label small fw-bold text-uppercase text-muted">Call Date</label>
-                <input type="date" name="call_date" class="form-control rounded-3" value="{{ call_date }}">
+                <input type="date" name="call_date" class="form-control rounded-3" value="{{ call_date }}" max="{{ today_str }}">
             </div>
 
             <!-- Call / Appointment Outcome -->
@@ -34,9 +34,10 @@
                 <label class="form-label small fw-bold text-uppercase text-muted">Outcome</label>
                 <select name="call_status" class="form-select rounded-3">
                     <option value="">All Outcomes</option>
-                    <option value="Booked" {% if call_status == 'Booked' %}selected{% endif %}>📅 Appointment Booked</option>
+                    <option value="Done" {% if call_status == 'Done' %}selected{% endif %}>Done</option>
+                    <option value="Booked" {% if call_status == 'Booked' %}selected{% endif %}>Appointment Booked</option>
                     <option value="Not Booked" {% if call_status == 'Not Booked' %}selected{% endif %}>Not Booked / Ongoing</option>
-                    <option value="Cancelled" {% if call_status == 'Cancelled' %}selected{% endif %}>❌ Cancelled</option>
+                    <option value="Cancelled" {% if call_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                 </select>
             </div>
 

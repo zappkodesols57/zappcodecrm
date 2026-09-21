@@ -180,9 +180,15 @@
                     <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-warning me-2"></i> Today's Tasks</h5>
                     <small class="text-muted">Assigned by Management or Self</small>
                 </div>
-                <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
-                    <i class="fa-solid fa-plus text-primary"></i>
-                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold d-flex align-items-center gap-1" title="View All Tasks">
+                        <span>View All</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </a>
+                    <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
+                        <i class="fa-solid fa-plus text-primary"></i>
+                    </a>
+                </div>
             </div>
             <div class="card-body p-4">
                 {% if todays_tasks %}
