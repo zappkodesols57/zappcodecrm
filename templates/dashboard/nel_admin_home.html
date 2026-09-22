@@ -1728,16 +1728,6 @@
     }
 
     function changeCalMonth(delta) {
-        const now = new Date();
-        const currentRealYear = now.getFullYear();
-        const currentRealMonth = now.getMonth() + 1;
-
-        if (delta > 0 && !isFutureDateAllowed()) {
-            if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
-                return;
-            }
-        }
-
         currentCalMonth += delta;
         if (currentCalMonth > 12) {
             currentCalMonth = 1;
@@ -1746,6 +1736,10 @@
             currentCalMonth = 12;
             currentCalYear -= 1;
         }
+        currentDrilldownMode = 'custom';
+        const mm = String(currentCalMonth).padStart(2, '0');
+        currentDrilldownDate = `${currentCalYear}-${mm}-01`;
+        updatePillUI('custom');
         fetchDrilldownData();
     }
 
@@ -1968,9 +1962,8 @@
                     if (data.business_mode) cachedBusinessMode = data.business_mode;
 
                     // Update active date label
-                    if (data.selected_date !== 'all') {
-                        currentDrilldownDate = data.selected_date;
-                    }
+                    if (data.cal_year) currentCalYear = data.cal_year;
+                    if (data.cal_month) currentCalMonth = data.cal_month;
 
                     // Dynamically update Modal Title & Labels for specific date
                     updateModalDynamicTitle(data.selected_date_display);
@@ -2290,13 +2283,16 @@
 
         wrapper.style.display = 'block';
 
-        let allCnt = leadItems.length;
+        let allCnt = 0;
         let opdCnt = 0;
         let consultCnt = 0;
 
         leadItems.forEach(l => {
             const cat = l.booking_category || '';
             const st = (l.appointment_status || l.status || '').toLowerCase();
+            const isLost = (st.includes('lost') || st.includes('cancel') || st.includes('not int') || (l.deal_status && l.deal_status.toLowerCase() === 'lost'));
+            if (isLost) return;
+            allCnt++;
             if (cat === 'consultation' || st.includes('consult')) {
                 consultCnt++;
             } else {
@@ -2462,15 +2458,19 @@
         let filtered = cachedLeadItems;
 
         // 1. Filter by Booking Type (OPD vs Consultation)
-        if (currentDrilldownCard === 'opd_booked' && selectedBookingTypeFilter && selectedBookingTypeFilter !== 'all') {
+        if (currentDrilldownCard === 'opd_booked') {
             filtered = filtered.filter(l => {
                 const cat = l.booking_category || '';
                 const st = (l.appointment_status || l.status || '').toLowerCase();
-                const isConsult = (cat === 'consultation' || st.includes('consult'));
-                if (selectedBookingTypeFilter === 'consultation') {
-                    return isConsult;
-                } else if (selectedBookingTypeFilter === 'opd') {
-                    return !isConsult;
+                const isLost = (st.includes('lost') || st.includes('cancel') || st.includes('not int') || (l.deal_status && l.deal_status.toLowerCase() === 'lost'));
+                if (isLost) return false;
+                if (selectedBookingTypeFilter && selectedBookingTypeFilter !== 'all') {
+                    const isConsult = (cat === 'consultation' || st.includes('consult'));
+                    if (selectedBookingTypeFilter === 'consultation') {
+                        return isConsult;
+                    } else if (selectedBookingTypeFilter === 'opd') {
+                        return !isConsult;
+                    }
                 }
                 return true;
             });

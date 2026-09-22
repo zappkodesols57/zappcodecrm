@@ -8,13 +8,14 @@ def global_business_context(request):
     # Any business admin (role ADMIN / MANAGER / etc. or user with an assigned hospital) is strictly limited to their business.
     is_superadmin = (request.user.is_superuser or request.user.role == 'SUPER_ADMIN') and not bool(request.user.hospital)
     
-    active_business_id = request.session.get('active_business_id', '') if is_superadmin else ''
+    session = getattr(request, 'session', None)
+    active_business_id = session.get('active_business_id', '') if (session and is_superadmin) else ''
     active_business = None
     if is_superadmin and active_business_id and str(active_business_id).isdigit():
         active_business = Hospital.objects.filter(id=int(active_business_id), is_active=True).first()
-        if not active_business:
+        if not active_business and session:
             # Fallback if hospital was deleted or inactivated
-            request.session.pop('active_business_id', None)
+            session.pop('active_business_id', None)
             active_business_id = ''
             
     all_businesses = list(Hospital.objects.filter(is_active=True).order_by('name')) if is_superadmin else []

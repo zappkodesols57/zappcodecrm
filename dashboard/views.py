@@ -21,19 +21,19 @@ from imports.models import ImportJob
 
 def filter_uncontacted_leads_ids(c_base, today=None):
     """
-    Returns list of lead IDs that are genuinely uncontacted / call not done:
-    - Fresh/untouched leads with NO calling remarks or follow-ups added yet
-    - Leads where follow-ups are pending / scheduled (next_followup_date set or PENDING follow-up status)
+    Returns list of lead IDs that are genuinely fresh/uncontacted (Call Not Done):
+    - Fresh/untouched leads with NO calling remarks (remark_1..5, comments, followup_remark, user notes)
+    - Leads with NO follow-ups logged or scheduled (next_followup_date is None, followup_count == 0, no FollowUp entries)
+    - Leads with NO calling dates (calling_date_remark_*, last_called_date)
     Strictly excludes:
     - Leads with terminal deal status (WON, LOST) or admission done
     - Leads with payments billed (total > 0)
     - Leads with confirmed/completed appointments
+    - Any lead that has already been contacted, has follow-up remarks, or has scheduled follow-ups
     """
     if today is None:
         today = timezone.localdate()
-    today_s = today.strftime("%Y-%m-%d")
-    today_a = today.strftime("%d-%m-%Y")
-    
+
     # 1. Broad DB exclusions (fast indexed filter, order_by() strips created_at filesort)
     q = c_base.order_by().filter(
         deal_status__in=[DealStatus.OPEN, 'New', 'OPEN']
@@ -43,15 +43,27 @@ def filter_uncontacted_leads_ids(c_base, today=None):
         admission_status__in=[AdmissionStatus.ADMISSION_DONE, 'ADMISSION_DONE']
     ).exclude(
         admission__isnull=False
+    ).filter(
+        next_followup_date__isnull=True,
+        followup_count=0
     )
 
     rows = list(q.values(
         'id', 'custom_data', 'stage__name', 'temperature', 'hospital__settings',
-        'hospital__name', 'followup_count', 'next_followup_date', 'notes'
+        'hospital__name', 'notes'
     ))
 
-    terminal_statuses = {'booked', 'completed', 'payment done', 'payment pending', 'cancelled', 'visited', 'admission done', 'won', 'lost', 'not interested'}
-    terminal_stages = {'admission done', 'complete', 'lost', 'cancelled', 'won'}
+    if not rows:
+        return []
+
+    lead_ids = [r['id'] for r in rows]
+
+    # Fast batch check for any FollowUp records in database for these leads
+    from followups.models import FollowUp
+    leads_with_followups = set(FollowUp.objects.filter(lead_id__in=lead_ids).values_list('lead_id', flat=True))
+
+    terminal_statuses = {'booked', 'completed', 'payment done', 'payment pending', 'cancelled', 'visited', 'admission done', 'won', 'lost', 'not interested', 'follow up', 'follow-up', 'followup'}
+    terminal_stages = {'admission done', 'complete', 'lost', 'cancelled', 'won', 'follow up', 'follow-up', 'followup'}
 
     def is_clean_val(v):
         if not v:
@@ -59,13 +71,23 @@ def filter_uncontacted_leads_ids(c_base, today=None):
         s = str(v).strip()
         return bool(s and s.lower() not in ('nan', 'none', '—', '-', '', 'null', 'nil', 'na', 'n/a'))
 
-    valid_hospital_candidates = []
+    def has_user_notes(notes_str):
+        if not is_clean_val(notes_str):
+            return False
+        s = str(notes_str).strip()
+        if s.startswith('[Lead ID]') and len(s.splitlines()) <= 1:
+            return False
+        return True
+
     matched_ids = []
 
     for r in rows:
+        lid = r['id']
+        if lid in leads_with_followups:
+            continue
+
         cd = r['custom_data'] or {}
         st_name = (r['stage__name'] or '').strip().lower()
-        temp_str = str(r['temperature'] or '').strip().upper()
 
         # Total billed check
         tot = 0.0
@@ -81,91 +103,84 @@ def filter_uncontacted_leads_ids(c_base, today=None):
 
         if raw_apt in terminal_statuses or raw_ds in terminal_statuses:
             continue
-        if any(k in raw_apt for k in ['book', 'confirm', 'payment done', 'completed', 'visit planned', 'visited']):
+        if any(k in raw_apt for k in ['book', 'confirm', 'payment done', 'completed', 'visit planned', 'visited', 'follow']):
+            continue
+        if any(k in raw_ds for k in ['book', 'confirm', 'payment done', 'completed', 'visit planned', 'visited', 'follow']):
             continue
 
-        is_hosp = False
-        btype = (r['hospital__settings'] or {}).get("business_type")
-        if btype:
-            is_hosp = (str(btype).strip().lower() == "hospital")
-        else:
-            n_lower = (r['hospital__name'] or "").lower()
-            is_hosp = any(k in n_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])
+        if st_name in terminal_stages:
+            continue
 
-        next_fu_d = r['next_followup_date']
-        fu_cnt = r['followup_count'] or 0
+        # Check all remarks fields
+        r1 = cd.get('remark_1')
+        r2 = cd.get('remark_2')
+        r3 = cd.get('remark_3')
+        r4 = cd.get('remark_4')
+        r5 = cd.get('remark_5')
+        f_rem = cd.get('followup_remark')
+        comm = cd.get('comments')
+        c_date1 = cd.get('calling_date_remark_1')
+        c_date2 = cd.get('calling_date_remark_2')
+        c_date3 = cd.get('calling_date_remark_3')
+        last_called = cd.get('last_called_date')
 
-        if not is_hosp:
-            # ACADEMY TENANT UNCONTACTED RULES:
-            if fu_cnt > 0 or next_fu_d is not None:
-                continue
-            if temp_str and temp_str != LeadTemperature.UNCONTACTED:
-                continue
-            if st_name and st_name not in ['new', 'fresh', 'uncontacted']:
-                continue
-            matched_ids.append(r['id'])
-        else:
-            # HOSPITAL TENANT CANDIDATE
-            if st_name in terminal_stages:
-                continue
-            if temp_str == 'COLD' and not next_fu_d:
-                continue
+        has_any_remark = any(is_clean_val(rk) for rk in [r1, r2, r3, r4, r5, f_rem, comm, c_date1, c_date2, c_date3, last_called])
+        if has_any_remark or has_user_notes(r['notes']):
+            continue
 
-            r1 = cd.get('remark_1')
-            r2 = cd.get('remark_2')
-            r3 = cd.get('remark_3')
-            f_rem = cd.get('followup_remark')
-            comm = cd.get('comments')
-            has_any_remark = any(is_clean_val(rk) for rk in [r1, r2, r3, f_rem, comm, r['notes']])
-
-            valid_hospital_candidates.append((r, has_any_remark, next_fu_d))
-
-    # Fast batch query for follow-up statuses only for hospital leads needing follow-up verification
-    lead_ids_needing_fu = [r['id'] for r, has_remark, next_fu in valid_hospital_candidates if not next_fu]
-    fu_status_map = {}
-    if lead_ids_needing_fu:
-        from django.db import connection
-        with connection.cursor() as cursor:
-            placeholders = ','.join(['%s'] * len(lead_ids_needing_fu))
-            cursor.execute(f'SELECT lead_id, followup_status FROM followups_followup WHERE lead_id IN ({placeholders})', lead_ids_needing_fu)
-            for lid, st in cursor.fetchall():
-                if lid not in fu_status_map:
-                    fu_status_map[lid] = []
-                fu_status_map[lid].append(st)
-
-    for r, has_any_remark, next_fu_d in valid_hospital_candidates:
-        cd = r['custom_data'] or {}
-        lid = r['id']
-        fus = fu_status_map.get(lid, [])
-
-        has_pending_followup = False
-        if fus:
-            if any(st in ['PENDING', 'CALL_BACK', 'RESCHEDULED'] for st in fus):
-                has_pending_followup = True
-        elif next_fu_d:
-            has_pending_followup = True
-
-        if not has_pending_followup:
-            if cd.get('calling_date_remark_1') in (today_s, today_a) or \
-               cd.get('calling_date_remark_2') in (today_s, today_a) or \
-               cd.get('calling_date_remark_3') in (today_s, today_a) or \
-               cd.get('last_called_date') in (today_s, today_a):
-                continue
-
-        is_untouched = (not has_any_remark and (not fus or (r['followup_count'] or 0) == 0))
-
-        if is_untouched or has_pending_followup:
-            matched_ids.append(lid)
+        matched_ids.append(lid)
 
     return matched_ids
+
+
+def extract_lead_followup_date(l):
+    """
+    Extracts the effective scheduled follow-up date for a lead.
+    Checks:
+    1. Lead.next_followup_date
+    2. Linked FollowUp objects (next_followup_date first, then followup_date)
+    3. custom_data follow-up / calling dates
+    """
+    if l.next_followup_date:
+        return l.next_followup_date
+    
+    if hasattr(l, '_prefetched_objects_cache') and 'followups' in l._prefetched_objects_cache:
+        for fu in l.followups.all():
+            if fu.next_followup_date:
+                return fu.next_followup_date
+        for fu in l.followups.all():
+            if fu.followup_date:
+                return fu.followup_date
+    else:
+        fu_with_next = l.followups.filter(next_followup_date__isnull=False).order_by('-id').first()
+        if fu_with_next and fu_with_next.next_followup_date:
+            return fu_with_next.next_followup_date
+        fu_with_date = l.followups.filter(followup_date__isnull=False).order_by('-id').first()
+        if fu_with_date and fu_with_date.followup_date:
+            return fu_with_date.followup_date
+            
+    cd = l.custom_data or {}
+    for k in ['next_followup_date', 'followup_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_date_remark_3', 'last_called_date']:
+        v = cd.get(k)
+        if v:
+            v_str = str(v).strip()[:10]
+            try:
+                return datetime.strptime(v_str, '%Y-%m-%d').date()
+            except Exception:
+                try:
+                    return datetime.strptime(v_str, '%d-%m-%Y').date()
+                except Exception:
+                    pass
+    return None
 
 
 @login_required
 def welcome_view(request):
     from accounts.views import _role_redirect
-    from accounts.models import User
-    from leads.models import Lead, DealStatus, Campaign
+    from accounts.models import User, Hospital
+    from leads.models import Lead, DealStatus, Campaign, Appointment, AppointmentStatus
     from followups.models import FollowUp, FollowUpStatus
+    from django.db.models import Count
 
     user = request.user
     today_date = timezone.localdate()
@@ -188,90 +203,173 @@ def welcome_view(request):
         greeting_icon = "fa-moon"
         greeting_style = "color: #818cf8;"
 
-    # 2. Base Queryset for Leads
-    if user.hospital:
-        hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False)
-    else:
-        hospital_leads = Lead.objects.filter(is_archived=False, hospital__isnull=True)
-
-    today_leads_qs = hospital_leads.filter(
-        Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
-    ).distinct()
-
-    if not user.can_view_all_leads and user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
-        today_leads_qs = today_leads_qs.filter(
-            Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
-        )
-
-    new_leads_count = today_leads_qs.count()
-
-    # 3. Campaign Breakdown
-    # Group by campaign name or source
-    campaign_stats = []
-    # Try grouped by campaign
-    campaign_counts = (
-        today_leads_qs.filter(campaign__isnull=False)
-        .values("campaign__name")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:5]
-    )
-    for c in campaign_counts:
-        campaign_stats.append({
-            "name": c["campaign__name"],
-            "count": c["count"]
-        })
-
-    # If few or no tagged campaigns, check custom_data campaigns / form_name
-    if not campaign_stats:
+    # Helper function to extract campaign breakdown and walk-in count for any queryset of leads
+    def extract_campaign_and_walkin_stats(qs):
         from collections import defaultdict
         camp_map = defaultdict(int)
-        for l in today_leads_qs:
-            cd = l.custom_data or {}
-            c_name = cd.get("campaign") or cd.get("form_name") or (l.lead_source.name if l.lead_source else None)
+        walkin_count = 0
+        meta_count = 0
+
+        # Try fast DB aggregation for campaign foreign keys
+        campaign_counts = (
+            qs.filter(campaign__isnull=False)
+            .values("campaign__name")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+        for c in campaign_counts:
+            c_name = c["campaign__name"]
             if c_name and str(c_name).strip() not in ('nan', 'None', '', '—', '-'):
+                camp_map[str(c_name).strip()] += c["count"]
+
+        # Loop through leads for custom_data campaign, walk-in, and meta attribution
+        for l in qs:
+            cd = l.custom_data or {}
+            c_name = cd.get("campaign") or cd.get("form_name")
+            if c_name and str(c_name).strip() not in ('nan', 'None', '', '—', '-') and not l.campaign_id:
                 camp_map[str(c_name).strip()] += 1
-        for name, cnt in sorted(camp_map.items(), key=lambda x: x[1], reverse=True)[:5]:
+
+            # Walk-in detection
+            src_name = (l.lead_source.name if l.lead_source else "") or str(cd.get("lead_source") or cd.get("source") or "")
+            lead_type_str = str(l.lead_type or "")
+            if "walk" in src_name.lower() or "walk" in lead_type_str.lower() or "direct visit" in src_name.lower() or "hospital visit" in str(c_name or "").lower():
+                walkin_count += 1
+
+            # Meta ads detection
+            if "meta" in src_name.lower() or "facebook" in src_name.lower() or "instagram" in src_name.lower() or (l.campaign and "meta" in (l.campaign.platform or "").lower()):
+                meta_count += 1
+
+        # Format top campaigns
+        campaign_stats = []
+        for name, cnt in sorted(camp_map.items(), key=lambda x: x[1], reverse=True)[:6]:
             campaign_stats.append({
                 "name": name,
                 "count": cnt
             })
 
-    # If still empty, group by lead source
-    if not campaign_stats:
-        source_counts = (
-            today_leads_qs.filter(lead_source__isnull=False)
-            .values("lead_source__name")
-            .annotate(count=Count("id"))
-            .order_by("-count")[:5]
-        )
-        for s in source_counts:
-            campaign_stats.append({
-                "name": s["lead_source__name"],
-                "count": s["count"]
+        # If no named campaigns, group by lead source
+        if not campaign_stats:
+            source_counts = (
+                qs.filter(lead_source__isnull=False)
+                .values("lead_source__name")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:6]
+            )
+            for s in source_counts:
+                campaign_stats.append({
+                    "name": s["lead_source__name"],
+                    "count": s["count"]
+                })
+
+        return {
+            "total_count": qs.count(),
+            "campaign_stats": campaign_stats,
+            "walkin_count": walkin_count,
+            "meta_count": meta_count
+        }
+
+    # Role categorization flags
+    is_super_admin = (user.role == User.Role.SUPER_ADMIN and not user.hospital)
+    is_doctor = (user.role == User.Role.DOCTOR)
+    is_lead_attendant = (user.role == User.Role.LEAD_ATTENDENT)
+    is_counsellor = (user.role in (User.Role.COUNSELLOR, User.Role.HR))
+    is_business_admin = (user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER) and bool(user.hospital))
+
+    # Data structures to pass to template
+    businesses_data = []
+    role_metrics = {}
+
+    all_active_leads_today = Lead.objects.filter(is_archived=False).filter(
+        Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+    ).distinct()
+
+    if is_super_admin:
+        # Multi-business breakdown: Nelson Hospital, Zappcode Academy, and any dynamic business/tenant
+        hospitals = Hospital.objects.filter(is_active=True).order_by("id")
+        for h in hospitals:
+            h_leads_today = all_active_leads_today.filter(hospital=h)
+            b_stats = extract_campaign_and_walkin_stats(h_leads_today)
+            businesses_data.append({
+                "id": h.id,
+                "name": h.name,
+                "total_count": b_stats["total_count"],
+                "walkin_count": b_stats["walkin_count"],
+                "meta_count": b_stats["meta_count"],
+                "campaign_stats": b_stats["campaign_stats"],
+                "is_nelson": "nelson" in h.name.lower(),
+                "is_zappcode": "zappcode" in h.name.lower() or "academy" in h.name.lower(),
             })
 
-    # 4. Pending Follow-ups for Today
-    pending_followups_qs = FollowUp.objects.filter(
-        followup_date=today_date,
-        followup_status__in=[FollowUpStatus.PENDING, "PENDING", "pending"]
-    )
-    if user.hospital:
-        pending_followups_qs = pending_followups_qs.filter(lead__hospital=user.hospital)
-    else:
-        pending_followups_qs = pending_followups_qs.filter(lead__hospital__isnull=True)
-    if not user.can_view_all_leads and user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR):
-        pending_followups_qs = pending_followups_qs.filter(
-            Q(lead__assigned_to=user) | Q(created_by=user)
+    elif is_doctor:
+        # Doctor role: Today's Appointments & Pending Approvals
+        doc_user_apts = Appointment.objects.filter(
+            Q(doctor_user=user) | Q(doctor_name__iexact=user.get_full_name().strip()) | Q(doctor_name__iexact=user.username)
         )
-    pending_followups_count = pending_followups_qs.count()
+        today_appointments_count = doc_user_apts.filter(appointment_date=today_date).count()
+        pending_approval_count = doc_user_apts.filter(status=AppointmentStatus.PENDING_APPROVAL).count()
+        scheduled_today_count = doc_user_apts.filter(
+            appointment_date=today_date,
+            status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED]
+        ).count()
 
-    # 5. Determine target URL
+        role_metrics = {
+            "today_appointments_count": today_appointments_count,
+            "pending_approval_count": pending_approval_count,
+            "scheduled_today_count": scheduled_today_count,
+        }
+
+    elif is_lead_attendant or is_counsellor:
+        # Tenant specific leads for Lead Attendants / Counsellors
+        user_h_leads = all_active_leads_today.filter(hospital=user.hospital) if user.hospital else all_active_leads_today
+
+        fresh_leads_qs = user_h_leads.filter(assigned_to__isnull=True)
+        my_assigned_leads_qs = user_h_leads.filter(assigned_to=user)
+
+        fresh_stats = extract_campaign_and_walkin_stats(fresh_leads_qs)
+        assigned_stats = extract_campaign_and_walkin_stats(my_assigned_leads_qs)
+        combined_stats = extract_campaign_and_walkin_stats(user_h_leads.filter(Q(assigned_to=user) | Q(assigned_to__isnull=True)))
+
+        # Pending Follow-ups for this user today
+        pending_fu_count = FollowUp.objects.filter(
+            followup_date=today_date,
+            followup_status__in=[FollowUpStatus.PENDING, "PENDING", "pending"],
+            lead__assigned_to=user
+        ).count()
+
+        role_metrics = {
+            "fresh_leads_count": fresh_stats["total_count"],
+            "assigned_leads_count": assigned_stats["total_count"],
+            "total_relevant_count": fresh_stats["total_count"] + assigned_stats["total_count"],
+            "campaign_stats": combined_stats["campaign_stats"],
+            "walkin_count": combined_stats["walkin_count"],
+            "pending_followups_count": pending_fu_count,
+        }
+
+    else:
+        # Business Admin / Manager / Generic tenant user
+        user_h_leads = all_active_leads_today.filter(hospital=user.hospital) if user.hospital else all_active_leads_today
+        b_stats = extract_campaign_and_walkin_stats(user_h_leads)
+        pending_fu_count = FollowUp.objects.filter(
+            followup_date=today_date,
+            followup_status__in=[FollowUpStatus.PENDING, "PENDING", "pending"]
+        )
+        if user.hospital:
+            pending_fu_count = pending_fu_count.filter(lead__hospital=user.hospital)
+        role_metrics = {
+            "total_count": b_stats["total_count"],
+            "campaign_stats": b_stats["campaign_stats"],
+            "walkin_count": b_stats["walkin_count"],
+            "meta_count": b_stats["meta_count"],
+            "pending_followups_count": pending_fu_count.count()
+        }
+
+    # Determine target URL
     dest_resp = _role_redirect(user)
     next_url = dest_resp.url if hasattr(dest_resp, 'url') else "/dashboard/"
 
     user_name = user.get_full_name().strip() or user.username
     user_role = user.get_role_display() if hasattr(user, 'get_role_display') else str(user.role)
-    hospital_name = user.hospital.name if user.hospital else ""
+    hospital_name = user.hospital.name if user.hospital else ("Global Super Admin" if is_super_admin else "")
 
     return render(request, "dashboard/welcome.html", {
         "user_name": user_name,
@@ -282,9 +380,13 @@ def welcome_view(request):
         "greeting_style": greeting_style,
         "current_time_str": now.strftime("%I:%M %p"),
         "today_date": today_date.strftime("%A, %d %B %Y"),
-        "new_leads_count": new_leads_count,
-        "campaign_stats": campaign_stats,
-        "pending_followups_count": pending_followups_count,
+        "is_super_admin": is_super_admin,
+        "is_doctor": is_doctor,
+        "is_lead_attendant": is_lead_attendant,
+        "is_counsellor": is_counsellor,
+        "is_business_admin": is_business_admin,
+        "businesses_data": businesses_data,
+        "role_metrics": role_metrics,
         "next_url": next_url,
     })
 
@@ -658,19 +760,15 @@ def superadmin_home(request):
         base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
     else:
         # Global Super Admin without hospital assignment
-        raw_biz = request.GET.get("business")
-        if raw_biz is not None:
-            selected_hospital_id = raw_biz.strip()
-        else:
-            raw_hosp = request.GET.get("hospital")
-            if raw_hosp is not None:
-                selected_hospital_id = raw_hosp.strip()
-            else:
-                selected_hospital_id = str(request.session.get("active_business_id", "")).strip()
+        raw_biz = request.GET.get("business", "").strip()
+        raw_hosp = request.GET.get("hospital", "").strip()
+        session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+
+        selected_hospital_id = raw_biz or raw_hosp or session_biz
 
         if selected_hospital_id and selected_hospital_id.isdigit():
             base_leads = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
-        elif selected_hospital_id == "none":
+        elif selected_hospital_id in ("none", "zappcode"):
             base_leads = Lead.objects.filter(is_archived=False, hospital__isnull=True)
         else:
             # All businesses / Global view: include all leads across all businesses
@@ -1075,19 +1173,21 @@ def superadmin_home(request):
     # =========================================================================
     today_alt_str = today.strftime("%d-%m-%Y")
     all_booked_status_q = (
-        Q(admission_status="ADMISSION_DONE") |
-        Q(deal_status=DealStatus.WON) |
-        Q(admission__isnull=False) |
-        Q(stage__name__icontains="admission") |
-        Q(custom_data__appointment_status__iexact="OPD Booking") |
-        Q(custom_data__appointment_status__icontains="OPD") |
-        Q(custom_data__appointment_status__icontains="Book") |
-        Q(custom_data__appointment_status__icontains="Confirm") |
-        Q(custom_data__appointment_status__icontains="Approv") |
-        Q(custom_data__appointment_status__icontains="Complete") |
-        Q(custom_data__appointment_status__iexact="YES") |
-        Q(custom_data__appointment_status__icontains="Payment Done") |
-        (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        (
+            Q(admission_status="ADMISSION_DONE") |
+            Q(deal_status=DealStatus.WON) |
+            Q(admission__isnull=False) |
+            Q(stage__name__icontains="admission") |
+            Q(custom_data__appointment_status__iexact="OPD Booking") |
+            Q(custom_data__appointment_status__icontains="OPD") |
+            Q(custom_data__appointment_status__icontains="Book") |
+            Q(custom_data__appointment_status__icontains="Confirm") |
+            Q(custom_data__appointment_status__icontains="Approv") |
+            Q(custom_data__appointment_status__icontains="Complete") |
+            Q(custom_data__appointment_status__iexact="YES") |
+            Q(custom_data__appointment_status__icontains="Payment Done") |
+            (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        ) & ~Q(deal_status=DealStatus.LOST) & ~Q(custom_data__deal_status__icontains="Lost") & ~Q(custom_data__appointment_status__icontains="Lost") & ~Q(custom_data__appointment_status__icontains="Cancel") & ~Q(custom_data__appointment_status__icontains="Not Int")
     )
     consult_status_q = (
         Q(custom_data__appointment_status__icontains='Consult') |
@@ -1182,12 +1282,8 @@ def superadmin_home(request):
         except ValueError:
             pass
 
-    for l in all_fu_leads_qs.select_related('assigned_to', 'stage', 'campaign', 'lead_source'):
-        sched_date = l.next_followup_date
-        if not sched_date:
-            latest_fu = l.followups.filter(next_followup_date__isnull=False).order_by('-id').first()
-            if latest_fu:
-                sched_date = latest_fu.next_followup_date
+    for l in all_fu_leads_qs.select_related('assigned_to', 'stage', 'campaign', 'lead_source').prefetch_related('followups'):
+        sched_date = extract_lead_followup_date(l)
         if not sched_date:
             continue
 
@@ -1584,15 +1680,10 @@ def nel_card_drilldown_api(request):
             elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
                 hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True))
     else:
-        raw_biz = request.GET.get("business")
-        if raw_biz is not None:
-            selected_hospital_id = raw_biz.strip()
-        else:
-            raw_hosp = request.GET.get("hospital")
-            if raw_hosp is not None:
-                selected_hospital_id = raw_hosp.strip()
-            else:
-                selected_hospital_id = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+        raw_biz = request.GET.get("business", "").strip()
+        raw_hosp = request.GET.get("hospital", "").strip()
+        session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+        selected_hospital_id = raw_biz or raw_hosp or session_biz
 
         if selected_hospital_id and selected_hospital_id.isdigit():
             hospital_qs = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
@@ -1689,6 +1780,7 @@ def nel_card_drilldown_api(request):
         cnd_matched_ids = filter_uncontacted_leads_ids(c_base, today=today)
         base_card_qs = hospital_qs.filter(id__in=cnd_matched_ids)
     elif card_type == 'telecaller_opd_booked':
+        card_leads_qs = hospital_qs.filter(assigned_to=user) if user.role == User.Role.LEAD_ATTENDENT else hospital_qs
         status_q = Q(custom_data__appointment_status__iexact='OPD Booking') | \
                    Q(custom_data__appointment_status__icontains='OPD') | \
                    Q(custom_data__appointment_status__icontains='Book') | \
@@ -1698,11 +1790,23 @@ def nel_card_drilldown_api(request):
                    Q(custom_data__appointment_status__icontains='Consult') | \
                    Q(custom_data__icontains='consult')
         appt_leads_ids = Appointment.objects.filter(
-            lead__in=hospital_qs,
+            lead__in=card_leads_qs,
             status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
+        ).exclude(
+            lead__deal_status=DealStatus.LOST
         ).values_list('lead_id', flat=True)
-        base_card_qs = hospital_qs.filter(
+        base_card_qs = card_leads_qs.filter(
             Q(id__in=appt_leads_ids) | status_q
+        ).exclude(
+            deal_status=DealStatus.LOST
+        ).exclude(
+            custom_data__deal_status__icontains='Lost'
+        ).exclude(
+            custom_data__appointment_status__icontains='Lost'
+        ).exclude(
+            custom_data__appointment_status__icontains='Cancel'
+        ).exclude(
+            custom_data__appointment_status__icontains='Not Int'
         )
     elif card_type == 'opd_booked':
         base_card_qs = hospital_qs.filter(
@@ -1716,6 +1820,16 @@ def nel_card_drilldown_api(request):
             Q(custom_data__appointment_status__icontains='Complete') |
             Q(custom_data__appointment_status__iexact='YES') |
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        ).exclude(
+            deal_status=DealStatus.LOST
+        ).exclude(
+            custom_data__deal_status__icontains='Lost'
+        ).exclude(
+            custom_data__appointment_status__icontains='Lost'
+        ).exclude(
+            custom_data__appointment_status__icontains='Cancel'
+        ).exclude(
+            custom_data__appointment_status__icontains='Not Int'
         )
     elif card_type == 'followups':
         booked_appointment_lead_ids = list(
@@ -1750,17 +1864,14 @@ def nel_card_drilldown_api(request):
         _range_s_d = range_start_date  # may be None
         _range_e_d = range_end_date    # may be None
 
+        _sched_date_map = {}
         for _fl in _fu_all_qs:
-            _cd = _fl.custom_data or {}
-            _sched = _fl.next_followup_date
-            if not _sched:
-                _lfu = _fl.followups.filter(next_followup_date__isnull=False).order_by('-id').first()
-                if _lfu:
-                    _sched = _lfu.next_followup_date
+            _sched = extract_lead_followup_date(_fl)
             if not _sched:
                 continue
+            _sched_date_map[_fl.id] = _sched
 
-            # Categorise based purely on date vs today (no exclusion for updated leads in today bucket)
+            # Categorise based purely on date vs today
             if _sched == today:
                 _fu_today_list.append(_fl)
             elif _sched < today:
@@ -1837,21 +1948,39 @@ def nel_card_drilldown_api(request):
             leads_qs = base_card_qs
 
     elif card_type == 'telecaller_opd_booked':
-        target_date = selected_date if selected_date else today
-        target_str = target_date.strftime("%Y-%m-%d")
-        target_alt_str = target_date.strftime("%d-%m-%Y")
-        start_dt_t = timezone.make_aware(datetime.combine(target_date, datetime.min.time()))
-        end_dt_t = timezone.make_aware(datetime.combine(target_date, datetime.max.time()))
-        leads_date_q = Q(created_at__range=(start_dt_t, end_dt_t)) | \
-                       Q(inquiry_date=target_date) | \
-                       Q(custom_data__appo_booked_date=target_str) | \
-                       Q(custom_data__appo_booked_date=target_alt_str) | \
-                       Q(custom_data__appointment_date=target_str) | \
-                       Q(custom_data__appointment_date=target_alt_str) | \
-                       Q(custom_data__appointment_confirmed_at__startswith=target_str)
-        appt_date_q = Q(appointments__appointment_date=target_date) | \
-                      Q(appointments__created_at__date=target_date)
-        leads_qs = base_card_qs.filter(leads_date_q | appt_date_q).distinct()
+        if mode == 'all':
+            leads_qs = base_card_qs
+        elif mode == 'date_range' and (range_start_date or range_end_date):
+            r_s = range_start_date or range_end_date
+            r_e = range_end_date or range_start_date
+            r_start_dt = timezone.make_aware(datetime.combine(r_s, datetime.min.time()))
+            r_end_dt = timezone.make_aware(datetime.combine(r_e, datetime.max.time()))
+            leads_date_q = Q(created_at__range=(r_start_dt, r_end_dt)) | \
+                           Q(inquiry_date__range=(r_s, r_e)) | \
+                           Q(appointments__appointment_date__range=(r_s, r_e))
+            leads_qs = base_card_qs.filter(leads_date_q).distinct()
+        elif mode == 'this_month' and month_range_start and month_range_end:
+            leads_date_q = Q(created_at__range=(month_range_start, month_range_end)) | \
+                           Q(inquiry_date__range=(m_start_date, m_end_date)) | \
+                           Q(appointments__appointment_date__range=(m_start_date, m_end_date)) | \
+                           Q(custom_data__appo_booked_date__startswith=today.strftime('%Y-%m'))
+            leads_qs = base_card_qs.filter(leads_date_q).distinct()
+        else:
+            target_date = selected_date if selected_date else today
+            target_str = target_date.strftime("%Y-%m-%d")
+            target_alt_str = target_date.strftime("%d-%m-%Y")
+            start_dt_t = timezone.make_aware(datetime.combine(target_date, datetime.min.time()))
+            end_dt_t = timezone.make_aware(datetime.combine(target_date, datetime.max.time()))
+            leads_date_q = Q(created_at__range=(start_dt_t, end_dt_t)) | \
+                           Q(inquiry_date=target_date) | \
+                           Q(custom_data__appo_booked_date=target_str) | \
+                           Q(custom_data__appo_booked_date=target_alt_str) | \
+                           Q(custom_data__appointment_date=target_str) | \
+                           Q(custom_data__appointment_date=target_alt_str) | \
+                           Q(custom_data__appointment_confirmed_at__startswith=target_str)
+            appt_date_q = Q(appointments__appointment_date=target_date) | \
+                          Q(appointments__created_at__date=target_date)
+            leads_qs = base_card_qs.filter(leads_date_q | appt_date_q).distinct()
 
     elif card_type == 'opd_booked':
         if selected_date:
@@ -1889,12 +2018,9 @@ def nel_card_drilldown_api(request):
         elif selected_date == today:
             _target_fu_leads = _fu_today_list
         elif selected_date and selected_date < today:
-            # Specific past date: leads whose sched == that date (overdue if still active) or leads in overdue whose sched == that date
-            _target_fu_leads = [l for l in _fu_all_active_list if l.next_followup_date == selected_date
-                                  or (not l.next_followup_date and l.followups.filter(next_followup_date=selected_date).exists())]
+            _target_fu_leads = [l for l in _fu_all_active_list if _sched_date_map.get(l.id) == selected_date]
         elif selected_date and selected_date > today:
-            _target_fu_leads = [l for l in _fu_upcoming_list if l.next_followup_date == selected_date
-                                  or (not l.next_followup_date and l.followups.filter(next_followup_date=selected_date).exists())]
+            _target_fu_leads = [l for l in _fu_upcoming_list if _sched_date_map.get(l.id) == selected_date]
         else:
             _target_fu_leads = _fu_all_active_list
 
@@ -2193,27 +2319,77 @@ def nel_card_drilldown_api(request):
     _, last_d = calendar.monthrange(cal_year, cal_month)
     cal_m_end = timezone.make_aware(datetime(cal_year, cal_month, last_d, 23, 59, 59))
 
-    from django.db.models.functions import TruncDate
-    date_counts = (
-        base_card_qs.filter(created_at__range=(cal_m_start, cal_m_end))
-        .annotate(c_date=TruncDate('created_at'))
-        .values('c_date')
-        .annotate(cnt=Count('id'))
-    )
-    date_map = {row['c_date'].strftime('%Y-%m-%d'): row['cnt'] for row in date_counts if row.get('c_date')}
+    date_map = defaultdict(int)
 
-    # Also check inquiry_date if created_at didn't catch imported inquiry dates
-    inq_counts = (
-        base_card_qs.filter(inquiry_date__range=(date(cal_year, cal_month, 1), date(cal_year, cal_month, last_d)))
-        .values('inquiry_date')
-        .annotate(cnt=Count('id'))
-    )
-    for row in inq_counts:
-        inq_d = row.get('inquiry_date')
-        if inq_d:
-            inq_str = inq_d.strftime('%Y-%m-%d')
-            if inq_str not in date_map or date_map[inq_str] == 0:
-                date_map[inq_str] = row['cnt']
+    if card_type in ('telecaller_opd_booked', 'opd_booked'):
+        cal_m_prefix = f"{cal_year:04d}-{cal_month:02d}-"
+        cal_m_alt_suffix = f"-{cal_month:02d}-{cal_year:04d}"
+
+        # 1. Appointment model counts for this month
+        appt_qs_cal = Appointment.objects.filter(
+            lead__in=base_card_qs,
+            appointment_date__year=cal_year,
+            appointment_date__month=cal_month,
+            status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED, AppointmentStatus.PENDING_APPROVAL]
+        ).exclude(lead__deal_status=DealStatus.LOST).values('appointment_date').annotate(cnt=Count('lead_id', distinct=True))
+        for row in appt_qs_cal:
+            if row.get('appointment_date'):
+                d_s = row['appointment_date'].strftime('%Y-%m-%d')
+                date_map[d_s] = row['cnt']
+
+        # 2. Leads custom_data & created_at / inquiry_date for this month
+        day_lead_map = defaultdict(set)
+        for l in base_card_qs:
+            cd = l.custom_data or {}
+            b_dates = [
+                cd.get('appo_booked_date'),
+                cd.get('appointment_date'),
+                str(l.inquiry_date) if l.inquiry_date else None,
+                l.created_at.strftime('%Y-%m-%d') if l.created_at else None
+            ]
+            for bd in b_dates:
+                if not bd:
+                    continue
+                b_str = str(bd).strip()[:10]
+                if b_str.startswith(cal_m_prefix) and len(b_str) == 10:
+                    day_lead_map[b_str].add(l.id)
+                elif b_str.endswith(cal_m_alt_suffix) and len(b_str) == 10:
+                    d_p = b_str[:2]
+                    day_lead_map[f"{cal_year:04d}-{cal_month:02d}-{d_p}"].add(l.id)
+
+        for d_str, id_set in day_lead_map.items():
+            date_map[d_str] = max(date_map.get(d_str, 0), len(id_set))
+    elif card_type == 'followups':
+        cal_m_prefix = f"{cal_year:04d}-{cal_month:02d}-"
+        for _fl in _fu_all_qs:
+            _d = _sched_date_map.get(_fl.id)
+            if _d:
+                _d_str = _d.strftime('%Y-%m-%d')
+                if _d_str.startswith(cal_m_prefix):
+                    date_map[_d_str] += 1
+    else:
+        from django.db.models.functions import TruncDate
+        date_counts = (
+            base_card_qs.filter(created_at__range=(cal_m_start, cal_m_end))
+            .annotate(c_date=TruncDate('created_at'))
+            .values('c_date')
+            .annotate(cnt=Count('id'))
+        )
+        for row in date_counts:
+            if row.get('c_date'):
+                date_map[row['c_date'].strftime('%Y-%m-%d')] = row['cnt']
+
+        inq_counts = (
+            base_card_qs.filter(inquiry_date__range=(date(cal_year, cal_month, 1), date(cal_year, cal_month, last_d)))
+            .values('inquiry_date')
+            .annotate(cnt=Count('id'))
+        )
+        for row in inq_counts:
+            inq_d = row.get('inquiry_date')
+            if inq_d:
+                inq_str = inq_d.strftime('%Y-%m-%d')
+                if inq_str not in date_map or date_map[inq_str] == 0:
+                    date_map[inq_str] = row['cnt']
 
     for d in range(1, days_in_month + 1):
         day_str = f"{cal_year:04d}-{cal_month:02d}-{d:02d}"
@@ -2995,7 +3171,25 @@ def management_home(request):
         raise PermissionDenied("This dashboard is restricted to Zappcode management only.")
 
     today = timezone.localdate()
+
+    # Business / Tenant scoping for Global Super Admin
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    selected_hospital_id = ""
+    if is_global_admin:
+        raw_biz = request.GET.get("business", "").strip()
+        raw_hosp = request.GET.get("hospital", "").strip()
+        session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+        selected_hospital_id = raw_biz or raw_hosp or session_biz
+    elif request.user.hospital:
+        selected_hospital_id = str(request.user.hospital.id)
+
     all_leads = Lead.objects.filter(is_archived=False)
+    if selected_hospital_id and selected_hospital_id.isdigit():
+        all_leads = all_leads.filter(hospital_id=int(selected_hospital_id))
+    elif selected_hospital_id in ("none", "zappcode"):
+        all_leads = all_leads.filter(hospital__isnull=True)
 
     # ─── Filter Handling ────────────────────────────────────────────────────────
     leads = all_leads
@@ -3030,16 +3224,25 @@ def management_home(request):
     hot = leads.filter(temperature="HOT").count()
     warm = leads.filter(temperature="WARM").count()
     cold = leads.filter(temperature="COLD").count()
-    followups_today = FollowUp.objects.filter(followup_date=today).count()
-    overdue = FollowUp.objects.filter(followup_date__lt=today, followup_status="PENDING").count()
-    admissions_count = Admission.objects.count()
+    followups_today = FollowUp.objects.filter(lead__in=all_leads, followup_date=today).count()
+    overdue = FollowUp.objects.filter(lead__in=all_leads, followup_date__lt=today, followup_status="PENDING").count()
+    admissions_count = Admission.objects.filter(lead__in=all_leads).count() if (selected_hospital_id and (selected_hospital_id.isdigit() or selected_hospital_id in ("none", "zappcode"))) else Admission.objects.count()
     visits_count = leads.filter(stage__name__icontains="visit").count()
-    total_revenue = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS).aggregate(s=Sum("amount"))["s"] or 0
+    payments_qs = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS)
+    if selected_hospital_id and selected_hospital_id.isdigit():
+        payments_qs = payments_qs.filter(lead__hospital_id=int(selected_hospital_id))
+    elif selected_hospital_id in ("none", "zappcode"):
+        payments_qs = payments_qs.filter(lead__hospital__isnull=True)
+    total_revenue = payments_qs.aggregate(s=Sum("amount"))["s"] or 0
     conversion_rate = round(admissions_count / total_leads * 100, 1) if total_leads else 0.0
     pending_approvals_count = User.objects.filter(is_approved=False).count()
 
     # ─── Team Activity Today ──────────────────────────────────────────────────
-    team_members = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR'])
+    team_members = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', 'LEAD_ATTENDENT'])
+    if selected_hospital_id and selected_hospital_id.isdigit():
+        team_members = team_members.filter(hospital_id=int(selected_hospital_id))
+    elif selected_hospital_id in ("none", "zappcode"):
+        team_members = team_members.filter(hospital__isnull=True)
     team_stats = []
     for member in team_members:
         member_fu = FollowUp.objects.filter(created_by=member, followup_date=today)
@@ -3833,6 +4036,10 @@ def telecaller_home(request):
     appts_model_cnt = Appointment.objects.filter(
         lead__hospital=user.hospital,
         lead__assigned_to=user,
+    ).exclude(
+        status=AppointmentStatus.CANCELLED
+    ).exclude(
+        lead__deal_status=DealStatus.LOST
     ).filter(
         Q(appointment_date=today_date) |
         Q(created_at__date=today_date)
@@ -3842,6 +4049,16 @@ def telecaller_home(request):
 
     tele_user_leads_today = hospital_leads.filter(
         assigned_to=user
+    ).exclude(
+        deal_status=DealStatus.LOST
+    ).exclude(
+        custom_data__deal_status__icontains='Lost'
+    ).exclude(
+        custom_data__appointment_status__icontains='Lost'
+    ).exclude(
+        custom_data__appointment_status__icontains='Cancel'
+    ).exclude(
+        custom_data__appointment_status__icontains='Not Int'
     ).filter(
         Q(created_at__range=(start_of_today, end_of_today)) |
         Q(inquiry_date=today_date) |
@@ -3892,22 +4109,16 @@ def telecaller_home(request):
     overdue_tele_followups_list = []
     upcoming_tele_followups_list = []
 
-    for l in user_fu_qs:
-        sched_date = l.next_followup_date
-        if not sched_date:
-            latest_fu = l.followups.filter(next_followup_date__isnull=False).order_by('-id').first()
-            if latest_fu:
-                sched_date = latest_fu.next_followup_date
+    for l in user_fu_qs.prefetch_related('followups'):
+        sched_date = extract_lead_followup_date(l)
         if not sched_date:
             continue
 
         cd = l.custom_data or {}
-        has_remark = any(bool(cd.get(k) and str(cd.get(k)).strip().lower() not in ('nan', 'none', '', '-')) for k in ['remark_1', 'remark_2', 'remark_3', 'followup_remark'])
         latest_fu = l.followups.order_by('-id').first()
         has_status_update = False
-        if latest_fu and latest_fu.followup_status not in ('PENDING', 'CALL_BACK', 'RESCHEDULED') and latest_fu.followup_date >= sched_date:
+        if latest_fu and latest_fu.followup_status not in ('PENDING', 'CALL_BACK', 'RESCHEDULED') and latest_fu.followup_date and latest_fu.followup_date >= sched_date:
             has_status_update = True
-        is_updated = (has_remark or has_status_update)
 
         # Categorize for template display
         f_type = 'Call Follow-up'
@@ -3923,10 +4134,10 @@ def telecaller_home(request):
         if sched_date == today_date:
             todays_tele_followups_list.append(l)
         elif sched_date < today_date:
-            if not is_updated:
+            if not has_status_update:
                 overdue_tele_followups_list.append(l)
         elif sched_date > today_date:
-            if not is_updated:
+            if not has_status_update:
                 upcoming_tele_followups_list.append(l)
 
     todays_followups_count = len(todays_tele_followups_list)
@@ -3998,6 +4209,16 @@ def telecaller_home(request):
     # 1. Filter only candidate leads that actually have appointment booking dates in future
     upcoming_opd_candidates = hospital_leads.filter(
         assigned_to=user
+    ).exclude(
+        deal_status=DealStatus.LOST
+    ).exclude(
+        custom_data__deal_status__icontains='Lost'
+    ).exclude(
+        custom_data__appointment_status__icontains='Lost'
+    ).exclude(
+        custom_data__appointment_status__icontains='Cancel'
+    ).exclude(
+        custom_data__appointment_status__icontains='Not Int'
     ).filter(
         Q(custom_data__appo_booked_date__gt=today_str) |
         Q(custom_data__appointment_date__gt=today_str)

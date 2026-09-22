@@ -1248,17 +1248,50 @@ def switch_business(request):
     Global Business Switcher for Super Admin.
     Stores selected business ID in session so all views automatically scope to that business.
     """
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    from accounts.models import Hospital
+
     if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN) or request.user.hospital:
         messages.error(request, "Permission denied. Only Global Super Admins can switch businesses.")
         return redirect("dashboard:home")
     
     business_id = request.GET.get("business_id", "").strip() or request.POST.get("business_id", "").strip()
     if business_id and business_id != "all" and business_id != "0":
-        request.session["active_business_id"] = business_id
+        request.session["active_business_id"] = str(business_id)
+        request.session.modified = True
+        try:
+            h = Hospital.objects.filter(id=int(business_id)).first()
+            if h:
+                messages.success(request, f"Active business switched to {h.name}")
+        except Exception:
+            pass
     else:
         request.session.pop("active_business_id", None)
+        request.session.modified = True
+        messages.info(request, "Switched view to All Businesses (Global Consolidated)")
     
-    next_url = request.GET.get("next") or request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("dashboard:superadmin_home")
+    # Explicitly save session before redirecting
+    request.session.save()
+
+    next_url = request.GET.get("next") or request.POST.get("next") or request.META.get("HTTP_REFERER")
+    if not next_url:
+        next_url = reverse("dashboard:superadmin_home") if request.user.is_hospital_user else reverse("dashboard:management_home")
+
+    # Update or set 'business' parameter in next_url query string so both session and URL stay in sync
+    try:
+        parsed = urlparse(next_url)
+        qs = parse_qs(parsed.query)
+        qs.pop("hospital", None)
+        if business_id and business_id not in ("all", "0"):
+            qs["business"] = [str(business_id)]
+        else:
+            qs.pop("business", None)
+        new_query = urlencode(qs, doseq=True)
+        next_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+    except Exception:
+        pass
+
     return redirect(next_url)
+
 
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}{{ request.user.hospital.name|default:'Nelson Hospital' }} Interactive Analytics Dashboard{% endblock %}
+{% block title %}{{ active_business.name|default:request.user.hospital.name|default:'All Businesses' }} Analytics Dashboard{% endblock %}
 
 {% block extra_head %}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -247,7 +247,18 @@
     <!-- Header & Top Actions -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
         <div>
-            <h4 class="fw-bold mb-0 text-dark">Dashboard</h4>
+            <h4 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                <span>Dashboard</span>
+                {% if active_business %}
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-1" style="font-size: 0.8rem; font-weight: 600;">
+                        <i class="ph ph-buildings me-1"></i> {{ active_business.name }}
+                    </span>
+                {% else %}
+                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1" style="font-size: 0.8rem; font-weight: 600;">
+                        <i class="ph ph-globe me-1"></i> All Businesses (Consolidated)
+                    </span>
+                {% endif %}
+            </h4>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <!-- 1. Single Filter Toggle Button right next to Today Date -->

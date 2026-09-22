@@ -54,27 +54,25 @@ def management_home(request):
     
     # ── 1. Fetch All Active Businesses (Tenants) ───────────────────────────────
     all_hospitals = list(Hospital.objects.filter(is_active=True).order_by("name"))
-    business_options = [{"id": "zappcode", "name": "Zappcode / General Academy"}]
-    for h in all_hospitals:
-        business_options.append({"id": str(h.id), "name": h.name})
+    business_options = [{"id": str(h.id), "name": h.name} for h in all_hospitals]
 
     # ── 2. Parse Selected Business Filters ─────────────────────────────────────
-    selected_business_ids = request.GET.getlist("business")
-    if not selected_business_ids and request.GET.get("business"):
-        selected_business_ids = [request.GET.get("business")]
+    raw_biz_list = [b.strip() for b in request.GET.getlist("business") if b.strip()]
+    if not raw_biz_list and request.GET.get("business", "").strip():
+        raw_biz_list = [request.GET.get("business").strip()]
     
     # Check session active_business_id if no explicit GET filter passed
-    if not selected_business_ids:
-        sess_biz = request.session.get("active_business_id")
-        if sess_biz and str(sess_biz).strip() and str(sess_biz).strip() != "all":
-            selected_business_ids = [str(sess_biz).strip()]
+    if not raw_biz_list:
+        sess_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+        if sess_biz and sess_biz != "all" and sess_biz != "0":
+            raw_biz_list = [sess_biz]
 
-    # If nothing selected, or 'all' passed, default to all businesses
-    is_all_selected_explicitly = "all" in selected_business_ids
+    selected_business_ids = raw_biz_list
+    is_all_selected_explicitly = "all" in selected_business_ids or "0" in selected_business_ids
     if not selected_business_ids or is_all_selected_explicitly:
         selected_business_ids = [b["id"] for b in business_options]
 
-    is_all_businesses = (len(selected_business_ids) == len(business_options))
+    is_all_businesses = (len(selected_business_ids) == len(business_options)) or is_all_selected_explicitly
     is_single_business = (len(selected_business_ids) == 1)
     
     # Check explicit compare mode flag
@@ -105,13 +103,9 @@ def management_home(request):
     base_leads = Lead.objects.filter(is_archived=False)
     
     if not is_all_businesses:
-        hosp_filter = Q()
-        if "zappcode" in selected_business_ids:
-            hosp_filter |= Q(hospital__isnull=True)
-        numeric_hosp_ids = [int(bid) for bid in selected_business_ids if bid != "zappcode" and bid.isdigit()]
+        numeric_hosp_ids = [int(bid) for bid in selected_business_ids if bid.isdigit()]
         if numeric_hosp_ids:
-            hosp_filter |= Q(hospital_id__in=numeric_hosp_ids)
-        base_leads = base_leads.filter(hosp_filter)
+            base_leads = base_leads.filter(hospital_id__in=numeric_hosp_ids)
 
     # ── 4. Apply Additional Dashboard Filters ──────────────────────────────────
     filtered_leads = base_leads
