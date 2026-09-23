@@ -16,5 +16,4 @@ dependencies = [
     "pandas==2.2.2",
     "pillow>=12.3.0",
     "redis>=8.1.0",
-    "django-anymail[brevo]",
 ]

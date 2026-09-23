@@ -57,7 +57,6 @@ INSTALLED_APPS = [
     'meta_ads',
     'api',
     'notifications',
-    'anymail',
 ]
 
 MIDDLEWARE = [
@@ -209,11 +208,13 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
 
-# Email Configuration (Brevo API via Anymail)
-EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'anymail.backends.brevo.EmailBackend')
-ANYMAIL = {
-    "BREVO_API_KEY": os.environ.get('BREVO_API_KEY', os.environ.get('EMAIL_HOST_PASSWORD', '')),
-}
+# Email Configuration (Brevo SMTP - ae3d0f001@smtp-brevo.com)
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1') in ('1', 'true', 'True')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'zappkodesolutions@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Zappkode CRM <zappkodesolutions@gmail.com>')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
