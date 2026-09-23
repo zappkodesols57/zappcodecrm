@@ -573,12 +573,15 @@
         if (btnText) btnText.innerText = "Loading Dashboard...";
         if (btnIcon) btnIcon.className = "fa-solid fa-spinner fa-spin ms-2";
         if (countdownWrapper) countdownWrapper.innerHTML = '<span class="text-primary fw-bold"><i class="fa-solid fa-circle-notch fa-spin me-1"></i> Opening your dashboard, please wait...</span>';
-        window.location.replace(targetUrl);
+        
+        const destination = targetUrl && targetUrl !== "" ? targetUrl : "/dashboard/management/";
+        window.location.href = destination;
     }
 
     function onProceedClick(e) {
-        if (e) e.preventDefault();
-        navigateToDashboard();
+        // Allow immediate click navigation
+        const destination = targetUrl && targetUrl !== "" ? targetUrl : "/dashboard/management/";
+        window.location.href = destination;
     }
 
     function toggleHoldTimer(e) {

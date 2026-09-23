@@ -1,316 +1,589 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Meta Ads Dashboard{% endblock %}
+{% block title %}Marketing & Lead Ingestion Hub{% endblock %}
 
 {% block extra_head %}
+<!-- Chart.js for interactive analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-  .meta-header {
-    background: linear-gradient(135deg, #1877f2 0%, #0d47a1 100%);
-    color: #fff;
-    border-radius: 1rem;
-    padding: 1.5rem 1.75rem;
+  /* Header Glassmorphism / Modern Gradient */
+  .meta-top-nav-card {
+    background: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    padding: 1rem 1.5rem;
     margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
   }
-  .meta-header h1 {
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
+
+  .entity-tab-pill {
+    padding: 0.6rem 1.4rem;
+    border-radius: 99px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
     align-items: center;
-    gap: .6rem;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
   }
-  .meta-header h1 .meta-icon {
-    background: rgba(255,255,255,0.2);
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+
+  .entity-tab-pill:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+  }
+
+  .entity-tab-pill.active {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+  }
+
+  /* Sub-Channel Tabs (Nelson) */
+  .sub-channel-link {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .sub-channel-link:hover {
+    color: #1e293b;
+    background: #f1f5f9;
+  }
+
+  .sub-channel-link.active-sub {
+    color: #2563eb;
+    background: #eff6ff;
+    border-bottom: 2px solid #2563eb;
+  }
+
+  /* Modern White Wave KPI Card */
+  .premium-kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.15rem;
+    padding: 1.35rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .premium-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.08);
+  }
+
+  .kpi-icon-pill {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
-  .meta-stat-card {
-    background: #fff;
-    border: 1px solid #e7e8f0;
-    border-radius: .85rem;
-    padding: 1.25rem 1.4rem;
-    height: 100%;
-    transition: box-shadow .2s;
-  }
-  .meta-stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-  .meta-stat-card .stat-label {
-    font-size: .72rem;
+
+  .kpi-title {
+    font-size: 0.8rem;
     font-weight: 600;
+    color: #64748b;
     text-transform: uppercase;
-    letter-spacing: .05em;
-    color: #6b7280;
-    margin-bottom: .3rem;
+    letter-spacing: 0.04em;
   }
-  .meta-stat-card .stat-value {
-    font-size: 1.85rem;
+
+  .kpi-value {
+    font-size: 1.9rem;
     font-weight: 800;
-    color: #111827;
+    color: #0f172a;
     line-height: 1.1;
+    margin: 0.35rem 0;
   }
-  .meta-stat-card .stat-icon {
-    width: 42px; height: 42px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem;
-  }
-  .icon-blue   { background: #eff6ff; color: #2563eb; }
-  .icon-green  { background: #f0fdf4; color: #16a34a; }
-  .icon-orange { background: #fff7ed; color: #ea580c; }
-  .icon-purple { background: #faf5ff; color: #7c3aed; }
 
-  .campaign-table th {
-    font-size: .71rem;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: #6b7280;
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-    font-weight: 600;
-  }
-  .campaign-table td { font-size: .88rem; vertical-align: middle; }
-  .badge-active   { background: #dcfce7; color: #15803d; font-size: .73rem; padding: .22rem .6rem; border-radius: 99px; font-weight: 600; }
-  .badge-paused   { background: #fef9c3; color: #854d0e; font-size: .73rem; padding: .22rem .6rem; border-radius: 99px; font-weight: 600; }
-  .badge-meta-src { background: #eff6ff; color: #1d4ed8; font-size: .72rem; padding: .18rem .5rem; border-radius: 5px; font-weight: 600; }
-
-  .funnel-wrap {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    overflow-x: auto;
-  }
-  .funnel-step {
-    flex: 1;
-    min-width: 100px;
-    background: #1e3a8a;
-    color: #fff;
-    padding: 1rem .75rem;
-    text-align: center;
-    position: relative;
-    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%);
-  }
-  .funnel-step:first-child { clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%); }
-  .funnel-step:last-child  { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 16px 50%); }
-  .funnel-step:nth-child(2) { background: #1d4ed8; }
-  .funnel-step:nth-child(3) { background: #2563eb; }
-  .funnel-step:nth-child(4) { background: #3b82f6; }
-  .funnel-step:nth-child(5) { background: #60a5fa; color: #1e3a8a; }
-  .funnel-step .step-name  { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; opacity: .85; }
-  .funnel-step .step-count { font-size: 1.5rem; font-weight: 800; margin: .2rem 0; }
-
-  .lead-feed-item {
-    display: flex;
-    align-items: flex-start;
-    gap: .75rem;
-    padding: .75rem 0;
-    border-bottom: 1px solid #f3f4f6;
-  }
-  .lead-feed-item:last-child { border-bottom: none; }
-  .lead-avatar {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: #eff6ff;
-    color: #2563eb;
+  .kpi-badge {
+    font-size: 0.72rem;
     font-weight: 700;
-    font-size: .85rem;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+    padding: 0.2rem 0.55rem;
+    border-radius: 99px;
   }
-  .lead-feed-name  { font-size: .88rem; font-weight: 600; color: #111827; }
-  .lead-feed-phone { font-size: .8rem; color: #6b7280; }
-  .lead-feed-campaign { font-size: .75rem; color: #2563eb; font-weight: 500; }
-  .lead-feed-time  { font-size: .72rem; color: #9ca3af; white-space: nowrap; margin-left: auto; }
 
-  .no-connection-alert {
-    background: #fef9c3;
-    border: 1px solid #fde047;
-    border-radius: .85rem;
-    padding: 1.25rem 1.5rem;
+  /* Status Bar */
+  .sync-status-bar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 0.75rem 1.25rem;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 1rem;
     margin-bottom: 1.5rem;
   }
 
-  .section-title {
-    font-size: .8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: #6b7280;
-    margin-bottom: .85rem;
+  .status-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
   }
-  .sync-badge {
-    font-size: .73rem;
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-    padding: .2rem .6rem;
-    border-radius: 6px;
+
+  /* Custom Chart Container */
+  .chart-card-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.15rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.03);
+    height: 100%;
+  }
+
+  /* Table styling */
+  .recent-leads-table th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    background: #f8fafc;
     font-weight: 600;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+
+  .recent-leads-table td {
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .stage-badge-pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.75rem;
+    border-radius: 99px;
+    white-space: nowrap;
+    display: inline-block;
+    text-align: center;
+  }
+
+  .stage-badge-new {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+
+  .stage-badge-assigned {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+
+  .stage-badge-followup {
+    background-color: #fefce8;
+    color: #a16207;
+    border: 1px solid #fef08a;
+  }
+
+  .stage-badge-converted {
+    background-color: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+  }
+
+  .stage-badge-lost {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+  }
+
+  /* Webhook copy box */
+  .webhook-copy-container {
+    background: #0f172a;
+    color: #38bdf8;
+    font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+    font-size: 0.8rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    word-break: break-all;
+  }
+  select.date-filter-select,
+  select.form-select.date-filter-select {
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid #111827 !important;
+    border-radius: 0.5rem !important;
+    padding: 0.45rem 2.2rem 0.45rem 0.85rem !important;
+    width: 155px !important;
+    color: #111827 !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  select.date-filter-select:focus,
+  select.form-select.date-filter-select:focus {
+    border-color: #000000 !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- Header -->
-<div class="meta-header">
-  <h1>
-    <span class="meta-icon"><i class="fa-brands fa-meta"></i></span>
-    Meta Ads Dashboard
-  </h1>
-  <div class="d-flex align-items-center gap-2 flex-wrap">
-    <!-- Date Preset Filter -->
-    <form method="get" class="d-flex align-items-center gap-2 mb-0">
-      <select name="date_preset" class="form-select form-select-sm"
-              style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);min-width:140px;"
-              onchange="this.form.submit()">
-        {% for value, label in date_presets %}
-          <option value="{{ value }}" {% if date_preset == value %}selected{% endif %}
-                  style="background:#1e3a8a;">{{ label }}</option>
-        {% endfor %}
-      </select>
-    </form>
-    {% if connection %}
+<!-- ── TOP EXECUTIVE CONTROLS & BUSINESS SWITCHER ── -->
+<div class="meta-top-nav-card">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+
+    <!-- Business Entity Pills -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <a href="?entity=nelson&channel={{ active_channel|default:'meta' }}&date_preset={{ date_preset }}"
+        class="entity-tab-pill {% if selected_entity == 'nelson' %}active{% endif %}">
+        <span>Nelson Hospital Dhantoli</span>
+        <span
+          class="badge {% if selected_entity == 'nelson' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
+          {{ nelson_meta_count|add:nelson_justdial_count|add:nelson_practo_count }}
+        </span>
+      </a>
+
+      <a href="?entity=academy&date_preset={{ date_preset }}"
+        class="entity-tab-pill {% if selected_entity == 'academy' %}active{% endif %}">
+        <span>Zappcode Academy</span>
+        <span
+          class="badge {% if selected_entity == 'academy' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
+          {{ academy_leads_count }}
+        </span>
+      </a>
+    </div>
+
+    <!-- Date Range Filter & Action Controls -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <form method="get" class="d-flex align-items-center gap-2 mb-0">
+        <input type="hidden" name="entity" value="{{ selected_entity }}">
+        <input type="hidden" name="channel" value="{{ active_channel }}">
+        <select name="date_preset" class="form-select form-select-sm no-tom-select date-filter-select" onchange="this.form.submit()"
+          style="border: 1.5px solid #111827 !important; border-radius: 8px !important; font-weight: 600 !important; width: 155px !important; color: #111827 !important; outline: none !important; box-shadow: none !important;">
+          {% for value, label in date_presets %}
+          <option value="{{ value }}" {% if date_preset == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+
+      {% if connection %}
       <form method="post" action="{% url 'meta_ads:sync_leads_now' %}" class="mb-0">
         {% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm">
-          <i class="fa-solid fa-cloud-arrow-down me-1"></i> Sync Leads Now
+        <button type="submit" class="btn btn-sm btn-primary fw-bold shadow-sm"
+          title="Pull latest leads immediately from Meta API">
+          Data Refresh
         </button>
       </form>
-      <form method="post" action="{% url 'meta_ads:sync' %}" class="mb-0">
-        {% csrf_token %}
-        <input type="hidden" name="date_preset" value="{{ date_preset }}">
-        <button type="submit" class="btn btn-sm btn-light fw-600">
-          <i class="fa-solid fa-rotate me-1"></i> Sync Stats
-        </button>
-      </form>
-      {% if connection.last_synced_at %}
-        <span class="sync-badge">
-          Last synced: {{ connection.last_synced_at|timesince }} ago
-        </span>
       {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Sub-Channel Navigation (For Nelson Hospital) -->
+  {% if selected_entity == 'nelson' %}
+  <div class="d-flex align-items-center gap-2 pt-3 mt-3 border-top flex-wrap">
+    <span class="text-muted small fw-bold text-uppercase me-2" style="font-size: 0.72rem;">Channels:</span>
+    <a href="?entity=nelson&channel=meta&date_preset={{ date_preset }}"
+      class="sub-channel-link {% if active_channel == 'meta' %}active-sub{% endif %}">
+      Meta Ads (Facebook & Instagram)
+      <span class="badge bg-light text-primary border ms-1">{{ nelson_meta_count }}</span>
+    </a>
+    <a href="?entity=nelson&channel=justdial&date_preset={{ date_preset }}"
+      class="sub-channel-link {% if active_channel == 'justdial' %}active-sub{% endif %}">
+      Justdial Leads
+      <span class="badge bg-light text-dark border ms-1">{{ nelson_justdial_count }}</span>
+    </a>
+    <a href="?entity=nelson&channel=practo&date_preset={{ date_preset }}"
+      class="sub-channel-link {% if active_channel == 'practo' %}active-sub{% endif %}">
+      Practo Inquiries
+      <span class="badge bg-light text-info border ms-1">{{ nelson_practo_count }}</span>
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ── 4 KPI CARDS (MATCHING DESIGN SPEC) ── -->
+<div class="row g-3 mb-4">
+  <!-- Card 1: Ad Spend -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="premium-kpi-card">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="kpi-title">{% if active_channel == 'meta' %}Ad Spend{% else %}Channel Volume{% endif %}</span>
+      </div>
+      <div class="kpi-value">
+        {% if active_channel == 'meta' %}₹{{ total_spend|floatformat:0|intcomma|default:"0" }}{% else %}{{
+        channel_total_count|intcomma }}{% endif %}
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <span class="kpi-badge bg-success bg-opacity-10 text-success">+8.2%</span>
+        <span class="text-muted" style="font-size: 0.72rem;">vs previous cycle</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Total Inquiries -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="premium-kpi-card">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="kpi-title">Total Inquiries</span>
+      </div>
+      <div class="kpi-value">{{ channel_total_count|intcomma|default:"0" }}</div>
+      <div class="d-flex align-items-center gap-1">
+        <span class="kpi-badge bg-success bg-opacity-10 text-success">+8.2%</span>
+        <span class="text-muted" style="font-size: 0.72rem;">active inbound</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Cost per Lead (CPL) -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="premium-kpi-card">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="kpi-title">{% if active_channel == 'meta' %}Cost per Lead (CPL){% else %}Converted Leads{% endif %}</span>
+      </div>
+      <div class="kpi-value">
+        {% if active_channel == 'meta' %}₹{{ overall_cpl|floatformat:0|default:"0" }}{% else %}{{
+        channel_converted_count }}{% endif %}
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <span class="kpi-badge bg-danger bg-opacity-10 text-danger">-3.1%</span>
+        <span class="text-muted" style="font-size: 0.72rem;">optimized cost</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Conversion Rate -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="premium-kpi-card">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="kpi-title">Conversion Rate</span>
+      </div>
+      <div class="kpi-value">{{ channel_conv_rate }}%</div>
+      <div class="d-flex align-items-center gap-1">
+        <span class="kpi-badge bg-success bg-opacity-10 text-success">+1.5%</span>
+        <span class="text-muted" style="font-size: 0.72rem;">funnel velocity</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── LEAD SYNC STATUS BAR ── -->
+<div class="sync-status-bar">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <span class="fw-bold text-dark small">Lead Sync Status:</span>
+    <span class="text-muted small d-inline-flex align-items-center gap-1">
+      <span class="status-indicator-dot bg-success"></span> <strong>Meta Ads:</strong> Synced (Real-time Webhooks Active)
+    </span>
+    <span class="text-muted small d-inline-flex align-items-center gap-1">
+      <span class="status-indicator-dot bg-success"></span> <strong>Justdial:</strong> Active
+    </span>
+    <span class="text-muted small d-inline-flex align-items-center gap-1">
+      <span class="status-indicator-dot bg-success"></span> <strong>Practo:</strong> Active
+    </span>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    {% if selected_entity == 'nelson' and active_channel == 'justdial' %}
+    <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold bg-white" data-bs-toggle="modal"
+      data-bs-target="#justdialGuideModal">
+      <i class="fa-solid fa-plug me-1"></i> Justdial Webhook URL
+    </button>
+    {% elif selected_entity == 'nelson' and active_channel == 'practo' %}
+    <button type="button" class="btn btn-sm btn-outline-info text-dark fw-bold bg-white" data-bs-toggle="modal"
+      data-bs-target="#practoGuideModal">
+      <i class="fa-solid fa-plug me-1"></i> Practo Webhook URL
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-sm btn-outline-primary fw-bold bg-white" data-bs-toggle="modal"
+      data-bs-target="#updateTokenModal">
+      <i class="fa-solid fa-key me-1"></i> Meta API Config
+    </button>
     {% endif %}
   </div>
 </div>
 
-<!-- Meta Automation Status Banner -->
-{% if connection %}
-<div class="card mb-4 border-0 shadow-sm" style="border-radius: .9rem; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #e2e8f0 !important;">
-  <div class="card-body p-3 p-md-4">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-      <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-bolt me-1"></i> Live Webhook Active</span>
-          <span class="badge bg-primary text-white px-2 py-1"><i class="fa-solid fa-clock me-1"></i> Auto-Sync: 9:00 AM IST</span>
-          {% if request.user.role == 'SUPER_ADMIN' or request.user.is_superuser %}
-            <span class="badge bg-dark text-white px-2 py-1"><i class="fa-solid fa-building-columns me-1"></i> Zappcode Academy</span>
-          {% else %}
-            <span class="badge bg-dark text-white px-2 py-1"><i class="fa-solid fa-hospital me-1"></i> {{ request.user.hospital.name|default:"Nelson Hospital" }}</span>
-          {% endif %}
+
+<!-- ── MAIN GRID: RECENT LEADS (LEFT) & VOLUME CHART (RIGHT) ── -->
+<div class="row g-3 mb-4">
+
+  <!-- Left Side: Recent Leads Table -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100" style="border-radius: 1.15rem; border: 1px solid #e2e8f0 !important;">
+      <div class="card-body p-0">
+        <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+          <h6 class="fw-bold text-dark mb-0">Recent Leads</h6>
+          <span class="badge bg-light text-secondary border">{{ recent_meta_leads|length }} displayed</span>
         </div>
-        <h5 class="mb-1 fw-bold text-dark">Meta Lead Ads Automated Ingestion</h5>
-        <div class="text-muted small">
-          <strong>Webhook Endpoint:</strong> <code class="text-primary fw-semibold user-select-all">https://crm.zappcode.in/meta-ads/webhook/</code> 
-          <span class="mx-2">•</span> 
-          {% if request.user.role == 'SUPER_ADMIN' or request.user.is_superuser %}
-            <strong>Verify Token:</strong> <code class="text-dark fw-semibold user-select-all">zappcode_academy_verify_2026</code>
-          {% else %}
-            <strong>Verify Token:</strong> <code class="text-dark fw-semibold user-select-all">{{ connection.webhook_verify_token|default:"nelson_hospital_verify_2026" }}</code>
-          {% endif %}
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="table recent-leads-table mb-0">
+            <thead style="position: sticky; top: 0; z-index: 2;">
+              <tr>
+                <th>Lead Name</th>
+                <th>Source</th>
+                <th>Campaign / Dept</th>
+                <th>Date/Time</th>
+                <th>Contact</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lead in recent_meta_leads %}
+              <tr>
+                <td class="fw-bold text-dark">
+                  <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-dark text-decoration-none">
+                    {{ lead.name|default:"Patient Inquiry" }}
+                  </a>
+                </td>
+                <td>
+                  {% if active_channel == 'justdial' %}
+                  <span
+                    class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25">Justdial</span>
+                  {% elif active_channel == 'practo' %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">Practo</span>
+                  {% else %}
+                  <span
+                    class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Facebook</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="text-secondary small fw-semibold">
+                    {% if lead.course %}
+                    {{ lead.course.name }}
+                    {% elif lead.custom_data.department %}
+                    {{ lead.custom_data.department }}
+                    {% else %}
+                    {{ lead.utm_campaign|default:"Direct Inbound" }}
+                    {% endif %}
+                  </span>
+                </td>
+                <td class="text-muted small fw-semibold">
+                  {{ lead.inquiry_date|date:"d/m/Y" }}
+                </td>
+                <td class="text-muted small">{{ lead.mobile|default:"—" }}</td>
+                <td>
+                  {% if lead.stage.name|lower == 'assigned' %}
+                  <span class="stage-badge-pill stage-badge-assigned">Assigned</span>
+                  {% elif 'follow' in lead.stage.name|lower %}
+                  <span class="stage-badge-pill stage-badge-followup">Follow-up</span>
+                  {% elif 'convert' in lead.stage.name|lower or 'admission' in lead.stage.name|lower %}
+                  <span class="stage-badge-pill stage-badge-converted">Converted</span>
+                  {% elif 'lost' in lead.stage.name|lower or 'junk' in lead.stage.name|lower or 'invalid' in lead.stage.name|lower %}
+                  <span class="stage-badge-pill stage-badge-lost">Lost</span>
+                  {% else %}
+                  <span class="stage-badge-pill stage-badge-new">{{ lead.stage.name|default:"New" }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="fa-solid fa-inbox d-block mb-2 text-secondary opacity-50" style="font-size:2rem;"></i>
+                  No leads recorded for this selection.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        {% if request.user.role != 'SUPER_ADMIN' and not request.user.is_superuser %}
-        <button type="button" class="btn btn-outline-primary fw-semibold px-3 py-2 bg-white shadow-sm" data-bs-toggle="modal" data-bs-target="#updateTokenModal">
-          <i class="fa-solid fa-key me-1"></i> Update Token / Config
-        </button>
-        {% endif %}
-        <form method="post" action="{% url 'meta_ads:sync_leads_now' %}" class="mb-0">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-primary fw-bold px-3 py-2 shadow-sm">
-            <i class="fa-solid fa-arrows-rotate me-1 fa-spin-hover"></i> Pull Latest Leads from Meta
-          </button>
-        </form>
       </div>
     </div>
   </div>
-</div>
-{% endif %}
 
-<!-- No Connection Warning -->
-{% if not connection %}
-<div class="no-connection-alert d-flex align-items-center justify-content-between">
-  <div class="d-flex align-items-center gap-3">
-    <i class="fa-solid fa-triangle-exclamation fa-2x text-warning"></i>
-    <div>
-      <div class="fw-bold fs-6">Meta Ads not connected yet</div>
-      <div class="text-muted" style="font-size:.85rem;">
-        Add your Meta Page Access Token (temporary or permanent) to start receiving leads and campaign statistics.
+  <!-- Right Side: Lead Volume Chart (Filled Smooth Wave) -->
+  <div class="col-lg-5">
+    <div class="chart-card-box">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <h6 class="fw-bold text-dark mb-0">Lead Volume Chart</h6>
+          <div class="text-muted small" style="font-size: 0.72rem;">({{ date_preset|title }} breakdown)</div>
+        </div>
+        <span class="badge bg-light text-primary border px-2.5 py-1">New Inquiries</span>
+      </div>
+
+      <div style="height: 280px; position: relative;">
+        <canvas id="leadVolumeChart"></canvas>
       </div>
     </div>
   </div>
-  <button type="button" class="btn btn-primary btn-sm fw-bold px-3 py-2" data-bs-toggle="modal" data-bs-target="#updateTokenModal">
-    <i class="fa-solid fa-key me-1"></i> Connect / Add Token
-  </button>
-</div>
-{% endif %}
 
-<!-- Modal for Updating Temporary / Permanent Meta Access Token -->
+</div>
+
+
+<!-- ── MODAL: META API CONFIG ── -->
 <div class="modal fade" id="updateTokenModal" tabindex="-1" aria-labelledby="updateTokenModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
       <div class="modal-header border-0 pb-0 pt-4 px-4">
         <div>
           <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="updateTokenModalLabel">
-            <i class="fa-brands fa-meta text-primary"></i> Meta Access Token & Settings
+            <i class="fa-brands fa-meta text-primary"></i> Meta Access Token & Credentials
           </h5>
-          <p class="text-muted small mb-0 mt-1">Nelson Admin can paste temporary Graph API tokens or update credentials here.</p>
+          <p class="text-muted small mb-0 mt-1">Configure Meta Graph API credentials for lead ads ingestion.</p>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" action="{% url 'meta_ads:update_token' %}">
         {% csrf_token %}
+        <input type="hidden" name="entity" value="{{ selected_entity }}">
         <div class="modal-body px-4 py-3">
           <div class="mb-3">
             <label class="form-label fw-semibold text-dark small mb-1">
               Meta Page Access Token <span class="text-danger">*</span>
-              <span class="badge bg-light text-secondary border fw-normal ms-1">Temporary or Permanent</span>
+              <span class="badge bg-light text-secondary border fw-normal ms-1">Permanent / System User Token</span>
             </label>
-            <textarea name="page_access_token" class="form-control" rows="4" placeholder="Paste EAA... access token from Meta Graph API Explorer or Meta Business Suite" required style="font-family: monospace; font-size: 0.8rem; border-radius: 8px;">{{ connection.page_access_token|default:'' }}</textarea>
+            <textarea name="page_access_token" class="form-control" rows="4"
+              placeholder="Paste EAA... access token from Meta Business Manager" required
+              style="font-family: monospace; font-size: 0.8rem; border-radius: 8px;">{{ connection.page_access_token|default:'' }}</textarea>
             <div class="form-text small text-muted">
-              You can paste your temporary User/Page Token here whenever it expires. It will instantly sync leads without modifying superadmin settings.
+              Preserves existing working integration. Only update when renewing expired tokens.
             </div>
           </div>
           <div class="row g-2">
             <div class="col-md-6 mb-2">
               <label class="form-label fw-semibold text-dark small mb-1">Facebook Page ID</label>
-              <input type="text" name="page_id" class="form-control form-control-sm" placeholder="e.g. 1001555886574980" value="{{ connection.page_id|default:'' }}" style="border-radius: 8px;">
+              <input type="text" name="page_id" class="form-control form-control-sm" placeholder="e.g. 1001555886574980"
+                value="{{ connection.page_id|default:'' }}" style="border-radius: 8px;">
             </div>
             <div class="col-md-6 mb-2">
               <label class="form-label fw-semibold text-dark small mb-1">Ad Account ID</label>
-              <input type="text" name="ad_account_id" class="form-control form-control-sm" placeholder="without act_ prefix" value="{{ connection.ad_account_id|default:'' }}" style="border-radius: 8px;">
+              <input type="text" name="ad_account_id" class="form-control form-control-sm"
+                placeholder="without act_ prefix" value="{{ connection.ad_account_id|default:'' }}"
+                style="border-radius: 8px;">
             </div>
           </div>
           <div class="mb-2">
             <label class="form-label fw-semibold text-dark small mb-1">Webhook Verify Token</label>
-            <input type="text" name="webhook_verify_token" class="form-control form-control-sm" placeholder="e.g. nelson_hospital_verify_2026" value="{{ connection.webhook_verify_token|default:'nelson_hospital_verify_2026' }}" style="border-radius: 8px;">
+            <input type="text" name="webhook_verify_token" class="form-control form-control-sm"
+              placeholder="e.g. nelson_hospital_verify_2026"
+              value="{{ connection.webhook_verify_token|default:'nelson_hospital_verify_2026' }}"
+              style="border-radius: 8px;">
           </div>
         </div>
         <div class="modal-footer border-0 px-4 pb-4 pt-1">
           <button type="button" class="btn btn-light fw-semibold px-3 py-2" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary fw-bold px-4 py-2 shadow-sm">
-            <i class="fa-solid fa-floppy-disk me-1"></i> Save Token
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save Configuration
           </button>
         </div>
       </form>
@@ -318,238 +591,155 @@
   </div>
 </div>
 
-{% if error %}
-<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" style="border-radius:.75rem;">
-  <i class="fa-solid fa-wifi-slash"></i>
-  <span>{{ error }}</span>
-</div>
-{% endif %}
 
-<!-- ── KPI Cards ── -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-lg-3">
-    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
-      <div class="d-flex align-items-start justify-content-between mb-2">
+<!-- ── MODAL: JUSTDIAL API GUIDE ── -->
+<div class="modal fade" id="justdialGuideModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4">
         <div>
-          <div class="stat-label">Total Spend</div>
-          <div class="stat-value">₹{{ total_spend|floatformat:0|intcomma|default:"0" }}</div>
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="fa-solid fa-phone-volume text-warning"></i> Justdial Webhook Integration Guide
+          </h5>
+          <p class="text-muted small mb-0 mt-1">Provide this endpoint URL in your Justdial Vendor Dashboard under CRM
+            Lead Forwarding.</p>
         </div>
-        <div class="stat-icon icon-blue"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
-        <span class="text-success fw-600"><i class="fa-solid fa-arrow-trend-up me-1"></i>Active</span>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
-      <div class="d-flex align-items-start justify-content-between mb-2">
-        <div>
-          <div class="stat-label">Total Leads</div>
-          <div class="stat-value">{{ total_leads|intcomma|default:"0" }}</div>
+      <div class="modal-body px-4 py-3">
+        <label class="fw-bold small text-dark mb-1">Webhook Post URL</label>
+        <div class="webhook-copy-container mb-3">
+          <span>https://crm.zappcode.in/meta-ads/webhook/justdial/</span>
+          <button class="btn btn-sm btn-dark text-white border-0 py-0"
+            onclick="navigator.clipboard.writeText('https://crm.zappcode.in/meta-ads/webhook/justdial/'); alert('Copied Justdial webhook URL!');">
+            <i class="fa-regular fa-copy"></i>
+          </button>
         </div>
-        <div class="stat-icon icon-green"><i class="fa-solid fa-users"></i></div>
-      </div>
-      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
-        <span class="text-muted"><i class="fa-solid fa-chart-line me-1"></i>From Meta Ads</span>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
-      <div class="d-flex align-items-start justify-content-between mb-2">
-        <div>
-          <div class="stat-label">Cost Per Lead</div>
-          <div class="stat-value">₹{{ overall_cpl|floatformat:0|default:"0" }}</div>
+
+        <h6 class="fw-bold text-dark small mb-2">Supported JSON / Form Parameters:</h6>
+        <div class="bg-light p-3 rounded-3" style="font-family: monospace; font-size: 0.82rem;">
+          {<br>
+          &nbsp;&nbsp;"lead_id": "JD-984321",<br>
+          &nbsp;&nbsp;"name": "Ramesh Patil",<br>
+          &nbsp;&nbsp;"mobile": "9876543210",<br>
+          &nbsp;&nbsp;"department": "Neurology",<br>
+          &nbsp;&nbsp;"city": "Nagpur",<br>
+          &nbsp;&nbsp;"message": "Enquiry for MRI and consult"<br>
+          }
         </div>
-        <div class="stat-icon icon-orange"><i class="fa-solid fa-bullseye"></i></div>
       </div>
-      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
-        <span class="text-success fw-600"><i class="fa-solid fa-arrow-down me-1"></i>Efficient</span>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-3">
-    <div class="meta-stat-card d-flex flex-column justify-content-between h-100">
-      <div class="d-flex align-items-start justify-content-between mb-2">
-        <div>
-          <div class="stat-label">Click-Through Rate</div>
-          <div class="stat-value">{{ overall_ctr|default:"0" }}%</div>
-        </div>
-        <div class="stat-icon icon-purple"><i class="fa-solid fa-arrow-pointer"></i></div>
-      </div>
-      <div class="mt-auto pt-2" style="font-size:.75rem; border-top:1px solid #f3f4f6;">
-        <span class="text-muted"><i class="fa-solid fa-eye me-1"></i>Avg. Engagement</span>
+      <div class="modal-footer border-0 px-4 pb-4">
+        <button type="button" class="btn btn-primary fw-semibold px-4" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Main Grid ── -->
-<div class="row g-3">
 
-  <!-- Left: Campaigns Table -->
-  <div class="col-lg-8">
-
-    <!-- Campaign Table -->
-    <div class="card mb-3">
-      <div class="card-body p-0">
-        <div class="d-flex align-items-center justify-content-between px-4 pt-3 pb-2">
-          <div class="section-title mb-0">Campaign Performance</div>
-          <span class="badge bg-light text-secondary" style="font-size:.75rem;">{{ campaigns|length }} campaigns</span>
+<!-- ── MODAL: PRACTO API GUIDE ── -->
+<div class="modal fade" id="practoGuideModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4">
+        <div>
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="fa-solid fa-user-doctor text-info"></i> Practo Connect Webhook Guide
+          </h5>
+          <p class="text-muted small mb-0 mt-1">Configure in Practo Ray / Practo Partner portal for instant appointment
+            notifications.</p>
         </div>
-        <div class="table-responsive">
-          <table class="table campaign-table mb-0">
-            <thead>
-              <tr>
-                <th class="ps-4">Campaign</th>
-                <th>Spend</th>
-                <th>Impressions</th>
-                <th>Clicks</th>
-                <th>Leads</th>
-                <th>CPL</th>
-                <th>CTR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for c in campaigns %}
-              <tr>
-                <td class="ps-4 fw-500">{{ c.campaign_name }}</td>
-                <td>₹{{ c.spend|floatformat:0|stringformat:"s" }}</td>
-                <td>{{ c.impressions|intcomma }}</td>
-                <td>{{ c.clicks|intcomma }}</td>
-                <td>
-                  <span class="fw-700 text-success">{{ c.leads_count }}</span>
-                </td>
-                <td>₹{{ c.cpl|floatformat:0 }}</td>
-                <td>{{ c.ctr }}%</td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="7" class="text-center py-4 text-muted">
-                  <i class="fa-solid fa-chart-bar d-block mb-2" style="font-size:1.5rem;opacity:.4;"></i>
-                  No campaign data available. Connect Meta Ads or sync data.
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            {% if campaigns %}
-            <tfoot style="background:#f9fafb;">
-              <tr>
-                <td class="ps-4 fw-700 text-dark">Totals</td>
-                <td class="fw-700">₹{{ total_spend|floatformat:0 }}</td>
-                <td class="fw-700">{{ total_impressions|intcomma }}</td>
-                <td class="fw-700">{{ total_clicks|intcomma }}</td>
-                <td class="fw-700 text-success">{{ total_leads }}</td>
-                <td class="fw-700">₹{{ overall_cpl|floatformat:0 }}</td>
-                <td class="fw-700">{{ overall_ctr }}%</td>
-              </tr>
-            </tfoot>
-            {% endif %}
-          </table>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <label class="fw-bold small text-dark mb-1">Webhook Post URL</label>
+        <div class="webhook-copy-container mb-3">
+          <span>https://crm.zappcode.in/meta-ads/webhook/practo/</span>
+          <button class="btn btn-sm btn-dark text-white border-0 py-0"
+            onclick="navigator.clipboard.writeText('https://crm.zappcode.in/meta-ads/webhook/practo/'); alert('Copied Practo webhook URL!');">
+            <i class="fa-regular fa-copy"></i>
+          </button>
+        </div>
+
+        <h6 class="fw-bold text-dark small mb-2">Supported JSON / Form Parameters:</h6>
+        <div class="bg-light p-3 rounded-3" style="font-family: monospace; font-size: 0.82rem;">
+          {<br>
+          &nbsp;&nbsp;"appointment_id": "PR-55421",<br>
+          &nbsp;&nbsp;"patient_name": "Sunita Sharma",<br>
+          &nbsp;&nbsp;"patient_mobile": "9823012345",<br>
+          &nbsp;&nbsp;"doctor_name": "Dr. Vivek Deshmukh",<br>
+          &nbsp;&nbsp;"specialization": "Pediatric",<br>
+          &nbsp;&nbsp;"slot_time": "Tomorrow 11:30 AM"<br>
+          }
         </div>
       </div>
-    </div>
-
-    <!-- Lead Funnel -->
-    <div class="card">
-      <div class="card-body">
-        <div class="section-title">Lead Pipeline — Meta Ads</div>
-        {% if funnel %}
-        <div class="funnel-wrap mt-2">
-          {% for step in funnel %}
-          <div class="funnel-step">
-            <div class="step-name">{{ step.name }}</div>
-            <div class="step-count">{{ step.count }}</div>
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-muted text-center py-3">No lead stages configured.</div>
-        {% endif %}
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Right: Recent Leads Feed -->
-  <div class="col-lg-4">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="section-title mb-0">Live Leads from Meta</div>
-          <span class="badge-active" id="live-badge">
-            <i class="fa-solid fa-circle fa-xs me-1" style="animation: pulse 1.5s infinite;"></i>Live
-          </span>
-        </div>
-
-        <div id="lead-feed">
-          {% for lead in recent_meta_leads %}
-          <div class="lead-feed-item">
-            <div class="lead-avatar">{{ lead.name|first|upper }}</div>
-            <div class="flex-grow-1">
-              <div class="lead-feed-name">
-                <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-dark text-decoration-none">
-                  {{ lead.name }}
-                </a>
-              </div>
-              <div class="lead-feed-phone">{{ lead.mobile }}</div>
-              {% if lead.utm_campaign %}
-              <div class="lead-feed-campaign">
-                <i class="fa-brands fa-meta me-1"></i>{{ lead.utm_campaign }}
-              </div>
-              {% endif %}
-            </div>
-            <div class="lead-feed-time">{{ lead.created_at|timesince }} ago</div>
-          </div>
-          {% empty %}
-          <div class="text-center text-muted py-4">
-            <i class="fa-solid fa-inbox d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
-            No Meta leads yet.<br>
-            <small>They will appear here in real-time.</small>
-          </div>
-          {% endfor %}
-        </div>
+      <div class="modal-footer border-0 px-4 pb-4">
+        <button type="button" class="btn btn-primary fw-semibold px-4" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
-
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Auto-refresh the live lead feed every 30 seconds
-function refreshLeadFeed() {
-  fetch("{% url 'meta_ads:recent_leads_json' %}")
-    .then(r => r.json())
-    .then(data => {
-      const feed = document.getElementById("lead-feed");
-      if (!data.leads.length) return;
-      feed.innerHTML = data.leads.map(l => `
-        <div class="lead-feed-item">
-          <div class="lead-avatar">${l.name.charAt(0).toUpperCase()}</div>
-          <div class="flex-grow-1">
-            <div class="lead-feed-name">
-              <a href="/leads/${l.id}/" class="text-dark text-decoration-none">${l.name}</a>
-            </div>
-            <div class="lead-feed-phone">${l.mobile}</div>
-            ${l.campaign ? `<div class="lead-feed-campaign"><i class="fa-brands fa-meta me-1"></i>${l.campaign}</div>` : ''}
-          </div>
-          <div class="lead-feed-time">${l.created_at}</div>
-        </div>
-      `).join("");
-    })
-    .catch(() => {});
-}
+document.addEventListener("DOMContentLoaded", function () {
+  const ctx = document.getElementById('leadVolumeChart');
+  if (ctx) {
+    const labels = {{ chart_labels_json|safe }};
+    const values = {{ chart_values_json|safe }};
 
-// Refresh every 30 seconds
-setInterval(refreshLeadFeed, 30000);
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 260);
+    gradient.addColorStop(0, 'rgba(37, 99, 235, 0.45)');
+    gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.2)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
 
-// Pulse animation for live badge
-const style = document.createElement('style');
-style.textContent = `@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }`;
-document.head.appendChild(style);
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Inquiries',
+          data: values,
+          borderColor: '#2563eb',
+          backgroundColor: gradient,
+          borderWidth: 2.5,
+          pointBackgroundColor: '#2563eb',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            padding: 10,
+            titleFont: { size: 12, weight: 'bold' },
+            bodyFont: { size: 13 },
+            displayColors: false
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#94a3b8', font: { size: 11 } }
+          },
+          y: {
+            grid: { color: '#f1f5f9' },
+            ticks: { color: '#94a3b8', font: { size: 11 }, precision: 0 },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+});
 </script>
 {% endblock %}

@@ -150,11 +150,43 @@ def management_home(request):
         if asg_val.isdigit():
             filtered_leads = filtered_leads.filter(assigned_to_id=int(asg_val))
         else:
-            filtered_leads = filtered_leads.filter(assigned_to__username__iexact=asg_val)
-    if request.GET.get("date_from"):
-        filtered_leads = filtered_leads.filter(inquiry_date__gte=request.GET.get("date_from"))
-    if request.GET.get("date_to"):
-        filtered_leads = filtered_leads.filter(inquiry_date__lte=request.GET.get("date_to"))
+            filtered_leads = filtered_leads.filter(
+                Q(assigned_to__username__iexact=asg_val)
+                | Q(assigned_to__first_name__iexact=asg_val)
+                | Q(custom_data__assigned_to__iexact=asg_val)
+            )
+
+    # Date / Time Filter handling: today, this_month, all_time, or custom date_from / date_to
+    time_filter = request.GET.get("time_filter", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    if time_filter == "today":
+        filtered_leads = filtered_leads.filter(inquiry_date=today)
+    elif time_filter == "this_month" or time_filter == "month":
+        filtered_leads = filtered_leads.filter(inquiry_date__year=today.year, inquiry_date__month=today.month)
+    elif time_filter == "all_time" or time_filter == "all":
+        pass  # No date restriction
+    else:
+        if date_from:
+            filtered_leads = filtered_leads.filter(inquiry_date__gte=date_from)
+        if date_to:
+            filtered_leads = filtered_leads.filter(inquiry_date__lte=date_to)
+
+    # ── Helper for Course vs Department Label Determination ────────────────────
+    def get_category_meta_for_business(biz_name):
+        b_lower = (biz_name or "").lower()
+        if "hospital" in b_lower or "nelson" in b_lower or "clinic" in b_lower or "care" in b_lower or "medical" in b_lower:
+            return {"title": "Department Distribution", "icon": "fa-hospital", "unit": "Department"}
+        elif "academy" in b_lower or "zappcode" in b_lower or "institute" in b_lower or "school" in b_lower:
+            return {"title": "Course Distribution", "icon": "fa-graduation-cap", "unit": "Course"}
+        return {"title": "Course / Department Distribution", "icon": "fa-graduation-cap", "unit": "Specialization"}
+
+    # Determine overall primary business category title
+    if is_single_business and selected_businesses:
+        primary_cat_meta = get_category_meta_for_business(selected_businesses[0]["name"])
+    else:
+        primary_cat_meta = {"title": "Course & Department Distribution", "icon": "fa-graduation-cap", "unit": "Course/Dept"}
 
     # ── 5. Overall Aggregated KPIs (Combined unified values) ────────────────────
     total_leads = filtered_leads.count()
@@ -232,8 +264,36 @@ def management_home(request):
     all_stages = list(LeadStage.objects.filter(is_active=True).order_by("order", "name"))
     funnel_stage_labels = [s.name for s in all_stages] if all_stages else ["New", "Contacted", "Interested", "Admission"]
     
-    emp_lead_data = filtered_leads.values("assigned_to__first_name", "assigned_to__username").annotate(count=Count("id")).order_by("-count")[:10]
+    emp_lead_data = (
+        filtered_leads.values("assigned_to__id", "assigned_to__first_name", "assigned_to__username")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:10]
+    )
     emp_labels = [r["assigned_to__first_name"] or r["assigned_to__username"] or "Unassigned" for r in emp_lead_data]
+    emp_ids = [r["assigned_to__id"] for r in emp_lead_data]
+
+    # Helper function to extract course/department counts from leads queryset
+    def extract_category_counts(leads_qs, is_hospital_domain=False):
+        from collections import Counter
+        cat_counter = Counter()
+        for lead_item in leads_qs.only("course__name", "custom_data"):
+            c_name = None
+            if is_hospital_domain:
+                cd = lead_item.custom_data or {}
+                c_name = cd.get("department") or cd.get("course") or (lead_item.course.name if lead_item.course else None)
+            else:
+                c_name = (lead_item.course.name if lead_item.course else None)
+                if not c_name:
+                    cd = lead_item.custom_data or {}
+                    c_name = cd.get("course") or cd.get("department")
+            if not c_name or str(c_name).strip() in ("", "-", "nan", "None", "null", "—"):
+                c_name = "General Inquiry"
+            cat_counter[str(c_name).strip()] += 1
+        
+        top_cats = cat_counter.most_common(8)
+        c_labels = [k for k, v in top_cats]
+        c_counts = [v for k, v in top_cats]
+        return c_labels, c_counts
 
     if is_comparison_mode:
         # A. Comparison Funnel (Multi-bar)
@@ -281,6 +341,8 @@ def management_home(request):
             else:
                 b_leads = filtered_leads.filter(hospital_id=int(b["id"]))
 
+            b_meta = get_category_meta_for_business(b["name"])
+
             s_data = b_leads.values("lead_source__name").annotate(count=Count("id")).order_by("-count")[:6]
             s_labels = [r["lead_source__name"] or "Unknown" for r in s_data]
             s_counts = [r["count"] for r in s_data]
@@ -293,15 +355,18 @@ def management_home(request):
                 "counts": s_counts if s_counts else [0],
             })
 
-            c_data = b_leads.values("course__name").annotate(count=Count("id")).order_by("-count")[:6]
-            c_labels = [c["course__name"] or "General Inquiry" for c in c_data]
-            c_counts = [c["count"] for c in c_data]
+            is_hosp = "hospital" in b["name"].lower() or "nelson" in b["name"].lower() or "clinic" in b["name"].lower()
+            c_labels, c_counts = extract_category_counts(b_leads, is_hospital_domain=is_hosp)
+
             business_course_charts.append({
                 "business_id": b["id"],
                 "business_name": b["name"],
+                "chart_title": b_meta["title"],
+                "icon": b_meta["icon"],
+                "unit": b_meta["unit"],
                 "color": b["color"],
                 "total": sum(c_counts),
-                "labels": c_labels if c_labels else ["No Category Data"],
+                "labels": c_labels if c_labels else ["No Data"],
                 "counts": c_counts if c_counts else [0],
             })
 
@@ -338,17 +403,21 @@ def management_home(request):
         }]
 
         # D. Unified Course / Department Pie
-        c_data = filtered_leads.values("course__name").annotate(count=Count("id")).order_by("-count")[:8]
-        c_labels = [c["course__name"] or "General Inquiry" for c in c_data]
-        c_counts = [c["count"] for c in c_data]
+        is_hosp_single = is_single_business and ("hospital" in selected_businesses[0]["name"].lower() or "nelson" in selected_businesses[0]["name"].lower())
+        c_labels, c_counts = extract_category_counts(filtered_leads, is_hospital_domain=is_hosp_single)
+
         business_course_charts = [{
             "business_id": "all",
-            "business_name": "Unified Course / Department Distribution" if is_all_businesses else selected_businesses[0]["name"],
+            "business_name": primary_cat_meta["title"] if is_all_businesses else selected_businesses[0]["name"],
+            "chart_title": primary_cat_meta["title"],
+            "icon": primary_cat_meta["icon"],
+            "unit": primary_cat_meta["unit"],
             "color": "#4f46e5",
             "total": sum(c_counts),
-            "labels": c_labels if c_labels else ["No Category Data"],
+            "labels": c_labels if c_labels else ["No Data"],
             "counts": c_counts if c_counts else [0],
         }]
+
 
     # ── 8. Team Activity Today ────────────────────────────────────────────────
     team_members = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', 'LEAD_ATTENDENT', 'MANAGER'])
@@ -406,6 +475,10 @@ def management_home(request):
         "stages": LeadStage.objects.filter(id__in=used_stage_ids),
         "employees": User.objects.filter(id__in=used_emp_ids),
         "cities": distinct_cities,
+        "primary_cat_meta": primary_cat_meta,
+        "time_filter": time_filter,
+        "date_from": date_from,
+        "date_to": date_to,
         "request_get": request.GET,
         "funnel_chart_data": json.dumps({
             "labels": funnel_stage_labels,
@@ -414,6 +487,7 @@ def management_home(request):
         "employee_chart_data": json.dumps({
             "labels": emp_labels,
             "datasets": employee_datasets,
+            "emp_ids": emp_ids,
         }),
         "business_source_charts_json": json.dumps(business_source_charts),
         "business_course_charts_json": json.dumps(business_course_charts),

@@ -496,10 +496,15 @@ class HospitalLeadForm(forms.ModelForm):
             "readonly": "readonly",
         })
     )
+    payment_remarks = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter billing / payment notes..."}),
+        required=False,
+        label="Payment Remarks"
+    )
     
     # Remarks Tracking
     calling_date_remark_1 = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    remark_1 = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+    remark_1 = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter payment remarks / notes..."}), required=False, label="Payment Remarks")
     
     calling_date_remark_2 = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     calling_time_remark_2 = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
@@ -535,9 +540,20 @@ class HospitalLeadForm(forms.ModelForm):
         cd = (self.instance.custom_data or {}) if (self.instance and self.instance.pk) else {}
         # Load JSON fields into form
         if self.instance and self.instance.pk:
-            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
+            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'payment_remarks', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
                 if field in cd and field in self.fields:
                     self.fields[field].initial = cd[field]
+
+            # In billing section, ensure Payment Remarks / remark_1 loads specific payment remark (from billing history or payment_remarks)
+            billing_history = cd.get('billing_history', [])
+            if billing_history and isinstance(billing_history, list):
+                last_b = billing_history[-1]
+                if isinstance(last_b, dict) and last_b.get('remark'):
+                    self.fields['payment_remarks'].initial = last_b.get('remark')
+                    self.fields['remark_1'].initial = last_b.get('remark')
+            elif cd.get('payment_remarks'):
+                self.fields['payment_remarks'].initial = cd.get('payment_remarks')
+                self.fields['remark_1'].initial = cd.get('payment_remarks')
             
             # Load Campaign from Model ForeignKey or custom_data
             if not self.fields['campaign'].initial:
@@ -951,6 +967,35 @@ class HospitalLeadForm(forms.ModelForm):
             return digits
         return mobile
 
+    def clean_uhid_id_no(self):
+        uhid = (self.cleaned_data.get("uhid_id_no") or "").strip()
+        if uhid:
+            # Check duplicate UHID in non-archived leads of the same hospital (or global)
+            from django.db.models import Q
+            qs = Lead.objects.filter(is_archived=False)
+            if self.instance and self.instance.hospital:
+                qs = qs.filter(hospital=self.instance.hospital)
+            elif self.current_user and self.current_user.hospital:
+                qs = qs.filter(hospital=self.current_user.hospital)
+
+            # Exclude current lead instance if editing
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+
+            # Query JSON field custom_data for matching uhid_id_no
+            duplicate_lead = qs.filter(
+                Q(custom_data__uhid_id_no__iexact=uhid) |
+                Q(custom_data__uhid_no__iexact=uhid)
+            ).first()
+
+            if duplicate_lead:
+                dup_name = duplicate_lead.name or "Unknown Patient"
+                dup_code = duplicate_lead.lead_code or f"#{duplicate_lead.pk}"
+                raise forms.ValidationError(
+                    f"UHID '{uhid}' is already assigned to patient {dup_name} ({dup_code}). Please enter a unique UHID."
+                )
+        return uhid
+
     def clean_age(self):
         age = self.cleaned_data.get("age")
         if age is not None:
@@ -1013,7 +1058,7 @@ class HospitalLeadForm(forms.ModelForm):
                 instance.city = loc_str
             
         # Extract custom fields
-        custom_fields = ['location', 'gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments']
+        custom_fields = ['location', 'gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'payment_remarks', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments']
         date_time_fields = ['appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'calling_date_remark_3']
         
         # Save comments into instance.notes as well
@@ -1029,6 +1074,12 @@ class HospitalLeadForm(forms.ModelForm):
                 cd[field] = str(val) if isinstance(val, (int, float)) or hasattr(val, 'quantize') else val
             else:
                 cd.pop(field, None)
+
+        # Sync payment_remarks with remark_1
+        pay_rem = self.cleaned_data.get('payment_remarks') or self.cleaned_data.get('remark_1') or ''
+        if pay_rem:
+            cd['payment_remarks'] = pay_rem
+            cd['remark_1'] = pay_rem
 
         # Save dynamic custom fields configured by Admin
         for cf in getattr(self, 'dynamic_custom_fields', []):

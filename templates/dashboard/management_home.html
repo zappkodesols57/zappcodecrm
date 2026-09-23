@@ -32,18 +32,83 @@
 
   .kpi-link {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border-radius: 12px;
+    border-radius: 14px !important;
   }
   .kpi-link:hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.06) !important;
   }
+
+  /* Light Soft Modern KPI Card Themes */
+  .kpi-card {
+    border-radius: 14px !important;
+    padding: 1.15rem 1.35rem !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03) !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  .kpi-card .label {
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+  }
+  .kpi-card .value {
+    font-size: 1.85rem !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
+    margin-top: 0.35rem !important;
+  }
+
+  /* 1. Total Leads - Soft Light Blue */
+  .kpi-1 {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e0effe 100%) !important;
+    border-color: #bae6fd !important;
+    color: #0369a1 !important;
+  }
+  .kpi-1 .label { color: #0284c7 !important; }
+  .kpi-1 .value { color: #0c4a6e !important; }
+
+  /* 2. Uncontacted - Soft Light Purple / Violet */
+  .kpi-7 {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
+    border-color: #e9d5ff !important;
+    color: #7e22ce !important;
+  }
+  .kpi-7 .label { color: #9333ea !important; }
+  .kpi-7 .value { color: #581c87 !important; }
+
+  /* 3. Conversion Rate - Soft Light Rose / Pink */
+  .kpi-5 {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
+    border-color: #fecdd3 !important;
+    color: #be123c !important;
+  }
+  .kpi-5 .label { color: #e11d48 !important; }
+  .kpi-5 .value { color: #881337 !important; }
+
+  /* 4. Overdue Follow-ups - Soft Light Cyan / Sky */
+  .kpi-3 {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%) !important;
+    border-color: #a5f3fc !important;
+    color: #0e7490 !important;
+  }
+  .kpi-3 .label { color: #0891b2 !important; }
+  .kpi-3 .value { color: #155e75 !important; }
+
+  /* 5. Total Revenue - Soft Light Amber / Orange */
+  .kpi-2 {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    border-color: #fde68a !important;
+    color: #b45309 !important;
+  }
+  .kpi-2 .label { color: #d97706 !important; }
+  .kpi-2 .value { color: #78350f !important; }
 
   /* Comparison pill badge inside KPI Cards */
   .kpi-breakdown-row {
     margin-top: 10px;
     padding-top: 8px;
-    border-top: 1px dashed rgba(0,0,0,0.08);
+    border-top: 1px dashed rgba(0,0,0,0.12);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -197,8 +262,46 @@
   .badge-booking { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
   .badge-followup-needed { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
   .badge-payment-pending { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
-  .badge-assigned { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-  .badge-lost { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .filter-drawer .form-select,
+  .filter-drawer .form-control,
+  .filter-drawer .ts-control,
+  .filter-drawer .input-group,
+  .filter-drawer .btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 0.82rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .filter-drawer .form-select,
+  .filter-drawer .form-control,
+  .filter-drawer .ts-control {
+    border: 1.5px solid #1e293b !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    outline: none !important;
+    font-weight: 500 !important;
+    padding: 0.35rem 0.65rem !important;
+  }
+
+  .filter-drawer .input-group .form-control {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
+  .filter-drawer .input-group .btn {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  .filter-drawer .form-select:focus,
+  .filter-drawer .form-control:focus,
+  .filter-drawer .ts-control.focus,
+  .filter-drawer .ts-wrapper.focus .ts-control {
+    border-color: #000000 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
 </style>
 {% endblock %}
 
@@ -206,67 +309,147 @@
 
 <!-- ─── TOP HEADER BAR ─── -->
 <form id="dashboardFilterForm" method="GET" action="{% url 'dashboard:management_home' %}">
+  <!-- Retain current business selection if any -->
+  {% for bid in selected_business_ids %}
+    {% if not is_all_businesses %}
+      <input type="hidden" name="business" value="{{ bid }}">
+    {% endif %}
+  {% endfor %}
+
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="fw-bold mb-0 text-dark">Executive Overview</h4>
+      <h4 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2 flex-wrap">
+        <span>Executive Overview</span>
+        {% if is_single_business and selected_businesses %}
+          <span class="badge rounded-pill" style="background: {{ selected_businesses.0.bg }}; color: {{ selected_businesses.0.color }}; border: 1px solid {{ selected_businesses.0.border }}; font-size: 0.78rem;">
+            <i class="fa-solid fa-building me-1"></i> {{ selected_businesses.0.name }}
+          </span>
+        {% elif is_comparison_mode %}
+          <span class="badge bg-purple bg-opacity-10 text-purple border rounded-pill px-3" style="font-size: 0.78rem;">
+            <i class="fa-solid fa-code-compare me-1"></i> Comparison Mode ({{ selected_businesses|length }} Entities)
+          </span>
+        {% else %}
+          <span class="badge bg-light text-secondary border rounded-pill px-3" style="font-size: 0.78rem;">
+            <i class="fa-solid fa-globe me-1"></i> All Businesses Consolidated
+          </span>
+        {% endif %}
+
+        {% if request_get.assigned_to %}
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-user-check me-1"></i> Employee: {{ request_get.assigned_to }}
+            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('assigned_to', '{{ request_get.assigned_to }}')" class="text-success ms-1"><i class="fa-solid fa-xmark"></i></a>
+          </span>
+        {% endif %}
+        {% if request_get.stage %}
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-filter me-1"></i> Stage: {{ request_get.stage }}
+            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('stage', '{{ request_get.stage }}')" class="text-primary ms-1"><i class="fa-solid fa-xmark"></i></a>
+          </span>
+        {% endif %}
+        {% if request_get.lead_source_name or request_get.lead_source %}
+          <span class="badge bg-indigo bg-opacity-10 text-indigo border border-indigo-subtle rounded-pill px-3" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-chart-pie me-1"></i> Source: {{ request_get.lead_source_name|default:request_get.lead_source }}
+            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('lead_source_name', '{{ request_get.lead_source_name|default:request_get.lead_source }}')" class="text-indigo ms-1"><i class="fa-solid fa-xmark"></i></a>
+          </span>
+        {% endif %}
+        {% if request_get.course_name or request_get.course %}
+          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill px-3" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-graduation-cap me-1"></i> {{ primary_cat_meta.unit }}: {{ request_get.course_name|default:request_get.course }}
+            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('course_name', '{{ request_get.course_name|default:request_get.course }}')" class="text-dark ms-1"><i class="fa-solid fa-xmark"></i></a>
+          </span>
+        {% endif %}
+      </h4>
     </div>
-    <!-- Right Actions: Pending Approvals & More Filters -->
-    <div class="d-flex align-items-center gap-2">
+
+    <!-- Right Actions: Quick Date Switcher Pills & Filter Buttons -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <!-- Quick Date Filter Switcher Buttons -->
+      <div class="btn-group btn-group-sm bg-white p-1 rounded-pill border shadow-2xs" role="group" aria-label="Date Filters">
+        <a href="javascript:void(0)" onclick="setQuickDateFilter('today')" 
+           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if time_filter == 'today' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}" style="font-size: 0.78rem;">
+          Today
+        </a>
+        <a href="javascript:void(0)" onclick="setQuickDateFilter('this_month')" 
+           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if time_filter == 'this_month' or time_filter == 'month' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}" style="font-size: 0.78rem;">
+          This Month
+        </a>
+        <a href="javascript:void(0)" onclick="setQuickDateFilter('all_time')" 
+           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if not time_filter and not request_get.date_from and not request_get.date_to or time_filter == 'all_time' or time_filter == 'all' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}" style="font-size: 0.78rem;">
+          All Time
+        </a>
+      </div>
+
+      {% if request_get.date_from or request_get.date_to %}
+        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill shadow-2xs small fw-semibold">
+          <i class="fa-solid fa-calendar-day text-primary me-1"></i>
+          {{ request_get.date_from|default:"Start" }} to {{ request_get.date_to|default:"End" }}
+        </span>
+      {% endif %}
+
       {% if pending_approvals_count > 0 %}
-        <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse rounded-pill px-3">
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse rounded-pill px-3" style="font-size: 0.78rem;">
           <i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s)
         </a>
       {% endif %}
 
-      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFiltersCollapse" aria-expanded="false">
-        <i class="fa-solid fa-sliders me-1"></i> More Filters
+      <button class="btn {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.date_from or request_get.date_to %}btn-primary text-white shadow-xs{% else %}btn-outline-secondary{% endif %} btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFiltersCollapse" aria-expanded="false" style="font-size: 0.78rem;">
+        <i class="fa-solid fa-sliders me-1"></i> Filters
       </button>
+
+      {% if request_get.q or request_get.city or request_get.course or request_get.course_name or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.lead_source_name or request_get.date_from or request_get.date_to or time_filter %}
+        <a href="{% url 'dashboard:management_home' %}{% if not is_all_businesses and selected_businesses %}?business={{ selected_businesses.0.id }}{% endif %}" class="btn btn-outline-danger btn-sm rounded-pill px-3" style="font-size: 0.78rem;" title="Reset all dashboard filters">
+          <i class="fa-solid fa-arrow-rotate-left me-1"></i> Reset
+        </a>
+      {% endif %}
     </div>
   </div>
 
   <!-- ─── ADVANCED FILTERS COLLAPSIBLE DRAWER ─── -->
-  <div class="collapse {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.date_from or request_get.date_to %}show{% endif %}" id="advancedFiltersCollapse">
+  <div class="collapse {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.date_from or request_get.date_to %}show{% endif %}" id="advancedFiltersCollapse">
     <div class="card filter-drawer p-3 mb-3 shadow-2xs">
       <div class="row g-2">
-        <div class="col-md-2">
-          <div class="input-group input-group-sm">
-            <input type="search" name="q" class="form-control" placeholder="Search name/mobile/email..." value="{{ request_get.q }}">
+        <!-- Row 1: 6 Uniform Columns (col-lg-2 col-md-4 col-sm-6) -->
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="input-group input-group-sm h-100">
+            <input type="search" name="q" class="form-control" placeholder="Search lead..." value="{{ request_get.q }}">
             <button class="btn btn-primary" type="submit" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
           </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="city" class="form-select form-select-sm">
             <option value="">All Cities</option>
             {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="source_category" class="form-select form-select-sm">
             <option value="">All Source Categories</option>
             {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="lead_source" class="form-select form-select-sm">
             <option value="">All Lead Sources</option>
             {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="course" class="form-select form-select-sm">
             <option value="">All Courses</option>
             {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-md-1">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="stage" class="form-select form-select-sm">
             <option value="">All Stages</option>
             {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-md-1">
+
+        <!-- Row 2: 6 Uniform Columns (col-lg-2 col-md-4 col-sm-6) -->
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="temperature" class="form-select form-select-sm">
-            <option value="">All Temps</option>
+            <option value="">All Temperatures</option>
             <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
             <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Not Picked</option>
             <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
@@ -274,10 +457,7 @@
             <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold</option>
           </select>
         </div>
-      </div>
-
-      <div class="row g-2 mt-1">
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="deal_status" class="form-select form-select-sm">
             <option value="">All Deal Statuses</option>
             <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
@@ -286,22 +466,22 @@
             <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
           </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="assigned_to" class="form-select form-select-sm">
             <option value="">All Assigned Employees</option>
             {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
-          <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}" placeholder="From Date">
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <input type="date" id="filterDateFrom" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}" max="{{ today|date:'Y-m-d' }}" placeholder="From Date">
         </div>
-        <div class="col-md-2">
-          <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}" placeholder="To Date">
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <input type="date" id="filterDateTo" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}" max="{{ today|date:'Y-m-d' }}" {% if request_get.date_from %}min="{{ request_get.date_from }}"{% endif %} placeholder="To Date">
         </div>
-        <div class="col-md-4">
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-brand text-white w-50" type="submit"><i class="fa-solid fa-filter me-1"></i> Apply Filters</button>
-            <a href="{% url 'dashboard:management_home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Reset All</a>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="d-flex gap-2 h-100">
+            <button class="btn btn-sm btn-brand text-white w-50 fw-bold" type="submit" style="white-space: nowrap;"><i class="fa-solid fa-filter me-1"></i> Apply</button>
+            <a href="{% url 'dashboard:management_home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center" style="white-space: nowrap;">Reset</a>
           </div>
         </div>
       </div>
@@ -471,12 +651,12 @@
     </div>
   </div>
 
-  <!-- 2. Course & Department Distribution -->
+  <!-- 2. Course & Department Distribution (Dynamic based on selected business) -->
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100" style="border-top: 3px solid #4f46e5;">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="text-dark fw-bold mb-0">
-          <i class="fa-solid fa-graduation-cap me-2 text-indigo"></i>Course & Department Distribution
+          <i class="fa-solid {{ primary_cat_meta.icon|default:'fa-graduation-cap' }} me-2 text-indigo"></i>{{ primary_cat_meta.title|default:'Course & Department Distribution' }}
         </h6>
         <span class="badge bg-light text-muted border small">Total: {{ business_course_charts.0.total }}</span>
       </div>
@@ -519,7 +699,7 @@
 <div class="mb-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h5 class="fw-bold text-dark mb-0">
-      <i class="fa-solid fa-graduation-cap me-2 text-indigo"></i>Course & Department Distribution per Business
+      <i class="fa-solid fa-layer-group me-2 text-indigo"></i>Specialization & Department Distribution per Business
     </h5>
     <span class="badge bg-white border text-muted small">Distinct Pie per Business</span>
   </div>
@@ -530,7 +710,8 @@
       <div class="card chart-card p-3 h-100" style="border-top: 3px solid {{ cc.color }};">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="fw-bold text-dark small" title="{{ cc.business_name }}">
-            <span class="kpi-dot" style="background: {{ cc.color }};"></span>{{ cc.business_name|truncatechars:24 }}
+            <i class="fa-solid {{ cc.icon|default:'fa-graduation-cap' }} me-1 text-indigo"></i>
+            <span class="kpi-dot" style="background: {{ cc.color }};"></span>{{ cc.business_name|truncatechars:18 }} ({{ cc.chart_title }})
           </span>
           <span class="badge rounded-pill" style="background: {{ cc.color }}20; color: {{ cc.color }};">Total: {{ cc.total }}</span>
         </div>
@@ -543,6 +724,7 @@
   </div>
 </div>
 {% endif %}
+
 
 
 <!-- ─── TEAM ACTIVITY TODAY ─── -->
@@ -1907,6 +2089,18 @@ function filterDrilldownTable() {
     renderDrilldownTable(filtered);
 }
 
+function setQuickDateFilter(filterType) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.delete('date_from');
+    urlParams.delete('date_to');
+    if (filterType === 'all_time' || filterType === 'all') {
+        urlParams.delete('time_filter');
+    } else {
+        urlParams.set('time_filter', filterType);
+    }
+    window.location.search = urlParams.toString();
+}
+
 function applyDashboardChartFilter(param, value) {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get(param) === value) {
@@ -1918,10 +2112,27 @@ function applyDashboardChartFilter(param, value) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#8b5cf6','#eab308','#14b8a6','#f43f5e'];
+  const palette = [
+    '#6366f1', // Indigo / Iris
+    '#0ea5e9', // Sky Blue
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#ec4899', // Pink
+    '#8b5cf6', // Violet
+    '#14b8a6', // Teal
+    '#f97316', // Orange
+    '#64748b'  // Slate
+  ];
 
   // 1. Funnel Comparison Bar Chart
   const funnelData = {{ funnel_chart_data|safe }};
+  if (funnelData && funnelData.datasets) {
+    funnelData.datasets.forEach(ds => {
+      ds.backgroundColor = ds.backgroundColor === '#4f46e5' ? '#6366f1' : ds.backgroundColor;
+      ds.borderRadius = 6;
+      ds.barThickness = 14;
+    });
+  }
   if (document.getElementById('funnelComparisonChart')) {
     new Chart(document.getElementById('funnelComparisonChart'), {
       type: 'bar',
@@ -1930,6 +2141,9 @@ document.addEventListener("DOMContentLoaded", function() {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        onHover: (e, elements) => {
+          e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        },
         onClick: (e, elements) => {
           if (elements.length > 0 && funnelData.labels) {
             const idx = elements[0].index;
@@ -1954,6 +2168,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // 2. Employee Leads Comparison Bar Chart
   const empData = {{ employee_chart_data|safe }};
+  if (empData && empData.datasets) {
+    empData.datasets.forEach(ds => {
+      ds.backgroundColor = ds.backgroundColor === '#10b981' ? '#10b981' : ds.backgroundColor;
+      ds.borderRadius = 6;
+      ds.barThickness = 14;
+    });
+  }
   if (document.getElementById('employeeComparisonChart')) {
     new Chart(document.getElementById('employeeComparisonChart'), {
       type: 'bar',
@@ -1962,6 +2183,17 @@ document.addEventListener("DOMContentLoaded", function() {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        onHover: (e, elements) => {
+          e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        },
+        onClick: (e, elements) => {
+          if (elements.length > 0 && empData.labels) {
+            const idx = elements[0].index;
+            const empLabel = empData.labels[idx];
+            const empId = (empData.emp_ids && empData.emp_ids[idx]) ? empData.emp_ids[idx] : empLabel;
+            applyDashboardChartFilter('assigned_to', String(empId));
+          }
+        },
         plugins: {
           legend: {
             display: {{ is_comparison_mode|yesno:"true,false" }},
@@ -2001,6 +2233,9 @@ document.addEventListener("DOMContentLoaded", function() {
           layout: {
             padding: 4
           },
+          onHover: (e, elements) => {
+            e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+          },
           onClick: (e, elements) => {
             if (elements.length > 0 && item.labels) {
               const clickedIdx = elements[0].index;
@@ -2019,7 +2254,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // 4. Course / Category Pie Charts per Business
+  // 4. Course / Department Pie Charts per Business
   const courseCharts = {{ business_course_charts_json|safe }};
   courseCharts.forEach((item, idx) => {
     const canvasId = `courseChart_${idx + 1}`;
@@ -2042,6 +2277,9 @@ document.addEventListener("DOMContentLoaded", function() {
           layout: {
             padding: 4
           },
+          onHover: (e, elements) => {
+            e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+          },
           onClick: (e, elements) => {
             if (elements.length > 0 && item.labels) {
               const clickedIdx = elements[0].index;
@@ -2060,6 +2298,31 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
+  // Date Filter Constraints (Limit to Today & Dynamic From-To)
+  const dateFromInput = document.getElementById('filterDateFrom');
+  const dateToInput = document.getElementById('filterDateTo');
+  if (dateFromInput && dateToInput) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    dateFromInput.max = todayStr;
+    dateToInput.max = todayStr;
+
+    dateFromInput.addEventListener('change', function() {
+      if (this.value) {
+        dateToInput.min = this.value;
+        if (dateToInput.value && dateToInput.value < this.value) {
+          dateToInput.value = this.value;
+        }
+      } else {
+        dateToInput.removeAttribute('min');
+      }
+    });
+
+    if (dateFromInput.value) {
+      dateToInput.min = dateFromInput.value;
+    }
+  }
+
 });
 </script>
 {% endblock %}
+
