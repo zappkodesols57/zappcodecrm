@@ -3,7 +3,7 @@ from django.dispatch import receiver
 
 from audit.utils import log_action
 from followups.models import Activity, ActivityType
-from .models import Lead
+from .models import Lead, LeadTemperature
 
 
 @receiver(pre_save, sender=Lead)
@@ -43,9 +43,11 @@ def _lead_activity_and_audit(sender, instance, created, **kwargs):
         log_action("STAGE_CHANGE", obj=instance, old_value=prev.stage, new_value=instance.stage)
 
     if prev.temperature != instance.temperature:
+        old_disp = prev.get_temperature_display() if hasattr(prev, 'get_temperature_display') and prev.temperature in dict(LeadTemperature.choices) else (prev.temperature or "Uncontacted").title()
+        new_disp = instance.get_temperature_display() if hasattr(instance, 'get_temperature_display') and instance.temperature in dict(LeadTemperature.choices) else (instance.temperature or "Uncontacted").title()
         Activity.objects.create(
             lead=instance, activity_type=ActivityType.TEMPERATURE_CHANGE,
-            description=f"Temperature changed from '{prev.get_temperature_display()}' to '{instance.get_temperature_display()}'",
+            description=f"Temperature changed from '{old_disp}' to '{new_disp}'",
         )
         log_action("TEMPERATURE_CHANGE", obj=instance, old_value=prev.temperature, new_value=instance.temperature)
 

@@ -44,7 +44,7 @@ GUESS_KEYWORDS = {
     "department": ["department", "speciality", "dept", "specialization"],
     "campaign": ["campaign name", "campaign", "ad name", "ad set name"],
     "source": ["origin", "source", "platform", "publisher platform", "lead source", "channel"],
-    "assigned_to": ["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"],
+    "assigned_to": ["lead attendent", "lead attendant", "lead_attendent", "lead_attendant", "attendent", "attendant", "assigned to", "assigned", "telecaller", "tele caller", "executive", "caller", "agent", "lead owner", "owner", "assignee", "counsellor", "counselor"],
     "inquiry_date": ["created at", "created_at", "date", "created time", "lead date", "inquiry date", "lead time"],
     "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question", "समस्या", "रोग"],
 }
@@ -1484,10 +1484,21 @@ def export_leads(request):
 
     date_from = _parse_date_input(request.GET.get("date_from"))
     date_to = _parse_date_input(request.GET.get("date_to"))
-    if date_from:
-        leads = leads.filter(inquiry_date__gte=date_from)
-    if date_to:
-        leads = leads.filter(inquiry_date__lte=date_to)
+    if date_from or date_to:
+        from datetime import datetime, time
+        from django.utils import timezone
+        tz = timezone.get_current_timezone()
+        
+        # We match on either created_at datetime range or inquiry_date date range for maximum compatibility
+        q_date = Q()
+        if date_from:
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min), tz)
+            q_date &= (Q(created_at__gte=dt_from) | Q(inquiry_date__gte=date_from))
+        if date_to:
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max), tz)
+            q_date &= (Q(created_at__lte=dt_to) | Q(inquiry_date__lte=date_to))
+        
+        leads = leads.filter(q_date)
 
     def build_row(l):
         if is_hospital:
@@ -1515,7 +1526,7 @@ def export_leads(request):
                 "Inquiry Date": str(l.inquiry_date or ""),
                 "Assigned To": str(l.assigned_to.get_full_name() if l.assigned_to else (cd.get("lead_attendant") or "")),
                 "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
-                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
+                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
             }
         else:
             return {
@@ -1526,7 +1537,7 @@ def export_leads(request):
                 "Deal Status": l.get_deal_status_display(), "Admission Status": l.get_admission_status_display(),
                 "Inquiry Date": str(l.inquiry_date), "Assigned To": str(l.assigned_to or ""),
                 "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
-                "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
+                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
             }
 
     if is_preview:
@@ -1798,7 +1809,8 @@ def quick_import(request):
         col_city = find_matching_col(["location", "city", "address", "area", "town", "district"])
         col_dept = find_matching_col(["department", "speciality", "dept", "specialization"])
         col_doctor = find_matching_col(["doctor", "dr name", "consultant", "physician", "surgeon"])
-        col_assigned = find_matching_col(["assigned to", "assigned", "telecaller", "executive", "attendant", "caller", "agent", "lead owner", "owner", "assignee", "counsellor"])
+        col_assigned = find_matching_col(["lead attendent", "lead attendant", "attendent", "attendant", "assigned to", "assigned", "telecaller", "tele caller", "executive", "caller", "agent", "lead owner", "owner", "assignee", "counsellor", "counselor"])
+        col_due_date = find_matching_col(["due date", "due_date", "edd", "expected delivery date", "delivery date"])
         col_campaign = find_matching_col(["campaign name", "campaign", "ad name", "ad set name"])
         col_source = find_matching_col(["lead source", "source", "platform", "publisher platform", "channel", "origin"])
         col_appt_status = find_matching_col(["appointment status", "appointment_status", "appo book", "appo_book", "appointment state"])
@@ -1999,6 +2011,7 @@ def quick_import(request):
             source_raw = clean_val_str(row.get(col_source)) if col_source else ""
             assigned_raw = clean_val_str(row.get(col_assigned)) if col_assigned else ""
             assigned_user = fast_resolve_user(assigned_raw)
+            due_date_val = clean_val_str(row.get(col_due_date)) if col_due_date else ""
             date_raw = row.get(col_date) if col_date else None
             inquiry_date = parse_clean_date(date_raw) or timezone.localdate()
 
@@ -2045,7 +2058,7 @@ def quick_import(request):
             # Auto-gather unmapped / survey questions
             known_cols = [c for c in [
                 col_name, col_mobile, col_email, col_city, col_course, col_gender, col_age, 
-                col_doctor, col_dept, col_campaign, col_source, col_assigned, col_date, col_notes,
+                col_doctor, col_dept, col_campaign, col_source, col_assigned, col_due_date, col_date, col_notes,
                 col_appt_status, col_branch, col_recv_time, col_calling_time, col_appt_date,
                 col_fu1_date, col_fu1_remark, col_fu1_time, col_fu2_date, col_fu2_remark,
                 col_fu3_date, col_fu3_remark, col_final_status, col_visit_date, col_uhid,
@@ -2146,6 +2159,8 @@ def quick_import(request):
             if branch_val:
                 custom_data_payload["hospital_branch"] = branch_val
                 custom_data_payload["nelson_dantoli"] = branch_val
+            if due_date_val:
+                custom_data_payload["due_date"] = due_date_val
             if recv_time_val:
                 custom_data_payload["lead_received_time"] = recv_time_val
             if calling_time_val:
@@ -2393,6 +2408,7 @@ def export_business_master_data(request):
                 "Year": cd.get("year", ""),
                 "Weekdays": cd.get("weekdays", ""),
                 "Remarks": l.notes or "",
+                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
             })
         else:
             rows.append({
@@ -2410,6 +2426,7 @@ def export_business_master_data(request):
                 "Deal Status": l.get_deal_status_display(),
                 "Admission Status": l.get_admission_status_display(),
                 "Notes / Query": l.notes or "",
+                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
             })
 
     df = pd.DataFrame(rows)

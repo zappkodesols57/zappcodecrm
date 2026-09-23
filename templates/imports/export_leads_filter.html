@@ -47,16 +47,11 @@
 <div class="container-fluid px-3 px-md-4">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-        <span class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-          <i class="fa-solid fa-file-export"></i>
-        </span>
-        <span>Export Leads</span>
-      </h4>
+      <h4 class="fw-bold text-dark mb-0">Export Leads</h4>
       <span class="text-muted small">Filter and export leads to Excel/CSV format</span>
     </div>
     <a href="{% url 'imports:export' %}?download=1" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3 shadow-sm">
-      <i class="fa-solid fa-download me-1"></i> Export All Leads (Total)
+      Export All Leads (Total)
     </a>
   </div>
 
@@ -64,12 +59,7 @@
     <div class="col-12">
       <div class="card export-filter-card mb-4">
         <div class="export-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
-              <i class="fa-solid fa-filter"></i>
-            </span>
-            <span class="fw-bold text-dark" style="font-size: 0.95rem;">Select Export Filters</span>
-          </div>
+          <span class="fw-bold text-dark" style="font-size: 0.95rem;">Select Export Filters</span>
           <span class="small text-muted">Customize parameters to download targeted reports</span>
         </div>
         <div class="card-body p-4">
@@ -79,25 +69,25 @@
             <div class="row g-3 mb-3">
               <!-- Date Filters -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-regular fa-calendar me-1 text-primary"></i>Inquiry Date From</label>
-                <input type="date" name="date_from" class="form-control">
+                <label class="export-field-label">Created Date From</label>
+                <input type="date" name="date_from" id="exportDateFrom" class="form-control" max="{% now 'Y-m-d' %}">
               </div>
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-regular fa-calendar-check me-1 text-primary"></i>Inquiry Date To</label>
-                <input type="date" name="date_to" class="form-control">
+                <label class="export-field-label">Created Date To</label>
+                <input type="date" name="date_to" id="exportDateTo" class="form-control" max="{% now 'Y-m-d' %}">
               </div>
             </div>
 
             <div class="row g-3 mb-3">
               <!-- Search query -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-solid fa-magnifying-glass me-1 text-primary"></i>Search (Name, Mobile, Email, etc.)</label>
+                <label class="export-field-label">Search (Name, Mobile, Email, etc.)</label>
                 <input type="search" name="q" class="form-control" placeholder="Search keyword...">
               </div>
               <!-- City / Location filter -->
               <div class="col-md-6">
                 {% if is_hospital %}
-                <label class="export-field-label"><i class="fa-solid fa-location-dot me-1 text-primary"></i>Location</label>
+                <label class="export-field-label">Location</label>
                 <select name="location" class="form-select no-tom-select">
                   <option value="">All Locations</option>
                   {% for loc in nelson_locations %}
@@ -105,7 +95,7 @@
                   {% endfor %}
                 </select>
                 {% else %}
-                <label class="export-field-label"><i class="fa-solid fa-location-dot me-1 text-primary"></i>City</label>
+                <label class="export-field-label">City</label>
                 <select name="city" class="form-select no-tom-select">
                   <option value="">All Cities</option>
                   {% for c in cities %}
@@ -119,7 +109,7 @@
             <div class="row g-3 mb-3">
               <!-- Lead Source -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-solid fa-bullhorn me-1 text-primary"></i>Lead Source</label>
+                <label class="export-field-label">Lead Source</label>
                 <select name="lead_source" class="form-select no-tom-select">
                   <option value="">All Sources</option>
                   {% if is_hospital %}
@@ -135,7 +125,7 @@
               </div>
               <!-- Campaign -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-solid fa-rectangle-ad me-1 text-primary"></i>Campaign</label>
+                <label class="export-field-label">Campaign</label>
                 <select name="campaign" class="form-select no-tom-select">
                   <option value="">All Campaigns</option>
                   {% if is_hospital %}
@@ -155,7 +145,7 @@
               {% if not is_hospital %}
               <!-- Course -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-solid fa-graduation-cap me-1 text-primary"></i>Course</label>
+                <label class="export-field-label">Course</label>
                 <select name="course" class="form-select no-tom-select">
                   <option value="">All Courses</option>
                   {% for c in courses %}
@@ -167,7 +157,7 @@
 
               <!-- Lead Stage -->
               <div class="{% if is_hospital %}col-md-6{% else %}col-md-6{% endif %}">
-                <label class="export-field-label"><i class="fa-solid fa-bars-progress me-1 text-primary"></i>Lead Stage</label>
+                <label class="export-field-label">Lead Stage</label>
                 <select name="stage" class="form-select no-tom-select">
                   <option value="">All Stages</option>
                   {% for s in stages %}
@@ -177,7 +167,7 @@
               </div>
               <!-- Assigned To -->
               <div class="{% if is_hospital %}col-md-6{% else %}col-md-6{% endif %}">
-                <label class="export-field-label"><i class="fa-solid fa-user-check me-1 text-primary"></i>Assigned To</label>
+                <label class="export-field-label">Assigned To</label>
                 <select name="assigned_to" class="form-select no-tom-select">
                   <option value="">All Employees</option>
                   {% for emp in employees %}
@@ -190,7 +180,7 @@
             <div class="row g-3 mb-4">
               <!-- Temperature -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-solid fa-fire me-1 text-primary"></i>Temperature</label>
+                <label class="export-field-label">Temperature</label>
                 <select name="temperature" class="form-select no-tom-select">
                   <option value="">All Temperatures</option>
                   <option value="UNCONTACTED">Uncontacted</option>
@@ -203,7 +193,7 @@
 
               <!-- Deal Status -->
               <div class="col-md-6">
-                <label class="export-field-label"><i class="fa-solid fa-handshake me-1 text-primary"></i>Deal Status</label>
+                <label class="export-field-label">Deal Status</label>
                 <select name="deal_status" class="form-select no-tom-select">
                   <option value="">All Deal Statuses</option>
                   {% if is_hospital %}
@@ -223,10 +213,10 @@
             <!-- Action Buttons: Clean, modern, compact -->
             <div class="d-flex justify-content-end align-items-center gap-2 pt-3 border-top">
               <button type="button" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3 py-1.5 shadow-sm" id="previewBtn" style="font-size: 0.84rem;">
-                <i class="fa-solid fa-eye me-1"></i> Preview Data
+                Preview Data
               </button>
               <button type="submit" class="btn btn-sm btn-primary fw-semibold rounded-pill px-4 py-1.5 shadow-sm" id="exportBtn" style="font-size: 0.84rem;">
-                <i class="fa-solid fa-file-excel me-1"></i> Export Filtered Leads
+                Export Filtered Leads
               </button>
             </div>
           </form>
@@ -240,8 +230,8 @@
     <div class="col-12">
       <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-5">
         <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="fa-solid fa-table text-primary"></i> Data Preview
+          <h5 class="mb-0 fw-bold text-dark">
+            Data Preview
           </h5>
           <span class="badge bg-primary bg-gradient rounded-pill px-3 py-2 fs-6 shadow-sm" id="previewCountBadge">Loading...</span>
         </div>
@@ -273,6 +263,31 @@ document.addEventListener('DOMContentLoaded', function() {
   const thead = document.getElementById('previewThead');
   const tbody = document.getElementById('previewTbody');
   const countBadge = document.getElementById('previewCountBadge');
+  
+  const dateFromInput = document.getElementById('exportDateFrom');
+  const dateToInput = document.getElementById('exportDateTo');
+  
+  // Dynamic Date Limitations (Today & From -> To min constraint)
+  if (dateFromInput && dateToInput) {
+    dateFromInput.addEventListener('change', function() {
+      if (this.value) {
+        dateToInput.min = this.value;
+        if (dateToInput.value && dateToInput.value < this.value) {
+          dateToInput.value = this.value;
+        }
+      } else {
+        dateToInput.removeAttribute('min');
+      }
+    });
+
+    dateToInput.addEventListener('change', function() {
+      if (this.value) {
+        dateFromInput.max = this.value;
+      } else {
+        dateFromInput.max = "{% now 'Y-m-d' %}";
+      }
+    });
+  }
   
   previewBtn.addEventListener('click', async function() {
     container.style.display = 'block';

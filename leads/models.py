@@ -335,10 +335,11 @@ class LeadCustomField(models.Model):
 
 class LeadTemperature(models.TextChoices):
     UNCONTACTED = "UNCONTACTED", "Uncontacted"
-    NOT_PICKED = "NOT_PICKED", "Call Not Picked"
     HOT = "HOT", "Hot"
     WARM = "WARM", "Warm"
-    COLD = "COLD", "Cold (Not Interested)"
+    COLD = "COLD", "Cold"
+    FREEZE = "FREEZE", "Freeze"
+    NOT_PICKED = "NOT_PICKED", "Call Not Picked"
 
 
 class DealStatus(models.TextChoices):
@@ -476,6 +477,31 @@ class Lead(models.Model):
         return default
 
     @property
+    def effective_created_date(self):
+        """Returns the actual logical date when lead originated (inquiry_date if present, else created_at date)."""
+        if self.inquiry_date:
+            return self.inquiry_date
+        if self.created_at:
+            return timezone.localdate(self.created_at)
+        return None
+
+    @property
+    def effective_created_formatted(self):
+        """Returns standardized YYYY-MM-DD HH:MM or YYYY-MM-DD string of creation/receive time."""
+        cd = self.custom_data or {}
+        time_str = cd.get('lead_received_time') or cd.get('time')
+        if self.import_job_id or self.import_source_file or (self.inquiry_date and self.created_at and self.inquiry_date < self.created_at.date()):
+            d_str = str(self.inquiry_date) if self.inquiry_date else (self.created_at.strftime('%Y-%m-%d') if self.created_at else '')
+            if time_str and str(time_str).strip().lower() not in ('none', 'nan', ''):
+                return f"{d_str} {time_str}"
+            return d_str
+        if self.created_at:
+            return timezone.localtime(self.created_at).strftime('%Y-%m-%d %H:%M')
+        if self.inquiry_date:
+            return str(self.inquiry_date)
+        return ""
+
+    @property
     def effective_created_display(self):
         """
         Original Date & Time:
@@ -496,7 +522,7 @@ class Lead(models.Model):
 
         # Manually added / direct walk-in leads:
         if self.created_at:
-            return self.created_at.strftime('%d %b %Y, %I:%M %p')
+            return timezone.localtime(self.created_at).strftime('%d %b %Y, %I:%M %p')
         if self.inquiry_date:
             return self.inquiry_date.strftime('%d %b %Y')
         return "—"
@@ -548,54 +574,105 @@ class Lead(models.Model):
         if "FOLLOW" in raw_apt or "WAIT" in raw_apt or "RESCHEDULE" in raw_apt:
             return None
 
-        # Check remarks
+        # Check calling remarks from custom_data
         r1 = str(cd.get("remark_1") or "").strip()
         r2 = str(cd.get("remark_2") or "").strip()
         r3 = str(cd.get("remark_3") or "").strip()
 
+        # Also collect timeline notes added by user
+        timeline_notes = []
+        if self.pk:
+            timeline_notes = [n.note for n in self.lead_notes.all().order_by("created_at")]
+
+        # Fetch dynamic Positive and Negative remark keywords from MasterGroup / MasterItem
+        pos_keywords = []
+        neg_keywords = []
+        try:
+            from leads.models import MasterGroup, MasterItem
+            # Look up negative remarks
+            neg_grp = MasterGroup.objects.filter(name__iexact="Negative Remarks", is_active=True).first()
+            if neg_grp:
+                neg_items = MasterItem.objects.filter(group=neg_grp, is_active=True)
+                if self.hospital:
+                    hosp_neg = list(neg_items.filter(hospital=self.hospital).values_list("name", flat=True))
+                    global_neg = list(neg_items.filter(hospital__isnull=True).values_list("name", flat=True))
+                    neg_keywords = hosp_neg if hosp_neg else global_neg
+                else:
+                    neg_keywords = list(neg_items.filter(hospital__isnull=True).values_list("name", flat=True))
+
+            # Look up positive remarks
+            pos_grp = MasterGroup.objects.filter(name__iexact="Positive Remarks", is_active=True).first()
+            if pos_grp:
+                pos_items = MasterItem.objects.filter(group=pos_grp, is_active=True)
+                if self.hospital:
+                    hosp_pos = list(pos_items.filter(hospital=self.hospital).values_list("name", flat=True))
+                    global_pos = list(pos_items.filter(hospital__isnull=True).values_list("name", flat=True))
+                    pos_keywords = hosp_pos if hosp_pos else global_pos
+                else:
+                    pos_keywords = list(pos_items.filter(hospital__isnull=True).values_list("name", flat=True))
+        except Exception:
+            pass
+
+        # Built-in fallbacks if master tables are empty or loading
+        if not neg_keywords:
+            neg_keywords = [
+                "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
+                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED",
+                "WRONG NUMBER", "INVALID NUMBER", "OUT OF SERVICE", "NOT ANSWERING"
+            ]
+        if not pos_keywords:
+            pos_keywords = [
+                "INTERESTED", "CALLBACK", "POSITIVE", "WILL VISIT", "ASKED FOR DETAILS",
+                "READY TO BOOK", "OPD VISIT", "ADMISSION PLANNED", "GOOD RESPONSE", "APPOINTMENT SCHEDULED"
+            ]
+
         def is_clean_val(v):
             return bool(v and v.lower() not in ("nan", "none", "—", "-", ""))
 
-        def is_call_not_rec(v):
+        def matches_any(v, keywords):
             if not is_clean_val(v):
                 return False
             v_up = v.upper()
-            return any(k in v_up for k in [
-                "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
-                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED"
-            ])
+            return any(k.upper() in v_up for k in keywords if k)
 
-        has_r1 = is_clean_val(r1)
-        has_r2 = is_clean_val(r2)
-        has_r3 = is_clean_val(r3)
+        # Combine structured remarks and timeline notes sequentially
+        all_remarks = []
+        for r in [r1, r2, r3]:
+            if is_clean_val(r):
+                all_remarks.append(r)
+        for tn in timeline_notes:
+            if is_clean_val(tn):
+                all_remarks.append(tn)
 
         # Untouched / no calling remarks taken yet -> Hot
-        if not has_r1 and not has_r2 and not has_r3:
+        if not all_remarks:
             return "Hot"
 
-        # 3rd remark is Call Not Received -> Freeze
-        if is_call_not_rec(r3):
-            return "Freeze"
+        # Sequential temperature state machine:
+        # Initial status: Hot (0 negative count)
+        # Each negative remark: negative_count + 1 (1 -> Warm, 2 -> Cold, 3+ -> Freeze)
+        # Each positive remark: resets negative_count to 0 (shifts UP to Hot)
+        neg_count = 0
+        for r in all_remarks:
+            is_pos = matches_any(r, pos_keywords)
+            is_neg = matches_any(r, neg_keywords)
 
-        # 2nd remark is Call Not Received -> Cold
-        if is_call_not_rec(r2):
-            return "Cold"
+            if is_pos and not is_neg:
+                neg_count = 0
+            elif is_neg and not is_pos:
+                neg_count += 1
+            elif is_pos and is_neg:
+                # If both keywords exist, give preference to positive up-shift
+                neg_count = 0
 
-        # 1st remark is Call Not Received -> Warm
-        if is_call_not_rec(r1):
+        if neg_count == 0:
+            return "Hot"
+        elif neg_count == 1:
             return "Warm"
-
-        # If user explicitly selected a temperature on lead
-        temp_val = (self.temperature or "").strip()
-        if temp_val in ["HOT", "WARM", "COLD", "NOT_PICKED", "UNCONTACTED"]:
-            if temp_val == "HOT":
-                return "Hot"
-            elif temp_val == "WARM":
-                return "Warm"
-            elif temp_val in ["COLD", "NOT_PICKED"]:
-                return "Cold"
-
-        return "Warm"
+        elif neg_count == 2:
+            return "Cold"
+        else:
+            return "Freeze"
 
     @property
     def custom_priority(self):

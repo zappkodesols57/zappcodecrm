@@ -41,13 +41,37 @@ DEFAULT_MASTERS = {
             ("Other / Unspecified", "OTHER", 8),
         ]
     },
-    "Work Experience Level": {
-        "description": "Professional work experience background of candidates",
+    "Positive Remarks": {
+        "description": "Positive call remarks & notes that shift lead temperature UP to Hot / Warm",
         "items": [
-            ("Fresher / Student (0 Years)", "FRESHER", 1),
-            ("1 - 2 Years", "EXP_1_2", 2),
-            ("3 - 5 Years", "EXP_3_5", 3),
-            ("5+ Years", "EXP_5PLUS", 4),
+            ("Interested", "INTERESTED", 1),
+            ("Callback Requested", "CALLBACK", 2),
+            ("Positive Discussion", "POSITIVE", 3),
+            ("Will Visit", "WILL_VISIT", 4),
+            ("Asked For Details", "ASKED_DETAILS", 5),
+            ("Ready to Book", "READY_BOOK", 6),
+            ("OPD Visit Planned", "OPD_VISIT", 7),
+            ("Admission Planned", "ADMISSION_PLAN", 8),
+            ("Good Response", "GOOD_RESP", 9),
+            ("Appointment Scheduled", "APPO_SCHED", 10),
+        ]
+    },
+    "Negative Remarks": {
+        "description": "Negative call remarks & notes that shift lead temperature DOWN to Warm / Cold / Freeze",
+        "items": [
+            ("Call Not Received", "NOT_REC", 1),
+            ("Not Picked", "NOT_PICK", 2),
+            ("Ringing", "RINGING", 3),
+            ("Switch Off", "SWITCH_OFF", 4),
+            ("Not Reachable", "NOT_REACH", 5),
+            ("Call Cut", "CALL_CUT", 6),
+            ("Busy", "BUSY", 7),
+            ("Decline", "DECLINE", 8),
+            ("Unanswered", "UNANSWERED", 9),
+            ("Wrong Number", "WRONG_NO", 10),
+            ("Invalid Number", "INVALID_NO", 11),
+            ("Out of Service", "OUT_SERVICE", 12),
+            ("Not Answering", "NO_ANS", 13),
         ]
     }
 }

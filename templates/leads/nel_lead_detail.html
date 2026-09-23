@@ -205,6 +205,14 @@
               <strong class="fs-6">₹{{ lead.custom_data.total|default:"0.00" }}</strong>
             </div>
           </div>
+          {% if lead.custom_data.payment_remarks or lead.custom_data.remark_1 %}
+          <div class="col-12 mt-2">
+            <div class="p-2 border rounded-3 bg-light">
+              <span class="text-muted d-block fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-comment-dollar text-success me-1"></i>Payment Remarks:</span>
+              <span class="text-dark">{{ lead.custom_data.payment_remarks|default:lead.custom_data.remark_1 }}</span>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>

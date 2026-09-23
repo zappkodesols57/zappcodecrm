@@ -563,7 +563,7 @@ def lead_list(request):
                     "Appointment Status": cd.get("appointment_status", ""),
                     "Inquiry Date": str(l.inquiry_date) if l.inquiry_date else "",
                     "Assigned Staff": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
-                    "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
+                    "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
                 }
             else:
                 return {
@@ -579,7 +579,7 @@ def lead_list(request):
                     "Deal Status": l.get_deal_status_display(),
                     "Inquiry Date": str(l.inquiry_date) if l.inquiry_date else "",
                     "Assigned To": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
-                    "Created At": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "",
+                    "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
                 }
 
         rows = [_build_lead_export_row(l) for l in leads]
@@ -1690,13 +1690,23 @@ def add_note(request, pk):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
     if request.method == "POST" and request.POST.get("note", "").strip():
-        Note.objects.create(lead=lead, note=request.POST["note"].strip(), created_by=request.user)
+        note_text = request.POST["note"].strip()
+        Note.objects.create(lead=lead, note=note_text, created_by=request.user)
         if lead.assigned_to is None:
             lead.assigned_to = request.user
         if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
             contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
             if contacted_stage:
                 lead.stage = contacted_stage
+        
+        # Recalculate dynamic temperature and sync priority
+        new_temp = lead.custom_temperature
+        if new_temp:
+            lead.temperature = new_temp.upper()
+            cd = lead.custom_data or {}
+            cd['priority'] = new_temp
+            lead.custom_data = cd
+
         lead.save()
         messages.success(request, "Note added.")
     return redirect("leads:lead_detail", pk=pk)
@@ -2790,13 +2800,35 @@ def universal_master_list(request):
         current_hospital = h
         is_default_tab = False
 
+    # Fetch Positive & Negative remark Master Groups and Items
+    from leads.models import MasterGroup, MasterItem
+    pos_group, _ = MasterGroup.objects.get_or_create(
+        name="Positive Remarks", 
+        defaults={"description": "Positive call remarks & notes that shift lead temperature UP to Hot / Warm"}
+    )
+    neg_group, _ = MasterGroup.objects.get_or_create(
+        name="Negative Remarks", 
+        defaults={"description": "Negative call remarks & notes that shift lead temperature DOWN to Warm / Cold / Freeze"}
+    )
+
+    pos_items = MasterItem.objects.filter(group=pos_group, hospital=current_hospital).order_by("order", "name")
+    neg_items = MasterItem.objects.filter(group=neg_group, hospital=current_hospital).order_by("order", "name")
+
+    # If business-specific has no items yet, fallback/copy defaults or show list
+    active_main_tab = request.GET.get("tab", "fields")
+
     return render(request, "leads/universal_masters.html", {
         "active": "universal_masters",
+        "active_main_tab": active_main_tab,
         "all_fields": all_fields_qs,
         "current_hospital": current_hospital,
         "is_default_tab": is_default_tab,
         "available_businesses": available_businesses,
         "is_global_admin": is_global_admin,
+        "pos_group": pos_group,
+        "neg_group": neg_group,
+        "pos_items": pos_items,
+        "neg_items": neg_items,
     })
 
 
@@ -3042,6 +3074,18 @@ def master_item_add(request):
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
         order = request.POST.get("order", 0)
+        biz_param = request.POST.get("business", "").strip()
+        from_view = request.POST.get("from_view", "").strip()
+        
+        target_hospital = None
+        is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+        if is_superadmin:
+            if biz_param and biz_param != "default":
+                from accounts.models import Hospital
+                target_hospital = Hospital.objects.filter(id=biz_param).first()
+        else:
+            target_hospital = request.user.hospital
+
         try:
             order = int(order)
         except ValueError:
@@ -3049,15 +3093,21 @@ def master_item_add(request):
 
         if name:
             item, created = MasterItem.objects.get_or_create(
-                group=group, name=name, hospital=request.user.hospital, 
+                group=group, name=name, hospital=target_hospital, 
                 defaults={"code": code, "order": order, "is_active": True}
             )
             if created:
-                messages.success(request, f"Sub-Master item '{name}' added to {group.name}.")
+                messages.success(request, f"Remark keyword '{name}' added successfully.")
             else:
-                messages.warning(request, f"Item '{name}' already exists in {group.name}.")
-            return redirect(f"/leads/universal-masters/?group_id={group.pk}")
-        messages.error(request, "Item name is required.")
+                messages.warning(request, f"Keyword '{name}' already exists in {group.name}.")
+        else:
+            messages.error(request, "Keyword / Remark text is required.")
+
+        if from_view == "hospital_config":
+            return redirect("/leads/hospital-configuration/?tab=temperature")
+        
+        redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
+        return redirect(redirect_url)
     return redirect("leads:universal_masters")
 
 
@@ -3065,10 +3115,14 @@ def master_item_add(request):
 @user_passes_test(lambda u: u.can_manage_masters)
 def master_item_edit(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
-    if item.hospital != request.user.hospital:
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    if not is_superadmin and item.hospital != request.user.hospital:
         messages.error(request, "You do not have permission to edit this item.")
         return redirect("leads:universal_masters")
         
+    biz_param = request.POST.get("business", "").strip()
+    from_view = request.POST.get("from_view", "").strip()
+
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
@@ -3085,8 +3139,13 @@ def master_item_edit(request, pk):
             item.order = order
             item.is_active = is_active
             item.save()
-            messages.success(request, f"Item '{item.name}' updated.")
-        return redirect(f"/leads/universal-masters/?group_id={item.group.pk}")
+            messages.success(request, f"Remark keyword '{item.name}' updated.")
+
+        if from_view == "hospital_config":
+            return redirect("/leads/hospital-configuration/?tab=temperature")
+        
+        redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
+        return redirect(redirect_url)
     return redirect("leads:universal_masters")
 
 
@@ -3094,29 +3153,44 @@ def master_item_edit(request, pk):
 @user_passes_test(lambda u: u.can_manage_masters)
 def master_item_toggle(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
-    if item.hospital != request.user.hospital:
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    if not is_superadmin and item.hospital != request.user.hospital:
         messages.error(request, "You do not have permission to modify this item.")
         return redirect("leads:universal_masters")
         
+    biz_param = request.GET.get("business", "").strip()
+    from_view = request.GET.get("from_view", "").strip()
+
     item.is_active = not item.is_active
     item.save(update_fields=["is_active"])
     messages.success(request, f"Status for '{item.name}' changed to {'Active' if item.is_active else 'Inactive'}.")
-    return redirect(f"/leads/universal-masters/?group_id={item.group.pk}")
+    
+    if from_view == "hospital_config":
+        return redirect("/leads/hospital-configuration/?tab=temperature")
+    redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
+    return redirect(redirect_url)
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def master_item_delete(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
-    if item.hospital != request.user.hospital:
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    if not is_superadmin and item.hospital != request.user.hospital:
         messages.error(request, "You do not have permission to delete this item.")
         return redirect("leads:universal_masters")
         
-    group_id = item.group.pk
+    biz_param = request.POST.get("business", "").strip() or request.GET.get("business", "").strip()
+    from_view = request.POST.get("from_view", "").strip() or request.GET.get("from_view", "").strip()
+
     name = item.name
     item.delete()
-    messages.success(request, f"Sub-Master item '{name}' deleted.")
-    return redirect(f"/leads/universal-masters/?group_id={group_id}")
+    messages.success(request, f"Remark keyword '{name}' deleted.")
+    
+    if from_view == "hospital_config":
+        return redirect("/leads/hospital-configuration/?tab=temperature")
+    redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
+    return redirect(redirect_url)
 
 
 @login_required
@@ -3214,6 +3288,40 @@ def check_duplicate_mobile(request):
                 "name": lead.name,
                 "assigned_to": assigned_name
             })
+    return JsonResponse({"exists": False})
+
+
+@login_required
+def check_duplicate_uhid(request):
+    from django.http import JsonResponse
+    from django.db.models import Q
+    raw_uhid = request.GET.get("uhid", "").strip()
+    exclude_lead_id = request.GET.get("exclude_id", "").strip()
+    if not raw_uhid:
+        return JsonResponse({"exists": False})
+
+    qs = Lead.objects.filter(is_archived=False)
+    if request.user.hospital:
+        qs = qs.filter(hospital=request.user.hospital)
+
+    if exclude_lead_id and exclude_lead_id.isdigit():
+        qs = qs.exclude(pk=int(exclude_lead_id))
+
+    dup = qs.filter(
+        Q(custom_data__uhid_id_no__iexact=raw_uhid) |
+        Q(custom_data__uhid_no__iexact=raw_uhid)
+    ).first()
+
+    if dup:
+        assigned_name = dup.assigned_to.get_full_name() if dup.assigned_to else (dup.assigned_to.username if dup.assigned_to else "Unassigned")
+        return JsonResponse({
+            "exists": True,
+            "lead_id": dup.pk,
+            "lead_code": dup.lead_code,
+            "name": dup.name,
+            "assigned_to": assigned_name
+        })
+
     return JsonResponse({"exists": False})
 
 
@@ -3453,6 +3561,27 @@ def hospital_configuration_view(request):
         is_active=True
     ).select_related("doctor_profile").order_by("first_name", "username")
 
+    # Fetch Hospital Specific / Fallback Temperature Master Keywords
+    from leads.models import MasterGroup, MasterItem
+    pos_group, _ = MasterGroup.objects.get_or_create(
+        name="Positive Remarks", 
+        defaults={"description": "Positive call remarks & notes that shift lead temperature UP to Hot / Warm"}
+    )
+    neg_group, _ = MasterGroup.objects.get_or_create(
+        name="Negative Remarks", 
+        defaults={"description": "Negative call remarks & notes that shift lead temperature DOWN to Warm / Cold / Freeze"}
+    )
+
+    hosp_pos = MasterItem.objects.filter(group=pos_group, hospital=hospital).order_by("order", "name")
+    hosp_neg = MasterItem.objects.filter(group=neg_group, hospital=hospital).order_by("order", "name")
+
+    # If hospital doesn't have custom items yet, also show default global items as active reference or fallback
+    global_pos = MasterItem.objects.filter(group=pos_group, hospital__isnull=True).order_by("order", "name")
+    global_neg = MasterItem.objects.filter(group=neg_group, hospital__isnull=True).order_by("order", "name")
+
+    pos_items = hosp_pos if hosp_pos.exists() else global_pos
+    neg_items = hosp_neg if hosp_neg.exists() else global_neg
+
     context = {
         "active": "hospital_config",
         "hospital": hospital,
@@ -3462,6 +3591,11 @@ def hospital_configuration_view(request):
         "diseases": diseases,
         "active_tab": active_tab,
         "doctor_users": doctor_users,
+        "pos_group": pos_group,
+        "neg_group": neg_group,
+        "pos_items": pos_items,
+        "neg_items": neg_items,
+        "has_custom_temp_rules": hosp_pos.exists() or hosp_neg.exists(),
     }
     return render(request, "leads/hospital_configuration.html", context)
 

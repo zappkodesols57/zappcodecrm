@@ -9,6 +9,7 @@ urlpatterns = [
     path("team-history/", views.team_history, name="team_history"),
     path("add/", views.lead_add, name="lead_add"),
     path("api/check-mobile/", views.check_duplicate_mobile, name="check_duplicate_mobile"),
+    path("api/check-uhid/", views.check_duplicate_uhid, name="check_duplicate_uhid"),
     path("api/doctor-slots/", views.doctor_slots_api, name="doctor_slots_api"),
     path("<int:pk>/", views.lead_detail, name="lead_detail"),
     path("<int:pk>/edit/", views.lead_edit, name="lead_edit"),

@@ -17,18 +17,19 @@
         border-radius: 24px;
         box-shadow: 0 20px 45px rgba(15, 23, 42, 0.09);
         border: 1px solid #e2e8f0;
-        max-width: 650px;
+        max-width: {% if is_super_admin %}820px{% else %}660px{% endif %};
         width: 100%;
-        padding: 40px 44px;
+        padding: 36px 40px;
         position: relative;
         overflow: hidden;
+        transition: max-width 0.2s ease;
     }
     .welcome-top-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
+        margin-bottom: 22px;
+        padding-bottom: 14px;
         border-bottom: 1px solid #f1f5f9;
     }
     .live-time-badge {
@@ -56,10 +57,10 @@
     }
     .greeting-section {
         text-align: left;
-        margin-bottom: 26px;
+        margin-bottom: 22px;
     }
     .greeting-title {
-        font-size: 1.85rem;
+        font-size: 1.8rem;
         font-weight: 800;
         color: #0f172a;
         margin-bottom: 4px;
@@ -69,19 +70,19 @@
     }
     .greeting-sub {
         color: #64748b;
-        font-size: 1rem;
+        font-size: 0.96rem;
     }
     .main-stats-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
-        margin-bottom: 24px;
+        margin-bottom: 22px;
     }
     .stat-card-box {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 18px;
-        padding: 20px;
+        border-radius: 16px;
+        padding: 18px 20px;
         display: flex;
         align-items: center;
         gap: 16px;
@@ -92,42 +93,97 @@
         border-color: #cbd5e1;
     }
     .stat-card-icon {
-        width: 52px;
-        height: 52px;
-        border-radius: 14px;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 22px;
         flex-shrink: 0;
     }
     .stat-val {
-        font-size: 1.9rem;
+        font-size: 1.8rem;
         font-weight: 800;
         line-height: 1;
         color: #0f172a;
     }
     .stat-lbl {
-        font-size: 0.85rem;
+        font-size: 0.82rem;
         color: #64748b;
-        font-weight: 500;
+        font-weight: 600;
         margin-top: 4px;
     }
+
+    /* Business Section for Super Admin */
+    .business-section-card {
+        background: #fafafa;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+        text-align: left;
+    }
+    .business-section-card.nelson-card {
+        border-left: 4px solid #0284c7;
+    }
+    .business-section-card.academy-card {
+        border-left: 4px solid #7c3aed;
+    }
+    .business-section-card.default-card {
+        border-left: 4px solid #059669;
+    }
+    .business-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+    .business-card-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .business-metrics-pill-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .business-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+    .pill-total { background: #e0f2fe; color: #0369a1; }
+    .pill-walkin { background: #fef3c7; color: #b45309; }
+    .pill-meta { background: #ede9fe; color: #6d28d9; }
+
+    /* Campaign Breakdown */
     .campaign-section {
         background: #fafafa;
         border: 1px solid #f1f5f9;
-        border-radius: 18px;
-        padding: 18px 20px;
-        margin-bottom: 28px;
+        border-radius: 16px;
+        padding: 16px 18px;
+        margin-bottom: 22px;
         text-align: left;
     }
     .campaign-header {
-        font-size: 0.85rem;
+        font-size: 0.82rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: #64748b;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -141,8 +197,8 @@
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        padding: 6px 12px;
-        font-size: 0.85rem;
+        padding: 5px 11px;
+        font-size: 0.82rem;
         color: #1e293b;
         display: inline-flex;
         align-items: center;
@@ -152,19 +208,26 @@
         background: #4f46e5;
         color: #ffffff;
         font-weight: 700;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         padding: 2px 7px;
         border-radius: 12px;
+    }
+
+    /* Action Buttons Row */
+    .actions-grid {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        margin-top: 8px;
     }
     .btn-launch-dashboard {
         background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
         border: none !important;
         color: #ffffff !important;
         font-weight: 600;
-        font-size: 1.05rem;
-        padding: 14px 28px;
+        font-size: 1.02rem;
+        padding: 13px 24px;
         border-radius: 14px;
-        width: 100%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -172,14 +235,41 @@
         box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         text-decoration: none;
+        cursor: pointer;
     }
     .btn-launch-dashboard:hover {
         transform: translateY(-2px);
         box-shadow: 0 12px 25px rgba(79, 70, 229, 0.5);
         color: #ffffff !important;
     }
+    .btn-hold-timer {
+        background: #f8fafc;
+        border: 1.5px solid #cbd5e1;
+        color: #334155;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 13px 20px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .btn-hold-timer:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        color: #0f172a;
+    }
+    .btn-hold-timer.active-hold {
+        background: #fef2f2;
+        border-color: #ef4444;
+        color: #b91c1c;
+    }
+
     .countdown-bar-wrapper {
-        margin-top: 18px;
+        margin-top: 16px;
     }
     .progress-track {
         width: 100%;
@@ -227,60 +317,230 @@
                 <i class="fa-solid {{ greeting_icon }}" style="{{ greeting_style }}"></i>
                 <span>{{ greeting }}, {{ user_name }}!</span>
             </h1>
-            <p class="greeting-sub">Welcome back to <strong>Zappcode CRM</strong>. Here is what is waiting for you today:</p>
+            <p class="greeting-sub">Welcome back to <strong>Zappcode CRM</strong>. Here is your daily summary for today:</p>
         </div>
 
-        <!-- 2 Key Stats: New Leads & Pending Followups -->
-        <div class="main-stats-grid">
-            <div class="stat-card-box">
-                <div class="stat-card-icon" style="background: rgba(79, 70, 229, 0.12); color: #4f46e5;">
-                    <i class="fa-solid fa-users-rays"></i>
-                </div>
-                <div>
-                    <div class="stat-val">{{ new_leads_count }}</div>
-                    <div class="stat-lbl">New Leads Today</div>
-                </div>
-            </div>
-
-            <div class="stat-card-box">
-                <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
-                    <i class="fa-solid fa-phone-volume"></i>
-                </div>
-                <div>
-                    <div class="stat-val text-warning">{{ pending_followups_count }}</div>
-                    <div class="stat-lbl">Pending Follow-ups</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Campaign / Source Breakdown -->
-        <div class="campaign-section">
-            <div class="campaign-header">
-                <span><i class="fa-solid fa-bullhorn me-1 text-primary"></i> Today's Leads by Campaign</span>
-                <span class="badge bg-light text-muted border">{{ campaign_stats|length }} Active Sources</span>
-            </div>
-            
-            {% if campaign_stats %}
-                <div class="campaign-tag-list">
-                    {% for c in campaign_stats %}
-                        <div class="campaign-tag">
-                            <span>{{ c.name|default:"Direct / Organic" }}</span>
-                            <span class="campaign-count-pill">{{ c.count }}</span>
+        <!-- ========================================================================= -->
+        <!-- VIEW 1: SUPER ADMIN MULTI-BUSINESS SUMMARY (NELSON + ZAPPCODE + DYNAMIC) -->
+        <!-- ========================================================================= -->
+        {% if is_super_admin %}
+            <div class="superadmin-businesses-list mb-3">
+                {% for b in businesses_data %}
+                    <div class="business-section-card {% if b.is_nelson %}nelson-card{% elif b.is_zappcode %}academy-card{% else %}default-card{% endif %}">
+                        <div class="business-card-header">
+                            <div class="business-card-title">
+                                {% if b.is_nelson %}
+                                    <i class="fa-solid fa-hospital text-info"></i>
+                                {% elif b.is_zappcode %}
+                                    <i class="fa-solid fa-graduation-cap text-primary"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-building text-success"></i>
+                                {% endif %}
+                                <span>{{ b.name }}</span>
+                            </div>
+                            <div class="business-metrics-pill-group">
+                                <span class="business-stat-pill pill-total" title="Today's total incoming leads">
+                                    <i class="fa-solid fa-users-rays"></i> {{ b.total_count }} Leads Today
+                                </span>
+                                {% if b.walkin_count %}
+                                    <span class="business-stat-pill pill-walkin" title="Direct Walk-in / Hospital Visits">
+                                        <i class="fa-solid fa-person-walking"></i> {{ b.walkin_count }} Walk-in
+                                    </span>
+                                {% endif %}
+                                {% if b.meta_count %}
+                                    <span class="business-stat-pill pill-meta" title="Meta / Facebook / Instagram Ads">
+                                        <i class="fa-brands fa-meta"></i> {{ b.meta_count }} Meta
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-muted small py-1">
-                    <i class="fa-solid fa-circle-info me-1"></i> No leads registered under active campaigns yet today.
-                </div>
-            {% endif %}
-        </div>
 
-        <!-- Proceed Action Button -->
-        <a href="{{ next_url }}" class="btn btn-launch-dashboard" id="launchBtn" onclick="onProceedClick(event)">
-            <span id="launchBtnText">Proceed to Dashboard</span>
-            <i class="fa-solid fa-arrow-right" id="launchBtnIcon"></i>
-        </a>
+                        <!-- Campaign-wise breakdown for this business -->
+                        <div>
+                            <div class="small fw-bold text-muted mb-2 text-uppercase" style="font-size: 0.74rem;">
+                                <i class="fa-solid fa-bullhorn me-1"></i> Today's Active Campaigns / Sources
+                            </div>
+                            {% if b.campaign_stats %}
+                                <div class="campaign-tag-list">
+                                    {% for c in b.campaign_stats %}
+                                        <div class="campaign-tag">
+                                            <span>{{ c.name|default:"Direct / Organic" }}</span>
+                                            <span class="campaign-count-pill">{{ c.count }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-muted small py-1 fst-italic">
+                                    <i class="fa-regular fa-circle-info me-1"></i> No campaign leads recorded today.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="alert alert-light border text-muted">
+                        <i class="fa-solid fa-info-circle me-1"></i> No business entities found.
+                    </div>
+                {% endfor %}
+            </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 2: DOCTOR PANEL (Assigned Appointments & Pending Approvals)          -->
+        <!-- ========================================================================= -->
+        {% elif is_doctor %}
+            <div class="main-stats-grid">
+                <div class="stat-card-box">
+                    <div class="stat-card-icon" style="background: rgba(2, 132, 199, 0.12); color: #0284c7;">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val text-primary">{{ role_metrics.today_appointments_count|default:0 }}</div>
+                        <div class="stat-lbl">Today's Appointments</div>
+                    </div>
+                </div>
+
+                <div class="stat-card-box">
+                    <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                        <i class="fa-solid fa-user-clock"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val text-warning">{{ role_metrics.pending_approval_count|default:0 }}</div>
+                        <div class="stat-lbl">Pending Approvals</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="campaign-section">
+                <div class="campaign-header">
+                    <span><i class="fa-solid fa-stethoscope me-1 text-primary"></i> OPD Status Overview</span>
+                    <span class="badge bg-light text-muted border">{{ role_metrics.scheduled_today_count|default:0 }} Confirmed</span>
+                </div>
+                <div class="text-muted small">
+                    <i class="fa-solid fa-circle-info me-1 text-info"></i> You have <strong>{{ role_metrics.today_appointments_count|default:0 }}</strong> patient consultations scheduled for today and <strong>{{ role_metrics.pending_approval_count|default:0 }}</strong> appointment requests awaiting your confirmation.
+                </div>
+            </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 3: LEAD ATTENDANT / TELECALLER / COUNSELLOR                          -->
+        <!-- (Fresh Leads Today vs Assigned to Me Today + Campaign breakdown)          -->
+        <!-- ========================================================================= -->
+        {% elif is_lead_attendant or is_counsellor %}
+            <div class="main-stats-grid">
+                <div class="stat-card-box">
+                    <div class="stat-card-icon" style="background: rgba(79, 70, 229, 0.12); color: #4f46e5;">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val text-indigo">{{ role_metrics.fresh_leads_count|default:0 }}</div>
+                        <div class="stat-lbl">Fresh Leads Today</div>
+                    </div>
+                </div>
+
+                <div class="stat-card-box">
+                    <div class="stat-card-icon" style="background: rgba(16, 185, 129, 0.14); color: #059669;">
+                        <i class="fa-solid fa-user-tag"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val text-success">{{ role_metrics.assigned_leads_count|default:0 }}</div>
+                        <div class="stat-lbl">Assigned to Me Today</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign / Source Breakdown -->
+            <div class="campaign-section">
+                <div class="campaign-header">
+                    <span><i class="fa-solid fa-bullhorn me-1 text-primary"></i> Today's Leads by Campaign</span>
+                    <span class="badge bg-light text-muted border">
+                        {% if role_metrics.walkin_count %}
+                            <i class="fa-solid fa-person-walking me-1 text-warning"></i> {{ role_metrics.walkin_count }} Walk-in &bull; 
+                        {% endif %}
+                        {{ role_metrics.campaign_stats|length }} Sources
+                    </span>
+                </div>
+                
+                {% if role_metrics.campaign_stats %}
+                    <div class="campaign-tag-list">
+                        {% for c in role_metrics.campaign_stats %}
+                            <div class="campaign-tag">
+                                <span>{{ c.name|default:"Direct / Organic" }}</span>
+                                <span class="campaign-count-pill">{{ c.count }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-muted small py-1">
+                        <i class="fa-solid fa-circle-info me-1"></i> No fresh or assigned leads under active campaigns yet today.
+                    </div>
+                {% endif %}
+            </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 4: BUSINESS ADMIN / MANAGER / DEFAULT FORMAT                         -->
+        <!-- ========================================================================= -->
+        {% else %}
+            <div class="main-stats-grid">
+                <div class="stat-card-box">
+                    <div class="stat-card-icon" style="background: rgba(79, 70, 229, 0.12); color: #4f46e5;">
+                        <i class="fa-solid fa-users-rays"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val">{{ role_metrics.total_count|default:0 }}</div>
+                        <div class="stat-lbl">New Leads Today</div>
+                    </div>
+                </div>
+
+                <div class="stat-card-box">
+                    <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                        <i class="fa-solid fa-phone-volume"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val text-warning">{{ role_metrics.pending_followups_count|default:0 }}</div>
+                        <div class="stat-lbl">Pending Follow-ups</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign Breakdown -->
+            <div class="campaign-section">
+                <div class="campaign-header">
+                    <span><i class="fa-solid fa-bullhorn me-1 text-primary"></i> Today's Leads by Campaign</span>
+                    <span class="badge bg-light text-muted border">
+                        {% if role_metrics.walkin_count %}{{ role_metrics.walkin_count }} Walk-in &bull; {% endif %}
+                        {{ role_metrics.campaign_stats|length }} Active Sources
+                    </span>
+                </div>
+                
+                {% if role_metrics.campaign_stats %}
+                    <div class="campaign-tag-list">
+                        {% for c in role_metrics.campaign_stats %}
+                            <div class="campaign-tag">
+                                <span>{{ c.name|default:"Direct / Organic" }}</span>
+                                <span class="campaign-count-pill">{{ c.count }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-muted small py-1">
+                        <i class="fa-solid fa-circle-info me-1"></i> No leads registered under active campaigns yet today.
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- ========================================================================= -->
+        <!-- ACTION BUTTONS: PROCEED TO DASHBOARD & HOLD SCREEN BUTTON                 -->
+        <!-- ========================================================================= -->
+        <div class="actions-grid">
+            <a href="{{ next_url }}" class="btn btn-launch-dashboard" id="launchBtn" onclick="onProceedClick(event)">
+                <span id="launchBtnText">Proceed to Dashboard</span>
+                <i class="fa-solid fa-arrow-right" id="launchBtnIcon"></i>
+            </a>
+
+            <button type="button" class="btn btn-hold-timer" id="holdBtn" onclick="toggleHoldTimer(event)" title="Hold screen to review summary">
+                <i class="fa-solid fa-pause" id="holdBtnIcon"></i>
+                <span id="holdBtnText">Hold Screen</span>
+            </button>
+        </div>
 
         <!-- Auto-redirect Timer & Bar -->
         <div class="countdown-bar-wrapper">
@@ -299,8 +559,10 @@
     let secondsLeft = totalSeconds;
     const countEl = document.getElementById("secondsCount");
     const barEl = document.getElementById("timerBar");
-    const targetUrl = "{{ next_url|default:'/dashboard/telecaller/' }}";
+    const targetUrl = "{{ next_url|default:'/dashboard/' }}";
     let isNavigating = false;
+    let isHeld = false;
+    let interval = null;
 
     function navigateToDashboard() {
         if (isNavigating) return;
@@ -311,31 +573,66 @@
         if (btnText) btnText.innerText = "Loading Dashboard...";
         if (btnIcon) btnIcon.className = "fa-solid fa-spinner fa-spin ms-2";
         if (countdownWrapper) countdownWrapper.innerHTML = '<span class="text-primary fw-bold"><i class="fa-solid fa-circle-notch fa-spin me-1"></i> Opening your dashboard, please wait...</span>';
-        window.location.replace(targetUrl);
+        
+        const destination = targetUrl && targetUrl !== "" ? targetUrl : "/dashboard/management/";
+        window.location.href = destination;
     }
 
     function onProceedClick(e) {
-        if (e) e.preventDefault();
-        navigateToDashboard();
+        // Allow immediate click navigation
+        const destination = targetUrl && targetUrl !== "" ? targetUrl : "/dashboard/management/";
+        window.location.href = destination;
     }
 
-    // Update progress bar and counter every second
-    const interval = setInterval(function() {
-        if (isNavigating) {
-            clearInterval(interval);
-            return;
+    function toggleHoldTimer(e) {
+        if (e) e.preventDefault();
+        isHeld = !isHeld;
+        const holdBtn = document.getElementById("holdBtn");
+        const holdIcon = document.getElementById("holdBtnIcon");
+        const holdText = document.getElementById("holdBtnText");
+        const countdownWrapper = document.getElementById("countdownTextWrapper");
+
+        if (isHeld) {
+            // Pause timer
+            if (interval) clearInterval(interval);
+            if (holdBtn) holdBtn.classList.add("active-hold");
+            if (holdIcon) holdIcon.className = "fa-solid fa-play";
+            if (holdText) holdText.innerText = "Resume Timer";
+            if (barEl) barEl.style.background = "#94a3b8";
+            if (countdownWrapper) countdownWrapper.innerHTML = '<span class="text-secondary fw-semibold"><i class="fa-solid fa-pause-circle me-1 text-danger"></i> Screen paused. Click "Proceed to Dashboard" whenever you\'re ready.</span>';
+        } else {
+            // Resume timer
+            if (holdBtn) holdBtn.classList.remove("active-hold");
+            if (holdIcon) holdIcon.className = "fa-solid fa-pause";
+            if (holdText) holdText.innerText = "Hold Screen";
+            if (barEl) barEl.style.background = "linear-gradient(90deg, #4f46e5, #7c3aed)";
+            if (countdownWrapper) countdownWrapper.innerHTML = 'Automatically entering dashboard in <strong id="secondsCount" class="text-primary">' + secondsLeft + '</strong> seconds...';
+            startTimer();
         }
-        secondsLeft--;
-        if (countEl) countEl.innerText = Math.max(0, secondsLeft);
-        if (barEl) {
-            const percent = (secondsLeft / totalSeconds) * 100;
-            barEl.style.width = Math.max(0, percent) + "%";
-        }
-        if (secondsLeft <= 0) {
-            clearInterval(interval);
-            navigateToDashboard();
-        }
-    }, 1000);
+    }
+
+    function startTimer() {
+        if (interval) clearInterval(interval);
+        interval = setInterval(function() {
+            if (isNavigating || isHeld) {
+                return;
+            }
+            secondsLeft--;
+            const countElNow = document.getElementById("secondsCount");
+            if (countElNow) countElNow.innerText = Math.max(0, secondsLeft);
+            if (barEl) {
+                const percent = (secondsLeft / totalSeconds) * 100;
+                barEl.style.width = Math.max(0, percent) + "%";
+            }
+            if (secondsLeft <= 0) {
+                clearInterval(interval);
+                navigateToDashboard();
+            }
+        }, 1000);
+    }
+
+    // Start initial countdown
+    startTimer();
 
     // Live clock update
     function updateClock() {

@@ -13,7 +13,7 @@
     </div>
   </form>
 
-  {% if is_superadmin_user and user.role == 'SUPER_ADMIN' and not user.hospital %}
+  {% if is_superadmin_user or user.is_superuser or user.role == 'SUPER_ADMIN' %}
   <!-- Global Business / Tenant Switcher for Super Admin Only -->
   <div class="dropdown ms-1">
     <button class="btn btn-sm {% if active_business %}btn-primary text-white shadow-xs{% else %}btn-white bg-white text-dark border{% endif %} dropdown-toggle d-flex align-items-center gap-2 py-1 px-3 rounded-pill fw-semibold" type="button" id="globalBusinessFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 32px;" title="Filter All Pages by Business / Organization">

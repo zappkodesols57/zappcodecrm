@@ -736,6 +736,10 @@
                   <label class="crm-form-label fw-bold">UHID ID NO</label>
                   <div class="crm-form-field">
                     {{ form.uhid_id_no }}
+                    {% if form.uhid_id_no.errors %}
+                      <div class="text-danger small mt-1 fw-semibold">{{ form.uhid_id_no.errors|striptags }}</div>
+                    {% endif %}
+                    <div id="uhidDuplicateWarning" class="text-danger small mt-1 fw-semibold d-none"></div>
                   </div>
                 </div>
                 <div class="crm-form-row">
@@ -779,7 +783,7 @@
                   </div>
                 </div>
                 <div class="crm-form-row">
-                  <label class="crm-form-label fw-bold">Remark 1</label>
+                  <label class="crm-form-label fw-bold">Payment Remarks</label>
                   <div class="crm-form-field">
                     {{ form.remark_1 }}
                   </div>
@@ -1413,6 +1417,44 @@
     if (dSelect.tomselect) {
       dSelect.tomselect.on('change', function () { onDepartmentChanged(); });
     }
+  }
+
+  // Real-time Unique UHID validation
+  const uhidInput = document.getElementById('id_uhid_id_no') || document.querySelector('input[name="uhid_id_no"]');
+  const uhidWarningBox = document.getElementById('uhidDuplicateWarning');
+  const currentLeadId = '{{ form.instance.pk|default:"" }}';
+  let uhidCheckTimeout = null;
+
+  if (uhidInput) {
+    uhidInput.addEventListener('input', function () {
+      const val = this.value.trim();
+      clearTimeout(uhidCheckTimeout);
+      if (!val) {
+        if (uhidWarningBox) uhidWarningBox.classList.add('d-none');
+        uhidInput.classList.remove('is-invalid');
+        uhidInput.setCustomValidity('');
+        return;
+      }
+      uhidCheckTimeout = setTimeout(() => {
+        fetch(`{% url 'leads:check_duplicate_uhid' %}?uhid=${encodeURIComponent(val)}&exclude_id=${encodeURIComponent(currentLeadId)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.exists) {
+              uhidInput.classList.add('is-invalid');
+              uhidInput.setCustomValidity(`Duplicate UHID: Already assigned to patient ${data.name} (${data.lead_code})`);
+              if (uhidWarningBox) {
+                uhidWarningBox.innerHTML = `<i class="fa-solid fa-circle-exclamation me-1"></i> UHID is already assigned to <strong>${data.name}</strong> (${data.lead_code}) - Assigned to: ${data.assigned_to}`;
+                uhidWarningBox.classList.remove('d-none');
+              }
+            } else {
+              uhidInput.classList.remove('is-invalid');
+              uhidInput.setCustomValidity('');
+              if (uhidWarningBox) uhidWarningBox.classList.add('d-none');
+            }
+          })
+          .catch(err => console.error('Error checking UHID uniqueness:', err));
+      }, 350);
+    });
   }
 
   // Enforce 10-digit mobile number constraint
