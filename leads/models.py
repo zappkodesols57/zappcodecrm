@@ -372,6 +372,26 @@ def next_lead_code():
     return f"{prefix}{seq:06d}"
 
 
+class SafeCustomDict(dict):
+    """
+    A dictionary subclass that returns empty string '' or default value for missing keys
+    and allows attribute-style access. Prevents Django template VariableDoesNotExist exceptions.
+    """
+    def __getitem__(self, key):
+        if key in self:
+            return super().__getitem__(key)
+        return ""
+
+    def __getattr__(self, key):
+        return self.get(key, "")
+
+
+def wrap_safe_custom_data(data):
+    if isinstance(data, dict) and not isinstance(data, SafeCustomDict):
+        return SafeCustomDict(data)
+    return data if data is not None else SafeCustomDict()
+
+
 class Lead(models.Model):
     # Identity
     lead_code = models.CharField(max_length=20, unique=True, editable=False)
@@ -468,6 +488,18 @@ class Lead(models.Model):
             models.Index(fields=["next_followup_date"]),
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if isinstance(self.custom_data, dict) and not isinstance(self.custom_data, SafeCustomDict):
+            self.custom_data = SafeCustomDict(self.custom_data)
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        if isinstance(instance.custom_data, dict) and not isinstance(instance.custom_data, SafeCustomDict):
+            instance.custom_data = SafeCustomDict(instance.custom_data)
+        return instance
+
     def __str__(self):
         return f"{self.lead_code} — {self.name}"
 
@@ -535,8 +567,27 @@ class Lead(models.Model):
         return dept or ""
 
     @property
+    def custom_branch(self):
+        branch = self.get_custom("hospital_branch") or self.get_custom("branch") or self.get_custom("dyn_hospital_branch") or self.get_custom("dyn_branch")
+        if not branch and self.hospital_id and self.hospital:
+            return self.hospital.name
+        return branch or ""
+
+    @property
+    def custom_disease(self):
+        return self.get_custom("disease") or self.get_custom("dyn_disease") or ""
+
+    @property
     def custom_doctor(self):
         return self.get_custom("doctor")
+
+    @property
+    def custom_doctor_remark(self):
+        return self.get_custom("doctor_remark") or self.get_custom("last_doctor_remark") or self.get_custom("doctor_reschedule_remark") or ""
+
+    @property
+    def custom_reschedule_remark(self):
+        return self.get_custom("doctor_reschedule_remark") or self.get_custom("reschedule_remark") or ""
 
     @property
     def custom_source(self):

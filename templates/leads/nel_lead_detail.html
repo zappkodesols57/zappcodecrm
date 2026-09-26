@@ -80,14 +80,14 @@
         <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
       </a>
       {% endif %}
-      <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
       {% if prev_lead %}
-        <a href="{% url 'leads:lead_detail' prev_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
       {% else %}
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
       {% endif %}
       {% if next_lead %}
-        <a href="{% url 'leads:lead_detail' next_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
       {% else %}
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
       {% endif %}
@@ -170,7 +170,71 @@
             </div>
           </div>
           {% endfor %}
+
+          <!-- Doctor Remarks Box (if any) -->
+          {% if lead.custom_doctor_remark or latest_appointment.doctor_notes %}
+          <div class="col-12">
+            <div class="p-3 border rounded-3 bg-primary bg-opacity-10 border-primary-subtle">
+              <span class="text-primary d-block fw-bold small mb-1">
+                <i class="fa-solid fa-user-doctor me-1"></i> Latest Doctor Clinical Remarks &amp; Instructions:
+              </span>
+              <div class="text-dark small text-break" style="white-space: pre-wrap;">{{ lead.custom_doctor_remark|default:latest_appointment.doctor_notes }}</div>
+            </div>
+          </div>
+          {% endif %}
         </div>
+
+        <!-- Appointments & Consultations History Table (if multiple / historical appointments exist) -->
+        {% if appointments_history %}
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold small text-dark"><i class="fa-solid fa-clock-rotate-left text-primary me-1"></i> Consultation &amp; Appointment History</span>
+            <span class="badge bg-light text-secondary border">{{ appointments_history|length }} Total</span>
+          </div>
+          <div class="table-responsive rounded-3 border">
+            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.78rem;">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3 py-2 text-muted">DATE &amp; TIME</th>
+                  <th class="py-2 text-muted">DOCTOR</th>
+                  <th class="py-2 text-muted">STATUS</th>
+                  <th class="py-2 text-muted">CLINICAL REMARKS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for apt in appointments_history %}
+                <tr>
+                  <td class="ps-3 py-2 fw-semibold text-nowrap">
+                    {{ apt.appointment_date|date:"d M Y" }}
+                    {% if apt.appointment_time %}<small class="text-muted d-block">{{ apt.appointment_time|time:"h:i A" }}</small>{% endif %}
+                  </td>
+                  <td class="py-2">
+                    <span class="fw-bold text-dark">Dr. {{ apt.doctor_name }}</span>
+                  </td>
+                  <td class="py-2 text-nowrap">
+                    {% if apt.status == 'COMPLETED' %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>Completed</span>
+                    {% elif apt.status == 'APPROVED' %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i>Confirmed</span>
+                    {% elif apt.status == 'SCHEDULED' %}
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i>Scheduled (Next)</span>
+                    {% elif apt.status == 'CANCELLED' %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">Cancelled</span>
+                    {% else %}
+                      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1">{{ apt.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="py-2 text-muted text-break" style="max-width: 250px;">
+                    {{ apt.doctor_notes|default:"—" }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
       </div>
     </div>
 
@@ -210,6 +274,60 @@
             <div class="p-2 border rounded-3 bg-light">
               <span class="text-muted d-block fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-comment-dollar text-success me-1"></i>Payment Remarks:</span>
               <span class="text-dark">{{ lead.custom_data.payment_remarks|default:lead.custom_data.remark_1 }}</span>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Import & System Provenance Card -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-import text-primary me-2"></i>Import & Creation Provenance</h6>
+        {% if lead.import_job or lead.import_source_file %}
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill">Imported File Record</span>
+        {% elif lead.external_lead_id %}
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">Meta API Sync</span>
+        {% else %}
+          <span class="badge bg-light text-secondary border rounded-pill">Direct CRM Record</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-2 small">
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">Lead Received / Created Time</span>
+              <strong class="text-dark"><i class="fa-regular fa-calendar-check text-success me-1"></i>{{ lead.effective_created_formatted|default:lead.inquiry_date }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">CRM System Import Date</span>
+              <strong class="text-dark">
+                {% if lead.import_job %}
+                  <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.import_job.created_at|date:"d M Y, h:i A" }}
+                {% elif lead.created_at %}
+                  <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.created_at|date:"d M Y, h:i A" }}
+                {% else %}
+                  —
+                {% endif %}
+              </strong>
+            </div>
+          </div>
+          {% if lead.import_source_file or lead.import_job %}
+          <div class="col-12">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">Import Source File</span>
+              <strong class="text-primary text-break"><i class="fa-solid fa-file-excel me-1"></i>{{ lead.import_source_file|default:lead.import_job.original_filename }}</strong>
+            </div>
+          </div>
+          {% endif %}
+          {% if lead.external_lead_id %}
+          <div class="col-12">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">Meta External Lead ID</span>
+              <span class="font-monospace text-muted">{{ lead.external_lead_id }}</span>
             </div>
           </div>
           {% endif %}

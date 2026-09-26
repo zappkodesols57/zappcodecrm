@@ -140,6 +140,61 @@
     align-items: center;
     gap: 0.35rem;
   }
+  .campaign-page-link {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .campaign-page-link:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+  .campaign-page-link.active {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+    box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+  }
+  .platform-tab-pill {
+    padding: 0.45rem 1rem;
+    border-radius: 99px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+  .platform-tab-pill:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+  .platform-tab-pill.active {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+  }
+  .platform-tab-pill.active .badge {
+    background: #38bdf8 !important;
+    color: #0f172a !important;
+  }
 </style>
 {% endblock %}
 
@@ -241,14 +296,30 @@
     </div>
   </div>
 
-  <!-- 4. Today's Active Campaigns (Fourth Place) -->
+  <!-- 4. Active Campaigns in Selected Period (Fourth Place) -->
   <div class="col-md-3 col-6">
     <div class="kpi-card kpi-amber">
       <div>
-        <div class="kpi-label">Today's Active Campaigns</div>
-        <h3 class="kpi-value text-dark">{{ today_active_campaigns_count }}</h3>
+        <div class="kpi-label text-truncate" style="max-width: 180px;" title="{% if date_preset == 'today' %}Today's Active Campaigns{% elif date_preset == 'all_time' %}All-Time Active Campaigns{% else %}{{ preset_label }} Active Campaigns{% endif %}">
+          {% if date_preset == 'today' %}Today's Active Campaigns{% elif date_preset == 'all_time' %}All-Time Active Campaigns{% else %}Active Campaigns{% endif %}
+        </div>
+        <h3 class="kpi-value text-dark">
+          {% if date_preset == 'all_time' %}
+            {{ active_campaigns_count }}
+          {% elif date_preset == 'today' %}
+            {{ today_active_campaigns_count }}
+          {% else %}
+            {{ period_active_campaigns_count }}
+          {% endif %}
+        </h3>
         <div class="kpi-sub">
-          Campaigns with leads today
+          {% if date_preset == 'today' %}
+            Campaigns with leads today
+          {% elif date_preset == 'all_time' %}
+            Active configured campaigns
+          {% else %}
+            Campaigns with leads in period
+          {% endif %}
         </div>
       </div>
     </div>
@@ -257,10 +328,73 @@
 
 <!-- Campaigns Table Card -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-  <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-      <h5 class="fw-bold text-dark mb-0">All Marketing Campaigns</h5>
-      <small class="text-muted">Manage active campaigns, budget, target platforms and ad groups</small>
+  <div class="card-header bg-white border-0 pt-4 pb-3 px-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <div>
+        <h5 class="fw-bold text-dark mb-0">All Marketing Campaigns</h5>
+        <small class="text-muted">Manage active campaigns, budget, target platforms and ad groups</small>
+      </div>
+    </div>
+
+    <!-- Platform Filter Pills with Lead Counts (Clean Strip above Table) -->
+    <div class="d-flex align-items-center gap-2 flex-wrap pt-2 border-top">
+      <span class="text-muted small fw-bold text-uppercase me-1" style="font-size: 0.72rem;">Platform:</span>
+      
+      <!-- All -->
+      <a href="?platform=all&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}"
+        class="platform-tab-pill {% if selected_platform == 'all' or not selected_platform %}active{% endif %}">
+        <span>All Channels</span>
+        <span class="badge rounded-pill {% if selected_platform == 'all' or not selected_platform %}bg-info text-dark{% else %}bg-light text-secondary border{% endif %} px-2">
+          {{ platform_stats.all.count }}
+        </span>
+      </a>
+
+      <!-- Meta Ads -->
+      <a href="?platform=meta&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}"
+        class="platform-tab-pill {% if selected_platform == 'meta' %}active{% endif %}">
+        <i class="fa-brands fa-facebook text-primary"></i>
+        <span>Meta Ads</span>
+        <span class="badge rounded-pill {% if selected_platform == 'meta' %}bg-info text-dark{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %} px-2">
+          {{ platform_stats.meta.count }}
+        </span>
+      </a>
+
+      <!-- Google Ads -->
+      <a href="?platform=google&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}"
+        class="platform-tab-pill {% if selected_platform == 'google' %}active{% endif %}">
+        <i class="fa-brands fa-google text-danger"></i>
+        <span>Google Ads</span>
+        <span class="badge rounded-pill {% if selected_platform == 'google' %}bg-info text-dark{% else %}bg-danger bg-opacity-10 text-danger border border-danger-subtle{% endif %} px-2">
+          {{ platform_stats.google.count }}
+        </span>
+      </a>
+
+      <!-- Justdial -->
+      <a href="?platform=justdial&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}"
+        class="platform-tab-pill {% if selected_platform == 'justdial' %}active{% endif %}">
+        <span>Justdial</span>
+        <span class="badge rounded-pill {% if selected_platform == 'justdial' %}bg-info text-dark{% else %}bg-warning bg-opacity-10 text-dark border border-warning-subtle{% endif %} px-2">
+          {{ platform_stats.justdial.count }}
+        </span>
+      </a>
+
+      <!-- Practo -->
+      <a href="?platform=practo&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}"
+        class="platform-tab-pill {% if selected_platform == 'practo' %}active{% endif %}">
+        <span>Practo</span>
+        <span class="badge rounded-pill {% if selected_platform == 'practo' %}bg-info text-dark{% else %}bg-info bg-opacity-10 text-info border border-info-subtle{% endif %} px-2">
+          {{ platform_stats.practo.count }}
+        </span>
+      </a>
+
+      <!-- Offline / General -->
+      <a href="?platform=offline&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}"
+        class="platform-tab-pill {% if selected_platform == 'offline' %}active{% endif %}">
+        <span>Offline / Other</span>
+        <span class="badge rounded-pill {% if selected_platform == 'offline' %}bg-info text-dark{% else %}bg-light text-secondary border{% endif %} px-2">
+          {{ platform_stats.offline.count }}
+        </span>
+      </a>
     </div>
   </div>
   <div class="card-body p-0">
@@ -272,8 +406,16 @@
             <th class="border-0 py-3 text-muted small text-uppercase">Platform</th>
             <th class="border-0 py-3 text-muted small text-uppercase">Ad Set / Group</th>
             <th class="border-0 py-3 text-muted small text-uppercase">Budget / Cost</th>
-            <th class="border-0 py-3 text-muted small text-uppercase text-center">{{ preset_label }} Leads</th>
-            <th class="border-0 py-3 text-muted small text-uppercase text-center">All-Time Leads</th>
+            <th class="border-0 py-3 text-muted small text-uppercase text-center">
+              <a href="?date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&sort=period_leads_desc" class="text-decoration-none text-muted" title="Sort by {{ preset_label }} leads">
+                {{ preset_label }} Leads <i class="fa-solid fa-sort-down ms-1 text-primary"></i>
+              </a>
+            </th>
+            <th class="border-0 py-3 text-muted small text-uppercase text-center">
+              <a href="?date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&sort=all_time_desc" class="text-decoration-none text-muted" title="Sort by All-Time leads">
+                All-Time Leads <i class="fa-solid fa-sort ms-1"></i>
+              </a>
+            </th>
             <th class="border-0 py-3 text-muted small text-uppercase text-center" style="width: 120px;">Status</th>
             <th class="border-0 px-4 py-3 text-muted small text-uppercase text-end" style="width: 140px;">Actions</th>
           </tr>
@@ -281,36 +423,34 @@
         <tbody>
           {% for c in campaigns_data %}
           <tr>
-            <td class="px-4">
-              <div class="fw-bold text-dark">{{ c.obj.name }}</div>
+            <td class="px-4 py-3">
+              <div class="fw-bold text-dark text-truncate" style="max-width: 240px;" title="{{ c.obj.name }}">{{ c.obj.name }}</div>
               {% if c.obj.campaign_id %}
-                <span class="text-muted small" style="font-size: 0.72rem;">ID: {{ c.obj.campaign_id }}</span>
+                <span class="text-muted small" style="font-size: 0.72rem;"><i class="fa-solid fa-fingerprint me-1 opacity-50"></i>{{ c.obj.campaign_id }}</span>
               {% endif %}
             </td>
-            <td>
-              {% if "meta" in c.obj.platform|lower or "facebook" in c.obj.platform|lower or "instagram" in c.obj.platform|lower %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2.5 py-1 fw-semibold">{{ c.obj.platform|default:"Meta Ads" }}</span>
-              {% elif "google" in c.obj.platform|lower %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2.5 py-1 fw-semibold">Google Ads</span>
-              {% else %}
-                <span class="badge bg-light text-secondary border px-2.5 py-1 fw-semibold">{{ c.obj.platform|default:"General / Offline" }}</span>
-              {% endif %}
+            <td class="py-3">
+              <span class="text-dark fw-medium small">{{ c.obj.platform|default:"General / Offline" }}</span>
             </td>
-            <td>
-              <div class="small fw-semibold text-dark">{{ c.obj.ad_set|default:"—" }}</div>
-              {% if c.obj.ad_name %}<div class="small text-muted" style="font-size: 0.72rem;">Ad: {{ c.obj.ad_name }}</div>{% endif %}
+            <td class="py-3">
+              <div class="small fw-semibold text-dark text-truncate" style="max-width: 180px;" title="{{ c.obj.ad_set|default:'—' }}">{{ c.obj.ad_set|default:"—" }}</div>
+              {% if c.obj.ad_name %}<div class="small text-muted text-truncate" style="font-size: 0.72rem; max-width: 180px;" title="{{ c.obj.ad_name }}">Ad: {{ c.obj.ad_name }}</div>{% endif %}
             </td>
-            <td>
-              <div class="small fw-bold text-dark">₹{{ c.obj.cost }}</div>
+            <td class="py-3">
+              <div class="small fw-bold text-dark">₹{{ c.obj.cost|default:"0" }}</div>
               {% if c.obj.start_date %}
-                <span class="text-muted small" style="font-size: 0.7rem;">{{ c.obj.start_date|date:"d M" }}{% if c.obj.end_date %} - {{ c.obj.end_date|date:"d M Y" }}{% endif %}</span>
+                <span class="text-muted small d-block" style="font-size: 0.7rem;">{{ c.obj.start_date|date:"d M" }}{% if c.obj.end_date %} - {{ c.obj.end_date|date:"d M Y" }}{% endif %}</span>
               {% endif %}
             </td>
-            <td class="text-center">
-              <span class="fw-bold text-success" style="font-size: 0.95rem;">{{ c.period_leads_count }}</span>
+            <td class="text-center py-3">
+              <span class="fw-bold {% if c.period_leads_count > 0 %}text-success{% else %}text-muted{% endif %}" style="font-size: 1.05rem;">
+                {{ c.period_leads_count }}
+              </span>
             </td>
-            <td class="text-center">
-              <span class="fw-bold text-dark" style="font-size: 0.95rem;">{{ c.leads_count }}</span>
+            <td class="text-center py-3">
+              <span class="fw-bold text-dark" style="font-size: 1.05rem;">
+                {{ c.leads_count }}
+              </span>
             </td>
             <td class="text-center">
               <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}" style="display:inline; margin: 0;">
@@ -446,6 +586,59 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination Footer -->
+    {% if is_paginated or paginator.count > 0 %}
+    <div class="card-footer bg-white border-top border-light py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div class="text-muted small">
+        Showing <span class="fw-bold text-dark">{{ page_obj.start_index|default:1 }}</span> to <span class="fw-bold text-dark">{{ page_obj.end_index|default:paginator.count }}</span> of <span class="fw-bold text-dark">{{ paginator.count|default:total_campaigns }}</span> campaigns
+      </div>
+      {% if is_paginated %}
+      <nav aria-label="Campaigns pagination">
+        <ul class="pagination pagination-sm mb-0 gap-1 align-items-center">
+          <!-- Previous Page -->
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="campaign-page-link" href="?page={{ page_obj.previous_page_number }}&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if selected_platform %}&platform={{ selected_platform }}{% endif %}" title="Previous Page">
+                <i class="fa-solid fa-chevron-left" style="font-size: 0.75rem;"></i>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item">
+              <span class="campaign-page-link disabled"><i class="fa-solid fa-chevron-left" style="font-size: 0.75rem;"></i></span>
+            </li>
+          {% endif %}
+
+          <!-- Page Numbers -->
+          {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+              <li class="page-item">
+                <span class="campaign-page-link active">{{ num }}</span>
+              </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <li class="page-item">
+                <a class="campaign-page-link" href="?page={{ num }}&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if selected_platform %}&platform={{ selected_platform }}{% endif %}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          <!-- Next Page -->
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="campaign-page-link" href="?page={{ page_obj.next_page_number }}&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}{% if selected_platform %}&platform={{ selected_platform }}{% endif %}" title="Next Page">
+                <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item">
+              <span class="campaign-page-link disabled"><i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i></span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 

@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Performance Analysis · {{ target_user.get_full_name|default:target_user.username }}{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js for clean interactive analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<style>
+  .kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: all 0.2s ease;
+    height: 100%;
+  }
+  .kpi-card:hover {
+    border-color: #cbd5e1;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+  .chart-box-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 1.15rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .chart-box-card .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .chart-box-card .chart-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .filter-pill-btn {
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.32rem 0.85rem;
+    transition: all 0.15s ease;
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #475569;
+  }
+  .filter-pill-btn:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+  .filter-pill-btn.active {
+    background: #4f46e5;
+    color: #ffffff !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+  }
+  .user-badge-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .stat-icon-wrapper {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+</style>
+
+<!-- 1. Header with Breadcrumbs and User Profile Title -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <a href="{% url 'leads:team_history' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}"
+       class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+       style="width: 34px; height: 34px;" title="Back to Teams History">
+      <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <div class="d-flex align-items-center gap-2.5">
+      <div class="user-badge-avatar">
+        {{ target_user.first_name|default:target_user.username|slice:":1"|upper }}
+      </div>
+      <div>
+        <h4 class="mb-0 fw-bold text-dark lh-1.1">
+          {{ target_user.get_full_name|default:target_user.username }}
+          <span class="badge bg-light text-secondary border fw-semibold ms-1" style="font-size: 0.72rem; vertical-align: middle;">
+            {{ target_user.get_role_display }}
+          </span>
+        </h4>
+        <div class="text-muted small mt-1">
+          <i class="fa-solid fa-building me-1 text-primary"></i>{{ current_hospital.name|default:"Zappcode CRM" }}
+          <span class="mx-1.5 text-secondary">•</span>
+          <i class="fa-regular fa-calendar me-1"></i><span class="fw-semibold text-dark">{{ period_label }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Action Links -->
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <a href="{% url 'leads:team_history' %}?user_id={{ target_user.id }}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}"
+       class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+      <i class="fa-solid fa-list me-1"></i> View User Leads Table
+    </a>
+    <a href="{% url 'leads:team_history' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}"
+       class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
+      <i class="fa-solid fa-users me-1"></i> All Team Members
+    </a>
+  </div>
+</div>
+
+<!-- 2. Date Filter Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+  <div class="card-body p-2.5">
+    <form method="get" id="analysisFilterForm" class="m-0">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center flex-wrap gap-1.5">
+          <span class="text-uppercase fw-bold text-muted me-1" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-filter me-1 text-primary"></i>Period:
+          </span>
+          <a href="?period=today" class="filter-pill-btn {% if period == 'today' %}active{% endif %}">Today</a>
+          <a href="?period=7days" class="filter-pill-btn {% if period == '7days' %}active{% endif %}">Last 7 Days</a>
+          <a href="?period=month" class="filter-pill-btn {% if period == 'month' or not period %}active{% endif %}">This Month</a>
+          <a href="?period=last_month" class="filter-pill-btn {% if period == 'last_month' %}active{% endif %}">Last Month</a>
+          <a href="?period=all" class="filter-pill-btn {% if period == 'all' %}active{% endif %}">All Time</a>
+          
+          <button type="button" class="filter-pill-btn {% if period == 'custom' %}active{% endif %}" onclick="toggleCustomRange()">
+            <i class="fa-solid fa-calendar-days"></i> Custom Dates
+          </button>
+        </div>
+
+        <div id="customDateRangeBox" class="{% if period != 'custom' %}d-none{% endif %} d-flex align-items-center gap-1.5">
+          <input type="hidden" name="period" value="custom">
+          <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" style="width: 130px; font-size: 0.78rem;">
+          <span class="text-muted small">to</span>
+          <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" style="width: 130px; font-size: 0.78rem;">
+          <button type="submit" class="btn btn-sm btn-primary rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.75rem;">Apply</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 3. Top KPI Metric Cards Row -->
+<div class="row g-2.5 mb-3">
+  <!-- Total Assigned Leads -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-1.5">
+        <span class="text-muted fw-semibold small" style="font-size: 0.75rem;">Total Leads</span>
+        <div class="stat-icon-wrapper bg-primary bg-opacity-10 text-primary">
+          <i class="fa-solid fa-users"></i>
+        </div>
+      </div>
+      <div class="fw-bold text-dark lh-1" style="font-size: 1.45rem;">{{ total_leads_count }}</div>
+      <div class="text-muted small mt-1" style="font-size: 0.7rem;">In selected period</div>
+    </div>
+  </div>
+
+  <!-- Converted / Won Leads -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-1.5">
+        <span class="text-muted fw-semibold small" style="font-size: 0.75rem;">
+          {% if is_hospital_business %}Booked / Won{% else %}Admissions Done{% endif %}
+        </span>
+        <div class="stat-icon-wrapper bg-success bg-opacity-10 text-success">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+      </div>
+      <div class="fw-bold text-success lh-1" style="font-size: 1.45rem;">{{ won_leads_count }}</div>
+      <div class="text-muted small mt-1" style="font-size: 0.7rem;">Successful conversion</div>
+    </div>
+  </div>
+
+  <!-- Conversion Rate -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-1.5">
+        <span class="text-muted fw-semibold small" style="font-size: 0.75rem;">Conversion Rate</span>
+        <div class="stat-icon-wrapper bg-info bg-opacity-10 text-info">
+          <i class="fa-solid fa-percent"></i>
+        </div>
+      </div>
+      <div class="fw-bold text-info lh-1" style="font-size: 1.45rem;">{{ conversion_rate }}%</div>
+      <div class="text-muted small mt-1" style="font-size: 0.7rem;">Won / Total Leads</div>
+    </div>
+  </div>
+
+  <!-- Open / Active Pipeline -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-1.5">
+        <span class="text-muted fw-semibold small" style="font-size: 0.75rem;">Active Pipeline</span>
+        <div class="stat-icon-wrapper bg-warning bg-opacity-10 text-warning">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+      </div>
+      <div class="fw-bold text-dark lh-1" style="font-size: 1.45rem;">{{ open_leads_count }}</div>
+      <div class="text-muted small mt-1" style="font-size: 0.7rem;">In progress leads</div>
+    </div>
+  </div>
+
+  <!-- Total Follow-ups Recorded -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-1.5">
+        <span class="text-muted fw-semibold small" style="font-size: 0.75rem;">Follow-ups Done</span>
+        <div class="stat-icon-wrapper bg-indigo bg-opacity-10 text-primary">
+          <i class="fa-solid fa-phone-volume"></i>
+        </div>
+      </div>
+      <div class="fw-bold text-dark lh-1" style="font-size: 1.45rem;">{{ completed_followups_count }}</div>
+      <div class="text-muted small mt-1" style="font-size: 0.7rem;">Completed touchpoints</div>
+    </div>
+  </div>
+
+  <!-- Follow-up Completion Rate -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="d-flex justify-content-between align-items-start mb-1.5">
+        <span class="text-muted fw-semibold small" style="font-size: 0.75rem;">Follow-up Rate</span>
+        <div class="stat-icon-wrapper bg-secondary bg-opacity-10 text-secondary">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+      </div>
+      <div class="fw-bold text-dark lh-1" style="font-size: 1.45rem;">{{ followup_completion_rate }}%</div>
+      <div class="text-muted small mt-1" style="font-size: 0.7rem;">{{ pending_followups_count }} pending</div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Clean Charts Grid (2x2 Layout matching app aesthetics) -->
+<div class="row g-3 mb-3">
+  <!-- Chart 1: Lead Trend (Day-wise or Month-wise) -->
+  <div class="col-12 col-lg-8">
+    <div class="chart-box-card">
+      <div class="chart-header">
+        <h6 class="chart-title">
+          <i class="fa-solid fa-chart-line text-primary"></i> Lead Volume & Conversions Trend
+        </h6>
+        <span class="badge bg-light text-secondary border small">{{ period_label }}</span>
+      </div>
+      <div style="height: 250px; position: relative;">
+        <canvas id="userTrendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 2: Temperature Distribution (Donut) -->
+  <div class="col-12 col-lg-4">
+    <div class="chart-box-card">
+      <div class="chart-header">
+        <h6 class="chart-title">
+          <i class="fa-solid fa-fire text-danger"></i> Lead Temperature
+        </h6>
+        <span class="text-muted small" style="font-size: 0.72rem;">Distribution</span>
+      </div>
+      <div style="height: 250px; position: relative;">
+        <canvas id="userTemperatureChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 3: Deal / Conversion Status -->
+  <div class="col-12 col-md-6">
+    <div class="chart-box-card">
+      <div class="chart-header">
+        <h6 class="chart-title">
+          <i class="fa-solid fa-hand-holding-dollar text-success"></i>
+          {% if is_hospital_business %}Appointment & Deal Status{% else %}Admission & Deal Pipeline{% endif %}
+        </h6>
+        <span class="text-muted small" style="font-size: 0.72rem;">Outcomes</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="userStatusChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 4: Follow-up Status Distribution -->
+  <div class="col-12 col-md-6">
+    <div class="chart-box-card">
+      <div class="chart-header">
+        <h6 class="chart-title">
+          <i class="fa-solid fa-headset text-info"></i> Follow-up Status & Call Activity
+        </h6>
+        <span class="text-muted small" style="font-size: 0.72rem;">Compliance</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="userFollowupChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Recent Active Leads by this user -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+  <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+      <i class="fa-solid fa-clock-rotate-left text-primary"></i>
+      <span>Recent Leads Managed by {{ target_user.get_full_name|default:target_user.username }}</span>
+    </h6>
+    <a href="{% url 'leads:team_history' %}?user_id={{ target_user.id }}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}"
+       class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold p-0 small">
+      View All in Table <i class="fa-solid fa-arrow-right ms-1"></i>
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size: 0.8125rem;">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Lead ID</th>
+          <th>Name</th>
+          <th>Mobile</th>
+          <th>{% if is_hospital_business %}Doctor / Dept{% else %}Course{% endif %}</th>
+          <th>Temperature</th>
+          <th>Status</th>
+          <th>Next Follow-up</th>
+          <th class="text-end pe-3">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in recent_leads %}
+        <tr>
+          <td class="ps-3 fw-semibold text-primary">
+            <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-decoration-none text-primary fw-bold">
+              {{ lead.lead_code }}
+            </a>
+          </td>
+          <td class="fw-semibold text-dark">{{ lead.name }}</td>
+          <td class="text-muted">{{ lead.mobile }}</td>
+          <td>
+            {% if is_hospital_business %}
+              <span class="text-dark">{{ lead.custom_data.doctor|default:lead.custom_data.department|default:"-" }}</span>
+            {% else %}
+              <span class="text-dark">{{ lead.course.name|default:"-" }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if lead.temperature == 'HOT' %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill">Hot</span>
+            {% elif lead.temperature == 'WARM' %}
+              <span class="badge bg-warning bg-opacity-15 text-dark border border-warning-subtle rounded-pill">Warm</span>
+            {% elif lead.temperature == 'COLD' %}
+              <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle rounded-pill">Cold</span>
+            {% elif lead.temperature == 'FREEZE' %}
+              <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill">Freeze</span>
+            {% else %}
+              <span class="badge bg-light text-muted border rounded-pill">{{ lead.get_temperature_display }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' or lead.deal_status == 'BOOKING CONFIRMED' or lead.deal_status == 'PAYMENT DONE' %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill">Won / Done</span>
+            {% elif lead.deal_status == 'LOST' or lead.admission_status == 'CANCELLED' %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill">Lost</span>
+            {% else %}
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">{{ lead.stage.name|default:"Open" }}</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">
+            {% if lead.next_followup_date %}
+              <i class="fa-regular fa-calendar-check me-1 text-primary"></i>{{ lead.next_followup_date|date:"d M Y" }}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td class="text-end pe-3">
+            <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5 fw-semibold" style="font-size: 0.72rem;">
+              Detail
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted">
+            <i class="fa-regular fa-folder-open d-block fs-4 opacity-50 mb-1"></i>
+            No recent leads in this selected timeframe.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function toggleCustomRange() {
+    const box = document.getElementById('customDateRangeBox');
+    box.classList.toggle('d-none');
+  }
+
+  // Load and Render Charts
+  document.addEventListener('DOMContentLoaded', function () {
+    const rawData = {{ chart_data_json|safe }};
+
+    // Shared styling palette matching CRM theme (minimalist, clean indigo/slate)
+    const primaryColor = '#4f46e5';
+    const primaryLight = 'rgba(79, 70, 229, 0.1)';
+    const successColor = '#10b981';
+    const warningColor = '#f59e0b';
+    const dangerColor = '#ef4444';
+    const slateColor = '#64748b';
+    const infoColor = '#06b6d4';
+
+    // 1. Trend Chart (Line Chart)
+    const trendCtx = document.getElementById('userTrendChart');
+    if (trendCtx && rawData.trend) {
+      new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: rawData.trend.labels,
+          datasets: [
+            {
+              label: 'Total Leads',
+              data: rawData.trend.leads,
+              borderColor: primaryColor,
+              backgroundColor: primaryLight,
+              borderWidth: 2,
+              pointBackgroundColor: primaryColor,
+              pointRadius: 3.5,
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: 'Conversions / Won',
+              data: rawData.trend.won,
+              borderColor: successColor,
+              backgroundColor: 'rgba(16, 185, 129, 0.05)',
+              borderWidth: 2,
+              pointBackgroundColor: successColor,
+              pointRadius: 3.5,
+              tension: 0.3,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 12 } },
+            tooltip: { padding: 10, cornerRadius: 6 }
+          },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, precision: 0 } },
+            x: { grid: { display: false }, ticks: { font: { size: 10.5 }, maxRotation: 45 } }
+          }
+        }
+      });
+    }
+
+    // 2. Temperature Chart (Doughnut)
+    const tempCtx = document.getElementById('userTemperatureChart');
+    if (tempCtx && rawData.temperature) {
+      const tempColors = ['#ef4444', '#f59e0b', '#06b6d4', '#64748b', '#94a3b8', '#a855f7'];
+      new Chart(tempCtx, {
+        type: 'doughnut',
+        data: {
+          labels: rawData.temperature.labels,
+          datasets: [{
+            data: rawData.temperature.counts,
+            backgroundColor: tempColors.slice(0, rawData.temperature.labels.length),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 12, padding: 10 } }
+          },
+          cutout: '68%'
+        }
+      });
+    }
+
+    // 3. Status Chart (Horizontal or Vertical Bar)
+    const statusCtx = document.getElementById('userStatusChart');
+    if (statusCtx && rawData.status) {
+      new Chart(statusCtx, {
+        type: 'bar',
+        data: {
+          labels: rawData.status.labels,
+          datasets: [{
+            label: 'Leads',
+            data: rawData.status.counts,
+            backgroundColor: ['#4f46e5', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { padding: 10, cornerRadius: 6 }
+          },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, precision: 0 } },
+            x: { grid: { display: false }, ticks: { font: { size: 10.5 } } }
+          }
+        }
+      });
+    }
+
+    // 4. Follow-up Status Chart (Bar)
+    const fuCtx = document.getElementById('userFollowupChart');
+    if (fuCtx && rawData.followups) {
+      new Chart(fuCtx, {
+        type: 'bar',
+        data: {
+          labels: rawData.followups.labels,
+          datasets: [{
+            label: 'Follow-ups',
+            data: rawData.followups.counts,
+            backgroundColor: ['#10b981', '#f59e0b', '#6366f1', '#3b82f6', '#94a3b8'],
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { padding: 10, cornerRadius: 6 }
+          },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, precision: 0 } },
+            x: { grid: { display: false }, ticks: { font: { size: 10.5 } } }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

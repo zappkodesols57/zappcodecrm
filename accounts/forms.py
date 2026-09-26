@@ -1,5 +1,6 @@
 import re
 from django import forms
+from django.db import models
 from django.contrib.auth.forms import UserCreationForm
 from .models import User
 
@@ -38,11 +39,12 @@ class CRMUserCreateForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        from leads.models import HospitalBranch
         if self.user and self.user.hospital:
             allowed = self.user.hospital.get_allowed_roles()
             if self.user.role == User.Role.MANAGER:
@@ -50,10 +52,21 @@ class CRMUserCreateForm(UserCreationForm):
             self.fields["role"].choices = [("", "Select Employee Role")] + [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
+            if "branch" in self.fields:
+                self.fields["branch"].queryset = HospitalBranch.objects.filter(hospital=self.user.hospital, is_active=True)
+                self.fields["branch"].empty_label = "All Branches (Full Access)"
+                self.fields["branch"].required = False
             if "reports_to" in self.fields:
-                self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
+                r_qs = User.objects.filter(hospital=self.user.hospital, is_active=True)
+                if self.user.branch:
+                    r_qs = r_qs.filter(models.Q(branch=self.user.branch) | models.Q(branch__isnull=True))
+                self.fields["reports_to"].queryset = r_qs
         else:
             self.fields["role"].choices = [("", "Select Employee Role")] + list(self.fields["role"].choices)
+            if "branch" in self.fields:
+                self.fields["branch"].queryset = HospitalBranch.objects.filter(is_active=True)
+                self.fields["branch"].empty_label = "All Branches (Full Access)"
+                self.fields["branch"].required = False
 
         if not (self.instance and self.instance.pk):
             self.initial['role'] = ""
@@ -67,6 +80,12 @@ class CRMUserCreateForm(UserCreationForm):
                 "data-placeholder": "Select Employee Role",
             })
         
+        if "branch" in self.fields:
+            self.fields["branch"].widget.attrs.update({
+                "placeholder": "Select Branch (or All Branches)",
+                "data-placeholder": "Select Branch (or All Branches)",
+            })
+
         if "reports_to" in self.fields:
             self.fields["reports_to"].empty_label = "Select Reporting Manager"
             self.fields["reports_to"].widget.attrs.update({
@@ -136,9 +155,17 @@ class CRMUserCreateForm(UserCreationForm):
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
+
+        # Manager, Admin, Super Admin, and Doctor roles should never have self-assign or daily calling target
+        if user.role in (User.Role.DOCTOR, User.Role.ADMIN, User.Role.SUPER_ADMIN, User.Role.MANAGER):
+            allow_self_assign = False
+            bulk_limit = 0
+            if user.role in (User.Role.DOCTOR, User.Role.ADMIN, User.Role.SUPER_ADMIN):
+                daily_target = 0
+
         if not user.custom_permissions:
             user.custom_permissions = {}
-        user.custom_permissions["import_export"] = can_imp
+        user.custom_permissions["import_export"] = bool(can_imp)
         user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
@@ -179,11 +206,12 @@ class CRMUserEditForm(forms.ModelForm):
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        from leads.models import HospitalBranch
         if self.instance and self.instance.pk:
             self.fields["can_import_export"].initial = self.instance.can_import_export
             self.fields["can_delete_master_data"].initial = self.instance.has_dynamic_permission("delete_master_data", default=False)
@@ -198,16 +226,33 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["role"].choices = [("", "Select Employee Role")] + [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
+            if "branch" in self.fields:
+                self.fields["branch"].queryset = HospitalBranch.objects.filter(hospital=self.user.hospital, is_active=True)
+                self.fields["branch"].empty_label = "All Branches (Full Access)"
+                self.fields["branch"].required = False
             if "reports_to" in self.fields:
-                self.fields["reports_to"].queryset = User.objects.filter(hospital=self.user.hospital, is_active=True)
+                r_qs = User.objects.filter(hospital=self.user.hospital, is_active=True)
+                if self.user.branch:
+                    r_qs = r_qs.filter(models.Q(branch=self.user.branch) | models.Q(branch__isnull=True))
+                self.fields["reports_to"].queryset = r_qs
         else:
             self.fields["role"].choices = [("", "Select Employee Role")] + list(self.fields["role"].choices)
+            if "branch" in self.fields:
+                self.fields["branch"].queryset = HospitalBranch.objects.filter(is_active=True)
+                self.fields["branch"].empty_label = "All Branches (Full Access)"
+                self.fields["branch"].required = False
 
         if "role" in self.fields:
             self.fields["role"].empty_label = "Select Employee Role"
             self.fields["role"].widget.attrs.update({
                 "placeholder": "Select Employee Role",
                 "data-placeholder": "Select Employee Role",
+            })
+                
+        if "branch" in self.fields:
+            self.fields["branch"].widget.attrs.update({
+                "placeholder": "Select Branch (or All Branches)",
+                "data-placeholder": "Select Branch (or All Branches)",
             })
                 
         if "reports_to" in self.fields:
@@ -279,9 +324,17 @@ class CRMUserEditForm(forms.ModelForm):
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
+
+        # Manager, Admin, Super Admin, and Doctor roles should never have self-assign or daily calling target
+        if user.role in (User.Role.DOCTOR, User.Role.ADMIN, User.Role.SUPER_ADMIN, User.Role.MANAGER):
+            allow_self_assign = False
+            bulk_limit = 0
+            if user.role in (User.Role.DOCTOR, User.Role.ADMIN, User.Role.SUPER_ADMIN):
+                daily_target = 0
+
         if not user.custom_permissions:
             user.custom_permissions = {}
-        user.custom_permissions["import_export"] = can_imp
+        user.custom_permissions["import_export"] = bool(can_imp)
         user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)

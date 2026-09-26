@@ -127,6 +127,10 @@ def user_list(request):
     if request.user.hospital:
         pending_users = pending_users.filter(hospital=request.user.hospital)
         users_qs = users_qs.filter(hospital=request.user.hospital)
+        # If Branch Manager is scoped to a specific branch, isolate users to that branch only
+        if request.user.role == User.Role.MANAGER and request.user.branch:
+            pending_users = pending_users.filter(branch=request.user.branch)
+            users_qs = users_qs.filter(branch=request.user.branch)
     elif selected_hospital_id and selected_hospital_id.isdigit():
         pending_users = pending_users.filter(hospital_id=int(selected_hospital_id))
         users_qs = users_qs.filter(hospital_id=int(selected_hospital_id))

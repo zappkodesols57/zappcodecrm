@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hospital Configuration Report - {{ hospital_name }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      margin: 0;
+      padding: 15px;
+      font-size: 11px;
+      background: #f8fafc;
+    }
+    .print-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .header-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+    .header-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1e3a8a;
+      letter-spacing: -0.5px;
+    }
+    .header-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+    .header-meta {
+      font-size: 10.5px;
+      color: #64748b;
+      text-align: right;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .stat-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: #2563eb;
+    }
+    .stat-lbl {
+      font-size: 10px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-left: 3px solid #2563eb;
+      padding-left: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      margin-bottom: 16px;
+      font-size: 10.5px;
+    }
+    th {
+      background-color: #f8fafc;
+      color: #334155;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+    }
+    tr:nth-child(even) {
+      background-color: #fbfcfe;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; }
+    .badge-tag { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; margin-right: 3px; margin-bottom: 2px; }
+    .print-controls {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-action {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .btn-close {
+      background: #64748b;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .print-wrapper {
+        max-width: 100%;
+        box-shadow: none;
+        padding: 0;
+      }
+      .print-controls {
+        display: none !important;
+      }
+      tr {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="print-wrapper">
+    <!-- Controls (Hidden on Print) -->
+    <div class="print-controls">
+      <button onclick="window.print()" class="btn-action">
+        🖨️ Print / Save as PDF
+      </button>
+      <button onclick="window.close()" class="btn-close">
+        Close
+      </button>
+    </div>
+
+    <!-- Header Box -->
+    <div class="header-box">
+      <div>
+        <div class="header-title">{{ hospital_name }}</div>
+        <div class="header-subtitle">Hospital Master Configuration & Directory Report</div>
+      </div>
+      <div class="header-meta">
+        <div><strong>Generated:</strong> {{ now|date:"d M Y, h:i A" }}</div>
+        <div><strong>Status:</strong> Active Masters Summary</div>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val">{{ branches.count }}</div>
+        <div class="stat-lbl">Branches</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">{{ departments.count }}</div>
+        <div class="stat-lbl">Departments</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">{{ doctors.count }}</div>
+        <div class="stat-lbl">Doctors</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">{{ diseases.count }}</div>
+        <div class="stat-lbl">Diseases / Conditions</div>
+      </div>
+    </div>
+
+    <!-- 1. Master Mapping Directory Table -->
+    <div class="section-title">🏥 Comprehensive Hospital Configuration Mapping</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 4%;">#</th>
+          <th style="width: 24%;">Hospital Branch</th>
+          <th style="width: 22%;">Department</th>
+          <th style="width: 24%;">Doctor</th>
+          <th style="width: 26%;">Disease / Medical Condition</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in mapping_rows %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><strong>{{ row.branch }}</strong></td>
+          <td>{{ row.department }}</td>
+          <td>{{ row.doctor }}</td>
+          <td>{{ row.disease }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" style="text-align: center; color: #94a3b8; padding: 15px;">No mapping configuration records found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- 2. Hospital Doctors Directory -->
+    <div class="section-title" style="page-break-before: auto;">👨‍⚕️ Doctors Directory & Availability</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 4%;">#</th>
+          <th style="width: 22%;">Doctor Name</th>
+          <th style="width: 22%;">Specialization & Dept</th>
+          <th style="width: 14%;">Consultation Fee</th>
+          <th style="width: 24%;">Associated Branches</th>
+          <th style="width: 14%;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in doctors %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <strong>Dr. {{ doc.name }}</strong>
+            {% if doc.user %}<div style="font-size: 9px; color: #64748b;">User: {{ doc.user.username }}</div>{% endif %}
+          </td>
+          <td>
+            <div>{% if doc.specialization %}{{ doc.specialization }}{% elif doc.department %}{{ doc.department.name }}{% else %}General{% endif %}</div>
+            {% if doc.qualification %}<div style="font-size: 9px; color: #64748b;">{{ doc.qualification }}</div>{% endif %}
+          </td>
+          <td>₹{{ doc.consultation_fee|floatformat:0 }}</td>
+          <td>
+            {% for b in doc.branches.all %}
+              <span class="badge badge-tag">{{ b.name }}</span>
+            {% empty %}
+              <span style="color: #94a3b8;">All Branches</span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if doc.is_active %}
+              <span class="badge badge-active">Active</span>
+            {% else %}
+              <span class="badge badge-inactive">Inactive</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align: center; color: #94a3b8; padding: 12px;">No doctor records available.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div style="text-align: center; font-size: 9.5px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+      Report automatically generated by Hospital Master Configuration System &bull; Confidential &bull; For Internal Hospital Operations
+    </div>
+  </div>
+
+</body>
+</html>

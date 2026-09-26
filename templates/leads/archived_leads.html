@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Archived Leads · {{ request.user.hospital.name|default:"Nelson CRM" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 px-md-2">
+  <!-- Top Title & Action Bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.25rem;">
+        <i class="fa-solid fa-box-archive text-danger"></i>
+        <span>Archived Leads</span>
+      </h5>
+      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2.5 py-1 rounded-pill" style="font-size: 0.78rem;">
+        {{ total_archived }} records
+      </span>
+    </div>
+
+    <!-- Search Form -->
+    <div class="d-flex align-items-center gap-2">
+      <form method="get" class="d-flex align-items-center gap-2">
+        <div class="input-group input-group-sm shadow-xs" style="min-width: 260px;">
+          <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+          <input type="text" name="q" value="{{ q_archived|default:'' }}" class="form-control border-start-0" placeholder="Search by name, mobile, lead code...">
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-xs">Search</button>
+        {% if q_archived %}
+          <a href="{% url 'leads:archived_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 text-danger">
+            <i class="fa-solid fa-rotate-left me-1"></i> Clear
+          </a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <!-- Archived Leads Table Card -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h6 class="fw-bold text-dark mb-0">Archived Records List</h6>
+        <small class="text-muted">
+          Viewing archived leads for: <strong>{{ current_hospital.name|default:"All Businesses" }}</strong>. Restoring a lead moves it back to Active Leads.
+        </small>
+      </div>
+      <div class="text-muted small">
+        Showing {{ leads.start_index|default:0 }} - {{ leads.end_index|default:0 }} of {{ total_archived }} leads
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+          <thead class="bg-light border-bottom">
+            <tr>
+              <th class="ps-4 py-3 text-muted fw-semibold" style="width: 120px;">Lead Code</th>
+              <th class="py-3 text-muted fw-semibold">Patient Name</th>
+              <th class="py-3 text-muted fw-semibold">Mobile & Contact</th>
+              {% if is_global_admin %}
+              <th class="py-3 text-muted fw-semibold">Hospital / Business</th>
+              {% endif %}
+              <th class="py-3 text-muted fw-semibold">Source / Campaign</th>
+              <th class="py-3 text-muted fw-semibold">Assigned To</th>
+              <th class="py-3 text-muted fw-semibold">Archived / Updated</th>
+              <th class="py-3 px-4 text-end text-muted fw-semibold" style="width: 170px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in leads %}
+            <tr>
+              <td class="ps-4 py-3 fw-semibold text-dark">
+                <span class="badge bg-light text-dark border px-2 py-1 font-monospace">#{{ l.lead_code|default:l.id }}</span>
+              </td>
+              <td class="py-3">
+                <a href="{% url 'leads:lead_detail' l.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">
+                  {{ l.name }}
+                </a>
+                {% if l.gender or l.age %}
+                  <div class="text-muted small">
+                    {% if l.gender %}{{ l.gender }}{% endif %}{% if l.gender and l.age %}, {% endif %}{% if l.age %}{{ l.age }} yrs{% endif %}
+                  </div>
+                {% endif %}
+              </td>
+              <td class="py-3">
+                <div class="text-dark fw-medium">{{ l.mobile }}</div>
+                {% if l.email %}
+                  <div class="text-muted small text-truncate" style="max-width: 180px;">{{ l.email }}</div>
+                {% endif %}
+              </td>
+              {% if is_global_admin %}
+              <td class="py-3">
+                <span class="badge bg-light text-dark border">{{ l.hospital.name|default:"General / Academy" }}</span>
+              </td>
+              {% endif %}
+              <td class="py-3">
+                <span class="badge bg-light text-secondary border">
+                  {{ l.campaign.name|default:l.lead_source|default:'Direct Visit' }}
+                </span>
+              </td>
+              <td class="py-3">
+                {% if l.assigned_to %}
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">
+                    <i class="fa-solid fa-user me-1"></i>{{ l.assigned_to.get_full_name|default:l.assigned_to.username }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small fst-italic">Unassigned</span>
+                {% endif %}
+              </td>
+              <td class="py-3 text-muted small">
+                {{ l.updated_at|date:"d M Y, h:i A" }}
+              </td>
+              <td class="px-4 py-3 text-end text-nowrap">
+                <div class="d-inline-flex gap-1 justify-content-end align-items-center">
+                  <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 text-primary" title="View Lead Details">
+                    <i class="fa-solid fa-eye me-1"></i>View
+                  </a>
+                  <a href="{% url 'leads:lead_archive' l.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 fw-semibold" onclick="return confirm('Restore lead #{{ l.lead_code|default:l.id }} ({{ l.name }}) back to Active Leads?')" title="Restore Lead to Active List">
+                    <i class="fa-solid fa-rotate-left me-1"></i>Restore
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <div class="py-4">
+                  <i class="fa-solid fa-box-open fs-1 mb-3 text-secondary opacity-50"></i>
+                  <h6 class="fw-bold text-dark mb-1">No Archived Leads Found</h6>
+                  <p class="small text-muted mb-0">There are currently no archived leads in this scope.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    {% if leads.has_other_pages %}
+    <div class="card-footer bg-white border-top py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <span class="text-muted small">
+        Page {{ leads.number }} of {{ leads.paginator.num_pages }} (Total: {{ total_archived }} leads)
+      </span>
+      <ul class="pagination pagination-sm mb-0">
+        {% if leads.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ leads.previous_page_number }}{% if q_archived %}&q={{ q_archived }}{% endif %}">Previous</a>
+        </li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ leads.number }}</span></li>
+        {% if leads.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ leads.next_page_number }}{% if q_archived %}&q={{ q_archived }}{% endif %}">Next</a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

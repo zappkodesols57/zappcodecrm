@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}Patient Review · {{ lead.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .doctor-review-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .doctor-section-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .table-details th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
+    width: 25%;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 0.75rem 1rem;
+  }
+  .table-details td {
+    color: #1e293b;
+    font-size: 0.88rem;
+    font-weight: 500;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 0.75rem 1rem;
+  }
+  .slot-picker-box {
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+  .slot-changed-box {
+    background: #eff6ff;
+    border: 1.5px solid #93c5fd;
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2" style="max-width: 950px; margin: 0 auto;">
+
+  <!-- Header with single Back button -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold text-dark mb-0">Patient Details &amp; Appointment Review</h4>
+      <p class="text-muted small mb-0">Review patient details, confirm consultation, or adjust appointment slot.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if lead.mobile %}
+      <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold">
+        <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp Message
+      </a>
+      {% endif %}
+      <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-sm btn-secondary rounded-pill px-3">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to Appointments
+      </a>
+    </div>
+  </div>
+
+  <form method="POST" id="doctorReviewForm">
+    {% csrf_token %}
+    <input type="hidden" name="appointment_id" value="{{ appointment.pk|default:'' }}">
+    <input type="hidden" name="slot_modified" id="slotModifiedInput" value="0">
+
+    <!-- Card 1: Patient Information Table -->
+    <div class="doctor-review-card">
+      <div class="doctor-section-header">
+        <span><i class="fa-solid fa-user me-2 text-primary"></i> Patient Information</span>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2.5 py-1">
+          ID: #{{ lead.lead_code|default:lead.pk }}
+        </span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-details mb-0 align-middle">
+          <tbody>
+            <tr>
+              <th>Patient Name</th>
+              <td class="fw-bold text-dark fs-6">{{ lead.name }}</td>
+              <th>Contact Number</th>
+              <td>{{ lead.mobile|default:"—" }}</td>
+            </tr>
+            <tr>
+              <th>Age / Gender</th>
+              <td>{{ lead.custom_data.age|default:"—" }} {% if lead.custom_data.gender %}/ {{ lead.custom_data.gender }}{% endif %}</td>
+              <th>Location / City</th>
+              <td>{{ lead.custom_data.location|default:lead.city|default:"—" }}</td>
+            </tr>
+            <tr>
+              <th>Hospital Branch</th>
+              <td>{{ lead.custom_branch|default:user.hospital.name|default:"Main Branch" }}</td>
+              <th>Department / Specialty</th>
+              <td>{{ lead.custom_dept|default:"General OPD" }}</td>
+            </tr>
+            <tr>
+              <th>Condition / Disease</th>
+              <td>{{ lead.custom_disease|default:"General Consultation" }}</td>
+              <th>Assigned Telecaller</th>
+              <td>
+                {% if lead.assigned_to %}
+                  {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+                {% else %}
+                  <span class="text-muted">Unassigned</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th>Patient Comments / Query</th>
+              <td colspan="3" class="text-dark bg-light bg-opacity-50">
+                {{ lead.notes|default:lead.custom_data.comments|default:"No specific notes recorded." }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Card 2: Appointment Slot & Schedule Details (Editable Slot Option) -->
+    <div class="doctor-review-card">
+      <div class="doctor-section-header">
+        <span><i class="fa-solid fa-calendar-check me-2 text-primary"></i> Appointment &amp; Slot Management</span>
+        <span class="badge {% if appointment.status == 'PENDING_APPROVAL' %}bg-warning text-dark border border-warning-subtle{% elif appointment.status == 'APPROVED' or appointment.status == 'SCHEDULED' %}bg-success text-white{% elif appointment.status == 'COMPLETED' %}bg-success text-white{% else %}bg-secondary text-white{% endif %} px-2.5 py-1">
+          {{ appointment.get_status_display|default:"Pending Approval" }}
+        </span>
+      </div>
+      <div class="p-4">
+        
+        <!-- Current Slot Information Box -->
+        <div class="p-3 mb-3 rounded-3 border bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <span class="text-muted small d-block">Requested / Current Slot:</span>
+            <span class="fw-bold text-dark fs-6">
+              <i class="fa-solid fa-calendar-day text-primary me-1"></i> {{ current_date_display }}
+              &nbsp;·&nbsp;
+              <i class="fa-solid fa-clock text-success me-1"></i> {{ current_time_display }}
+            </span>
+          </div>
+          {% if appointment.status != 'COMPLETED' %}
+          <div>
+            <button type="button" id="btnToggleChangeSlot" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-none fw-semibold" onclick="toggleSlotEditMode()">
+              <i class="fa-solid fa-pen-to-square me-1"></i> Change Slot
+            </button>
+          </div>
+          {% else %}
+          <div>
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-1.5 fw-semibold">
+              <i class="fa-solid fa-circle-check me-1"></i> Consultation Completed
+            </span>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if appointment.status != 'COMPLETED' %}
+        <!-- Slot Edit Section (Hidden by default, opens when Change Slot is clicked) -->
+        <div id="slotEditSection" style="display: none;" class="slot-changed-box mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="fw-bold text-primary">
+              <i class="fa-solid fa-clock-rotate-left me-1"></i> Select New Date &amp; Time Slot
+            </span>
+            <button type="button" class="btn-close btn-sm" onclick="cancelSlotEditMode()"></button>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">New Appointment Date <span class="text-danger">*</span></label>
+              <input type="date" name="new_date" id="inputNewDate" class="form-control" value="{{ current_date_ymd }}" min="{{ today_ymd }}" onchange="handleSlotInputChange(); fetchDoctorCalendarSlots();">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">New Appointment Time / Slot <span class="text-danger">*</span></label>
+              <input type="time" name="new_time" id="inputNewTime" class="form-control" value="{{ current_time_hi }}" onchange="handleSlotInputChange(); highlightSelectedTimeSlot(this.value);">
+            </div>
+
+            <!-- Doctor Calendar Status & Available Slots Grid -->
+            <div class="col-12" id="doctorCalendarAvailabilityWrap">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-dark"><i class="fa-solid fa-calendar-days text-primary me-1"></i> Doctor OPD Calendar &amp; Slots on Selected Date:</span>
+                <span id="calendarStatusBadge" class="badge bg-light text-dark border">Checking Calendar...</span>
+              </div>
+              <div id="doctorSlotsContainer" class="p-2 bg-white rounded border" style="max-height: 140px; overflow-y: auto;">
+                <div id="doctorSlotsGrid" class="d-flex flex-wrap gap-1"></div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small fw-bold text-dark">Doctor's Reschedule Remark for Telecaller / Patient</label>
+              <input type="text" name="doctor_remark" id="inputDoctorRemark" class="form-control" placeholder="e.g. Rescheduled to evening OPD due to morning surgery.">
+              <small class="text-muted" style="font-size: 0.72rem;">Telecaller will be notified to confirm this new slot with the patient.</small>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Optional Doctor's Clinical Notes -->
+        <div class="mb-2">
+          <label class="form-label small fw-bold text-dark">Doctor Clinical Notes / Remarks (Optional)</label>
+          <textarea name="doctor_notes" class="form-control" rows="2" placeholder="Add any consultation instructions or notes...">{{ appointment.doctor_notes|default:"" }}</textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Card 3: Patient Consultation & Appointment History -->
+    {% if all_appointments %}
+    <div class="doctor-review-card">
+      <div class="doctor-section-header">
+        <span><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i> Patient Consultation &amp; Appointment History</span>
+        <span class="badge bg-light text-secondary border px-2.5 py-1">
+          {{ all_appointments|length }} Record(s)
+        </span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-4">Date &amp; Time</th>
+              <th>Doctor</th>
+              <th>Status</th>
+              <th class="pe-4">Doctor Remarks / Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for apt in all_appointments %}
+            <tr {% if apt.pk == appointment.pk %}class="table-active bg-primary bg-opacity-10"{% endif %}>
+              <td class="ps-4 fw-semibold text-dark">
+                <i class="fa-regular fa-calendar text-primary me-1"></i> {{ apt.appointment_date|date:"d M Y" }}
+                {% if apt.appointment_time %}<span class="text-muted ms-1">at {{ apt.appointment_time|time:"h:i A" }}</span>{% endif %}
+                {% if apt.pk == appointment.pk %}<span class="badge bg-primary text-white ms-1" style="font-size: 0.7rem;">Current</span>{% endif %}
+              </td>
+              <td>Dr. {{ apt.doctor_name|default:doctor_name_str|default:"Consultant" }}</td>
+              <td>
+                {% if apt.status == 'COMPLETED' %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check-circle me-1"></i>Completed</span>
+                {% elif apt.status == 'APPROVED' %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i>Confirmed</span>
+                {% elif apt.status == 'SCHEDULED' %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-calendar-days me-1"></i>Next Follow-up</span>
+                {% elif apt.status == 'PENDING_APPROVAL' %}
+                  <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1"><i class="fa-solid fa-hourglass-half me-1"></i>Pending Doctor</span>
+                {% else %}
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1">{{ apt.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="pe-4 text-muted text-break">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Bottom Action Confirmation Buttons -->
+    <div class="d-flex justify-content-between align-items-center mt-4 pt-2 mb-5 flex-wrap gap-2">
+      <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-outline-secondary rounded-pill px-4">
+        Back to Appointments
+      </a>
+      <div class="d-flex gap-2 align-items-center">
+        <!-- If PENDING_APPROVAL: Show Reject and Confirm Appointment / Slot Change -->
+        {% if appointment.status == 'PENDING_APPROVAL' %}
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#rejectDoctorModal">
+            Reject Request
+          </button>
+          <button type="submit" id="btnConfirmSubmit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+            <i class="fa-solid fa-check-circle me-1"></i> Confirm Appointment
+          </button>
+
+        <!-- If APPROVED / CONFIRMED: Show Mark Done (Complete Consultation & Schedule Next Follow-up) -->
+        {% elif appointment.status == 'APPROVED' or appointment.status == 'SCHEDULED' %}
+          <button type="button" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#markDoneModal">
+            <i class="fa-solid fa-circle-check me-1"></i> Mark Consultation Done
+          </button>
+
+        <!-- If COMPLETED: Show Save Clinical Remarks and Add Next Appointment Option -->
+        {% elif appointment.status == 'COMPLETED' %}
+          <button type="button" class="btn btn-outline-primary rounded-pill px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#scheduleNextModal">
+            <i class="fa-solid fa-calendar-plus me-1"></i> Add Next Appointment
+          </button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save Clinical Remarks
+          </button>
+        {% else %}
+          <button type="submit" id="btnConfirmSubmit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+            <i class="fa-solid fa-check-circle me-1"></i> Confirm Appointment
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+  </form>
+
+  <!-- Modal 1: Mark Done / Complete Consultation & Optional Next Appointment (For Confirmed Bookings) -->
+  {% if appointment.status == 'APPROVED' or appointment.status == 'SCHEDULED' %}
+  <div class="modal fade" id="markDoneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg rounded-4">
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="appointment_id" value="{{ appointment.pk|default:'' }}">
+          <input type="hidden" name="action" value="complete">
+          <div class="modal-header border-0 pb-0 pt-4 px-4">
+            <div>
+              <h5 class="modal-title fw-bold text-success mb-0">
+                <i class="fa-solid fa-circle-check text-success me-2"></i>Complete Consultation - {{ lead.name }}
+              </h5>
+              <small class="text-muted">Slot: {{ appointment.appointment_date|date:"d M Y" }} at {{ appointment.appointment_time|time:"h:i A"|default:"Anytime" }}</small>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body px-4 pt-3">
+            
+            <!-- Doctor Clinical Remarks for Current Consultation -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark mb-1">
+                <i class="fa-solid fa-user-doctor text-primary me-1"></i> Doctor Clinical Remarks / Diagnosis Notes <span class="text-muted fw-normal">(Saved to patient history)</span>
+              </label>
+              <textarea name="doctor_notes" class="form-control" rows="3" placeholder="e.g. Patient examined. Prescribed medications for 5 days. Advised follow-up review.">{{ appointment.doctor_notes }}</textarea>
+            </div>
+
+            <!-- Next Appointment Toggle Box -->
+            <div class="p-3 border rounded-3 bg-light bg-opacity-50">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptReviewCheck" onchange="document.getElementById('nextAptReviewWrap').style.display = this.checked ? 'block' : 'none';">
+                <label class="form-check-label fw-bold text-primary small cursor-pointer" for="addNextAptReviewCheck">
+                  <i class="fa-solid fa-calendar-plus me-1"></i> Schedule Next Follow-up Appointment for Patient
+                </label>
+              </div>
+
+              <div id="nextAptReviewWrap" style="display: none;" class="pt-2 mt-2 border-top">
+                <div class="row g-2 mb-2">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark mb-1">Next Appointment Date <span class="text-danger">*</span></label>
+                    <input type="date" name="next_appointment_date" class="form-control form-control-sm" min="{{ today_ymd }}">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark mb-1">Next Time Slot</label>
+                    <input type="time" name="next_appointment_time" class="form-control form-control-sm">
+                  </div>
+                </div>
+                <div>
+                  <label class="form-label small fw-bold text-dark mb-1">Instructions for Telecaller / Patient</label>
+                  <input type="text" name="next_appointment_notes" class="form-control form-control-sm" placeholder="e.g. Review after blood tests / ultrasound report.">
+                  <small class="text-muted" style="font-size: 0.72rem;">Assigned Telecaller will receive notification to call patient and confirm this slot.</small>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
+            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+              <i class="fa-solid fa-check me-1"></i> Save &amp; Mark Completed
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Modal 2: Schedule Next Follow-up Appointment (For Already Completed Patients) -->
+  {% if appointment.status == 'COMPLETED' %}
+  <div class="modal fade" id="scheduleNextModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-4">
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="schedule_next">
+          <div class="modal-header border-0 pb-0 pt-4 px-4">
+            <h5 class="modal-title fw-bold text-primary">
+              <i class="fa-solid fa-calendar-plus me-2"></i>Schedule Next Follow-up Consultation
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body px-4 pt-3">
+            <p class="small text-muted mb-3">Schedule a new follow-up appointment date for patient <strong>{{ lead.name }}</strong>. Assigned telecaller will be notified to confirm with patient.</p>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark mb-1">Appointment Date <span class="text-danger">*</span></label>
+                <input type="date" name="next_appointment_date" class="form-control" min="{{ today_ymd }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark mb-1">Time Slot (Optional)</label>
+                <input type="time" name="next_appointment_time" class="form-control">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-bold text-dark mb-1">Clinical Instructions / Notes</label>
+              <textarea name="next_appointment_notes" class="form-control" rows="2" placeholder="e.g. Next follow-up review after test results."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
+            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+              <i class="fa-solid fa-paper-plane me-1"></i> Schedule Next Appointment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Modal 3: Reject Request Modal -->
+  <div class="modal fade" id="rejectDoctorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg rounded-4">
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="appointment_id" value="{{ appointment.pk|default:'' }}">
+          <input type="hidden" name="action" value="reject">
+          <div class="modal-header border-0 pb-0 pt-4 px-4">
+            <h5 class="modal-title fw-bold text-danger">Reject Appointment Request</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body px-4 pt-3">
+            <p class="small text-muted mb-2">Please state the reason for rejecting this consultation request. Telecaller will be notified immediately.</p>
+            <label class="form-label small fw-bold text-dark mb-1">Reason <span class="text-danger">*</span></label>
+            <textarea name="reject_reason" class="form-control" rows="3" placeholder="e.g. Doctor on emergency rounds / unavailable" required></textarea>
+          </div>
+          <div class="modal-footer border-0 pt-0 pb-4 px-4">
+            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Rejection</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const origDate = "{{ current_date_ymd }}";
+  const origTime = "{{ current_time_hi }}";
+  let isSlotEditOpen = false;
+
+  function toggleSlotEditMode() {
+    isSlotEditOpen = !isSlotEditOpen;
+    const slotBox = document.getElementById('slotEditSection');
+    const toggleBtn = document.getElementById('btnToggleChangeSlot');
+    
+    if (isSlotEditOpen) {
+      slotBox.style.display = 'block';
+      toggleBtn.classList.remove('btn-outline-primary');
+      toggleBtn.classList.add('btn-primary', 'text-white');
+      toggleBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Editing Slot';
+    } else {
+      slotBox.style.display = 'none';
+      toggleBtn.classList.remove('btn-primary', 'text-white');
+      toggleBtn.classList.add('btn-outline-primary');
+      toggleBtn.innerHTML = '<i class="fa-solid fa-pen-to-square me-1"></i> Change Slot';
+    }
+    handleSlotInputChange();
+  }
+
+  function cancelSlotEditMode() {
+    isSlotEditOpen = false;
+    document.getElementById('slotEditSection').style.display = 'none';
+    document.getElementById('inputNewDate').value = origDate;
+    document.getElementById('inputNewTime').value = origTime;
+    const toggleBtn = document.getElementById('btnToggleChangeSlot');
+    toggleBtn.classList.remove('btn-primary', 'text-white');
+    toggleBtn.classList.add('btn-outline-primary');
+    toggleBtn.innerHTML = '<i class="fa-solid fa-pen-to-square me-1"></i> Change Slot';
+    handleSlotInputChange();
+  }
+
+  function handleSlotInputChange() {
+    const curDate = document.getElementById('inputNewDate').value;
+    const curTime = document.getElementById('inputNewTime').value;
+    const btnSubmit = document.getElementById('btnConfirmSubmit');
+    const slotModInput = document.getElementById('slotModifiedInput');
+
+    const hasChanged = isSlotEditOpen && (curDate !== origDate || curTime !== origTime);
+
+    if (hasChanged) {
+      slotModInput.value = "1";
+      btnSubmit.className = "btn btn-primary rounded-pill px-4 fw-bold shadow-sm";
+      btnSubmit.innerHTML = '<i class="fa-solid fa-clock-rotate-left me-1"></i> Confirm Slot Change';
+    } else {
+      slotModInput.value = "0";
+      btnSubmit.className = "btn btn-success rounded-pill px-4 fw-bold shadow-sm";
+      btnSubmit.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Confirm Appointment';
+    }
+  }
+
+  // Doctor Calendar Real-Time Slots Fetcher
+  const doctorNameStr = "{{ doctor_name_str|default:user.get_full_name|default:user.username|escapejs }}";
+
+  function fetchDoctorCalendarSlots() {
+    const dateVal = document.getElementById("inputNewDate").value;
+    const badge = document.getElementById("calendarStatusBadge");
+    const grid = document.getElementById("doctorSlotsGrid");
+    const selectedTime = document.getElementById("inputNewTime").value;
+
+    if (!dateVal) {
+      if (badge) badge.innerText = "Select Date";
+      if (grid) grid.innerHTML = '<span class="text-muted small">Please select a valid date.</span>';
+      return;
+    }
+
+    if (badge) {
+      badge.className = "badge bg-info bg-opacity-10 text-primary border";
+      badge.innerText = "Checking Slots...";
+    }
+
+    fetch(`/leads/api/doctor-slots/?doctor=${encodeURIComponent(doctorNameStr)}&date=${encodeURIComponent(dateVal)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_on_leave) {
+          badge.className = "badge bg-danger text-white";
+          badge.innerText = `On Leave: ${data.leave_reason || 'Personal Leave'}`;
+          grid.innerHTML = `<span class="text-danger small fw-semibold"><i class="fa-solid fa-circle-exclamation me-1"></i> Doctor is scheduled on leave on this date.</span>`;
+          return;
+        }
+
+        if (data.is_off) {
+          badge.className = "badge bg-warning text-dark border";
+          badge.innerText = `Weekly Off (${data.off_day_name || 'Off'})`;
+          grid.innerHTML = `<span class="text-warning text-dark small fw-semibold"><i class="fa-solid fa-calendar-xmark me-1"></i> Doctor is off on ${data.off_day_name || 'this day'}.</span>`;
+          return;
+        }
+
+        if (data.slots && data.slots.length > 0) {
+          const availableCnt = data.slots.filter(s => s.status === 'available').length;
+          badge.className = "badge bg-success bg-opacity-10 text-success border border-success-subtle";
+          badge.innerText = `${availableCnt} Slots Available`;
+
+          let html = '';
+          data.slots.forEach(slot => {
+            const isAvail = (slot.status === 'available');
+            const isSel = (selectedTime && selectedTime.substring(0, 5) === slot.time_24.substring(0, 5));
+            let btnClass = 'btn-outline-secondary opacity-50';
+            if (isAvail) btnClass = isSel ? 'btn-primary text-white' : 'btn-outline-success';
+            else if (slot.status === 'booked') btnClass = 'btn-light text-muted border';
+
+            html += `
+              <button type="button" class="btn btn-xs rounded-pill px-2.5 py-1 ${btnClass} slot-btn" 
+                style="font-size: 0.76rem;" 
+                data-time="${slot.time_24}"
+                onclick="selectCalendarSlot('${slot.time_24}')"
+                ${!isAvail ? 'disabled' : ''}
+                title="${slot.status_text}">
+                ${slot.time_12} ${isSel ? '✓' : ''}
+              </button>
+            `;
+          });
+          grid.innerHTML = html;
+        } else {
+          badge.className = "badge bg-secondary text-white";
+          badge.innerText = "No OPD Slots";
+          grid.innerHTML = '<span class="text-muted small">No regular OPD slots configured on this date.</span>';
+        }
+      })
+      .catch(err => {
+        if (badge) {
+          badge.className = "badge bg-light text-dark border";
+          badge.innerText = "Calendar Ready";
+        }
+      });
+  }
+
+  function selectCalendarSlot(time24) {
+    const timeInput = document.getElementById("inputNewTime");
+    if (timeInput) {
+      timeInput.value = time24;
+      handleSlotInputChange();
+      highlightSelectedTimeSlot(time24);
+    }
+  }
+
+  function highlightSelectedTimeSlot(timeVal) {
+    const grid = document.getElementById("doctorSlotsGrid");
+    if (!grid) return;
+    const btns = grid.querySelectorAll(".slot-btn");
+    btns.forEach(btn => {
+      const btnTime = btn.getAttribute("data-time");
+      if (btnTime && timeVal && btnTime.substring(0, 5) === timeVal.substring(0, 5)) {
+        btn.className = "btn btn-xs rounded-pill px-2.5 py-1 btn-primary text-white slot-btn";
+      } else if (!btn.disabled) {
+        btn.className = "btn btn-xs rounded-pill px-2.5 py-1 btn-outline-success slot-btn";
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    fetchDoctorCalendarSlots();
+  });
+</script>
+{% endblock %}

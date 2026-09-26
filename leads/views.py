@@ -110,11 +110,18 @@ CHAR_FILTER_FIELDS = [
 ]
 
 
-@login_required
-def lead_list(request):
-    leads = Lead.objects.select_related(
-        "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
-    ).filter(is_archived=False)
+def get_filtered_leads(request, base_qs=None):
+    """
+    Applies all tenant scoping, search, sidebar filters, date filters, quick filters,
+    and sorting to a leads queryset based on request GET parameters.
+    Used by lead_list and lead_detail queue navigation to keep filter state across prev/next iteration.
+    """
+    if base_qs is not None:
+        leads = base_qs
+    else:
+        leads = Lead.objects.select_related(
+            "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
+        ).filter(is_archived=False)
 
     # --- Business-Tenant Scoping ---
     is_global_admin = request.user.is_superuser or (
@@ -131,7 +138,19 @@ def lead_list(request):
     if request.user.hospital:
         # Tenant user: always scoped to their business
         leads = leads.filter(hospital=request.user.hospital)
-        if not request.user.can_view_all_leads:
+        # Branch-level isolation for Branch Managers / Attendants
+        if request.user.role == User.Role.MANAGER and request.user.branch:
+            b_name = request.user.branch.name
+            branch_team = User.objects.filter(hospital=request.user.hospital, branch=request.user.branch)
+            leads = leads.filter(
+                Q(custom_data__hospital_branch__iexact=b_name) |
+                Q(custom_data__branch__iexact=b_name) |
+                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                Q(custom_data__dyn_branch__iexact=b_name) |
+                Q(assigned_to__in=branch_team) |
+                Q(created_by__in=branch_team)
+            )
+        elif not request.user.can_view_all_leads:
             if request.user.can_view_team_leads:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
@@ -240,17 +259,10 @@ def lead_list(request):
                 emp_q |= Q(assigned_to__isnull=True)
             elif emp_val and emp_val.isdigit():
                 uid = int(emp_val)
-                # Include leads assigned to this user OR created by this user
-                # (mirrors the base scope which shows created_by leads to the user)
                 emp_q |= Q(assigned_to_id=uid) | Q(created_by_id=uid)
         leads = leads.filter(emp_q)
 
     # 6. Deal Status / Stage filter
-    # -----------------------------------------------------------------------
-    # display_status labels are computed by the `custom_deal_status` @property
-    # and are NOT stored in any single DB column. We translate each label into
-    # positive Q() conditions that match the relevant DB fields.
-    # -----------------------------------------------------------------------
     if selected_deal_statuses:
         st_q = Q()
         for ds_val in selected_deal_statuses:
@@ -259,7 +271,6 @@ def lead_list(request):
             v = ds_val.strip()
             v_up = v.upper()
 
-            # ---- Payment Done ----
             if 'PAYMENT DONE' in v_up or v_up in ('WON', 'ADMISSION DONE', 'ADMISSION'):
                 sub_q = (
                     Q(deal_status=DealStatus.WON) |
@@ -269,8 +280,6 @@ def lead_list(request):
                     Q(custom_data__deal_status__icontains='Won') |
                     Q(custom_data__deal_status__icontains='Admission Done')
                 )
-
-            # ---- Booking Confirmed / Awaiting Approval / Booked ----
             elif any(k in v_up for k in ('BOOKING CONFIRMED', 'BOOKING APPROVAL', 'AWAITING APPROVAL', 'BOOKED')):
                 sub_q = (
                     Q(custom_data__appointment_status__icontains='Book') |
@@ -280,68 +289,50 @@ def lead_list(request):
                     Q(custom_data__appointment_status__iexact='YES') |
                     Q(custom_data__appo_booked_date__isnull=False)
                 )
-
-            # ---- Payment Pending ----
             elif 'PAYMENT PENDING' in v_up or 'BILLING PENDING' in v_up:
                 sub_q = (
                     Q(custom_data__appointment_status__icontains='Complet') |
                     Q(custom_data__appointment_status__icontains='Done') |
                     Q(custom_data__appointment_status__icontains='Visit')
                 )
-
-            # ---- Follow-up Needed ----
             elif 'FOLLOW' in v_up:
                 sub_q = (
                     Q(custom_data__appointment_status__icontains='Follow') |
                     Q(next_followup_date__isnull=False) |
                     Q(custom_data__deal_status__icontains='Follow')
                 )
-
-            # ---- Not Interested ----
             elif 'NOT INT' in v_up or 'NOT INTERESTED' in v_up:
                 sub_q = (
                     Q(custom_data__appointment_status__icontains='Not Int') |
                     Q(custom_data__deal_status__icontains='Not Int') |
                     Q(deal_status=DealStatus.LOST, custom_data__appointment_status__icontains='Not Int')
                 )
-
-            # ---- Cancelled ----
             elif 'CANCEL' in v_up:
                 sub_q = (
                     Q(custom_data__appointment_status__icontains='Cancel') |
                     Q(custom_data__deal_status__icontains='Cancel')
                 )
-
-            # ---- Lost ----
             elif v_up == 'LOST':
                 sub_q = (
                     Q(deal_status=DealStatus.LOST) |
                     Q(custom_data__deal_status__icontains='Lost')
                 )
-
-            # ---- Assigned (has an attendant assigned) ----
             elif 'ASSIGNED' in v_up:
                 sub_q = (
                     Q(assigned_to__isnull=False) |
                     Q(custom_data__deal_status__iexact='Assigned')
                 )
-
-            # ---- New (added today, unassigned) ----
             elif v_up == 'NEW':
                 today_date = timezone.localdate()
                 sub_q = (
                     Q(assigned_to__isnull=True) &
                     (Q(created_at__date=today_date) | Q(inquiry_date=today_date))
                 )
-
-            # ---- Open (unassigned, older than today) ----
             elif v_up == 'OPEN':
                 today_date = timezone.localdate()
                 sub_q = Q(assigned_to__isnull=True) & ~(
                     Q(created_at__date=today_date) | Q(inquiry_date=today_date)
                 )
-
-            # ---- Fallback: try DB field + custom_data + stage name match ----
             else:
                 sub_q = (
                     Q(deal_status__iexact=ds_val) |
@@ -351,7 +342,6 @@ def lead_list(request):
 
             st_q |= sub_q
         leads = leads.filter(st_q)
-
 
     if selected_stages:
         stg_q = Q()
@@ -396,7 +386,6 @@ def lead_list(request):
                 prio_q |= Q(custom_data__priority__iexact=p_val) | Q(temperature__iexact=p_val)
         leads = leads.filter(prio_q)
         
-        # When filtering by Priority/Temperature (e.g. HOT), exclude converted / closed / booked / paid / cancelled leads
         p_vals_upper = [str(x).upper() for x in (selected_priorities + selected_temperatures)]
         if any(x in ['HOT', 'WARM', 'COLD', 'FREEZE'] for x in p_vals_upper):
             leads = leads.exclude(
@@ -419,13 +408,11 @@ def lead_list(request):
                 loc_q |= Q(location__iexact=loc_val) | Q(city__iexact=loc_val) | Q(custom_data__location__iexact=loc_val)
         leads = leads.filter(loc_q)
 
-    # Legacy field fallback
     city = request.GET.get("city")
     if city and not selected_locations:
         leads = leads.filter(city__iexact=city)
 
     import_job_id = request.GET.get("import_job")
-    selected_import_job = None
     if import_job_id:
         from imports.models import ImportJob
         selected_import_job = ImportJob.objects.filter(pk=import_job_id).first()
@@ -481,7 +468,6 @@ def lead_list(request):
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]) & Q(updated_at__date=today))
         ).distinct()
     elif quick_filter == "upcoming_followups" or followup_filter == "upcoming":
-        # Include leads with next_followup_date >= today OR FollowUp.followup_date >= today
         leads = leads.filter(
             Q(next_followup_date__gte=today) | Q(followups__followup_date__gte=today)
         ).distinct()
@@ -496,8 +482,6 @@ def lead_list(request):
         leads = leads.filter(
             Q(next_followup_date=today) | Q(followups__followup_date=today)
         ).distinct()
-
-    is_nelson = not request.user.hospital or 'nelson' in request.user.hospital.name.lower()
 
     appo_book = request.GET.get("appo_book")
     if appo_book == "YES":
@@ -516,7 +500,7 @@ def lead_list(request):
             Q(deal_status='WON') |
             Q(admission_status='ADMISSION_DONE')
         ).distinct()
-    # Sorting logic
+
     sort_by = request.GET.get("sort", "-created_at")
     sort_mapping = {
         "-created_at": "-created_at",
@@ -530,6 +514,45 @@ def lead_list(request):
     }
     order_field = sort_mapping.get(sort_by, "-created_at")
     leads = leads.order_by(order_field)
+    return leads
+
+
+@login_required
+def lead_list(request):
+    leads = get_filtered_leads(request)
+
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    q = request.GET.get("q", "").strip()
+    selected_campaigns = request.GET.getlist("campaign")
+    selected_sources = request.GET.getlist("lead_source")
+    selected_courses = request.GET.getlist("course")
+    selected_departments = request.GET.getlist("department")
+    selected_doctors = request.GET.getlist("doctor")
+    selected_assigned = request.GET.getlist("assigned_to")
+    selected_deal_statuses = request.GET.getlist("deal_status")
+    selected_admission_statuses = request.GET.getlist("admission_status")
+    selected_appointment_statuses = request.GET.getlist("appointment_status")
+    selected_priorities = request.GET.getlist("priority")
+    selected_temperatures = request.GET.getlist("temperature")
+    selected_locations = request.GET.getlist("location")
+    selected_stages = request.GET.getlist("stage")
+
+    sort_by = request.GET.get("sort", "-created_at")
+    date_from = request.GET.get("date_from") or request.GET.get("date")
+    date_to = request.GET.get("date_to")
+
+    import_job_id = request.GET.get("import_job")
+    selected_import_job = None
+    if import_job_id:
+        from imports.models import ImportJob
+        selected_import_job = ImportJob.objects.filter(pk=import_job_id).first()
 
     # Calculate active filters count
     active_filters_count = (
@@ -1042,6 +1065,9 @@ def team_history(request):
                 pass
         active_date_label = f"Custom: {date_from or 'Start'} to {date_to or 'End'}"
 
+    # Apply distinct to avoid inflated cartesian product counts from multi-table joins (followups, notes, activities)
+    leads = leads.distinct()
+
     # For hospital businesses: no course/stage/admission filters needed
     # (these are Zappcode Academy-specific)
 
@@ -1060,13 +1086,17 @@ def team_history(request):
             hospital=hospital,
         ).order_by("first_name", "last_name")
 
-    # For Zappcode Academy: keep user_counts for card display (not used for hospital)
+    # Calculate all_members_count across leads before single user selection
+    all_members_count = leads.distinct().count()
     user_counts = []
-    if not is_hospital_business:
-        for member in team_members:
-            c = leads.filter(assigned_to=member).count()
-            user_counts.append({"user": member, "count": c, "is_self": member == request.user})
-        user_counts.sort(key=lambda x: x["count"], reverse=True)
+    for member in team_members:
+        if is_hospital_business and member.role == User.Role.DOCTOR:
+            doc_name = member.get_full_name() or member.username
+            c = leads.filter(Q(assigned_to=member) | Q(custom_data__doctor__icontains=doc_name)).distinct().count()
+        else:
+            c = leads.filter(assigned_to=member).distinct().count()
+        user_counts.append({"user": member, "count": c, "is_self": member == request.user})
+    user_counts.sort(key=lambda x: x["count"], reverse=True)
 
     # Filter by selected Lead Attendant (assigned_to)
     selected_attendant_id = request.GET.get("attendant_id", "").strip()
@@ -1085,13 +1115,38 @@ def team_history(request):
             doctor_name = selected_doctor.get_full_name() or selected_doctor.username
             leads = leads.filter(custom_data__doctor__icontains=doctor_name)
 
-    # Legacy: keep selected_user for zappcode template compatibility
+    # Filter by selected team member (for both Academy and Hospital)
     selected_user_id = request.GET.get("user_id", "").strip()
     selected_user = None
-    if not is_hospital_business and selected_user_id and selected_user_id.isdigit():
+    if selected_user_id and selected_user_id.isdigit():
         selected_user = team_members.filter(id=int(selected_user_id)).first()
         if selected_user:
-            leads = leads.filter(assigned_to=selected_user)
+            if is_hospital_business and selected_user.role == User.Role.DOCTOR:
+                dname = selected_user.get_full_name() or selected_user.username
+                leads = leads.filter(Q(assigned_to=selected_user) | Q(custom_data__doctor__icontains=dname))
+            else:
+                leads = leads.filter(assigned_to=selected_user)
+
+    # Course filter (Zappcode Academy)
+    selected_courses = request.GET.getlist("course")
+    if selected_courses:
+        valid_course_ids = [int(c) for c in selected_courses if str(c).isdigit()]
+        if valid_course_ids:
+            leads = leads.filter(course_id__in=valid_course_ids)
+
+    # Stage filter (Zappcode Academy)
+    selected_stages = request.GET.getlist("stage")
+    if selected_stages:
+        valid_stage_ids = [int(s) for s in selected_stages if str(s).isdigit()]
+        if valid_stage_ids:
+            leads = leads.filter(stage_id__in=valid_stage_ids)
+
+    # Admission status filter (Zappcode Academy)
+    selected_admission_statuses = request.GET.getlist("admission_status")
+    if selected_admission_statuses:
+        valid_statuses = [st for st in selected_admission_statuses if st]
+        if valid_statuses:
+            leads = leads.filter(admission_status__in=valid_statuses)
 
     # Available distinct years and months with data for dropdowns
     available_years_raw = Lead.objects.filter(
@@ -1123,6 +1178,9 @@ def team_history(request):
         + (1 if selected_attendant else 0)
         + (1 if selected_doctor else 0)
         + (1 if selected_user else 0)
+        + (1 if selected_courses else 0)
+        + (1 if selected_stages else 0)
+        + (1 if selected_admission_statuses else 0)
         + (1 if q else 0)
     )
 
@@ -1153,13 +1211,14 @@ def team_history(request):
         "active": "team_history",
         "page_obj": page_obj,
         "total_count": paginator.count,
+        "all_members_count": all_members_count,
         "q": q,
         # Hospital-specific filters
         "attendants": attendants,
         "doctors": doctors,
         "selected_attendant": selected_attendant,
         "selected_doctor": selected_doctor,
-        # Academy-specific filters (kept for zapp template)
+        # Academy & Hospital member filters
         "courses": Course.objects.filter(is_active=True).order_by("name"),
         "stages": LeadStage.objects.filter(is_active=True).order_by("order", "name"),
         "admission_status_choices": AdmissionStatus.choices,
@@ -1174,9 +1233,9 @@ def team_history(request):
         "date_from": date_from,
         "date_to": date_to,
         "active_date_label": active_date_label,
-        "selected_courses": [],
-        "selected_stages": [],
-        "selected_admission_statuses": [],
+        "selected_courses": selected_courses,
+        "selected_stages": selected_stages,
+        "selected_admission_statuses": selected_admission_statuses,
         "current_sort": sort_by,
         "active_filters_count": active_filters_count,
         "query_params": query_params.urlencode(),
@@ -1188,6 +1247,282 @@ def team_history(request):
     }
     template = "leads/nel_team_history.html" if is_hospital_business else "leads/zapp_team_history.html"
     return render(request, template, context)
+
+
+@login_required
+def user_performance_analysis(request, user_id):
+    """
+    Dedicated User Performance Analysis view:
+    Shows clean charts and KPIs for an individual team member:
+    - Lead Temperature Distribution (Hot, Warm, Cold, Freeze, Uncontacted, etc.)
+    - Deal / Admission / Appointment Status Breakdown (Won/Confirmed, Open, Lost, Hold)
+    - Follow-ups Performance & Compliance (Completed, Pending, Rescheduled, Overdue)
+    - Day-wise / Month-wise Lead Trend Analysis
+    - Key Metrics: Total Leads, Won/Converted, Conversion Rate, Followups done, etc.
+    Supported Period filters: Today, Last 7 Days, This Month, Last Month, All Time, Custom range.
+    """
+    import json
+    from datetime import date, timedelta, datetime
+    from followups.models import FollowUp, Activity, Note
+    from accounts.models import Hospital
+
+    target_user = get_object_or_404(User, id=user_id)
+
+    # Permission check: superadmin, admin, manager, or user viewing own analytics
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if not (
+        is_global_admin
+        or request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]
+        or request.user.id == target_user.id
+    ):
+        messages.error(request, "You do not have permission to view this performance analysis.")
+        return redirect("leads:team_history")
+
+    hospital = target_user.hospital or request.user.hospital
+    is_hospital_business = False
+    if hospital:
+        btype = (hospital.settings or {}).get("business_type", "")
+        if not btype:
+            name_lower = (hospital.name or "").lower()
+            if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
+                btype = "hospital"
+        is_hospital_business = str(btype).strip().lower() == "hospital"
+
+    today = timezone.localdate()
+
+    # Base queryset for this user's leads
+    if is_hospital_business and target_user.role == User.Role.DOCTOR:
+        dname = target_user.get_full_name() or target_user.username
+        leads = Lead.objects.filter(is_archived=False).filter(
+            Q(assigned_to=target_user) | Q(custom_data__doctor__icontains=dname)
+        )
+    else:
+        leads = Lead.objects.filter(is_archived=False, assigned_to=target_user)
+
+    if hospital:
+        leads = leads.filter(hospital=hospital)
+
+    # Date filter preset (Default to 'all' so historical imported data is immediately shown on charts)
+    period = request.GET.get("period", "all").strip()
+    date_from_str = request.GET.get("date_from", "").strip()
+    date_to_str = request.GET.get("date_to", "").strip()
+
+    start_date = None
+    end_date = None
+    period_label = "All Time"
+
+    if period == "today":
+        start_date = today
+        end_date = today
+        period_label = f"Today ({today.strftime('%d %b %Y')})"
+    elif period == "7days":
+        start_date = today - timedelta(days=6)
+        end_date = today
+        period_label = f"Last 7 Days ({start_date.strftime('%d %b')} - {end_date.strftime('%d %b %Y')})"
+    elif period == "month":
+        start_date = today.replace(day=1)
+        end_date = today
+        period_label = f"This Month ({today.strftime('%B %Y')})"
+    elif period == "last_month":
+        first_this_month = today.replace(day=1)
+        end_last_month = first_this_month - timedelta(days=1)
+        start_date = end_last_month.replace(day=1)
+        end_date = end_last_month
+        period_label = f"Last Month ({start_date.strftime('%B %Y')})"
+    elif period == "all":
+        period_label = "All Time"
+    elif date_from_str or date_to_str:
+        period = "custom"
+        try:
+            if date_from_str:
+                start_date = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            if date_to_str:
+                end_date = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            period_label = f"Custom: {start_date or 'Start'} to {end_date or 'End'}"
+        except ValueError:
+            pass
+
+    # Apply date bounds to leads (checking inquiry_date or created_at)
+    if start_date:
+        leads = leads.filter(
+            Q(inquiry_date__gte=start_date) | Q(created_at__date__gte=start_date)
+        )
+    if end_date:
+        leads = leads.filter(
+            Q(inquiry_date__lte=end_date) | Q(created_at__date__lte=end_date)
+        )
+
+    # 1. Key Metrics (KPIs)
+    total_leads_count = leads.count()
+    won_leads_count = leads.filter(
+        Q(deal_status=DealStatus.WON)
+        | Q(admission_status=AdmissionStatus.ADMISSION_DONE)
+        | Q(deal_status="BOOKING CONFIRMED")
+        | Q(deal_status="PAYMENT DONE")
+    ).distinct().count()
+
+    lost_leads_count = leads.filter(
+        Q(deal_status=DealStatus.LOST) | Q(admission_status=AdmissionStatus.CANCELLED)
+    ).count()
+
+    open_leads_count = leads.filter(
+        deal_status=DealStatus.OPEN
+    ).exclude(admission_status=AdmissionStatus.ADMISSION_DONE).count()
+
+    conversion_rate = round((won_leads_count / total_leads_count * 100), 1) if total_leads_count > 0 else 0.0
+
+    # Follow-ups counts for target user
+    user_followups = FollowUp.objects.filter(created_by=target_user)
+    if start_date:
+        user_followups = user_followups.filter(followup_date__gte=start_date)
+    if end_date:
+        user_followups = user_followups.filter(followup_date__lte=end_date)
+
+    total_followups_count = user_followups.count()
+    completed_followups_count = user_followups.filter(followup_status__in=["COMPLETED", "DONE"]).count()
+    pending_followups_count = user_followups.filter(followup_status="PENDING").count()
+    followup_completion_rate = round((completed_followups_count / total_followups_count * 100), 1) if total_followups_count > 0 else 0.0
+
+    # 2. Temperature Distribution Data
+    temp_counts = {
+        "Hot": leads.filter(temperature=LeadTemperature.HOT).count(),
+        "Warm": leads.filter(temperature=LeadTemperature.WARM).count(),
+        "Cold": leads.filter(temperature=LeadTemperature.COLD).count(),
+        "Freeze": leads.filter(temperature=LeadTemperature.FREEZE).count(),
+        "Uncontacted": leads.filter(temperature=LeadTemperature.UNCONTACTED).count(),
+    }
+    # Include not picked if present
+    not_picked_count = leads.filter(temperature=LeadTemperature.NOT_PICKED).count()
+    if not_picked_count > 0:
+        temp_counts["Not Picked"] = not_picked_count
+
+    # 3. Status Distribution Data
+    if is_hospital_business:
+        status_counts = {
+            "Open": leads.filter(deal_status=DealStatus.OPEN).count(),
+            "Appointments Booked": leads.filter(deal_status="BOOKING CONFIRMED").count(),
+            "Payment Done": leads.filter(deal_status="PAYMENT DONE").count(),
+            "Hold": leads.filter(deal_status=DealStatus.HOLD).count(),
+            "Lost / Cancelled": leads.filter(deal_status=DealStatus.LOST).count(),
+        }
+    else:
+        status_counts = {
+            "Open Leads": leads.filter(deal_status=DealStatus.OPEN).exclude(admission_status=AdmissionStatus.ADMISSION_DONE).count(),
+            "Admissions Done": leads.filter(admission_status=AdmissionStatus.ADMISSION_DONE).count(),
+            "Interested / Applied": leads.filter(admission_status__in=[AdmissionStatus.INTERESTED, AdmissionStatus.APPLIED]).count(),
+            "On Hold": leads.filter(deal_status=DealStatus.HOLD).count(),
+            "Lost": leads.filter(deal_status=DealStatus.LOST).count(),
+        }
+
+    # 4. Day-wise or Month-wise Performance Trend
+    trend_labels = []
+    trend_counts = []
+    trend_won_counts = []
+
+    if period in ["today", "7days", "month", "last_month"] or (start_date and end_date and (end_date - start_date).days <= 35):
+        # Day-wise trend for short range
+        calc_start = start_date or (today - timedelta(days=29))
+        calc_end = end_date or today
+        curr = calc_start
+        while curr <= calc_end:
+            label = curr.strftime("%d %b")
+            trend_labels.append(label)
+            day_leads = leads.filter(Q(inquiry_date=curr) | Q(created_at__date=curr))
+            trend_counts.append(day_leads.count())
+            day_won = day_leads.filter(
+                Q(deal_status=DealStatus.WON)
+                | Q(admission_status=AdmissionStatus.ADMISSION_DONE)
+                | Q(deal_status="BOOKING CONFIRMED")
+                | Q(deal_status="PAYMENT DONE")
+            ).count()
+            trend_won_counts.append(day_won)
+            curr += timedelta(days=1)
+    else:
+        # Month-wise trend (All Time / Custom long range)
+        from dateutil.relativedelta import relativedelta
+        # Discover actual distinct months with leads for this user or last 12 months
+        distinct_months = list(leads.filter(inquiry_date__isnull=False).dates("inquiry_date", "month", order="ASC"))
+        if not distinct_months:
+            curr_m = today.replace(day=1) - relativedelta(months=5)
+            while curr_m <= today.replace(day=1):
+                distinct_months.append(curr_m)
+                curr_m += relativedelta(months=1)
+
+        for curr_m in distinct_months:
+            label = curr_m.strftime("%b %Y")
+            trend_labels.append(label)
+            m_leads = leads.filter(
+                Q(inquiry_date__year=curr_m.year, inquiry_date__month=curr_m.month)
+                | Q(created_at__year=curr_m.year, created_at__month=curr_m.month)
+            )
+            trend_counts.append(m_leads.count())
+            m_won = m_leads.filter(
+                Q(deal_status=DealStatus.WON)
+                | Q(admission_status=AdmissionStatus.ADMISSION_DONE)
+                | Q(deal_status="BOOKING CONFIRMED")
+                | Q(deal_status="PAYMENT DONE")
+            ).count()
+            trend_won_counts.append(m_won)
+
+    # 5. Follow-ups Status Breakdown Chart Data
+    fu_status_counts = {
+        "Completed": user_followups.filter(followup_status__in=["COMPLETED", "DONE"]).count(),
+        "Pending": user_followups.filter(followup_status="PENDING").count(),
+        "Rescheduled": user_followups.filter(followup_status="RESCHEDULED").count(),
+        "Interested": user_followups.filter(followup_status="INTERESTED").count(),
+        "Not Connected / DNP": user_followups.filter(followup_status__in=["DNP", "NOT_CONNECTED"]).count(),
+    }
+
+    # Chart datasets in clean JSON
+    chart_data = {
+        "temperature": {
+            "labels": list(temp_counts.keys()),
+            "counts": list(temp_counts.values()),
+        },
+        "status": {
+            "labels": list(status_counts.keys()),
+            "counts": list(status_counts.values()),
+        },
+        "trend": {
+            "labels": trend_labels,
+            "leads": trend_counts,
+            "won": trend_won_counts,
+        },
+        "followups": {
+            "labels": list(fu_status_counts.keys()),
+            "counts": list(fu_status_counts.values()),
+        }
+    }
+
+    # Recent 10 leads assigned to user
+    recent_leads = leads.order_by("-updated_at")[:10]
+
+    context = {
+        "active": "team_history",
+        "target_user": target_user,
+        "current_hospital": hospital,
+        "is_hospital_business": is_hospital_business,
+        "period": period,
+        "period_label": period_label,
+        "date_from": date_from_str,
+        "date_to": date_to_str,
+        # KPIs
+        "total_leads_count": total_leads_count,
+        "won_leads_count": won_leads_count,
+        "lost_leads_count": lost_leads_count,
+        "open_leads_count": open_leads_count,
+        "conversion_rate": conversion_rate,
+        "total_followups_count": total_followups_count,
+        "completed_followups_count": completed_followups_count,
+        "pending_followups_count": pending_followups_count,
+        "followup_completion_rate": followup_completion_rate,
+        # Chart JSON
+        "chart_data_json": json.dumps(chart_data),
+        "recent_leads": recent_leads,
+    }
+    return render(request, "leads/user_performance_analysis.html", context)
 
 
 @login_required
@@ -1374,38 +1709,82 @@ def lead_edit(request, pk):
             has_call_interaction = has_call_remarks or has_call_dates
             
             try:
-                # If payment is done / deal won, keep stage as Payment Done / Admission Done
                 is_won = saved_lead.deal_status == DealStatus.WON or saved_lead.admission_status == AdmissionStatus.ADMISSION_DONE or bool(cd.get('total') and float(cd.get('total') or 0) > 0)
-                if is_won:
-                    won_stage = LeadStage.objects.filter(name__iexact='Admission').first() or \
-                                LeadStage.objects.filter(name__iexact='Payment Done').first() or \
-                                LeadStage.objects.filter(name__iexact='Visited').first()
-                    if won_stage:
-                        saved_lead.stage = won_stage
+                if is_lead_hospital_type:
+                    # --- HOSPITAL LEAD STAGE RESOLUTION ---
+                    if is_won:
+                        won_stage = LeadStage.objects.filter(name__iexact='Payment Done').first() or \
+                                    LeadStage.objects.filter(name__iexact='Appointment Completed').first()
+                        if won_stage:
+                            saved_lead.stage = won_stage
                         saved_lead.deal_status = DealStatus.WON
                         saved_lead.admission_status = AdmissionStatus.ADMISSION_DONE
                         cd['deal_status'] = 'Won (Payment Done)'
-                        cd['appointment_status'] = 'Payment Done'
+                        cd['appointment_status'] = cd.get('appointment_status') or 'Payment Done'
                         saved_lead.custom_data = cd
-                elif cd.get('appointment_status'):
-                    apt_st = cd.get('appointment_status')
-                    cd['deal_status'] = apt_st
-                    stage_match = LeadStage.objects.filter(name__iexact=apt_st).first()
-                    if stage_match:
-                        saved_lead.stage = stage_match
+                    elif cd.get('appointment_status'):
+                        apt_st = cd.get('appointment_status')
+                        cd['deal_status'] = apt_st
+                        stage_match = LeadStage.objects.filter(name__iexact=apt_st).first()
+                        if not stage_match:
+                            apt_upper = apt_st.upper()
+                            if 'APPROV' in apt_upper or 'AWAIT' in apt_upper:
+                                stage_match = LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first()
+                            elif 'CONFIRM' in apt_upper or 'BOOK' in apt_upper:
+                                stage_match = LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
+                            elif 'COMPLET' in apt_upper:
+                                stage_match = LeadStage.objects.filter(name__iexact='Appointment Completed').first()
+                            elif 'PENDING' in apt_upper and 'PAYMENT' in apt_upper:
+                                stage_match = LeadStage.objects.filter(name__iexact='Payment Pending').first()
+                            elif 'CANCEL' in apt_upper or 'LOST' in apt_upper or 'NOT INT' in apt_upper:
+                                stage_match = LeadStage.objects.filter(name__iexact='Lost').first()
+                            elif 'FOLLOW' in apt_upper:
+                                stage_match = LeadStage.objects.filter(name__iexact='Follow-up').first()
+                        if stage_match:
+                            saved_lead.stage = stage_match
+                        elif has_call_interaction:
+                            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+                            if contacted_stage:
+                                saved_lead.stage = contacted_stage
                     elif has_call_interaction:
-                        contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
-                        if contacted_stage:
-                            saved_lead.stage = contacted_stage
-                elif has_call_interaction:
-                    contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
-                    saved_lead.stage = contacted_stage
-                    if saved_lead.temperature == LeadTemperature.UNCONTACTED:
-                        saved_lead.temperature = LeadTemperature.WARM
+                        contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
+                        saved_lead.stage = contacted_stage
+                        if saved_lead.temperature == LeadTemperature.UNCONTACTED:
+                            saved_lead.temperature = LeadTemperature.WARM
+                    else:
+                        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
+                        if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                            saved_lead.stage = assigned_stage
                 else:
-                    assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
-                    if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-                        saved_lead.stage = assigned_stage
+                    # --- ACADEMY / OTHER BUSINESS LEAD STAGE RESOLUTION ---
+                    if is_won:
+                        won_stage = LeadStage.objects.filter(name__iexact='Admission Done').first() or \
+                                    LeadStage.objects.filter(name__iexact='Admission').first() or \
+                                    LeadStage.objects.filter(name__iexact='Payment Done').first()
+                        if won_stage:
+                            saved_lead.stage = won_stage
+                        saved_lead.deal_status = DealStatus.WON
+                        saved_lead.admission_status = AdmissionStatus.ADMISSION_DONE
+                        cd['deal_status'] = 'Won (Admission Done)'
+                        saved_lead.custom_data = cd
+                    elif cd.get('deal_status') or cd.get('stage'):
+                        deal_st = cd.get('deal_status') or cd.get('stage')
+                        stage_match = LeadStage.objects.filter(name__iexact=deal_st).first()
+                        if stage_match:
+                            saved_lead.stage = stage_match
+                        elif has_call_interaction:
+                            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+                            if contacted_stage:
+                                saved_lead.stage = contacted_stage
+                    elif has_call_interaction:
+                        contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
+                        saved_lead.stage = contacted_stage
+                        if saved_lead.temperature == LeadTemperature.UNCONTACTED:
+                            saved_lead.temperature = LeadTemperature.WARM
+                    else:
+                        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
+                        if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                            saved_lead.stage = assigned_stage
             except Exception:
                 pass
                 
@@ -1443,16 +1822,105 @@ def lead_edit(request, pk):
                     link=f"/leads/{saved_lead.pk}/",
                 )
 
-            # 2. Notify Doctor if appointment exists for this lead
-            apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
-            if apt and apt.doctor_user and apt.doctor_user != request.user:
-                time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot not fixed'
-                Notification.objects.create(
-                    user=apt.doctor_user,
-                    title="Appointment Update",
-                    message=f"Patient {saved_lead.name} appointment scheduled for {apt.appointment_date.strftime('%d %b %Y')} at {time_str}.",
-                    link="/dashboard/doctor/",
-                )
+            # 2. Appointment Synchronization & Doctor Notification
+            from datetime import datetime
+            raw_appo_date = cd.get("appo_booked_date") or cd.get("appointment_date")
+            raw_appo_time = cd.get("appointment_time")
+            doctor_name = cd.get("doctor", "").strip()
+            apt_st_raw = (cd.get("appointment_status") or "").strip()
+
+            if raw_appo_date and is_lead_hospital_type:
+                try:
+                    parsed_apt_date = datetime.strptime(str(raw_appo_date).strip(), "%Y-%m-%d").date()
+                except ValueError:
+                    parsed_apt_date = None
+
+                if parsed_apt_date:
+                    # Find doctor user
+                    doc_user = None
+                    if doctor_name:
+                        doc_user = User.objects.filter(
+                            hospital=saved_lead.hospital,
+                            role=User.Role.DOCTOR
+                        ).filter(
+                            Q(first_name__icontains=doctor_name) |
+                            Q(username__icontains=doctor_name) |
+                            Q(last_name__icontains=doctor_name)
+                        ).first()
+
+                    # Find existing latest appointment
+                    existing_apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
+                    
+                    # Determine if slot changed from previous appointment
+                    slot_is_same = False
+                    if existing_apt:
+                        date_same = (existing_apt.appointment_date == parsed_apt_date)
+                        time_same = True
+                        if raw_appo_time and existing_apt.appointment_time:
+                            time_same = (str(existing_apt.appointment_time)[:5] == str(raw_appo_time)[:5])
+                        slot_is_same = (date_same and time_same)
+
+                    # Check if telecaller is confirming slot set by doctor
+                    if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes', 'schedul']):
+                        if slot_is_same and existing_apt:
+                            # Slot kept exactly as doctor setup -> auto-approve without asking doctor for re-approval
+                            existing_apt.status = AppointmentStatus.APPROVED
+                            existing_apt.save(update_fields=['status'])
+                            cd['appointment_status'] = 'Booking Confirmed'
+                            cd['appointment_confirmed_at'] = timezone.now().strftime('%Y-%m-%d %H:%M')
+                            saved_lead.custom_data = cd
+                            saved_lead.save(update_fields=['custom_data'])
+
+                            if doc_user and doc_user != request.user:
+                                time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
+                                Notification.objects.create(
+                                    user=doc_user,
+                                    title="Next Appointment Confirmed from Patient",
+                                    message=f"Telecaller confirmed patient {saved_lead.name}'s appointment for {parsed_apt_date.strftime('%d %b %Y')} at {time_str}. Confirmed in your appointments tab.",
+                                    link="/dashboard/doctor/",
+                                )
+                        else:
+                            # Slot was changed or is new -> needs Doctor Approval confirmation
+                            if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
+                                existing_apt.appointment_date = parsed_apt_date
+                                if raw_appo_time:
+                                    existing_apt.appointment_time = raw_appo_time
+                                if doc_user:
+                                    existing_apt.doctor_user = doc_user
+                                if doctor_name:
+                                    existing_apt.doctor_name = doctor_name
+                                existing_apt.status = AppointmentStatus.PENDING_APPROVAL
+                                existing_apt.save(update_fields=['appointment_date', 'appointment_time', 'doctor_user', 'doctor_name', 'status'])
+                            else:
+                                existing_apt = Appointment.objects.create(
+                                    lead=saved_lead,
+                                    hospital=saved_lead.hospital,
+                                    doctor_name=doctor_name or "Consulting Doctor",
+                                    doctor_user=doc_user,
+                                    appointment_date=parsed_apt_date,
+                                    appointment_time=raw_appo_time if raw_appo_time else None,
+                                    status=AppointmentStatus.PENDING_APPROVAL,
+                                    created_by=request.user
+                                )
+
+                            if doc_user and doc_user != request.user:
+                                time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
+                                Notification.objects.create(
+                                    user=doc_user,
+                                    title="New Appointment Request / Slot Changed",
+                                    message=f"Telecaller updated/requested appointment for patient {saved_lead.name} on {parsed_apt_date.strftime('%d %b %Y')} at {time_str}. Please review and approve.",
+                                    link="/dashboard/doctor/",
+                                )
+            else:
+                apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
+                if apt and apt.doctor_user and apt.doctor_user != request.user:
+                    time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot not fixed'
+                    Notification.objects.create(
+                        user=apt.doctor_user,
+                        title="Appointment Update",
+                        message=f"Patient {saved_lead.name} appointment details updated.",
+                        link="/dashboard/doctor/",
+                    )
 
             messages.success(request, f"Lead #{saved_lead.lead_code or saved_lead.pk} ({saved_lead.name}) updated and assigned successfully! ✅")
             
@@ -1524,6 +1992,15 @@ def lead_edit(request, pk):
         else:
             cancel_url = f"/leads/{lead.pk}/"
 
+    # Determine appointment state flags
+    is_appointment_pending = False
+    is_appointment_scheduled = False
+    if latest_appointment:
+        if latest_appointment.status == AppointmentStatus.PENDING_APPROVAL:
+            is_appointment_pending = True
+        elif latest_appointment.status == AppointmentStatus.SCHEDULED:
+            is_appointment_scheduled = True
+
     return render(request, template, {
         "active": "leads_all",
         "form": form,
@@ -1534,11 +2011,13 @@ def lead_edit(request, pk):
         "is_doctor": is_doctor,
         "is_appointment_completed": is_appointment_completed,
         "is_appointment_confirmed": is_appointment_confirmed,
+        "is_appointment_pending": is_appointment_pending,
+        "is_appointment_scheduled": is_appointment_scheduled,
         "is_payment_done": is_payment_done,
         "grand_total_paid": grand_total_paid,
         "billing_history_list": billing_history,
         "latest_appointment": latest_appointment,
-        "all_appointments": Appointment.objects.filter(lead=lead).order_by("-appointment_date"),
+        "all_appointments": Appointment.objects.filter(lead=lead).order_by("-appointment_date", "-id"),
         "saved_initial": saved_initial,
     })
 
@@ -1569,53 +2048,85 @@ def lead_detail(request, pk):
     
     latest_appointment = None
     custom_field_data = []
-    is_hospital = bool(request.user.is_hospital_user and request.user.hospital)
-    if is_hospital:
+
+    # Check lead's own organization business_type (Hospital vs Academy)
+    lead_hospital_settings = (lead.hospital.settings or {}) if lead.hospital else {}
+    lead_btype = lead_hospital_settings.get("business_type")
+    if not lead_btype and lead.hospital:
+        name_lower = (lead.hospital.name or "").lower()
+        lead_btype = "hospital" if any(k in name_lower for k in ["hospital", "clinic", "medical", "nelson"]) else "academy"
+    
+    is_lead_hospital = bool(lead.hospital and lead_btype == "hospital")
+
+    if is_lead_hospital:
         from leads.models import Appointment, LeadCustomField
-        latest_appointment = Appointment.objects.filter(lead=lead).order_by('-id').first()
-        cfs = LeadCustomField.objects.filter(hospital=request.user.hospital, is_active=True).order_by("order")
+        appointments_history = list(Appointment.objects.filter(lead=lead).order_by('-appointment_date', '-id'))
+        latest_appointment = appointments_history[0] if appointments_history else None
+        cfs = LeadCustomField.objects.filter(hospital=lead.hospital, is_active=True).order_by("order")
         cd = lead.custom_data or {}
         for cf in cfs:
             if cf.name in cd and cd[cf.name] != "":
                 custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
+    else:
+        appointments_history = []
         
     can_edit = _can_edit_lead(request.user, lead)
     is_owner = (lead.assigned_to == request.user or lead.assigned_to is None)
     can_convert = is_owner or request.user.can_edit_any_lead or request.user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]
 
-    # --- Queue Navigation (Prev / Next Lead) ---
-    # Tenant scoping: Zappcode user sees only Zappcode leads, Nelson user sees only Nelson leads
-    tenant_leads = Lead.objects.filter(is_archived=False)
-    if request.user.hospital:
-        tenant_leads = tenant_leads.filter(hospital=request.user.hospital)
-    elif lead.hospital:
-        tenant_leads = tenant_leads.filter(hospital=lead.hospital)
+    # --- Return URL (Back Button) & Queue Navigation ---
+    return_to = request.GET.get("return_to", "").strip()
+    if not return_to:
+        referer = request.META.get("HTTP_REFERER", "")
+        if referer:
+            from urllib.parse import urlparse
+            ref_path = urlparse(referer).path
+            # Only use referer if it's not another lead detail page
+            if "/leads/" in referer and "/lead/" not in ref_path:
+                return_to = referer
+            elif "/dashboard/" in referer or "/followups/" in referer or "/admissions/" in referer or "/payments/" in referer:
+                return_to = referer
+
+    # Fallback return_url if none provided
+    if return_to:
+        return_url = return_to
     else:
-        tenant_leads = tenant_leads.filter(hospital__isnull=True)
+        # Default fallback to leads list
+        fallback_params = request.GET.copy()
+        if "return_to" in fallback_params:
+            del fallback_params["return_to"]
+        qs_str = fallback_params.urlencode()
+        return_url = f"/leads/{'?' + qs_str if qs_str else ''}"
 
-    # Respect user visibility / permissions within tenant
-    if not request.user.can_view_all_leads and not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
-        if request.user.can_view_team_leads:
-            team = User.objects.filter(reports_to=request.user)
-            tenant_leads = tenant_leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team))
-        elif request.user.role == User.Role.MANAGER:
-            team = User.objects.filter(reports_to=request.user)
-            tenant_leads = tenant_leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-        elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
-            tenant_leads = tenant_leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
+    # --- Queue Navigation (Prev / Next Lead) ---
+    # Retrieve the leads list scoped to all current request filters (or tenant defaults if no filter applied)
+    filtered_leads_qs = get_filtered_leads(request)
 
-    # Queue ordering is latest leads on top (-created_at, -id)
-    # Prev Lead = Newer / Higher up in queue (created_at > lead.created_at)
-    prev_lead = tenant_leads.filter(
-        Q(created_at__gt=lead.created_at) |
-        Q(created_at=lead.created_at, id__gt=lead.id)
-    ).order_by('created_at', 'id').first()
+    lead_ids = list(filtered_leads_qs.values_list("id", flat=True))
+    prev_lead = None
+    next_lead = None
 
-    # Next Lead = Older / Lower down in queue (created_at < lead.created_at)
-    next_lead = tenant_leads.filter(
-        Q(created_at__lt=lead.created_at) |
-        Q(created_at=lead.created_at, id__lt=lead.id)
-    ).order_by('-created_at', '-id').first()
+    if lead.id in lead_ids:
+        cur_idx = lead_ids.index(lead.id)
+        if cur_idx > 0:
+            prev_id = lead_ids[cur_idx - 1]
+            prev_lead = Lead.objects.filter(id=prev_id).first()
+        if cur_idx < len(lead_ids) - 1:
+            next_id = lead_ids[cur_idx + 1]
+            next_lead = Lead.objects.filter(id=next_id).first()
+    else:
+        # Fallback if lead is not in current filtered list
+        prev_lead = filtered_leads_qs.filter(
+            Q(created_at__gt=lead.created_at) | Q(created_at=lead.created_at, id__gt=lead.id)
+        ).order_by('created_at', 'id').first()
+        next_lead = filtered_leads_qs.filter(
+            Q(created_at__lt=lead.created_at) | Q(created_at=lead.created_at, id__lt=lead.id)
+        ).order_by('-created_at', '-id').first()
+
+    query_params = request.GET.copy()
+    if return_url and "return_to" not in query_params:
+        query_params["return_to"] = return_url
+    filter_querystring = query_params.urlencode()
 
     stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
     temperatures = LeadTemperature.choices
@@ -1632,12 +2143,16 @@ def lead_detail(request, pk):
         for c in courses_qs
     }
 
-    template = "leads/nel_lead_detail.html" if is_hospital else "leads/zapp_lead_detail.html"
+    template = "leads/nel_lead_detail.html" if is_lead_hospital else "leads/zapp_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "followups": followups, "admission": admission,
+        "is_lead_hospital": is_lead_hospital,
+        "return_url": return_url,
         "prev_lead": prev_lead,
         "next_lead": next_lead,
+        "filter_querystring": filter_querystring,
         "latest_appointment": latest_appointment,
+        "appointments_history": appointments_history,
         "custom_field_data": custom_field_data,
         "followup_modes": FollowUpMode.choices, "followup_statuses": FollowUpStatus.choices,
         "stages": stages,
@@ -1677,7 +2192,10 @@ def lead_archive(request, pk):
         return redirect("leads:lead_detail", pk=pk)
     lead.is_archived = not lead.is_archived
     lead.save(update_fields=["is_archived"])
-    messages.success(request, f"Lead {'archived' if lead.is_archived else 'restored'}.")
+    messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) {'archived' if lead.is_archived else 'restored successfully'}.")
+    next_url = request.GET.get('next') or request.POST.get('next')
+    if next_url:
+        return redirect(next_url)
     return redirect("leads:lead_detail", pk=pk)
 
 
@@ -2064,6 +2582,16 @@ def assign_lead(request, pk):
                 description=f"Lead reassigned by {request.user.get_full_name() or request.user.username}: {', '.join(desc_parts)}.",
             )
 
+        if lead.assigned_to and lead.assigned_to != request.user and lead.assigned_to != old_assigned:
+            from notifications.models import Notification
+            assigner_name = request.user.get_full_name() or request.user.username
+            Notification.objects.create(
+                user=lead.assigned_to,
+                title="Lead Assigned to You",
+                message=f"Lead '{lead.name}' ({lead.mobile}) has been assigned to you by {assigner_name}.",
+                link=f"/leads/{lead.pk}/",
+            )
+
         messages.success(request, f"Lead assignment updated successfully.")
             
     return redirect("leads:lead_detail", pk=pk)
@@ -2229,6 +2757,17 @@ def bulk_action(request):
                 description=f"Bulk assigned to '{assignee_name}' (was '{prev_user}') by {request.user.get_full_name() or request.user.username}.",
             )
             updated_count += 1
+
+        # Send notification to assignee if assigned by someone else
+        if assignee and assignee != request.user and updated_count > 0:
+            from notifications.models import Notification
+            assigner_name = request.user.get_full_name() or request.user.username
+            Notification.objects.create(
+                user=assignee,
+                title=f"{updated_count} New Leads Assigned",
+                message=f"{assigner_name} has assigned {updated_count} lead(s) to you.",
+                link="/leads/my-leads/",
+            )
             
         return respond("success", f"🎉 {updated_count} lead(s) successfully assigned to {assignee_name}.", {"updated_count": updated_count})
 
@@ -2277,6 +2816,55 @@ def bulk_action(request):
         leads.update(is_archived=True)
         messages.success(request, f"{leads.count()} lead(s) archived.")
     return redirect("leads:lead_list")
+
+
+@login_required
+def archived_leads(request):
+    """
+    Dedicated view for listing archived patient leads with search, pagination, and restore capabilities.
+    Scoped to current hospital tenant or global view for SuperAdmin.
+    """
+    if not _can_archive_lead(request.user):
+        messages.error(request, "You do not have permission to view archived leads.")
+        return redirect("leads:lead_list")
+
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    leads_qs = Lead.objects.filter(is_archived=True).select_related(
+        "hospital", "assigned_to", "stage", "campaign"
+    ).order_by("-updated_at")
+
+    if request.user.hospital:
+        leads_qs = leads_qs.filter(hospital=request.user.hospital)
+        current_hospital = request.user.hospital
+    else:
+        current_hospital = None
+
+    q = request.GET.get("q", "").strip()
+    if q:
+        leads_qs = leads_qs.filter(
+            Q(name__icontains=q)
+            | Q(mobile__icontains=q)
+            | Q(email__icontains=q)
+            | Q(lead_code__icontains=q)
+        )
+
+    total_archived = leads_qs.count()
+    paginator = Paginator(leads_qs, 25)
+    page_num = request.GET.get("page", 1)
+    page_obj = paginator.get_page(page_num)
+
+    context = {
+        "active": "archived_leads",
+        "leads": page_obj,
+        "total_archived": total_archived,
+        "q_archived": q,
+        "current_hospital": current_hospital,
+        "is_global_admin": is_global_admin,
+    }
+    return render(request, "leads/archived_leads.html", context)
 
 
 @login_required
@@ -2814,6 +3402,35 @@ def universal_master_list(request):
     pos_items = MasterItem.objects.filter(group=pos_group, hospital=current_hospital).order_by("order", "name")
     neg_items = MasterItem.objects.filter(group=neg_group, hospital=current_hospital).order_by("order", "name")
 
+    # Fetch Archived Leads based on selected business scope
+    from leads.models import Lead
+    from django.core.paginator import Paginator
+
+    if is_default_tab:
+        archived_leads_qs = Lead.objects.filter(hospital__isnull=True, is_archived=True)
+        total_archived = Lead.objects.filter(is_archived=True).count()
+    elif current_hospital:
+        archived_leads_qs = Lead.objects.filter(hospital=current_hospital, is_archived=True)
+        total_archived = Lead.objects.filter(hospital=current_hospital, is_archived=True).count()
+    else:
+        archived_leads_qs = Lead.objects.filter(is_archived=True)
+        total_archived = Lead.objects.filter(is_archived=True).count()
+
+    archived_leads_qs = archived_leads_qs.select_related('hospital', 'assigned_to', 'stage', 'campaign').order_by('-updated_at')
+
+    q_archived = request.GET.get('q_archived', '').strip()
+    if q_archived:
+        archived_leads_qs = archived_leads_qs.filter(
+            Q(name__icontains=q_archived) |
+            Q(mobile__icontains=q_archived) |
+            Q(email__icontains=q_archived) |
+            Q(lead_code__icontains=q_archived)
+        )
+
+    archived_paginator = Paginator(archived_leads_qs, 25)
+    archived_page_num = request.GET.get('archived_page', 1)
+    archived_page_obj = archived_paginator.get_page(archived_page_num)
+
     # If business-specific has no items yet, fallback/copy defaults or show list
     active_main_tab = request.GET.get("tab", "fields")
 
@@ -2829,6 +3446,9 @@ def universal_master_list(request):
         "neg_group": neg_group,
         "pos_items": pos_items,
         "neg_items": neg_items,
+        "archived_leads": archived_page_obj,
+        "archived_count": total_archived,
+        "q_archived": q_archived,
     })
 
 
@@ -3561,27 +4181,6 @@ def hospital_configuration_view(request):
         is_active=True
     ).select_related("doctor_profile").order_by("first_name", "username")
 
-    # Fetch Hospital Specific / Fallback Temperature Master Keywords
-    from leads.models import MasterGroup, MasterItem
-    pos_group, _ = MasterGroup.objects.get_or_create(
-        name="Positive Remarks", 
-        defaults={"description": "Positive call remarks & notes that shift lead temperature UP to Hot / Warm"}
-    )
-    neg_group, _ = MasterGroup.objects.get_or_create(
-        name="Negative Remarks", 
-        defaults={"description": "Negative call remarks & notes that shift lead temperature DOWN to Warm / Cold / Freeze"}
-    )
-
-    hosp_pos = MasterItem.objects.filter(group=pos_group, hospital=hospital).order_by("order", "name")
-    hosp_neg = MasterItem.objects.filter(group=neg_group, hospital=hospital).order_by("order", "name")
-
-    # If hospital doesn't have custom items yet, also show default global items as active reference or fallback
-    global_pos = MasterItem.objects.filter(group=pos_group, hospital__isnull=True).order_by("order", "name")
-    global_neg = MasterItem.objects.filter(group=neg_group, hospital__isnull=True).order_by("order", "name")
-
-    pos_items = hosp_pos if hosp_pos.exists() else global_pos
-    neg_items = hosp_neg if hosp_neg.exists() else global_neg
-
     context = {
         "active": "hospital_config",
         "hospital": hospital,
@@ -3591,11 +4190,6 @@ def hospital_configuration_view(request):
         "diseases": diseases,
         "active_tab": active_tab,
         "doctor_users": doctor_users,
-        "pos_group": pos_group,
-        "neg_group": neg_group,
-        "pos_items": pos_items,
-        "neg_items": neg_items,
-        "has_custom_temp_rules": hosp_pos.exists() or hosp_neg.exists(),
     }
     return render(request, "leads/hospital_configuration.html", context)
 
@@ -3619,6 +4213,20 @@ def hospital_profile_save(request):
         if not name:
             messages.error(request, "Hospital / Organization name is required.")
             return redirect("/leads/hospital-configuration/?tab=profile")
+
+        if phone:
+            import re
+            raw_digits = re.sub(r"\D", "", phone)
+            # Accept valid 10-digit mobile (or prefixed with +91/0) or 10-11 digit landline
+            if len(raw_digits) == 12 and raw_digits.startswith("91"):
+                raw_digits = raw_digits[2:]
+            elif len(raw_digits) == 11 and raw_digits.startswith("0"):
+                raw_digits = raw_digits[1:]
+
+            if len(raw_digits) < 10 or len(raw_digits) > 11:
+                messages.error(request, "Please enter a valid contact phone number (10 digits for mobile or 10-11 digits with STD code).")
+                return redirect("/leads/hospital-configuration/?tab=profile")
+            phone = raw_digits
 
         hospital.name = name
         hospital.contact_email = contact_email
@@ -3988,101 +4596,152 @@ def hospital_master_excel_import(request):
             doc_col = next((c for c in df.columns if "doc" in c or "doctor" in c), None)
             dis_col = next((c for c in df.columns if "dis" in c or "disease" in c or "condition" in c), None)
 
+            # ---------------------------------------------------------
+            # High-Performance In-Memory Pre-fetching & Caching (O(1))
+            # ---------------------------------------------------------
+            from django.db import transaction
+
+            # Pre-load existing hospital masters to prevent thousands of DB queries
+            existing_branches = {b.name.strip().lower(): b for b in HospitalBranch.objects.filter(hospital=hospital)}
+            existing_depts = {d.name.strip().lower(): d for d in HospitalDepartment.objects.filter(hospital=hospital).prefetch_related("branches")}
+            existing_docs = {doc.name.strip().lower(): doc for doc in HospitalDoctor.objects.filter(hospital=hospital).prefetch_related("departments", "associated_diseases")}
+            existing_diseases = {(dis.department_id, dis.name.strip().lower()): dis for dis in HospitalDisease.objects.filter(hospital=hospital)}
+            existing_availabilities = {(a.doctor_id, a.branch_id) for a in DoctorBranchAvailability.objects.filter(doctor__hospital=hospital)}
+
+            # Track in-memory relations to avoid duplicate M2M operations
+            dept_branch_links = {(d.id, b.id) for d in existing_depts.values() for b in d.branches.all()}
+            doc_dept_links = {(doc.id, dept.id) for doc in existing_docs.values() for dept in doc.departments.all()}
+            doc_disease_links = {(doc.id, dis.id) for doc in existing_docs.values() for dis in doc.associated_diseases.all()}
+
             branches_created = 0
             depts_created = 0
             docs_created = 0
             diseases_created = 0
+            existing_skipped = 0
             rows_processed = 0
 
-            for _, row in df.iterrows():
-                branch_name = str(row.get(branch_col, "")).strip() if branch_col and pd.notna(row.get(branch_col)) else ""
-                dept_name = str(row.get(dept_col, "")).strip() if dept_col and pd.notna(row.get(dept_col)) else ""
-                doc_name = str(row.get(doc_col, "")).strip() if doc_col and pd.notna(row.get(doc_col)) else ""
-                disease_name = str(row.get(dis_col, "")).strip() if dis_col and pd.notna(row.get(dis_col)) else ""
+            with transaction.atomic():
+                # Convert dataframe to simple Python dicts (much faster than df.iterrows())
+                records = df.to_dict(orient="records")
 
-                if not dept_name and not doc_name and not disease_name and not branch_name:
-                    continue
+                for row in records:
+                    raw_branch = str(row.get(branch_col, "")).strip() if branch_col and pd.notna(row.get(branch_col)) else ""
+                    raw_dept = str(row.get(dept_col, "")).strip() if dept_col and pd.notna(row.get(dept_col)) else ""
+                    raw_doc = str(row.get(doc_col, "")).strip() if doc_col and pd.notna(row.get(doc_col)) else ""
+                    raw_disease = str(row.get(dis_col, "")).strip() if dis_col and pd.notna(row.get(dis_col)) else ""
 
-                rows_processed += 1
-                branch_obj = None
-                dept_obj = None
-                doc_obj = None
-                disease_obj = None
+                    if not raw_dept and not raw_doc and not raw_disease and not raw_branch:
+                        continue
 
-                # 1. Branch
-                if branch_name and branch_name.lower() not in ["nan", "none", ""]:
-                    branch_obj, b_created = HospitalBranch.objects.get_or_create(
-                        hospital=hospital,
-                        name=branch_name,
-                        defaults={"is_active": True}
-                    )
-                    if b_created:
-                        branches_created += 1
+                    rows_processed += 1
+                    branch_obj = None
+                    dept_obj = None
+                    doc_obj = None
+                    disease_obj = None
 
-                # 2. Department
-                if dept_name and dept_name.lower() not in ["nan", "none", ""]:
-                    dept_obj, d_created = HospitalDepartment.objects.get_or_create(
-                        hospital=hospital,
-                        name=dept_name,
-                        defaults={"is_active": True}
-                    )
-                    if d_created:
-                        depts_created += 1
-                    if branch_obj and dept_obj:
-                        dept_obj.branches.add(branch_obj)
+                    # 1. Branch
+                    if raw_branch and raw_branch.lower() not in ["nan", "none", ""]:
+                        b_key = raw_branch.lower()
+                        if b_key in existing_branches:
+                            branch_obj = existing_branches[b_key]
+                        else:
+                            branch_obj = HospitalBranch.objects.create(
+                                hospital=hospital,
+                                name=raw_branch,
+                                is_active=True
+                            )
+                            existing_branches[b_key] = branch_obj
+                            branches_created += 1
 
-                # 3. Doctor
-                if doc_name and doc_name.lower() not in ["nan", "none", ""]:
-                    clean_doc_name = doc_name
-                    if clean_doc_name.lower().startswith("dr.") or clean_doc_name.lower().startswith("dr "):
-                        clean_doc_name = clean_doc_name[3:].strip()
+                    # 2. Department
+                    if raw_dept and raw_dept.lower() not in ["nan", "none", ""]:
+                        d_key = raw_dept.lower()
+                        if d_key in existing_depts:
+                            dept_obj = existing_depts[d_key]
+                        else:
+                            dept_obj = HospitalDepartment.objects.create(
+                                hospital=hospital,
+                                name=raw_dept,
+                                is_active=True
+                            )
+                            existing_depts[d_key] = dept_obj
+                            depts_created += 1
 
-                    doc_obj = HospitalDoctor.objects.filter(
-                        hospital=hospital,
-                        name__iexact=clean_doc_name
-                    ).first()
+                        # Link branch to department if not already linked
+                        if branch_obj and dept_obj:
+                            link_key = (dept_obj.id, branch_obj.id)
+                            if link_key not in dept_branch_links:
+                                dept_obj.branches.add(branch_obj)
+                                dept_branch_links.add(link_key)
 
-                    if not doc_obj:
-                        doc_obj = HospitalDoctor.objects.create(
-                            hospital=hospital,
-                            name=clean_doc_name,
-                            department=dept_obj,
-                            is_active=True
-                        )
-                        docs_created += 1
+                    # 3. Doctor
+                    if raw_doc and raw_doc.lower() not in ["nan", "none", ""]:
+                        clean_doc_name = raw_doc
+                        if clean_doc_name.lower().startswith("dr.") or clean_doc_name.lower().startswith("dr "):
+                            clean_doc_name = clean_doc_name[3:].strip()
 
-                    if dept_obj:
-                        doc_obj.departments.add(dept_obj)
-                        if not doc_obj.department:
-                            doc_obj.department = dept_obj
-                            doc_obj.save(update_fields=["department"])
+                        doc_key = clean_doc_name.lower()
+                        if doc_key in existing_docs:
+                            doc_obj = existing_docs[doc_key]
+                            existing_skipped += 1
+                        else:
+                            doc_obj = HospitalDoctor.objects.create(
+                                hospital=hospital,
+                                name=clean_doc_name,
+                                department=dept_obj,
+                                is_active=True
+                            )
+                            existing_docs[doc_key] = doc_obj
+                            docs_created += 1
 
-                    if branch_obj:
-                        DoctorBranchAvailability.objects.get_or_create(
-                            doctor=doc_obj,
-                            branch=branch_obj,
-                            defaults={"is_active": True}
-                        )
+                        # Link department to doctor
+                        if dept_obj:
+                            doc_dept_key = (doc_obj.id, dept_obj.id)
+                            if doc_dept_key not in doc_dept_links:
+                                doc_obj.departments.add(dept_obj)
+                                doc_dept_links.add(doc_dept_key)
+                            if not doc_obj.department:
+                                doc_obj.department = dept_obj
+                                doc_obj.save(update_fields=["department"])
 
-                # 4. Disease / Condition
-                if disease_name and disease_name.lower() not in ["nan", "none", ""] and dept_obj:
-                    disease_obj, dis_created = HospitalDisease.objects.get_or_create(
-                        hospital=hospital,
-                        department=dept_obj,
-                        name=disease_name,
-                        defaults={"is_active": True}
-                    )
-                    if dis_created:
-                        diseases_created += 1
+                        # Link branch availability
+                        if branch_obj:
+                            avail_key = (doc_obj.id, branch_obj.id)
+                            if avail_key not in existing_availabilities:
+                                DoctorBranchAvailability.objects.create(
+                                    doctor=doc_obj,
+                                    branch=branch_obj,
+                                    is_active=True
+                                )
+                                existing_availabilities.add(avail_key)
 
-                    if doc_obj and disease_obj:
-                        doc_obj.associated_diseases.add(disease_obj)
+                    # 4. Disease / Condition
+                    if raw_disease and raw_disease.lower() not in ["nan", "none", ""] and dept_obj:
+                        dis_key = (dept_obj.id, raw_disease.lower())
+                        if dis_key in existing_diseases:
+                            disease_obj = existing_diseases[dis_key]
+                        else:
+                            disease_obj = HospitalDisease.objects.create(
+                                hospital=hospital,
+                                department=dept_obj,
+                                name=raw_disease,
+                                is_active=True
+                            )
+                            existing_diseases[dis_key] = disease_obj
+                            diseases_created += 1
+
+                        # Link disease to doctor
+                        if doc_obj and disease_obj:
+                            doc_dis_key = (doc_obj.id, disease_obj.id)
+                            if doc_dis_key not in doc_disease_links:
+                                doc_obj.associated_diseases.add(disease_obj)
+                                doc_disease_links.add(doc_dis_key)
 
             messages.success(
                 request,
-                f"Excel Import Successful! Processed {rows_processed} rows. "
-                f"Added {branches_created} branches, {depts_created} departments, "
-                f"{docs_created} doctors, {diseases_created} conditions."
+                f"Excel Import Completed Successfully! Processed {rows_processed} rows in milliseconds. "
+                f"Added: {branches_created} branches, {depts_created} departments, "
+                f"{docs_created} doctors, {diseases_created} diseases/conditions."
             )
         except Exception as ex:
             messages.error(request, f"Failed to import Excel/CSV file: {str(ex)}")
@@ -4094,8 +4753,59 @@ def hospital_master_excel_import(request):
 def hospital_master_sample_download(request):
     """Download Sample Excel / CSV template for Hospital Master Configuration"""
     from django.http import HttpResponse
-    import csv
+    fmt = request.GET.get("format", "csv").lower()
+    
+    if fmt in ["xlsx", "excel"]:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Hospital Master Template"
+        
+        headers = ["hospital_branch", "department", "doctor", "disease"]
+        ws.append(headers)
+        
+        header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        thin_border = Border(
+            left=Side(style='thin', color='E2E8F0'),
+            right=Side(style='thin', color='E2E8F0'),
+            top=Side(style='thin', color='E2E8F0'),
+            bottom=Side(style='thin', color='E2E8F0')
+        )
+        
+        for col_num, cell in enumerate(ws[1], 1):
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+            
+        sample_rows = [
+            ["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Migraine"],
+            ["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Stroke"],
+            ["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Dementia"],
+            ["Nelson Luxe Mother & Child Care Hospital, Wardhmannagar", "Gynaecology", "Dr. Priya Sharma", "Infertility / IVF"],
+            ["Central Brain & Spine Hospital, Dhantoli", "Cardiology", "Dr. Rajesh Patil", "Hypertension"],
+        ]
+        
+        for r_idx, row in enumerate(sample_rows, 2):
+            ws.append(row)
+            for cell in ws[r_idx]:
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical="center")
 
+        ws.column_dimensions['A'].width = 38
+        ws.column_dimensions['B'].width = 24
+        ws.column_dimensions['C'].width = 24
+        ws.column_dimensions['D'].width = 28
+        
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = 'attachment; filename="hospital_master_import_template.xlsx"'
+        wb.save(response)
+        return response
+
+    import csv
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="hospital_master_template.csv"'
 
@@ -4108,6 +4818,273 @@ def hospital_master_sample_download(request):
     writer.writerow(["Central Brain & Spine Hospital, Dhantoli", "Cardiology", "Dr. Rajesh Patil", "Hypertension"])
 
     return response
+
+
+@login_required
+def export_hospital_config_excel(request):
+    """
+    Export full Hospital Configuration (Branches, Departments, Doctors, Diseases)
+    into a beautifully formatted Excel (.xlsx) file with cascading mapping sheets.
+    """
+    from django.http import HttpResponse
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    
+    hospital = request.user.hospital
+    h_filter = {"hospital": hospital} if hospital else {}
+    hospital_name = hospital.name if hospital else "All Hospitals"
+
+    branches = HospitalBranch.objects.filter(**h_filter).order_by("order", "name")
+    departments = HospitalDepartment.objects.filter(**h_filter).order_by("order", "name")
+    doctors = HospitalDoctor.objects.filter(**h_filter).order_by("order", "name")
+    diseases = HospitalDisease.objects.filter(**h_filter).order_by("department__name", "order", "name")
+
+    wb = openpyxl.Workbook()
+    
+    header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    sec_fill = PatternFill(start_color="0284C7", end_color="0284C7", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    # ----------------------------------------------------
+    # Sheet 1: Master Mapping (Import-Compatible Table)
+    # ----------------------------------------------------
+    ws1 = wb.active
+    ws1.title = "Hospital Master Mapping"
+    
+    ws1.append(["hospital_branch", "department", "doctor", "disease"])
+    for cell in ws1[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+    
+    row_count = 1
+    # Build complete linked rows
+    for dept in departments:
+        dept_branches = list(dept.branches.all()) or [None]
+        dept_diseases = list(dept.diseases.all()) or [None]
+        dept_doctors = list(dept.doctors.all()) or [None]
+
+        for b in dept_branches:
+            b_name = b.name if b else ""
+            for doc in dept_doctors:
+                doc_name = f"Dr. {doc.name}" if doc else ""
+                # Get diseases linked to this doctor or department
+                doc_diseases = list(doc.associated_diseases.filter(department=dept)) if doc else []
+                applicable_diseases = doc_diseases if doc_diseases else dept_diseases
+
+                for dis in applicable_diseases:
+                    dis_name = dis.name if dis else ""
+                    row_count += 1
+                    ws1.append([b_name, dept.name, doc_name, dis_name])
+                    for cell in ws1[row_count]:
+                        cell.border = thin_border
+                        cell.alignment = Alignment(vertical="center")
+
+    if row_count == 1:
+        # Fallback if no deep mappings configured yet: export each master directly
+        for b in branches:
+            row_count += 1
+            ws1.append([b.name, "", "", ""])
+            for cell in ws1[row_count]:
+                cell.border = thin_border
+
+    ws1.column_dimensions['A'].width = 38
+    ws1.column_dimensions['B'].width = 24
+    ws1.column_dimensions['C'].width = 26
+    ws1.column_dimensions['D'].width = 30
+
+    # ----------------------------------------------------
+    # Sheet 2: Branches Directory
+    # ----------------------------------------------------
+    ws2 = wb.create_sheet(title="Branches")
+    ws2.append(["Branch Name", "Code", "City", "Address", "Contact Number", "Status"])
+    for cell in ws2[1]:
+        cell.fill = sec_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    for r_idx, b in enumerate(branches, 2):
+        ws2.append([
+            b.name,
+            b.code or "",
+            b.city or "",
+            b.address or "",
+            b.contact_number or "",
+            "Active" if b.is_active else "Inactive"
+        ])
+        for cell in ws2[r_idx]:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+
+    ws2.column_dimensions['A'].width = 36
+    ws2.column_dimensions['B'].width = 16
+    ws2.column_dimensions['C'].width = 18
+    ws2.column_dimensions['D'].width = 40
+    ws2.column_dimensions['E'].width = 20
+    ws2.column_dimensions['F'].width = 14
+
+    # ----------------------------------------------------
+    # Sheet 3: Departments Directory
+    # ----------------------------------------------------
+    ws3 = wb.create_sheet(title="Departments")
+    ws3.append(["Department Name", "Code", "Associated Branches", "Status"])
+    for cell in ws3[1]:
+        cell.fill = sec_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    for r_idx, d in enumerate(departments, 2):
+        branch_names = ", ".join([b.name for b in d.branches.all()])
+        ws3.append([
+            d.name,
+            d.code or "",
+            branch_names or "All Branches",
+            "Active" if d.is_active else "Inactive"
+        ])
+        for cell in ws3[r_idx]:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+
+    ws3.column_dimensions['A'].width = 28
+    ws3.column_dimensions['B'].width = 16
+    ws3.column_dimensions['C'].width = 45
+    ws3.column_dimensions['D'].width = 14
+
+    # ----------------------------------------------------
+    # Sheet 4: Doctors Directory
+    # ----------------------------------------------------
+    ws4 = wb.create_sheet(title="Doctors")
+    ws4.append(["Doctor Name", "User Account", "Department(s)", "Specialization", "Fee (Rs.)", "Branches", "Status"])
+    for cell in ws4[1]:
+        cell.fill = sec_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    for r_idx, doc in enumerate(doctors, 2):
+        dept_str = ", ".join([dept.name for dept in doc.departments.all()]) or (doc.department.name if doc.department else "")
+        branch_str = ", ".join([b.name for b in doc.branches.all()])
+        ws4.append([
+            f"Dr. {doc.name}",
+            doc.user.username if doc.user else "Not Linked",
+            dept_str,
+            doc.specialization or doc.qualification or "",
+            float(doc.consultation_fee or 0),
+            branch_str or "All Branches",
+            "Active" if doc.is_active else "Inactive"
+        ])
+        for cell in ws4[r_idx]:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+
+    ws4.column_dimensions['A'].width = 26
+    ws4.column_dimensions['B'].width = 18
+    ws4.column_dimensions['C'].width = 30
+    ws4.column_dimensions['D'].width = 26
+    ws4.column_dimensions['E'].width = 14
+    ws4.column_dimensions['F'].width = 35
+    ws4.column_dimensions['G'].width = 14
+
+    # ----------------------------------------------------
+    # Sheet 5: Diseases Directory
+    # ----------------------------------------------------
+    ws5 = wb.create_sheet(title="Diseases & Conditions")
+    ws5.append(["Disease / Condition", "Department", "Code", "Status"])
+    for cell in ws5[1]:
+        cell.fill = sec_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    for r_idx, dis in enumerate(diseases, 2):
+        ws5.append([
+            dis.name,
+            dis.department.name if dis.department else "",
+            dis.code or "",
+            "Active" if dis.is_active else "Inactive"
+        ])
+        for cell in ws5[r_idx]:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+
+    ws5.column_dimensions['A'].width = 32
+    ws5.column_dimensions['B'].width = 26
+    ws5.column_dimensions['C'].width = 16
+    ws5.column_dimensions['D'].width = 14
+
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    filename = f"Hospital_Configuration_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+@login_required
+def export_hospital_config_pdf(request):
+    """
+    Renders high-quality printable PDF view of all Hospital Configurations
+    (Branches, Departments, Doctors, and Disease Mappings).
+    """
+    hospital = request.user.hospital
+    h_filter = {"hospital": hospital} if hospital else {}
+    hospital_name = hospital.name if hospital else "All Hospitals"
+
+    branches = HospitalBranch.objects.filter(**h_filter).order_by("order", "name")
+    departments = HospitalDepartment.objects.filter(**h_filter).order_by("order", "name")
+    doctors = HospitalDoctor.objects.filter(**h_filter).prefetch_related("departments", "branches", "associated_diseases").order_by("order", "name")
+    diseases = HospitalDisease.objects.filter(**h_filter).select_related("department").order_by("department__name", "order", "name")
+
+    # Build master mapping rows
+    mapping_rows = []
+    for dept in departments:
+        dept_branches = list(dept.branches.all()) or [None]
+        dept_diseases = list(dept.diseases.all()) or [None]
+        dept_doctors = list(dept.doctors.all()) or [None]
+
+        for b in dept_branches:
+            b_name = b.name if b else "-"
+            for doc in dept_doctors:
+                doc_name = f"Dr. {doc.name}" if doc else "-"
+                doc_diseases = list(doc.associated_diseases.filter(department=dept)) if doc else []
+                applicable_diseases = doc_diseases if doc_diseases else dept_diseases
+
+                for dis in applicable_diseases:
+                    dis_name = dis.name if dis else "-"
+                    mapping_rows.append({
+                        "branch": b_name,
+                        "department": dept.name,
+                        "doctor": doc_name,
+                        "disease": dis_name
+                    })
+
+    if not mapping_rows:
+        for b in branches:
+            mapping_rows.append({
+                "branch": b.name,
+                "department": "-",
+                "doctor": "-",
+                "disease": "-"
+            })
+
+    context = {
+        "hospital_name": hospital_name,
+        "branches": branches,
+        "departments": departments,
+        "doctors": doctors,
+        "diseases": diseases,
+        "mapping_rows": mapping_rows,
+        "now": timezone.now(),
+    }
+    return render(request, "leads/hospital_config_print_pdf.html", context)
 
 
 @login_required
@@ -4172,5 +5149,269 @@ def cascading_hospital_data_api(request):
             res["branches"] = [{"id": b.id, "name": b.name} for b in doc.branches.filter(is_active=True)]
 
     return JsonResponse(res)
+
+
+# ---------------------------------------------------------------------------
+# Super Admin & Admin: Bulk Lead Transfer Across Users
+# ---------------------------------------------------------------------------
+
+@login_required
+def bulk_lead_transfer(request):
+    """
+    Allows Super Admins & Admins to reassign/transfer leads from one user to another in bulk.
+    Preserves all previous follow-up remarks, notes, comments, and timeline history intact.
+    Restricted to Lead Attendant, Counsellor, and HR roles for current active business.
+    """
+    from accounts.models import User, Hospital
+    from leads.models import Lead, LeadStage, Course
+    from followups.models import Activity, ActivityType
+    from notifications.models import Notification
+    from django.db import transaction
+    from django.core.paginator import Paginator
+    from datetime import datetime
+
+    is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+    is_admin = request.user.role in (User.Role.ADMIN, User.Role.MANAGER)
+    
+    if not (is_superadmin or is_admin):
+        messages.error(request, "Permission denied. Only Super Admins and Admins can transfer leads in bulk.")
+        return redirect("dashboard:home")
+
+    # Determine Active Business/Tenant (from session or GET query param for super admin switch)
+    active_biz_id = request.GET.get("business") or request.GET.get("hospital") or request.session.get("active_business_id")
+    active_hospital = None
+    if request.user.hospital:
+        active_hospital = request.user.hospital
+    elif active_biz_id and str(active_biz_id).isdigit():
+        active_hospital = Hospital.objects.filter(pk=int(active_biz_id)).first()
+
+    # Allowed roles for assignment/transfer: LEAD_ATTENDENT, COUNSELLOR, HR
+    allowed_roles = [User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR]
+
+    # Filter available users list strictly based on current active business/tenant
+    if active_hospital:
+        users_qs = User.objects.filter(
+            hospital=active_hospital,
+            role__in=allowed_roles,
+            is_active=True
+        ).order_by("first_name", "username")
+        courses_qs = Course.objects.filter(hospital=active_hospital, is_active=True).order_by("name")
+    else:
+        # Default Zappcode Academy / Global pool
+        users_qs = User.objects.filter(
+            hospital__isnull=True,
+            role__in=allowed_roles,
+            is_active=True
+        ).order_by("first_name", "username")
+        courses_qs = Course.objects.filter(is_active=True).order_by("name")
+
+    # LeadStage is global across tenant types
+    stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+
+
+    # Helper function to query matching leads based on source user and filter params
+    def _get_matching_leads(source_uid, stage_id, course_id, deal_status, date_from_val, date_to_val, search_q):
+        base_leads = Lead.objects.filter(is_archived=False)
+        if active_hospital:
+            base_leads = base_leads.filter(hospital=active_hospital)
+        elif not is_superadmin:
+            base_leads = base_leads.filter(hospital__isnull=True)
+
+        if source_uid == "unassigned":
+            base_leads = base_leads.filter(assigned_to__isnull=True)
+        elif source_uid and str(source_uid).isdigit():
+            base_leads = base_leads.filter(assigned_to_id=int(source_uid))
+        else:
+            return Lead.objects.none()
+
+        if stage_id and str(stage_id).isdigit():
+            base_leads = base_leads.filter(stage_id=int(stage_id))
+
+        if course_id and str(course_id).isdigit():
+            base_leads = base_leads.filter(course_id=int(course_id))
+
+        if deal_status:
+            base_leads = base_leads.filter(deal_status=deal_status)
+
+        if search_q:
+            base_leads = base_leads.filter(
+                Q(name__icontains=search_q) |
+                Q(mobile__icontains=search_q) |
+                Q(lead_code__icontains=search_q) |
+                Q(city__icontains=search_q)
+            )
+
+        def _parse_d(v):
+            if not v:
+                return None
+            for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(v.strip(), fmt).date()
+                except ValueError:
+                    pass
+            return None
+
+        df = _parse_d(date_from_val)
+        dt = _parse_d(date_to_val)
+        if df:
+            base_leads = base_leads.filter(inquiry_date__gte=df)
+        if dt:
+            base_leads = base_leads.filter(inquiry_date__lte=dt)
+
+        return base_leads.order_by("-updated_at", "-id")
+
+    # AJAX Live Preview Count / List API with Pagination
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.GET.get("format") == "json":
+        src_id = request.GET.get("source_user", "").strip()
+        stg_id = request.GET.get("stage", "").strip()
+        crs_id = request.GET.get("course", "").strip()
+        ds_val = request.GET.get("deal_status", "").strip()
+        d_from = request.GET.get("date_from", "").strip()
+        d_to = request.GET.get("date_to", "").strip()
+        sq = request.GET.get("q", "").strip()
+        page_num = request.GET.get("page", 1)
+        per_page = int(request.GET.get("per_page", 10))
+
+        matched_qs = _get_matching_leads(src_id, stg_id, crs_id, ds_val, d_from, d_to, sq)
+        total_count = matched_qs.count()
+
+        paginator = Paginator(matched_qs, per_page)
+        page_obj = paginator.get_page(page_num)
+
+        sample_leads = []
+        for l in page_obj.object_list:
+            sample_leads.append({
+                "id": l.id,
+                "lead_code": l.lead_code or f"#{l.id}",
+                "name": l.name or "",
+                "mobile": l.mobile or "",
+                "deal_status": l.deal_status or "Open",
+                "city": l.city or (l.custom_data or {}).get("location", "") or "",
+                "inquiry_date": str(l.inquiry_date) if l.inquiry_date else "",
+            })
+
+        return JsonResponse({
+            "success": True,
+            "count": total_count,
+            "leads": sample_leads,
+            "current_page": page_obj.number,
+            "num_pages": paginator.num_pages,
+            "has_next": page_obj.has_next(),
+            "has_previous": page_obj.has_previous(),
+            "start_index": page_obj.start_index() if total_count > 0 else 0,
+            "end_index": page_obj.end_index() if total_count > 0 else 0,
+        })
+
+    # POST Execution: Perform Bulk Lead Transfer
+    if request.method == "POST":
+        source_user_id = request.POST.get("source_user", "").strip()
+        target_user_id = request.POST.get("target_user", "").strip()
+        stage_id = request.POST.get("stage", "").strip()
+        course_id = request.POST.get("course", "").strip()
+        deal_status = request.POST.get("deal_status", "").strip()
+        date_from = request.POST.get("date_from", "").strip()
+        date_to = request.POST.get("date_to", "").strip()
+        search_q = request.POST.get("q", "").strip()
+        transfer_limit = request.POST.get("transfer_limit", "").strip()
+        selected_lead_ids = request.POST.getlist("selected_lead_ids")
+
+        if not source_user_id:
+            messages.error(request, "Please select the Source User (or Unassigned) from whom leads should be transferred.")
+            return redirect("leads:bulk_lead_transfer")
+
+        if not target_user_id or not target_user_id.isdigit():
+            messages.error(request, "Please select a valid Target Assignee to receive the leads.")
+            return redirect("leads:bulk_lead_transfer")
+
+        target_user = User.objects.filter(pk=int(target_user_id), is_active=True).first()
+        if not target_user:
+            messages.error(request, "Target assignee user was not found or is inactive.")
+            return redirect("leads:bulk_lead_transfer")
+
+        source_user = None
+        if source_user_id.isdigit():
+            source_user = User.objects.filter(pk=int(source_user_id)).first()
+            source_name = source_user.get_full_name() or source_user.username
+        else:
+            source_name = "Unassigned Pool"
+
+        target_name = target_user.get_full_name() or target_user.username
+
+        # Gather queryset of leads to transfer
+        if selected_lead_ids:
+            clean_ids = [int(i) for i in selected_lead_ids if str(i).isdigit()]
+            leads_to_transfer = Lead.objects.filter(id__in=clean_ids, is_archived=False)
+            if active_hospital:
+                leads_to_transfer = leads_to_transfer.filter(hospital=active_hospital)
+        else:
+            leads_to_transfer = _get_matching_leads(source_user_id, stage_id, course_id, deal_status, date_from, date_to, search_q)
+            if transfer_limit and transfer_limit.isdigit() and int(transfer_limit) > 0:
+                limit_num = int(transfer_limit)
+                lead_id_slice = list(leads_to_transfer.values_list("id", flat=True)[:limit_num])
+                leads_to_transfer = Lead.objects.filter(id__in=lead_id_slice)
+
+        transfer_count = leads_to_transfer.count()
+        if transfer_count == 0:
+            messages.warning(request, "No matching leads found to transfer with the selected criteria.")
+            return redirect("leads:bulk_lead_transfer")
+
+        # Perform atomic batch update and record timeline activity logs
+        admin_name = request.user.get_full_name() or request.user.username
+        now_time = timezone.now()
+
+        with transaction.atomic():
+            lead_objs = list(leads_to_transfer)
+            # 1. Bulk update assigned_to on lead objects and synchronize branch if target user belongs to a branch
+            for l in lead_objs:
+                l.assigned_to = target_user
+                l.updated_at = now_time
+                if target_user.branch:
+                    if not isinstance(l.custom_data, dict):
+                        l.custom_data = {}
+                    l.custom_data["hospital_branch"] = target_user.branch.name
+                    l.custom_data["branch"] = target_user.branch.name
+                    l.custom_data["dyn_hospital_branch"] = target_user.branch.name
+                    l.custom_data["dyn_branch"] = target_user.branch.name
+                l.save(update_fields=["assigned_to", "updated_at", "custom_data"])
+
+            # 2. Add Activity log for each lead to record the transfer in timeline
+            activities = []
+            for l in lead_objs:
+                activities.append(
+                    Activity(
+                        lead_id=l.id,
+                        activity_type=ActivityType.SYSTEM,
+                        description=f"Lead ownership transferred from {source_name} to {target_name} by Admin ({admin_name}). Historical notes & remarks preserved.",
+                        created_by=request.user,
+                    )
+                )
+            if activities:
+                Activity.objects.bulk_create(activities)
+
+            # 3. Create In-App Notification for Target Assignee
+            Notification.objects.create(
+                user=target_user,
+                title="Bulk Leads Assigned",
+                message=f"{transfer_count} leads have been reassigned/transferred to you from {source_name} by {admin_name}. You can now follow up with them.",
+                link="/leads/my-leads/" if not target_user.is_hospital_user else "/dashboard/telecaller/my-leads/",
+            )
+
+        messages.success(request, f"Successfully transferred {transfer_count} lead(s) from '{source_name}' to '{target_name}'! All previous call remarks and timeline history remain intact.")
+        return redirect("leads:bulk_lead_transfer")
+
+    return render(request, "leads/bulk_transfer.html", {
+        "active": "bulk_transfer",
+        "active_hospital": active_hospital,
+        "users": users_qs,
+        "stages": stages_qs,
+        "courses": courses_qs,
+        "deal_statuses": [
+            ("OPEN", "Open / In Progress"),
+            ("WON", "Won / Payment / Admission Done"),
+            ("LOST", "Lost / Cancelled / Not Interested"),
+        ],
+    })
+
+
 
 

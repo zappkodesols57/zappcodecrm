@@ -91,10 +91,42 @@
   <!-- Header with WhatsApp Report Button -->
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="fw-bold text-dark mb-1">
-        Import Leads Data
-      </h4>
-      <p class="text-muted small mb-0">Upload {% if is_hospital %}campaign{% else %}course{% endif %} Excel/XML sheets and instantly share daily summaries on WhatsApp.</p>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h4 class="fw-bold text-dark mb-0">
+          Import Leads Data
+        </h4>
+        {% if is_superadmin_user or user.is_superuser or user.role == 'SUPER_ADMIN' %}
+          <div class="dropdown">
+            <button class="btn btn-sm {% if active_business %}btn-primary text-white shadow-xs{% else %}btn-light border text-dark{% endif %} dropdown-toggle d-flex align-items-center gap-2 py-1 px-3 rounded-pill fw-semibold" type="button" id="importBusinessSwitchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem;">
+              <i class="fa-solid fa-building-circle-check"></i>
+              <span>{% if active_business %}{{ active_business.name }}{% else %}All Businesses (Global){% endif %}</span>
+            </button>
+            <ul class="dropdown-menu shadow-lg border-0 py-2 mt-1 rounded-3" aria-labelledby="importBusinessSwitchDropdown" style="font-size: 0.82rem; min-width: 240px; z-index: 1050;">
+              <li class="px-3 py-1 text-muted text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">Switch Target Business</li>
+              <li>
+                <a class="dropdown-item py-2 d-flex align-items-center justify-content-between {% if not active_business %}active fw-bold{% endif %}" href="{% url 'accounts:switch_business' %}?business_id=all&next={{ request.get_full_path|urlencode }}">
+                  <span><i class="fa-solid fa-globe me-2 text-primary"></i> All Businesses</span>
+                  {% if not active_business %}<i class="fa-solid fa-check text-success"></i>{% endif %}
+                </a>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
+              {% for b in global_businesses %}
+              <li>
+                <a class="dropdown-item py-2 d-flex align-items-center justify-content-between {% if active_business.id == b.id %}active fw-bold{% endif %}" href="{% url 'accounts:switch_business' %}?business_id={{ b.id }}&next={{ request.get_full_path|urlencode }}">
+                  <span class="text-truncate" style="max-width: 170px;"><i class="fa-solid fa-building me-2 text-secondary"></i> {{ b.name }}</span>
+                  {% if active_business.id == b.id %}<i class="fa-solid fa-check text-success"></i>{% endif %}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% elif effective_hospital %}
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-semibold" style="font-size: 0.8rem;">
+            <i class="fa-solid fa-building me-1"></i> {{ effective_hospital.name }}
+          </span>
+        {% endif %}
+      </div>
+      <p class="text-muted small mb-0 mt-1">Upload {% if is_hospital %}campaign{% else %}course{% endif %} Excel/XML sheets and instantly share daily summaries on WhatsApp.</p>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <!-- WhatsApp Report Button -->

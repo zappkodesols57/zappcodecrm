@@ -4,30 +4,31 @@
 <style>
   .user-stat-card {
     background: #ffffff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 0.85rem;
-    padding: 0.85rem 1.1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    padding: 0.6rem 0.75rem;
     transition: all 0.2s ease;
-    cursor: pointer;
-    text-decoration: none !important;
     display: flex;
-    align-items: center;
-    gap: 0.85rem;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   }
   .user-stat-card:hover {
     border-color: #818cf8;
-    background: #f8faff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+    background: #fafbff;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.08);
   }
   .user-stat-card.active {
     border-color: #4f46e5;
     background: #eef2ff;
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.16);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12);
   }
   .user-avatar-circle {
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: linear-gradient(135deg, #6366f1, #4f46e5);
     color: #ffffff;
@@ -35,8 +36,21 @@
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     flex-shrink: 0;
+  }
+  .card-action-btn {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.22rem 0.45rem;
+    border-radius: 4px;
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    line-height: 1.2;
+    transition: all 0.15s ease;
   }
   .filter-pill-btn {
     border-radius: 9999px;
@@ -78,13 +92,13 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div class="d-flex align-items-center gap-3">
     <h4 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
-      <span class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+      <span class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
         <i class="fa-solid fa-users-viewfinder"></i>
       </span>
-      <span>Teams History</span>
+      <span style="font-size: 1.2rem;">Teams History</span>
     </h4>
     <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-bold" style="font-size: 0.8rem;">
-      {{ total_count }} Team Leads
+      {{ all_members_count }} Team Leads
     </span>
     <span class="badge bg-light text-secondary border px-2.5 py-1.5 rounded-pill small">
       <i class="fa-regular fa-calendar me-1"></i>{{ active_date_label }}
@@ -117,33 +131,56 @@
 <div class="row g-2 mb-3">
   <!-- All Team Card -->
   <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-    <a href="javascript:void(0)" onclick="filterByUser('')" class="user-stat-card h-100 {% if not selected_user %}active{% endif %}">
-      <div class="user-avatar-circle bg-secondary bg-gradient">
-        <i class="fa-solid fa-people-group"></i>
+    <div class="user-stat-card {% if not selected_user %}active{% endif %}">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <div class="user-avatar-circle bg-secondary bg-gradient">
+          <i class="fa-solid fa-people-group" style="font-size: 0.75rem;"></i>
+        </div>
+        <div class="overflow-hidden flex-grow-1">
+          <div class="text-muted fw-semibold text-truncate" style="font-size: 0.7rem;">All Members</div>
+          <div class="fw-bold text-dark lh-1" style="font-size: 1.05rem;">{{ all_members_count }} <span class="text-muted fw-normal" style="font-size: 0.65rem;">leads</span></div>
+        </div>
       </div>
-      <div class="overflow-hidden">
-        <div class="text-muted small text-truncate" style="font-size: 0.75rem;">All Members</div>
-        <div class="fw-bold fs-5 text-dark lh-1 mt-0.5">{{ total_count }}</div>
+      <div class="mt-auto pt-1.5 border-top border-secondary-subtle">
+        <a href="javascript:void(0)" onclick="filterByUser('')" class="card-action-btn w-100 btn btn-sm {% if not selected_user %}btn-primary text-white{% else %}btn-outline-secondary text-dark bg-light{% endif %}" style="padding: 0.2rem 0.4rem;">
+          <i class="fa-solid fa-list-check"></i> <span>All Team Leads</span>
+        </a>
       </div>
-    </a>
+    </div>
   </div>
 
   {% for stat in user_counts %}
   <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-    <a href="javascript:void(0)" onclick="filterByUser('{{ stat.user.id }}')"
-       class="user-stat-card h-100 {% if selected_user and selected_user.id == stat.user.id %}active{% endif %}"
-       title="View {{ stat.user.get_full_name|default:stat.user.username }}'s leads">
-      <div class="user-avatar-circle {% if stat.is_self %}bg-success bg-gradient{% endif %}">
-        {{ stat.user.first_name|default:stat.user.username|slice:":1"|upper }}
-      </div>
-      <div class="overflow-hidden">
-        <div class="fw-semibold text-dark text-truncate small" style="font-size: 0.82rem;">
-          {{ stat.user.get_full_name|default:stat.user.username }}
-          {% if stat.is_self %}<span class="badge bg-success-subtle text-success p-0.5" style="font-size: 0.65rem;">(You)</span>{% endif %}
+    <div class="user-stat-card {% if selected_user and selected_user.id == stat.user.id %}active{% endif %}">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <div class="user-avatar-circle {% if stat.is_self %}bg-success bg-gradient{% endif %}">
+          {{ stat.user.first_name|default:stat.user.username|slice:":1"|upper }}
         </div>
-        <div class="fw-bold fs-5 text-primary lh-1 mt-0.5">{{ stat.count }} <span class="text-muted fw-normal" style="font-size: 0.72rem;">leads</span></div>
+        <div class="overflow-hidden flex-grow-1">
+          <div class="fw-bold text-dark text-truncate" style="font-size: 0.76rem;" title="{{ stat.user.get_full_name|default:stat.user.username }}">
+            {{ stat.user.get_full_name|default:stat.user.username }}
+            {% if stat.is_self %}<span class="text-success small fw-normal">(You)</span>{% endif %}
+          </div>
+          <div class="fw-bold text-primary lh-1 mt-0.5" style="font-size: 0.95rem;">
+            {{ stat.count }} <span class="text-muted fw-normal" style="font-size: 0.65rem;">leads</span>
+          </div>
+        </div>
       </div>
-    </a>
+
+      <!-- Action Buttons Row: View Leads & View Analysis -->
+      <div class="d-flex gap-1 mt-auto pt-1.5 border-top border-secondary-subtle">
+        <a href="javascript:void(0)" onclick="filterByUser('{{ stat.user.id }}')"
+           class="card-action-btn flex-fill {% if selected_user and selected_user.id == stat.user.id %}btn btn-primary text-white{% else %}btn btn-outline-primary bg-white text-primary{% endif %}"
+           title="Filter table to {{ stat.user.first_name|default:stat.user.username }}'s leads">
+          <i class="fa-solid fa-list"></i> <span>Leads</span>
+        </a>
+        <a href="{% url 'leads:user_performance_analysis' stat.user.id %}" target="_blank"
+           class="card-action-btn flex-fill btn btn-outline-secondary bg-white text-dark"
+           title="View {{ stat.user.first_name|default:stat.user.username }}'s Performance Analysis & Charts">
+          <i class="fa-solid fa-chart-pie text-primary"></i> <span>Analysis</span>
+        </a>
+      </div>
+    </div>
   </div>
   {% endfor %}
 </div>

@@ -28,8 +28,6 @@
 
   /* Form control height, border & crisp clean white background */
   .zapp-form-card .form-control,
-  .zapp-form-card .form-select,
-  .zapp-form-card select,
   .zapp-form-card input {
     height: 42px;
     min-height: 42px;
@@ -41,6 +39,30 @@
     background-color: #ffffff !important;
     padding: 0.45rem 0.85rem;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+
+  .zapp-form-card .form-select,
+  .zapp-form-card select {
+    height: 42px;
+    min-height: 42px;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.45rem 2.25rem 0.45rem 0.85rem !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 14px 10px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
   }
 
   .zapp-form-card textarea.form-control,

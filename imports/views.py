@@ -45,7 +45,12 @@ GUESS_KEYWORDS = {
     "campaign": ["campaign name", "campaign", "ad name", "ad set name"],
     "source": ["origin", "source", "platform", "publisher platform", "lead source", "channel"],
     "assigned_to": ["lead attendent", "lead attendant", "lead_attendent", "lead_attendant", "attendent", "attendant", "assigned to", "assigned", "telecaller", "tele caller", "executive", "caller", "agent", "lead owner", "owner", "assignee", "counsellor", "counselor"],
-    "inquiry_date": ["created at", "created_at", "date", "created time", "lead date", "inquiry date", "lead time"],
+    "inquiry_date": [
+        "lead received date", "lead_received_date", "lead received time", "lead_received_time",
+        "inquiry date time", "inquiry_date_time", "created date time", "created_date_time",
+        "created time", "created_time", "created at", "created_at", "date", "lead date",
+        "lead_date", "inquiry date", "inquiry_date", "lead time", "lead_time", "time", "timestamp"
+    ],
     "notes": ["remark", "comment", "issue", "note", "problem", "symptom", "query", "reason", "question", "समस्या", "रोग"],
 }
 
@@ -204,8 +209,22 @@ def upload(request):
     is_super_admin_no_hospital = bool(user.role == User.Role.SUPER_ADMIN and not user.hospital)
     can_import_previous = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER))
     
-    # Determine if current scope is Hospital vs Zappcode Academy
-    is_hospital = bool(user.hospital or (user.is_hospital_user and not is_super_admin_no_hospital))
+    # Check global active business filter for Superadmin
+    raw_biz = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
+    session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+    selected_hospital_id = raw_biz or session_biz
+
+    effective_hospital = None
+    if user.hospital:
+        effective_hospital = user.hospital
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
+
+    is_hospital = False
+    if effective_hospital:
+        is_hospital = "nelson" in effective_hospital.name.lower() or "hospital" in effective_hospital.name.lower()
+    else:
+        is_hospital = bool(user.is_hospital_user)
 
     # Available campaigns & courses with current leads count
     from django.db.models import Count, Q
@@ -215,10 +234,14 @@ def upload(request):
             leads_count=Count("leads", filter=Q(leads__is_archived=False))
         ).order_by("name")
 
-    if user.hospital:
-        campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        courses = Course.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
+    if effective_hospital:
+        campaigns = HospitalCampaign.objects.filter(hospital=effective_hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(hospital=effective_hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital=effective_hospital, is_archived=False).count()
+    elif selected_hospital_id in ("none", "zappcode"):
+        campaigns = HospitalCampaign.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital__isnull=True, is_archived=False).count()
     elif is_super_admin_no_hospital and all_hospitals.exists():
         first_h = all_hospitals.first()
         campaigns = HospitalCampaign.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
@@ -266,11 +289,14 @@ def upload(request):
             preset_label = today.strftime('%d-%m-%Y')
 
     # Filter base leads and import jobs for current scope
-    if user.hospital:
-        base_leads_qs = Lead.objects.filter(hospital=user.hospital, is_archived=False)
-        base_jobs_qs = ImportJob.objects.filter(created_by__hospital=user.hospital)
+    if effective_hospital:
+        base_leads_qs = Lead.objects.filter(hospital=effective_hospital, is_archived=False)
+        base_jobs_qs = ImportJob.objects.filter(created_by__hospital=effective_hospital)
+    elif selected_hospital_id in ("none", "zappcode"):
+        base_leads_qs = Lead.objects.filter(hospital__isnull=True, is_archived=False)
+        base_jobs_qs = ImportJob.objects.filter(created_by__hospital__isnull=True)
     else:
-        # Global Super Admin: can see all leads across all businesses
+        # Global Super Admin without filter: can see all leads across all businesses
         base_leads_qs = Lead.objects.filter(is_archived=False)
         base_jobs_qs = ImportJob.objects.all()
 
@@ -1346,17 +1372,41 @@ def history(request):
 
 @login_required
 def export_leads(request):
-    is_hospital = bool(request.user.hospital)
+    from django.utils import timezone
+    from accounts.models import Hospital, User
+    from leads.models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, MasterGroup
+    from django.db.models import Q
+    import pandas as pd
+    import io
+    import re
+
+    user = request.user
+    # 1. Determine Effective Business & is_hospital scope
+    raw_biz = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
+    session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+    selected_hospital_id = raw_biz or session_biz
+
+    effective_hospital = None
+    if user.hospital:
+        effective_hospital = user.hospital
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
+
+    is_hospital = False
+    if effective_hospital:
+        is_hospital = "nelson" in effective_hospital.name.lower() or "hospital" in effective_hospital.name.lower()
+    else:
+        is_hospital = bool(user.is_hospital_user)
+
     is_download = request.GET.get("download") == "1"
     is_preview = request.GET.get("preview") == "1"
     
     if not is_download and not is_preview:
-        from leads.models import SourceCategory, LeadSource, Campaign, Course, LeadStage
-        from accounts.models import User
-        
         base_leads = Lead.objects.filter(is_archived=False)
-        if is_hospital:
-            base_leads = base_leads.filter(hospital=request.user.hospital)
+        if effective_hospital:
+            base_leads = base_leads.filter(hospital=effective_hospital)
+        elif selected_hospital_id in ("none", "zappcode"):
+            base_leads = base_leads.filter(hospital__isnull=True)
             
         used_sc_ids = base_leads.values_list("source_category_id", flat=True).distinct()
         used_stage_ids = base_leads.values_list("stage_id", flat=True).distinct()
@@ -1371,12 +1421,11 @@ def export_leads(request):
         nelson_lead_sources = []
         nelson_deal_statuses = []
         
-        if is_hospital:
-            from leads.models import MasterGroup
+        if is_hospital and effective_hospital:
             def get_master(name):
                 grp = MasterGroup.objects.filter(name=name).first()
                 if grp:
-                    return grp.items.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True)
+                    return grp.items.filter(hospital=effective_hospital, is_active=True).values_list("name", flat=True)
                 return []
             nelson_locations = get_master("Locations")
             nelson_campaigns = get_master("Campaigns")
@@ -1410,17 +1459,17 @@ def export_leads(request):
             "nelson_campaigns": nelson_campaigns,
             "nelson_lead_sources": nelson_lead_sources,
             "nelson_deal_statuses": nelson_deal_statuses,
+            "effective_hospital": effective_hospital,
         }
         return render(request, "imports/export_leads_filter.html", context)
 
-
-
-    from django.db.models import Q
     from leads.views import FK_FILTER_FIELDS, CHAR_FILTER_FIELDS
-    leads = Lead.objects.select_related("course", "stage", "lead_source", "source_category", "assigned_to").filter(is_archived=False)
+    leads = Lead.objects.select_related("course", "stage", "lead_source", "source_category", "assigned_to", "campaign", "hospital").filter(is_archived=False)
     
-    if is_hospital:
-        leads = leads.filter(hospital=request.user.hospital)
+    if effective_hospital:
+        leads = leads.filter(hospital=effective_hospital)
+    elif selected_hospital_id in ("none", "zappcode"):
+        leads = leads.filter(hospital__isnull=True)
         
     q = request.GET.get("q", "").strip()
     if q:
@@ -1486,7 +1535,6 @@ def export_leads(request):
     date_to = _parse_date_input(request.GET.get("date_to"))
     if date_from or date_to:
         from datetime import datetime, time
-        from django.utils import timezone
         tz = timezone.get_current_timezone()
         
         # We match on either created_at datetime range or inquiry_date date range for maximum compatibility
@@ -1544,15 +1592,60 @@ def export_leads(request):
         total_count = leads.count()
         preview_leads = leads.order_by("-id")[:10]
         rows = [build_row(l) for l in preview_leads]
-        from django.http import JsonResponse
         return JsonResponse({"total_count": total_count, "rows": rows})
 
-    # Download
+    # Download with Campaign-wise Multi-sheet Excel workbook
     rows = [build_row(l) for l in leads]
-    df = pd.DataFrame(rows)
-    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = f'attachment; filename="leads_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
-    df.to_excel(response, index=False, sheet_name="Leads")
+    df_all = pd.DataFrame(rows)
+
+    # Clean sheet name for Excel (max 31 chars, invalid chars removed)
+    def clean_sheet_name(name):
+        cleaned = re.sub(r'[\/\\?*:[\]]', '_', str(name or 'Other')).strip()
+        return cleaned[:30] if cleaned else "Sheet"
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        if df_all.empty:
+            pd.DataFrame([{"Message": "No leads found for selected filters"}]).to_excel(writer, sheet_name="All Leads", index=False)
+        else:
+            # Sheet 1: All Leads
+            df_all.to_excel(writer, sheet_name="All Leads", index=False)
+            
+            # Group leads by Campaign
+            campaign_groups = {}
+            for l in leads:
+                camp_name = ""
+                if is_hospital:
+                    cd = l.custom_data or {}
+                    camp_name = cd.get("campaign") or (l.campaign.name if l.campaign else "Direct / Unassigned")
+                else:
+                    camp_name = l.campaign.name if l.campaign else "Direct / Unassigned"
+                
+                camp_name = camp_name.strip() if camp_name else "Direct / Unassigned"
+                if camp_name not in campaign_groups:
+                    campaign_groups[camp_name] = []
+                campaign_groups[camp_name].append(build_row(l))
+
+            used_sheet_names = {"all leads"}
+            for camp_name, c_rows in campaign_groups.items():
+                if not c_rows:
+                    continue
+                sheet_title = clean_sheet_name(camp_name)
+                # Ensure unique sheet names
+                base_title = sheet_title
+                counter = 1
+                while sheet_title.lower() in used_sheet_names:
+                    sheet_title = f"{base_title[:26]}_{counter}"
+                    counter += 1
+                used_sheet_names.add(sheet_title.lower())
+                
+                df_camp = pd.DataFrame(c_rows)
+                df_camp.to_excel(writer, sheet_name=sheet_title, index=False)
+
+    output.seek(0)
+    biz_suffix = f"_{effective_hospital.name.replace(' ', '_')}" if effective_hospital else ""
+    response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="leads_export{biz_suffix}_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
     return response
 
 

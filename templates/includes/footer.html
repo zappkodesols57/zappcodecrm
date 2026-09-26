@@ -1,10 +1,152 @@
+<!-- Global App Confirmation Modal -->
+<div class="modal fade" id="appConfirmModal" tabindex="-1" aria-labelledby="appConfirmModalLabel" aria-hidden="true" style="z-index: 10600;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" id="appConfirmModalIconWrapper" style="width: 64px; height: 64px; background: rgba(99, 102, 241, 0.1); color: #4f46e5;">
+          <i class="fa-solid fa-circle-question" id="appConfirmModalIcon" style="font-size: 2rem;"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-2" id="appConfirmModalTitle">Confirm Action</h5>
+        <p class="text-muted mb-0" id="appConfirmModalMsg" style="font-size: 0.95rem; line-height: 1.5;">Are you sure you want to proceed?</p>
+      </div>
+      <div class="modal-footer border-0 bg-light p-3 px-4 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-light rounded-pill px-4 fw-semibold text-secondary" data-bs-dismiss="modal" id="appConfirmModalCancelBtn">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" id="appConfirmModalOkBtn">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
   // Auto-dismiss toasts
   document.querySelectorAll('.toast').forEach(function(t){ setTimeout(function(){ t.classList.remove('show'); }, 4000); });
 
-  function confirmAction(msg){ return confirm(msg || 'Are you sure?'); }
+  // Custom UI-driven Confirmation Dialog Function
+  window.showConfirmDialog = function(options) {
+    return new Promise(function(resolve) {
+      var modalEl = document.getElementById('appConfirmModal');
+      if (!modalEl || !window.bootstrap) {
+        var fallback = window._nativeConfirm ? window._nativeConfirm(options.message || options) : confirm(options.message || options);
+        return resolve(fallback);
+      }
+
+      var msg = typeof options === 'string' ? options : (options.message || 'Are you sure you want to proceed?');
+      var title = options.title || 'Confirmation Required';
+      var confirmText = options.confirmText || 'Confirm';
+      var cancelText = options.cancelText || 'Cancel';
+      var isDanger = options.isDanger || /delete|archive|cancel|remove|reject/i.test(msg);
+      var isRestore = /restore|unarchive/i.test(msg);
+
+      document.getElementById('appConfirmModalTitle').innerText = title;
+      document.getElementById('appConfirmModalMsg').innerText = msg;
+      
+      var okBtn = document.getElementById('appConfirmModalOkBtn');
+      var iconWrapper = document.getElementById('appConfirmModalIconWrapper');
+      var iconEl = document.getElementById('appConfirmModalIcon');
+
+      okBtn.innerText = confirmText;
+      if (isRestore) {
+        okBtn.className = 'btn btn-success rounded-pill px-4 fw-bold shadow-sm';
+        iconWrapper.style.background = 'rgba(16, 185, 129, 0.12)';
+        iconWrapper.style.color = '#059669';
+        iconEl.className = 'fa-solid fa-rotate-left';
+      } else if (isDanger) {
+        okBtn.className = 'btn btn-danger rounded-pill px-4 fw-bold shadow-sm';
+        iconWrapper.style.background = 'rgba(239, 68, 68, 0.12)';
+        iconWrapper.style.color = '#dc2626';
+        iconEl.className = 'fa-solid fa-triangle-exclamation';
+      } else {
+        okBtn.className = 'btn btn-primary rounded-pill px-4 fw-bold shadow-sm';
+        iconWrapper.style.background = 'rgba(99, 102, 241, 0.1)';
+        iconWrapper.style.color = '#4f46e5';
+        iconEl.className = 'fa-solid fa-circle-question';
+      }
+
+      var bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      var confirmed = false;
+
+      function onConfirm() {
+        confirmed = true;
+        bsModal.hide();
+      }
+
+      function onHidden() {
+        okBtn.removeEventListener('click', onConfirm);
+        modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        resolve(confirmed);
+      }
+
+      okBtn.addEventListener('click', onConfirm);
+      modalEl.addEventListener('hidden.bs.modal', onHidden);
+
+      bsModal.show();
+    });
+  };
+
+  // Modern In-App confirmAction interceptor
+  function confirmAction(msg) {
+    // Intercept when invoked inline
+    return confirm(msg || 'Are you sure?');
+  }
+
+  // Intercept click on links and buttons with onclick / onsubmit confirmations
+  document.addEventListener('DOMContentLoaded', function() {
+    // Intercept click on elements that have confirm in onclick
+    document.addEventListener('click', function(e) {
+      var target = e.target.closest('a, button');
+      if (!target) return;
+
+      var onclickAttr = target.getAttribute('onclick');
+      if (onclickAttr && (onclickAttr.includes('confirmAction') || onclickAttr.includes('confirm('))) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // Extract message
+        var msgMatch = onclickAttr.match(/confirm(?:Action)?\(\s*['"`](.*?)['"`]\s*\)/);
+        var msg = msgMatch ? msgMatch[1] : 'Are you sure you want to proceed?';
+
+        window.showConfirmDialog({ message: msg }).then(function(ok) {
+          if (ok) {
+            if (target.tagName === 'A' && target.href) {
+              window.location.href = target.href;
+            } else if (target.type === 'submit' && target.form) {
+              target.form.submit();
+            } else {
+              target.removeAttribute('onclick');
+              target.click();
+              target.setAttribute('onclick', onclickAttr);
+            }
+          }
+        });
+      }
+    }, true);
+
+    // Intercept form submissions with onsubmit="return confirm(...)"
+    document.addEventListener('submit', function(e) {
+      var form = e.target;
+      var onsubmitAttr = form.getAttribute('onsubmit');
+      if (onsubmitAttr && onsubmitAttr.includes('confirm(') && !form.dataset.confirmedByModal) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        var msgMatch = onsubmitAttr.match(/confirm\(\s*['"`](.*?)['"`]\s*\)/);
+        var msg = msgMatch ? msgMatch[1] : 'Are you sure you want to submit this form?';
+
+        window.showConfirmDialog({ message: msg }).then(function(ok) {
+          if (ok) {
+            form.dataset.confirmedByModal = "true";
+            form.submit();
+          }
+        });
+      }
+    }, true);
+  });
 
   // Auto-initialize Tom Select & Email Validation on all forms across the app
   document.addEventListener("DOMContentLoaded", function() {

@@ -33,14 +33,14 @@
   </div>
   <div class="col-12 col-xl-5 col-lg-6">
     <div class="d-flex gap-2 justify-content-lg-end align-items-center flex-wrap">
-      <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
       {% if prev_lead %}
-        <a href="{% url 'leads:lead_detail' prev_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
       {% else %}
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
       {% endif %}
       {% if next_lead %}
-        <a href="{% url 'leads:lead_detail' next_lead.pk %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
       {% else %}
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
       {% endif %}
@@ -163,6 +163,52 @@
           <div class="col-4 text-muted">Referral</div><div class="col-8">{{ lead.get_referral_type_display }} — {{ lead.referral_person }} ({{ lead.referral_contact }})</div>
           {% endif %}
           <div class="col-4 text-muted">Landing Page</div><div class="col-8">{{ lead.landing_page|default:"—" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import & System Provenance Card -->
+    <div class="card mb-3 border-0 shadow-sm rounded-4">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-import text-primary me-2"></i>Import & Creation Details</h6>
+        {% if lead.import_job or lead.import_source_file %}
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill">Imported Record</span>
+        {% elif lead.external_lead_id %}
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">Meta API Sync</span>
+        {% else %}
+          <span class="badge bg-light text-secondary border rounded-pill">Direct CRM Record</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-2 small">
+          <div class="col-4 text-muted">Lead Created / Received</div>
+          <div class="col-8 fw-semibold text-dark">
+            <i class="fa-regular fa-calendar-check text-success me-1"></i>
+            {{ lead.effective_created_formatted|default:lead.inquiry_date }}
+          </div>
+
+          <div class="col-4 text-muted">System Import Date</div>
+          <div class="col-8">
+            {% if lead.import_job %}
+              <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.import_job.created_at|date:"d M Y, h:i A" }}
+            {% elif lead.created_at %}
+              <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.created_at|date:"d M Y, h:i A" }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+
+          {% if lead.import_source_file or lead.import_job %}
+          <div class="col-4 text-muted">Import File Name</div>
+          <div class="col-8 fw-semibold text-break text-primary">
+            <i class="fa-solid fa-file-excel me-1"></i>{{ lead.import_source_file|default:lead.import_job.original_filename }}
+          </div>
+          {% endif %}
+
+          {% if lead.external_lead_id %}
+          <div class="col-4 text-muted">Meta LeadGen ID</div>
+          <div class="col-8 font-monospace text-muted">{{ lead.external_lead_id }}</div>
+          {% endif %}
         </div>
       </div>
     </div>

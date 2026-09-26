@@ -180,12 +180,26 @@
             {% endif %}
           </td>
           <td>
-            {% if u.department %}
+            {% if u.role == 'DOCTOR' and u.doctor_departments_list %}
+              <div class="d-flex flex-wrap gap-1 align-items-center">
+                {% for dept in u.doctor_departments_list %}
+                  {% if dept.is_primary %}
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-bold" title="Primary Department (Selected at Profile Creation)">
+                      <i class="fa-solid fa-star me-1" style="font-size: 0.65rem;"></i>{{ dept.name }}
+                    </span>
+                  {% else %}
+                    <span class="badge bg-light text-dark border" title="Additional Assigned Department">
+                      {{ dept.name }}
+                    </span>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            {% elif u.department %}
               <span class="badge bg-light text-dark border">{{ u.department }}</span>
             {% endif %}
             {% if u.speciality %}
               <div class="small text-muted mt-1">{{ u.speciality }}</div>
-            {% elif not u.department %}
+            {% elif not u.department and not u.doctor_departments_list %}
               <span class="text-muted">—</span>
             {% endif %}
           </td>

@@ -88,7 +88,7 @@
             <label class="form-label small fw-semibold text-dark mb-1">
               {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
             </label>
-            {% if field.name == 'role' or field.name == 'reports_to' or field.name == 'department' or field.name == 'speciality' %}
+            {% if field.name == 'role' or field.name == 'reports_to' or field.name == 'department' or field.name == 'speciality' or field.name == 'branch' %}
               <div class="custom-select-wrapper">
                 {{ field }}
               </div>
@@ -236,14 +236,26 @@
       }));
     }
 
+    const dailyCallDiv = document.getElementById("div_id_daily_call_target");
+    const dailyCallInput = document.getElementById("id_daily_call_target");
+
     function toggleFields() {
       if (!roleField) return;
       
       const isDoctor = roleField.value === "DOCTOR";
-      const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT", "MANAGER"].includes(roleField.value);
+      const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
+      const isEligibleForCallingTarget = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
       
       if (deptDiv) deptDiv.style.display = isDoctor ? "block" : "none";
       if (specDiv) specDiv.style.display = isDoctor ? "block" : "none";
+      
+      // Hide Daily Calling Target for Doctor / Admin / Non-telecaller roles
+      if (dailyCallDiv) {
+        dailyCallDiv.style.display = isEligibleForCallingTarget ? "block" : "none";
+        if (isDoctor && dailyCallInput) {
+          dailyCallInput.value = "0";
+        }
+      }
       
       if (allowSelfAssignDiv) {
         allowSelfAssignDiv.style.display = isEligibleForSelfAssign ? "block" : "none";

@@ -723,17 +723,24 @@ class HospitalLeadForm(forms.ModelForm):
             # -------------------------------------------------------------------
             from leads.models import LeadCustomField, Campaign, LeadSource
             def get_field_options(field_name, master_group_name, fallback_default_prompt):
+                # For Campaign: strictly source from active Campaign model objects for this hospital
+                if field_name == "campaign":
+                    camp_qs = Campaign.objects.filter(is_active=True)
+                    if user and user.hospital:
+                        camp_qs = camp_qs.filter(Q(hospital=user.hospital) | Q(hospital__isnull=True))
+                    results = []
+                    seen = set()
+                    for c in camp_qs.order_by("name"):
+                        c_name = c.name.strip()
+                        if c_name and c_name.lower() not in seen:
+                            seen.add(c_name.lower())
+                            results.append((c_name, c_name))
+                    return results
+
                 # 1. If configured in Form Field settings, use strictly configured options
                 cf_obj = LeadCustomField.objects.filter(hospital=user.hospital, name=field_name).first() if (user and user.hospital) else None
                 if cf_obj and cf_obj.get_options_list():
                     results = [(opt.strip(), opt.strip()) for opt in cf_obj.get_options_list() if opt.strip()]
-                    # For campaign & lead source, also include any active model items
-                    if field_name == "campaign":
-                        seen = {r[0].lower() for r in results}
-                        for c in Campaign.objects.filter(hospital=user.hospital, is_active=True):
-                            if c.name.strip() and c.name.strip().lower() not in seen:
-                                seen.add(c.name.strip().lower())
-                                results.append((c.name.strip(), c.name.strip()))
                     return results
 
                 # 2. Fallback to MasterItem group entries
@@ -763,10 +770,10 @@ class HospitalLeadForm(forms.ModelForm):
             master_campaigns = get_field_options("campaign", "Campaigns", "-- Select Campaign --")
             master_sources = get_field_options("lead_source", "Lead Sources", "-- Select Lead Source --")
             
-            # Ensure current initial values are preserved if present
+            # Ensure current initial value is preserved ONLY if editing an existing instance
             curr_camp = self.fields["campaign"].initial
             camp_dict = {c[0].lower(): c for c in master_campaigns}
-            if curr_camp and str(curr_camp).lower() not in camp_dict:
+            if self.instance and self.instance.pk and curr_camp and str(curr_camp).lower() not in camp_dict:
                 master_campaigns.insert(0, (str(curr_camp), str(curr_camp)))
 
             curr_src = self.fields["lead_source"].initial
@@ -1223,27 +1230,34 @@ class HospitalLeadForm(forms.ModelForm):
             if camp_obj:
                 instance.campaign = camp_obj
 
-        # Ensure stage is set (cannot be null)
+        # Ensure stage is set accurately based on business type and appointment/payment status
         from leads.models import LeadStage
-        if not getattr(instance, 'stage_id', None):
-            assigned_stage = None
-            if has_payment or is_already_completed:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Payment Done').first() or \
-                                 LeadStage.objects.filter(name__iexact='Admission').first()
-            elif is_cancelled_or_not_interested:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Lost').first()
-            elif is_followup_needed or fu_date:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Follow-up').first()
-            elif is_booking_selected:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Interested').first() or \
-                                 LeadStage.objects.filter(name__iexact='Visit Planned').first()
-            elif instance.assigned_to:
-                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first()
+        assigned_stage = None
+        if has_payment or is_already_completed:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Payment Done').first() or \
+                             LeadStage.objects.filter(name__iexact='Appointment Completed').first() or \
+                             LeadStage.objects.filter(name__iexact='Admission').first()
+        elif is_cancelled_or_not_interested:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Lost').first()
+        elif is_followup_needed or fu_date:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Follow-up').first()
+        elif is_booking_selected:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Booking Confirmed').first() or \
+                             LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
+                             LeadStage.objects.filter(name__iexact='Interested').first() or \
+                             LeadStage.objects.filter(name__iexact='Visit Planned').first()
+        elif appo_status:
+            assigned_stage = LeadStage.objects.filter(name__iexact=appo_status).first()
 
-            if not assigned_stage:
-                assigned_stage = LeadStage.objects.filter(name__iexact='New').first() or \
-                                 LeadStage.objects.filter(order=1).first() or \
-                                 LeadStage.objects.first()
+        if not assigned_stage and instance.assigned_to:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first()
+
+        if not assigned_stage:
+            assigned_stage = LeadStage.objects.filter(name__iexact='New').first() or \
+                             LeadStage.objects.filter(order=1).first() or \
+                             LeadStage.objects.first()
+
+        if assigned_stage:
             instance.stage = assigned_stage
 
         instance.custom_data = cd
@@ -1332,20 +1346,28 @@ class HospitalLeadForm(forms.ModelForm):
                             doc_user = u
                             break
                         
-                    # Update or create appointment for this lead
-                    Appointment.objects.update_or_create(
-                        lead=instance,
-                        defaults={
-                            "hospital": getattr(instance, 'hospital', None),
-                            "doctor_name": doc_name,
-                            "doctor_user": doc_user,
-                            "appointment_date": appo_date,
-                            "appointment_time": appo_time,
-                            "status": AppointmentStatus.PENDING_APPROVAL,
-                            "notes": self.cleaned_data.get('remark_1') or '',
-                            "created_by": getattr(self, 'current_user', None)
-                        }
-                    )
+                    # Update active/latest appointment or create new for this lead
+                    existing_apt = Appointment.objects.filter(lead=instance).order_by('-id').first()
+                    if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
+                        existing_apt.hospital = getattr(instance, 'hospital', None)
+                        existing_apt.doctor_name = doc_name
+                        existing_apt.doctor_user = doc_user
+                        existing_apt.appointment_date = appo_date
+                        existing_apt.appointment_time = appo_time
+                        existing_apt.notes = self.cleaned_data.get('remark_1') or existing_apt.notes
+                        existing_apt.save(update_fields=['hospital', 'doctor_name', 'doctor_user', 'appointment_date', 'appointment_time', 'notes'])
+                    else:
+                        Appointment.objects.create(
+                            lead=instance,
+                            hospital=getattr(instance, 'hospital', None),
+                            doctor_name=doc_name,
+                            doctor_user=doc_user,
+                            appointment_date=appo_date,
+                            appointment_time=appo_time,
+                            status=AppointmentStatus.PENDING_APPROVAL,
+                            notes=self.cleaned_data.get('remark_1') or '',
+                            created_by=getattr(self, 'current_user', None)
+                        )
 
         old_save_m2m = getattr(self, 'save_m2m', None)
         def save_m2m():

@@ -1,17 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Daily Task Reports Log{% endblock %}
+
+{% block extra_head %}
+<style>
+  .reports-table {
+    font-size: 0.88rem;
+    border: 1px solid #000000;
+  }
+  .reports-table th {
+    background-color: #f8fafc;
+    color: #000000;
+    font-weight: 600;
+    border-bottom: 1px solid #000000 !important;
+    vertical-align: middle;
+  }
+  .reports-table td {
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+  .filter-bar-box {
+    border: 1px solid #000000;
+    border-radius: 6px;
+    background: #ffffff;
+  }
+  .filter-bar-box .form-control,
+  .filter-bar-box .form-select {
+    border: 1px solid #000000 !important;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h4 class="mb-0">Daily Task Reports Log</h4>
+    <h4 class="fw-bold text-dark mb-1">Daily Task Reports Log</h4>
     <p class="text-muted small mb-0">Review end-of-day task reports submitted by employees</p>
   </div>
   <div>
-    <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-sm btn-success text-white"><i class="fa-solid fa-file-excel me-1"></i> Export to Excel</a>
+    <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-file-excel me-1"></i> Export to Excel</a>
   </div>
 </div>
 
-<form method="get" class="card p-3 mb-4 border-0 shadow-sm bg-white">
+<form method="get" class="filter-bar-box p-3 mb-4">
   <div class="row g-2 align-items-center">
     <div class="col-md-3">
       <select name="employee" class="form-select form-select-sm">
@@ -23,114 +53,90 @@
     </div>
     <div class="col-md-3">
       <div class="input-group input-group-sm">
-        <span class="input-group-text small">From</span>
-        <input type="date" name="date_from" class="form-control" value="{{ request_get.date_from }}">
+        <span class="input-group-text bg-light border-dark small">From</span>
+        <input type="date" name="date_from" id="reportDateFrom" class="form-control border-dark" value="{{ request_get.date_from }}">
       </div>
     </div>
     <div class="col-md-3">
       <div class="input-group input-group-sm">
-        <span class="input-group-text small">To</span>
-        <input type="date" name="date_to" class="form-control" value="{{ request_get.date_to }}">
+        <span class="input-group-text bg-light border-dark small">To</span>
+        <input type="date" name="date_to" id="reportDateTo" class="form-control border-dark" value="{{ request_get.date_to }}">
       </div>
     </div>
     <div class="col-md-3">
-      <div class="d-flex gap-1">
+      <div class="d-flex gap-2">
         {% if current_hospital %}
           <input type="hidden" name="business" value="{{ current_hospital.id }}">
         {% endif %}
-        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Filter</button>
-        <a href="{% url 'dashboard:management_daily_reports' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Reset</a>
+        <button class="btn btn-sm btn-dark flex-grow-1" type="submit">Filter</button>
+        <a href="{% url 'dashboard:management_daily_reports' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-outline-dark px-3">Reset</a>
       </div>
     </div>
   </div>
 </form>
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm rounded-0">
   <div class="table-responsive">
-    <table class="table mb-0 align-middle">
-      <thead class="table-light">
+    <table class="table table-hover mb-0 align-middle reports-table">
+      <thead>
         <tr>
-          <th>Date & Employee</th>
-          <th>Reports To</th>
-          <th>Login Time</th>
-          <th class="text-center">Assigned Leads</th>
-          <th class="text-center">Calls / Touches</th>
-          <th class="text-center">Admissions</th>
-          <th class="text-center">Payments Done</th>
-          <th class="text-center">Pending Leads</th>
-          <th class="text-center">Tomorrow FU</th>
-          <th class="text-center">Mood</th>
-          <th>Summary / Highlight</th>
+          <th class="px-3 py-2">Date & Employee</th>
+          <th class="text-center py-2">Assigned</th>
+          <th class="text-center py-2">Completed</th>
+          <th class="text-center py-2">Pending</th>
+          <th class="text-center py-2">Upcoming</th>
+          <th class="text-center py-2">Tomorrow</th>
+          <th class="text-center py-2">Login</th>
+          <th class="text-center py-2">Logout</th>
+          <th class="text-center py-2">Mood</th>
         </tr>
       </thead>
       <tbody>
         {% for report in reports %}
         <tr>
-          <td>
-            <span class="badge text-bg-light border fw-bold">{{ report.report_date|date:"d-m-Y" }}</span>
-            <div class="fw-bold text-dark mt-1">{{ report.user.get_full_name|default:report.user.username }}</div>
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle small" style="font-size: 0.68rem;">{{ report.user.get_role_display }}</span>
+          <td class="px-3">
+            <div class="fw-bold text-dark">{{ report.user.get_full_name|default:report.user.username }}</div>
+            <div class="small text-muted">{{ report.report_date|date:"d-m-Y" }} &bull; {{ report.user.get_role_display }}</div>
           </td>
-          <td>
-            {% if report.user.reports_to %}
-              <div class="fw-semibold text-secondary small"><i class="fa-solid fa-user-tie me-1 text-muted"></i>{{ report.user.reports_to.get_full_name|default:report.user.reports_to.username }}</div>
-              <span class="badge bg-light text-muted border small" style="font-size: 0.65rem;">{{ report.user.reports_to.get_role_display }}</span>
+          <td class="text-center fw-bold text-dark fs-6">
+            {{ report.leads_assigned }}
+          </td>
+          <td class="text-center fw-bold text-dark fs-6">
+            {{ report.calls_attended }}
+          </td>
+          <td class="text-center fw-bold text-dark fs-6">
+            {{ report.pending_leads }}
+          </td>
+          <td class="text-center fw-bold text-dark fs-6">
+            {{ report.follow_ups_taken|default:"0" }}
+          </td>
+          <td class="text-center fw-bold text-dark fs-6">
+            {{ report.tomorrow_followups }}
+          </td>
+          <td class="text-center text-nowrap">
+            {% if report.first_login_at %}
+              <span class="small fw-semibold text-success">{{ report.first_login_at|time:"h:i A" }}</span>
+            {% elif report.created_at %}
+              <span class="small fw-semibold text-success">{{ report.created_at|time:"h:i A" }}</span>
             {% else %}
-              <span class="badge bg-light text-secondary border small"><i class="fa-solid fa-user-shield me-1"></i>Super Admin</span>
-            {% endif %}
-          </td>
-          <td>
-            <div class="small text-nowrap">
-              <span class="badge bg-success bg-opacity-15 text-success border border-success px-2 py-1 fw-bold" style="font-size: 0.76rem;">
-                <i class="fa-solid fa-right-to-bracket me-1"></i>In: {% if report.first_login_at %}{{ report.first_login_at|time:"h:i A" }}{% elif report.created_at %}{{ report.created_at|time:"h:i A" }}{% else %}—{% endif %}
-              </span>
-            </div>
-            {% if report.last_logout_at %}
-            <div class="small text-nowrap mt-1">
-              <span class="badge bg-secondary bg-opacity-15 text-secondary border border-secondary px-2 py-1 fw-semibold" style="font-size: 0.74rem;">
-                <i class="fa-solid fa-right-from-bracket me-1"></i>Out: {{ report.last_logout_at|time:"h:i A" }}
-              </span>
-            </div>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            <span class="badge bg-primary fs-6 px-3 py-1.5 rounded-pill">{{ report.leads_assigned }}</span>
-          </td>
-          <td class="text-center">
-            <span class="badge bg-info text-dark fs-6 px-3 py-1.5 rounded-pill">{{ report.calls_attended }}</span>
-            <div class="small text-muted mt-0.5" style="font-size: 0.7rem;">{{ report.follow_ups_taken }} FU logged</div>
-          </td>
-          <td class="text-center">
-            <span class="badge bg-purple fs-6 px-3 py-1.5 rounded-pill" style="background: #9333ea; color: white;"><i class="fa-solid fa-graduation-cap me-1"></i>{{ report.admissions_done }}</span>
-          </td>
-          <td class="text-center">
-            <span class="badge bg-emerald text-success border border-success-subtle fs-6 px-2.5 py-1" style="background:#ecfdf5;">{{ report.payments_done }} <span class="small">(₹{{ report.fees_collected|floatformat:0 }})</span></span>
-          </td>
-          <td class="text-center">
-            <span class="badge bg-warning text-dark fs-6 px-3 py-1.5 rounded-pill">{{ report.pending_leads }}</span>
-          </td>
-          <td class="text-center">
-            <span class="badge bg-teal text-white fs-6 px-3 py-1.5 rounded-pill" style="background: #0d9488;">{{ report.tomorrow_followups }}</span>
-          </td>
-          <td class="text-center">
-            <span class="badge bg-light text-dark border px-2 py-1 fw-semibold" style="font-size: 0.76rem;">{{ report.mood_display }}</span>
-          </td>
-          <td style="max-width: 250px;">
-            {% if report.key_highlight %}
-              <div class="small fw-semibold text-dark text-truncate" title="{{ report.key_highlight }}"><i class="fa-solid fa-star text-warning me-1"></i>{{ report.key_highlight }}</div>
-            {% endif %}
-            {% if report.other_updates %}
-              <div class="small text-muted text-truncate" title="{{ report.other_updates }}">{{ report.other_updates }}</div>
-            {% elif not report.key_highlight %}
               <span class="text-muted small">—</span>
             {% endif %}
+          </td>
+          <td class="text-center text-nowrap">
+            {% if report.last_logout_at %}
+              <span class="small fw-semibold text-secondary">{{ report.last_logout_at|time:"h:i A" }}</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="small text-dark">{{ report.mood_display|default:"—" }}</span>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8">
+          <td colspan="9">
             <div class="empty-state text-center py-5 text-muted">
-              <i class="fa-solid fa-file-circle-question fs-3 mb-2"></i>
               <div>No daily reports found matching the selected filters.</div>
             </div>
           </td>
@@ -140,4 +146,47 @@
     </table>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const dateFrom = document.getElementById('reportDateFrom');
+  const dateTo = document.getElementById('reportDateTo');
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  if (dateFrom) {
+    dateFrom.setAttribute('max', todayStr);
+    dateFrom.addEventListener('change', function() {
+      if (this.value) {
+        if (dateTo) {
+          dateTo.setAttribute('min', this.value);
+          if (dateTo.value && dateTo.value < this.value) {
+            dateTo.value = this.value;
+          }
+        }
+      } else if (dateTo) {
+        dateTo.removeAttribute('min');
+      }
+    });
+  }
+
+  if (dateTo) {
+    dateTo.setAttribute('max', todayStr);
+    dateTo.addEventListener('change', function() {
+      if (this.value) {
+        if (dateFrom) {
+          dateFrom.setAttribute('max', this.value);
+          if (dateFrom.value && dateFrom.value > this.value) {
+            dateFrom.value = this.value;
+          }
+        }
+      } else if (dateFrom) {
+        dateFrom.setAttribute('max', todayStr);
+      }
+    });
+  }
+});
+</script>
 {% endblock %}
+
+
+

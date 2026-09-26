@@ -46,6 +46,21 @@ class AcademyDailyReportForm(forms.ModelForm):
 
 class HospitalDailyReportForm(forms.ModelForm):
     """Specific form for Hospital / Nelson Medical consultations."""
+    MOOD_RATING_CHOICES = [
+        (1, "😞 Very Low"),
+        (2, "😕 Low"),
+        (3, "😐 Moderate"),
+        (4, "🙂 Good"),
+        (5, "😄 Great"),
+    ]
+    mood_rating = forms.TypedChoiceField(
+        choices=MOOD_RATING_CHOICES,
+        coerce=int,
+        initial=3,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select no-tom-select"})
+    )
+
     class Meta:
         model = DailyReport
         fields = [
@@ -73,7 +88,6 @@ class HospitalDailyReportForm(forms.ModelForm):
             "challenges_faced":   forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Any issues, blockers, or difficult patient leads..."}),
             "tomorrow_priority":  forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "What will you focus on tomorrow?"}),
             "other_updates":      forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Any other updates or summary notes..."}),
-            "mood_rating":        forms.Select(attrs={"class": "form-select no-tom-select"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -88,6 +102,62 @@ class HospitalDailyReportForm(forms.ModelForm):
             "leads_assigned", "calls_attended", "outgoing_calls", "incoming_calls", "calls_not_connected",
             "follow_ups_taken", "follow_ups_pending", "appointments_booked", "freeze_leads",
             "leads_cold", "leads_interested", "leads_visited", "admissions_done",
+        ]
+        for field in int_fields:
+            val = cleaned_data.get(field)
+            if val is not None and val < 0:
+                cleaned_data[field] = 0
+        return cleaned_data
+
+
+class DoctorDailyReportForm(forms.ModelForm):
+    """Specific clean EOD form for Doctors."""
+    MOOD_RATING_CHOICES = [
+        (1, "😞 Very Low"),
+        (2, "😕 Low"),
+        (3, "😐 Moderate"),
+        (4, "🙂 Good"),
+        (5, "😄 Great"),
+    ]
+    mood_rating = forms.TypedChoiceField(
+        choices=MOOD_RATING_CHOICES,
+        coerce=int,
+        initial=3,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select no-tom-select"})
+    )
+
+    class Meta:
+        model = DailyReport
+        fields = [
+            "leads_assigned",       # Appointment requests received today
+            "appointments_booked",  # Appointments accepted / approved today
+            "pending_leads",        # Today's scheduled appointments
+            "freeze_leads",         # Appointments cancelled
+            "admissions_done",      # Appointments completed
+            "tomorrow_followups",   # Tomorrow's scheduled appointments
+            "mood_rating",          # Mood / Energy rating
+        ]
+        widgets = {
+            "leads_assigned":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
+            "appointments_booked":forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
+            "pending_leads":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
+            "freeze_leads":       forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
+            "admissions_done":    forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
+            "tomorrow_followups": forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name != "mood_rating":
+                field.required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        int_fields = [
+            "leads_assigned", "appointments_booked", "pending_leads",
+            "freeze_leads", "admissions_done", "tomorrow_followups",
         ]
         for field in int_fields:
             val = cleaned_data.get(field)

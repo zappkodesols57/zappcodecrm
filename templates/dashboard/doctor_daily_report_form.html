@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Submit Daily EOD Report · Doctor Panel{% endblock %}
+
+{% block extra_head %}
+<style>
+  .crm-report-container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .crm-form-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .crm-section-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #0f172a;
+  }
+  .crm-card-body {
+    padding: 1.25rem 1.5rem;
+  }
+  .form-label-custom {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.4rem;
+    display: block;
+  }
+  .mood-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .mood-pill-input {
+    display: none;
+  }
+  .mood-pill-label {
+    padding: 0.45rem 0.95rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: #475569;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .mood-pill-input:checked + .mood-pill-label {
+    border-color: #4f46e5;
+    background: #eef2ff;
+    color: #4338ca;
+  }
+  .mood-pill-label:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crm-report-container">
+
+  <!-- Header Section -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+    <div>
+      <h4 class="mb-0 fw-bold text-dark">Submit Daily EOD Report</h4>
+      <p class="text-muted small mb-0">{{ report_date|date:"l, d F Y" }} · Doctor Consultation &amp; OPD Summary</p>
+    </div>
+    <div>
+      {% if existing %}
+        <span class="badge text-bg-warning fs-6 me-2">Editing today's report</span>
+      {% endif %}
+      <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Cancel</a>
+    </div>
+  </div>
+
+  <!-- Main Report Form for Doctor -->
+  <form method="post" id="doctorDailyReportForm">
+    {% csrf_token %}
+
+    <div class="crm-form-card">
+      <div class="crm-section-header">
+        <span>Today's Doctor OPD &amp; Appointments Summary</span>
+      </div>
+      <div class="crm-card-body">
+        
+        <!-- Row 1: Appointment requests received & Appointments accepted -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Appointment Requests Received Today</label>
+            {{ form.leads_assigned }}
+            <small class="text-muted" style="font-size: 0.72rem;">New appointment requests received today for your consultation</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Appointments Accepted Today</label>
+            {{ form.appointments_booked }}
+            <small class="text-muted" style="font-size: 0.72rem;">Appointment requests you approved/accepted today</small>
+          </div>
+        </div>
+
+        <!-- Row 2: Today's scheduled appointments & Appointments cancelled -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Today's Scheduled Appointments</label>
+            {{ form.pending_leads }}
+            <small class="text-muted" style="font-size: 0.72rem;">Total patient consultations scheduled on your OPD queue today</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Appointments Cancelled</label>
+            {{ form.freeze_leads }}
+            <small class="text-muted" style="font-size: 0.72rem;">Booked consultations that were rejected or cancelled</small>
+          </div>
+        </div>
+
+        <!-- Row 3: Appointments completed & Tomorrow's appointment scheduled -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label-custom">Appointments Completed</label>
+            {{ form.admissions_done }}
+            <small class="text-muted" style="font-size: 0.72rem;">Patient consultations successfully completed today</small>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-custom">Tomorrow Appointment Scheduled</label>
+            {{ form.tomorrow_followups }}
+            <small class="text-muted" style="font-size: 0.72rem;">Patient appointments already booked on schedule for tomorrow</small>
+          </div>
+        </div>
+
+        <!-- Row 4: Energy / Mood Rating -->
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label-custom">Energy / Mood Rating</label>
+            <div class="mood-pills mt-1">
+              {% for value, label in form.mood_rating.field.choices %}
+              <div>
+                <input type="radio" name="mood_rating" id="mood_{{ value }}" value="{{ value }}" class="mood-pill-input"
+                  {% if form.mood_rating.value|stringformat:"s" == value|stringformat:"s" %}checked{% elif not form.mood_rating.value and value|stringformat:"s" == "3" %}checked{% elif not form.mood_rating.value and forloop.counter == 3 %}checked{% endif %}>
+                <label for="mood_{{ value }}" class="mood-pill-label">
+                  <span>{{ label }}</span>
+                </label>
+              </div>
+              {% empty %}
+              <!-- Fallback mood buttons -->
+              <div>
+                <input type="radio" name="mood_rating" id="mood_1" value="1" class="mood-pill-input">
+                <label for="mood_1" class="mood-pill-label">😞 Very Low</label>
+              </div>
+              <div>
+                <input type="radio" name="mood_rating" id="mood_2" value="2" class="mood-pill-input">
+                <label for="mood_2" class="mood-pill-label">😕 Low</label>
+              </div>
+              <div>
+                <input type="radio" name="mood_rating" id="mood_3" value="3" class="mood-pill-input" checked>
+                <label for="mood_3" class="mood-pill-label">😐 Moderate</label>
+              </div>
+              <div>
+                <input type="radio" name="mood_rating" id="mood_4" value="4" class="mood-pill-input">
+                <label for="mood_4" class="mood-pill-label">🙂 Good</label>
+              </div>
+              <div>
+                <input type="radio" name="mood_rating" id="mood_5" value="5" class="mood-pill-input">
+                <label for="mood_5" class="mood-pill-label">😄 Great</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {% if form.errors %}
+    <div class="alert alert-danger rounded-3 py-2 px-3 small mb-3">
+      <strong>Please fix the errors below:</strong>
+      {{ form.errors }}
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="d-flex gap-3 justify-content-end align-items-center mt-4 pt-2 mb-5">
+      <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-outline-secondary rounded-pill px-4 py-2">Cancel</a>
+      <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm">
+        {% if existing %}Update &amp; Resend EOD Report{% else %}Submit EOD Report to Admin{% endif %}
+      </button>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}

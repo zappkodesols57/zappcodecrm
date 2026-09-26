@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from .models import Notification
 from datetime import timedelta
 from django.utils import timezone
@@ -11,11 +12,15 @@ def get_unread_notifications(request):
         tz = timezone.get_current_timezone()
         now = timezone.localtime(timezone.now(), tz)
         today = now.date()
+        from datetime import datetime, time
+        start_today = timezone.make_aware(datetime.combine(today, time.min), tz)
+        end_today = timezone.make_aware(datetime.combine(today, time.max), tz)
         
         from leads.models import Lead
         from followups.models import FollowUp, FollowUpStatus
+        from dashboard.models import TaskReminder
         
-        # 1. Check pending followups for this user scheduled for today
+        # 1. Check pending followups for this user scheduled for today (alert once per lead per day)
         pending_fu = FollowUp.objects.filter(
             lead__assigned_to=request.user,
             followup_date=today,
@@ -23,6 +28,8 @@ def get_unread_notifications(request):
         ).select_related('lead')
 
         for fu in pending_fu:
+            if not fu.lead:
+                continue
             time_msg = ""
             should_alert = False
             if fu.followup_time:
@@ -33,20 +40,67 @@ def get_unread_notifications(request):
                 # Alert only when within 5 mins before scheduled time up to 60 mins after
                 if -60 <= diff_minutes <= 5:
                     should_alert = True
+            else:
+                # No time specified: alert once during the day
+                should_alert = True
 
             if should_alert:
                 notif_title = f"⏰ Follow-up Due: {fu.lead.name}"
+                fu_link = f"/leads/{fu.lead.pk}/"
+                # Check if an alert was already generated today for this lead or exact title using explicit datetime range
                 exists = Notification.objects.filter(
                     user=request.user,
-                    title=notif_title,
-                    created_at__date=today
+                    created_at__range=(start_today, end_today)
+                ).filter(
+                    Q(title__icontains=fu.lead.name) | Q(link=fu_link)
                 ).exists()
+                
                 if not exists:
                     Notification.objects.create(
                         user=request.user,
                         title=notif_title,
                         message=f"Scheduled follow-up for patient {fu.lead.name}{time_msg} is now due. Contact: {fu.lead.mobile}",
-                        link=f"/leads/{fu.lead.pk}/"
+                        link=fu_link
+                    )
+
+        # 2. Check pending task reminders for this user scheduled for today (alert once per task per day)
+        pending_tasks = TaskReminder.objects.filter(
+            user=request.user,
+            due_date=today,
+            status__in=[TaskReminder.Status.PENDING, TaskReminder.Status.IN_PROGRESS]
+        ).select_related('lead')
+
+        for task in pending_tasks:
+            time_msg = ""
+            should_alert = False
+            if task.due_time:
+                task_dt = timezone.datetime.combine(today, task.due_time)
+                task_dt = timezone.make_aware(task_dt, tz)
+                diff_minutes = (task_dt - now).total_seconds() / 60.0
+                time_msg = f" at {task.due_time.strftime('%I:%M %p')}"
+                if -60 <= diff_minutes <= 5:
+                    should_alert = True
+            else:
+                should_alert = True
+
+            if should_alert:
+                task_title = f"📋 Task Reminder: {task.title}"
+                task_link = f"/leads/{task.lead.pk}/" if task.lead else "/dashboard/tasks/"
+                task_desc = f" ({task.description[:80]}...)" if task.description else ""
+                
+                exists = Notification.objects.filter(
+                    user=request.user,
+                    created_at__range=(start_today, end_today)
+                ).filter(
+                    Q(title=task_title) | (Q(link=task_link) & Q(title__icontains=task.title))
+                ).exists()
+
+                if not exists:
+                    Notification.objects.create(
+                        user=request.user,
+                        title=task_title,
+                        message=f"Task '{task.title}'{time_msg} is due today.{task_desc}",
+                        link=task_link
                     )
 
         # 2. Return unread notifications formatted in accurate local time
