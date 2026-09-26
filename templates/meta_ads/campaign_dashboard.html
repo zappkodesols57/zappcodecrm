@@ -251,25 +251,43 @@
 <div class="meta-top-nav-card">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
 
-    <!-- Business Entity Pills -->
+    <!-- Business Entity Pills (Super Admin sees all businesses, Single Business Admin sees only their business) -->
     <div class="d-flex align-items-center gap-2 flex-wrap">
-      <a href="?entity=nelson&channel={{ active_channel|default:'meta' }}&date_preset={{ date_preset }}"
-        class="entity-tab-pill {% if selected_entity == 'nelson' %}active{% endif %}">
-        <span>Nelson Hospital Dhantoli</span>
-        <span
-          class="badge {% if selected_entity == 'nelson' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
-          {{ nelson_meta_count|add:nelson_justdial_count|add:nelson_practo_count }}
-        </span>
-      </a>
+      {% if is_super_admin %}
+        <a href="?entity=nelson&channel={{ active_channel|default:'meta' }}&date_preset={{ date_preset }}"
+          class="entity-tab-pill {% if selected_entity == 'nelson' %}active{% endif %}">
+          <span>Nelson Hospital Dhantoli</span>
+          <span
+            class="badge {% if selected_entity == 'nelson' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
+            {{ nelson_meta_count|add:nelson_justdial_count|add:nelson_practo_count }}
+          </span>
+        </a>
 
-      <a href="?entity=academy&date_preset={{ date_preset }}"
-        class="entity-tab-pill {% if selected_entity == 'academy' %}active{% endif %}">
-        <span>Zappcode Academy</span>
-        <span
-          class="badge {% if selected_entity == 'academy' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
-          {{ academy_leads_count }}
-        </span>
-      </a>
+        <a href="?entity=academy&date_preset={{ date_preset }}"
+          class="entity-tab-pill {% if selected_entity == 'academy' %}active{% endif %}">
+          <span>Zappcode Academy</span>
+          <span
+            class="badge {% if selected_entity == 'academy' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
+            {{ academy_leads_count }}
+          </span>
+        </a>
+      {% else %}
+        {% if user_is_nelson or selected_entity == 'nelson' %}
+        <div class="entity-tab-pill active">
+          <span>Nelson Hospital Dhantoli</span>
+          <span class="badge bg-danger text-white rounded-pill px-2">
+            {{ nelson_meta_count|add:nelson_justdial_count|add:nelson_practo_count }}
+          </span>
+        </div>
+        {% elif user_is_academy or selected_entity == 'academy' %}
+        <div class="entity-tab-pill active">
+          <span>Zappcode Academy</span>
+          <span class="badge bg-primary text-white rounded-pill px-2">
+            {{ academy_leads_count }}
+          </span>
+        </div>
+        {% endif %}
+      {% endif %}
     </div>
 
     <!-- Date Range Filter & Action Controls -->
@@ -331,8 +349,7 @@
         <span class="kpi-title">{% if active_channel == 'meta' %}Ad Spend{% else %}Channel Volume{% endif %}</span>
       </div>
       <div class="kpi-value">
-        {% if active_channel == 'meta' %}₹{{ total_spend|floatformat:0|intcomma|default:"0" }}{% else %}{{
-        channel_total_count|intcomma }}{% endif %}
+        {% if active_channel == 'meta' %}₹{{ total_spend|floatformat:0|intcomma|default:"0" }}{% else %}{{ channel_total_count|intcomma }}{% endif %}
       </div>
       <div class="d-flex align-items-center gap-1">
         <span class="kpi-badge bg-success bg-opacity-10 text-success">+8.2%</span>
@@ -362,8 +379,7 @@
         <span class="kpi-title">{% if active_channel == 'meta' %}Cost per Lead (CPL){% else %}Converted Leads{% endif %}</span>
       </div>
       <div class="kpi-value">
-        {% if active_channel == 'meta' %}₹{{ overall_cpl|floatformat:0|default:"0" }}{% else %}{{
-        channel_converted_count }}{% endif %}
+        {% if active_channel == 'meta' %}₹{{ overall_cpl|floatformat:0|default:"0" }}{% else %}{{ channel_converted_count|default:"0" }}{% endif %}
       </div>
       <div class="d-flex align-items-center gap-1">
         <span class="kpi-badge bg-danger bg-opacity-10 text-danger">-3.1%</span>

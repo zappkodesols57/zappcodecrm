@@ -60,15 +60,16 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3 custom-header-card p-3 p-md-4">
     <div>
       <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-2 fw-semibold" style="font-size: 0.75rem;">
+        <span class="text-primary fw-semibold small">
           Universal Master Settings
         </span>
+        <span class="text-muted small">•</span>
         {% if request.user.hospital %}
-        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-2" style="font-size: 0.75rem;">
+        <span class="text-secondary small">
           {{ request.user.hospital.name }}
         </span>
         {% else %}
-        <span class="badge bg-info bg-opacity-10 text-info px-2 py-1 rounded-2" style="font-size: 0.75rem;">
+        <span class="text-secondary small">
           Zappcode Universal
         </span>
         {% endif %}
@@ -98,14 +99,19 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-2 py-1">
       <div class="nav nav-pills gap-2">
         <a href="?tab=fields{% if is_default_tab %}&business=default{% elif current_hospital %}&business={{ current_hospital.id }}{% endif %}" 
-           class="nav-link rounded-3 px-3 py-2 fw-semibold small transition-all {% if active_main_tab != 'temperature' %}active bg-primary text-white shadow-sm{% else %}bg-light text-secondary border{% endif %}">
-          <i class="fa-solid fa-list-check me-1.5"></i> Custom Lead Form & Fields
-          <span class="badge {% if active_main_tab != 'temperature' %}bg-white text-primary{% else %}bg-secondary bg-opacity-25 text-dark{% endif %} ms-1.5 px-2 py-0.5 rounded-2">{{ all_fields|length }}</span>
+           class="nav-link rounded-3 px-3 py-2 fw-semibold small transition-all {% if active_main_tab == 'fields' or active_main_tab != 'temperature' and active_main_tab != 'archived' %}active bg-primary text-white shadow-sm{% else %}bg-light text-secondary border{% endif %}">
+          Custom Lead Form & Fields
+          <span class="badge {% if active_main_tab == 'fields' or active_main_tab != 'temperature' and active_main_tab != 'archived' %}bg-white text-primary{% else %}bg-secondary bg-opacity-25 text-dark{% endif %} ms-1.5 px-2 py-0.5 rounded-2">{{ all_fields|length }}</span>
         </a>
         <a href="?tab=temperature{% if is_default_tab %}&business=default{% elif current_hospital %}&business={{ current_hospital.id }}{% endif %}" 
            class="nav-link rounded-3 px-3 py-2 fw-semibold small transition-all {% if active_main_tab == 'temperature' %}active bg-primary text-white shadow-sm{% else %}bg-light text-secondary border{% endif %}">
-          <i class="fa-solid fa-temperature-half me-1.5"></i> Temperature Master (Positive & Negative Keywords)
+          Temperature Master
           <span class="badge {% if active_main_tab == 'temperature' %}bg-white text-primary{% else %}bg-secondary bg-opacity-25 text-dark{% endif %} ms-1.5 px-2 py-0.5 rounded-2">{{ pos_items|length|add:neg_items|length }}</span>
+        </a>
+        <a href="?tab=archived{% if is_default_tab %}&business=default{% elif current_hospital %}&business={{ current_hospital.id }}{% endif %}" 
+           class="nav-link rounded-3 px-3 py-2 fw-semibold small transition-all {% if active_main_tab == 'archived' %}active bg-danger text-white shadow-sm{% else %}bg-light text-secondary border{% endif %}">
+          Archived Leads
+          <span class="badge {% if active_main_tab == 'archived' %}bg-white text-danger{% else %}bg-danger bg-opacity-10 text-danger{% endif %} ms-1.5 px-2 py-0.5 rounded-2">{{ archived_count|default:'0' }}</span>
         </a>
       </div>
     </div>
@@ -153,12 +159,7 @@
       <div class="card border-0 shadow-sm rounded-4 h-100 bg-white" style="border: 1px solid #e2e8f0 !important;">
         <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
           <div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-2 fw-bold">
-                <i class="fa-solid fa-arrow-trend-up me-1"></i> UP-SHIFT (HOT / WARM)
-              </span>
-              <h6 class="fw-bold text-dark mb-0">Positive Call Remarks / Notes</h6>
-            </div>
+            <h6 class="fw-bold text-dark mb-0">Positive Call Remarks / Notes <span class="text-success small fw-semibold ms-2">(Up-Shift: Hot / Warm)</span></h6>
             <small class="text-muted d-block mt-1">If customer gives positive response or callback request, temperature resets / up-shifts to <strong>Hot</strong>.</small>
           </div>
           <button type="button" class="btn btn-sm btn-success rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addPosKeywordModal">
@@ -180,33 +181,33 @@
               <tbody>
                 {% for item in pos_items %}
                 <tr>
-                  <td class="ps-4 text-muted small">{{ forloop.counter }}</td>
+                  <td class="ps-4 text-center text-muted fw-semibold">{{ forloop.counter }}</td>
                   <td>
                     <span class="fw-bold text-dark">{{ item.name }}</span>
                     {% if not item.hospital %}
-                      <span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size: 0.65rem;">Global</span>
+                      <span class="text-muted small ms-1">(Global)</span>
                     {% endif %}
                   </td>
-                  <td><code>{{ item.code|default:"—" }}</code></td>
+                  <td><span class="text-muted font-monospace">{{ item.code|default:"—" }}</span></td>
                   <td class="text-center">
                     {% if item.is_active %}
-                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-2 px-2 py-0.5">Active</span>
+                      <span class="text-success fw-semibold">Active</span>
                     {% else %}
-                      <span class="badge bg-secondary-subtle text-secondary border rounded-2 px-2 py-0.5">Inactive</span>
+                      <span class="text-muted">Inactive</span>
                     {% endif %}
                   </td>
                   <td class="text-end pe-4">
                     <div class="d-inline-flex gap-1 justify-content-end align-items-center">
-                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}">
+                      <button class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 text-primary fw-medium" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}">
                         Edit
                       </button>
-                      <a href="{% url 'leads:master_item_toggle' item.id %}?tab=temperature&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-3 px-2 py-1 {% if item.is_active %}text-warning{% else %}text-success{% endif %}">
+                      <a href="{% url 'leads:master_item_toggle' item.id %}?tab=temperature&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 {% if item.is_active %}text-secondary{% else %}text-success{% endif %} fw-medium">
                         {% if item.is_active %}Disable{% else %}Enable{% endif %}
                       </a>
                       <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete keyword \'{{ item.name }}\'?');">
                         {% csrf_token %}
                         <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
-                        <button type="submit" class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-danger">
+                        <button type="submit" class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 text-danger fw-medium">
                           Delete
                         </button>
                       </form>
@@ -232,12 +233,7 @@
       <div class="card border-0 shadow-sm rounded-4 h-100 bg-white" style="border: 1px solid #e2e8f0 !important;">
         <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
           <div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2.5 py-1 rounded-2 fw-bold">
-                <i class="fa-solid fa-arrow-trend-down me-1"></i> DOWN-SHIFT (WARM / COLD / FREEZE)
-              </span>
-              <h6 class="fw-bold text-dark mb-0">Negative Call Remarks / Notes</h6>
-            </div>
+            <h6 class="fw-bold text-dark mb-0">Negative Call Remarks / Notes <span class="text-danger small fw-semibold ms-2">(Down-Shift: Warm / Cold / Freeze)</span></h6>
             <small class="text-muted d-block mt-1">1 remark = <strong>Warm</strong>, 2 remarks = <strong>Cold</strong>, 3+ remarks = <strong>Freeze</strong>.</small>
           </div>
           <button type="button" class="btn btn-sm btn-danger rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addNegKeywordModal">
@@ -259,33 +255,33 @@
               <tbody>
                 {% for item in neg_items %}
                 <tr>
-                  <td class="ps-4 text-muted small">{{ forloop.counter }}</td>
+                  <td class="ps-4 text-center text-muted fw-semibold">{{ forloop.counter }}</td>
                   <td>
                     <span class="fw-bold text-dark">{{ item.name }}</span>
                     {% if not item.hospital %}
-                      <span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size: 0.65rem;">Global</span>
+                      <span class="text-muted small ms-1">(Global)</span>
                     {% endif %}
                   </td>
-                  <td><code>{{ item.code|default:"—" }}</code></td>
+                  <td><span class="text-muted font-monospace">{{ item.code|default:"—" }}</span></td>
                   <td class="text-center">
                     {% if item.is_active %}
-                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-2 px-2 py-0.5">Active</span>
+                      <span class="text-success fw-semibold">Active</span>
                     {% else %}
-                      <span class="badge bg-secondary-subtle text-secondary border rounded-2 px-2 py-0.5">Inactive</span>
+                      <span class="text-muted">Inactive</span>
                     {% endif %}
                   </td>
                   <td class="text-end pe-4">
                     <div class="d-inline-flex gap-1 justify-content-end align-items-center">
-                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}">
+                      <button class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 text-primary fw-medium" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}">
                         Edit
                       </button>
-                      <a href="{% url 'leads:master_item_toggle' item.id %}?tab=temperature&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-3 px-2 py-1 {% if item.is_active %}text-warning{% else %}text-success{% endif %}">
+                      <a href="{% url 'leads:master_item_toggle' item.id %}?tab=temperature&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 {% if item.is_active %}text-secondary{% else %}text-success{% endif %} fw-medium">
                         {% if item.is_active %}Disable{% else %}Enable{% endif %}
                       </a>
                       <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete keyword \'{{ item.name }}\'?');">
                         {% csrf_token %}
                         <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
-                        <button type="submit" class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-danger">
+                        <button type="submit" class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 text-danger fw-medium">
                           Delete
                         </button>
                       </form>
@@ -307,17 +303,137 @@
     </div>
   </div>
 
+  {% elif active_main_tab == 'archived' %}
+  <!-- ==================== ARCHIVED LEADS TAB ==================== -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h6 class="fw-bold text-dark mb-0">
+          <i class="fa-solid fa-box-archive text-danger me-1.5"></i> Archived Patient Leads
+        </h6>
+        <small class="text-muted">Viewing archived leads for: <strong>{% if is_default_tab %}All Default / Global Businesses{% else %}{{ current_hospital.name }}{% endif %}</strong></small>
+      </div>
+      <div>
+        <form method="get" class="d-flex align-items-center gap-2">
+          <input type="hidden" name="tab" value="archived">
+          {% if is_default_tab %}
+            <input type="hidden" name="business" value="default">
+          {% elif current_hospital %}
+            <input type="hidden" name="business" value="{{ current_hospital.id }}">
+          {% endif %}
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+            <input type="text" name="q_archived" value="{{ q_archived|default:'' }}" class="form-control form-control-sm border-start-0" placeholder="Search archived leads...">
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary px-3 rounded-2 fw-semibold">Search</button>
+          {% if q_archived %}
+          <a href="?tab=archived{% if is_default_tab %}&business=default{% elif current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border px-2 rounded-2">Clear</a>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-custom-field table-hover align-middle mb-0" style="font-size: 0.85rem;">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4 py-2.5 text-muted fw-semibold" style="width: 100px;">Lead Code</th>
+              <th class="py-2.5 text-muted fw-semibold">Patient Name</th>
+              <th class="py-2.5 text-muted fw-semibold">Contact</th>
+              {% if is_default_tab or is_global_admin %}
+              <th class="py-2.5 text-muted fw-semibold">Hospital / Business</th>
+              {% endif %}
+              <th class="py-2.5 text-muted fw-semibold">Campaign / Source</th>
+              <th class="py-2.5 text-muted fw-semibold">Assigned To</th>
+              <th class="py-2.5 text-muted fw-semibold">Last Updated</th>
+              <th class="py-2.5 px-4 text-end text-muted fw-semibold" style="width: 160px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in archived_leads %}
+            <tr>
+              <td class="ps-4 py-2.5 fw-semibold text-dark">#{{ l.lead_code|default:l.id }}</td>
+              <td class="py-2.5 fw-bold text-dark">
+                <a href="{% url 'leads:lead_detail' l.pk %}" class="text-decoration-none text-dark hover-primary">
+                  {{ l.name }}
+                </a>
+              </td>
+              <td class="py-2.5 text-muted">{{ l.mobile }}</td>
+              {% if is_default_tab or is_global_admin %}
+              <td class="py-2.5">
+                <span class="badge bg-light text-dark border">{{ l.hospital.name|default:"General / Academy" }}</span>
+              </td>
+              {% endif %}
+              <td class="py-2.5">
+                <span class="badge bg-light text-dark border">{{ l.campaign.name|default:l.lead_source|default:'Direct Visit' }}</span>
+              </td>
+              <td class="py-2.5 text-muted">
+                {% if l.assigned_to %}
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">
+                    <i class="fa-solid fa-user me-1"></i>{{ l.assigned_to.get_full_name|default:l.assigned_to.username }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small">Unassigned</span>
+                {% endif %}
+              </td>
+              <td class="py-2.5 text-muted small">{{ l.updated_at|date:"d M Y, h:i A" }}</td>
+              <td class="px-4 py-2.5 text-end text-nowrap">
+                <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-xs btn-light border rounded-pill px-2.5 py-1 me-1 text-primary" title="View Lead Profile">
+                  <i class="fa-solid fa-eye me-1"></i>View
+                </a>
+                <a href="{% url 'leads:lead_archive' l.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-1 fw-semibold" onclick="return confirm('Restore lead #{{ l.lead_code|default:l.id }} ({{ l.name }}) back to active CRM leads list?')" title="Restore Lead">
+                  <i class="fa-solid fa-rotate-left me-1"></i>Restore
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-box-open fs-2 mb-2 d-block opacity-40 text-secondary"></i>
+                <h6 class="fw-bold text-dark mb-1">No Archived Leads Found</h6>
+                <p class="small text-muted mb-0">There are no archived records in this business scope.</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if archived_leads.has_other_pages %}
+      <div class="card-footer bg-white border-top py-2.5 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="text-muted small">
+          Showing page {{ archived_leads.number }} of {{ archived_leads.paginator.num_pages }} (Total: {{ archived_leads.paginator.count }} leads)
+        </span>
+        <ul class="pagination pagination-sm mb-0">
+          {% if archived_leads.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?tab=archived&archived_page={{ archived_leads.previous_page_number }}{% if is_default_tab %}&business=default{% elif current_hospital %}&business={{ current_hospital.id }}{% endif %}{% if q_archived %}&q_archived={{ q_archived }}{% endif %}">Previous</a>
+          </li>
+          {% endif %}
+          <li class="page-item active"><span class="page-link">{{ archived_leads.number }}</span></li>
+          {% if archived_leads.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?tab=archived&archived_page={{ archived_leads.next_page_number }}{% if is_default_tab %}&business=default{% elif current_hospital %}&business={{ current_hospital.id }}{% endif %}{% if q_archived %}&q_archived={{ q_archived }}{% endif %}">Next</a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   {% else %}
   <!-- ==================== CUSTOM FIELDS TAB ==================== -->
   <!-- Form Fields Table Card -->
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
     <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-      <div class="d-flex align-items-center gap-2">
-        <h6 class="fw-bold text-dark mb-0">
-          Form Fields & Display Order
-        </h6>
+      <div>
+        <h6 class="fw-bold text-dark mb-0">Form Fields & Display Order</h6>
+        <small class="text-muted">Manage lead capture input fields, mandatory flags, and dynamic dropdown options</small>
       </div>
-      <span class="badge bg-light text-muted border px-2 py-1 rounded-2 small">
+      <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-2 small fw-semibold">
         Total Fields: {{ all_fields|length }}
       </span>
     </div>
@@ -327,102 +443,86 @@
         <table class="table table-custom-field table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width: 75px;" class="ps-4">Order</th>
-              <th>Field Label</th>
-              <th>Identifier (Slug)</th>
-              <th style="width: 140px;">Field Type</th>
-              <th style="width: 110px;">Mandatory</th>
+              <th style="width: 70px;" class="ps-4 text-center">Order</th>
+              <th style="width: 180px;">Field Label</th>
+              <th style="width: 160px;">Identifier (Slug)</th>
+              <th style="width: 150px;">Field Type</th>
+              <th style="width: 110px;" class="text-center">Mandatory</th>
               <th>Options / Placeholder</th>
-              <th class="text-center" style="width: 120px;">Visibility</th>
-              <th class="text-end pe-4" style="width: 130px;">Actions</th>
+              <th class="text-center" style="width: 110px;">Visibility</th>
+              <th class="text-end pe-4" style="width: 150px;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for field in all_fields %}
             <tr>
-              <td class="ps-4">
-                <span class="badge bg-light text-dark border px-2 py-1 fw-bold">{{ field.order }}</span>
-              </td>
+              <td class="ps-4 text-center text-muted fw-semibold">{{ field.order }}</td>
               <td>
-                <strong class="text-dark">{{ field.label }}</strong>
+                <span class="fw-bold text-dark">{{ field.label }}</span>
                 {% if field.is_system %}
-                  <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle ms-1" style="font-size: 0.68rem;">Core</span>
+                  <span class="text-muted small ms-1">(Core)</span>
                 {% else %}
-                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-1" style="font-size: 0.68rem;">Custom</span>
+                  <span class="text-primary small ms-1">(Custom)</span>
                 {% endif %}
               </td>
-              <td><code>{{ field.name }}</code></td>
+              <td><span class="text-muted font-monospace">{{ field.name }}</span></td>
               <td>
                 {% if field.field_type == 'TEXT' %}
-                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1 rounded-2">
-                    Text (Single Line)
-                  </span>
+                  <span class="text-dark">Text (Single Line)</span>
                 {% elif field.field_type == 'DROPDOWN' %}
-                  <span class="badge bg-purple-subtle text-purple border border-purple-subtle px-2 py-1 rounded-2" style="background: #f3e8ff; color: #7e22ce;">
-                    Dropdown
-                  </span>
+                  <span class="text-dark">Dropdown</span>
                 {% elif field.field_type == 'NUMBER' %}
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1 rounded-2">
-                    Number
-                  </span>
+                  <span class="text-dark">Number</span>
                 {% elif field.field_type == 'TEXTAREA' %}
-                  <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1 rounded-2">
-                    Textarea
-                  </span>
+                  <span class="text-dark">Textarea</span>
                 {% elif field.field_type == 'DATE' %}
-                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1 rounded-2">
-                    Date Picker
-                  </span>
+                  <span class="text-dark">Date Picker</span>
                 {% elif field.field_type == 'CHECKBOX' %}
-                  <span class="badge bg-secondary bg-opacity-10 text-dark border border-secondary-subtle px-2 py-1 rounded-2">
-                    Checkbox
-                  </span>
+                  <span class="text-dark">Checkbox</span>
                 {% elif field.field_type == 'DECIMAL' %}
-                  <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1 rounded-2">
-                    Currency/Decimal
-                  </span>
+                  <span class="text-dark">Currency / Decimal</span>
                 {% else %}
-                  <span class="badge bg-light text-dark border px-2 py-1 rounded-2">{{ field.field_type }}</span>
+                  <span class="text-dark">{{ field.field_type }}</span>
                 {% endif %}
               </td>
-              <td>
+              <td class="text-center">
                 {% if field.is_required %}
-                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1 rounded-2">Required</span>
+                  <span class="text-danger fw-semibold">Required</span>
                 {% else %}
-                  <span class="text-muted small">Optional</span>
+                  <span class="text-muted">Optional</span>
                 {% endif %}
               </td>
               <td>
                 {% if field.field_type == 'DROPDOWN' %}
-                  <div class="small text-muted text-truncate" style="max-width: 260px;" title="{{ field.options }}">
+                  <div class="small text-muted text-truncate" style="max-width: 280px;" title="{{ field.options }}">
                     {{ field.options|default:"Dynamic list configured" }}
                   </div>
                 {% elif field.placeholder %}
-                  <small class="text-muted text-truncate d-block" style="max-width: 260px;">Placeholder: "{{ field.placeholder }}"</small>
+                  <small class="text-muted text-truncate d-block" style="max-width: 280px;">Placeholder: "{{ field.placeholder }}"</small>
                 {% else %}
-                  <span class="text-muted small">—</span>
+                  <span class="text-muted">—</span>
                 {% endif %}
               </td>
               <td class="text-center">
                 {% if field.is_active %}
-                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-2 px-2 py-1">Active</span>
+                  <span class="text-success fw-semibold">Active</span>
                 {% else %}
-                  <span class="badge bg-secondary-subtle text-secondary border rounded-2 px-2 py-1">Hidden</span>
+                  <span class="text-muted">Hidden</span>
                 {% endif %}
               </td>
-              <td class="text-end pe-4 text-nowrap" style="white-space: nowrap; min-width: 140px;">
+              <td class="text-end pe-4 text-nowrap" style="white-space: nowrap;">
                 <div class="d-inline-flex gap-1 justify-content-end align-items-center">
-                  <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-primary text-nowrap" title="Edit Field" data-bs-toggle="modal" data-bs-target="#editFieldModal{{ field.id }}">
+                  <button class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 text-primary fw-medium" title="Edit Field" data-bs-toggle="modal" data-bs-target="#editFieldModal{{ field.id }}">
                     Edit
                   </button>
-                  <a href="{% url 'leads:custom_field_toggle' field.id %}?business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-3 px-2 py-1 {% if field.is_active %}text-warning{% else %}text-success{% endif %} text-nowrap" title="{% if field.is_active %}Hide from lead form{% else %}Show on lead form{% endif %}">
+                  <a href="{% url 'leads:custom_field_toggle' field.id %}?business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 {% if field.is_active %}text-secondary{% else %}text-success{% endif %} fw-medium" title="{% if field.is_active %}Hide from lead form{% else %}Show on lead form{% endif %}">
                     {% if field.is_active %}Hide{% else %}Show{% endif %}
                   </a>
                   {% if not field.is_system %}
                   <form method="post" action="{% url 'leads:custom_field_delete' field.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete custom field \'{{ field.label }}\'?');">
                     {% csrf_token %}
                     <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
-                    <button type="submit" class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-danger text-nowrap" title="Delete Field">
+                    <button type="submit" class="btn btn-sm btn-light border rounded-2 px-2.5 py-1 text-danger fw-medium" title="Delete Field">
                       Delete
                     </button>
                   </form>
@@ -433,7 +533,7 @@
             {% empty %}
             <tr>
               <td colspan="8" class="text-center py-5 text-muted">
-                <h6 class="fw-bold">No custom fields configured for {% if is_default_tab %}Default Template{% else %}{{ current_hospital.name }}{% endif %}</h6>
+                <h6 class="fw-bold text-dark">No custom fields configured for {% if is_default_tab %}Default Template{% else %}{{ current_hospital.name }}{% endif %}</h6>
                 <button class="btn btn-sm btn-primary rounded-3 px-4 mt-2" data-bs-toggle="modal" data-bs-target="#addCustomFieldModal">
                   Add First Field
                 </button>

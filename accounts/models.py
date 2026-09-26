@@ -92,6 +92,7 @@ class User(AbstractUser):
     department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, null=True, blank=True)
     speciality = models.CharField(max_length=50, choices=SPECIALITY_CHOICES, null=True, blank=True)
     hospital = models.ForeignKey(Hospital, on_delete=models.SET_NULL, null=True, blank=True, related_name="users")
+    branch = models.ForeignKey("leads.HospitalBranch", on_delete=models.SET_NULL, null=True, blank=True, related_name="users", help_text="Assigned Branch for Branch Managers, Telecallers, and Doctors. Null/Empty means All Branches (Full Business Access).")
     
     # Store individual permission overrides here
     custom_permissions = models.JSONField(default=dict, blank=True)
@@ -137,6 +138,60 @@ class User(AbstractUser):
             role_name = self.get_role_display()
         return f"{prefix} ({role_name})"
 
+    @property
+    def doctor_departments_list(self):
+        """
+        Returns a list of dicts for all assigned departments for this doctor:
+        [{'name': 'NEUROLOGY', 'is_primary': True}, {'name': 'PEDIATRIC', 'is_primary': False}]
+        The primary department chosen at profile creation time is marked with is_primary=True.
+        """
+        primary_name = (self.department or "").strip()
+        result = []
+        seen = set()
+
+        if primary_name:
+            result.append({"name": primary_name, "is_primary": True})
+            seen.add(primary_name.lower())
+
+        # Check linked HospitalDoctor profile departments
+        doc_profile = getattr(self, "doctor_profile", None)
+        if not doc_profile and self.hospital and self.role == self.Role.DOCTOR:
+            from leads.models import HospitalDoctor
+            doc_profile = HospitalDoctor.objects.filter(hospital=self.hospital, user=self).first()
+
+        if doc_profile:
+            # Check secondary / many-to-many departments
+            for dept in doc_profile.departments.filter(is_active=True):
+                d_name = dept.name.strip()
+                if d_name.lower() not in seen:
+                    result.append({"name": d_name, "is_primary": False})
+                    seen.add(d_name.lower())
+            # Check doc_profile.department fallback
+            if doc_profile.department and doc_profile.department.name.strip().lower() not in seen:
+                d_name = doc_profile.department.name.strip()
+                result.append({"name": d_name, "is_primary": (len(result) == 0)})
+                seen.add(d_name.lower())
+
+        return result
+
+    @property
+    def doctor_departments_display(self):
+        """
+        Returns HTML formatted string of departments:
+        Primary department in <strong>...</strong> and other assigned departments normal.
+        """
+        depts = self.doctor_departments_list
+        if not depts:
+            return self.department or "General OPD"
+        
+        parts = []
+        for d in depts:
+            if d["is_primary"]:
+                parts.append(f"<strong>{d['name']}</strong>")
+            else:
+                parts.append(f"{d['name']}")
+        return ", ".join(parts)
+
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"
 
@@ -177,14 +232,14 @@ class User(AbstractUser):
 
     @property
     def can_self_assign(self):
-        # Explicit admin roles should never self-assign leads by default (only telecallers, counsellors, HR, attendants)
-        if self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN):
-            return bool(self.custom_permissions.get("allow_self_assign", False) or self.custom_permissions.get("can_self_assign", False))
+        # Doctors, Admins, Super Admins, and Managers should never self-assign leads (only telecallers, counsellors, HR, attendants)
+        if self.role in (self.Role.DOCTOR, self.Role.ADMIN, self.Role.SUPER_ADMIN, self.Role.MANAGER):
+            return False
         if "allow_self_assign" in self.custom_permissions:
             return bool(self.custom_permissions["allow_self_assign"])
         if "can_self_assign" in self.custom_permissions:
             return bool(self.custom_permissions["can_self_assign"])
-        return self.role in (self.Role.COUNSELLOR, self.Role.HR, self.Role.LEAD_ATTENDENT, self.Role.MANAGER)
+        return self.role in (self.Role.COUNSELLOR, self.Role.HR, self.Role.LEAD_ATTENDENT)
 
     @property
     def can_manage_users(self):
@@ -196,7 +251,11 @@ class User(AbstractUser):
 
     @property
     def can_manage_masters(self):
-        return self.has_dynamic_permission("manage_masters", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+        return self.has_dynamic_permission("manage_masters", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER))
+
+    @property
+    def can_manage_hospital_profile(self):
+        return self.has_dynamic_permission("manage_hospital_profile", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER))
 
     @property
     def can_import_export(self):

@@ -378,17 +378,38 @@ def campaign_dashboard(request):
     elif request.user.hospital:
         active_business = request.user.hospital
 
-    # Determine Active Entity Mode: 'nelson' or 'academy'
-    # If no specific business selected (Global All), default active tab to Nelson or GET param
-    selected_entity = request.GET.get("entity", "").strip().lower()
-    if not selected_entity:
-        if active_business:
-            if "nelson" in active_business.name.lower() or "hospital" in active_business.name.lower():
-                selected_entity = "nelson"
-            else:
-                selected_entity = "academy"
+    # Determine if current user is Super Admin
+    is_super_admin = getattr(request.user, "is_superuser", False) or getattr(request.user, "role", "") == "SUPER_ADMIN"
+
+    user_hospital = getattr(request.user, "hospital", None)
+    user_is_nelson = False
+    user_is_academy = False
+    if user_hospital:
+        hosp_name = user_hospital.name.lower()
+        if "nelson" in hosp_name or "hospital" in hosp_name:
+            user_is_nelson = True
+        elif "zappcode" in hosp_name or "academy" in hosp_name:
+            user_is_academy = True
+
+    # If NOT Super Admin, restrict strictly to the user's business
+    if not is_super_admin:
+        if user_is_nelson:
+            selected_entity = "nelson"
+        elif user_is_academy:
+            selected_entity = "academy"
         else:
             selected_entity = "nelson"
+    else:
+        # Determine Active Entity Mode for Super Admin: 'nelson' or 'academy'
+        selected_entity = request.GET.get("entity", "").strip().lower()
+        if not selected_entity:
+            if active_business:
+                if "nelson" in active_business.name.lower() or "hospital" in active_business.name.lower():
+                    selected_entity = "nelson"
+                else:
+                    selected_entity = "academy"
+            else:
+                selected_entity = "nelson"
 
     # Nelson sub-channel: 'meta', 'justdial', 'practo'
     active_channel = request.GET.get("channel", "meta").strip().lower()
@@ -580,6 +601,9 @@ def campaign_dashboard(request):
 
     return render(request, "meta_ads/campaign_dashboard.html", {
         "active": "meta_ads",
+        "is_super_admin": is_super_admin,
+        "user_is_nelson": user_is_nelson,
+        "user_is_academy": user_is_academy,
         "all_hospitals": all_hospitals,
         "active_business": active_business,
         "selected_entity": selected_entity,

@@ -51,19 +51,49 @@ def parse_date(raw):
             return None
     except (ImportError, TypeError, ValueError):
         pass
-    if isinstance(raw, datetime):
+    if isinstance(raw, (datetime,)):
         return raw.date()
     if isinstance(raw, date):
         return raw
+    try:
+        import pandas as pd
+        if isinstance(raw, pd.Timestamp):
+            return raw.date()
+    except Exception:
+        pass
     s = str(raw).strip()
-    if not s or s.lower() in ("nan", "nat", "-"):
+    if not s or s.lower() in ("nan", "nat", "-", "none", "null"):
         return None
-    fmts = ["%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d.%m.%y", "%d/%m/%y"]
+        
+    # ISO string with 'T' (e.g., 2026-09-10T05:29:00)
+    if "t" in s.lower():
+        try:
+            clean_s = s.split(".")[0].replace("Z", "").replace("z", "")
+            return datetime.fromisoformat(clean_s).date()
+        except Exception:
+            pass
+
+    fmts = [
+        "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M",
+        "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
+        "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+        "%d.%m.%Y %H:%M:%S", "%d.%m.%Y %H:%M",
+        "%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d",
+        "%d.%m.%y", "%d/%m/%y", "%d-%m-%y", "%m/%d/%Y", "%m/%d/%y"
+    ]
     for fmt in fmts:
         try:
             return datetime.strptime(s, fmt).date()
         except ValueError:
             continue
+            
+    try:
+        import pandas as pd
+        parsed = pd.to_datetime(s, errors="coerce", dayfirst=True)
+        if pd.notna(parsed):
+            return parsed.date()
+    except Exception:
+        pass
     return None
 
 

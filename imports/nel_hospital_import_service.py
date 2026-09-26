@@ -64,9 +64,12 @@ def parse_flexible_date(raw):
             pass
             
     formats = [
+        "%d-%m-%Y %H:%M:%S", "%d-%m-%Y %H:%M",
+        "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
+        "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+        "%d.%m.%Y %H:%M:%S", "%d.%m.%Y %H:%M",
         "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y",
         "%m/%d/%Y", "%Y/%m/%d", "%d-%b-%Y", "%d %b %Y",
-        "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"
     ]
     for fmt in formats:
         try:
@@ -75,7 +78,7 @@ def parse_flexible_date(raw):
             continue
             
     try:
-        parsed = pd.to_datetime(s, errors="coerce")
+        parsed = pd.to_datetime(s, errors="coerce", dayfirst=True)
         if pd.notna(parsed):
             return parsed.date()
     except Exception:
@@ -210,7 +213,12 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         "contact_no", "whatsapp", "whatsapp_number", "call_number", "cell"
     ]
     email_cols = ["email", "e_mail", "email_address", "mail"]
-    date_cols = ["created_time", "created_at", "date", "inquiry_date", "lead_date", "lead_created_date", "time"]
+    date_cols = [
+        "created_time", "created_at", "created_date", "created_date_time", "created_time_date",
+        "lead_received_date", "lead_received_time", "lead_received_date_time",
+        "inquiry_date", "inquiry_time", "inquiry_date_time",
+        "date", "lead_date", "lead_created_date", "time", "timestamp"
+    ]
     platform_cols = ["platform", "source", "publisher_platform", "lead_source", "channel"]
     attendant_cols = [
         "lead_attendent", "lead_attendant", "attendent", "attendant", 

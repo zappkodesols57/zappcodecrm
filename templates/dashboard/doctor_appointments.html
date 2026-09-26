@@ -1,82 +1,75 @@
 {% extends "base.html" %}
 {% block title %}Doctor Appointments & Booking Queue{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
-    <h4 class="fw-bold text-dark mb-1">
-      <i class="fa-solid fa-calendar-check text-primary me-2"></i>Bookings &amp; Appointments
-    </h4>
+    <h4 class="fw-bold text-dark mb-1">Bookings &amp; Appointments</h4>
     <p class="text-muted small mb-0">Review incoming booking requests, manage OPD queue, and track patient appointments.</p>
   </div>
   <div class="d-flex gap-2">
     <a href="{% url 'accounts:doctor_schedule_manage' user.pk %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm">
-      <i class="fa-solid fa-calendar-days me-1"></i> My Availability / Schedule
+      Schedule
     </a>
   </div>
 </div>
 
-<!-- Tabs & Fixed Search Navigation Card -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-  <div class="card-body p-3">
-    <!-- 1. All Tabs in Single Fixed Line -->
-    <ul class="nav nav-pills gap-2 flex-nowrap overflow-x-auto pb-3 mb-3 border-bottom" id="aptTabs" style="scrollbar-width: thin;">
-      <li class="nav-item">
-        <a class="nav-link rounded-pill px-3 fw-semibold text-nowrap {% if tab == 'requests' %}active bg-warning text-dark{% else %}text-muted{% endif %}" href="?tab=requests{% if q %}&q={{ q }}{% endif %}">
-          <i class="fa-solid fa-clock me-1"></i> Booking Requests
-          <span class="badge {% if tab == 'requests' %}bg-dark text-white{% else %}bg-warning bg-opacity-25 text-dark{% endif %} rounded-pill ms-1">{{ pending_count }}</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link rounded-pill px-3 fw-semibold text-nowrap {% if tab == 'today' %}active bg-primary text-white{% else %}text-muted{% endif %}" href="?tab=today{% if q %}&q={{ q }}{% endif %}">
-          <i class="fa-solid fa-calendar-day me-1"></i> Today's OPD Queue
-          <span class="badge {% if tab == 'today' %}bg-white text-primary{% else %}bg-primary bg-opacity-10 text-primary{% endif %} rounded-pill ms-1">{{ today_count }}</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link rounded-pill px-3 fw-semibold text-nowrap {% if tab == 'upcoming' %}active bg-info text-dark{% else %}text-muted{% endif %}" href="?tab=upcoming{% if q %}&q={{ q }}{% endif %}">
-          <i class="fa-solid fa-calendar-plus me-1"></i> Upcoming
-          <span class="badge {% if tab == 'upcoming' %}bg-dark text-white{% else %}bg-info bg-opacity-10 text-info{% endif %} rounded-pill ms-1">{{ upcoming_count }}</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link rounded-pill px-3 fw-semibold text-nowrap {% if tab == 'completed' %}active bg-success text-white{% else %}text-muted{% endif %}" href="?tab=completed{% if q %}&q={{ q }}{% endif %}">
-          <i class="fa-solid fa-circle-check me-1"></i> Completed
-          <span class="badge {% if tab == 'completed' %}bg-white text-success{% else %}bg-success bg-opacity-10 text-success{% endif %} rounded-pill ms-1">{{ completed_count }}</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link rounded-pill px-3 fw-semibold text-nowrap {% if tab == 'cancelled' %}active bg-danger text-white{% else %}text-muted{% endif %}" href="?tab=cancelled{% if q %}&q={{ q }}{% endif %}">
-          <i class="fa-solid fa-circle-xmark me-1"></i> Rejected / Cancelled
-          <span class="badge {% if tab == 'cancelled' %}bg-white text-danger{% else %}bg-danger bg-opacity-10 text-danger{% endif %} rounded-pill ms-1">{{ cancelled_count }}</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link rounded-pill px-3 fw-semibold text-nowrap {% if tab == 'all' %}active bg-dark text-white{% else %}text-muted{% endif %}" href="?tab=all{% if q %}&q={{ q }}{% endif %}">
-          <i class="fa-solid fa-list me-1"></i> All Bookings
-          <span class="badge {% if tab == 'all' %}bg-white text-dark{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ total_count }}</span>
-        </a>
-      </li>
-    </ul>
+<!-- Tabs Navigation & Search -->
+<div class="mb-4">
+  <!-- Tabs in Clean Row with active bottom border / highlighted pill -->
+  <ul class="nav nav-tabs border-bottom gap-1 flex-nowrap overflow-x-auto mb-3" id="aptTabs" style="scrollbar-width: thin; border-bottom: 2px solid #e2e8f0 !important;">
+    <li class="nav-item">
+      <a class="nav-link px-3 py-2 fw-semibold text-nowrap {% if tab == 'requests' %}active text-primary border-0 border-bottom border-primary border-3 bg-transparent{% else %}text-muted border-0 bg-transparent{% endif %}" href="?tab=requests{% if q %}&q={{ q }}{% endif %}" style="margin-bottom: -2px;">
+        Booking Requests
+        <span class="badge {% if tab == 'requests' %}bg-primary text-white{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ pending_count }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link px-3 py-2 fw-semibold text-nowrap {% if tab == 'today' %}active text-primary border-0 border-bottom border-primary border-3 bg-transparent{% else %}text-muted border-0 bg-transparent{% endif %}" href="?tab=today{% if q %}&q={{ q }}{% endif %}" style="margin-bottom: -2px;">
+        Today's OPD Queue
+        <span class="badge {% if tab == 'today' %}bg-primary text-white{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ today_count }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link px-3 py-2 fw-semibold text-nowrap {% if tab == 'upcoming' %}active text-primary border-0 border-bottom border-primary border-3 bg-transparent{% else %}text-muted border-0 bg-transparent{% endif %}" href="?tab=upcoming{% if q %}&q={{ q }}{% endif %}" style="margin-bottom: -2px;">
+        Upcoming
+        <span class="badge {% if tab == 'upcoming' %}bg-primary text-white{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ upcoming_count }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link px-3 py-2 fw-semibold text-nowrap {% if tab == 'completed' %}active text-primary border-0 border-bottom border-primary border-3 bg-transparent{% else %}text-muted border-0 bg-transparent{% endif %}" href="?tab=completed{% if q %}&q={{ q }}{% endif %}" style="margin-bottom: -2px;">
+        Completed
+        <span class="badge {% if tab == 'completed' %}bg-primary text-white{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ completed_count }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link px-3 py-2 fw-semibold text-nowrap {% if tab == 'cancelled' %}active text-primary border-0 border-bottom border-primary border-3 bg-transparent{% else %}text-muted border-0 bg-transparent{% endif %}" href="?tab=cancelled{% if q %}&q={{ q }}{% endif %}" style="margin-bottom: -2px;">
+        Rejected / Cancelled
+        <span class="badge {% if tab == 'cancelled' %}bg-primary text-white{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ cancelled_count }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link px-3 py-2 fw-semibold text-nowrap {% if tab == 'all' %}active text-primary border-0 border-bottom border-primary border-3 bg-transparent{% else %}text-muted border-0 bg-transparent{% endif %}" href="?tab=all{% if q %}&q={{ q }}{% endif %}" style="margin-bottom: -2px;">
+        All Bookings
+        <span class="badge {% if tab == 'all' %}bg-primary text-white{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill ms-1">{{ total_count }}</span>
+      </a>
+    </li>
+  </ul>
 
-    <!-- 2. Fixed Search Bar on its own full line below the tabs -->
-    <form method="GET" action="" class="row g-2 align-items-center">
-      <input type="hidden" name="tab" value="{{ tab }}">
-      <div class="col-md-9 col-lg-10">
-        <div class="input-group">
-          <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
-          <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by patient name, mobile, lead ID, doctor remarks..." value="{{ q }}">
-        </div>
-      </div>
-      <div class="col-md-3 col-lg-2 d-flex gap-2">
-        <button type="submit" class="btn btn-primary rounded-pill flex-fill fw-semibold">
-          <i class="fa-solid fa-search me-1"></i> Search
-        </button>
-        {% if q %}
-          <a href="?tab={{ tab }}" class="btn btn-light border rounded-pill flex-fill text-center">Clear</a>
-        {% endif %}
-      </div>
-    </form>
-  </div>
+  <!-- Search Bar -->
+  <form method="GET" action="" class="row g-2 align-items-center">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div class="col-md-9 col-lg-10">
+      <input type="text" name="q" class="form-control" placeholder="Search by patient name, mobile, lead ID, doctor remarks..." value="{{ q }}">
+    </div>
+    <div class="col-md-3 col-lg-2 d-flex gap-2">
+      <button type="submit" class="btn btn-primary rounded-pill flex-fill fw-semibold">
+        Search
+      </button>
+      {% if q %}
+        <a href="?tab={{ tab }}" class="btn btn-light border rounded-pill flex-fill text-center">Clear</a>
+      {% endif %}
+    </div>
+  </form>
 </div>
 
 <!-- Appointments Table Card -->
@@ -102,37 +95,37 @@
             <div class="small text-muted">ID: #{{ apt.lead.lead_code|default:apt.lead.pk }}</div>
           </td>
           <td>
-            <div><i class="fa-solid fa-phone me-1 text-muted small"></i>{{ apt.lead.mobile }}</div>
+            <div>{{ apt.lead.mobile }}</div>
             {% if apt.lead.location or apt.lead.city %}
-            <div class="small text-muted"><i class="fa-solid fa-location-dot me-1 text-muted small"></i>{{ apt.lead.location|default:apt.lead.city }}</div>
+            <div class="small text-muted">{{ apt.lead.location|default:apt.lead.city }}</div>
             {% endif %}
           </td>
           <td>
             <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
             <div class="small text-dark fw-semibold">
-              <i class="fa-regular fa-clock me-1 text-muted"></i>{{ apt.appointment_time|time:"h:i A"|default:"Slot not fixed" }}
+              {{ apt.appointment_time|time:"h:i A"|default:"Slot not fixed" }}
             </div>
           </td>
           <td>
             {% if apt.status == 'PENDING_APPROVAL' %}
               <span class="badge bg-warning text-dark border border-warning-subtle px-2 py-1">
-                <i class="fa-solid fa-hourglass-half me-1"></i> Awaiting Approval
+                Awaiting Approval
               </span>
             {% elif apt.status == 'APPROVED' or apt.status == 'SCHEDULED' %}
               <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1">
-                <i class="fa-solid fa-check me-1"></i> Confirmed
+                Confirmed
               </span>
             {% elif apt.status == 'COMPLETED' %}
               <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2 py-1">
-                <i class="fa-solid fa-circle-check me-1"></i> Completed
+                Completed
               </span>
             {% elif apt.status == 'CANCELLED' %}
               <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">
-                <i class="fa-solid fa-xmark me-1"></i> Cancelled
+                Cancelled
               </span>
             {% elif apt.status == 'NO_SHOW' %}
               <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-2 py-1">
-                <i class="fa-solid fa-user-slash me-1"></i> No-Show
+                No-Show
               </span>
             {% else %}
               <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-2 py-1">
@@ -143,12 +136,12 @@
           <td style="max-width: 240px;">
             {% if apt.doctor_notes %}
               <div class="small fw-semibold text-primary mb-1">
-                <i class="fa-solid fa-user-doctor me-1"></i>{{ apt.doctor_notes }}
+                {{ apt.doctor_notes }}
               </div>
             {% endif %}
             {% if apt.notes %}
               <div class="small text-muted text-truncate" title="{{ apt.notes }}">
-                <i class="fa-regular fa-comment me-1"></i>{{ apt.notes }}
+                {{ apt.notes }}
               </div>
             {% endif %}
             {% if not apt.doctor_notes and not apt.notes %}
@@ -166,9 +159,9 @@
           </td>
           <td class="pe-4 text-end">
             <div class="d-inline-flex gap-2 justify-content-end">
-              <!-- View Patient Form (Read-Only) -->
-              <a href="{% url 'leads:lead_edit' apt.lead.pk %}" class="btn btn-sm btn-light border shadow-sm" title="View Patient Details">
-                <i class="fa-solid fa-eye text-primary"></i>
+              <!-- View Patient Form (Doctor Review Table & Slot Confirmation) -->
+              <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" class="btn btn-sm btn-light border shadow-sm" title="View Patient Details">
+                View
               </a>
 
               {% if apt.status == 'PENDING_APPROVAL' %}
@@ -178,40 +171,112 @@
                   <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
                   <input type="hidden" name="action" value="approve">
                   <button type="submit" class="btn btn-sm btn-success text-white shadow-sm fw-bold px-3">
-                    <i class="fa-solid fa-check me-1"></i> Approve
+                    Approve
                   </button>
                 </form>
 
                 <!-- Change Slot -->
                 <button type="button" class="btn btn-sm btn-primary text-white shadow-sm fw-semibold px-2" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}" title="Assign New Slot">
-                  <i class="fa-solid fa-calendar-days me-1"></i> Change Slot
+                  Change Slot
                 </button>
 
                 <!-- Reject -->
                 <button type="button" class="btn btn-sm btn-outline-danger shadow-sm px-2" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}" title="Reject Request">
-                  <i class="fa-solid fa-xmark me-1"></i> Reject
+                  Reject
                 </button>
               {% else %}
                 {% if apt.status != 'COMPLETED' and apt.status != 'CANCELLED' %}
-                  <!-- Mark Complete -->
-                  <form method="POST" class="d-inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
-                    <input type="hidden" name="action" value="complete">
-                    <button type="submit" class="btn btn-sm btn-success text-white fw-bold shadow-sm" title="Mark consultation complete">
-                      <i class="fa-solid fa-check-double me-1"></i> Mark Done
-                    </button>
-                  </form>
+                  <!-- Mark Complete Modal Trigger -->
+                  <button type="button" class="btn btn-sm btn-success text-white fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}" title="Complete Consultation & Add Remarks">
+                    <i class="fa-solid fa-check me-1"></i> Mark Done
+                  </button>
 
                   <!-- Change Slot -->
                   <button type="button" class="btn btn-sm btn-outline-primary shadow-sm px-2" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}" title="Reschedule Slot">
-                    <i class="fa-solid fa-calendar-days me-1"></i> Reschedule
+                    Reschedule
                   </button>
+
+                  <!-- Mark Done & Next Appointment Consultation Modal -->
+                  <div class="modal fade text-start" id="markDoneModal{{ apt.pk }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <form method="POST">
+                          {% csrf_token %}
+                          <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
+                          <input type="hidden" name="action" value="complete">
+                          <div class="modal-header border-0 pb-0 pt-4 px-4">
+                            <div>
+                              <h5 class="modal-title fw-bold text-dark">
+                                <i class="fa-solid fa-circle-check text-success me-2"></i>Complete Consultation - {{ apt.lead.name }}
+                              </h5>
+                              <small class="text-muted">Slot: {{ apt.appointment_date|date:"d M Y" }} at {{ apt.appointment_time|time:"h:i A"|default:"Anytime" }}</small>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                          </div>
+                          <div class="modal-body px-4 pt-3">
+                            
+                            <!-- Previous Remarks & Patient Notes History (if any) -->
+                            {% if apt.lead.notes or apt.doctor_notes or apt.lead.custom_doctor_remark %}
+                            <div class="p-3 mb-3 bg-light rounded-3 border">
+                              <div class="small fw-bold text-secondary mb-1">
+                                <i class="fa-solid fa-clock-rotate-left me-1"></i> Previous Consultation / Patient Notes:
+                              </div>
+                              <div class="small text-dark text-break" style="white-space: pre-wrap;">{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.lead.notes }}</div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Doctor Clinical Remarks for Current Consultation -->
+                            <div class="mb-3">
+                              <label class="form-label small fw-bold text-dark mb-1">
+                                <i class="fa-solid fa-user-doctor text-primary me-1"></i> Doctor Clinical Remarks / Diagnosis Notes <span class="text-muted fw-normal">(Saved to patient history)</span>
+                              </label>
+                              <textarea name="doctor_notes" class="form-control" rows="3" placeholder="e.g. Patient diagnosed with early symptoms. Prescribed medications for 7 days. Advised follow-up review after 1 week.">{{ apt.doctor_notes }}</textarea>
+                            </div>
+
+                            <!-- Next Appointment Toggle Box -->
+                            <div class="p-3 border rounded-3 bg-light bg-opacity-50">
+                              <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptAptsCheck{{ apt.pk }}" onchange="document.getElementById('nextAptDetailsAptsWrap{{ apt.pk }}').style.display = this.checked ? 'block' : 'none';">
+                                <label class="form-check-label fw-bold text-primary small cursor-pointer" for="addNextAptAptsCheck{{ apt.pk }}">
+                                  <i class="fa-solid fa-calendar-plus me-1"></i> Schedule Next Follow-up Appointment for Patient
+                                </label>
+                              </div>
+
+                              <div id="nextAptDetailsAptsWrap{{ apt.pk }}" style="display: none;" class="pt-2 mt-2 border-top">
+                                <div class="row g-2 mb-2">
+                                  <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-dark mb-1">Next Appointment Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="next_appointment_date" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
+                                  </div>
+                                  <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-dark mb-1">Next Time Slot</label>
+                                    <input type="time" name="next_appointment_time" class="form-control form-control-sm">
+                                  </div>
+                                </div>
+                                <div>
+                                  <label class="form-label small fw-bold text-dark mb-1">Instructions for Telecaller / Patient</label>
+                                  <input type="text" name="next_appointment_notes" class="form-control form-control-sm" placeholder="e.g. Review after blood tests / ultrasound report.">
+                                  <small class="text-muted" style="font-size: 0.72rem;">Assigned Telecaller will receive notification to call patient and confirm this slot.</small>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                          <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
+                            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                              <i class="fa-solid fa-check me-1"></i> Save &amp; Mark Completed
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
                 {% endif %}
 
                 <!-- Update Status Dropdown Modal -->
                 <button type="button" class="btn btn-sm btn-light border shadow-sm" data-bs-toggle="modal" data-bs-target="#updateStatusModal{{ apt.pk }}" title="Change Status">
-                  <i class="fa-solid fa-sliders text-primary"></i>
+                  Status
                 </button>
               {% endif %}
             </div>
@@ -226,13 +291,13 @@
                     <input type="hidden" name="action" value="change_slot">
                     <div class="modal-header border-0 pb-0 pt-4 px-4">
                       <h5 class="modal-title fw-bold text-dark">
-                        <i class="fa-solid fa-calendar-plus text-primary me-2"></i>Assign New Slot for {{ apt.lead.name }}
+                        Assign New Slot for {{ apt.lead.name }}
                       </h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body px-4 pt-3">
                       <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-dark small mb-3">
-                        <i class="fa-solid fa-circle-info me-1 text-primary"></i> Current requested slot: <strong>{{ apt.appointment_date|date:"d M Y" }} at {{ apt.appointment_time|time:"h:i A"|default:"Not specified" }}</strong>.
+                        Current requested slot: <strong>{{ apt.appointment_date|date:"d M Y" }} at {{ apt.appointment_time|time:"h:i A"|default:"Not specified" }}</strong>.
                       </div>
                       
                       <div class="row g-2 mb-3">
@@ -255,7 +320,7 @@
                     <div class="modal-footer border-0 pt-0 pb-4 px-4">
                       <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
                       <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">
-                        <i class="fa-solid fa-check me-1"></i> Save & Notify Telecaller
+                        Save & Notify Telecaller
                       </button>
                     </div>
                   </form>
@@ -273,7 +338,7 @@
                     <input type="hidden" name="action" value="reject">
                     <div class="modal-header border-0 pb-0 pt-4 px-4">
                       <h5 class="modal-title fw-bold text-danger">
-                        <i class="fa-solid fa-circle-xmark me-2"></i>Reject Appointment for {{ apt.lead.name }}
+                        Reject Appointment for {{ apt.lead.name }}
                       </h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
@@ -303,7 +368,7 @@
                     <input type="hidden" name="action" value="update_status">
                     <div class="modal-header border-0 pb-0 pt-4 px-4">
                       <h5 class="modal-title fw-bold text-dark">
-                        <i class="fa-solid fa-sliders text-primary me-2"></i>Update Appointment Status
+                        Update Appointment Status
                       </h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
@@ -337,7 +402,6 @@
         {% empty %}
         <tr>
           <td colspan="7" class="text-center py-5 text-muted">
-            <i class="fa-solid fa-calendar-check text-muted fa-3x mb-3 opacity-50"></i>
             <h5 class="fw-bold">No appointments found</h5>
             <p class="mb-0">No appointment records found in this category.</p>
           </td>

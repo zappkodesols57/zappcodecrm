@@ -32,6 +32,8 @@ def _board(request, leads, active, title, date_info=None):
             Q(name__icontains=q) | 
             Q(mobile__icontains=q) | 
             Q(lead_code__icontains=q) |
+            Q(city__icontains=q) |
+            Q(course__name__icontains=q) |
             Q(custom_data__doctor__icontains=q) |
             Q(custom_data__department__icontains=q)
         )

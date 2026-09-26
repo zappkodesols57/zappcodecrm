@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+{% block title %}Bulk Lead Transfer{% endblock %}
+
+{% block extra_head %}
+<style>
+  .simple-card {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1.5px solid #000000 !important;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .filter-box {
+    border: 1.5px solid #000000 !important;
+    border-radius: 8px;
+    padding: 1.25rem;
+    background: #ffffff;
+    margin-bottom: 1.5rem;
+  }
+  .simple-select-box {
+    background: #ffffff;
+    border: 1px solid #000000 !important;
+    border-radius: 6px;
+    padding: 1rem;
+  }
+  .lead-preview-table {
+    font-size: 0.88rem;
+    border: 1px solid #000000 !important;
+  }
+  .lead-preview-table th {
+    background-color: #f1f5f9;
+    color: #000000;
+    font-weight: 600;
+    border-bottom: 1px solid #000000 !important;
+  }
+  .lead-preview-table td {
+    border-bottom: 1px solid #cbd5e1;
+  }
+  /* Crisp 1px solid black border on all input and select fields */
+  .filter-box .form-control, 
+  .filter-box .form-select,
+  .simple-card .form-control,
+  .simple-card .form-select,
+  #sourceUserSelect,
+  #targetUserSelect,
+  #filterStage,
+  #filterDealStatus,
+  #filterCourse,
+  #filterDateFrom,
+  #filterDateTo,
+  #filterLimit,
+  #filterSearch {
+    border: 1px solid #000000 !important;
+    border-radius: 4px !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  .filter-box .form-control:focus, 
+  .filter-box .form-select:focus,
+  #sourceUserSelect:focus,
+  #targetUserSelect:focus {
+    border: 1.5px solid #000000 !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08) !important;
+    outline: none !important;
+  }
+</style>
+
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+
+  <!-- Simple Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="fw-bold text-dark mb-1">Bulk Lead Transfer</h4>
+      <p class="text-muted small mb-0">
+        Reassign active leads from one user to another. All previous remarks and notes will be preserved.
+      </p>
+    </div>
+    <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-dark btn-sm px-3">
+      Back to Leads
+    </a>
+  </div>
+
+  <form method="POST" action="{% url 'leads:bulk_lead_transfer' %}" id="bulkTransferForm">
+    {% csrf_token %}
+
+    <!-- 1. Source & Target Selection Box -->
+    <div class="simple-card">
+      <div class="row g-3 align-items-center">
+
+        <!-- Source User (FROM) -->
+        <div class="col-md-5 col-12">
+          <div class="simple-select-box">
+            <label class="form-label fw-bold text-dark mb-2">1. Transfer From (Source User) *</label>
+            <select name="source_user" id="sourceUserSelect" class="form-select fw-semibold" required>
+              <option value="">-- Select Source User --</option>
+              <option value="unassigned">Unassigned Leads Pool</option>
+              {% for u in users %}
+                <option value="{{ u.id }}">
+                  {{ u.get_full_name|default:u.username }} ({{ u.get_role_display }})
+                </option>
+              {% endfor %}
+            </select>
+            <div class="small text-muted mt-1">Select the user whose leads will be transferred.</div>
+          </div>
+        </div>
+
+        <!-- Center Indicator -->
+        <div class="col-md-2 col-12 text-center text-muted fw-bold">
+          &rarr;
+        </div>
+
+        <!-- Target User (TO) -->
+        <div class="col-md-5 col-12">
+          <div class="simple-select-box">
+            <label class="form-label fw-bold text-dark mb-2">2. Transfer To (New Assignee) *</label>
+            <select name="target_user" id="targetUserSelect" class="form-select fw-semibold" required>
+              <option value="">-- Select Target User --</option>
+              {% for u in users %}
+                <option value="{{ u.id }}">
+                  {{ u.get_full_name|default:u.username }} ({{ u.get_role_display }})
+                </option>
+              {% endfor %}
+            </select>
+            <div class="small text-muted mt-1">Select the recipient user.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 2. Simple Filter Box with Black Border -->
+    <div class="filter-box">
+      <h6 class="fw-bold text-dark mb-3">Filters (Optional)</h6>
+
+      <div class="row g-3">
+        <!-- Stage -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Stage</label>
+          <select name="stage" id="filterStage" class="form-select form-select-sm">
+            <option value="">All Stages</option>
+            {% for stg in stages %}
+              <option value="{{ stg.id }}">{{ stg.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Deal Status -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Status</label>
+          <select name="deal_status" id="filterDealStatus" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            {% for ds_val, ds_lbl in deal_statuses %}
+              <option value="{{ ds_val }}">{{ ds_lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Course (If available) -->
+        {% if courses %}
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Course</label>
+          <select name="course" id="filterCourse" class="form-select form-select-sm">
+            <option value="">All Courses</option>
+            {% for c in courses %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <!-- Date Range -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Date From</label>
+          <input type="date" name="date_from" id="filterDateFrom" class="form-control form-control-sm">
+        </div>
+
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Date To</label>
+          <input type="date" name="date_to" id="filterDateTo" class="form-control form-control-sm">
+        </div>
+
+        <!-- Transfer Limit -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Transfer Limit</label>
+          <select name="transfer_limit" id="filterLimit" class="form-select form-select-sm">
+            <option value="">All Matched Leads</option>
+            <option value="10">Top 10 Leads</option>
+            <option value="25">Top 25 Leads</option>
+            <option value="50">Top 50 Leads</option>
+            <option value="100">Top 100 Leads</option>
+            <option value="200">Top 200 Leads</option>
+          </select>
+        </div>
+
+        <!-- Keyword Search -->
+        <div class="col-md-3 col-sm-6">
+          <label class="form-label small fw-semibold">Search</label>
+          <input type="text" name="q" id="filterSearch" class="form-control form-control-sm" placeholder="Name, phone, city...">
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Summary & Execute Action Bar -->
+    <div class="d-flex justify-content-between align-items-center p-3 bg-light border border-dark rounded mb-4">
+      <div>
+        <span class="fw-bold text-dark fs-6">Matched Leads:</span>
+        <span id="liveMatchCount" class="badge bg-dark text-white fs-6 ms-1">0</span>
+        <span class="text-muted small ms-2" id="liveMatchSubtext">Select a source user to calculate leads.</span>
+      </div>
+      <button type="button" class="btn btn-primary px-4 fw-bold" id="btnOpenConfirmModal" disabled>
+        Transfer Leads
+      </button>
+    </div>
+
+    <!-- 4. Leads Preview Table with Pagination -->
+    <div class="card border border-dark rounded mb-4">
+      <div class="card-header bg-white py-2 border-bottom border-dark d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-dark">Leads Preview</span>
+        <span class="small text-muted" id="previewNote">No leads loaded.</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 lead-preview-table">
+            <thead>
+              <tr>
+                <th class="px-3 py-2">Lead ID</th>
+                <th class="py-2">Name</th>
+                <th class="py-2">Mobile</th>
+                <th class="py-2">City</th>
+                <th class="py-2">Status</th>
+                <th class="px-3 py-2">Inquiry Date</th>
+              </tr>
+            </thead>
+            <tbody id="leadPreviewTableBody">
+              <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                  Please select a <strong>Source User</strong> to preview their assigned leads.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Pagination Footer -->
+      <div class="card-footer bg-white py-2 border-top d-flex justify-content-between align-items-center" id="paginationFooter" style="display: none !important;">
+        <span class="small text-muted" id="paginationText">Showing 0 - 0 of 0 leads</span>
+        <ul class="pagination pagination-sm mb-0" id="paginationList">
+          <!-- Rendered via JS -->
+        </ul>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal fade" id="confirmTransferModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border border-dark rounded">
+          <div class="modal-header border-bottom pb-2">
+            <h5 class="modal-title fw-bold text-dark">Confirm Lead Transfer</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body py-3">
+            <p class="mb-2">Are you sure you want to transfer <strong id="modalTransferCount" class="text-primary">0</strong> leads?</p>
+            <div class="p-2 border rounded bg-light small mb-3">
+              <div><strong>From:</strong> <span id="modalSourceUserName"></span></div>
+              <div><strong>To:</strong> <span id="modalTargetUserName"></span></div>
+            </div>
+            <p class="text-muted small mb-0">All past remarks, notes, and activity timeline will remain intact.</p>
+          </div>
+          <div class="modal-footer border-top pt-2">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm fw-bold" id="btnSubmitTransfer">Confirm & Transfer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const sourceSelect = document.getElementById('sourceUserSelect');
+  const targetSelect = document.getElementById('targetUserSelect');
+  const filterStage = document.getElementById('filterStage');
+  const filterDealStatus = document.getElementById('filterDealStatus');
+  const filterCourse = document.getElementById('filterCourse');
+  const filterDateFrom = document.getElementById('filterDateFrom');
+  const filterDateTo = document.getElementById('filterDateTo');
+  const filterLimit = document.getElementById('filterLimit');
+  const filterSearch = document.getElementById('filterSearch');
+
+  const liveMatchCount = document.getElementById('liveMatchCount');
+  const liveMatchSubtext = document.getElementById('liveMatchSubtext');
+  const previewTableBody = document.getElementById('leadPreviewTableBody');
+  const previewNote = document.getElementById('previewNote');
+  const btnOpenConfirm = document.getElementById('btnOpenConfirmModal');
+
+  const paginationFooter = document.getElementById('paginationFooter');
+  const paginationText = document.getElementById('paginationText');
+  const paginationList = document.getElementById('paginationList');
+
+  const modalTransferCount = document.getElementById('modalTransferCount');
+  const modalSourceUserName = document.getElementById('modalSourceUserName');
+  const modalTargetUserName = document.getElementById('modalTargetUserName');
+
+  let currentPage = 1;
+  let searchDebounce = null;
+
+  function fetchLeadPreview(page = 1) {
+    currentPage = page;
+    const srcVal = sourceSelect.value;
+    if (!srcVal) {
+      liveMatchCount.textContent = '0';
+      liveMatchSubtext.textContent = 'Select a source user to calculate leads.';
+      previewNote.textContent = 'No leads loaded.';
+      previewTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-4 text-muted">
+            Please select a <strong>Source User</strong> to preview their assigned leads.
+          </td>
+        </tr>`;
+      paginationFooter.style.setProperty('display', 'none', 'important');
+      btnOpenConfirm.disabled = true;
+      return;
+    }
+
+    const params = new URLSearchParams({
+      format: 'json',
+      source_user: srcVal,
+      stage: filterStage ? filterStage.value : '',
+      deal_status: filterDealStatus ? filterDealStatus.value : '',
+      course: filterCourse ? filterCourse.value : '',
+      date_from: filterDateFrom ? filterDateFrom.value : '',
+      date_to: filterDateTo ? filterDateTo.value : '',
+      q: filterSearch ? filterSearch.value : '',
+      page: page,
+      per_page: 10
+    });
+
+    fetch(`{% url 'leads:bulk_lead_transfer' %}?${params.toString()}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        liveMatchCount.textContent = data.count;
+        liveMatchSubtext.textContent = `Found ${data.count} lead(s) matching criteria.`;
+        previewNote.textContent = `Total Leads: ${data.count}`;
+
+        if (data.count > 0 && targetSelect.value && targetSelect.value !== sourceSelect.value) {
+          btnOpenConfirm.disabled = false;
+        } else {
+          btnOpenConfirm.disabled = true;
+        }
+
+        if (data.leads.length === 0) {
+          previewTableBody.innerHTML = `
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">
+                No leads found for the selected user and filters.
+              </td>
+            </tr>`;
+          paginationFooter.style.setProperty('display', 'none', 'important');
+        } else {
+          previewTableBody.innerHTML = data.leads.map(l => `
+            <tr>
+              <td class="px-3 fw-bold text-dark">${l.lead_code}</td>
+              <td class="fw-semibold">${l.name || '—'}</td>
+              <td>${l.mobile || '—'}</td>
+              <td>${l.city || '—'}</td>
+              <td><span class="badge bg-secondary">${l.deal_status || 'Open'}</span></td>
+              <td class="px-3 text-muted small">${l.inquiry_date || '—'}</td>
+            </tr>
+          `).join('');
+
+          // Render Pagination
+          if (data.num_pages > 1) {
+            paginationFooter.style.removeProperty('display');
+            paginationText.textContent = `Showing ${data.start_index} - ${data.end_index} of ${data.count} leads (Page ${data.current_page} of ${data.num_pages})`;
+            
+            let pagHtml = '';
+            pagHtml += `<li class="page-item ${!data.has_previous ? 'disabled' : ''}">
+              <a class="page-link" href="#" data-page="${data.current_page - 1}">&laquo;</a>
+            </li>`;
+
+            for (let p = 1; p <= data.num_pages; p++) {
+              if (p === 1 || p === data.num_pages || (p >= data.current_page - 1 && p <= data.current_page + 1)) {
+                pagHtml += `<li class="page-item ${p === data.current_page ? 'active' : ''}">
+                  <a class="page-link" href="#" data-page="${p}">${p}</a>
+                </li>`;
+              } else if (p === data.current_page - 2 || p === data.current_page + 2) {
+                pagHtml += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+              }
+            }
+
+            pagHtml += `<li class="page-item ${!data.has_next ? 'disabled' : ''}">
+              <a class="page-link" href="#" data-page="${data.current_page + 1}">&raquo;</a>
+            </li>`;
+
+            paginationList.innerHTML = pagHtml;
+
+            paginationList.querySelectorAll('a.page-link').forEach(link => {
+              link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const p = parseInt(this.getAttribute('data-page'));
+                if (p && p > 0 && p <= data.num_pages) {
+                  fetchLeadPreview(p);
+                }
+              });
+            });
+          } else {
+            paginationFooter.style.setProperty('display', 'none', 'important');
+          }
+        }
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching preview:', err);
+    });
+  }
+
+  // Date Limitations (Date From <= Date To, and cannot exceed today)
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (filterDateFrom) {
+    filterDateFrom.setAttribute('max', todayStr);
+    filterDateFrom.addEventListener('change', function() {
+      if (this.value) {
+        if (filterDateTo) {
+          filterDateTo.setAttribute('min', this.value);
+          if (filterDateTo.value && filterDateTo.value < this.value) {
+            filterDateTo.value = this.value;
+          }
+        }
+      } else if (filterDateTo) {
+        filterDateTo.removeAttribute('min');
+      }
+    });
+  }
+
+  if (filterDateTo) {
+    filterDateTo.setAttribute('max', todayStr);
+    filterDateTo.addEventListener('change', function() {
+      if (this.value) {
+        if (filterDateFrom) {
+          filterDateFrom.setAttribute('max', this.value);
+          if (filterDateFrom.value && filterDateFrom.value > this.value) {
+            filterDateFrom.value = this.value;
+          }
+        }
+      } else if (filterDateFrom) {
+        filterDateFrom.setAttribute('max', todayStr);
+      }
+    });
+  }
+
+  // Event Listeners
+  [sourceSelect, targetSelect, filterStage, filterDealStatus, filterCourse, filterDateFrom, filterDateTo, filterLimit].forEach(el => {
+    if (el) {
+      el.addEventListener('change', () => fetchLeadPreview(1));
+    }
+  });
+
+  if (filterSearch) {
+    filterSearch.addEventListener('input', function() {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => fetchLeadPreview(1), 350);
+    });
+  }
+
+  // Open Modal
+  btnOpenConfirm.addEventListener('click', function() {
+    if (!sourceSelect.value || !targetSelect.value) {
+      alert('Please select both Source and Target users.');
+      return;
+    }
+    if (sourceSelect.value === targetSelect.value) {
+      alert('Source and Target user cannot be the same.');
+      return;
+    }
+
+    modalTransferCount.textContent = liveMatchCount.textContent;
+    modalSourceUserName.textContent = sourceSelect.options[sourceSelect.selectedIndex].text;
+    modalTargetUserName.textContent = targetSelect.options[targetSelect.selectedIndex].text;
+
+    const modal = new bootstrap.Modal(document.getElementById('confirmTransferModal'));
+    modal.show();
+  });
+
+});
+</script>
+{% endblock %}

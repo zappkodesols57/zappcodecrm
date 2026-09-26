@@ -60,7 +60,7 @@
       {% endif %}
     </button>
 
-    {% if request.user.can_self_assign and request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' %}
+    {% if request.user.can_self_assign and request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' and request.user.role != 'DOCTOR' %}
     <!-- Bulk Self-Assign Button with Count Badge -->
     <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
       id="bulkSelfAssignBtn"
@@ -327,7 +327,7 @@
               {% for lead in page_obj %}
               <tr>
                 <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-                <td><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold">{{ lead.lead_code }}</a></td>
+                <td><a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" class="fw-bold">{{ lead.lead_code }}</a></td>
                 <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
                 <td><strong>{{ lead.name }}</strong></td>
                 <td>

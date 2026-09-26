@@ -250,7 +250,7 @@
         {% for lead in page_obj %}
         <tr>
           <td class="px-3">
-            <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-primary text-decoration-none">
+            <a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" class="fw-bold text-primary text-decoration-none">
               {{ lead.lead_code }}
             </a>
           </td>

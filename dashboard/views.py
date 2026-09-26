@@ -758,6 +758,16 @@ def superadmin_home(request):
         # Business admin / manager: strictly scoped to assigned business only. Never permit cross-business queries.
         selected_hospital_id = str(user.hospital.id)
         base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
+        # Branch-level isolation for Branch Managers / Attendants
+        if user.role == User.Role.MANAGER and user.branch:
+            b_name = user.branch.name
+            base_leads = base_leads.filter(
+                Q(custom_data__hospital_branch__iexact=b_name) |
+                Q(custom_data__branch__iexact=b_name) |
+                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                Q(custom_data__dyn_branch__iexact=b_name) |
+                Q(assigned_to__branch=user.branch)
+            )
     else:
         # Global Super Admin without hospital assignment
         raw_biz = request.GET.get("business", "").strip()
@@ -1704,8 +1714,6 @@ def nel_card_drilldown_api(request):
     payment_type_filter = request.GET.get('payment_type', '').strip()
     final_status_filter = request.GET.get('final_lead_status', '').strip()
 
-    if campaign_filter:
-        hospital_qs = hospital_qs.filter(Q(campaign__name__iexact=campaign_filter) | Q(custom_data__campaign__iexact=campaign_filter))
     if source_filter:
         hospital_qs = hospital_qs.filter(Q(lead_source__name__iexact=source_filter) | Q(custom_data__lead_source__iexact=source_filter))
     if department_filter:
@@ -2099,10 +2107,44 @@ def nel_card_drilldown_api(request):
             for camp, cnt in sorted(campaign_counts.items(), key=lambda x: x[1], reverse=True)
         ]
     
+    # Server-side campaign parameter targeting:
+    # If a specific campaign is requested in query params (or clicked in the UI), target leads directly for that campaign
+    # so that all leads belonging to that campaign load smoothly without being cut off by the top 250 slice.
+    leads_target_qs = leads_qs
+    if campaign_filter and card_type != 'followups':
+        cf_norm = campaign_filter.lower().strip()
+        direct_keywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', '', default_direct_campaign.lower()]
+        if cf_norm in direct_keywords:
+            leads_target_qs = leads_qs.filter(
+                Q(campaign__isnull=True) |
+                Q(campaign__name__iexact=campaign_filter) |
+                Q(campaign__name__in=['', 'None', 'nan', 'null', '—', '-', 'general', 'General / Direct', 'Direct Hospital Visit', 'Direct Walk-in', default_direct_campaign]) |
+                Q(custom_data__campaign__isnull=True) |
+                Q(custom_data__campaign__in=['', 'None', 'nan', 'null', '—', '-', 'general', 'general / direct', 'direct', 'general/direct', default_direct_campaign]) |
+                Q(custom_data__campaign__iexact=campaign_filter)
+            )
+        else:
+            leads_target_qs = leads_qs.filter(
+                Q(campaign__name__iexact=campaign_filter) |
+                Q(custom_data__campaign__iexact=campaign_filter)
+            )
+
     # Pre-fetch all followups and notes for the paginated leads
     if card_type == 'followups':
-        # Build leads_page from the already-resolved in-memory list (already select_related)
-        leads_page = list(leads_qs.order_by('-created_at', '-id')[:250])
+        if campaign_filter:
+            cf_norm = campaign_filter.lower().strip()
+            direct_keywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', '']
+            def _matches_cf(_lead):
+                _c = _lead.campaign.name if _lead.campaign else ((_lead.custom_data or {}).get('campaign') or '')
+                _c_norm = str(_c).lower().strip()
+                if cf_norm in direct_keywords:
+                    return _c_norm in direct_keywords or _c_norm == default_direct_campaign.lower()
+                return _c_norm == cf_norm
+            _target_fu_filtered = [l for l in _target_fu_leads if _matches_cf(l)]
+            leads_page = _target_fu_filtered[:250]
+        else:
+            # Build leads_page from the already-resolved in-memory list (already select_related)
+            leads_page = list(leads_qs.order_by('-created_at', '-id')[:250])
         # Also build a quick id->sched_date map from the in-memory categorized lists for fu_cat assignment
         _fu_id_to_cat = {}
         for _fl in _fu_today_list:
@@ -2114,7 +2156,7 @@ def nel_card_drilldown_api(request):
             if _fl.id not in _fu_id_to_cat:
                 _fu_id_to_cat[_fl.id] = 'upcoming'
     else:
-        leads_page = list(leads_qs.order_by('-created_at', '-id')[:250])
+        leads_page = list(leads_target_qs.order_by('-created_at', '-id')[:250])
     lead_ids = [l.id for l in leads_page]
     from followups.models import FollowUp, Note
     followups = FollowUp.objects.filter(lead_id__in=lead_ids).order_by('-created_at')
@@ -2190,17 +2232,27 @@ def nel_card_drilldown_api(request):
             else:
                 temp_str = "WARM"
         
-        all_comments = []
+        raw_comments = []
         for i in range(1, 6):
             r = cd.get(f'remark_{i}')
             if r and str(r).strip() not in ('', 'None', 'nan', '-'):
-                all_comments.append(str(r).strip())
+                raw_comments.append(str(r).strip())
         
         # Include internal notes and direct comments
-        for extra_note in [l.notes, getattr(l, 'referral_notes', None), cd.get('comments')]:
+        for extra_note in [cd.get('comments'), l.notes, getattr(l, 'referral_notes', None)]:
             if extra_note and str(extra_note).strip() not in ('', 'None', 'nan', '-'):
-                all_comments.append(str(extra_note).strip())
-        all_comments.extend(lead_comments_map.get(l.id, []))
+                raw_comments.append(str(extra_note).strip())
+        raw_comments.extend(lead_comments_map.get(l.id, []))
+
+        # Deduplicate preserving original order
+        all_comments = []
+        seen_comments = set()
+        for c in raw_comments:
+            c_str = str(c).strip()
+            c_key = c_str.lower()
+            if c_key and c_key not in seen_comments:
+                seen_comments.add(c_key)
+                all_comments.append(c_str)
 
         course_name = l.course.name if l.course else (cd.get('course') or '')
         stage_name = l.stage.name if l.stage else (cd.get('stage') or '')
@@ -2514,9 +2566,9 @@ def live_metrics_api(request):
         if hospital:
             leads_qs = leads_qs.filter(hospital=hospital)
 
-        # Role-based restriction if telecaller
-        if user.role == User.Role.LEAD_ATTENDENT and not getattr(user, 'can_view_all_leads', False):
-            my_leads_qs = leads_qs.filter(assigned_to=user)
+        # Role-based restriction if telecaller / counsellor / hr
+        if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR) and not getattr(user, 'can_view_all_leads', False):
+            my_leads_qs = leads_qs.filter(Q(assigned_to=user) | Q(assigned_to__isnull=True))
         else:
             my_leads_qs = leads_qs
 
@@ -2627,19 +2679,45 @@ def nelson_module_view(request, module_name):
             return redirect('dashboard:home')
             
         if request.method == 'POST':
+            phone_val = request.POST.get('phone', '').strip()
+            if phone_val:
+                import re
+                raw_digits = re.sub(r"\D", "", phone_val)
+                if len(raw_digits) == 12 and raw_digits.startswith("91"):
+                    raw_digits = raw_digits[2:]
+                elif len(raw_digits) == 11 and raw_digits.startswith("0"):
+                    raw_digits = raw_digits[1:]
+                if len(raw_digits) < 10 or len(raw_digits) > 11:
+                    messages.error(request, "Please enter a valid 10-11 digit contact phone number.")
+                    return redirect('dashboard:nelson_module', module_name='hospital-profile')
+                phone_val = raw_digits
+
             hospital.name = request.POST.get('name', hospital.name)
             hospital.contact_email = request.POST.get('contact_email', hospital.contact_email)
-            hospital.phone = request.POST.get('phone', hospital.phone)
+            hospital.phone = phone_val
             hospital.address = request.POST.get('address', hospital.address)
             hospital.registration_no = request.POST.get('registration_no', hospital.registration_no)
             
             if 'logo' in request.FILES:
                 hospital.logo = request.FILES['logo']
                 
+            wa_num = request.POST.get('whatsapp_number', '').strip()
+            if wa_num:
+                import re
+                wa_digits = re.sub(r"\D", "", wa_num)
+                if len(wa_digits) == 12 and wa_digits.startswith("91"):
+                    wa_digits = wa_digits[2:]
+                elif len(wa_digits) == 11 and wa_digits.startswith("0"):
+                    wa_digits = wa_digits[1:]
+                if len(wa_digits) != 10:
+                    messages.error(request, "Please enter a valid 10-digit WhatsApp number.")
+                    return redirect('dashboard:nelson_module', module_name='hospital-profile')
+                wa_num = wa_digits
+
             settings_data = {
                 'facebook_url': request.POST.get('facebook_url', ''),
                 'instagram_url': request.POST.get('instagram_url', ''),
-                'whatsapp_number': request.POST.get('whatsapp_number', ''),
+                'whatsapp_number': wa_num,
                 'gst_number': request.POST.get('gst_number', ''),
                 'bank_name': request.POST.get('bank_name', ''),
                 'account_no': request.POST.get('account_no', ''),
@@ -2756,6 +2834,17 @@ def nelson_module_view(request, module_name):
                     return redirect('dashboard:nelson_module', module_name='campaign-management')
                 camp.is_active = not camp.is_active
                 camp.save(update_fields=['is_active'])
+
+                # Sync LeadCustomField options if present
+                from leads.models import LeadCustomField
+                target_h = camp.hospital or hospital
+                if target_h:
+                    cf_camp = LeadCustomField.objects.filter(hospital=target_h, name="campaign").first()
+                    if cf_camp:
+                        active_camps = list(Campaign.objects.filter(hospital=target_h, is_active=True).values_list("name", flat=True))
+                        cf_camp.options = ", ".join(active_camps)
+                        cf_camp.save(update_fields=["options"])
+
                 messages.success(request, f"Campaign '{camp.name}' status toggled to {'Active' if camp.is_active else 'Inactive'}.")
                 return redirect('dashboard:nelson_module', module_name='campaign-management')
                 
@@ -2766,7 +2855,18 @@ def nelson_module_view(request, module_name):
                     messages.error(request, "Permission denied.")
                     return redirect('dashboard:nelson_module', module_name='campaign-management')
                 name = camp.name
+                target_h = camp.hospital or hospital
                 camp.delete()
+
+                # Sync LeadCustomField options if present
+                from leads.models import LeadCustomField
+                if target_h:
+                    cf_camp = LeadCustomField.objects.filter(hospital=target_h, name="campaign").first()
+                    if cf_camp:
+                        active_camps = list(Campaign.objects.filter(hospital=target_h, is_active=True).values_list("name", flat=True))
+                        cf_camp.options = ", ".join(active_camps)
+                        cf_camp.save(update_fields=["options"])
+
                 messages.success(request, f"Campaign '{name}' deleted.")
                 return redirect('dashboard:nelson_module', module_name='campaign-management')
 
@@ -2875,7 +2975,75 @@ def nelson_module_view(request, module_name):
                 "period_leads_count": leads_period_cnt,
                 "today_leads_count": leads_today_cnt,
             })
+
+        # Sort campaigns by leads count descending (primary: active period leads, secondary: all-time leads)
+        sort_by = request.GET.get('sort', 'leads_desc')
+        if sort_by == 'period_leads_desc' or (date_preset != 'all_time' and sort_by != 'all_time_desc'):
+            campaigns_data.sort(key=lambda x: (x["period_leads_count"], x["leads_count"]), reverse=True)
+        else:
+            campaigns_data.sort(key=lambda x: (x["leads_count"], x["period_leads_count"]), reverse=True)
+
+        # Calculate platform summary counts across all campaigns
+        selected_platform = request.GET.get('platform', 'all').strip()
+        platform_stats = {
+            "all": {"name": "All Platforms", "count": 0, "campaigns_count": 0},
+            "meta": {"name": "Meta Ads", "count": 0, "campaigns_count": 0},
+            "google": {"name": "Google Ads", "count": 0, "campaigns_count": 0},
+            "justdial": {"name": "Justdial", "count": 0, "campaigns_count": 0},
+            "practo": {"name": "Practo", "count": 0, "campaigns_count": 0},
+            "offline": {"name": "Offline / General", "count": 0, "campaigns_count": 0},
+        }
+
+        for c_item in campaigns_data:
+            p_val = (c_item["obj"].platform or "").lower()
+            lead_cnt = c_item["period_leads_count"] if date_preset != 'all_time' else c_item["leads_count"]
             
+            platform_stats["all"]["count"] += lead_cnt
+            platform_stats["all"]["campaigns_count"] += 1
+
+            if "meta" in p_val or "facebook" in p_val or "instagram" in p_val:
+                platform_stats["meta"]["count"] += lead_cnt
+                platform_stats["meta"]["campaigns_count"] += 1
+            elif "google" in p_val:
+                platform_stats["google"]["count"] += lead_cnt
+                platform_stats["google"]["campaigns_count"] += 1
+            elif "justdial" in p_val or "just dial" in p_val:
+                platform_stats["justdial"]["count"] += lead_cnt
+                platform_stats["justdial"]["campaigns_count"] += 1
+            elif "practo" in p_val:
+                platform_stats["practo"]["count"] += lead_cnt
+                platform_stats["practo"]["campaigns_count"] += 1
+            else:
+                platform_stats["offline"]["count"] += lead_cnt
+                platform_stats["offline"]["campaigns_count"] += 1
+
+        # Filter campaigns_data by selected platform if specified
+        filtered_campaigns_data = []
+        if selected_platform == "meta":
+            filtered_campaigns_data = [c for c in campaigns_data if ("meta" in (c["obj"].platform or "").lower() or "facebook" in (c["obj"].platform or "").lower() or "instagram" in (c["obj"].platform or "").lower())]
+        elif selected_platform == "google":
+            filtered_campaigns_data = [c for c in campaigns_data if "google" in (c["obj"].platform or "").lower()]
+        elif selected_platform == "justdial":
+            filtered_campaigns_data = [c for c in campaigns_data if ("justdial" in (c["obj"].platform or "").lower() or "just dial" in (c["obj"].platform or "").lower())]
+        elif selected_platform == "practo":
+            filtered_campaigns_data = [c for c in campaigns_data if "practo" in (c["obj"].platform or "").lower()]
+        elif selected_platform == "offline":
+            filtered_campaigns_data = [c for c in campaigns_data if not any(x in (c["obj"].platform or "").lower() for x in ["meta", "facebook", "instagram", "google", "justdial", "just dial", "practo"])]
+        else:
+            selected_platform = "all"
+            filtered_campaigns_data = campaigns_data
+
+        # Pagination for campaigns table (10 items per page)
+        from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+        page = request.GET.get('page', 1)
+        paginator = Paginator(filtered_campaigns_data, 10)
+        try:
+            campaigns_page = paginator.page(page)
+        except PageNotAnInteger:
+            campaigns_page = paginator.page(1)
+        except EmptyPage:
+            campaigns_page = paginator.page(paginator.num_pages)
+
         total_appts = Appointment.objects.filter(hospital=hospital).count() if hospital else (Appointment.objects.all().count() if is_superadmin else 0)
         
         # Recent Import Jobs in selected period for WhatsApp report
@@ -2885,8 +3053,14 @@ def nelson_module_view(request, module_name):
         return render(request, "dashboard/campaign_management.html", {
             "title": "Campaign Management",
             "active": "campaign-management",
-            "campaigns_data": campaigns_data,
-            "total_campaigns": campaigns_qs.count(),
+            "campaigns_data": campaigns_page,
+            "paginator": paginator,
+            "page_obj": campaigns_page,
+            "is_paginated": campaigns_page.has_other_pages(),
+            "total_campaigns": len(filtered_campaigns_data),
+            "all_campaigns_count": len(campaigns_data),
+            "platform_stats": platform_stats,
+            "selected_platform": selected_platform,
             "active_campaigns_count": campaigns_qs.filter(is_active=True).count(),
             "today_active_campaigns_count": today_active_campaigns_count,
             "period_active_campaigns_count": period_active_campaigns_count,
@@ -2897,6 +3071,7 @@ def nelson_module_view(request, module_name):
             "start_date": start_date_str,
             "end_date": end_date_str,
             "preset_label": preset_label,
+            "sort_by": sort_by,
             "recent_jobs": recent_jobs,
             "hospital_name": hospital_name,
             "today_date_str": today.strftime('%d-%m-%Y'),
@@ -3729,6 +3904,57 @@ def submit_daily_report(request):
             if sa != request.user and sa not in recipients:
                 recipients.append(sa)
 
+    # If user is a DOCTOR, calculate Doctor-specific appointment metrics
+    if request.user.role == User.Role.DOCTOR:
+        doctor_user = request.user
+        doc_apts_qs = Appointment.objects.filter(
+            Q(doctor_user=doctor_user) | 
+            Q(doctor_name__icontains=doctor_user.get_full_name() or doctor_user.username)
+        )
+        if doctor_user.hospital:
+            doc_apts_qs = doc_apts_qs.filter(hospital=doctor_user.hospital)
+
+        # 1. Appointment requests received today (created_at on report_date)
+        doc_req_received_cnt = doc_apts_qs.filter(created_at__date=report_date).count()
+
+        # 2. Appointment accepted/approved today
+        doc_accepted_cnt = doc_apts_qs.filter(
+            Q(status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]),
+            Q(updated_at__date=report_date) | Q(created_at__date=report_date)
+        ).count()
+
+        # 3. Today's scheduled appointments
+        doc_today_scheduled_cnt = doc_apts_qs.filter(
+            appointment_date=report_date
+        ).exclude(status=AppointmentStatus.CANCELLED).count()
+
+        # 4. Appointments cancelled (booked/requested but cancelled/rejected on report_date or for report_date)
+        doc_cancelled_cnt = doc_apts_qs.filter(
+            status=AppointmentStatus.CANCELLED
+        ).filter(
+            Q(appointment_date=report_date) | Q(updated_at__date=report_date)
+        ).count()
+
+        # 5. Appointments completed today
+        doc_completed_cnt = doc_apts_qs.filter(
+            status=AppointmentStatus.COMPLETED,
+            appointment_date=report_date
+        ).count()
+
+        # 6. Tomorrow appointment scheduled
+        tomorrow_date = report_date + timedelta(days=1)
+        doc_tomorrow_scheduled_cnt = doc_apts_qs.filter(
+            appointment_date=tomorrow_date
+        ).exclude(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.PENDING_APPROVAL]).count()
+
+        # Override counts for doctor suggestions
+        leads_assigned_cnt = doc_req_received_cnt
+        appointments_booked_cnt = doc_accepted_cnt
+        pending_leads_cnt = doc_today_scheduled_cnt
+        freeze_leads_cnt = doc_cancelled_cnt
+        admissions_today_cnt = doc_completed_cnt
+        tomorrow_followups_cnt = doc_tomorrow_scheduled_cnt
+
     suggestions = {
         "outgoing_calls": outgoing_calls_cnt,
         "incoming_calls": incoming_calls_cnt,
@@ -3758,12 +3984,20 @@ def submit_daily_report(request):
     user_business_type = request.user.business_type  # 'hospital' or 'academy'
     user_role = request.user.role
 
-    if user_business_type == "hospital" and user_role in (User.Role.LEAD_ATTENDENT, User.Role.DOCTOR, User.Role.ADMIN, User.Role.MANAGER):
+    if user_role == User.Role.DOCTOR:
+        is_doctor_form = True
+        is_hospital_form = False
+        from .forms import DoctorDailyReportForm
+        FormClass = DoctorDailyReportForm
+        template_name = "dashboard/doctor_daily_report_form.html"
+    elif user_business_type == "hospital" and user_role in (User.Role.LEAD_ATTENDENT, User.Role.ADMIN, User.Role.MANAGER):
+        is_doctor_form = False
         is_hospital_form = True
         FormClass = HospitalDailyReportForm
         template_name = "dashboard/hospital_daily_report_form.html"
     else:
         # Zappcode Academy Business (Counsellor, HR, Manager, Admin, Super Admin)
+        is_doctor_form = False
         is_hospital_form = False
         FormClass = AcademyDailyReportForm
         template_name = "dashboard/academy_reports_form.html"
@@ -3819,18 +4053,37 @@ def submit_daily_report(request):
                     
                     # Send Notifications to recipient (Reports To / Admin)
                     action_word = "submitted" if created else "updated"
+                    user_display_name = request.user.get_full_name() or request.user.username
+                    user_role_display = request.user.get_role_display()
+                    submitter_info = f"{user_display_name} ({user_role_display})"
+
+                    if request.user.role == User.Role.DOCTOR:
+                        summary_text = (
+                            f"Appointment Requests Received: {report.leads_assigned} | "
+                            f"Appointments Accepted: {report.appointments_booked} | "
+                            f"Today's Scheduled: {report.pending_leads} | "
+                            f"Appointments Cancelled: {report.freeze_leads} | "
+                            f"Appointments Completed: {report.admissions_done} | "
+                            f"Tomorrow Scheduled: {report.tomorrow_followups}"
+                        )
+                    else:
+                        summary_text = (
+                            f"Assigned Leads: {report.leads_assigned} | Calls: {report.calls_attended} | "
+                            f"Admissions Done: {report.admissions_done} | Payments: {report.payments_done} (₹{report.fees_collected}) | "
+                            f"Pending Leads: {report.pending_leads} | Tomorrow FU: {report.tomorrow_followups}"
+                        )
+
                     for r_user in recipients:
                         Notification.objects.create(
                             user=r_user,
-                            title=f"EOD Report ({action_word.capitalize()}) from {request.user.get_full_name() or request.user.username}",
+                            title=f"EOD Report ({action_word.capitalize()}) - {submitter_info}",
                             message=(
-                                f"{request.user.get_full_name() or request.user.username} {action_word} Daily EOD Report for {report_date.strftime('%d %b %Y')}.\n"
-                                f"Assigned Leads: {report.leads_assigned} | Calls: {report.calls_attended} | "
-                                f"Admissions Done: {report.admissions_done} | Payments: {report.payments_done} (₹{report.fees_collected}) | "
-                                f"Pending Leads: {report.pending_leads} | Tomorrow FU: {report.tomorrow_followups} | "
+                                f"Employee: {submitter_info}\n"
+                                f"Date: {report_date.strftime('%d %b %Y')}\n"
+                                f"{summary_text}\n"
                                 f"Mood: {report.mood_display}"
                             ),
-                            link="/dashboard/reports/admin/",
+                            link="/dashboard/reports/daily/",
                         )
 
                 messages.success(request, f"Daily EOD report for {report_date.strftime('%d-%m-%Y')} {'submitted' if created else 'updated'} successfully! ✅")
@@ -3863,7 +4116,7 @@ def submit_daily_report(request):
                 "mood": report_instance.mood or "Good",
                 "mood_rating": report_instance.mood_rating,
             }
-            if is_hospital_form:
+            if is_hospital_form or is_doctor_form:
                 init_data["appointments_booked"] = report_instance.appointments_booked
                 init_data["freeze_leads"] = report_instance.freeze_leads
         else:
@@ -3885,7 +4138,7 @@ def submit_daily_report(request):
                 "fees_collected": suggestions["fees_collected"],
                 "mood": suggestions["mood"],
             }
-            if is_hospital_form:
+            if is_hospital_form or is_doctor_form:
                 init_data["appointments_booked"] = suggestions["appointments_booked"]
                 init_data["freeze_leads"] = suggestions["freeze_leads"]
 
@@ -3935,10 +4188,12 @@ def management_daily_reports(request):
     date_from_str = request.GET.get("date_from")
     date_to_str = request.GET.get("date_to")
     
+    has_date_filter = False
     if date_from_str:
         try:
             date_from = datetime.strptime(date_from_str.strip(), "%Y-%m-%d").date()
             reports = reports.filter(report_date__gte=date_from)
+            has_date_filter = True
         except ValueError:
             pass
             
@@ -3946,10 +4201,20 @@ def management_daily_reports(request):
         try:
             date_to = datetime.strptime(date_to_str.strip(), "%Y-%m-%d").date()
             reports = reports.filter(report_date__lte=date_to)
+            has_date_filter = True
         except ValueError:
             pass
-            
-    # Check for Excel export
+
+    # Option 3: By default (when no specific date filter is applied), show only the latest 1 entry per user
+    if not has_date_filter and not emp_id:
+        from django.db.models import Max
+        latest_report_ids = DailyReport.objects.filter(
+            id__in=reports.values_list('id', flat=True)
+        ).values('user_id').annotate(max_id=Max('id')).values_list('max_id', flat=True)
+        reports = reports.filter(id__in=latest_report_ids).order_by('-report_date', '-id')
+    else:
+        reports = reports.order_by('-report_date', '-id')
+
     if "export" in request.GET:
         rows = []
         for r in reports:
@@ -4017,8 +4282,10 @@ def telecaller_home(request):
     
     hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False)
 
-    # CARD 1: Today's New Leads Count (Hospital wide received today)
+    # CARD 1: Today's New Leads Count (Fresh unassigned leads OR leads assigned to this user today)
     todays_new_leads_count = hospital_leads.filter(
+        Q(assigned_to=user) | Q(assigned_to__isnull=True)
+    ).filter(
         Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
     ).distinct().count()
 
@@ -4717,26 +4984,98 @@ def doctor_home(request):
                 messages.success(request, f"Status updated to '{apt.get_status_display()}' for patient {lead.name}.")
 
         elif action == "complete":
+            doctor_notes = request.POST.get('doctor_notes', '').strip()
+            add_next_apt = (request.POST.get('add_next_appointment') == '1')
+            next_date_str = request.POST.get('next_appointment_date', '').strip()
+            next_time_str = request.POST.get('next_appointment_time', '').strip()
+            next_notes = request.POST.get('next_appointment_notes', '').strip() or doctor_notes
+
+            # 1. Mark current appointment completed
             apt.status = AppointmentStatus.COMPLETED
-            apt.doctor_notes = request.POST.get('doctor_notes', '')
+            if doctor_notes:
+                apt.doctor_notes = doctor_notes
             apt.save(update_fields=['status', 'doctor_notes'])
             
-            # Sync Lead custom_data status to Completed as well
+            # Sync Lead custom_data status
             cd = lead.custom_data or {}
             cd['appointment_status'] = 'Completed'
+            if doctor_notes:
+                cd['doctor_remark'] = doctor_notes
+                cd['last_doctor_remark'] = doctor_notes
             lead.custom_data = cd
             lead.save(update_fields=['custom_data'])
 
-            # Send Notification to Telecaller (Lead Attendant) to enter billing & UHID details
-            if lead.assigned_to:
-                Notification.objects.create(
-                    user=lead.assigned_to,
-                    title="Appointment Completed - Enter Billing Details",
-                    message=f"Dr. {doctor.get_full_name() or doctor.username} completed the appointment for patient {lead.name}. Please enter UHID & Billing details in your Billing Follow-ups list.",
-                    link=f"/leads/{lead.pk}/edit/",
+            # Log Activity
+            from followups.models import Activity, ActivityType, FollowUp, FollowUpMode, FollowUpStatus
+            Activity.objects.create(
+                lead=lead,
+                created_by=doctor,
+                activity_type=ActivityType.NOTE,
+                description=f"Dr. {doctor.get_full_name() or doctor.username} marked consultation completed. Remarks: {doctor_notes or 'No clinical remarks recorded.'}"
+            )
+
+            # 2. Check if Next Appointment is scheduled by Doctor
+            if add_next_apt and next_date_str:
+                from datetime import datetime
+                try:
+                    next_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    next_date = timezone.localdate()
+
+                # Create next appointment record in SCHEDULED status
+                new_apt = Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=next_date,
+                    appointment_time=next_time_str if next_time_str else None,
+                    status=AppointmentStatus.SCHEDULED,
+                    doctor_notes=next_notes,
+                    notes=f"Next follow-up consultation set by Dr. {doctor.get_full_name() or doctor.username}.",
+                    created_by=doctor
                 )
-            
-            messages.success(request, f"Appointment for {lead.name} marked completed. Notification sent to Telecaller for billing follow-up.")
+
+                # Set next follow up on lead
+                lead.next_followup_date = next_date
+                cd['appo_booked_date'] = next_date_str
+                if next_time_str:
+                    cd['appointment_time'] = next_time_str
+                cd['appointment_status'] = 'Doctor Scheduled Next Appointment (Pending Patient Confirmation)'
+                cd['doctor_reschedule_remark'] = next_notes
+                lead.custom_data = cd
+                lead.save(update_fields=['next_followup_date', 'custom_data'])
+
+                # Create FollowUp entry assigned to lead attendant
+                FollowUp.objects.create(
+                    lead=lead,
+                    followup_date=timezone.localdate(),
+                    followup_mode=FollowUpMode.CALL,
+                    followup_status=FollowUpStatus.PENDING,
+                    comment=f"Dr. {doctor.get_full_name() or doctor.username} scheduled next consultation for {next_date.strftime('%d %b %Y')} {next_time_str or ''}. Remark: '{next_notes}'. Please call patient to confirm slot.",
+                    created_by=doctor
+                )
+
+                # Send Notification to Telecaller (Lead Attendant)
+                if lead.assigned_to:
+                    time_disp = next_time_str if next_time_str else "Slot not set"
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title="Doctor Scheduled Next Appointment - Confirm with Patient",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} scheduled next consultation for patient {lead.name} on {next_date.strftime('%d %b %Y')} at {time_disp}. Clinical Remark: '{next_notes}'. Please call and confirm with patient.",
+                        link=f"/leads/{lead.pk}/",
+                    )
+                messages.success(request, f"Appointment completed and next consultation follow-up scheduled for {lead.name} on {next_date.strftime('%d %b %Y')}! Telecaller notified.")
+            else:
+                # Send Notification to Telecaller (Lead Attendant) to enter billing & UHID details
+                if lead.assigned_to:
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title="Appointment Completed - Enter Billing Details",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} completed the appointment for patient {lead.name}. Remarks: '{doctor_notes or 'Completed'}'. Please enter UHID & Billing details in your Billing Follow-ups list.",
+                        link=f"/leads/{lead.pk}/edit/",
+                    )
+                messages.success(request, f"Appointment for {lead.name} marked completed. Doctor remarks saved to patient history.")
 
         return redirect("dashboard:doctor_home")
         
@@ -4902,23 +5241,98 @@ def doctor_appointments(request):
                 messages.success(request, f"Status updated to '{apt.get_status_display()}' for patient {lead.name}.")
 
         elif action == "complete":
+            doctor_notes = request.POST.get('doctor_notes', '').strip()
+            add_next_apt = (request.POST.get('add_next_appointment') == '1')
+            next_date_str = request.POST.get('next_appointment_date', '').strip()
+            next_time_str = request.POST.get('next_appointment_time', '').strip()
+            next_notes = request.POST.get('next_appointment_notes', '').strip() or doctor_notes
+
+            # 1. Mark current appointment completed
             apt.status = AppointmentStatus.COMPLETED
-            apt.doctor_notes = request.POST.get('doctor_notes', '')
+            if doctor_notes:
+                apt.doctor_notes = doctor_notes
             apt.save(update_fields=['status', 'doctor_notes'])
             
+            # Sync Lead custom_data status
             cd = lead.custom_data or {}
             cd['appointment_status'] = 'Completed'
+            if doctor_notes:
+                cd['doctor_remark'] = doctor_notes
+                cd['last_doctor_remark'] = doctor_notes
             lead.custom_data = cd
             lead.save(update_fields=['custom_data'])
 
-            if lead.assigned_to:
-                Notification.objects.create(
-                    user=lead.assigned_to,
-                    title="Appointment Completed - Enter Billing Details",
-                    message=f"Dr. {doctor.get_full_name() or doctor.username} completed the appointment for patient {lead.name}. Please enter UHID & Billing details in your Billing Follow-ups list.",
-                    link=f"/leads/{lead.pk}/edit/",
+            # Log Activity
+            from followups.models import Activity, ActivityType, FollowUp, FollowUpMode, FollowUpStatus
+            Activity.objects.create(
+                lead=lead,
+                created_by=doctor,
+                activity_type=ActivityType.NOTE,
+                description=f"Dr. {doctor.get_full_name() or doctor.username} marked consultation completed. Remarks: {doctor_notes or 'No clinical remarks recorded.'}"
+            )
+
+            # 2. Check if Next Appointment is scheduled by Doctor
+            if add_next_apt and next_date_str:
+                from datetime import datetime
+                try:
+                    next_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    next_date = timezone.localdate()
+
+                # Create next appointment record in SCHEDULED status
+                new_apt = Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=next_date,
+                    appointment_time=next_time_str if next_time_str else None,
+                    status=AppointmentStatus.SCHEDULED,
+                    doctor_notes=next_notes,
+                    notes=f"Next follow-up consultation set by Dr. {doctor.get_full_name() or doctor.username}.",
+                    created_by=doctor
                 )
-            messages.success(request, f"Appointment for {lead.name} marked completed. Billing Follow-up unlocked.")
+
+                # Set next follow up on lead
+                lead.next_followup_date = next_date
+                cd['appo_booked_date'] = next_date_str
+                if next_time_str:
+                    cd['appointment_time'] = next_time_str
+                cd['appointment_status'] = 'Doctor Scheduled Next Appointment (Pending Patient Confirmation)'
+                cd['doctor_reschedule_remark'] = next_notes
+                lead.custom_data = cd
+                lead.save(update_fields=['next_followup_date', 'custom_data'])
+
+                # Create FollowUp entry assigned to lead attendant
+                FollowUp.objects.create(
+                    lead=lead,
+                    followup_date=timezone.localdate(),
+                    followup_mode=FollowUpMode.CALL,
+                    followup_status=FollowUpStatus.PENDING,
+                    comment=f"Dr. {doctor.get_full_name() or doctor.username} scheduled next consultation for {next_date.strftime('%d %b %Y')} {next_time_str or ''}. Remark: '{next_notes}'. Please call patient to confirm slot.",
+                    created_by=doctor
+                )
+
+                # Send Notification to Telecaller (Lead Attendant)
+                if lead.assigned_to:
+                    time_disp = next_time_str if next_time_str else "Slot not set"
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title="Doctor Scheduled Next Appointment - Confirm with Patient",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} scheduled next consultation for patient {lead.name} on {next_date.strftime('%d %b %Y')} at {time_disp}. Clinical Remark: '{next_notes}'. Please call and confirm with patient.",
+                        link=f"/leads/{lead.pk}/",
+                    )
+                messages.success(request, f"Appointment completed and next consultation follow-up scheduled for {lead.name} on {next_date.strftime('%d %b %Y')}! Telecaller notified.")
+            else:
+                # Send Notification to Telecaller (Lead Attendant) to enter billing & UHID details
+                if lead.assigned_to:
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title="Appointment Completed - Enter Billing Details",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} completed the appointment for patient {lead.name}. Remarks: '{doctor_notes or 'Completed'}'. Please enter UHID & Billing details in your Billing Follow-ups list.",
+                        link=f"/leads/{lead.pk}/edit/",
+                    )
+                messages.success(request, f"Appointment for {lead.name} marked completed. Doctor remarks saved to patient history.")
 
         return redirect("dashboard:doctor_appointments")
 
@@ -4979,6 +5393,358 @@ def doctor_appointments(request):
         'today': today,
     }
     return render(request, "dashboard/doctor_appointments.html", context)
+
+
+@login_required
+def doctor_patient_review(request, lead_id):
+    """
+    Dedicated view for Doctors to review Patient details in clean table format,
+    with an editable option to change slot, confirm appointment or confirm slot change.
+    """
+    if request.user.role != User.Role.DOCTOR:
+        messages.error(request, "Access restricted to doctors only.")
+        return redirect("dashboard:home")
+
+    doctor = request.user
+    today = timezone.localdate()
+    from leads.models import Lead, Appointment, AppointmentStatus
+    from notifications.models import Notification
+
+    lead = get_object_or_404(Lead, pk=lead_id)
+
+    # Check tenant access
+    if doctor.hospital and lead.hospital and lead.hospital != doctor.hospital:
+        messages.error(request, "Permission denied.")
+        return redirect("dashboard:doctor_appointments")
+
+    # Find the appointment linked to this lead and doctor
+    appointment = Appointment.objects.filter(
+        lead=lead
+    ).filter(
+        Q(doctor_user=doctor) | Q(doctor_name__icontains=doctor.get_full_name() or doctor.username)
+    ).order_by('-appointment_date', '-id').first()
+
+    if not appointment:
+        appointment = Appointment.objects.filter(lead=lead).order_by('-appointment_date', '-id').first()
+
+    if request.method == "POST":
+        action = request.POST.get("action", "").strip()
+        slot_modified = request.POST.get("slot_modified", "0").strip() == "1"
+        doctor_notes = request.POST.get("doctor_notes", "").strip()
+
+        if action == "reject":
+            reason = request.POST.get("reject_reason", "").strip() or doctor_notes or "Doctor unavailable / slot full"
+            if appointment:
+                appointment.status = AppointmentStatus.CANCELLED
+                appointment.doctor_notes = reason
+                appointment.save(update_fields=["status", "doctor_notes"])
+
+            cd = lead.custom_data or {}
+            cd["appointment_status"] = f"Doctor Rejected: {reason}"
+            lead.custom_data = cd
+            lead.next_followup_date = timezone.localdate()
+            lead.save(update_fields=["custom_data", "next_followup_date"])
+
+            if lead.assigned_to:
+                Notification.objects.create(
+                    user=lead.assigned_to,
+                    title="Appointment Rejected by Doctor",
+                    message=f"Dr. {doctor.get_full_name() or doctor.username} rejected appointment request for {lead.name}. Reason: {reason}. Lead moved to your Follow-ups list.",
+                    link=f"/leads/{lead.pk}/",
+                )
+        if action == "complete":
+            # 1. Mark current appointment as COMPLETED
+            if appointment:
+                appointment.status = AppointmentStatus.COMPLETED
+                if doctor_notes:
+                    appointment.doctor_notes = doctor_notes
+                appointment.save(update_fields=["status", "doctor_notes"])
+            else:
+                appointment = Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=today,
+                    status=AppointmentStatus.COMPLETED,
+                    doctor_notes=doctor_notes,
+                )
+
+            cd = lead.custom_data or {}
+            cd["appointment_status"] = "Completed"
+            if doctor_notes:
+                cd["doctor_remark"] = doctor_notes
+                cd["last_doctor_remark"] = doctor_notes
+            lead.custom_data = cd
+            lead.save(update_fields=["custom_data"])
+
+            # Log Activity
+            from followups.models import Activity, ActivityType, FollowUp, FollowUpMode, FollowUpStatus
+            Activity.objects.create(
+                lead=lead,
+                created_by=doctor,
+                activity_type=ActivityType.NOTE,
+                description=f"Dr. {doctor.get_full_name() or doctor.username} marked consultation completed. Remarks: {doctor_notes or 'No clinical remarks recorded.'}"
+            )
+
+            # Check if Next Appointment is scheduled by Doctor
+            add_next_apt = request.POST.get("add_next_appointment") == "1"
+            next_date_str = request.POST.get("next_appointment_date", "").strip()
+            next_time_str = request.POST.get("next_appointment_time", "").strip()
+            next_notes = request.POST.get("next_appointment_notes", "").strip()
+
+            if add_next_apt and next_date_str:
+                from datetime import datetime
+                try:
+                    next_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    next_date = timezone.localdate()
+
+                # Create next appointment in SCHEDULED status
+                new_apt = Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=next_date,
+                    appointment_time=next_time_str if next_time_str else None,
+                    status=AppointmentStatus.SCHEDULED,
+                    doctor_notes=next_notes,
+                    notes=f"Next follow-up consultation set by Dr. {doctor.get_full_name() or doctor.username}.",
+                    created_by=doctor
+                )
+
+                cd["appo_booked_date"] = next_date.strftime("%Y-%m-%d")
+                if next_time_str:
+                    cd["appointment_time"] = next_time_str
+                cd["appointment_status"] = "Follow-up Scheduled by Doctor (Pending Confirmation)"
+                cd["doctor_reschedule_remark"] = next_notes
+                lead.custom_data = cd
+                lead.next_followup_date = next_date
+                lead.save(update_fields=["custom_data", "next_followup_date"])
+
+                # Create FollowUp record & notify telecaller
+                if lead.assigned_to:
+                    time_display_str = f" at {next_time_str}" if next_time_str else ""
+                    FollowUp.objects.create(
+                        lead=lead,
+                        followup_date=timezone.localdate(),
+                        followup_mode=FollowUpMode.CALL,
+                        followup_status=FollowUpStatus.PENDING,
+                        comment=f"Dr. {doctor.get_full_name() or doctor.username} completed consultation and set next appointment for {next_date.strftime('%d %b %Y')}{time_display_str}. Remarks: '{next_notes}'. Please confirm with patient.",
+                        next_followup_date=next_date,
+                        created_by=doctor
+                    )
+
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title="Patient Consultation Completed & Next Follow-up Scheduled",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} completed consultation for {lead.name} and scheduled next appointment on {next_date.strftime('%d %b %Y')}{time_display_str}. Please confirm with patient.",
+                        link=f"/leads/{lead.pk}/",
+                    )
+                messages.success(request, f"Consultation marked as Completed & Next appointment scheduled for {lead.name}! ✅")
+            else:
+                messages.success(request, f"Consultation for {lead.name} marked as Completed! Clinical remarks saved. ✅")
+
+            return redirect("dashboard:doctor_appointments")
+
+        if action == "schedule_next":
+            # Schedule next appointment from Completed page
+            next_date_str = request.POST.get("next_appointment_date", "").strip()
+            next_time_str = request.POST.get("next_appointment_time", "").strip()
+            next_notes = request.POST.get("next_appointment_notes", "").strip()
+
+            if next_date_str:
+                from datetime import datetime
+                try:
+                    next_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    next_date = timezone.localdate()
+
+                Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=next_date,
+                    appointment_time=next_time_str if next_time_str else None,
+                    status=AppointmentStatus.SCHEDULED,
+                    doctor_notes=next_notes,
+                    notes=f"Next follow-up consultation set by Dr. {doctor.get_full_name() or doctor.username}.",
+                    created_by=doctor
+                )
+
+                cd = lead.custom_data or {}
+                cd["appo_booked_date"] = next_date.strftime("%Y-%m-%d")
+                if next_time_str:
+                    cd["appointment_time"] = next_time_str
+                cd["appointment_status"] = "Follow-up Scheduled by Doctor (Pending Confirmation)"
+                cd["doctor_reschedule_remark"] = next_notes
+                lead.custom_data = cd
+                lead.next_followup_date = next_date
+                lead.save(update_fields=["custom_data", "next_followup_date"])
+
+                from followups.models import FollowUp, FollowUpMode, FollowUpStatus
+                if lead.assigned_to:
+                    time_display_str = f" at {next_time_str}" if next_time_str else ""
+                    FollowUp.objects.create(
+                        lead=lead,
+                        followup_date=timezone.localdate(),
+                        followup_mode=FollowUpMode.CALL,
+                        followup_status=FollowUpStatus.PENDING,
+                        comment=f"Dr. {doctor.get_full_name() or doctor.username} scheduled next follow-up appointment for {next_date.strftime('%d %b %Y')}{time_display_str}. Remarks: '{next_notes}'. Please confirm with patient.",
+                        next_followup_date=next_date,
+                        created_by=doctor
+                    )
+
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title="Next Follow-up Appointment Scheduled by Doctor",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} scheduled next appointment for {lead.name} on {next_date.strftime('%d %b %Y')}{time_display_str}. Please confirm with patient.",
+                        link=f"/leads/{lead.pk}/",
+                    )
+                messages.success(request, f"Next appointment scheduled for {lead.name}! Telecaller notified. ✅")
+                return redirect("dashboard:doctor_appointments")
+
+        # Confirm Appointment or Confirm Slot Change
+        new_date_str = request.POST.get("new_date", "").strip()
+        new_time_str = request.POST.get("new_time", "").strip()
+        doctor_remark = request.POST.get("doctor_remark", "").strip()
+
+        if slot_modified and (new_date_str or new_time_str):
+            # SLOT CHANGED FLOW
+            from datetime import datetime
+            new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date() if new_date_str else (appointment.appointment_date if appointment else today)
+            new_time = new_time_str if new_time_str else (appointment.appointment_time if appointment else None)
+            reschedule_note = doctor_remark or doctor_notes or "Doctor rescheduled appointment slot."
+
+            if appointment:
+                appointment.appointment_date = new_date
+                appointment.appointment_time = new_time
+                appointment.status = AppointmentStatus.SCHEDULED
+                appointment.doctor_notes = reschedule_note
+                appointment.save(update_fields=["appointment_date", "appointment_time", "status", "doctor_notes"])
+            else:
+                appointment = Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=new_date,
+                    appointment_time=new_time,
+                    status=AppointmentStatus.SCHEDULED,
+                    doctor_notes=reschedule_note,
+                )
+
+            cd = lead.custom_data or {}
+            cd["appo_booked_date"] = new_date.strftime("%Y-%m-%d")
+            if new_time:
+                cd["appointment_time"] = str(new_time)
+            cd["appointment_status"] = "Slot Changed by Doctor (Pending Patient Confirmation)"
+            cd["doctor_reschedule_remark"] = reschedule_note
+            lead.custom_data = cd
+            lead.next_followup_date = timezone.localdate()
+            lead.save(update_fields=["custom_data", "next_followup_date"])
+
+            if lead.assigned_to:
+                time_disp = appointment.appointment_time.strftime("%I:%M %p") if hasattr(appointment.appointment_time, "strftime") else str(appointment.appointment_time or "Slot Not Set")
+                Notification.objects.create(
+                    user=lead.assigned_to,
+                    title="Doctor Changed Slot - Please Confirm with Patient",
+                    message=f"Dr. {doctor.get_full_name() or doctor.username} updated slot for {lead.name}: {new_date.strftime('%d %b %Y')} at {time_disp}. Remark: '{reschedule_note}'. Please call patient to confirm.",
+                    link=f"/leads/{lead.pk}/",
+                )
+            messages.success(request, f"Appointment slot changed and confirmed for {lead.name}! Telecaller notified.")
+        else:
+            # SLOT NOT CHANGED -> CONFIRM / APPROVE APPOINTMENT
+            if appointment:
+                appointment.status = AppointmentStatus.APPROVED
+                if doctor_notes:
+                    appointment.doctor_notes = doctor_notes
+                appointment.save(update_fields=["status", "doctor_notes"])
+                apt_date = appointment.appointment_date
+                apt_time = appointment.appointment_time
+            else:
+                cd = lead.custom_data or {}
+                raw_d = cd.get("appo_booked_date")
+                from datetime import datetime
+                apt_date = datetime.strptime(raw_d, "%Y-%m-%d").date() if raw_d else today
+                apt_time = cd.get("appointment_time") or "10:00"
+                appointment = Appointment.objects.create(
+                    lead=lead,
+                    hospital=doctor.hospital,
+                    doctor_name=doctor.get_full_name() or doctor.username,
+                    doctor_user=doctor,
+                    appointment_date=apt_date,
+                    appointment_time=apt_time,
+                    status=AppointmentStatus.APPROVED,
+                    doctor_notes=doctor_notes,
+                )
+
+            cd = lead.custom_data or {}
+            cd["appointment_status"] = "Booking Confirmed"
+            cd["appo_booked_date"] = apt_date.strftime("%Y-%m-%d")
+            if apt_time:
+                cd["appointment_time"] = apt_time.strftime("%I:%M %p") if hasattr(apt_time, "strftime") else str(apt_time)
+            cd["appointment_confirmed_at"] = timezone.now().strftime("%Y-%m-%d %H:%M")
+            if doctor_notes:
+                cd["doctor_remark"] = doctor_notes
+            lead.custom_data = cd
+            lead.next_followup_date = None
+            lead.save(update_fields=["custom_data", "next_followup_date"])
+
+            if lead.assigned_to:
+                time_disp = appointment.appointment_time.strftime("%I:%M %p") if hasattr(appointment.appointment_time, "strftime") else str(appointment.appointment_time or "Slot Not Set")
+                Notification.objects.create(
+                    user=lead.assigned_to,
+                    title="Appointment Approved by Doctor",
+                    message=f"Dr. {doctor.get_full_name() or doctor.username} confirmed appointment for patient {lead.name} on {apt_date.strftime('%d %b %Y')} at {time_disp}.",
+                    link=f"/leads/{lead.pk}/",
+                )
+            messages.success(request, f"Appointment for {lead.name} confirmed successfully! Booking locked. ✅")
+
+        return redirect("dashboard:doctor_appointments")
+
+    # Prepare Initial Slot Data
+    cd = lead.custom_data or {}
+    raw_date = cd.get("appo_booked_date") or cd.get("appointment_date")
+    current_date = appointment.appointment_date if (appointment and appointment.appointment_date) else None
+    if not current_date and raw_date:
+        from datetime import datetime
+        try:
+            current_date = datetime.strptime(str(raw_date)[:10], "%Y-%m-%d").date()
+        except Exception:
+            current_date = today
+    if not current_date:
+        current_date = today
+
+    current_time = appointment.appointment_time if (appointment and appointment.appointment_time) else cd.get("appointment_time")
+
+    current_date_display = current_date.strftime("%A, %d %B %Y")
+    current_date_ymd = current_date.strftime("%Y-%m-%d")
+    current_time_display = current_time.strftime("%I:%M %p") if hasattr(current_time, "strftime") else (str(current_time) if current_time else "Slot not set")
+    current_time_hi = current_time.strftime("%H:%M") if hasattr(current_time, "strftime") else (str(current_time)[:5] if current_time else "10:00")
+
+    doc_name = (appointment.doctor_name if appointment else "") or lead.custom_doctor or doctor.get_full_name() or doctor.username
+
+    # Appointments & Consultation History for this lead
+    all_appointments = Appointment.objects.filter(lead=lead).order_by("-appointment_date", "-id")
+
+    context = {
+        "active": "doctor_appointments",
+        "lead": lead,
+        "appointment": appointment,
+        "doctor_name_str": doc_name,
+        "current_date_display": current_date_display,
+        "current_date_ymd": current_date_ymd,
+        "current_time_display": current_time_display,
+        "current_time_hi": current_time_hi,
+        "today_ymd": today.strftime("%Y-%m-%d"),
+        "all_appointments": all_appointments,
+    }
+    return render(request, "dashboard/doctor_patient_review.html", context)
+
+
 
 
 @login_required
@@ -6091,119 +6857,163 @@ def admin_reports_view(request):
         messages.error(request, "Access restricted to Administration and Management.")
         return redirect("dashboard:home")
         
-    hospital = user.hospital
-    selected_hospital_id = (
-        request.GET.get("business", "").strip()
-        or request.GET.get("hospital", "").strip()
-        or str(request.session.get("active_business_id", "")).strip()
-    )
-    
-    # 1. Fetch Task Reports submitted to Admin
-    task_reports_qs = TaskReminder.objects.filter(is_reported_to_admin=True)
-    if hospital:
-        task_reports_qs = task_reports_qs.filter(user__hospital=hospital)
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        task_reports_qs = task_reports_qs.filter(user__hospital_id=int(selected_hospital_id))
-    if user.role == User.Role.MANAGER and not user.is_superuser:
-        task_reports_qs = task_reports_qs.filter(Q(user__reports_to=user) | Q(user=user))
+    # Strict Business Boundary Check:
+    # 1. If user is bound to a specific hospital/business, FORCE that hospital only.
+    #    They MUST NOT be able to override via GET params or session to peek into other businesses.
+    # 2. Only Super Admin / Global Admin (without user.hospital) can switch businesses.
+    if user.hospital:
+        effective_hospital = user.hospital
+    elif user.is_superuser or user.role == User.Role.SUPER_ADMIN:
+        selected_hospital_id = (
+            request.GET.get("business", "").strip()
+            or request.GET.get("hospital", "").strip()
+            or str(request.session.get("active_business_id", "")).strip()
+        )
+        if selected_hospital_id and selected_hospital_id.isdigit():
+            effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+        else:
+            effective_hospital = None
+    else:
+        effective_hospital = None
         
-    # Search / User filter for tasks
+    today = timezone.localdate()
+    from datetime import datetime, time
+    from audit.models import AuditLog
+    
+    # Filters from GET request
     task_user_filter = request.GET.get('user', '').strip()
+    role_filter = request.GET.get('role', '').strip()
+    date_filter = request.GET.get('date', '').strip()
+    
+    # Determine effective target date (default to today if empty, or parsed date if provided)
+    if date_filter:
+        try:
+            target_date = datetime.strptime(date_filter, "%Y-%m-%d").date()
+        except ValueError:
+            target_date = today
+            date_filter = today.strftime("%Y-%m-%d")
+    else:
+        target_date = today
+        date_filter = today.strftime("%Y-%m-%d")
+        
+    start_target_date = timezone.make_aware(datetime.combine(target_date, time.min))
+    end_target_date = timezone.make_aware(datetime.combine(target_date, time.max))
+
+    # Base Employees for this specific business/hospital only
+    employees_qs = User.objects.filter(is_active=True)
+    if effective_hospital:
+        employees_qs = employees_qs.filter(hospital=effective_hospital)
+    elif not user.is_superuser and user.role != User.Role.SUPER_ADMIN:
+        # Fallback security shield: If user has no hospital and is not superadmin, empty queryset
+        employees_qs = employees_qs.none()
+
+    # Manager restriction: Only see subordinates or self within the same business
+    if user.role == User.Role.MANAGER and not user.is_superuser:
+        employees_qs = employees_qs.filter(Q(reports_to=user) | Q(pk=user.pk))
+        
+    # All employees for dropdown (strictly scoped to this business)
+    all_employees = employees_qs.order_by('first_name', 'username')
+    
+    # Filtered employees according to role and user filters
+    filtered_employees = employees_qs
+    if role_filter:
+        filtered_employees = filtered_employees.filter(role=role_filter)
+    if task_user_filter:
+        filtered_employees = filtered_employees.filter(username=task_user_filter)
+
+    # 1. Fetch Task Reports submitted to Admin (Strictly Scoped to Business Employees)
+    task_reports_qs = TaskReminder.objects.filter(is_reported_to_admin=True, user__in=employees_qs)
+        
+    if role_filter:
+        task_reports_qs = task_reports_qs.filter(user__role=role_filter)
     if task_user_filter:
         task_reports_qs = task_reports_qs.filter(user__username=task_user_filter)
-        
-    date_filter = request.GET.get('date', '').strip()
     if date_filter:
-        task_reports_qs = task_reports_qs.filter(reported_at__date=date_filter)
+        task_reports_qs = task_reports_qs.filter(reported_at__date=target_date)
         
     task_reports = task_reports_qs.select_related('user', 'lead').order_by('-reported_at')
     
-    # 2. Daily Calling & EOD Reports submitted by Employees / Attendants
-    daily_reports_qs = DailyReport.objects.all()
-    if hospital:
-        daily_reports_qs = daily_reports_qs.filter(user__hospital=hospital)
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        daily_reports_qs = daily_reports_qs.filter(user__hospital_id=int(selected_hospital_id))
-    if user.role == User.Role.MANAGER and not user.is_superuser:
-        daily_reports_qs = daily_reports_qs.filter(Q(user__reports_to=user) | Q(user=user))
+    # 2. Daily Calling & EOD Reports (Strictly Scoped to Business Employees)
+    daily_reports_qs = DailyReport.objects.filter(user__in=employees_qs)
+        
+    if role_filter:
+        daily_reports_qs = daily_reports_qs.filter(user__role=role_filter)
     if task_user_filter:
         daily_reports_qs = daily_reports_qs.filter(user__username=task_user_filter)
     if date_filter:
-        daily_reports_qs = daily_reports_qs.filter(report_date=date_filter)
+        daily_reports_qs = daily_reports_qs.filter(report_date=target_date)
+        
     daily_reports = daily_reports_qs.select_related('user', 'user__reports_to').order_by('-report_date', '-created_at')
     
-    # Stats
-    total_task_reports = task_reports_qs.count()
-    total_daily_reports = daily_reports_qs.count()
-    
-    # Telecallers / Employees for filter dropdown
-    employees = User.objects.filter(is_active=True)
-    if hospital:
-        employees = employees.filter(hospital=hospital)
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        employees = employees.filter(hospital_id=int(selected_hospital_id))
-    if user.role == User.Role.MANAGER and not user.is_superuser:
-        employees = employees.filter(Q(reports_to=user) | Q(pk=user.pk))
-        
-    # 3. Live Daily Attendance & Login/Logout Activity for Today (All Staff)
-    today = timezone.localdate()
-    from datetime import datetime, time
-    start_today = timezone.make_aware(datetime.combine(today, time.min))
-    end_today = timezone.make_aware(datetime.combine(today, time.max))
-    from audit.models import AuditLog
-    
+    # 3. Staff Attendance & Login/Logout Activity for Selected Date
     staff_attendance = []
-    today_logged_in_count = 0
+    logged_in_count = 0
+    total_staff_count = filtered_employees.count()
     
-    for emp in employees:
-        emp_logs = AuditLog.objects.filter(user=emp, created_at__range=(start_today, end_today)).order_by('created_at')
+    for emp in filtered_employees:
+        emp_logs = AuditLog.objects.filter(user=emp, created_at__range=(start_target_date, end_target_date)).order_by('created_at')
         first_login_log = emp_logs.filter(action='USER_LOGIN').first()
         last_login_log = emp_logs.filter(action='USER_LOGIN').last()
         last_logout_log = emp_logs.filter(action='USER_LOGOUT').last()
         
-        # Calculate first login time
+        # Calculate first login time on target date
         first_login = None
         if first_login_log:
             first_login = first_login_log.created_at
-        elif emp.last_login and start_today <= emp.last_login <= end_today:
+        elif emp.last_login and start_target_date <= emp.last_login <= end_target_date:
             first_login = emp.last_login
         elif emp_logs.exists():
             first_login = emp_logs.first().created_at
             
         last_logout = last_logout_log.created_at if last_logout_log else None
-        is_logged_in_today = bool(first_login)
-        if is_logged_in_today:
-            today_logged_in_count += 1
+        is_logged_in = bool(first_login)
+        if is_logged_in:
+            logged_in_count += 1
             
-        # Determine accurate live session status
-        if last_logout and (not last_login_log or last_logout >= last_login_log.created_at):
-            session_status = 'Logged Out'
-        elif is_logged_in_today:
-            session_status = 'Active / In Session'
+        # Determine session status
+        if target_date == today:
+            if last_logout and (not last_login_log or last_logout >= last_login_log.created_at):
+                session_status = 'Logged Out'
+            elif is_logged_in:
+                session_status = 'Active Now'
+            else:
+                session_status = 'Absent / Inactive'
         else:
-            session_status = 'Not Logged In Today'
+            if last_logout:
+                session_status = 'Logged Out'
+            elif is_logged_in:
+                session_status = 'Completed Session'
+            else:
+                session_status = 'Absent'
 
-        # Check if EOD report submitted today
-        has_eod = DailyReport.objects.filter(user=emp, report_date=today).first()
+        # Check if EOD report submitted on this target date
+        eod_report = DailyReport.objects.filter(user=emp, report_date=target_date).first()
         
-        # Activity summary
-        leads_assigned_today = Lead.objects.filter(assigned_to=emp, inquiry_date=today).count()
+        # Activity summary for this date (strictly scoped to lead under this business)
+        leads_assigned_on_date = Lead.objects.filter(assigned_to=emp, inquiry_date=target_date)
+        if effective_hospital:
+            leads_assigned_on_date = leads_assigned_on_date.filter(hospital=effective_hospital)
+        leads_assigned_count = leads_assigned_on_date.count()
         
         staff_attendance.append({
             'user': emp,
-            'is_logged_in': is_logged_in_today,
+            'is_logged_in': is_logged_in,
             'first_login': first_login,
             'last_logout': last_logout,
-            'eod_report': has_eod,
-            'leads_assigned_today': leads_assigned_today,
+            'eod_report': eod_report,
+            'leads_assigned_today': leads_assigned_count,
             'session_status': session_status,
         })
         
-    # Sort staff attendance: logged in first, then by role
+    # Sort staff attendance: logged in first, then by role, then username
     staff_attendance.sort(key=lambda x: (not x['is_logged_in'], x['user'].role, x['user'].username))
 
-    # Pagination for Daily Reports
-    paginator = Paginator(daily_reports, 15)
+    # Metric stats for cards (reflects filtered date & role/user criteria)
+    total_task_reports = task_reports_qs.count()
+    total_daily_reports = daily_reports_qs.count()
+
+    # Pagination for Task Reports
+    paginator = Paginator(task_reports, 15)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
@@ -6212,21 +7022,47 @@ def admin_reports_view(request):
     if 'page' in query_params:
         del query_params['page']
 
+    # Dynamically scope allowed role choices to current business/tenant if configured
+    if effective_hospital and hasattr(effective_hospital, 'get_allowed_roles'):
+        allowed_keys = effective_hospital.get_allowed_roles()
+        all_choices = [
+            (User.Role.ADMIN, "Admin"),
+            (User.Role.MANAGER, "Manager"),
+            (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+            (User.Role.DOCTOR, "Doctor"),
+            (User.Role.COUNSELLOR, "Counsellor"),
+            (User.Role.HR, "HR"),
+        ]
+        role_choices = [c for c in all_choices if c[0] in allowed_keys]
+    else:
+        role_choices = [
+            (User.Role.ADMIN, "Admin"),
+            (User.Role.MANAGER, "Manager"),
+            (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+            (User.Role.DOCTOR, "Doctor"),
+            (User.Role.COUNSELLOR, "Counsellor"),
+            (User.Role.HR, "HR"),
+        ]
+
     context = {
         'active': 'reports',
-        'task_reports': task_reports[:10],
-        'daily_reports': page_obj,
+        'task_reports': page_obj,
         'page_obj': page_obj,
         'page_range': page_range,
         'query_params': query_params.urlencode(),
         'total_task_reports': total_task_reports,
         'total_daily_reports': total_daily_reports,
-        'employees': employees,
+        'employees': all_employees,
+        'role_choices': role_choices,
         'staff_attendance': staff_attendance,
-        'today_logged_in_count': today_logged_in_count,
-        'total_staff_count': employees.count(),
-        'today_date': today,
+        'today_logged_in_count': logged_in_count,
+        'total_staff_count': total_staff_count,
+        'today_date': target_date,
+        'today_max_date': today.strftime("%Y-%m-%d"),
+        'is_today': (target_date == today),
         'selected_user': task_user_filter,
+        'selected_role': role_filter,
         'selected_date': date_filter,
+        'current_hospital': effective_hospital,
     }
     return render(request, "dashboard/admin_reports.html", context)

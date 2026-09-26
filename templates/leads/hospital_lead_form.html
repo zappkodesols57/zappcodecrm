@@ -54,9 +54,8 @@
     position: relative;
   }
 
-  .crm-form-field .form-control,
-  .crm-form-field .form-select {
-    height: 40px;
+  .crm-form-field .form-control {
+    height: 42px;
     border: 1.5px solid #cbd5e1;
     border-radius: 7px;
     font-size: 0.94rem;
@@ -64,12 +63,37 @@
     color: #0f172a;
     background-color: #fcfdfe;
     transition: all 0.2s ease;
-    padding: 0.42rem 0.85rem;
+    padding: 0.45rem 0.85rem;
+    box-sizing: border-box;
+  }
+
+  .crm-form-field .form-select,
+  .crm-form-field select {
+    height: 42px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 0.94rem;
+    font-weight: 550;
+    color: #0f172a;
+    background-color: #ffffff;
+    transition: all 0.2s ease;
+    padding: 0.45rem 2.25rem 0.45rem 0.85rem !important;
+    box-sizing: border-box;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 14px 10px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
   }
 
   .crm-form-field textarea.form-control {
-    height: 40px;
-    min-height: 40px;
+    height: auto;
+    min-height: 42px;
     font-weight: normal;
     resize: vertical;
   }
@@ -79,7 +103,7 @@
     font-size: 0.95rem !important;
     font-weight: 500 !important;
     color: #1e293b !important;
-    height: 40px !important;
+    height: 42px !important;
     background-color: #ffffff !important;
     border: 1.5px solid #cbd5e1 !important;
     box-shadow: none !important;
@@ -95,7 +119,8 @@
   }
 
   .crm-form-field .form-control:focus,
-  .crm-form-field .form-select:focus {
+  .crm-form-field .form-select:focus,
+  .crm-form-field select:focus {
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
     outline: none;
@@ -146,9 +171,21 @@
     color: #334155;
   }
 
-  @media (max-width: 768px) {
+  /* High Zoom & Screen Responsiveness */
+  @media (max-width: 1100px) {
+    .crm-form-label {
+      width: 36%;
+      font-size: 0.88rem;
+      padding-right: 0.75rem;
+    }
+    .crm-form-field {
+      width: 64%;
+    }
+  }
+
+  @media (max-width: 900px) {
     .crm-form-card {
-      padding: 1.25rem;
+      padding: 1.5rem 1.25rem;
     }
 
     .crm-form-row {
@@ -162,6 +199,7 @@
       text-align: left;
       padding-right: 0;
       margin-bottom: 0.35rem;
+      font-size: 0.88rem;
     }
 
     .crm-form-field {
@@ -1279,8 +1317,43 @@
         ts.addOption({ value: opt.value, text: opt.text });
       });
 
-      if (!isDisabled && preselectedVal && optionsList.some(o => o.value.toLowerCase() === preselectedVal.toLowerCase())) {
-        ts.setValue(preselectedVal, true);
+    // Helper for fuzzy match (e.g. 'rahul' vs 'Dr. rahul')
+    function findMatchingOpt(val, list) {
+      if (!val) return null;
+      const cleanVal = val.toLowerCase().replace(/^(dr\.?|doctor)\s+/i, '').trim();
+      return list.find(o => {
+        const oVal = (o.value || '').toLowerCase().replace(/^(dr\.?|doctor)\s+/i, '').trim();
+        const oTxt = (o.text || '').toLowerCase().replace(/^(dr\.?|doctor)\s+/i, '').trim();
+        return oVal === cleanVal || oTxt === cleanVal || (o.value && o.value.toLowerCase() === val.toLowerCase());
+      });
+    }
+
+    if (el.tomselect) {
+      const ts = el.tomselect;
+      ts.clear();
+      ts.clearOptions();
+
+      if (placeholderText) {
+        ts.settings.placeholder = placeholderText;
+        ts.input.setAttribute('placeholder', placeholderText);
+        if (ts.control_input) {
+          ts.control_input.setAttribute('placeholder', placeholderText);
+        }
+      }
+
+      if (isDisabled) {
+        ts.disable();
+      } else {
+        ts.enable();
+      }
+
+      optionsList.forEach(opt => {
+        ts.addOption({ value: opt.value, text: opt.text });
+      });
+
+      const matched = findMatchingOpt(preselectedVal, optionsList);
+      if (!isDisabled && matched) {
+        ts.setValue(matched.value, true);
       } else {
         ts.setValue('', true);
       }
@@ -1290,13 +1363,19 @@
 
     // 2. Fallback plain standard <select>
     let html = `<option value="">${placeholderText || '-- Select --'}</option>`;
+    const matched = (!isDisabled && preselectedVal) ? findMatchingOpt(preselectedVal, optionsList) : null;
     if (!isDisabled) {
       optionsList.forEach(opt => {
-        const isSel = (preselectedVal && opt.value.toLowerCase() === preselectedVal.toLowerCase()) ? 'selected' : '';
+        const isSel = (matched && opt.value === matched.value) ? 'selected' : '';
         html += `<option value="${opt.value}" ${isSel}>${opt.text}</option>`;
       });
     }
     el.innerHTML = html;
+    if (!isDisabled && matched) {
+      el.value = matched.value;
+    } else if (!matched) {
+      el.value = '';
+    }
   }
 
   const bSelect = findField(['dyn_hospital_branch', 'hospital_branch', 'dyn_branch', 'branch']);
@@ -1310,9 +1389,10 @@
   const initialSavedDoc = "{{ saved_initial.doctor|default:''|escapejs }}";
   const initialSavedDisease = "{{ saved_initial.disease|default:''|escapejs }}";
 
-  function onBranchChanged(targetDeptVal) {
+  function onBranchChanged(isUserChange = false) {
     const branchVal = (bSelect && bSelect.tomselect ? bSelect.tomselect.getValue() : (bSelect ? bSelect.value : '')).trim();
-    const deptToRestore = targetDeptVal || (dSelect && dSelect.tomselect ? dSelect.tomselect.getValue() : (dSelect ? dSelect.value : '')) || initialSavedDept;
+    const currentDept = (dSelect && dSelect.tomselect ? dSelect.tomselect.getValue() : (dSelect ? dSelect.value : '')).trim();
+    const deptToRestore = isUserChange ? currentDept : (currentDept || initialSavedDept);
 
     // If branch field exists and is empty, lock department, doctor, and disease with guiding placeholders
     if (bSelect && !branchVal) {
@@ -1322,6 +1402,7 @@
       if (bookingDoctorSelect) {
         setSelectOptions(bookingDoctorSelect, [], 'Select Department first...', '', true);
       }
+      clearSlotsDisplay();
       return;
     }
 
@@ -1338,12 +1419,12 @@
           setSelectOptions(dSelect, [], '-- No Departments in this Branch --', '', true);
         }
         // Trigger department change to refresh doctors & diseases
-        onDepartmentChanged(initialSavedDoc, initialSavedDisease);
+        onDepartmentChanged(isUserChange);
       })
       .catch(e => console.error('Error fetching branch data:', e));
   }
 
-  function onDepartmentChanged(targetDocVal, targetDiseaseVal) {
+  function onDepartmentChanged(isUserChange = false) {
     const branchVal = (bSelect && bSelect.tomselect ? bSelect.tomselect.getValue() : (bSelect ? bSelect.value : '')).trim();
     const deptVal = (dSelect && dSelect.tomselect ? dSelect.tomselect.getValue() : (dSelect ? dSelect.value : '')).trim();
 
@@ -1353,11 +1434,14 @@
       if (bookingDoctorSelect) {
         setSelectOptions(bookingDoctorSelect, [], 'Select Department first...', '', true);
       }
+      clearSlotsDisplay();
       return;
     }
 
-    const docToRestore = targetDocVal || (docSelect && docSelect.tomselect ? docSelect.tomselect.getValue() : (docSelect ? docSelect.value : '')) || initialSavedDoc;
-    const diseaseToRestore = targetDiseaseVal || (disSelect && disSelect.tomselect ? disSelect.tomselect.getValue() : (disSelect ? disSelect.value : '')) || initialSavedDisease;
+    const currentDoc = (docSelect && docSelect.tomselect ? docSelect.tomselect.getValue() : (docSelect ? docSelect.value : '')).trim();
+    const currentDisease = (disSelect && disSelect.tomselect ? disSelect.tomselect.getValue() : (disSelect ? disSelect.value : '')).trim();
+    const docToRestore = isUserChange ? currentDoc : (currentDoc || initialSavedDoc);
+    const diseaseToRestore = isUserChange ? currentDisease : (currentDisease || initialSavedDisease);
 
     fetch(`/leads/api/cascading-hospital-data/?department_id=${encodeURIComponent(deptVal)}&branch_id=${encodeURIComponent(branchVal)}`)
       .then(r => r.json())
@@ -1370,14 +1454,18 @@
           if (bookingDoctorSelect) {
             setSelectOptions(bookingDoctorSelect, docList, '-- Select Doctor / Consultant --', docToRestore, false);
           }
-          if (docSelect && (docSelect.value || (docSelect.tomselect && docSelect.tomselect.getValue()))) {
+          const activeDoc = docSelect && (docSelect.value || (docSelect.tomselect && docSelect.tomselect.getValue()));
+          if (activeDoc) {
             fetchDoctorSlots();
+          } else {
+            clearSlotsDisplay();
           }
         } else {
           setSelectOptions(docSelect, [], '-- No Doctors in this Department --', '', true);
           if (bookingDoctorSelect) {
             setSelectOptions(bookingDoctorSelect, [], '-- No Doctors in this Department --', '', true);
           }
+          clearSlotsDisplay();
         }
 
         // 2. Diseases
@@ -1390,6 +1478,13 @@
         }
       })
       .catch(e => console.error('Error fetching department data:', e));
+  }
+
+  function clearSlotsDisplay() {
+    const slotsContainer = document.getElementById('slotsContainer');
+    if (slotsContainer) {
+      slotsContainer.innerHTML = '<div class="text-muted small p-2">Select doctor & date to view available slots.</div>';
+    }
   }
 
   // Attach event listeners for both DOM change and TomSelect change
@@ -1407,15 +1502,15 @@
   }
 
   if (bSelect) {
-    bSelect.addEventListener('change', function () { onBranchChanged(); });
+    bSelect.addEventListener('change', function () { onBranchChanged(true); });
     if (bSelect.tomselect) {
-      bSelect.tomselect.on('change', function () { onBranchChanged(); });
+      bSelect.tomselect.on('change', function () { onBranchChanged(true); });
     }
   }
   if (dSelect) {
-    dSelect.addEventListener('change', function () { onDepartmentChanged(); });
+    dSelect.addEventListener('change', function () { onDepartmentChanged(true); });
     if (dSelect.tomselect) {
-      dSelect.tomselect.on('change', function () { onDepartmentChanged(); });
+      dSelect.tomselect.on('change', function () { onDepartmentChanged(true); });
     }
   }
 

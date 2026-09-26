@@ -7,7 +7,13 @@
             <i class="fa-solid {% if active == 'fu_today' %}fa-calendar-day text-primary{% elif active == 'fu_upcoming' %}fa-calendar-plus text-info{% else %}fa-calendar-xmark text-danger{% endif %} me-2"></i>
             {{ title }}
         </h4>
-        <p class="text-muted small mb-0">Track and manage patient follow-ups, scheduled callback remarks, and appointments.</p>
+        <p class="text-muted small mb-0">
+            {% if request.user.is_hospital_user %}
+                Track and manage patient follow-ups, scheduled callback remarks, and appointments.
+            {% else %}
+                Track and manage student follow-ups, scheduled callbacks, and course inquiries.
+            {% endif %}
+        </p>
     </div>
 </div>
 
@@ -18,7 +24,7 @@
             <div class="col-md-9 col-12">
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search by Patient Name, Mobile, Doctor, or Department..." value="{{ q }}">
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="{% if request.user.is_hospital_user %}Search by Patient Name, Mobile, Doctor, or Department...{% else %}Search by Student Name, Mobile, Course, or City...{% endif %}" value="{{ q }}">
                 </div>
             </div>
             <div class="col-md-3 col-12 d-flex gap-2">
@@ -36,11 +42,11 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">Patient</th>
+                        <th class="border-0 px-4 py-3 text-muted small text-uppercase">{% if request.user.is_hospital_user %}Patient{% else %}Student / Lead{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Doctor / Dept</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">{% if request.user.is_hospital_user %}Doctor / Dept{% else %}Course{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Status & Priority</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">Follow-up / Appt Date</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">{% if request.user.is_hospital_user %}Follow-up / Appt Date{% else %}Next Follow-up Date{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Latest Remark</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Assigned To</th>
                         <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase">Action</th>
@@ -60,14 +66,24 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if lead.hospital_doctor %}
-                                <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.hospital_doctor }}</span></div>
-                            {% endif %}
-                            {% if lead.hospital_dept %}
-                                <div class="mt-1 small fw-semibold text-secondary"><i class="fa-solid fa-hospital-user me-1"></i> {{ lead.hospital_dept }}</div>
-                            {% endif %}
-                            {% if not lead.hospital_doctor and not lead.hospital_dept %}
-                                <span class="text-muted small">-</span>
+                            {% if request.user.is_hospital_user %}
+                                {% if lead.hospital_doctor %}
+                                    <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.hospital_doctor }}</span></div>
+                                {% endif %}
+                                {% if lead.hospital_dept %}
+                                    <div class="mt-1 small fw-semibold text-secondary"><i class="fa-solid fa-hospital-user me-1"></i> {{ lead.hospital_dept }}</div>
+                                {% endif %}
+                                {% if not lead.hospital_doctor and not lead.hospital_dept %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            {% else %}
+                                {% if lead.course %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-graduation-cap me-1"></i> {{ lead.course.name }}</span>
+                                {% elif lead.custom_data.course %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-graduation-cap me-1"></i> {{ lead.custom_data.course }}</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
                             {% endif %}
                         </td>
                         <td style="min-width: 250px;">
@@ -88,7 +104,7 @@
                                         </span>
                                     {% else %}
                                         {% if lead.admission_status == 'ADMISSION_DONE' %}
-                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;"><i class="fa-solid fa-check me-1"></i> Done</span>
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;"><i class="fa-solid fa-check me-1"></i> Converted</span>
                                         {% else %}
                                             <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1 d-inline-flex align-items-center justify-content-center w-100 text-truncate" style="font-size: 0.74rem; font-weight: 500; height: 24px; line-height: 1;">{{ lead.stage.name|default:lead.get_deal_status_display }}</span>
                                         {% endif %}
@@ -152,7 +168,7 @@
                         </td>
                         <td class="px-4 text-end">
                             <div class="btn-group btn-group-sm">
-                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-light border py-1 px-2" title="View Patient" style="font-size: 0.78rem;"><i class="fa-solid fa-eye text-primary"></i></a>
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-light border py-1 px-2" title="View Details" style="font-size: 0.78rem;"><i class="fa-solid fa-eye text-primary"></i></a>
                                 {% if active == 'fu_billing' %}
                                     <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-success text-white border py-1 px-2 fw-medium text-nowrap" title="Add / Update Bill & UHID" style="font-size: 0.78rem;">
                                         <i class="fa-solid fa-pen-to-square me-1"></i> {% if lead.is_billing_filled %}Edit Bill{% else %}+ Add Bill{% endif %}
@@ -168,7 +184,7 @@
                         <td colspan="8" class="text-center py-5">
                             <div class="text-muted mb-3"><i class="fa-solid fa-calendar-check fa-3x"></i></div>
                             <h5 class="fw-bold">No follow-ups found</h5>
-                            <p class="text-muted">You're all caught up! No scheduled calls or appointments matching this tab.</p>
+                            <p class="text-muted">You're all caught up! No scheduled calls matching this tab.</p>
                         </td>
                     </tr>
                     {% endfor %}

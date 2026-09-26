@@ -250,6 +250,51 @@
     color: #94a3b8 !important;
   }
 
+  /* Drilldown Bulk Action Bar & TomSelect styling */
+  #drilldownBulkActionBar .ts-wrapper,
+  #drilldownAdminAssignControls .ts-wrapper {
+      min-width: 220px !important;
+      border: none !important;
+      padding: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+  }
+
+  #drilldownBulkActionBar .ts-control,
+  #drilldownAdminAssignControls .ts-control,
+  #drilldownBulkAssignSelect {
+      border: 1px solid #cbd5e1 !important;
+      background-color: #ffffff !important;
+      border-radius: 9999px !important;
+      padding: 0.35rem 0.85rem !important;
+      font-size: 0.82rem !important;
+      font-weight: 500 !important;
+      color: #1e293b !important;
+      min-height: 34px !important;
+      height: 34px !important;
+      display: flex !important;
+      align-items: center !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  }
+
+  #drilldownBulkActionBar .ts-control.focus,
+  #drilldownAdminAssignControls .ts-control.focus,
+  #drilldownBulkAssignSelect:focus {
+      border-color: #4f46e5 !important;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+      outline: none !important;
+  }
+
+  #drilldownBulkActionBar .ts-dropdown,
+  #drilldownAdminAssignControls .ts-dropdown {
+      border-radius: 12px !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+      margin-top: 4px !important;
+      z-index: 1090 !important;
+  }
+
   /* Temperature & Status Badges */
   .badge-hot { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
   .badge-warm { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
@@ -898,7 +943,7 @@
                 </div>
 
                 <!-- Bulk Assignment Floating Bar -->
-                <div id="drilldownBulkActionBar" class="card shadow-sm border-0 mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2" style="display: none; border-left: 4px solid var(--primary) !important;">
+                <div id="drilldownBulkActionBar" class="card shadow-sm mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2" style="display: none; border: 1px solid #cbd5e1 !important; border-left: 5px solid #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;">
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0 Leads Selected</span>
                         <span class="text-muted small">Choose an employee or self-assign the selected leads:</span>
@@ -915,10 +960,10 @@
                         </button>
                         {% endif %}
                         <div class="d-flex align-items-center gap-2" id="drilldownAdminAssignControls" style="display: none !important;">
-                            <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill" style="min-width: 180px;">
+                            <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill border border-secondary-subtle px-3" style="min-width: 200px; height: 34px;">
                                 <option value="">-- Select Employee --</option>
                             </select>
-                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="executeDrilldownBulkAssign()">
+                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm" onclick="executeDrilldownBulkAssign()">
                                 <i class="fa-solid fa-user-check me-1"></i> Bulk Assign
                             </button>
                         </div>
@@ -958,8 +1003,17 @@
                             <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0 Leads</span>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <input type="text" id="drilldownSearchInput" class="form-control form-control-sm rounded-pill" placeholder="Search in this list..." style="width: 220px;" oninput="filterDrilldownTable()">
+                            <button type="button" id="drilldownClearFiltersBtn"
+                                class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
+                                style="display: none; font-size: 0.78rem;" onclick="resetAllHeaderFilters()">
+                                <i class="fa-solid fa-filter-circle-xmark"></i>
+                                <span>Clear Filters</span>
+                            </button>
+                            <input type="text" id="drilldownSearchInput" class="form-control form-control-sm rounded-pill" placeholder="Search in this list..." style="width: 200px;" oninput="filterDrilldownTable()">
                         </div>
+                    </div>
+                    <div id="drilldownActiveFilterChipsBar" class="px-3 py-1.5 bg-light bg-opacity-50 border-bottom d-flex align-items-center gap-2 flex-wrap" style="display: none !important;">
+                        <!-- Populated dynamically with active filter tags -->
                     </div>
 
                     <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
@@ -1112,6 +1166,14 @@ function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
 
     document.getElementById('drilldownCalendarWrapper').style.display = 'none';
     document.getElementById('drilldownSearchInput').value = '';
+    selectedCampaignFilter = null;
+    tableHeaderFilters = {
+        source: 'all',
+        dept: 'all',
+        temp: 'all',
+        status: 'all',
+        assigned: 'all'
+    };
     const startInputReset = document.getElementById('drilldownStartDateInput');
     const endInputReset = document.getElementById('drilldownEndDateInput');
     if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
@@ -1372,7 +1434,6 @@ function fetchDrilldownData() {
     loadingEl.style.display = 'block';
     emptyEl.style.display = 'none';
     tbody.innerHTML = '';
-    selectedCampaignFilter = null;
     selectedDrilldownLeadIds.clear();
     updateBulkActionBar();
 
@@ -1387,6 +1448,9 @@ function fetchDrilldownData() {
     searchParams.set('end_date', currentDrilldownEndDate);
     searchParams.set('year', currentCalYear);
     searchParams.set('month', currentCalMonth);
+    if (selectedCampaignFilter) {
+        searchParams.set('campaign', selectedCampaignFilter);
+    }
 
     const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
@@ -1417,7 +1481,7 @@ function fetchDrilldownData() {
 
                 renderCampaignPills(data.campaign_breakdown || [], data.total_count);
                 renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
-                renderDrilldownTable(cachedLeadItems, cachedBusinessMode);
+                applyAllDrilldownFilters();
             }
         })
         .catch(err => {
@@ -1694,51 +1758,166 @@ function renderCampaignPills(campaignList, totalCount) {
 }
 
 function selectCampaignFilter(campName) {
-    selectedCampaignFilter = campName;
-    
-    const pills = document.querySelectorAll('#drilldownCampaignPillsContainer button');
-    pills.forEach(btn => {
-        const btnText = btn.querySelector('span').innerText.trim();
-        const isAll = (campName === null && btnText === 'All Campaigns');
-        const isMatch = (campName !== null && btnText === campName);
+    if (selectedCampaignFilter === campName) {
+        selectedCampaignFilter = null;
+    } else {
+        selectedCampaignFilter = campName;
+    }
 
-        if (isAll || isMatch) {
-            btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-primary text-white shadow-xs';
-            const badge = btn.querySelector('.badge');
-            if (badge) badge.className = 'badge bg-white text-primary rounded-pill';
-        } else {
-            btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-light border text-dark';
-            const badge = btn.querySelector('.badge');
-            if (badge) badge.className = 'badge bg-primary bg-opacity-10 text-primary rounded-pill';
-        }
-    });
+    fetchDrilldownData();
+}
 
+// Table column header filters state
+let tableHeaderFilters = {
+    source: 'all',
+    dept: 'all',
+    temp: 'all',
+    status: 'all',
+    assigned: 'all'
+};
+
+function setHeaderFilter(columnKey, value) {
+    tableHeaderFilters[columnKey] = value;
+    applyAllDrilldownFilters();
+}
+
+function resetAllHeaderFilters() {
+    tableHeaderFilters = {
+        source: 'all',
+        dept: 'all',
+        temp: 'all',
+        status: 'all',
+        assigned: 'all'
+    };
+    const searchInput = document.getElementById('drilldownSearchInput');
+    if (searchInput) searchInput.value = '';
+    applyAllDrilldownFilters();
+}
+
+function filterDrilldownTable() {
+    applyAllDrilldownFilters();
+}
+
+function applyAllDrilldownFilters() {
     let filtered = cachedLeadItems;
+
+    // 1. Filter lead items by selected campaign
     if (selectedCampaignFilter) {
         const targetCamp = selectedCampaignFilter.toLowerCase().trim();
-        filtered = cachedLeadItems.filter(l => {
+        const directKeywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', ''];
+        filtered = filtered.filter(l => {
             const leadCamp = (l.campaign || '').toLowerCase().trim();
-            if (targetCamp === 'nan' || targetCamp === 'general / direct') {
-                return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
+            const isTargetDirect = directKeywords.includes(targetCamp);
+            const isLeadDirect = directKeywords.includes(leadCamp);
+            if (isTargetDirect) {
+                return isLeadDirect;
             }
             return leadCamp === targetCamp;
         });
     }
 
-    const query = (document.getElementById('drilldownSearchInput').value || '').toLowerCase().trim();
+    // Track active filters for Clear button & filter chips
+    const activeChips = [];
+
+    // 2. Column Header Filter: Source / Campaign
+    if (tableHeaderFilters.source && tableHeaderFilters.source !== 'all') {
+        const selSrc = tableHeaderFilters.source.toLowerCase().trim();
+        activeChips.push({ key: 'source', label: `Source: ${tableHeaderFilters.source}` });
+        filtered = filtered.filter(l => {
+            const s1 = (l.lead_source || '').toLowerCase().trim();
+            const s2 = (l.campaign || '').toLowerCase().trim();
+            const s3 = (l.business_name || '').toLowerCase().trim();
+            return s1 === selSrc || s2 === selSrc || s3 === selSrc;
+        });
+    }
+
+    // 3. Column Header Filter: Department / Course / Doctor
+    if (tableHeaderFilters.dept && tableHeaderFilters.dept !== 'all') {
+        const selDept = tableHeaderFilters.dept.toLowerCase().trim();
+        activeChips.push({ key: 'dept', label: `Dept: ${tableHeaderFilters.dept}` });
+        filtered = filtered.filter(l => {
+            const d1 = (l.department || '').toLowerCase().trim();
+            const d2 = (l.course || '').toLowerCase().trim();
+            const d3 = (l.doctor || '').toLowerCase().trim();
+            return d1 === selDept || d2 === selDept || d3 === selDept;
+        });
+    }
+
+    // 4. Column Header Filter: Temperature
+    if (tableHeaderFilters.temp && tableHeaderFilters.temp !== 'all') {
+        const selTemp = tableHeaderFilters.temp.toUpperCase().trim();
+        activeChips.push({ key: 'temp', label: `Temp: ${tableHeaderFilters.temp}` });
+        filtered = filtered.filter(l => {
+            const t = (l.temperature || 'UNCONTACTED').toUpperCase().trim();
+            return t === selTemp;
+        });
+    }
+
+    // 5. Column Header Filter: Status / Appointment Status
+    if (tableHeaderFilters.status && tableHeaderFilters.status !== 'all') {
+        const selSt = tableHeaderFilters.status.toLowerCase().trim();
+        activeChips.push({ key: 'status', label: `Status: ${tableHeaderFilters.status}` });
+        filtered = filtered.filter(l => {
+            const st = (l.appointment_status || l.status || 'Open').toLowerCase().trim();
+            const adm = (l.admission_status || '').toLowerCase().trim();
+            return st === selSt || adm === selSt;
+        });
+    }
+
+    // 6. Column Header Filter: Assigned To
+    if (tableHeaderFilters.assigned && tableHeaderFilters.assigned !== 'all') {
+        const selAssigned = String(tableHeaderFilters.assigned);
+        activeChips.push({ key: 'assigned', label: `Assigned: ${tableHeaderFilters.assigned === 'unassigned' ? 'Unassigned' : tableHeaderFilters.assigned}` });
+        filtered = filtered.filter(l => {
+            if (selAssigned === 'unassigned') {
+                return !l.assigned_to_id || l.assigned_to === 'Unassigned' || !l.assigned_to;
+            }
+            return String(l.assigned_to_id) === selAssigned || (l.assigned_to || '').toLowerCase() === selAssigned.toLowerCase();
+        });
+    }
+
+    // 7. Apply quick search if typed
+    const query = (document.getElementById('drilldownSearchInput')?.value || '').toLowerCase().trim();
     if (query) {
+        activeChips.push({ key: 'search', label: `Search: "${query}"` });
         filtered = filtered.filter(l =>
-            l.name.toLowerCase().includes(query) ||
-            l.mobile.toLowerCase().includes(query) ||
-            l.doctor.toLowerCase().includes(query) ||
-            l.department.toLowerCase().includes(query) ||
-            l.campaign.toLowerCase().includes(query) ||
-            l.lead_source.toLowerCase().includes(query)
+            (l.name || '').toLowerCase().includes(query) ||
+            (l.mobile || '').toLowerCase().includes(query) ||
+            (l.doctor || '').toLowerCase().includes(query) ||
+            (l.department || '').toLowerCase().includes(query) ||
+            (l.campaign || '').toLowerCase().includes(query) ||
+            (l.lead_source || '').toLowerCase().includes(query) ||
+            (l.appointment_status || '').toLowerCase().includes(query)
         );
     }
 
+    // Update Clear Filters Button & Filter Chips Bar
+    const clearBtn = document.getElementById('drilldownClearFiltersBtn');
+    const chipsBar = document.getElementById('drilldownActiveFilterChipsBar');
+    if (clearBtn) {
+        clearBtn.style.display = activeChips.length > 0 ? 'inline-flex' : 'none';
+    }
+    if (chipsBar) {
+        if (activeChips.length > 0) {
+            chipsBar.style.setProperty('display', 'flex', 'important');
+            chipsBar.innerHTML = `
+                <span class="text-muted small fw-bold" style="font-size: 0.72rem;">Active Filters:</span>
+                ${activeChips.map(c => `
+                    <span class="badge bg-white text-dark border d-inline-flex align-items-center gap-1.5 px-2 py-1 shadow-xs rounded-pill" style="font-size: 0.72rem;">
+                        <span>${c.label}</span>
+                        <i class="fa-solid fa-xmark text-danger cursor-pointer" style="cursor: pointer;" onclick="${c.key === 'search' ? `document.getElementById('drilldownSearchInput').value=''; applyAllDrilldownFilters();` : `setHeaderFilter('${c.key}', 'all')`}" title="Remove this filter"></i>
+                    </span>
+                `).join('')}
+                <button type="button" class="btn btn-link text-danger p-0 ms-1 fw-bold text-decoration-none" style="font-size: 0.72rem;" onclick="resetAllHeaderFilters()">Clear All</button>
+            `;
+        } else {
+            chipsBar.style.setProperty('display', 'none', 'important');
+            chipsBar.innerHTML = '';
+        }
+    }
+
     document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
-    renderDrilldownTable(filtered);
+    renderDrilldownTable(filtered, cachedBusinessMode);
 }
 
 function renderCalendarGrid(year, month, countsMap, activeDate) {
@@ -1823,18 +2002,87 @@ function renderDrilldownTableHeaders(bMode) {
         col9Title = 'ACTION';
     }
 
+    // Build distinct options from cachedLeadItems for dropdowns
+    const distinctSources = new Set();
+    const distinctDepts = new Set();
+    const distinctTemps = new Set();
+    const distinctStatuses = new Set();
+    const distinctAssignees = new Map();
+
+    cachedLeadItems.forEach(l => {
+        if (l.lead_source) distinctSources.add(l.lead_source);
+        if (l.campaign && l.campaign !== 'nan') distinctSources.add(l.campaign);
+        
+        if (bMode === 'hospital') {
+            if (l.department) distinctDepts.add(l.department);
+            if (l.doctor && l.doctor !== 'Not Assigned') distinctDepts.add(l.doctor);
+        } else {
+            if (l.course) distinctDepts.add(l.course);
+            if (l.department) distinctDepts.add(l.department);
+        }
+
+        const temp = (l.temperature || 'UNCONTACTED').toUpperCase();
+        if (temp) distinctTemps.add(temp);
+
+        const st = l.appointment_status || l.status || 'Open';
+        if (st) distinctStatuses.add(st);
+
+        if (l.assigned_to_id) {
+            distinctAssignees.set(String(l.assigned_to_id), l.assigned_to || 'Assigned');
+        } else if (l.assigned_to && l.assigned_to !== 'Unassigned') {
+            distinctAssignees.set(l.assigned_to, l.assigned_to);
+        }
+    });
+
+    const buildSelectHtml = (columnKey, label, options, currentValue) => {
+        const hasFilter = currentValue && currentValue !== 'all';
+        const btnClass = hasFilter ? 'btn-primary text-white shadow-xs' : 'btn-light text-dark border';
+        return `
+            <div class="d-flex align-items-center justify-content-between gap-1">
+                <span class="fw-bold">${label}</span>
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-xs ${btnClass} py-0 px-1 rounded-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Filter by ${label}" style="font-size: 0.68rem; line-height: 1.4;">
+                        <i class="fa-solid fa-filter fa-xs"></i>
+                        ${hasFilter ? `<span class="badge bg-white text-primary p-0 px-1 ms-0.5 rounded-pill" style="font-size:0.6rem;">1</span>` : ''}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm p-1 border-0 rounded-3" style="min-width: 175px; max-height: 260px; overflow-y: auto; font-size: 0.8rem; z-index: 1060;">
+                        <li><button class="dropdown-item rounded-2 py-1 px-2 ${!hasFilter ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', 'all')">All ${label}</button></li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        ${options.map(opt => {
+                            const optVal = typeof opt === 'object' ? opt.value : opt;
+                            const optLabel = typeof opt === 'object' ? opt.label : opt;
+                            const isSel = (currentValue === optVal);
+                            return `<li><button class="dropdown-item rounded-2 py-1 px-2 text-truncate ${isSel ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', '${optVal.replace(/'/g, "\\'")}')">${optLabel}</button></li>`;
+                        }).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    };
+
+    const sourceOptions = Array.from(distinctSources).sort();
+    const deptOptions = Array.from(distinctDepts).sort();
+    const tempOptions = Array.from(distinctTemps).sort();
+    const statusOptions = Array.from(distinctStatuses).sort();
+    
+    const assigneeOptions = [{ value: 'unassigned', label: 'Unassigned' }];
+    distinctAssignees.forEach((name, id) => {
+        assigneeOptions.push({ value: id, label: name });
+    });
+
+    const showCheckbox = (currentDrilldownCard !== 'opd_booked');
     thead.innerHTML = `
         <th class="py-2 px-3" style="width: 40px;">
             <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
         </th>
-        <th class="py-2">${col1Title}</th>
-        <th class="py-2">CONTACT</th>
-        <th class="py-2">${col3Title}</th>
-        <th class="py-2">${col4Title}</th>
-        <th class="py-2">TEMPERATURE</th>
-        <th class="py-2">STATUS</th>
-        <th class="py-2" style="min-width: 150px;">${col7Title}</th>
-        <th class="py-2" style="min-width: 180px;">COMMENTS</th>
+        <th class="py-2" style="min-width: 120px;">${col1Title}</th>
+        <th class="py-2" style="min-width: 100px;">CONTACT</th>
+        <th class="py-2" style="min-width: 140px;">${buildSelectHtml('source', col3Title, sourceOptions, tableHeaderFilters.source)}</th>
+        <th class="py-2" style="min-width: 140px;">${buildSelectHtml('dept', col4Title, deptOptions, tableHeaderFilters.dept)}</th>
+        <th class="py-2" style="min-width: 120px;">${buildSelectHtml('temp', 'TEMP', tempOptions, tableHeaderFilters.temp)}</th>
+        <th class="py-2" style="min-width: 130px;">${buildSelectHtml('status', 'STATUS', statusOptions, tableHeaderFilters.status)}</th>
+        <th class="py-2" style="min-width: 150px;">${buildSelectHtml('assigned', col7Title, assigneeOptions, tableHeaderFilters.assigned)}</th>
+        <th class="py-2" style="min-width: 160px;">COMMENTS</th>
         <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">${col9Title}</th>
     `;
 }
@@ -2024,12 +2272,20 @@ function renderDrilldownTable(leads, bMode) {
 
         const isRowChecked = selectedDrilldownLeadIds.has(lead.id) ? 'checked' : '';
 
+        const currentRetUrl = new URL(window.location.href);
+        currentRetUrl.searchParams.set('drilldown_card', currentDrilldownCard);
+        currentRetUrl.searchParams.set('drilldown_mode', currentDrilldownMode);
+        if (currentDrilldownDate) currentRetUrl.searchParams.set('drilldown_date', currentDrilldownDate);
+        if (currentDrilldownCardTitle) currentRetUrl.searchParams.set('drilldown_title', currentDrilldownCardTitle);
+        
+        let leadDetailHref = `${lead.detail_url}?return_to=${encodeURIComponent(currentRetUrl.pathname + currentRetUrl.search)}`;
+
         tr.innerHTML = `
             <td class="text-center px-3">
                 <input type="checkbox" class="form-check-input drilldown-row-checkbox" value="${lead.id}" ${isRowChecked} onchange="toggleDrilldownRowSelect(this, ${lead.id})">
             </td>
             <td class="text-start">
-                <a href="${lead.detail_url}" class="fw-bold text-dark text-decoration-none hover-primary">
+                <a href="${leadDetailHref}" class="fw-bold text-dark text-decoration-none hover-primary">
                     ${lead.name}
                 </a>
                 <div class="text-muted small" style="font-size: 0.72rem;">Added: ${lead.created_date}</div>
@@ -2055,7 +2311,7 @@ function renderDrilldownTable(leads, bMode) {
             <td class="px-3 text-nowrap position-sticky end-0 bg-white" style="z-index: 2; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
                 ${directCallBtn}
                 ${whatsappBtn}
-                <a href="${lead.detail_url}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Details">
+                <a href="${leadDetailHref}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Details">
                     <i class="fa-solid fa-eye me-1"></i> View
                 </a>
                 <a href="${lead.edit_url}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="font-size: 0.75rem;" title="Edit Lead Form">
@@ -2319,6 +2575,25 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (dateFromInput.value) {
       dateToInput.min = dateFromInput.value;
+    }
+  }
+
+  // Auto-reopen drilldown modal if returning from lead detail
+  const urlParams = new URLSearchParams(window.location.search);
+  const openCardParam = urlParams.get('drilldown_card');
+  if (openCardParam) {
+    const cardModeParam = urlParams.get('drilldown_mode') || 'today';
+    const cardDateParam = urlParams.get('drilldown_date') || '';
+    const cardTitleParam = urlParams.get('drilldown_title') || '';
+    if (typeof openUniversalCardDrilldown === 'function') {
+      openUniversalCardDrilldown(openCardParam, cardTitleParam, 'primary');
+      if (cardModeParam && typeof drilldownSetMode === 'function') {
+        if (cardModeParam === 'custom' && cardDateParam && typeof selectCalendarDate === 'function') {
+          selectCalendarDate(cardDateParam);
+        } else if (cardModeParam !== 'today') {
+          drilldownSetMode(cardModeParam);
+        }
+      }
     }
   }
 

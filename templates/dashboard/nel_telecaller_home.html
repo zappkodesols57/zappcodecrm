@@ -1018,6 +1018,13 @@
         selectedBookingTypeFilter = 'all';
         selectedFollowupTypeFilter = 'all';
         selectedCampaignFilter = null;
+        tableHeaderFilters = {
+            source: 'all',
+            dept: 'all',
+            temp: 'all',
+            status: 'all',
+            assigned: 'all'
+        };
         const startInputReset = document.getElementById('drilldownStartDateInput');
         const endInputReset = document.getElementById('drilldownEndDateInput');
         if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
@@ -1388,7 +1395,6 @@
         loadingEl.style.display = 'block';
         emptyEl.style.display = 'none';
         tbody.innerHTML = '';
-        selectedCampaignFilter = null;
         selectedDrilldownLeadIds.clear();
         updateBulkActionBar();
 
@@ -1405,6 +1411,9 @@
         }
         searchParams.set('year', currentCalYear);
         searchParams.set('month', currentCalMonth);
+        if (selectedCampaignFilter) {
+            searchParams.set('campaign', selectedCampaignFilter);
+        }
 
         const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
@@ -1644,26 +1653,37 @@
     }
 
     function selectCampaignFilter(campName) {
-        selectedCampaignFilter = campName;
-        
-        // Re-highlight campaign pills
-        const pills = document.querySelectorAll('#drilldownCampaignPillsContainer button');
-        pills.forEach(btn => {
-            const btnText = btn.querySelector('span').innerText.trim();
-            const isAll = (campName === null && btnText === 'All Campaigns');
-            const isMatch = (campName !== null && btnText === campName);
+        if (selectedCampaignFilter === campName) {
+            selectedCampaignFilter = null;
+        } else {
+            selectedCampaignFilter = campName;
+        }
 
-            if (isAll || isMatch) {
-                btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-primary text-white shadow-xs';
-                const badge = btn.querySelector('.badge');
-                if (badge) badge.className = 'badge bg-white text-primary rounded-pill';
-            } else {
-                btn.className = 'btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 btn-light border text-dark';
-                const badge = btn.querySelector('.badge');
-                if (badge) badge.className = 'badge bg-primary bg-opacity-10 text-primary rounded-pill';
-            }
-        });
+        fetchDrilldownData();
+    }
 
+    // Table column header filters state
+    let tableHeaderFilters = {
+        source: 'all',
+        dept: 'all',
+        temp: 'all',
+        status: 'all',
+        assigned: 'all'
+    };
+
+    function setHeaderFilter(columnKey, value) {
+        tableHeaderFilters[columnKey] = value;
+        applyAllDrilldownFilters();
+    }
+
+    function resetAllHeaderFilters() {
+        tableHeaderFilters = {
+            source: 'all',
+            dept: 'all',
+            temp: 'all',
+            status: 'all',
+            assigned: 'all'
+        };
         applyAllDrilldownFilters();
     }
 
@@ -1708,7 +1728,7 @@
             });
         }
 
-        // 2. Filter lead items by selected campaign
+        // 3. Filter lead items by selected campaign
         if (selectedCampaignFilter) {
             const targetCamp = selectedCampaignFilter.toLowerCase().trim();
             const directKeywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', ''];
@@ -1723,7 +1743,59 @@
             });
         }
 
-        // 3. Apply quick search if typed
+        // 4. Column Header Filter: Source / Campaign
+        if (tableHeaderFilters.source && tableHeaderFilters.source !== 'all') {
+            const selSrc = tableHeaderFilters.source.toLowerCase().trim();
+            filtered = filtered.filter(l => {
+                const s1 = (l.lead_source || '').toLowerCase().trim();
+                const s2 = (l.campaign || '').toLowerCase().trim();
+                const s3 = (l.business_name || '').toLowerCase().trim();
+                return s1 === selSrc || s2 === selSrc || s3 === selSrc;
+            });
+        }
+
+        // 5. Column Header Filter: Department / Course / Doctor
+        if (tableHeaderFilters.dept && tableHeaderFilters.dept !== 'all') {
+            const selDept = tableHeaderFilters.dept.toLowerCase().trim();
+            filtered = filtered.filter(l => {
+                const d1 = (l.department || '').toLowerCase().trim();
+                const d2 = (l.course || '').toLowerCase().trim();
+                const d3 = (l.doctor || '').toLowerCase().trim();
+                return d1 === selDept || d2 === selDept || d3 === selDept;
+            });
+        }
+
+        // 6. Column Header Filter: Temperature
+        if (tableHeaderFilters.temp && tableHeaderFilters.temp !== 'all') {
+            const selTemp = tableHeaderFilters.temp.toUpperCase().trim();
+            filtered = filtered.filter(l => {
+                const t = (l.temperature || 'UNCONTACTED').toUpperCase().trim();
+                return t === selTemp;
+            });
+        }
+
+        // 7. Column Header Filter: Status / Appointment Status
+        if (tableHeaderFilters.status && tableHeaderFilters.status !== 'all') {
+            const selSt = tableHeaderFilters.status.toLowerCase().trim();
+            filtered = filtered.filter(l => {
+                const st = (l.appointment_status || l.status || 'Open').toLowerCase().trim();
+                const adm = (l.admission_status || '').toLowerCase().trim();
+                return st === selSt || adm === selSt;
+            });
+        }
+
+        // 8. Column Header Filter: Assigned To
+        if (tableHeaderFilters.assigned && tableHeaderFilters.assigned !== 'all') {
+            const selAssigned = String(tableHeaderFilters.assigned);
+            filtered = filtered.filter(l => {
+                if (selAssigned === 'unassigned') {
+                    return !l.assigned_to_id || l.assigned_to === 'Unassigned' || !l.assigned_to;
+                }
+                return String(l.assigned_to_id) === selAssigned || (l.assigned_to || '').toLowerCase() === selAssigned.toLowerCase();
+            });
+        }
+
+        // 9. Apply quick search if typed
         const query = (document.getElementById('drilldownSearchInput').value || '').toLowerCase().trim();
         if (query) {
             filtered = filtered.filter(l =>
@@ -1794,20 +1866,85 @@
 
         const thead = document.querySelector('#drilldownLeadsTable thead tr');
         if (thead) {
+            // Build distinct options from cachedLeadItems for dropdowns
+            const distinctSources = new Set();
+            const distinctDepts = new Set();
+            const distinctTemps = new Set();
+            const distinctStatuses = new Set();
+            const distinctAssignees = new Map();
+
+            cachedLeadItems.forEach(l => {
+                if (l.lead_source) distinctSources.add(l.lead_source);
+                if (l.campaign && l.campaign !== 'nan') distinctSources.add(l.campaign);
+                if (l.department) distinctDepts.add(l.department);
+                if (l.doctor && l.doctor !== 'Not Assigned') distinctDepts.add(l.doctor);
+
+                const temp = (l.temperature || 'UNCONTACTED').toUpperCase();
+                if (temp) distinctTemps.add(temp);
+
+                const st = l.appointment_status || l.status || 'Open';
+                if (st) distinctStatuses.add(st);
+
+                if (l.assigned_to_id) {
+                    distinctAssignees.set(String(l.assigned_to_id), l.assigned_to || 'Assigned');
+                } else if (l.assigned_to && l.assigned_to !== 'Unassigned') {
+                    distinctAssignees.set(l.assigned_to, l.assigned_to);
+                }
+            });
+
+            const buildSelectHtml = (columnKey, label, options, currentValue) => {
+                const hasFilter = currentValue && currentValue !== 'all';
+                const btnClass = hasFilter ? 'btn-primary text-white shadow-xs' : 'btn-light text-dark border';
+                return `
+                    <div class="d-flex align-items-center justify-content-between gap-1">
+                        <span class="fw-bold">${label}</span>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-xs ${btnClass} py-0 px-1 rounded-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Filter by ${label}" style="font-size: 0.68rem; line-height: 1.4;">
+                                <i class="fa-solid fa-filter fa-xs"></i>
+                                ${hasFilter ? `<span class="badge bg-white text-primary p-0 px-1 ms-0.5 rounded-pill" style="font-size:0.6rem;">1</span>` : ''}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm p-1 border-0 rounded-3" style="min-width: 175px; max-height: 260px; overflow-y: auto; font-size: 0.8rem; z-index: 1060;">
+                                <li><button class="dropdown-item rounded-2 py-1 px-2 ${!hasFilter ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', 'all')">All ${label}</button></li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                ${options.map(opt => {
+                                    const optVal = typeof opt === 'object' ? opt.value : opt;
+                                    const optLabel = typeof opt === 'object' ? opt.label : opt;
+                                    const isSel = (currentValue === optVal);
+                                    return `<li><button class="dropdown-item rounded-2 py-1 px-2 text-truncate ${isSel ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', '${optVal.replace(/'/g, "\\'")}')">${optLabel}</button></li>`;
+                                }).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const sourceOptions = Array.from(distinctSources).sort();
+            const deptOptions = Array.from(distinctDepts).sort();
+            const tempOptions = Array.from(distinctTemps).sort();
+            const statusOptions = Array.from(distinctStatuses).sort();
+            
+            const assigneeOptions = [{ value: 'unassigned', label: 'Unassigned' }];
+            distinctAssignees.forEach((name, id) => {
+                assigneeOptions.push({ value: id, label: name });
+            });
+
             const showCheckbox = (currentDrilldownCard !== 'telecaller_opd_booked');
             thead.innerHTML = `
                 ${showCheckbox ? `
                 <th class="py-2 px-3" style="width: 40px;">
                     <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
                 </th>` : ''}
-                <th class="py-2">PATIENT</th>
-                <th class="py-2">CONTACT</th>
-                <th class="py-2" style="max-width: 130px;">SOURCE</th>
-                <th class="py-2">DEPARTMENT</th>
-                <th class="py-2">TEMPERATURE</th>
-                <th class="py-2">STATUS</th>
-                <th class="py-2">ASSIGNED TO</th>
+                <th class="py-2" style="min-width: 120px;">PATIENT</th>
+                <th class="py-2" style="min-width: 100px;">CONTACT</th>
+                <th class="py-2" style="min-width: 140px;">${buildSelectHtml('source', 'SOURCE', sourceOptions, tableHeaderFilters.source)}</th>
+                <th class="py-2" style="min-width: 140px;">${buildSelectHtml('dept', 'DEPARTMENT', deptOptions, tableHeaderFilters.dept)}</th>
+                <th class="py-2" style="min-width: 120px;">${buildSelectHtml('temp', 'TEMPERATURE', tempOptions, tableHeaderFilters.temp)}</th>
+                <th class="py-2" style="min-width: 130px;">${buildSelectHtml('status', 'STATUS', statusOptions, tableHeaderFilters.status)}</th>
+                <th class="py-2" style="min-width: 150px;">${buildSelectHtml('assigned', 'ASSIGNED TO', assigneeOptions, tableHeaderFilters.assigned)}</th>
                 <th class="py-2" style="min-width: 200px;">COMMENTS</th>
+                <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">ACTIONS</th>
+            `;
+        }
                 <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">ACTIONS</th>
             `;
         }
@@ -1912,13 +2049,27 @@
             const isChecked = selectedDrilldownLeadIds.has(lead.id);
             const showCheckbox = (currentDrilldownCard !== 'telecaller_opd_booked');
 
+            // Build detail URL with preserved drilldown return parameters
+            const currentRetUrl = new URL(window.location.href);
+            currentRetUrl.searchParams.set('drilldown_card', currentDrilldownCard || '');
+            currentRetUrl.searchParams.set('drilldown_mode', currentDrilldownMode || 'all');
+            if (currentDrilldownDate) {
+                currentRetUrl.searchParams.set('drilldown_date', currentDrilldownDate);
+            } else {
+                currentRetUrl.searchParams.delete('drilldown_date');
+            }
+            if (currentDrilldownTitle) {
+                currentRetUrl.searchParams.set('drilldown_title', currentDrilldownTitle);
+            }
+            const leadDetailHref = `${lead.detail_url}?return_to=${encodeURIComponent(currentRetUrl.pathname + currentRetUrl.search)}`;
+
             tr.innerHTML = `
                 ${showCheckbox ? `
                 <td class="py-2 px-3">
                     <input type="checkbox" class="form-check-input drilldown-row-checkbox" value="${lead.id}" ${isChecked ? 'checked' : ''} onchange="toggleDrilldownRowSelect(this, ${lead.id})">
                 </td>` : ''}
                 <td class="px-3 text-start">
-                    <a href="${lead.detail_url}" class="fw-bold text-dark text-decoration-none hover-primary">
+                    <a href="${leadDetailHref}" class="fw-bold text-dark text-decoration-none hover-primary">
                         ${lead.name}
                     </a>
                     <div class="text-muted small" style="font-size: 0.72rem;">Added: ${lead.created_date}</div>
@@ -1951,7 +2102,7 @@
                     ` : ''}
                     ${directCallBtn}
                     ${whatsappBtn}
-                    <a href="${lead.detail_url}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Profile">
+                    <a href="${leadDetailHref}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Profile">
                         <i class="ph ph-eye me-1"></i> Follow up
                     </a>
                     <a href="${lead.edit_url}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="font-size: 0.75rem; background: var(--primary-gradient); border: none;" title="Edit Lead Form">
@@ -2004,5 +2155,23 @@
     function filterDrilldownTable() {
         applyAllDrilldownFilters();
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const drilldownCard = urlParams.get('drilldown_card');
+        if (drilldownCard) {
+            const drilldownTitle = urlParams.get('drilldown_title') || 'Lead Records';
+            const drilldownMode = urlParams.get('drilldown_mode') || 'all';
+            const drilldownDate = urlParams.get('drilldown_date') || '';
+            openUniversalCardDrilldown(drilldownCard, drilldownTitle, 'primary');
+            if (drilldownMode) {
+                setTimeout(() => {
+                    if (typeof setDrilldownMode === 'function') {
+                        setDrilldownMode(drilldownMode, drilldownDate);
+                    }
+                }, 100);
+            }
+        }
+    });
 </script>
 {% endblock %}

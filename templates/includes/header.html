@@ -193,9 +193,64 @@
       }
     }
 
+    // Track shown alert IDs in sessionStorage across pages so toasts aren't re-fired in a loop on full-page refreshes
+    let seenToastIds = new Set();
+    try {
+      const stored = sessionStorage.getItem('seen_notif_toast_ids');
+      if (stored) {
+        JSON.parse(stored).forEach(id => seenToastIds.add(id));
+      }
+    } catch(e) {}
+
+    function markToastAsSeen(id) {
+      seenToastIds.add(id);
+      try {
+        const arr = Array.from(seenToastIds).slice(-100);
+        sessionStorage.setItem('seen_notif_toast_ids', JSON.stringify(arr));
+      } catch(e) {}
+    }
+
+    let lastSoundTime = 0;
+    function playThrottledAlertSound() {
+      const now = Date.now();
+      if (now - lastSoundTime < 3000) return; // throttle audio chimes to at most once every 3s
+      lastSoundTime = now;
+      playLeadAlertSound();
+    }
+
     function showLiveLeadToast(n) {
+      if (seenToastIds.has(n.id)) return;
+      markToastAsSeen(n.id);
+
       const container = document.getElementById('liveLeadToastContainer');
       if (!container) return;
+
+      const titleLower = (n.title || '').toLowerCase();
+      let badgeLabel = 'NOTIFICATION';
+      let badgeClass = 'bg-primary';
+      let iconClass = 'fa-solid fa-bell';
+      let btnLabel = 'Open Details';
+      let btnIcon = 'fa-solid fa-arrow-up-right-from-square';
+
+      if (titleLower.includes('lead') || titleLower.includes('patient')) {
+        badgeLabel = 'NEW LEAD';
+        badgeClass = 'bg-danger';
+        iconClass = 'fa-solid fa-bolt';
+        btnLabel = 'Open & Call';
+        btnIcon = 'fa-solid fa-phone';
+      } else if (titleLower.includes('appointment') || titleLower.includes('slot')) {
+        badgeLabel = 'APPOINTMENT';
+        badgeClass = 'bg-info text-dark';
+        iconClass = 'fa-regular fa-calendar-check';
+        btnLabel = 'View Schedule';
+        btnIcon = 'fa-regular fa-calendar';
+      } else if (titleLower.includes('task') || titleLower.includes('reminder') || titleLower.includes('follow-up') || titleLower.includes('due')) {
+        badgeLabel = 'TASK / REMINDER';
+        badgeClass = 'bg-warning text-dark';
+        iconClass = 'fa-solid fa-list-check';
+        btnLabel = 'Open Task';
+        btnIcon = 'fa-solid fa-check';
+      }
 
       const toastEl = document.createElement('div');
       toastEl.className = 'toast align-items-center text-white bg-dark border-0 shadow-lg mb-2';
@@ -203,22 +258,22 @@
       toastEl.setAttribute('aria-live', 'assertive');
       toastEl.setAttribute('aria-atomic', 'true');
       toastEl.style.borderRadius = '10px';
-      toastEl.style.minWidth = '290px';
+      toastEl.style.minWidth = '300px';
 
       toastEl.innerHTML = `
         <div style="background: linear-gradient(90deg, #ef4444, #f59e0b); height: 3px;"></div>
         <div class="d-flex p-2">
-          <div class="toast-body">
+          <div class="toast-body flex-grow-1">
             <div class="d-flex align-items-center gap-2 mb-1">
-              <span class="badge bg-danger text-white"><i class="fa-solid fa-bolt"></i> NEW LEAD</span>
-              <strong class="text-white small">${n.title}</strong>
+              <span class="badge ${badgeClass}"><i class="${iconClass} me-1"></i>${badgeLabel}</span>
+              <strong class="text-white small text-truncate" style="max-width: 170px;">${n.title}</strong>
             </div>
-            <div class="text-light small mb-2" style="font-size: 0.82rem;">${n.message}</div>
-            <a href="${n.link || '#'}" class="btn btn-sm btn-primary py-0 px-2 fw-semibold" style="font-size: 0.78rem;">
-              <i class="fa-solid fa-phone me-1"></i> Open & Call
+            <div class="text-light small mb-2" style="font-size: 0.82rem; line-height: 1.35;">${n.message}</div>
+            <a href="${n.link || '#'}" onclick="markNotificationRead(${n.id}, event)" class="btn btn-sm btn-primary py-0 px-2 fw-semibold" style="font-size: 0.78rem;">
+              <i class="${btnIcon} me-1"></i> ${btnLabel}
             </a>
           </div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" onclick="markNotificationRead(${n.id}, event)"></button>
         </div>
       `;
 
@@ -231,7 +286,7 @@
         setTimeout(() => toastEl.remove(), 10000);
       }
 
-      playLeadAlertSound();
+      playThrottledAlertSound();
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification(n.title, {

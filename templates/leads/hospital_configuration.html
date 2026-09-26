@@ -18,11 +18,65 @@
       <p class="text-muted small mb-0 mt-1">Manage Hospital Branches, Clinical Departments, Doctors, Diseases, and Cascading Availability.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+      <!-- Download Template Dropdown / Link -->
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary rounded-3 px-3 shadow-sm fw-semibold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fa-solid fa-file-excel text-success me-1"></i> Download Template
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_master_sample_download' %}?format=xlsx">
+              <i class="fa-solid fa-file-excel text-success"></i>
+              <div>
+                <div class="fw-semibold">Excel Template (.xlsx)</div>
+                <small class="text-muted">Pre-formatted table for import</small>
+              </div>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_master_sample_download' %}?format=csv">
+              <i class="fa-solid fa-file-csv text-primary"></i>
+              <div>
+                <div class="fw-semibold">CSV Template (.csv)</div>
+                <small class="text-muted">Standard comma-separated format</small>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Export Hospital Config Dropdown (Excel & PDF) -->
+      <div class="dropdown">
+        <button class="btn btn-outline-primary rounded-3 px-3 shadow-sm fw-semibold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fa-solid fa-download me-1"></i> Download Configuration
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_excel' %}">
+              <i class="fa-solid fa-file-excel text-success fs-6"></i>
+              <div>
+                <div class="fw-semibold">Export as Excel (.xlsx)</div>
+                <small class="text-muted">All Branches, Depts, Doctors & Diseases</small>
+              </div>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_pdf' %}" target="_blank">
+              <i class="fa-solid fa-file-pdf text-danger fs-6"></i>
+              <div>
+                <div class="fw-semibold">Export as PDF / Print</div>
+                <small class="text-muted">Printable formatted summary report</small>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
       <button type="button" class="btn btn-success rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalExcelImport">
-        Import Hospital Master
+        <i class="fa-solid fa-cloud-arrow-up me-1"></i> Import Configuration
       </button>
       <button type="button" class="btn btn-primary rounded-3 px-4 shadow-sm fw-semibold" id="btnAddNewRecord" onclick="openActiveTabModal()">
-        Add Record
+        <i class="fa-solid fa-plus me-1"></i> Add Record
       </button>
     </div>
   </div>
@@ -96,12 +150,6 @@
           Diseases / Conditions
           <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ diseases.count }}</span>
         </a>
-        <!-- 5. Temperature Master Tab -->
-        <a class="custom-hospital-tab nav-link {% if active_tab == 'temperature' %}active{% endif %}" 
-           id="tab-temperature-btn" data-bs-toggle="tab" href="#tab-temperature" role="tab">
-          <i class="fa-solid fa-temperature-half me-1"></i> Temperature Master
-          <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ pos_items|length|add:neg_items|length }}</span>
-        </a>
       </div>
     </div>
 
@@ -137,7 +185,8 @@
                   <!-- Phone Number -->
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-dark">Contact Phone</label>
-                    <input type="text" name="phone" class="form-control rounded-3" value="{{ hospital.phone|default:'' }}" placeholder="e.g. 0712-2555555">
+                    <input type="text" name="phone" class="form-control rounded-3" value="{{ hospital.phone|default:'' }}" maxlength="11" minlength="10" pattern="^[0-9]{10,11}$" inputmode="numeric" placeholder="10-digit mobile or STD landline" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,11)">
+                    <small class="text-muted" style="font-size: 0.72rem;">10-digit mobile or 10-11 digit phone with STD code</small>
                   </div>
 
                   <!-- Email Address -->
@@ -572,355 +621,12 @@
             </div>
             {% endfor %}
           </div>
-        <!-- ==================== 5. TEMPERATURE MASTER TAB ==================== -->
-        <div class="tab-pane fade {% if active_tab == 'temperature' %}show active{% endif %}" id="tab-temperature" role="tabpanel">
-          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-3">
-            <div>
-              <div class="d-flex align-items-center gap-2">
-                <h6 class="fw-bold text-dark mb-0">Temperature Master (Comment & Remark Rules)</h6>
-                {% if has_custom_temp_rules %}
-                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-0.5 rounded-2" style="font-size: 0.72rem;">Hospital Custom Rules</span>
-                {% else %}
-                  <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-0.5 rounded-2" style="font-size: 0.72rem;">Default Global Rules Active</span>
-                {% endif %}
-              </div>
-              <small class="text-muted">Configure positive keywords to up-shift lead temperature to <strong>Hot</strong> and negative keywords to down-shift (<strong>Warm</strong> ➔ <strong>Cold</strong> ➔ <strong>Freeze</strong>).</small>
-            </div>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-sm btn-success rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalHospPosKeyword">
-                + Add Positive Keyword
-              </button>
-              <button type="button" class="btn btn-sm btn-danger rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalHospNegKeyword">
-                + Add Negative Keyword
-              </button>
-            </div>
-          </div>
-
-          <div class="row g-3">
-            <!-- Positive Remarks Table -->
-            <div class="col-lg-6">
-              <div class="card border rounded-3 h-100 shadow-sm bg-white">
-                <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-                  <div>
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-2 fw-bold">
-                      <i class="fa-solid fa-arrow-trend-up me-1"></i> UP-SHIFT (HOT / WARM)
-                    </span>
-                    <h6 class="fw-bold text-dark mb-0 mt-1">Positive Call Remarks / Notes</h6>
-                  </div>
-                  <button type="button" class="btn btn-sm btn-outline-success rounded-3 px-2 py-1 small" data-bs-toggle="modal" data-bs-target="#modalHospPosKeyword">
-                    + Add
-                  </button>
-                </div>
-                <div class="card-body p-0">
-                  <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 small">
-                      <thead class="bg-light text-muted">
-                        <tr>
-                          <th class="ps-3 py-2" style="width: 50px;">#</th>
-                          <th class="py-2">Positive Keyword</th>
-                          <th class="py-2">Code</th>
-                          <th class="text-center py-2">Status</th>
-                          <th class="text-end pe-3 py-2">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for item in pos_items %}
-                        <tr>
-                          <td class="ps-3 py-2 text-muted">{{ forloop.counter }}</td>
-                          <td class="py-2">
-                            <span class="fw-bold text-dark">{{ item.name }}</span>
-                            {% if not item.hospital %}
-                              <span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size: 0.65rem;">Global</span>
-                            {% endif %}
-                          </td>
-                          <td class="py-2"><code>{{ item.code|default:"—" }}</code></td>
-                          <td class="text-center py-2">
-                            {% if item.is_active %}
-                              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-2 px-2 py-0.5">Active</span>
-                            {% else %}
-                              <span class="badge bg-secondary-subtle text-secondary border rounded-2 px-2 py-0.5">Inactive</span>
-                            {% endif %}
-                          </td>
-                          <td class="text-end pe-3 py-2">
-                            <div class="d-inline-flex gap-1 justify-content-end align-items-center">
-                              <button class="btn btn-sm btn-light border rounded-3 px-2 py-0" data-bs-toggle="modal" data-bs-target="#editHospItemModal{{ item.id }}">
-                                Edit
-                              </button>
-                              <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=hospital_config" class="btn btn-sm btn-light border rounded-3 px-2 py-0 {% if item.is_active %}text-warning{% else %}text-success{% endif %}">
-                                {% if item.is_active %}Disable{% else %}Enable{% endif %}
-                              </a>
-                              <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete keyword \'{{ item.name }}\'?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="from_view" value="hospital_config">
-                                <button type="submit" class="btn btn-sm btn-light border rounded-3 px-2 py-0 text-danger">
-                                  Delete
-                                </button>
-                              </form>
-                            </div>
-                          </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                          <td colspan="5" class="text-center py-4 text-muted">
-                            No positive remark keywords configured.
-                          </td>
-                        </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Negative Remarks Table -->
-            <div class="col-lg-6">
-              <div class="card border rounded-3 h-100 shadow-sm bg-white">
-                <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-                  <div>
-                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2.5 py-1 rounded-2 fw-bold">
-                      <i class="fa-solid fa-arrow-trend-down me-1"></i> DOWN-SHIFT (WARM / COLD / FREEZE)
-                    </span>
-                    <h6 class="fw-bold text-dark mb-0 mt-1">Negative Call Remarks / Notes</h6>
-                  </div>
-                  <button type="button" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 small" data-bs-toggle="modal" data-bs-target="#modalHospNegKeyword">
-                    + Add
-                  </button>
-                </div>
-                <div class="card-body p-0">
-                  <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 small">
-                      <thead class="bg-light text-muted">
-                        <tr>
-                          <th class="ps-3 py-2" style="width: 50px;">#</th>
-                          <th class="py-2">Negative Keyword</th>
-                          <th class="py-2">Code</th>
-                          <th class="text-center py-2">Status</th>
-                          <th class="text-end pe-3 py-2">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for item in neg_items %}
-                        <tr>
-                          <td class="ps-3 py-2 text-muted">{{ forloop.counter }}</td>
-                          <td class="py-2">
-                            <span class="fw-bold text-dark">{{ item.name }}</span>
-                            {% if not item.hospital %}
-                              <span class="badge bg-secondary bg-opacity-10 text-secondary border ms-1" style="font-size: 0.65rem;">Global</span>
-                            {% endif %}
-                          </td>
-                          <td class="py-2"><code>{{ item.code|default:"—" }}</code></td>
-                          <td class="text-center py-2">
-                            {% if item.is_active %}
-                              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-2 px-2 py-0.5">Active</span>
-                            {% else %}
-                              <span class="badge bg-secondary-subtle text-secondary border rounded-2 px-2 py-0.5">Inactive</span>
-                            {% endif %}
-                          </td>
-                          <td class="text-end pe-3 py-2">
-                            <div class="d-inline-flex gap-1 justify-content-end align-items-center">
-                              <button class="btn btn-sm btn-light border rounded-3 px-2 py-0" data-bs-toggle="modal" data-bs-target="#editHospItemModal{{ item.id }}">
-                                Edit
-                              </button>
-                              <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=hospital_config" class="btn btn-sm btn-light border rounded-3 px-2 py-0 {% if item.is_active %}text-warning{% else %}text-success{% endif %}">
-                                {% if item.is_active %}Disable{% else %}Enable{% endif %}
-                              </a>
-                              <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete keyword \'{{ item.name }}\'?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="from_view" value="hospital_config">
-                                <button type="submit" class="btn btn-sm btn-light border rounded-3 px-2 py-0 text-danger">
-                                  Delete
-                                </button>
-                              </form>
-                            </div>
-                          </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                          <td colspan="5" class="text-center py-4 text-muted">
-                            No negative remark keywords configured.
-                          </td>
-                        </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
       </div>
     </div>
   </div>
 </div>
-
-<!-- ==================== TEMPERATURE MASTER MODALS FOR HOSPITAL ==================== -->
-<!-- Modal Add Hospital Positive Keyword -->
-<div class="modal fade" id="modalHospPosKeyword" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow">
-      <form method="post" action="{% url 'leads:master_item_add' %}">
-        {% csrf_token %}
-        <input type="hidden" name="group_id" value="{{ pos_group.id }}">
-        <input type="hidden" name="from_view" value="hospital_config">
-        <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <div>
-            <div class="badge bg-success bg-opacity-10 text-success mb-1">Up-Shift to Hot</div>
-            <h5 class="modal-title fw-bold text-dark mb-0">Add Positive Remark Keyword</h5>
-            <p class="text-muted small mb-0">Shifts temperature up to Hot / Warm when entered in patient call remarks or notes.</p>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body px-4 pt-3 pb-4">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. Interested, Will Visit, Ready for OPD" required>
-          </div>
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Code</label>
-              <input type="text" name="code" class="form-control" placeholder="Optional">
-            </div>
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Order</label>
-              <input type="number" name="order" class="form-control" value="0" min="0">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 px-4 pb-4 pt-0">
-          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success rounded-3 px-4 fw-semibold">Save Keyword</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Add Hospital Negative Keyword -->
-<div class="modal fade" id="modalHospNegKeyword" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow">
-      <form method="post" action="{% url 'leads:master_item_add' %}">
-        {% csrf_token %}
-        <input type="hidden" name="group_id" value="{{ neg_group.id }}">
-        <input type="hidden" name="from_view" value="hospital_config">
-        <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <div>
-            <div class="badge bg-danger bg-opacity-10 text-danger mb-1">Down-Shift to Warm / Cold / Freeze</div>
-            <h5 class="modal-title fw-bold text-dark mb-0">Add Negative Remark Keyword</h5>
-            <p class="text-muted small mb-0">Lowers temperature when customer doesn't respond or declines.</p>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body px-4 pt-3 pb-4">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. Call Not Received, Ringing, Busy" required>
-          </div>
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Code</label>
-              <input type="text" name="code" class="form-control" placeholder="Optional">
-            </div>
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Order</label>
-              <input type="number" name="order" class="form-control" value="0" min="0">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 px-4 pb-4 pt-0">
-          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger rounded-3 px-4 fw-semibold">Save Keyword</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Edit Modals for Hospital Items -->
-{% for item in pos_items %}
-<div class="modal fade" id="editHospItemModal{{ item.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow">
-      <form method="post" action="{% url 'leads:master_item_edit' item.id %}">
-        {% csrf_token %}
-        <input type="hidden" name="from_view" value="hospital_config">
-        <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <h5 class="modal-title fw-bold text-dark mb-0">Edit Positive Keyword</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body px-4 pt-3 pb-4">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" value="{{ item.name }}" required>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Code</label>
-              <input type="text" name="code" class="form-control" value="{{ item.code }}">
-            </div>
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Order</label>
-              <input type="number" name="order" class="form-control" value="{{ item.order }}" min="0">
-            </div>
-          </div>
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="is_active" id="hospPosActive{{ item.id }}" {% if item.is_active %}checked{% endif %}>
-            <label class="form-check-label small fw-semibold text-dark" for="hospPosActive{{ item.id }}">Active Keyword</label>
-          </div>
-        </div>
-        <div class="modal-footer border-0 px-4 pb-4 pt-0">
-          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Update Keyword</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-{% endfor %}
-
-{% for item in neg_items %}
-<div class="modal fade" id="editHospItemModal{{ item.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow">
-      <form method="post" action="{% url 'leads:master_item_edit' item.id %}">
-        {% csrf_token %}
-        <input type="hidden" name="from_view" value="hospital_config">
-        <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <h5 class="modal-title fw-bold text-dark mb-0">Edit Negative Keyword</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body px-4 pt-3 pb-4">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" value="{{ item.name }}" required>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Code</label>
-              <input type="text" name="code" class="form-control" value="{{ item.code }}">
-            </div>
-            <div class="col-6">
-              <label class="form-label small fw-semibold text-dark mb-1">Order</label>
-              <input type="number" name="order" class="form-control" value="{{ item.order }}" min="0">
-            </div>
-          </div>
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="is_active" id="hospNegActive{{ item.id }}" {% if item.is_active %}checked{% endif %}>
-            <label class="form-check-label small fw-semibold text-dark" for="hospNegActive{{ item.id }}">Active Keyword</label>
-          </div>
-        </div>
-        <div class="modal-footer border-0 px-4 pb-4 pt-0">
-          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Update Keyword</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-{% endfor %}
 
 <!-- ==================== MODALS ==================== -->
 
@@ -1296,10 +1002,15 @@
               </table>
             </div>
             <div class="d-flex justify-content-between align-items-center">
-              <span class="text-muted">Rows will automatically create Branches, Departments, Doctors and link Diseases!</span>
-              <a href="{% url 'leads:hospital_master_sample_download' %}" class="btn btn-xs btn-outline-primary rounded-3 px-3 py-1 fw-semibold">
-                Download Sample CSV
-              </a>
+              <span class="text-muted small">Rows will automatically create Branches, Departments, Doctors and link Diseases!</span>
+              <div class="d-flex gap-2">
+                <a href="{% url 'leads:hospital_master_sample_download' %}?format=xlsx" class="btn btn-xs btn-outline-success rounded-3 px-3 py-1 fw-semibold">
+                  <i class="fa-solid fa-file-excel me-1"></i> Sample Excel (.xlsx)
+                </a>
+                <a href="{% url 'leads:hospital_master_sample_download' %}?format=csv" class="btn btn-xs btn-outline-primary rounded-3 px-3 py-1 fw-semibold">
+                  <i class="fa-solid fa-file-csv me-1"></i> Sample CSV
+                </a>
+              </div>
             </div>
           </div>
 
@@ -1355,11 +1066,6 @@
       document.getElementById('modalDiseaseTitle').innerText = "Add Disease / Medical Condition";
       document.getElementById('formDisease').reset();
       new bootstrap.Modal(document.getElementById('modalAddDisease')).show();
-    } else if (activeTab === '#tab-temperature' || activeTab === 'temperature') {
-      const modalEl = document.getElementById('modalHospPosKeyword');
-      if (modalEl) {
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
-      }
     }
   }
 
