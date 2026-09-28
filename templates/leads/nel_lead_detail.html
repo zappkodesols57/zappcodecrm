@@ -319,7 +319,7 @@
           <div class="col-12">
             <div class="p-2 border rounded-3 bg-light-subtle">
               <span class="text-muted d-block" style="font-size: 0.72rem;">Import Source File</span>
-              <strong class="text-primary text-break"><i class="fa-solid fa-file-excel me-1"></i>{{ lead.import_source_file|default:lead.import_job.original_filename }}</strong>
+              <strong class="text-primary text-break"><i class="fa-solid fa-file-excel me-1"></i>{% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}</strong>
             </div>
           </div>
           {% endif %}
