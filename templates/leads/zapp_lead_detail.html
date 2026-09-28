@@ -201,7 +201,7 @@
           {% if lead.import_source_file or lead.import_job %}
           <div class="col-4 text-muted">Import File Name</div>
           <div class="col-8 fw-semibold text-break text-primary">
-            <i class="fa-solid fa-file-excel me-1"></i>{{ lead.import_source_file|default:lead.import_job.original_filename }}
+            <i class="fa-solid fa-file-excel me-1"></i>{% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}
           </div>
           {% endif %}
 
