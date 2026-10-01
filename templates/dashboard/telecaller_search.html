@@ -213,7 +213,9 @@
                     <tr>
                         <td class="px-4">
                             <div class="fw-bold text-dark">{{ lead.name }}</div>
-                            <div class="small text-muted">ID: #{{ lead.lead_code|default:lead.pk }}</div>
+                            <div class="small mt-0.5">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" title="View Lead Details">#{{ lead.lead_code|default:lead.pk }}</a>
+                            </div>
                         </td>
                         <td>
                             <div><i class="fa-solid fa-phone text-muted me-1 small"></i> <a href="tel:{{ lead.mobile }}" class="text-decoration-none text-dark fw-medium">{{ lead.mobile }}</a></div>

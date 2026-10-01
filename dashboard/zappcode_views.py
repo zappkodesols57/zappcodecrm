@@ -143,8 +143,10 @@ def management_home(request):
             filtered_leads = filtered_leads.filter(stage__name__iexact=stg_val)
     if request.GET.get("temperature"):
         filtered_leads = filtered_leads.filter(temperature=request.GET.get("temperature"))
-    if request.GET.get("deal_status"):
-        filtered_leads = filtered_leads.filter(deal_status=request.GET.get("deal_status"))
+    if request.GET.get("admission_status"):
+        filtered_leads = filtered_leads.filter(admission_status=request.GET.get("admission_status"))
+    elif request.GET.get("deal_status"):
+        filtered_leads = filtered_leads.filter(Q(deal_status=request.GET.get("deal_status")) | Q(admission_status=request.GET.get("deal_status")))
     if request.GET.get("assigned_to"):
         asg_val = request.GET.get("assigned_to").strip()
         if asg_val.isdigit():
@@ -192,20 +194,10 @@ def management_home(request):
     total_leads = filtered_leads.count()
     new_leads = filtered_leads.filter(inquiry_date__gte=today - timedelta(days=7)).count()
     
-    uncontacted_filter = (
-        Q(temperature=LeadTemperature.UNCONTACTED) &
-        Q(followup_count=0) &
-        Q(next_followup_date__isnull=True) &
-        Q(deal_status__in=[DealStatus.OPEN, 'New', 'OPEN']) &
-        Q(admission_status__in=[AdmissionStatus.NOT_APPLIED, '', None]) &
-        Q(admission__isnull=True) &
-        (Q(stage__isnull=True) | Q(stage__name__in=['New', 'Fresh', 'Uncontacted', 'new', 'fresh', 'uncontacted']))
-    )
-    uncontacted = filtered_leads.filter(uncontacted_filter).distinct().count()
-    not_picked = filtered_leads.filter(temperature="NOT_PICKED").count()
-    hot = filtered_leads.filter(temperature="HOT").count()
-    warm = filtered_leads.filter(temperature="WARM").count()
-    cold = filtered_leads.filter(temperature="COLD").count()
+    hot = filtered_leads.filter(temperature=LeadTemperature.HOT).count()
+    warm = filtered_leads.filter(temperature=LeadTemperature.WARM).count()
+    cold = filtered_leads.filter(temperature=LeadTemperature.COLD).count()
+    freeze = filtered_leads.filter(temperature=LeadTemperature.FREEZE).count()
     
     lead_ids = filtered_leads.values_list("id", flat=True)
     followups_today = FollowUp.objects.filter(lead_id__in=lead_ids, followup_date=today).count()
@@ -261,8 +253,19 @@ def management_home(request):
             })
 
     # ── 7. Charts Data ─────────────────────────────────────────────────────────
-    all_stages = list(LeadStage.objects.filter(is_active=True).order_by("order", "name"))
-    funnel_stage_labels = [s.name for s in all_stages] if all_stages else ["New", "Contacted", "Interested", "Admission"]
+    if is_single_business and selected_businesses:
+        b_id = selected_businesses[0].get("id")
+        if b_id:
+            all_stages = list(LeadStage.objects.filter(is_active=True, hospital_id=b_id).order_by("order", "name"))
+        else:
+            b_name_low = (selected_businesses[0]["name"] or "").lower()
+            if any(k in b_name_low for k in ["hospital", "nelson", "clinic", "medical"]):
+                all_stages = list(LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL]).order_by("order", "name"))
+            else:
+                all_stages = list(LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]).order_by("order", "name"))
+    else:
+        all_stages = list(LeadStage.objects.filter(is_active=True).order_by("order", "name"))
+    funnel_stage_labels = [s.name for s in all_stages] if all_stages else ["New", "Assigned", "Follow up", "Admission Done"]
     
     emp_lead_data = (
         filtered_leads.values("assigned_to__id", "assigned_to__first_name", "assigned_to__username")

@@ -14,7 +14,7 @@ class LeadForm(forms.ModelForm):
         fields = [
             "name", "mobile", "alternate_mobile", "email", "city", "state", "location",
             "education", "qualification", "graduation_year",
-            "course", "lead_type", "temperature", "stage", "deal_status", "admission_status", "inquiry_date",
+            "course", "lead_type", "temperature", "stage", "admission_status", "inquiry_date",
             "source_category", "lead_source", "campaign", "ad_platform", "campaign_id_text",
             "referral_type", "referral_person", "referral_contact", "referral_notes", "landing_page",
             "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -93,11 +93,24 @@ class LeadForm(forms.ModelForm):
                 else:
                     self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
 
+        # Determine tenant and business type
+        user_hospital = getattr(user, "hospital", None) if user else None
+        inst_hospital = getattr(self.instance, "hospital", None) if (self.instance and self.instance.pk) else None
+        target_hospital = inst_hospital or user_hospital
+        
+        is_hospital_tenant = False
+        if target_hospital:
+            btype = (target_hospital.settings or {}).get("business_type", "")
+            n_lower = (target_hospital.name or "").lower()
+            is_hospital_tenant = (str(btype).strip().lower() == "hospital") or any(k in n_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])
+        elif user and hasattr(user, "is_hospital_user"):
+            is_hospital_tenant = user.is_hospital_user
+
         # Filter master choice fields to active options from Master Data
         if "course" in self.fields:
-            if user and getattr(user, "hospital", None):
+            if target_hospital:
                 qs = Course.objects.filter(is_active=True).filter(
-                    Q(hospital=user.hospital) | Q(hospital__isnull=True)
+                    Q(hospital=target_hospital) | Q(hospital__isnull=True)
                 )
             else:
                 qs = Course.objects.filter(is_active=True)
@@ -118,8 +131,8 @@ class LeadForm(forms.ModelForm):
             self.fields["lead_source"].queryset = qs.distinct().order_by("order", "name")
 
         if "campaign" in self.fields:
-            if user and getattr(user, "hospital", None):
-                qs = Campaign.objects.filter(is_active=True, hospital=user.hospital)
+            if target_hospital:
+                qs = Campaign.objects.filter(is_active=True, hospital=target_hospital)
             else:
                 # Global Super Admin: show all active campaigns
                 qs = Campaign.objects.filter(is_active=True)
@@ -128,7 +141,21 @@ class LeadForm(forms.ModelForm):
             self.fields["campaign"].queryset = qs.distinct().order_by("-id")
 
         if "stage" in self.fields:
-            qs = LeadStage.objects.filter(is_active=True)
+            if is_hospital_tenant:
+                if target_hospital:
+                    qs = LeadStage.objects.filter(is_active=True).filter(
+                        Q(hospital=target_hospital) | (Q(business_type=LeadStage.BusinessType.HOSPITAL) & Q(hospital__isnull=True))
+                    )
+                else:
+                    qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL])
+            else:
+                # Academy / Non-Hospital tenant
+                if target_hospital:
+                    qs = LeadStage.objects.filter(is_active=True).filter(
+                        Q(hospital=target_hospital) | (Q(business_type=LeadStage.BusinessType.ACADEMY) & Q(hospital__isnull=True))
+                    )
+                else:
+                    qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL])
             if self.instance and self.instance.pk and self.instance.stage:
                 qs = qs | LeadStage.objects.filter(pk=self.instance.stage.pk)
             self.fields["stage"].queryset = qs.distinct().order_by("order", "name")
@@ -1186,7 +1213,7 @@ class HospitalLeadForm(forms.ModelForm):
         if has_payment or is_already_completed:
             from leads.models import DealStatus, AdmissionStatus, LeadStage
             instance.deal_status = DealStatus.WON
-            instance.admission_status = AdmissionStatus.ADMISSION_DONE
+            instance.admission_status = AdmissionStatus.WON
             cd['deal_status'] = 'Won (Payment Done)'
             cd['appointment_status'] = 'Completed'
 
@@ -1235,17 +1262,17 @@ class HospitalLeadForm(forms.ModelForm):
         assigned_stage = None
         if has_payment or is_already_completed:
             assigned_stage = LeadStage.objects.filter(name__iexact='Payment Done').first() or \
-                             LeadStage.objects.filter(name__iexact='Appointment Completed').first() or \
-                             LeadStage.objects.filter(name__iexact='Admission').first()
+                             LeadStage.objects.filter(name__iexact='Appointment Completed').first()
         elif is_cancelled_or_not_interested:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Lost').first()
-        elif is_followup_needed or fu_date:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Follow-up').first()
+            assigned_stage = LeadStage.objects.filter(name__iexact='Cancelled').first() or \
+                             LeadStage.objects.filter(name__iexact='Lost').first()
         elif is_booking_selected:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Booking Confirmed').first() or \
-                             LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
-                             LeadStage.objects.filter(name__iexact='Interested').first() or \
-                             LeadStage.objects.filter(name__iexact='Visit Planned').first()
+            assigned_stage = LeadStage.objects.filter(name__iexact='Appointment Confirmed').first() or \
+                             LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
+                             LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
+        elif is_followup_needed or fu_date:
+            assigned_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or \
+                             LeadStage.objects.filter(name__iexact='Follow-up').first()
         elif appo_status:
             assigned_stage = LeadStage.objects.filter(name__iexact=appo_status).first()
 
@@ -1286,18 +1313,38 @@ class HospitalLeadForm(forms.ModelForm):
             if not remark_text:
                 remark_text = f"Updated lead status to {appo_status or instance.get_deal_status_display()}"
 
-            # Always record today's contact/edit activity for team visibility
-            FollowUp.objects.create(
-                lead=instance,
-                followup_date=today_d,
-                followup_time=timezone.localtime().time(),
-                followup_mode=FollowUpMode.CALL,
-                followup_status=fu_status_mapped,
-                comment=remark_text,
-                next_followup_date=fu_date,
-                next_followup_time=fu_time,
-                created_by=getattr(self, 'current_user', None)
-            )
+            # If a new follow-up date is scheduled
+            if fu_date:
+                # Mark previous pending follow-ups as COMPLETED since a new date is scheduled
+                instance.followups.filter(
+                    followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]
+                ).update(followup_status=FollowUpStatus.COMPLETED)
+
+                # Create the scheduled pending follow-up
+                FollowUp.objects.create(
+                    lead=instance,
+                    followup_date=fu_date,
+                    followup_time=fu_time,
+                    followup_mode=FollowUpMode.CALL,
+                    followup_status=FollowUpStatus.PENDING,
+                    comment=remark_text,
+                    next_followup_date=fu_date,
+                    next_followup_time=fu_time,
+                    created_by=getattr(self, 'current_user', None)
+                )
+            else:
+                # Always record today's contact/edit activity for team visibility
+                FollowUp.objects.create(
+                    lead=instance,
+                    followup_date=today_d,
+                    followup_time=timezone.localtime().time(),
+                    followup_mode=FollowUpMode.CALL,
+                    followup_status=fu_status_mapped,
+                    comment=remark_text,
+                    next_followup_date=None,
+                    next_followup_time=None,
+                    created_by=getattr(self, 'current_user', None)
+                )
 
             # Send Notification if a future follow-up is scheduled
             if fu_date:

@@ -514,15 +514,8 @@
           <td class="px-3">
             {% if lead.latest_followup_obj %}
             <div class="d-flex flex-column gap-0.5" style="max-width: 260px;">
-              <div class="d-flex align-items-center gap-1.5 flex-wrap">
-                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle p-0.5 px-1"
-                  style="font-size: 0.68rem;">
-                  <i class="fa-solid fa-phone-volume me-1"></i>{{ lead.latest_followup_obj.get_followup_mode_display|default:"Call" }}
-                </span>
-                <span
-                  class="badge {% if lead.latest_followup_obj.followup_status == 'INTERESTED' %}bg-success-subtle text-success{% elif lead.latest_followup_obj.followup_status == 'NOT_CONNECTED' %}bg-secondary-subtle text-secondary{% elif lead.latest_followup_obj.followup_status == 'NOT_INTERESTED' %}bg-danger-subtle text-danger{% else %}bg-primary-subtle text-primary{% endif %} p-0.5 px-1"
-                  style="font-size: 0.68rem;">
-                  {{ lead.latest_followup_obj.get_followup_status_display }}
+                <span class="badge {% if lead.latest_followup_obj.followup_status == 'COMPLETED' or lead.latest_followup_obj.followup_status == 'DONE' %}bg-success-subtle text-success border border-success-subtle{% elif lead.latest_followup_obj.followup_status == 'RESCHEDULED' %}bg-info-subtle text-info-emphasis border border-info-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} p-0.5 px-1.5" style="font-size: 0.7rem;">
+                  <i class="fa-solid {% if lead.latest_followup_obj.followup_status == 'COMPLETED' or lead.latest_followup_obj.followup_status == 'DONE' %}fa-circle-check text-success{% elif lead.latest_followup_obj.followup_status == 'RESCHEDULED' %}fa-clock-rotate-left text-info{% else %}fa-hourglass-half text-warning{% endif %} me-1"></i>{{ lead.latest_followup_obj.get_followup_status_display }}
                 </span>
               </div>
               {% if lead.latest_followup_obj.comment %}

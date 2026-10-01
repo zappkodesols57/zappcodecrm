@@ -429,25 +429,19 @@
             {% csrf_token %}
             <div class="row g-2 mb-2">
               <div class="col-md-4">
+                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Follow-up Date *</label>
                 <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-4">
+                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Time</label>
                 <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
               </div>
-              <div class="col-md-3">
-                <select name="followup_mode" class="form-select form-select-sm no-tom-select" required>
-                  <option value="" disabled selected>Follow up action</option>
-                  {% for val, label in followup_modes %}
-                    <option value="{{ val }}">{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
+                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Status</label>
                 <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
-                  <option value="" disabled selected>Follow up status</option>
-                  {% for val, label in followup_statuses %}
-                    <option value="{{ val }}">{{ label }}</option>
-                  {% endfor %}
+                  <option value="PENDING" selected>Pending</option>
+                  <option value="RESCHEDULED">Rescheduled</option>
+                  <option value="COMPLETED">Completed</option>
                 </select>
               </div>
             </div>
@@ -456,7 +450,7 @@
               <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
             </div>
             <div class="input-group">
-              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment..." required>
+              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up remark or comment..." required>
               <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Save Follow-up</button>
             </div>
           </form>
@@ -470,20 +464,19 @@
           <div class="p-3 rounded-3 border bg-white shadow-xs">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <div class="d-flex align-items-center gap-1 flex-wrap">
-                {% if fu.followup_status == 'DONE' %}
+                {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
                 <span class="badge bg-success" style="font-size: 0.72rem;">
-                  <i class="fa-solid fa-check-double me-1"></i>Follow-up Done
+                  <i class="fa-solid fa-check-double me-1"></i>Follow-up Completed
                 </span>
                 {% else %}
-                <span class="badge {% if fu.followup_status == 'COMPLETED' %}bg-success{% elif fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' or fu.followup_status == 'CALL_BACK' %}bg-info text-dark{% elif fu.followup_status == 'CANCELLED' or fu.followup_status == 'NOT_INTERESTED' %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size: 0.72rem;">
+                <span class="badge {% if fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' %}bg-info text-dark{% else %}bg-secondary{% endif %}" style="font-size: 0.72rem;">
                   {{ fu.get_followup_status_display }}
                 </span>
                 {% endif %}
-                <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">{{ fu.get_followup_mode_display }}</span>
               </div>
-              {% if fu.followup_status == 'DONE' %}
+              {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
               <span class="badge bg-secondary bg-opacity-10 text-muted border py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.73rem;">
-                <i class="fa-solid fa-lock me-1"></i>Follow-up Closed
+                <i class="fa-solid fa-lock me-1"></i>Completed
               </span>
               {% else %}
               <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#updateFollowupModal{{ fu.id }}" title="Update Follow-up Status">
@@ -585,7 +578,7 @@
   </div>
 <!-- Follow-up Status Update Modals -->
 {% for fu in followups %}
-{% if fu.followup_status != 'DONE' %}
+{% if fu.followup_status != 'COMPLETED' and fu.followup_status != 'DONE' %}
 <div class="modal fade" id="updateFollowupModal{{ fu.id }}" tabindex="-1" aria-labelledby="updateFollowupModalLabel{{ fu.id }}" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
@@ -594,7 +587,7 @@
           <h6 class="modal-title fw-bold text-dark mb-0" id="updateFollowupModalLabel{{ fu.id }}">
             <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>Update Follow-up Status
           </h6>
-          <span class="text-muted small" style="font-size: 0.75rem;">Scheduled: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -603,29 +596,30 @@
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
-            <select name="followup_status" class="form-select form-select-sm no-tom-select modal-select" required onchange="const row = document.getElementById('rescheduleRow{{ fu.id }}'); if (this.value === 'DONE') { if (row) row.style.display = 'none'; } else { if (row) row.style.display = 'flex'; }">
-              {% for val, label in followup_statuses %}
-                <option value="{{ val }}" {% if fu.followup_status == val %}selected{% endif %}>{% if val == 'DONE' %}Done (No further updates){% else %}{{ label }}{% endif %}</option>
+            <select name="followup_status" id="fuStatusSelect{{ fu.id }}" class="form-select form-select-sm no-tom-select modal-select" required onchange="const row = document.getElementById('rescheduleRow{{ fu.id }}'); const dIn = document.getElementById('reschedDate{{ fu.id }}'); if (this.value === 'RESCHEDULED') { if (row) row.style.display = 'flex'; if (dIn) dIn.required = true; } else { if (row) row.style.display = 'none'; if (dIn) dIn.required = false; }">
+              <option value="" disabled selected>-- Select Action (Complete or Reschedule) --</option>
+              {% for val, label in followup_update_statuses %}
+                <option value="{{ val }}">{{ label }}</option>
               {% endfor %}
             </select>
-            <div class="form-text text-muted" style="font-size: 0.72rem;">Selecting <strong>Done</strong> marks this follow-up as completed and locks further status updates.</div>
+            <div class="form-text text-muted" style="font-size: 0.72rem;"><strong>Complete</strong> removes lead from active follow-ups. <strong>Reschedule</strong> creates new follow-up date/time.</div>
           </div>
 
-          <!-- Reschedule / Next Date (Optional) -->
-          <div class="row g-2 mb-3" id="rescheduleRow{{ fu.id }}">
+          <!-- Reschedule / Next Date (Required when Reschedule selected) -->
+          <div class="row g-2 mb-3" id="rescheduleRow{{ fu.id }}" style="display: none;">
             <div class="col-7">
-              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Reschedule Date (If applicable)</label>
-              <input type="date" name="next_followup_date" class="form-control form-control-sm" value="{% if fu.next_followup_date %}{{ fu.next_followup_date|date:'Y-m-d' }}{% endif %}">
+              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">New Follow-up Date *</label>
+              <input type="date" name="next_followup_date" id="reschedDate{{ fu.id }}" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
             </div>
             <div class="col-5">
               <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
-              <input type="time" name="next_followup_time" class="form-control form-control-sm" value="{% if fu.next_followup_time %}{{ fu.next_followup_time|time:'H:i' }}{% endif %}">
+              <input type="time" name="next_followup_time" class="form-control form-control-sm">
             </div>
           </div>
 
           <div class="mb-2">
-            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Update Note / Remarks</label>
-            <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call/interaction or notes for this status update..."></textarea>
+            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Remarks / Interaction Note *</label>
+            <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call/interaction or reason for status update..." required></textarea>
           </div>
         </div>
         <div class="modal-footer bg-light border-0 py-2 px-4 d-flex justify-content-between">

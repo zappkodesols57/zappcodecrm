@@ -231,6 +231,40 @@ Features:
             </div>
           </div>
 
+          <!-- Follow-up Status (Pending, Rescheduled, Completed) -->
+          <div class="py-2 border-bottom">
+            <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
+              data-bs-toggle="collapse" href="#attFollowupStatusFilter" role="button" style="font-size: 0.86rem;">
+              <span>Follow-up Status</span>
+              <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </a>
+            <div class="collapse show ps-2 pe-1 pt-2" id="attFollowupStatusFilter">
+              <div class="filter-options-scroll" style="max-height: 150px; overflow-y: auto;">
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="followup_status" value="PENDING"
+                    id="att_fu_pending" {% if 'PENDING' in selected_followup_statuses %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_fu_pending" style="font-size: 0.82rem;">
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle p-0.5 px-1 me-1"><i class="fa-solid fa-hourglass-half"></i></span> Follow up Pending
+                  </label>
+                </div>
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="followup_status" value="RESCHEDULED"
+                    id="att_fu_resched" {% if 'RESCHEDULED' in selected_followup_statuses %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_fu_resched" style="font-size: 0.82rem;">
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle p-0.5 px-1 me-1"><i class="fa-solid fa-clock-rotate-left"></i></span> Follow up Rescheduled
+                  </label>
+                </div>
+                <div class="form-check mb-1 filter-item-row">
+                  <input class="form-check-input filter-checkbox" type="checkbox" name="followup_status" value="COMPLETED"
+                    id="att_fu_comp" {% if 'COMPLETED' in selected_followup_statuses %}checked{% endif %}>
+                  <label class="form-check-label text-dark filter-label" for="att_fu_comp" style="font-size: 0.82rem;">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle p-0.5 px-1 me-1"><i class="fa-solid fa-check"></i></span> Follow up Completed
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 4. Lead Source -->
           {% if hospital_sources or lead_sources %}
           <div class="py-2 border-bottom">
@@ -518,8 +552,8 @@ Features:
             </div>
             {% endif %}
 
-            <!-- Lead Stages (For Zappcode / Academy Users) -->
-            {% if not request.user.is_hospital_user and stages %}
+            <!-- Lead Stages (Strictly scoped to current business) -->
+            {% if stages %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subStages" role="button" style="font-size: 0.84rem;">
@@ -581,7 +615,8 @@ Features:
             </div>
             {% endif %}
 
-            <!-- Lead Status -->
+            <!-- Lead Status (Only for Hospital Users) -->
+            {% if request.user.is_hospital_user %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
@@ -609,6 +644,7 @@ Features:
                 </div>
               </div>
             </div>
+            {% endif %}
 
             <!-- Admission Status (Only for Academy Users) -->
             {% if not request.user.is_hospital_user and admission_status_choices %}
@@ -653,6 +689,38 @@ Features:
               </div>
             </div>
             {% endif %}
+
+            <!-- Follow-up Status (Pending, Rescheduled, Completed) -->
+            <div class="py-1">
+              <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
+                data-bs-toggle="collapse" href="#subFollowupStatus" role="button" style="font-size: 0.84rem;">
+                <span>Follow-up Status</span>
+                <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+              </a>
+              <div class="collapse {% if selected_followup_statuses %}show{% endif %} ps-3 pe-1 py-1"
+                id="subFollowupStatus">
+                <div class="filter-options-scroll" style="max-height: 160px; overflow-y: auto;">
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="followup_status" value="PENDING" id="fu_status_pending" {% if 'PENDING' in selected_followup_statuses %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="fu_status_pending" style="font-size: 0.82rem;">
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle p-0.5 px-1 me-1"><i class="fa-solid fa-hourglass-half"></i></span> Follow up Pending
+                    </label>
+                  </div>
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="followup_status" value="RESCHEDULED" id="fu_status_resched" {% if 'RESCHEDULED' in selected_followup_statuses %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="fu_status_resched" style="font-size: 0.82rem;">
+                      <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle p-0.5 px-1 me-1"><i class="fa-solid fa-clock-rotate-left"></i></span> Follow up Rescheduled
+                    </label>
+                  </div>
+                  <div class="form-check mb-1 filter-item-row">
+                    <input class="form-check-input filter-checkbox" type="checkbox" name="followup_status" value="COMPLETED" id="fu_status_comp" {% if 'COMPLETED' in selected_followup_statuses %}checked{% endif %}>
+                    <label class="form-check-label text-dark filter-label" for="fu_status_comp" style="font-size: 0.82rem;">
+                      <span class="badge bg-success-subtle text-success border border-success-subtle p-0.5 px-1 me-1"><i class="fa-solid fa-check"></i></span> Follow up Completed
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <!-- Priority / Temperature -->
             <div class="py-1">

@@ -1092,7 +1092,7 @@ def _parse_row(row, cols, mapping, user=None):
         "source_category": source_cat, "source_name": source_name,
         "assigned_user": assigned_user,
         "assigned_to_raw": str(data.get("assigned_to", "") or "").strip(),
-        "temperature": "UNCONTACTED", "inquiry_date": inquiry_date,
+        "temperature": "WARM", "inquiry_date": inquiry_date,
         "notes": combined_notes,
         "deal_status": "OPEN",
         "admission_status": "NOT_APPLIED",
@@ -1745,7 +1745,7 @@ def download_template(request):
         if not sources:
             sources = ["Instagram", "Facebook", "Meta Ads", "Google Ads", "Website", "WhatsApp", "Walk-in"]
             
-        temperatures = ["HOT", "WARM", "COLD", "UNCONTACTED"]
+        temperatures = ["HOT", "WARM", "COLD", "FREEZE"]
         appt_statuses = [choice[0] for choice in AppointmentStatus.choices]
         
         for idx, item in enumerate(departments, start=1):

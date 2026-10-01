@@ -391,7 +391,29 @@
               {% endwith %}
             </td>
             <td class="ps-4"><span class="small">{{ lead.assigned_to|default:"Unassigned" }}</span></td>
-            <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if lead.latest_followup_obj %}
+                <div class="d-flex flex-column gap-1">
+                  <span class="badge {% if lead.latest_followup_obj.followup_status == 'COMPLETED' or lead.latest_followup_obj.followup_status == 'DONE' %}bg-success-subtle text-success border border-success-subtle{% elif lead.latest_followup_obj.followup_status == 'RESCHEDULED' %}bg-info-subtle text-info-emphasis border border-info-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} p-0.5 px-1.5 align-self-start" style="font-size: 0.68rem;">
+                    <i class="fa-solid {% if lead.latest_followup_obj.followup_status == 'COMPLETED' or lead.latest_followup_obj.followup_status == 'DONE' %}fa-circle-check text-success{% elif lead.latest_followup_obj.followup_status == 'RESCHEDULED' %}fa-clock-rotate-left text-info{% else %}fa-hourglass-half text-warning{% endif %} me-1"></i>{{ lead.latest_followup_obj.get_followup_status_display }}
+                  </span>
+                  {% if lead.next_followup_date %}
+                    <span class="small text-muted text-nowrap" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d-m-Y" }}</span>
+                  {% elif lead.latest_followup_obj.followup_date %}
+                    <span class="small text-muted text-nowrap" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i>{{ lead.latest_followup_obj.followup_date|date:"d-m-Y" }}</span>
+                  {% endif %}
+                </div>
+              {% elif lead.next_followup_date %}
+                <div class="d-flex flex-column gap-1">
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle p-0.5 px-1.5 align-self-start" style="font-size: 0.68rem;">
+                    <i class="fa-solid fa-hourglass-half text-warning me-1"></i>Pending
+                  </span>
+                  <span class="small text-muted text-nowrap" style="font-size: 0.75rem;"><i class="fa-regular fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d-m-Y" }}</span>
+                </div>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
           <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No leads found. Try adjusting filters or add a new lead.</div></td></tr>

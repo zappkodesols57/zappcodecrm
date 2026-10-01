@@ -47,6 +47,10 @@
       <p class="text-muted small mb-0">{{ report_date|date:"l, d F Y" }}</p>
     </div>
     <div class="d-flex align-items-center gap-2">
+      <!-- Export Today's Activity Leads -->
+      <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-semibold" title="Download Excel sheet of leads touched/assigned today">
+        <i class="fa-solid fa-file-excel text-success me-1"></i> Export Today's Leads
+      </a>
       <!-- Login Time Badge -->
       <span class="badge text-bg-light border px-3 py-2 fw-semibold text-secondary">
         <i class="fa-solid fa-clock text-primary me-1"></i> Login Time: <strong class="text-dark">{% if first_login_time %}{{ first_login_time|time:"h:i A" }}{% else %}Active{% endif %}</strong>

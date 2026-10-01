@@ -279,25 +279,22 @@
         {{ form.course }}
       </div>
       <div class="col-md-4">
-        <label class="form-label" for="id_temperature">Lead Temperature</label>
-        {{ form.temperature }}
-      </div>
-      <div class="col-md-4">
         <label class="form-label" for="id_stage">Lead Stage <span class="req-star">*</span></label>
         {{ form.stage }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_deal_status">Deal Status</label>
-        {{ form.deal_status }}
       </div>
       <div class="col-md-4">
         <label class="form-label" for="id_admission_status">Admission Status <span class="req-star">*</span></label>
         {{ form.admission_status }}
       </div>
       <div class="col-md-4">
+        <label class="form-label" for="id_temperature">Lead Temperature <span class="badge bg-secondary-subtle text-muted border ms-1" style="font-size: 0.68rem;">System Auto</span></label>
+        {{ form.temperature }}
+      </div>
+      <div class="col-md-4">
         <label class="form-label" for="id_inquiry_date">Inquiry Date <span class="req-star">*</span></label>
         {{ form.inquiry_date }}
       </div>
+    </div>
 
       <!-- Dynamic Conditional Fields based on Admission Status -->
       <div class="col-md-4 d-none" id="div_followup_date">
@@ -566,8 +563,10 @@ document.addEventListener("DOMContentLoaded", function() {
     updateQualifications(this.value, "");
   });
 
-  // ─── 3. Dynamic Admission Status Conditional Fields ───
+  // ─── 3. Dynamic Admission Status & Stage Interconnection ───
   const admissionStatusSelect = document.getElementById("id_admission_status");
+  const stageSelect = document.getElementById("id_stage");
+  const tempSelect = document.getElementById("id_temperature");
   const divFollowup = document.getElementById("div_followup_date");
   const divAdmission = document.getElementById("div_admission_date");
   const divReason = document.getElementById("div_cancellation_reason");
@@ -576,7 +575,28 @@ document.addEventListener("DOMContentLoaded", function() {
   const inputAdmission = document.getElementById("custom_admission_date");
   const inputReason = document.getElementById("custom_cancellation_reason");
 
+  function handleStageChange() {
+    if (!stageSelect) return;
+    const selectedOption = stageSelect.options[stageSelect.selectedIndex];
+    const stageText = (selectedOption ? selectedOption.textContent : "").trim().toLowerCase();
+    
+    if (stageText === "cancelled") {
+      if (admissionStatusSelect) {
+        admissionStatusSelect.value = "LOST";
+      }
+      if (tempSelect) {
+        tempSelect.value = "FREEZE";
+      }
+    } else if (stageText.includes("admission done") || stageText.includes("payment done")) {
+      if (admissionStatusSelect) {
+        admissionStatusSelect.value = "WON";
+      }
+    }
+    handleAdmissionStatusChange();
+  }
+
   function handleAdmissionStatusChange() {
+    if (!admissionStatusSelect) return;
     const val = (admissionStatusSelect.value || "").toUpperCase();
     
     // Hide all first
@@ -588,16 +608,23 @@ document.addEventListener("DOMContentLoaded", function() {
     inputAdmission.required = false;
     inputReason.required = false;
 
-    if (val === "INTERESTED") {
+    if (val === "HOLD") {
       divFollowup.classList.remove("d-none");
       inputFollowup.required = true;
-    } else if (val === "APPLIED" || val === "ADMISSION_DONE") {
+    } else if (val === "WON") {
       divAdmission.classList.remove("d-none");
       inputAdmission.required = true;
-    } else if (val === "CANCELLED" || val === "LOST") {
+    } else if (val === "LOST") {
       divReason.classList.remove("d-none");
       inputReason.required = true;
+      if (tempSelect) {
+        tempSelect.value = "FREEZE";
+      }
     }
+  }
+
+  if (stageSelect) {
+    stageSelect.addEventListener("change", handleStageChange);
   }
 
   if (admissionStatusSelect) {

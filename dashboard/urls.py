@@ -28,6 +28,7 @@ urlpatterns = [
     path("reports/employee/", views.employee_report, name="employee_report"),
     path("employee/<int:emp_id>/", views.employee_detail_activity, name="employee_detail_activity"),
     path("daily-report/", views.submit_daily_report, name="submit_daily_report"),
+    path("daily-report/export/", views.export_daily_activity_leads, name="export_daily_activity_leads"),
     path("reports/daily/", views.management_daily_reports, name="management_daily_reports"),
 
     path("doctor/", views.doctor_home, name="doctor_home"),

@@ -1988,7 +1988,10 @@
                   <div class="fw-bold text-dark d-flex align-items-center gap-1">
                       <a href="${leadDetailHref}" class="text-dark text-decoration-none hover-primary">${item.name}</a>
                   </div>
-                  <div class="text-muted small" style="font-size: 0.72rem;">Added: ${item.created_date}</div>
+                  <div class="mt-0.5">
+                      <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${item.lead_code || item.id}</a>
+                      <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${item.created_date}</span>
+                  </div>
               </td>
               <td class="py-2">
                   <div class="fw-semibold text-dark">${item.mobile || '-'}</div>

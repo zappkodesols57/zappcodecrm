@@ -166,7 +166,7 @@ def add_admission(request):
                 lead.course = course
                 lead.stage = admission_stage
                 lead.deal_status = DealStatus.WON
-                lead.admission_status = AdmissionStatus.ADMISSION_DONE
+                lead.admission_status = AdmissionStatus.WON
                 if assigned_counselor: lead.assigned_to = assigned_counselor
                 lead.save()
             else:
@@ -179,7 +179,7 @@ def add_admission(request):
                     stage=admission_stage,
                     temperature=LeadTemperature.HOT,
                     deal_status=DealStatus.WON,
-                    admission_status=AdmissionStatus.ADMISSION_DONE,
+                    admission_status=AdmissionStatus.WON,
                     assigned_to=assigned_counselor or request.user,
                     created_by=request.user,
                     inquiry_date=admission_date,

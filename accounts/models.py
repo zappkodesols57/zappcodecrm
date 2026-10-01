@@ -98,6 +98,16 @@ class User(AbstractUser):
     custom_permissions = models.JSONField(default=dict, blank=True)
 
     @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        """Standardized business ID."""
+        return self.hospital_id
+
+    @property
     def business_type(self):
         """
         Returns the business type of the user's assigned tenant/organization:
