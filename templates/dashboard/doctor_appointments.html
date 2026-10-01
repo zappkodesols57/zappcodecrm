@@ -92,7 +92,7 @@
         <tr class="{% if apt.status == 'PENDING_APPROVAL' %}table-warning-subtle{% elif apt.status == 'COMPLETED' %}table-light{% endif %}">
           <td class="ps-4">
             <strong class="text-dark">{{ apt.lead.name }}</strong>
-            <div class="small text-muted">ID: #{{ apt.lead.lead_code|default:apt.lead.pk }}</div>
+            <div class="small mt-0.5"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="badge bg-light text-primary border text-decoration-none">#{{ apt.lead.lead_code|default:apt.lead.pk }}</a></div>
           </td>
           <td>
             <div>{{ apt.lead.mobile }}</div>

@@ -121,8 +121,9 @@
                                     {{ item.lead.name }}
                                 </a>
                             </div>
-                            <div class="text-muted" style="font-size: 0.74rem;">
-                                <i class="fa-solid fa-phone me-1 text-muted"></i> {{ item.lead.mobile }}
+                            <div class="mt-0.5">
+                                <a href="{% url 'leads:lead_detail' item.lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ item.lead.lead_code|default:item.lead.pk }}</a>
+                                <span class="text-muted ms-1" style="font-size: 0.74rem;"><i class="fa-solid fa-phone me-1 text-muted"></i>{{ item.lead.mobile }}</span>
                             </div>
                             {% if item.lead.custom_data.doctor %}
                             <div class="text-muted" style="font-size: 0.7rem;">

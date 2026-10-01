@@ -167,7 +167,10 @@
                         <td>
                             {% if task.lead %}
                                 <div><a href="{% url 'leads:lead_detail' task.lead.pk %}" class="fw-semibold text-dark text-decoration-none">{{ task.lead.name }}</a></div>
-                                <div class="text-muted" style="font-size: 0.74rem;">{{ task.lead.mobile }}</div>
+                                <div class="small mt-0.5">
+                                    <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ task.lead.lead_code|default:task.lead.pk }}</a>
+                                    <span class="text-muted ms-1" style="font-size: 0.74rem;">{{ task.lead.mobile }}</span>
+                                </div>
                                 {% if task.sync_to_followup %}
                                     <span class="badge bg-light text-muted border" style="font-size: 0.62rem;">Synced Followup</span>
                                 {% endif %}

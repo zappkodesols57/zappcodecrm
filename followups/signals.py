@@ -40,11 +40,14 @@ def _followup_activity(sender, instance, created, **kwargs):
         "followup_count": lead.followup_count,
     }
     from leads.models import LeadTemperature, LeadStage
-    if lead.temperature == LeadTemperature.UNCONTACTED or lead.temperature == "UNCONTACTED":
-        lead.temperature = LeadTemperature.WARM
-        update_kwargs["temperature"] = LeadTemperature.WARM
+    # Dynamically update temperature based on positive/negative remarks
+    new_temp = (lead.custom_temperature or "").upper()
+    if new_temp in LeadTemperature.values:
+        lead.temperature = new_temp
+        update_kwargs["temperature"] = new_temp
+
     if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-        fu_stage = LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+        fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
         if fu_stage:
             lead.stage = fu_stage
             update_kwargs["stage"] = fu_stage

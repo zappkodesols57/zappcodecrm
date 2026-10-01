@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block title %}Temperature Manager - {{ current_hospital.name|default:"Global" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 py-2">
+  <!-- Top Header Banner -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-4" style="border: 1px solid #e2e8f0 !important;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill px-3 py-1">
+            <i class="fa-solid fa-fire me-1"></i> Temperature System
+          </span>
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-1">
+            <i class="fa-solid fa-building me-1"></i> {{ current_hospital.name|default:"Global Business" }}
+          </span>
+        </div>
+        <h4 class="fw-bold text-dark mb-1">Temperature Keyword Manager</h4>
+        <p class="text-muted small mb-0">
+          Manage positive and negative keywords for call remarks and interaction notes. Leads dynamically scale temperature based on these keywords.
+        </p>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-success rounded-3 px-3 py-2 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addPosKeywordModal">
+          <i class="fa-solid fa-plus me-1"></i> Add Positive Keyword
+        </button>
+        <button type="button" class="btn btn-sm btn-danger rounded-3 px-3 py-2 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addNegKeywordModal">
+          <i class="fa-solid fa-plus me-1"></i> Add Negative Keyword
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Business Selector (For SuperAdmin / Multi-business Access) -->
+  {% if is_global_admin and available_businesses %}
+  <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-2" style="border: 1px solid #e2e8f0 !important;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-2 py-1">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-light text-secondary border px-2.5 py-1.5 rounded-2 small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+          Business Scope:
+        </span>
+        <div class="nav nav-pills gap-2">
+          <a href="?business=default" class="nav-link rounded-2 px-3 py-1.5 fw-semibold small transition-all {% if is_default_tab %}active bg-dark text-white shadow-sm{% else %}bg-light text-secondary border hover-bg-light{% endif %}" style="font-size: 0.82rem;">
+            Default Global Stack
+            {% if is_default_tab %}
+              <span class="badge bg-white text-dark ms-1.5 px-1.5 py-0.5 rounded-2" style="font-size: 0.68rem;">Active</span>
+            {% endif %}
+          </a>
+
+          {% for b in available_businesses %}
+          <a href="?business={{ b.id }}" class="nav-link rounded-2 px-3 py-1.5 fw-semibold small transition-all {% if not is_default_tab and current_hospital.id == b.id %}active bg-primary text-white shadow-sm{% else %}bg-light text-secondary border hover-bg-light{% endif %}" style="font-size: 0.82rem;">
+            {{ b.name }}
+            {% if not is_default_tab and current_hospital.id == b.id %}
+              <span class="badge bg-white text-primary ms-1.5 px-1.5 py-0.5 rounded-2" style="font-size: 0.68rem;">Active</span>
+            {% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="text-muted small pe-2 d-none d-md-block">
+        Configuring keywords for: <strong class="text-dark">{% if is_default_tab %}Universal Global Default{% else %}{{ current_hospital.name }}{% endif %}</strong>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Temperature Logic Guide Alert -->
+  <div class="alert alert-light border rounded-4 p-3 mb-4 shadow-sm" style="background: #f8fafc;">
+    <div class="d-flex align-items-start gap-3">
+      <div class="bg-primary text-white rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; flex-shrink: 0;">
+        <i class="fa-solid fa-circle-info"></i>
+      </div>
+      <div class="small text-muted">
+        <strong class="text-dark d-block mb-1">How Automated Temperature Updates Work:</strong>
+        <ul class="mb-0 ps-3">
+          <li><strong>Initial State:</strong> New leads / Meta inquiries start at <span class="badge badge-hot">Hot</span>.</li>
+          <li><strong>Positive Match:</strong> Remarks matching positive keywords increase temperature 1 step (up to maximum <span class="badge badge-hot">Hot</span>).</li>
+          <li><strong>Negative Match:</strong> Remarks matching negative keywords decrease temperature 1 step: <span class="badge badge-hot">Hot</span> &rarr; <span class="badge badge-warm">Warm</span> &rarr; <span class="badge badge-cold">Cold</span> &rarr; <span class="badge badge-freeze">Freeze</span>.</li>
+          <li><strong>Other Remarks:</strong> Any comment/remark not in this stack leaves the temperature unchanged as-is.</li>
+          <li><strong>Stage Cancelled:</strong> Sets admission status to <em>Lost</em> and temperature directly to <span class="badge badge-freeze">Freeze</span>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Tables Stack (Positive & Negative) -->
+  <div class="row g-4 mb-4">
+    <!-- 1. Positive Keywords Card -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100 bg-white" style="border: 1px solid #e2e8f0 !important;">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
+                <i class="fa-solid fa-arrow-trend-up" style="font-size: 0.75rem;"></i>
+              </span>
+              <h6 class="fw-bold text-dark mb-0">Positive Keywords Stack</h6>
+            </div>
+            <small class="text-muted d-block mt-1">Keywords that increase lead temperature towards <strong>Hot</strong>.</small>
+          </div>
+          <button type="button" class="btn btn-sm btn-success rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addPosKeywordModal">
+            + Add
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th style="width: 50px;" class="ps-4 text-muted small">#</th>
+                  <th class="text-muted small">Keyword / Remark Text</th>
+                  <th style="width: 90px;" class="text-muted small">Code</th>
+                  <th class="text-center" style="width: 90px;">Status</th>
+                  <th class="text-end pe-4" style="width: 120px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in pos_items %}
+                <tr>
+                  <td class="ps-4 text-center text-muted fw-semibold">{{ forloop.counter }}</td>
+                  <td>
+                    <span class="fw-bold text-dark">{{ item.name }}</span>
+                    {% if not item.hospital %}
+                      <span class="badge bg-secondary-subtle text-muted ms-1" style="font-size: 0.65rem;">Global</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="text-muted font-monospace small">{{ item.code|default:"—" }}</span></td>
+                  <td class="text-center">
+                    {% if item.is_active %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Active</span>
+                    {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end pe-4">
+                    <div class="d-inline-flex gap-1 justify-content-end align-items-center">
+                      <button class="btn btn-sm btn-light border rounded-2 px-2 py-1 text-primary fw-medium" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}" title="Edit Keyword">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </button>
+                      <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=temperature_manager&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-2 px-2 py-1 {% if item.is_active %}text-secondary{% else %}text-success{% endif %} fw-medium" title="Toggle Status">
+                        {% if item.is_active %}<i class="fa-solid fa-eye-slash"></i>{% else %}<i class="fa-solid fa-eye"></i>{% endif %}
+                      </a>
+                      <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete keyword \'{{ item.name }}\'?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="from_view" value="temperature_manager">
+                        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+                        <button type="submit" class="btn btn-sm btn-light border rounded-2 px-2 py-1 text-danger fw-medium" title="Delete Keyword">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    No positive remark keywords configured for this business.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Negative Keywords Card -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100 bg-white" style="border: 1px solid #e2e8f0 !important;">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
+                <i class="fa-solid fa-arrow-trend-down" style="font-size: 0.75rem;"></i>
+              </span>
+              <h6 class="fw-bold text-dark mb-0">Negative Keywords Stack</h6>
+            </div>
+            <small class="text-muted d-block mt-1">Keywords that lower lead temperature (Warm / Cold / Freeze).</small>
+          </div>
+          <button type="button" class="btn btn-sm btn-danger rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#addNegKeywordModal">
+            + Add
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th style="width: 50px;" class="ps-4 text-muted small">#</th>
+                  <th class="text-muted small">Keyword / Remark Text</th>
+                  <th style="width: 90px;" class="text-muted small">Code</th>
+                  <th class="text-center" style="width: 90px;">Status</th>
+                  <th class="text-end pe-4" style="width: 120px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in neg_items %}
+                <tr>
+                  <td class="ps-4 text-center text-muted fw-semibold">{{ forloop.counter }}</td>
+                  <td>
+                    <span class="fw-bold text-dark">{{ item.name }}</span>
+                    {% if not item.hospital %}
+                      <span class="badge bg-secondary-subtle text-muted ms-1" style="font-size: 0.65rem;">Global</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="text-muted font-monospace small">{{ item.code|default:"—" }}</span></td>
+                  <td class="text-center">
+                    {% if item.is_active %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Active</span>
+                    {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end pe-4">
+                    <div class="d-inline-flex gap-1 justify-content-end align-items-center">
+                      <button class="btn btn-sm btn-light border rounded-2 px-2 py-1 text-primary fw-medium" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}" title="Edit Keyword">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </button>
+                      <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=temperature_manager&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-2 px-2 py-1 {% if item.is_active %}text-secondary{% else %}text-success{% endif %} fw-medium" title="Toggle Status">
+                        {% if item.is_active %}<i class="fa-solid fa-eye-slash"></i>{% else %}<i class="fa-solid fa-eye"></i>{% endif %}
+                      </a>
+                      <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete keyword \'{{ item.name }}\'?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="from_view" value="temperature_manager">
+                        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+                        <button type="submit" class="btn btn-sm btn-light border rounded-2 px-2 py-1 text-danger fw-medium" title="Delete Keyword">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    No negative remark keywords configured for this business.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- ADD POSITIVE KEYWORD MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="addPosKeywordModal" tabindex="-1" aria-labelledby="addPosKeywordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:master_item_add' %}">
+        {% csrf_token %}
+        <input type="hidden" name="from_view" value="temperature_manager">
+        <input type="hidden" name="group_id" value="{{ pos_group.id }}">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <div>
+            <div class="badge bg-success bg-opacity-10 text-success mb-1">Up-Shift to Hot</div>
+            <h5 class="modal-title fw-bold text-dark mb-0" id="addPosKeywordModalLabel">Add Positive Remark Keyword</h5>
+            <p class="text-muted small mb-0">Keywords that shift lead temperature back to Hot / Warm when entered in notes.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control rounded-3" placeholder="e.g. Interested, Callback, Will Visit, Ready to Book" required>
+            <small class="text-muted">Case-insensitive matching inside lead timeline notes and remarks.</small>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Short Code (Optional)</label>
+              <input type="text" name="code" class="form-control rounded-3" placeholder="e.g. INTERESTED">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Display Order</label>
+              <input type="number" name="order" class="form-control rounded-3" value="0" min="0">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0">
+          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success rounded-3 px-4 fw-semibold">Save Keyword</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- ADD NEGATIVE KEYWORD MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="addNegKeywordModal" tabindex="-1" aria-labelledby="addNegKeywordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:master_item_add' %}">
+        {% csrf_token %}
+        <input type="hidden" name="from_view" value="temperature_manager">
+        <input type="hidden" name="group_id" value="{{ neg_group.id }}">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <div>
+            <div class="badge bg-danger bg-opacity-10 text-danger mb-1">Down-Shift (Warm / Cold / Freeze)</div>
+            <h5 class="modal-title fw-bold text-dark mb-0" id="addNegKeywordModalLabel">Add Negative Remark Keyword</h5>
+            <p class="text-muted small mb-0">Keywords that lower lead temperature when customer doesn't pick or declines.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control rounded-3" placeholder="e.g. Call Not Received, Ringing, Switch Off, Busy" required>
+            <small class="text-muted">Case-insensitive matching inside lead timeline notes and remarks.</small>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Short Code (Optional)</label>
+              <input type="text" name="code" class="form-control rounded-3" placeholder="e.g. NOT_REC">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Display Order</label>
+              <input type="number" name="order" class="form-control rounded-3" value="0" min="0">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0">
+          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger rounded-3 px-4 fw-semibold">Save Keyword</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- EDIT ITEM MODALS FOR POSITIVE & NEGATIVE KEYWORDS -->
+<!-- ========================================================================= -->
+{% for item in pos_items %}
+<div class="modal fade" id="editItemModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:master_item_edit' item.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="from_view" value="temperature_manager">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <h5 class="modal-title fw-bold text-dark mb-0">Edit Positive Keyword</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control rounded-3" value="{{ item.name }}" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Short Code</label>
+              <input type="text" name="code" class="form-control rounded-3" value="{{ item.code }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Display Order</label>
+              <input type="number" name="order" class="form-control rounded-3" value="{{ item.order }}" min="0">
+            </div>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_active" id="editItemActivePos{{ item.id }}" {% if item.is_active %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold text-dark" for="editItemActivePos{{ item.id }}">Active Keyword</label>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0">
+          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Update Keyword</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% for item in neg_items %}
+<div class="modal fade" id="editItemModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:master_item_edit' item.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="from_view" value="temperature_manager">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <h5 class="modal-title fw-bold text-dark mb-0">Edit Negative Keyword</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Keyword / Remark Text <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control rounded-3" value="{{ item.name }}" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Short Code</label>
+              <input type="text" name="code" class="form-control rounded-3" value="{{ item.code }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Display Order</label>
+              <input type="number" name="order" class="form-control rounded-3" value="{{ item.order }}" min="0">
+            </div>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_active" id="editItemActiveNeg{{ item.id }}" {% if item.is_active %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold text-dark" for="editItemActiveNeg{{ item.id }}">Active Keyword</label>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0">
+          <button type="button" class="btn btn-light rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Update Keyword</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

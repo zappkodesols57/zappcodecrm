@@ -22,6 +22,7 @@ urlpatterns = [
     path("<int:pk>/add-followup/", views.add_followup, name="add_followup"),
     path("<int:pk>/followup/<int:fu_id>/update/", views.update_followup_status, name="update_followup_status"),
     path("<int:pk>/quick-update-stage/", views.lead_quick_update_stage, name="lead_quick_update_stage"),
+    path("<int:pk>/update-admission-status/", views.update_admission_status, name="update_admission_status"),
     path("<int:pk>/convert-admission/", views.convert_admission, name="convert_admission"),
     path("bulk-action/", views.bulk_action, name="bulk_action"),
     path("archived/", views.archived_leads, name="archived_leads"),
@@ -43,7 +44,8 @@ urlpatterns = [
     path("universal-masters/item/<int:pk>/edit/", views.master_item_edit, name="master_item_edit"),
     path("universal-masters/item/<int:pk>/toggle/", views.master_item_toggle, name="master_item_toggle"),
     path("universal-masters/item/<int:pk>/delete/", views.master_item_delete, name="master_item_delete"),
-    path("universal-masters/import/", views.universal_master_import, name="universal_master_import"),
+    # Temperature Manager route
+    path("temperature-manager/", views.temperature_manager, name="temperature_manager"),
 
     # Dynamic Lead Custom Form Fields routes
     path("universal-masters/custom-fields/add/", views.custom_field_add, name="custom_field_add"),

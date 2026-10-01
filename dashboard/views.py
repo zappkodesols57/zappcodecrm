@@ -40,7 +40,7 @@ def filter_uncontacted_leads_ids(c_base, today=None):
     ).exclude(
         deal_status__in=[DealStatus.WON, DealStatus.LOST, 'WON', 'LOST', 'CLOSED']
     ).exclude(
-        admission_status__in=[AdmissionStatus.ADMISSION_DONE, 'ADMISSION_DONE']
+        admission_status__in=[AdmissionStatus.WON, 'ADMISSION_DONE', 'WON']
     ).exclude(
         admission__isnull=False
     ).filter(
@@ -136,31 +136,40 @@ def filter_uncontacted_leads_ids(c_base, today=None):
 def extract_lead_followup_date(l):
     """
     Extracts the effective scheduled follow-up date for a lead.
-    Checks:
-    1. Lead.next_followup_date
-    2. Linked FollowUp objects (next_followup_date first, then followup_date)
-    3. custom_data follow-up / calling dates
+    Only considers active/pending follow-ups (FollowUpStatus.PENDING / RESCHEDULED)
+    and excludes completed leads.
     """
+    from followups.models import FollowUpStatus
+
+    # Check prefetched followups first if present
+    if hasattr(l, '_prefetched_objects_cache') and 'followups' in l._prefetched_objects_cache:
+        pending_fus = [fu for fu in l.followups.all() if fu.followup_status in [FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]]
+        if pending_fus:
+            # Return earliest upcoming/scheduled pending date
+            for fu in sorted(pending_fus, key=lambda x: (x.followup_date, x.followup_time or datetime.min.time())):
+                if fu.followup_date:
+                    return fu.followup_date
+        # If all followups are COMPLETED, return None
+        all_fus = list(l.followups.all())
+        if all_fus and all(fu.followup_status in [FollowUpStatus.COMPLETED, "COMPLETED", "DONE"] for fu in all_fus):
+            return None
+    else:
+        pending_fu = l.followups.filter(
+            followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]
+        ).order_by('followup_date', 'followup_time').first()
+        if pending_fu and pending_fu.followup_date:
+            return pending_fu.followup_date
+        
+        has_any_fu = l.followups.exists()
+        if has_any_fu:
+            # Has followups but none are pending (all completed/done)
+            return None
+
     if l.next_followup_date:
         return l.next_followup_date
-    
-    if hasattr(l, '_prefetched_objects_cache') and 'followups' in l._prefetched_objects_cache:
-        for fu in l.followups.all():
-            if fu.next_followup_date:
-                return fu.next_followup_date
-        for fu in l.followups.all():
-            if fu.followup_date:
-                return fu.followup_date
-    else:
-        fu_with_next = l.followups.filter(next_followup_date__isnull=False).order_by('-id').first()
-        if fu_with_next and fu_with_next.next_followup_date:
-            return fu_with_next.next_followup_date
-        fu_with_date = l.followups.filter(followup_date__isnull=False).order_by('-id').first()
-        if fu_with_date and fu_with_date.followup_date:
-            return fu_with_date.followup_date
-            
+
     cd = l.custom_data or {}
-    for k in ['next_followup_date', 'followup_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_date_remark_3', 'last_called_date']:
+    for k in ['next_followup_date', 'followup_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_date_remark_3']:
         v = cd.get(k)
         if v:
             v_str = str(v).strip()[:10]
@@ -608,10 +617,22 @@ def home(request):
     source_labels = [s["lead_source__name"] or "Unspecified" for s in source_data]
     source_counts = [s["count"] for s in source_data]
 
-    # 4. Chart Data (Stage Funnel)
-    stage_data = list(
-        LeadStage.objects.filter(is_active=True).order_by("order")
-    )
+    # 4. Chart Data (Stage Funnel) - strictly scoped to user's business_id
+    current_business_id = request.user.hospital_id or getattr(request.user, "business_id", None)
+    if current_business_id:
+        stage_data = list(
+            LeadStage.objects.filter(is_active=True, hospital_id=current_business_id).order_by("order", "name")
+        )
+    else:
+        # Global Super Admin without hospital filter: check selected hospital or fallback
+        if selected_hospital_id and selected_hospital_id.isdigit():
+            stage_data = list(
+                LeadStage.objects.filter(is_active=True, hospital_id=int(selected_hospital_id)).order_by("order", "name")
+            )
+        else:
+            stage_data = list(
+                LeadStage.objects.filter(is_active=True).order_by("order", "name")
+            )
     funnel_labels = [s.name for s in stage_data]
     funnel_counts = []
     for s in stage_data:
@@ -2328,6 +2349,7 @@ def nel_card_drilldown_api(request):
 
         lead_items.append({
             "id": l.id,
+            "lead_code": l.lead_code or str(l.id),
             "name": l.name or ("Anonymous Patient" if is_hosp_lead else "Anonymous Student"),
             "mobile": l.mobile or "-",
             "clean_mobile": mob_digits or "",
@@ -3719,31 +3741,170 @@ def submit_daily_report(request):
         })
 
     # ── Compute suggestions from today's actions ─────────────
+    from followups.models import FollowUp, Note, Activity, ActivityType, FollowUpMode, FollowUpStatus
+    import datetime as dt_module
+
+    tz = timezone.get_current_timezone()
+    start_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.min), tz)
+    end_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.max), tz)
+
+    # 1. Today's Assigned Leads (leads captured, created, self-assigned or assigned/transferred to user today)
+    assigned_leads_qs = Lead.objects.filter(
+        Q(assigned_to=request.user, inquiry_date=report_date) |
+        Q(assigned_to=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, inquiry_date=report_date)
+    )
+    assigned_leads_ids = set(assigned_leads_qs.values_list('id', flat=True))
+
+    # Also include leads where an ASSIGNMENT activity or AuditLog assigned the lead to this user today
+    assignment_activities_lead_ids = set(Activity.objects.filter(
+        activity_type=ActivityType.ASSIGNMENT,
+        created_at__range=(start_dt, end_dt)
+    ).filter(
+        Q(description__icontains=str(request.user.get_full_name() or request.user.username)) |
+        Q(created_by=request.user)
+    ).values_list('lead_id', flat=True))
+
+    assignment_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        action="ASSIGNMENT",
+        created_at__range=(start_dt, end_dt),
+        new_value__icontains=str(request.user.get_full_name() or request.user.username)
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            assignment_audit_lead_ids.add(int(obj_id))
+
+    all_assigned_today_lead_ids = assigned_leads_ids | assignment_activities_lead_ids | assignment_audit_lead_ids
+    leads_assigned_cnt = len(all_assigned_today_lead_ids)
+
+    # 2. Today's Calls / Touches (Unique leads where user updated status, remarks, follow-ups, or any updates today)
+    user_fu_lead_ids = set(FollowUp.objects.filter(
+        Q(created_by=request.user, followup_date=report_date) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    user_note_lead_ids = set(Note.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_activity_lead_ids = set(Activity.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        user=request.user,
+        created_at__range=(start_dt, end_dt),
+        model_name__iexact='Lead'
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            user_audit_lead_ids.add(int(obj_id))
+
+    all_touched_today_lead_ids = user_fu_lead_ids | user_note_lead_ids | user_activity_lead_ids | user_audit_lead_ids
+    calls_attended_cnt = len(all_touched_today_lead_ids)
+
     day_followups = FollowUp.objects.filter(
         Q(created_by=request.user, followup_date=report_date) |
-        Q(created_by=request.user, created_at__date=report_date)
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
     )
-    
-    # 1. Calls & Follow-ups / Touches
-    outgoing_calls_cnt = day_followups.filter(followup_mode="CALL_OUTGOING").count()
-    incoming_calls_cnt = day_followups.filter(followup_mode="CALL_INCOMING").count()
+    outgoing_calls_cnt = day_followups.filter(followup_mode=FollowUpMode.CALL_OUTGOING).count()
+    incoming_calls_cnt = day_followups.filter(followup_mode=FollowUpMode.CALL_INCOMING).count()
     calls_not_connected_cnt = day_followups.filter(followup_status="NOT_CONNECTED").count()
     follow_ups_taken_cnt = day_followups.count()
 
-    leads_touched_today = Lead.objects.filter(
-        Q(created_by=request.user, created_at__date=report_date) |
-        Q(assigned_to=request.user, updated_at__date=report_date)
-    ).distinct().count()
-    calls_attended_cnt = max(follow_ups_taken_cnt, leads_touched_today, day_followups.filter(followup_mode__in=["CALL_OUTGOING", "CALL_INCOMING", "CALL"]).count())
+    # 3. Admissions Done Today (Leads whose stage became Admission Done, Payment Pending, Payment Done or Admission record created today)
+    today_adm_record_lead_ids = set(Admission.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
+        Q(admission_date=report_date) | Q(created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
 
-    # 2. Leads Assigned to this user today (Captured by user + Assigned by admin/manager)
-    leads_assigned_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user, inquiry_date=report_date) |
-        Q(assigned_to=request.user, created_at__date=report_date) |
-        Q(created_by=request.user, created_at__date=report_date)
-    ).distinct().count()
+    today_adm_stage_lead_ids = set(Lead.objects.filter(
+        assigned_to=request.user,
+        updated_at__range=(start_dt, end_dt)
+    ).filter(
+        Q(stage__name__icontains="Admission") |
+        Q(stage__name__icontains="Payment") |
+        Q(admission_status="WON")
+    ).values_list('id', flat=True))
 
-    # 3. Appointments Booked / Approved today (for Hospital)
+    today_adm_activity_lead_ids = set(Activity.objects.filter(
+        Q(created_by=request.user) | Q(lead__assigned_to=request.user),
+        created_at__range=(start_dt, end_dt),
+        activity_type__in=[ActivityType.ADMISSION, ActivityType.STAGE_CHANGE]
+    ).filter(
+        Q(description__icontains="Admission") | Q(description__icontains="Payment")
+    ).values_list('lead_id', flat=True))
+
+    all_admission_done_lead_ids = today_adm_record_lead_ids | today_adm_stage_lead_ids | today_adm_activity_lead_ids
+    admissions_today_cnt = len(all_admission_done_lead_ids)
+
+    # 4. Payments Done Today (Leads whose stage became Payment Done or has payment today)
+    today_payment_lead_ids = set(Payment.objects.filter(
+        Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user),
+        payment_date=report_date,
+        payment_status=PaymentStatus.SUCCESS
+    ).values_list('admission__lead_id', flat=True))
+
+    today_payment_stage_lead_ids = set(Lead.objects.filter(
+        assigned_to=request.user,
+        updated_at__range=(start_dt, end_dt),
+        stage__name__icontains="Payment Done"
+    ).values_list('id', flat=True))
+
+    all_payment_done_lead_ids = today_payment_lead_ids | today_payment_stage_lead_ids
+    payments_done_cnt = len(all_payment_done_lead_ids)
+
+    payments_today_qs = Payment.objects.filter(
+        Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user),
+        payment_date=report_date,
+        payment_status=PaymentStatus.SUCCESS
+    )
+    fees_today_sum = payments_today_qs.aggregate(s=Sum("amount"))["s"] or 0
+
+    # 5. Pending Leads (User's assigned leads whose followup was today or earlier with status PENDING)
+    pending_followups_lead_ids = set(FollowUp.objects.filter(
+        lead__assigned_to=request.user,
+        followup_date__lte=report_date,
+        followup_status=FollowUpStatus.PENDING
+    ).values_list('lead_id', flat=True))
+
+    # Also check leads table next_followup_date cache
+    pending_leads_table_ids = set(Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False,
+        next_followup_date__lte=report_date
+    ).exclude(
+        deal_status__in=["WON", "LOST"]
+    ).values_list('id', flat=True))
+
+    all_pending_leads_ids = pending_followups_lead_ids | pending_leads_table_ids
+    pending_leads_cnt = len(all_pending_leads_ids)
+    follow_ups_pending_cnt = pending_leads_cnt
+
+    # 6. Tomorrow's Follow-ups (Tomorrow's pending follow-ups + Today's pending leads)
+    tomorrow_date = report_date + timedelta(days=1)
+    tomorrow_fu_lead_ids = set(FollowUp.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(created_by=request.user),
+        followup_date=tomorrow_date,
+        followup_status=FollowUpStatus.PENDING
+    ).values_list('lead_id', flat=True))
+
+    tomorrow_leads_table_ids = set(Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False,
+        next_followup_date=tomorrow_date
+    ).exclude(
+        deal_status__in=["WON", "LOST"]
+    ).values_list('id', flat=True))
+
+    all_tomorrow_scheduled_lead_ids = tomorrow_fu_lead_ids | tomorrow_leads_table_ids
+    # User requirement: Tomorrow followups count = tomorrow pending follow-ups + today's pending leads
+    tomorrow_followups_cnt = len(all_tomorrow_scheduled_lead_ids) + pending_leads_cnt
+
+    # Hospital specific appointments calculation
     from leads.models import Appointment, AppointmentStatus
     report_date_str = report_date.strftime("%Y-%m-%d")
     report_date_alt_str = report_date.strftime("%d-%m-%Y")
@@ -3775,7 +3936,6 @@ def submit_daily_report(request):
 
     appointments_booked_cnt = max(appts_model_cnt, appts_leads_cnt)
 
-    # 4. Freeze Leads (Cancelled / Not Interested / Cold)
     freeze_leads_cnt = Lead.objects.filter(
         assigned_to=request.user,
         updated_at__date=report_date
@@ -3785,39 +3945,6 @@ def submit_daily_report(request):
         Q(custom_data__appointment_status__icontains="Reject") |
         Q(custom_data__appointment_status__icontains="Not Interested")
     ).count()
-
-    # 5. Pending Leads (Today's pending followups & uncontacted/open assigned leads)
-    pending_followups_cnt = FollowUp.objects.filter(
-        lead__assigned_to=request.user,
-        followup_date__lte=report_date,
-        followup_status__in=["PENDING", "MISSED", "SCHEDULED"]
-    ).values('lead').distinct().count()
-
-    uncontacted_assigned_cnt = len(filter_uncontacted_leads_ids(
-        Lead.objects.filter(assigned_to=request.user, is_archived=False),
-        today=report_date
-    ))
-
-    follow_ups_pending_cnt = FollowUp.objects.filter(
-        lead__assigned_to=request.user,
-        followup_date__lte=report_date,
-        followup_status__in=["PENDING", "MISSED", "SCHEDULED"]
-    ).count()
-
-    pending_leads_cnt = max(pending_followups_cnt + uncontacted_assigned_cnt, follow_ups_pending_cnt)
-
-    # 6. Tomorrow's Follow-ups scheduled
-    tomorrow_date = report_date + timedelta(days=1)
-    tomorrow_fu_cnt = FollowUp.objects.filter(
-        Q(lead__assigned_to=request.user) | Q(created_by=request.user),
-        followup_date=tomorrow_date,
-        followup_status__in=["PENDING", "SCHEDULED"]
-    ).count()
-    tomorrow_lead_cnt = Lead.objects.filter(
-        assigned_to=request.user,
-        next_followup_date=tomorrow_date
-    ).count()
-    tomorrow_followups_cnt = max(tomorrow_fu_cnt, tomorrow_lead_cnt)
 
     leads_interested_cnt = Lead.objects.filter(
         assigned_to=request.user,
@@ -3841,7 +3968,7 @@ def submit_daily_report(request):
         Q(custom_data__status__icontains="Visit")
     ).count()
 
-    # 7. Login / Logout times from AuditLog
+    # Login / Logout times from AuditLog
     first_login_log = AuditLog.objects.filter(
         user=request.user, 
         action="USER_LOGIN", 
@@ -3862,28 +3989,6 @@ def submit_daily_report(request):
         created_at__date=report_date
     ).order_by("-created_at").first()
     last_logout_time = last_logout_log.created_at if last_logout_log else None
-    
-    # 8. Admissions Done today and Payments Done today
-    adm_records_cnt = Admission.objects.filter(
-        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
-        admission_date=report_date
-    ).count()
-    lead_adm_cnt = Lead.objects.filter(
-        assigned_to=request.user
-    ).filter(
-        Q(admission_status="ADMITTED") | Q(stage__name__icontains="Admission")
-    ).filter(
-        Q(updated_at__date=report_date) | Q(admission__admission_date=report_date)
-    ).distinct().count()
-    admissions_today_cnt = max(adm_records_cnt, lead_adm_cnt)
-
-    payments_today_qs = Payment.objects.filter(
-        Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user),
-        payment_date=report_date,
-        payment_status=PaymentStatus.SUCCESS
-    )
-    payments_done_cnt = payments_today_qs.count()
-    fees_today_sum = payments_today_qs.aggregate(s=Sum("amount"))["s"] or 0
 
     # ── Determine who this report will be sent to ─────────────
     # If user has reports_to set, send to them.
@@ -4154,6 +4259,291 @@ def submit_daily_report(request):
         "recipients": recipients,
         "existing": report_instance is not None,
     })
+
+
+@login_required
+def export_daily_activity_leads(request):
+    """
+    Export all unique leads touched or updated by the user today (or specified date) to an Excel (.xlsx) file.
+    Includes:
+    - Inquiry Date, Name, Contact, Alternate Mobile, Email, Course / Purpose, City, Location
+    - Action by User today (from Timeline Activity / AuditLog)
+    - Follow-ups Count, Follow-up Dates list, Remarks list
+    - Latest Follow-up Date, Latest Follow-up Remark, Latest Follow-up Status
+    - Lead Temperature, Lead Stage, Admission Status, Payment Status
+    """
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from datetime import datetime
+    from followups.models import FollowUp, Note, Activity, ActivityType
+    from audit.models import AuditLog
+    from admissions.models import Admission
+
+    date_str = request.GET.get("date")
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    # 1. Collect all unique lead IDs assigned to or touched by this user on report_date
+    import datetime as dt_module
+    tz = timezone.get_current_timezone()
+    start_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.min), tz)
+    end_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.max), tz)
+
+    assigned_leads_qs = Lead.objects.filter(
+        Q(assigned_to=request.user, inquiry_date=report_date) |
+        Q(assigned_to=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, inquiry_date=report_date)
+    )
+    assigned_lead_ids = set(assigned_leads_qs.values_list('id', flat=True))
+
+    assignment_activities_lead_ids = set(Activity.objects.filter(
+        activity_type=ActivityType.ASSIGNMENT,
+        created_at__range=(start_dt, end_dt)
+    ).filter(
+        Q(description__icontains=str(request.user.get_full_name() or request.user.username)) |
+        Q(created_by=request.user)
+    ).values_list('lead_id', flat=True))
+
+    assignment_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        action="ASSIGNMENT",
+        created_at__range=(start_dt, end_dt),
+        new_value__icontains=str(request.user.get_full_name() or request.user.username)
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            assignment_audit_lead_ids.add(int(obj_id))
+
+    user_fu_lead_ids = set(FollowUp.objects.filter(
+        Q(created_by=request.user, followup_date=report_date) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    user_note_lead_ids = set(Note.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_activity_lead_ids = set(Activity.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        user=request.user,
+        created_at__range=(start_dt, end_dt),
+        model_name__iexact='Lead'
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            user_audit_lead_ids.add(int(obj_id))
+
+    today_adm_record_lead_ids = set(Admission.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
+        Q(admission_date=report_date) | Q(created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    # All unique lead IDs
+    all_target_lead_ids = (
+        assigned_lead_ids |
+        assignment_activities_lead_ids |
+        assignment_audit_lead_ids |
+        user_fu_lead_ids |
+        user_note_lead_ids |
+        user_activity_lead_ids |
+        user_audit_lead_ids |
+        today_adm_record_lead_ids
+    )
+
+    leads = Lead.objects.filter(id__in=all_target_lead_ids).select_related(
+        'course', 'stage', 'assigned_to', 'created_by', 'admission'
+    ).prefetch_related('followups', 'lead_notes', 'activities').order_by('-updated_at')
+
+    # Create openpyxl workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Today Activity Leads"
+
+    # Styling definitions
+    title_font = Font(name="Calibri", size=15, bold=True, color="1E3A8A")
+    meta_font = Font(name="Calibri", size=10, italic=True, color="475569")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")
+    alt_row_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    regular_font = Font(name="Calibri", size=10, color="1E293B")
+    border_thin = Side(border_style="thin", color="CBD5E1")
+    cell_border = Border(left=border_thin, right=border_thin, top=border_thin, bottom=border_thin)
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    # Title & Metadata block
+    ws.merge_cells("A1:P1")
+    ws["A1"] = f"EOD Activity Leads Report - {request.user.get_full_name() or request.user.username}"
+    ws["A1"].font = title_font
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
+
+    ws.merge_cells("A2:P2")
+    ws["A2"] = f"Report Date: {report_date.strftime('%d-%b-%Y')}  |  Total Unique Leads: {leads.count()}  |  Generated on: {timezone.now().strftime('%d-%b-%Y %I:%M %p')}"
+    ws["A2"].font = meta_font
+    ws["A2"].alignment = Alignment(horizontal="left", vertical="center")
+
+    headers = [
+        "SR NO",
+        "INQUIRY DATE",
+        "LEAD CODE",
+        "STUDENT / LEAD NAME",
+        "CONTACT NUMBER",
+        "COURSE / PURPOSE",
+        "CITY / LOCATION",
+        "ACTIONS BY USER TODAY (TIMELINE)",
+        "TOTAL FOLLOW-UPS",
+        "ALL FOLLOW-UP REMARKS & DATES",
+        "LATEST FOLLOW-UP DATE",
+        "LATEST FOLLOW-UP STATUS",
+        "LATEST REMARK / NOTE",
+        "LEAD TEMPERATURE",
+        "LEAD STAGE",
+        "ADMISSION / PAYMENT STATUS"
+    ]
+
+    # Write header row (Row 4)
+    header_row_idx = 4
+    for col_idx, header_text in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row_idx, column=col_idx, value=header_text)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        cell.border = cell_border
+    ws.row_dimensions[header_row_idx].height = 28
+
+    # Populate Data
+    for row_num, lead in enumerate(leads, start=1):
+        curr_row = header_row_idx + row_num
+
+        # 1. Action by user today
+        today_acts = lead.activities.filter(
+            Q(created_by=request.user) | Q(created_at__range=(start_dt, end_dt)),
+            created_at__range=(start_dt, end_dt)
+        ).order_by('created_at')
+        actions_list = [f"• {act.get_activity_type_display()}: {act.description}" for act in today_acts]
+        if not actions_list:
+            if lead.assigned_to == request.user:
+                actions_list.append("• Assigned to user")
+            if lead.created_by == request.user:
+                actions_list.append("• Created/Captured by user")
+        actions_str = "\n".join(actions_list) if actions_list else "Updated today"
+
+        # 2. Follow-ups
+        all_fus = list(lead.followups.all().order_by('followup_date', 'created_at'))
+        fu_count = len(all_fus)
+        all_fu_details = []
+        for fu in all_fus:
+            dt_str = fu.followup_date.strftime("%d/%m/%Y") if fu.followup_date else ""
+            cm_str = f" - {fu.comment}" if fu.comment else ""
+            all_fu_details.append(f"[{dt_str} | {fu.get_followup_mode_display()} | {fu.get_followup_status_display()}]{cm_str}")
+        all_fu_str = "\n".join(all_fu_details) if all_fu_details else "No followups recorded"
+
+        latest_fu = all_fus[-1] if all_fus else None
+        latest_fu_date_str = latest_fu.followup_date.strftime("%d-%b-%Y") if (latest_fu and latest_fu.followup_date) else (lead.next_followup_date.strftime("%d-%b-%Y") if lead.next_followup_date else "-")
+        latest_fu_status_str = latest_fu.get_followup_status_display() if latest_fu else "-"
+        
+        # Latest Note / Remark
+        latest_note = lead.lead_notes.order_by('-created_at').first()
+        latest_remark_str = latest_note.note if latest_note else (latest_fu.comment if (latest_fu and latest_fu.comment) else (lead.notes or "-"))
+
+        # Course / City info
+        course_name = lead.course.name if lead.course else (lead.custom_data.get('department') or lead.lead_type or "-")
+        city_loc = ", ".join(filter(None, [lead.city, lead.location])) or "-"
+
+        # Admission & Payment status
+        adm_status_list = []
+        if hasattr(lead, 'admission') and lead.admission:
+            adm = lead.admission
+            adm_status_list.append(f"Admitted ({adm.course.name if adm.course else ''})")
+            if adm.collected > 0:
+                adm_status_list.append(f"Paid: ₹{adm.collected:,.0f}")
+            else:
+                adm_status_list.append("Payment Pending")
+        else:
+            adm_status_list.append(lead.get_admission_status_display() or "Open")
+            if lead.stage and "payment" in lead.stage.name.lower():
+                adm_status_list.append(lead.stage.name)
+        adm_payment_str = " | ".join(adm_status_list)
+
+        row_data = [
+            row_num,
+            lead.inquiry_date.strftime("%d-%b-%Y") if lead.inquiry_date else "",
+            lead.lead_code,
+            lead.name,
+            lead.mobile,
+            course_name,
+            city_loc,
+            actions_str,
+            fu_count,
+            all_fu_str,
+            latest_fu_date_str,
+            latest_fu_status_str,
+            latest_remark_str,
+            lead.get_temperature_display() if hasattr(lead, 'get_temperature_display') else lead.temperature,
+            lead.stage.name if lead.stage else "-",
+            adm_payment_str
+        ]
+
+        is_even = (row_num % 2 == 0)
+        for col_idx, val in enumerate(row_data, start=1):
+            cell = ws.cell(row=curr_row, column=col_idx, value=val)
+            cell.font = regular_font
+            cell.border = cell_border
+            if is_even:
+                cell.fill = alt_row_fill
+            if col_idx in (1, 2, 3, 5, 9, 11, 12, 14):
+                cell.alignment = center_align
+            else:
+                cell.alignment = left_align
+
+        ws.row_dimensions[curr_row].height = 45
+
+    # Auto-adjust column widths
+    col_widths = {
+        1: 8,   # SR NO
+        2: 14,  # INQUIRY DATE
+        3: 16,  # LEAD CODE
+        4: 22,  # NAME
+        5: 16,  # CONTACT
+        6: 22,  # COURSE
+        7: 20,  # CITY
+        8: 36,  # ACTIONS TODAY
+        9: 14,  # FU COUNT
+        10: 40, # ALL FU REMARKS
+        11: 18, # LATEST FU DATE
+        12: 18, # LATEST FU STATUS
+        13: 30, # LATEST REMARK
+        14: 16, # TEMPERATURE
+        15: 18, # STAGE
+        16: 26, # ADMISSION / PAYMENT STATUS
+    }
+    for col_idx, width in col_widths.items():
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = width
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"EOD_Activity_Leads_{request.user.username}_{report_date.strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @login_required
@@ -4705,9 +5095,9 @@ def telecaller_search(request):
     # Conversion status
     converted_filter = request.GET.get('converted', '')
     if converted_filter == 'yes':
-        leads = leads.filter(admission_status=AdmissionStatus.ADMISSION_DONE)
+        leads = leads.filter(Q(admission_status=AdmissionStatus.WON) | Q(admission_status='ADMISSION_DONE') | Q(deal_status=DealStatus.WON))
     elif converted_filter == 'no':
-        leads = leads.exclude(admission_status=AdmissionStatus.ADMISSION_DONE)
+        leads = leads.exclude(Q(admission_status=AdmissionStatus.WON) | Q(admission_status='ADMISSION_DONE') | Q(deal_status=DealStatus.WON))
 
     # Handle Export (Excel & PDF)
     export_format = request.GET.get('export', '').lower()

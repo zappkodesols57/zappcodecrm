@@ -103,12 +103,12 @@
   </div>
   <div class="row g-2 mt-1">
     <div class="col-md-2">
-      <select name="deal_status" class="form-select form-select-sm">
-        <option value="">All Deal Statuses</option>
-        <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-        <option value="WON" {% if request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-        <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-        <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+      <select name="admission_status" class="form-select form-select-sm">
+        <option value="">All Admission Statuses</option>
+        <option value="OPEN" {% if request_get.admission_status == "OPEN" or request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+        <option value="HOLD" {% if request_get.admission_status == "HOLD" or request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+        <option value="WON" {% if request_get.admission_status == "WON" or request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+        <option value="LOST" {% if request_get.admission_status == "LOST" or request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
       </select>
     </div>
     <div class="col-md-2">

@@ -330,8 +330,9 @@
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                                             {{ lead.name }}
                                         </a>
-                                        <div class="small text-muted">
-                                            {{ lead.mobile }}
+                                        <div class="small mt-0.5">
+                                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</a>
+                                            <span class="text-muted ms-1">{{ lead.mobile }}</span>
                                         </div>
                                     </td>
                                     <td>
@@ -417,8 +418,9 @@
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                                             {{ lead.name }}
                                         </a>
-                                        <div class="small text-muted">
-                                            {{ lead.mobile }}
+                                        <div class="small mt-0.5">
+                                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</a>
+                                            <span class="text-muted ms-1">{{ lead.mobile }}</span>
                                         </div>
                                     </td>
                                     <td>
@@ -502,8 +504,9 @@
                                         <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                                             {{ lead.name }}
                                         </a>
-                                        <div class="small text-muted">
-                                            {{ lead.mobile }}
+                                        <div class="small mt-0.5">
+                                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</a>
+                                            <span class="text-muted ms-1">{{ lead.mobile }}</span>
                                         </div>
                                     </td>
                                     <td>
@@ -2072,7 +2075,10 @@
                     <a href="${leadDetailHref}" class="fw-bold text-dark text-decoration-none hover-primary">
                         ${lead.name}
                     </a>
-                    <div class="text-muted small" style="font-size: 0.72rem;">Added: ${lead.created_date}</div>
+                    <div class="mt-0.5">
+                        <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${lead.lead_code || lead.id}</a>
+                        <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
+                    </div>
                 </td>
                 <td>
                     <div class="text-dark fw-semibold">${lead.mobile}</div>

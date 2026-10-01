@@ -16,15 +16,23 @@ class FollowUpMode(models.TextChoices):
 
 class FollowUpStatus(models.TextChoices):
     PENDING = "PENDING", "Pending"
-    COMPLETED = "COMPLETED", "Completed"
-    DONE = "DONE", "Done"
-    CALL_BACK = "CALL_BACK", "Call Back"
-    DNP = "DNP", "Do Not Pickup (DNP)"
-    NOT_CONNECTED = "NOT_CONNECTED", "Not Connected"
-    INTERESTED = "INTERESTED", "Interested"
-    NOT_INTERESTED = "NOT_INTERESTED", "Not Interested"
     RESCHEDULED = "RESCHEDULED", "Rescheduled"
-    CANCELLED = "CANCELLED", "Cancelled"
+    COMPLETED = "COMPLETED", "Completed"
+
+    @classmethod
+    def get_active_choices(cls):
+        return [
+            (cls.PENDING.value, cls.PENDING.label),
+            (cls.COMPLETED.value, cls.COMPLETED.label),
+            (cls.RESCHEDULED.value, cls.RESCHEDULED.label),
+        ]
+
+    @classmethod
+    def get_update_choices(cls):
+        return [
+            (cls.COMPLETED.value, cls.COMPLETED.label),
+            (cls.RESCHEDULED.value, cls.RESCHEDULED.label),
+        ]
 
 
 class FollowUp(models.Model):
@@ -42,6 +50,14 @@ class FollowUp(models.Model):
     # provenance for rows migrated from historical Excel date-columns
     imported_from_excel = models.BooleanField(default=False)
 
+    @property
+    def business(self):
+        return self.lead.hospital if self.lead else None
+
+    @property
+    def business_id(self):
+        return self.lead.hospital_id if self.lead else None
+
     class Meta:
         ordering = ["-followup_date", "-followup_time"]
 
@@ -55,6 +71,14 @@ class Note(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def business(self):
+        return self.lead.hospital if self.lead else None
+
+    @property
+    def business_id(self):
+        return self.lead.hospital_id if self.lead else None
 
     class Meta:
         ordering = ["-created_at"]
@@ -80,6 +104,14 @@ class Activity(models.Model):
     description = models.TextField()
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    @property
+    def business(self):
+        return self.lead.hospital if self.lead else None
+
+    @property
+    def business_id(self):
+        return self.lead.hospital_id if self.lead else None
 
     class Meta:
         ordering = ["-created_at"]

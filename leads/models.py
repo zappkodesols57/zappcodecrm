@@ -48,6 +48,16 @@ class Campaign(models.Model):
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
+    @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        """Standardized business ID."""
+        return self.hospital_id
+
     class Meta:
         ordering = ["-id"]
 
@@ -66,6 +76,16 @@ class Course(models.Model):
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False, db_index=True)
 
+    @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        """Standardized business ID."""
+        return self.hospital_id
+
     class Meta:
         ordering = ["name"]
         unique_together = ("hospital", "name")
@@ -76,14 +96,34 @@ class Course(models.Model):
 
 class LeadStage(models.Model):
     """Configurable pipeline stage (New -> Contacted -> ... -> Admission)."""
-    name = models.CharField(max_length=60, unique=True)
+    class BusinessType(models.TextChoices):
+        ALL = "ALL", "All / Shared"
+        HOSPITAL = "HOSPITAL", "Hospital Only"
+        ACADEMY = "ACADEMY", "Academy Only"
+
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="stages", help_text="Specific hospital/business tenant. Null/None means global or Zappcode Academy.")
+    name = models.CharField(max_length=60)
+    business_type = models.CharField(max_length=20, choices=BusinessType.choices, default=BusinessType.ALL, db_index=True)
     order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["order", "name"]
+        unique_together = ("hospital", "name", "business_type")
+
+    @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        """Standardized business ID."""
+        return self.hospital_id
 
     def __str__(self):
+        if self.hospital:
+            return f"{self.name} ({self.hospital.name})"
         return self.name
 
 
@@ -149,6 +189,14 @@ class HospitalBranch(models.Model):
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
     class Meta:
         ordering = ["order", "name"]
         unique_together = ("hospital", "name")
@@ -169,6 +217,14 @@ class HospitalDepartment(models.Model):
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
     class Meta:
         ordering = ["order", "name"]
         unique_together = ("hospital", "name")
@@ -188,6 +244,14 @@ class HospitalDisease(models.Model):
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
 
     class Meta:
         ordering = ["order", "name"]
@@ -215,6 +279,14 @@ class HospitalDoctor(models.Model):
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
 
     class Meta:
         ordering = ["order", "name"]
@@ -257,6 +329,14 @@ class MasterItem(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
     class Meta:
         ordering = ["order", "name"]
         unique_together = ("group", "name", "hospital")
@@ -289,6 +369,14 @@ class LeadCustomField(models.Model):
     is_system = models.BooleanField(default=False, help_text="True if this is a core standard field")
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
 
     class Meta:
         ordering = ["order", "created_at"]
@@ -334,27 +422,25 @@ class LeadCustomField(models.Model):
 # ---------------------------------------------------------------------------
 
 class LeadTemperature(models.TextChoices):
-    UNCONTACTED = "UNCONTACTED", "Uncontacted"
     HOT = "HOT", "Hot"
     WARM = "WARM", "Warm"
     COLD = "COLD", "Cold"
     FREEZE = "FREEZE", "Freeze"
-    NOT_PICKED = "NOT_PICKED", "Call Not Picked"
 
 
 class DealStatus(models.TextChoices):
     OPEN = "OPEN", "Open"
+    CONTACTED = "CONTACTED", "Contacted"
     WON = "WON", "Won"
     LOST = "LOST", "Lost"
     HOLD = "HOLD", "Hold"
 
 
 class AdmissionStatus(models.TextChoices):
-    NOT_APPLIED = "NOT_APPLIED", "Not Applied"
-    INTERESTED = "INTERESTED", "Interested"
-    APPLIED = "APPLIED", "Applied"
-    ADMISSION_DONE = "ADMISSION_DONE", "Admission Done"
-    CANCELLED = "CANCELLED", "Cancelled"
+    OPEN = "OPEN", "Open"
+    HOLD = "HOLD", "Hold"
+    WON = "WON", "Won"
+    LOST = "LOST", "Lost"
 
 
 class ReferralType(models.TextChoices):
@@ -413,10 +499,10 @@ class Lead(models.Model):
     # Lead information
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="leads")
     lead_type = models.CharField(max_length=50, blank=True)
-    temperature = models.CharField(max_length=20, choices=LeadTemperature.choices, default=LeadTemperature.UNCONTACTED, db_index=True)
+    temperature = models.CharField(max_length=20, choices=LeadTemperature.choices, default=LeadTemperature.HOT, db_index=True)
     stage = models.ForeignKey(LeadStage, on_delete=models.PROTECT, related_name="leads")
     deal_status = models.CharField(max_length=10, choices=DealStatus.choices, default=DealStatus.OPEN, db_index=True)
-    admission_status = models.CharField(max_length=20, choices=AdmissionStatus.choices, default=AdmissionStatus.NOT_APPLIED)
+    admission_status = models.CharField(max_length=20, choices=AdmissionStatus.choices, default=AdmissionStatus.OPEN)
     inquiry_date = models.DateField(default=timezone.localdate, db_index=True)
 
     # CURRENT attribution (can evolve / be corrected — history kept via AuditLog)
@@ -503,10 +589,15 @@ class Lead(models.Model):
     def __str__(self):
         return f"{self.lead_code} — {self.name}"
 
-    def get_custom(self, key, default=""):
-        if isinstance(self.custom_data, dict):
-            return self.custom_data.get(key, default)
-        return default
+    @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        """Standardized business ID."""
+        return self.hospital_id
 
     @property
     def effective_created_date(self):
@@ -599,131 +690,125 @@ class Lead(models.Model):
     @property
     def custom_temperature(self):
         """
-        Calculates the lead temperature based on assignment, calling remarks, and appointment status:
-        - If appointment status is set (Booked, Booking, Follow-up, Not Interested, Cancelled, etc.): blank/None
-        - If Unassigned (New/Open untouched): 'Hot'
-        - If Assigned with no calling remarks: 'Hot'
-        - If 1st calling remark is 'Call Not Received' / unanswered: 'Warm'
-        - If 2nd calling remark is also 'Call Not Received' / unanswered: 'Cold'
-        - If 3rd calling remark is also 'Call Not Received' / unanswered: 'Freeze'
-        - If other valid calling remark / note: returns temperature or note classification
+        Calculates dynamic lead temperature based on remarks and status:
+        - If stage is Cancelled -> 'Freeze'
+        - Default / Newly Created / Fetched from Meta: 'Hot'
+        - Positive remarks / comments: Increase temperature (Freeze -> Cold -> Warm -> Hot)
+        - Negative remarks / comments: Decrease temperature by 1 step (Hot -> Warm -> Cold -> Freeze)
+        - Max temperature: Hot, Min temperature: Freeze
         """
-        cd = self.custom_data or {}
-        raw_apt = str(cd.get("appointment_status") or "").strip().upper()
-        raw_ds = str(cd.get("deal_status") or "").strip().upper()
-        tot = self.total_billed_amount
+        st_name = (self.stage.name if self.stage_id and self.stage else "").strip().lower()
+        adm_st = str(self.admission_status or "").strip().upper()
+        if st_name in ("cancelled", "lost") or adm_st in ("LOST", "CANCELLED") or self.deal_status == DealStatus.LOST:
+            return "Freeze"
 
-        # Terminal / Appointment Statuses -> Temperature is blank/None
-        if tot > 0 or self.deal_status == DealStatus.WON or "WON" in raw_ds or "PAYMENT" in raw_ds:
-            return None
-        if "PAYMENT" in raw_apt or "COMPLET" in raw_apt or "VISIT" in raw_apt or "DONE" in raw_apt:
-            return None
-        if "BOOK" in raw_apt or "CONFIRM" in raw_apt or "APPROV" in raw_apt or "AWAIT" in raw_apt or raw_apt == "YES":
-            return None
-        if "CANCEL" in raw_apt or "NOT INT" in raw_apt or self.deal_status == DealStatus.LOST or "LOST" in raw_ds:
-            return None
-        if "FOLLOW" in raw_apt or "WAIT" in raw_apt or "RESCHEDULE" in raw_apt:
-            return None
+        if adm_st == "WON" or self.deal_status == DealStatus.WON or st_name in ("admission done", "payment done"):
+            return "Hot"
 
-        # Check calling remarks from custom_data
-        r1 = str(cd.get("remark_1") or "").strip()
-        r2 = str(cd.get("remark_2") or "").strip()
-        r3 = str(cd.get("remark_3") or "").strip()
+        # Sequential temperature scale: FREEZE (0) -> COLD (1) -> WARM (2) -> HOT (3)
+        TEMP_LEVELS = ["Freeze", "Cold", "Warm", "Hot"]
 
-        # Also collect timeline notes added by user
-        timeline_notes = []
-        if self.pk:
-            timeline_notes = [n.note for n in self.lead_notes.all().order_by("created_at")]
+        # Base starting temperature level based on Admission Status:
+        # HOLD -> Cold (1), OPEN -> Warm (2), Default Fresh -> Hot (3)
+        if adm_st == "HOLD" or self.deal_status == DealStatus.HOLD:
+            base_level = 1  # Cold
+        elif adm_st == "OPEN":
+            base_level = 2  # Warm
+        else:
+            base_level = 3  # Hot
 
         # Fetch dynamic Positive and Negative remark keywords from MasterGroup / MasterItem
         pos_keywords = []
         neg_keywords = []
         try:
             from leads.models import MasterGroup, MasterItem
-            # Look up negative remarks
+            from django.db.models import Q
+            lead_hosp = getattr(self, "hospital", None)
+            hosp_q = Q(hospital=lead_hosp) | Q(hospital__isnull=True) if lead_hosp else Q()
+
             neg_grp = MasterGroup.objects.filter(name__iexact="Negative Remarks", is_active=True).first()
             if neg_grp:
                 neg_items = MasterItem.objects.filter(group=neg_grp, is_active=True)
-                if self.hospital:
-                    hosp_neg = list(neg_items.filter(hospital=self.hospital).values_list("name", flat=True))
-                    global_neg = list(neg_items.filter(hospital__isnull=True).values_list("name", flat=True))
-                    neg_keywords = hosp_neg if hosp_neg else global_neg
-                else:
-                    neg_keywords = list(neg_items.filter(hospital__isnull=True).values_list("name", flat=True))
+                if hosp_q:
+                    neg_items = neg_items.filter(hosp_q)
+                neg_keywords = list(neg_items.values_list("name", flat=True))
 
-            # Look up positive remarks
             pos_grp = MasterGroup.objects.filter(name__iexact="Positive Remarks", is_active=True).first()
             if pos_grp:
                 pos_items = MasterItem.objects.filter(group=pos_grp, is_active=True)
-                if self.hospital:
-                    hosp_pos = list(pos_items.filter(hospital=self.hospital).values_list("name", flat=True))
-                    global_pos = list(pos_items.filter(hospital__isnull=True).values_list("name", flat=True))
-                    pos_keywords = hosp_pos if hosp_pos else global_pos
-                else:
-                    pos_keywords = list(pos_items.filter(hospital__isnull=True).values_list("name", flat=True))
+                if hosp_q:
+                    pos_items = pos_items.filter(hosp_q)
+                pos_keywords = list(pos_items.values_list("name", flat=True))
         except Exception:
             pass
 
-        # Built-in fallbacks if master tables are empty or loading
         if not neg_keywords:
             neg_keywords = [
                 "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
                 "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED",
-                "WRONG NUMBER", "INVALID NUMBER", "OUT OF SERVICE", "NOT ANSWERING"
+                "WRONG NUMBER", "INVALID NUMBER", "OUT OF SERVICE", "NOT ANSWERING", "DNP",
+                "NOT INTERESTED", "NO RESPONSE", "CALL BACK LATER", "CALL DISCONNECTED", "REJECTED"
             ]
         if not pos_keywords:
             pos_keywords = [
                 "INTERESTED", "CALLBACK", "POSITIVE", "WILL VISIT", "ASKED FOR DETAILS",
-                "READY TO BOOK", "OPD VISIT", "ADMISSION PLANNED", "GOOD RESPONSE", "APPOINTMENT SCHEDULED"
+                "READY TO BOOK", "OPD VISIT", "ADMISSION PLANNED", "GOOD RESPONSE", "APPOINTMENT SCHEDULED",
+                "VISIT PLANNED", "VISITED", "ADMISSION DONE", "PAYMENT DONE", "READY TO JOIN", "JOINING"
             ]
 
         def is_clean_val(v):
-            return bool(v and v.lower() not in ("nan", "none", "—", "-", ""))
+            return bool(v and str(v).strip().lower() not in ("nan", "none", "—", "-", "", "null", "nil"))
 
         def matches_any(v, keywords):
             if not is_clean_val(v):
                 return False
-            v_up = v.upper()
+            v_up = str(v).upper()
             return any(k.upper() in v_up for k in keywords if k)
 
-        # Combine structured remarks and timeline notes sequentially
-        all_remarks = []
-        for r in [r1, r2, r3]:
+        # Collect all interactions chronologically
+        interactions = []
+        cd = self.custom_data or {}
+        for r in [cd.get("remark_1"), cd.get("remark_2"), cd.get("remark_3"), cd.get("followup_remark"), cd.get("comments")]:
             if is_clean_val(r):
-                all_remarks.append(r)
-        for tn in timeline_notes:
-            if is_clean_val(tn):
-                all_remarks.append(tn)
+                interactions.append(str(r).strip())
 
-        # Untouched / no calling remarks taken yet -> Hot
-        if not all_remarks:
-            return "Hot"
+        if self.pk:
+            # Add follow-ups comments in chronological order
+            for fu in self.followups.all().order_by("created_at", "id"):
+                if is_clean_val(fu.comment):
+                    interactions.append(str(fu.comment).strip())
+                # Also check followup status text (e.g. DNP, NOT_INTERESTED)
+                if fu.followup_status in ["DNP", "NOT_INTERESTED", "NOT_CONNECTED", "CANCELLED"]:
+                    interactions.append(fu.get_followup_status_display())
+                elif fu.followup_status in ["INTERESTED", "COMPLETED", "DONE"]:
+                    interactions.append(fu.get_followup_status_display())
 
-        # Sequential temperature state machine:
-        # Initial status: Hot (0 negative count)
-        # Each negative remark: negative_count + 1 (1 -> Warm, 2 -> Cold, 3+ -> Freeze)
-        # Each positive remark: resets negative_count to 0 (shifts UP to Hot)
-        neg_count = 0
-        for r in all_remarks:
-            is_pos = matches_any(r, pos_keywords)
-            is_neg = matches_any(r, neg_keywords)
+            # Add lead notes in chronological order
+            for n in self.lead_notes.all().order_by("created_at", "id"):
+                if is_clean_val(n.note):
+                    interactions.append(str(n.note).strip())
+
+        # Start from base_level according to status
+        current_level = base_level
+
+        # Active leads (OPEN, HOLD, WON) should not freeze below COLD solely due to calling remarks
+        min_level = 0 if (adm_st in ("LOST", "CANCELLED") or st_name in ("cancelled", "lost")) else 1
+
+        for text in interactions:
+            is_pos = matches_any(text, pos_keywords)
+            is_neg = matches_any(text, neg_keywords)
 
             if is_pos and not is_neg:
-                neg_count = 0
+                # Increase temperature 1 step (max Hot: 3)
+                current_level = min(3, current_level + 1)
             elif is_neg and not is_pos:
-                neg_count += 1
+                # Decrease temperature 1 step (respect min_level)
+                current_level = max(min_level, current_level - 1)
             elif is_pos and is_neg:
-                # If both keywords exist, give preference to positive up-shift
-                neg_count = 0
+                # If mixed, positive takes slight edge or stays stable
+                current_level = min(3, current_level + 1)
 
-        if neg_count == 0:
-            return "Hot"
-        elif neg_count == 1:
-            return "Warm"
-        elif neg_count == 2:
-            return "Cold"
-        else:
-            return "Freeze"
+        return TEMP_LEVELS[current_level]
 
     @property
     def custom_priority(self):
@@ -936,7 +1021,7 @@ class Lead(models.Model):
         if not self.lead_code:
             self.lead_code = next_lead_code()
         if not self.temperature or self.temperature.strip() not in LeadTemperature.values:
-            self.temperature = LeadTemperature.UNCONTACTED
+            self.temperature = LeadTemperature.WARM
         if not self.stage_id:
             default_stage = (
                 LeadStage.objects.filter(name__iexact='New').first()
@@ -975,6 +1060,91 @@ class Lead(models.Model):
             self.custom_data = cleaned_cd
         elif self.custom_data is None:
             self.custom_data = {}
+
+        # ---------------------------------------------------------------------
+        # AUTOMATIC DEAL STATUS RESOLUTION
+        # ---------------------------------------------------------------------
+        st_name = (self.stage.name if self.stage else "").strip().lower()
+        adm_st = str(self.admission_status or "").strip().upper()
+        cd = self.custom_data
+        cd_apt = str(cd.get("appointment_status") or "").strip().lower()
+        cd_ds = str(cd.get("deal_status") or "").strip().lower()
+
+        # Check Total Billed
+        tot = 0.0
+        try:
+            tot = float(cd.get("total_paid") or cd.get("total") or 0.0)
+        except (ValueError, TypeError):
+            tot = 0.0
+
+        # Condition 1: LOST
+        # If stage is cancelled/lost or admission_status is LOST or appointment cancelled/not interested
+        if (
+            adm_st in ("LOST", "CANCELLED", "DROPOUT")
+            or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+            or "cancel" in cd_apt
+            or "not int" in cd_apt
+            or (cd_ds in ("lost", "cancelled") and adm_st not in ("OPEN", "HOLD", "WON"))
+        ):
+            self.deal_status = DealStatus.LOST
+            # If admission status is marked as LOST (or cancelled), auto-update temperature to FREEZE and stage to Cancelled
+            is_hospital = bool(self.hospital_id and any(k in (self.hospital.name or "").lower() for k in ["hospital", "clinic", "medical", "nelson"]))
+            if adm_st in ("LOST", "CANCELLED") or "cancel" in st_name or "lost" in st_name:
+                if not is_hospital:
+                    self.temperature = LeadTemperature.FREEZE
+                    if st_name not in ("cancelled", "lost"):
+                        b_type = LeadStage.BusinessType.HOSPITAL if is_hospital else LeadStage.BusinessType.ACADEMY
+                        cancelled_stage = (
+                            LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=b_type).first()
+                            or LeadStage.objects.filter(name__iexact="Cancelled", is_active=True).first()
+                            or LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
+                        )
+                        if cancelled_stage:
+                            self.stage = cancelled_stage
+            cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
+
+        # Condition 2: WON
+        # If admission_status is WON or payment done / total > 0 or stage is Payment Done / Appointment Completed
+        elif (
+            adm_st in ("WON", "ADMISSION_DONE")
+            or tot > 0
+            or st_name in ("payment done", "appointment completed", "admission done", "admission", "payment completed", "closed won")
+            or "payment done" in cd_apt
+            or "payment done" in cd_ds
+            or cd_ds in ("won", "won (payment done)", "admission")
+        ):
+            self.deal_status = DealStatus.WON
+            cd["deal_status"] = "Won (Payment Done)" if tot > 0 else "Won"
+
+        # Condition 2.5: HOLD
+        elif (
+            adm_st == "HOLD"
+            or st_name in ("hold", "on hold")
+            or cd_ds in ("hold", "on hold")
+        ):
+            self.deal_status = DealStatus.HOLD
+            cd["deal_status"] = "Hold"
+
+        # Condition 3: CONTACTED
+        # If stage is follow-up, awaiting doctor approval, appointment confirmed, payment pending
+        elif (
+            st_name in ("follow-up", "follow up", "contacted", "awaiting doctor approval", "awaiting approval from doctor", "appointment confirmed", "booking confirmed", "payment pending", "visited", "visit planned", "interested")
+            or any(k in cd_apt for k in ["follow", "visit", "book", "confirm", "contact", "awaiting"])
+            or self.last_followup_date is not None
+            or self.next_followup_date is not None
+        ):
+            self.deal_status = DealStatus.CONTACTED
+            cd["deal_status"] = "Contacted"
+
+        # Condition 4: OPEN
+        # If stage is new, fresh, uncontacted, assigned or admission_status is OPEN
+        elif (
+            adm_st == "OPEN"
+            or st_name in ("new", "fresh", "uncontacted", "assigned", "open")
+            or not self.deal_status
+        ):
+            self.deal_status = DealStatus.OPEN
+            cd["deal_status"] = "Open"
 
         super().save(*args, **kwargs)
 
@@ -1127,6 +1297,14 @@ class Appointment(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
     
     class Meta:
         ordering = ["-appointment_date", "-appointment_time"]
@@ -1144,6 +1322,14 @@ class DoctorSchedule(models.Model):
     is_available = models.BooleanField(default=True)
     off_days = models.CharField(max_length=100, blank=True, default="Sunday", help_text="Comma-separated off days (e.g. Sunday)")
 
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
     def __str__(self):
         return f"Schedule for {self.doctor.get_full_name() or self.doctor.username}"
 
@@ -1159,6 +1345,14 @@ class DoctorLeave(models.Model):
     reason = models.CharField(max_length=255, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
 
     class Meta:
         ordering = ["-start_date"]

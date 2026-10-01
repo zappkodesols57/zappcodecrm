@@ -56,6 +56,14 @@ class Admission(models.Model):
         return f"Admission — {self.student_name}"
 
     @property
+    def business(self):
+        return self.lead.hospital if self.lead else None
+
+    @property
+    def business_id(self):
+        return self.lead.hospital_id if self.lead else None
+
+    @property
     def collected(self):
         return sum(p.amount for p in self.payments.filter(payment_status="SUCCESS"))
 
@@ -71,6 +79,14 @@ class Installment(models.Model):
     is_paid = models.BooleanField(default=False)
     paid_date = models.DateField(null=True, blank=True)
     reminder_sent_count = models.PositiveIntegerField(default=0)
+
+    @property
+    def business(self):
+        return self.admission.business if self.admission else None
+
+    @property
+    def business_id(self):
+        return self.admission.business_id if self.admission else None
 
     class Meta:
         ordering = ["due_date"]

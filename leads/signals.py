@@ -3,11 +3,19 @@ from django.dispatch import receiver
 
 from audit.utils import log_action
 from followups.models import Activity, ActivityType
-from .models import Lead, LeadTemperature
+from .models import Lead, LeadTemperature, AdmissionStatus
 
 
 @receiver(pre_save, sender=Lead)
 def _stash_previous_state(sender, instance, **kwargs):
+    # Rule: If stage is Cancelled, admission_status must be LOST and temperature must be FREEZE
+    stage_name = (instance.stage.name if instance.stage_id and instance.stage else "").strip().lower()
+    if stage_name in ("cancelled", "lost"):
+        instance.admission_status = AdmissionStatus.LOST
+        instance.temperature = LeadTemperature.FREEZE
+    elif stage_name in ("admission done", "payment done"):
+        instance.admission_status = AdmissionStatus.WON
+
     if instance.pk:
         try:
             instance._previous = Lead.objects.get(pk=instance.pk)

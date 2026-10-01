@@ -157,11 +157,7 @@ def get_filtered_leads(request, base_qs=None):
             elif request.user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
-                # Counsellors / Staff see their own assigned leads, created by them, or unassigned leads they can capture
-                leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
-            else:
-                leads = leads.none()
+            # In 'All Leads' tab, Counsellors, HR, and Lead Attendants can view all leads belonging to their business/hospital
     elif is_global_admin:
         if selected_hospital_id:
             if selected_hospital_id == "none":
@@ -178,8 +174,6 @@ def get_filtered_leads(request, base_qs=None):
             elif request.user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
-                leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -203,6 +197,7 @@ def get_filtered_leads(request, base_qs=None):
     selected_temperatures = request.GET.getlist("temperature")
     selected_locations = request.GET.getlist("location")
     selected_stages = request.GET.getlist("stage")
+    selected_followup_statuses = request.GET.getlist("followup_status")
 
     # 1. Campaigns filter
     if selected_campaigns:
@@ -333,6 +328,18 @@ def get_filtered_leads(request, base_qs=None):
                 sub_q = Q(assigned_to__isnull=True) & ~(
                     Q(created_at__date=today_date) | Q(inquiry_date=today_date)
                 )
+            elif 'CONTACTED' in v_up:
+                sub_q = (
+                    Q(deal_status=DealStatus.CONTACTED) |
+                    Q(custom_data__deal_status__icontains='Contacted') |
+                    Q(stage__name__icontains='Contacted') |
+                    Q(stage__name__icontains='Follow') |
+                    Q(next_followup_date__isnull=False) |
+                    Q(last_followup_date__isnull=False) |
+                    Q(followup_count__gt=0) |
+                    Q(followups__isnull=False) |
+                    Q(custom_data__remark_1__isnull=False) & ~Q(custom_data__remark_1__in=["", "nan", "None", "-"])
+                )
             else:
                 sub_q = (
                     Q(deal_status__iexact=ds_val) |
@@ -450,9 +457,8 @@ def get_filtered_leads(request, base_qs=None):
     elif quick_filter == "call_not_done":
         leads = leads.filter(
             deal_status__in=[DealStatus.OPEN, 'New', 'OPEN'],
-            admission_status__in=[AdmissionStatus.NOT_APPLIED, '', None],
+            admission_status__in=[AdmissionStatus.OPEN, '', None],
             admission__isnull=True,
-            temperature=LeadTemperature.UNCONTACTED,
             followup_count=0,
             next_followup_date__isnull=True,
         ).filter(
@@ -482,6 +488,23 @@ def get_filtered_leads(request, base_qs=None):
         leads = leads.filter(
             Q(next_followup_date=today) | Q(followups__followup_date=today)
         ).distinct()
+
+    # Follow-up Status filter (PENDING, RESCHEDULED, COMPLETED)
+    if selected_followup_statuses:
+        fu_status_q = Q()
+        for fst in selected_followup_statuses:
+            if not fst:
+                continue
+            fst_up = fst.upper().strip()
+            if fst_up == "PENDING":
+                fu_status_q |= Q(followups__followup_status="PENDING") | (Q(next_followup_date__isnull=False) & ~Q(followups__followup_status__in=["COMPLETED", "DONE"]))
+            elif fst_up == "RESCHEDULED":
+                fu_status_q |= Q(followups__comment__icontains="Rescheduled") | Q(followups__followup_status="RESCHEDULED")
+            elif fst_up in ("COMPLETED", "DONE"):
+                fu_status_q |= Q(followups__followup_status__in=["COMPLETED", "DONE"])
+            else:
+                fu_status_q |= Q(followups__followup_status=fst_up)
+        leads = leads.filter(fu_status_q).distinct()
 
     appo_book = request.GET.get("appo_book")
     if appo_book == "YES":
@@ -543,6 +566,7 @@ def lead_list(request):
     selected_temperatures = request.GET.getlist("temperature")
     selected_locations = request.GET.getlist("location")
     selected_stages = request.GET.getlist("stage")
+    selected_followup_statuses = request.GET.getlist("followup_status")
 
     sort_by = request.GET.get("sort", "-created_at")
     date_from = request.GET.get("date_from") or request.GET.get("date")
@@ -623,6 +647,10 @@ def lead_list(request):
     paginator = Paginator(leads, 25)
     page = paginator.get_page(request.GET.get("page"))
 
+    for lead_item in page:
+        fus = list(lead_item.followups.all().order_by("-followup_date", "-id"))
+        lead_item.latest_followup_obj = fus[0] if fus else None
+
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
@@ -690,6 +718,12 @@ def lead_list(request):
     # Businesses dropdown is ONLY for global superadmin (no user.hospital)
     available_businesses = Hospital.objects.filter(is_active=True).order_by("name") if (is_global_admin and not request.user.hospital) else Hospital.objects.none()
 
+    # Scope stages to the business type
+    if is_viewing_hospital:
+        stages_qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL]).order_by("order", "name")
+    else:
+        stages_qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]).order_by("order", "name")
+
     context = {
         "query_params": query_params.urlencode(),
         "active": "leads_all",
@@ -701,7 +735,7 @@ def lead_list(request):
         "lead_sources": LeadSource.objects.filter(id__in=used_ls_ids),
         "campaigns": Campaign.objects.filter(id__in=used_camp_ids),
         "courses": courses_qs,
-        "stages": LeadStage.objects.filter(id__in=used_stage_ids),
+        "stages": stages_qs,
         "cities": distinct_cities,
         "locations": distinct_locations,
         "filter_locations": distinct_locations or distinct_cities,
@@ -724,6 +758,12 @@ def lead_list(request):
         "selected_temperatures": selected_temperatures,
         "selected_locations": selected_locations,
         "selected_stages": selected_stages,
+        "selected_followup_statuses": selected_followup_statuses,
+        "followup_status_choices": [
+            ("PENDING", "Follow up Pending"),
+            ("RESCHEDULED", "Follow up Rescheduled"),
+            ("COMPLETED", "Follow up Completed"),
+        ],
         "selected_hospital_id": selected_hospital_id,
         "businesses": available_businesses,
         "date_from_val": request.GET.get("date_from", "") or request.GET.get("date", ""),
@@ -770,7 +810,7 @@ def my_leads(request):
     with comprehensive header filters (Date: Today, Yesterday, Months, Years, Custom;
     Course, Stage, Admission Status).
     """
-    from datetime import date, timedelta
+    from datetime import date, datetime, time, timedelta
     from django.db.models.functions import TruncMonth, TruncYear
 
     # Restrict to Academy tenant
@@ -807,50 +847,125 @@ def my_leads(request):
     # Filters extraction
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
+    current_tz = timezone.get_current_timezone()
     
     date_preset = request.GET.get("date_preset", "").strip()
+    date_field = request.GET.get("date_field", "updated_at").strip()  # default to last updated date
     selected_month = request.GET.get("month", "").strip()
     selected_year = request.GET.get("year", "").strip()
+    
+    # Dual Date Filters: Inquiry Date & Last Updated Date
+    inquiry_from = request.GET.get("inquiry_from", "").strip()
+    inquiry_to = request.GET.get("inquiry_to", "").strip()
+    updated_from = request.GET.get("updated_from", "").strip()
+    updated_to = request.GET.get("updated_to", "").strip()
+
+    # Backward compatibility with date_from / date_to
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
 
     active_date_label = "All Time"
 
     if date_preset == "today":
-        leads = leads.filter(Q(inquiry_date=today) | Q(created_at__date=today))
-        active_date_label = f"Today ({today.strftime('%d %b %Y')})"
+        if date_field == "inquiry_date":
+            leads = leads.filter(inquiry_date=today)
+            active_date_label = f"Inquired Today ({today.strftime('%d %b %Y')})"
+        else:
+            today_start = timezone.make_aware(datetime.combine(today, time.min), current_tz)
+            today_end = timezone.make_aware(datetime.combine(today, time.max), current_tz)
+            leads = leads.filter(updated_at__gte=today_start, updated_at__lte=today_end)
+            active_date_label = f"Updated Today ({today.strftime('%d %b %Y')})"
     elif date_preset == "yesterday":
-        leads = leads.filter(Q(inquiry_date=yesterday) | Q(created_at__date=yesterday))
-        active_date_label = f"Yesterday ({yesterday.strftime('%d %b %Y')})"
+        if date_field == "inquiry_date":
+            leads = leads.filter(inquiry_date=yesterday)
+            active_date_label = f"Inquired Yesterday ({yesterday.strftime('%d %b %Y')})"
+        else:
+            yest_start = timezone.make_aware(datetime.combine(yesterday, time.min), current_tz)
+            yest_end = timezone.make_aware(datetime.combine(yesterday, time.max), current_tz)
+            leads = leads.filter(updated_at__gte=yest_start, updated_at__lte=yest_end)
+            active_date_label = f"Updated Yesterday ({yesterday.strftime('%d %b %Y')})"
     elif selected_month:
         try:
             parts = selected_month.split("-")
             y, m = int(parts[0]), int(parts[1])
-            leads = leads.filter(inquiry_date__year=y, inquiry_date__month=m)
+            if date_field == "inquiry_date":
+                leads = leads.filter(inquiry_date__year=y, inquiry_date__month=m)
+            else:
+                from calendar import monthrange
+                _, last_day = monthrange(y, m)
+                m_start = timezone.make_aware(datetime(y, m, 1, 0, 0, 0), current_tz)
+                m_end = timezone.make_aware(datetime(y, m, last_day, 23, 59, 59), current_tz)
+                leads = leads.filter(updated_at__gte=m_start, updated_at__lte=m_end)
             active_date_label = datetime(y, m, 1).strftime("%B %Y")
         except Exception:
             pass
     elif selected_year:
         try:
             y = int(selected_year)
-            leads = leads.filter(inquiry_date__year=y)
+            if date_field == "inquiry_date":
+                leads = leads.filter(inquiry_date__year=y)
+            else:
+                y_start = timezone.make_aware(datetime(y, 1, 1, 0, 0, 0), current_tz)
+                y_end = timezone.make_aware(datetime(y, 12, 31, 23, 59, 59), current_tz)
+                leads = leads.filter(updated_at__gte=y_start, updated_at__lte=y_end)
             active_date_label = f"Year {y}"
         except Exception:
             pass
-    elif date_from or date_to:
-        if date_from:
-            try:
-                df = datetime.strptime(date_from, "%Y-%m-%d").date()
-                leads = leads.filter(inquiry_date__gte=df)
-            except ValueError:
-                pass
-        if date_to:
-            try:
-                dt = datetime.strptime(date_to, "%Y-%m-%d").date()
-                leads = leads.filter(inquiry_date__lte=dt)
-            except ValueError:
-                pass
-        active_date_label = f"Custom: {date_from or 'Start'} to {date_to or 'End'}"
+
+    # Apply Inquiry Date Range Filter
+    if inquiry_from:
+        try:
+            df = datetime.strptime(inquiry_from, "%Y-%m-%d").date()
+            leads = leads.filter(inquiry_date__gte=df)
+        except ValueError:
+            pass
+    if inquiry_to:
+        try:
+            dt = datetime.strptime(inquiry_to, "%Y-%m-%d").date()
+            leads = leads.filter(inquiry_date__lte=dt)
+        except ValueError:
+            pass
+
+    # Apply Last Updated Date Range Filter (Using timezone-aware datetimes)
+    if updated_from:
+        try:
+            uf_date = datetime.strptime(updated_from, "%Y-%m-%d").date()
+            uf_dt = timezone.make_aware(datetime.combine(uf_date, time.min), current_tz)
+            leads = leads.filter(updated_at__gte=uf_dt)
+        except ValueError:
+            pass
+    if updated_to:
+        try:
+            ut_date = datetime.strptime(updated_to, "%Y-%m-%d").date()
+            ut_dt = timezone.make_aware(datetime.combine(ut_date, time.max), current_tz)
+            leads = leads.filter(updated_at__lte=ut_dt)
+        except ValueError:
+            pass
+
+    # Backward compatibility with generic date_from / date_to
+    if date_from and not inquiry_from and not updated_from:
+        try:
+            df_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+            if date_field == "inquiry_date":
+                leads = leads.filter(inquiry_date__gte=df_date)
+            else:
+                df_dt = timezone.make_aware(datetime.combine(df_date, time.min), current_tz)
+                leads = leads.filter(updated_at__gte=df_dt)
+        except ValueError:
+            pass
+    if date_to and not inquiry_to and not updated_to:
+        try:
+            dt_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+            if date_field == "inquiry_date":
+                leads = leads.filter(inquiry_date__lte=dt_date)
+            else:
+                dt_dt = timezone.make_aware(datetime.combine(dt_date, time.max), current_tz)
+                leads = leads.filter(updated_at__lte=dt_dt)
+        except ValueError:
+            pass
+
+    if inquiry_from or inquiry_to or updated_from or updated_to:
+        active_date_label = "Custom Filter Active"
 
     # Dropdown filters: Course, Stage, Admission Status
     selected_courses = [c for c in request.GET.getlist("course") if c.isdigit()]
@@ -884,8 +999,9 @@ def my_leads(request):
     query_params.pop("page", None)
 
     # Options for dropdowns
-    courses = Course.objects.filter(is_active=True).order_by("name")
-    stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    is_hosp_user = bool(request.user.hospital or request.user.role == 'LEAD_ATTENDENT')
+    courses = Course.objects.filter(is_active=True, hospital=request.user.hospital).order_by("name") if request.user.hospital else Course.objects.filter(is_active=True).order_by("name")
+    stages = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL if is_hosp_user else LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]).order_by("order", "name")
     admission_status_choices = AdmissionStatus.choices
 
     context = {
@@ -901,6 +1017,11 @@ def my_leads(request):
         "date_preset": date_preset,
         "selected_month": selected_month,
         "selected_year": selected_year,
+        "date_field": date_field,
+        "inquiry_from": inquiry_from,
+        "inquiry_to": inquiry_to,
+        "updated_from": updated_from,
+        "updated_to": updated_to,
         "date_from": date_from,
         "date_to": date_to,
         "active_date_label": active_date_label,
@@ -1148,6 +1269,24 @@ def team_history(request):
         if valid_statuses:
             leads = leads.filter(admission_status__in=valid_statuses)
 
+    # Follow-up status filter (Pending, Rescheduled, Completed)
+    selected_followup_statuses = request.GET.getlist("followup_status")
+    if selected_followup_statuses:
+        fu_status_q = Q()
+        for fst in selected_followup_statuses:
+            if not fst:
+                continue
+            fst_up = fst.upper().strip()
+            if fst_up == "PENDING":
+                fu_status_q |= Q(followups__followup_status="PENDING") | (Q(next_followup_date__isnull=False) & ~Q(followups__followup_status__in=["COMPLETED", "DONE"]))
+            elif fst_up == "RESCHEDULED":
+                fu_status_q |= Q(followups__comment__icontains="Rescheduled") | Q(followups__followup_status="RESCHEDULED")
+            elif fst_up in ("COMPLETED", "DONE"):
+                fu_status_q |= Q(followups__followup_status__in=["COMPLETED", "DONE"])
+            else:
+                fu_status_q |= Q(followups__followup_status=fst_up)
+        leads = leads.filter(fu_status_q).distinct()
+
     # Available distinct years and months with data for dropdowns
     available_years_raw = Lead.objects.filter(
         hospital=hospital if hospital else None, inquiry_date__isnull=False
@@ -1172,17 +1311,84 @@ def team_history(request):
         Prefetch("lead_notes", queryset=Note.objects.select_related("created_by").order_by("-created_at", "-id"), to_attr="prefetched_notes"),
     ).order_by(sort_by)
 
-    # Filter counts for badges
-    active_filters_count = (
-        (1 if (date_preset and date_preset != "all") or selected_month or selected_year or date_from or date_to else 0)
-        + (1 if selected_attendant else 0)
-        + (1 if selected_doctor else 0)
-        + (1 if selected_user else 0)
-        + (1 if selected_courses else 0)
-        + (1 if selected_stages else 0)
-        + (1 if selected_admission_statuses else 0)
-        + (1 if q else 0)
-    )
+    # Scoped courses and stages
+    courses = Course.objects.filter(is_active=True, hospital=hospital).order_by("name") if hospital else Course.objects.filter(is_active=True, hospital__isnull=True).order_by("name")
+    if is_hospital_business:
+        stages = LeadStage.objects.filter(is_active=True).filter(Q(hospital=hospital) | Q(business_type=LeadStage.BusinessType.HOSPITAL)).order_by("order", "name")
+    else:
+        stages = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.ACADEMY).order_by("order", "name")
+    admission_status_choices = AdmissionStatus.choices
+
+    # Active filter items list for UI filter badges
+    active_filter_items = []
+    if date_preset and date_preset != "all":
+        active_filter_items.append({"key": "date_preset", "label": f"Period: {active_date_label}", "value": date_preset})
+    elif selected_month:
+        active_filter_items.append({"key": "month", "label": f"Month: {active_date_label}", "value": selected_month})
+    elif selected_year:
+        active_filter_items.append({"key": "year", "label": f"Year: {active_date_label}", "value": selected_year})
+    elif date_from or date_to:
+        active_filter_items.append({"key": "custom_date", "label": f"Date: {date_from or 'Start'} to {date_to or 'End'}", "value": "date"})
+
+    if q:
+        active_filter_items.append({"key": "q", "label": f"Search: '{q}'", "value": q})
+    if selected_user:
+        active_filter_items.append({"key": "user_id", "label": f"Team Member: {selected_user.get_full_name() or selected_user.username}", "value": selected_user.id})
+    if selected_attendant:
+        active_filter_items.append({"key": "attendant_id", "label": f"Attendant: {selected_attendant.get_full_name() or selected_attendant.username}", "value": selected_attendant.id})
+    if selected_doctor:
+        active_filter_items.append({"key": "doctor_id", "label": f"Doctor: {selected_doctor.get_full_name() or selected_doctor.username}", "value": selected_doctor.id})
+    for cid in selected_courses:
+        c_obj = courses.filter(id=int(cid)).first() if str(cid).isdigit() else None
+        if c_obj:
+            active_filter_items.append({"key": "course", "label": f"Course: {c_obj.name}", "value": cid})
+    for sid in selected_stages:
+        s_obj = stages.filter(id=int(sid)).first() if str(sid).isdigit() else None
+        if s_obj:
+            active_filter_items.append({"key": "stage", "label": f"Stage: {s_obj.name}", "value": sid})
+    for adm in selected_admission_statuses:
+        adm_lbl = dict(admission_status_choices).get(adm, adm)
+        active_filter_items.append({"key": "admission_status", "label": f"Admission: {adm_lbl}", "value": adm})
+    fu_map = {"PENDING": "Follow up Pending", "RESCHEDULED": "Follow up Rescheduled", "COMPLETED": "Follow up Completed"}
+    for fst in selected_followup_statuses:
+        active_filter_items.append({"key": "followup_status", "label": fu_map.get(fst.upper(), fst), "value": fst})
+
+    # Handle Export (Excel & PDF)
+    export_format = request.GET.get("export", "").lower()
+    if export_format in ("1", "excel", "xlsx", "csv"):
+        import pandas as pd
+        rows = []
+        for lead in leads:
+            cd = lead.custom_data or {}
+            row_dict = {
+                "Lead ID": lead.lead_code,
+                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else "",
+                "Student / Contact Name": lead.name,
+                "Mobile": lead.mobile,
+                "Course": lead.course.name if lead.course else "",
+                "Stage": lead.stage.name if lead.stage else "New",
+                "Admission Status": lead.get_admission_status_display() if hasattr(lead, "get_admission_status_display") and lead.admission_status else (lead.admission_status or "Open"),
+                "Temperature": lead.get_temperature_display() if hasattr(lead, "get_temperature_display") and lead.temperature else (lead.temperature or ""),
+                "Assigned Counselor / Staff": lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned"),
+                "City / Location": lead.location or lead.city or "",
+            }
+            if is_hospital_business:
+                row_dict["Doctor"] = cd.get("doctor", "")
+                row_dict["Department"] = cd.get("department", "")
+            rows.append(row_dict)
+
+        df = pd.DataFrame(rows)
+        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="team_leads_export_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        df.to_excel(response, index=False, sheet_name="Team Leads")
+        return response
+    elif export_format == "pdf":
+        return render(request, "leads/leads_print_pdf.html", {
+            "leads": leads[:500],
+            "total_count": leads.count(),
+            "now": timezone.now(),
+            "active_filters_count": len(active_filter_items),
+        })
 
     # Pagination
     paginator = Paginator(leads, 25)
@@ -1201,11 +1407,13 @@ def team_history(request):
     query_params = request.GET.copy()
     query_params.pop("page", None)
 
-    courses = Course.objects.filter(is_active=True).order_by("name")
-    stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
-    admission_status_choices = AdmissionStatus.choices
-
     available_businesses = Hospital.objects.filter(is_active=True).order_by("name") if is_global_admin else []
+
+    followup_status_choices = [
+        ("PENDING", "Follow up Pending"),
+        ("RESCHEDULED", "Follow up Rescheduled"),
+        ("COMPLETED", "Follow up Completed"),
+    ]
 
     context = {
         "active": "team_history",
@@ -1219,9 +1427,11 @@ def team_history(request):
         "selected_attendant": selected_attendant,
         "selected_doctor": selected_doctor,
         # Academy & Hospital member filters
-        "courses": Course.objects.filter(is_active=True).order_by("name"),
-        "stages": LeadStage.objects.filter(is_active=True).order_by("order", "name"),
-        "admission_status_choices": AdmissionStatus.choices,
+        "courses": courses,
+        "stages": stages,
+        "admission_status_choices": admission_status_choices,
+        "followup_status_choices": followup_status_choices,
+        "selected_followup_statuses": selected_followup_statuses,
         "team_members": team_members,
         "user_counts": user_counts,
         "selected_user": selected_user,
@@ -1236,8 +1446,9 @@ def team_history(request):
         "selected_courses": selected_courses,
         "selected_stages": selected_stages,
         "selected_admission_statuses": selected_admission_statuses,
+        "active_filter_items": active_filter_items,
+        "active_filters_count": len(active_filter_items),
         "current_sort": sort_by,
-        "active_filters_count": active_filters_count,
         "query_params": query_params.urlencode(),
         "today_str": today.strftime("%Y-%m-%d"),
         "is_global_admin": is_global_admin,
@@ -1358,18 +1569,19 @@ def user_performance_analysis(request, user_id):
     total_leads_count = leads.count()
     won_leads_count = leads.filter(
         Q(deal_status=DealStatus.WON)
-        | Q(admission_status=AdmissionStatus.ADMISSION_DONE)
+        | Q(admission_status=AdmissionStatus.WON)
+        | Q(admission_status='ADMISSION_DONE')
         | Q(deal_status="BOOKING CONFIRMED")
         | Q(deal_status="PAYMENT DONE")
     ).distinct().count()
 
     lost_leads_count = leads.filter(
-        Q(deal_status=DealStatus.LOST) | Q(admission_status=AdmissionStatus.CANCELLED)
+        Q(deal_status=DealStatus.LOST) | Q(admission_status=AdmissionStatus.LOST) | Q(admission_status='CANCELLED')
     ).count()
 
     open_leads_count = leads.filter(
         deal_status=DealStatus.OPEN
-    ).exclude(admission_status=AdmissionStatus.ADMISSION_DONE).count()
+    ).exclude(Q(admission_status=AdmissionStatus.WON) | Q(admission_status='ADMISSION_DONE')).count()
 
     conversion_rate = round((won_leads_count / total_leads_count * 100), 1) if total_leads_count > 0 else 0.0
 
@@ -1385,18 +1597,13 @@ def user_performance_analysis(request, user_id):
     pending_followups_count = user_followups.filter(followup_status="PENDING").count()
     followup_completion_rate = round((completed_followups_count / total_followups_count * 100), 1) if total_followups_count > 0 else 0.0
 
-    # 2. Temperature Distribution Data
+    # 2. Temperature Distribution Data (Strictly Hot, Warm, Cold, Freeze)
     temp_counts = {
         "Hot": leads.filter(temperature=LeadTemperature.HOT).count(),
         "Warm": leads.filter(temperature=LeadTemperature.WARM).count(),
         "Cold": leads.filter(temperature=LeadTemperature.COLD).count(),
         "Freeze": leads.filter(temperature=LeadTemperature.FREEZE).count(),
-        "Uncontacted": leads.filter(temperature=LeadTemperature.UNCONTACTED).count(),
     }
-    # Include not picked if present
-    not_picked_count = leads.filter(temperature=LeadTemperature.NOT_PICKED).count()
-    if not_picked_count > 0:
-        temp_counts["Not Picked"] = not_picked_count
 
     # 3. Status Distribution Data
     if is_hospital_business:
@@ -1409,11 +1616,10 @@ def user_performance_analysis(request, user_id):
         }
     else:
         status_counts = {
-            "Open Leads": leads.filter(deal_status=DealStatus.OPEN).exclude(admission_status=AdmissionStatus.ADMISSION_DONE).count(),
-            "Admissions Done": leads.filter(admission_status=AdmissionStatus.ADMISSION_DONE).count(),
-            "Interested / Applied": leads.filter(admission_status__in=[AdmissionStatus.INTERESTED, AdmissionStatus.APPLIED]).count(),
-            "On Hold": leads.filter(deal_status=DealStatus.HOLD).count(),
-            "Lost": leads.filter(deal_status=DealStatus.LOST).count(),
+            "Open Leads": leads.filter(deal_status=DealStatus.OPEN).exclude(admission_status=AdmissionStatus.WON).count(),
+            "Admissions Won": leads.filter(admission_status=AdmissionStatus.WON).count(),
+            "On Hold": leads.filter(Q(deal_status=DealStatus.HOLD) | Q(admission_status=AdmissionStatus.HOLD)).count(),
+            "Lost": leads.filter(Q(deal_status=DealStatus.LOST) | Q(admission_status=AdmissionStatus.LOST)).count(),
         }
 
     # 4. Day-wise or Month-wise Performance Trend
@@ -1433,7 +1639,7 @@ def user_performance_analysis(request, user_id):
             trend_counts.append(day_leads.count())
             day_won = day_leads.filter(
                 Q(deal_status=DealStatus.WON)
-                | Q(admission_status=AdmissionStatus.ADMISSION_DONE)
+                | Q(admission_status=AdmissionStatus.WON)
                 | Q(deal_status="BOOKING CONFIRMED")
                 | Q(deal_status="PAYMENT DONE")
             ).count()
@@ -1460,7 +1666,7 @@ def user_performance_analysis(request, user_id):
             trend_counts.append(m_leads.count())
             m_won = m_leads.filter(
                 Q(deal_status=DealStatus.WON)
-                | Q(admission_status=AdmissionStatus.ADMISSION_DONE)
+                | Q(admission_status=AdmissionStatus.WON)
                 | Q(deal_status="BOOKING CONFIRMED")
                 | Q(deal_status="PAYMENT DONE")
             ).count()
@@ -1709,7 +1915,7 @@ def lead_edit(request, pk):
             has_call_interaction = has_call_remarks or has_call_dates
             
             try:
-                is_won = saved_lead.deal_status == DealStatus.WON or saved_lead.admission_status == AdmissionStatus.ADMISSION_DONE or bool(cd.get('total') and float(cd.get('total') or 0) > 0)
+                is_won = saved_lead.deal_status == DealStatus.WON or saved_lead.admission_status == AdmissionStatus.WON or bool(cd.get('total') and float(cd.get('total') or 0) > 0)
                 if is_lead_hospital_type:
                     # --- HOSPITAL LEAD STAGE RESOLUTION ---
                     if is_won:
@@ -1718,7 +1924,7 @@ def lead_edit(request, pk):
                         if won_stage:
                             saved_lead.stage = won_stage
                         saved_lead.deal_status = DealStatus.WON
-                        saved_lead.admission_status = AdmissionStatus.ADMISSION_DONE
+                        saved_lead.admission_status = AdmissionStatus.WON
                         cd['deal_status'] = 'Won (Payment Done)'
                         cd['appointment_status'] = cd.get('appointment_status') or 'Payment Done'
                         saved_lead.custom_data = cd
@@ -1729,28 +1935,29 @@ def lead_edit(request, pk):
                         if not stage_match:
                             apt_upper = apt_st.upper()
                             if 'APPROV' in apt_upper or 'AWAIT' in apt_upper:
-                                stage_match = LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first()
+                                stage_match = LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
+                                              LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first()
                             elif 'CONFIRM' in apt_upper or 'BOOK' in apt_upper:
-                                stage_match = LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
+                                stage_match = LeadStage.objects.filter(name__iexact='Appointment Confirmed').first() or \
+                                              LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
                             elif 'COMPLET' in apt_upper:
                                 stage_match = LeadStage.objects.filter(name__iexact='Appointment Completed').first()
                             elif 'PENDING' in apt_upper and 'PAYMENT' in apt_upper:
                                 stage_match = LeadStage.objects.filter(name__iexact='Payment Pending').first()
                             elif 'CANCEL' in apt_upper or 'LOST' in apt_upper or 'NOT INT' in apt_upper:
-                                stage_match = LeadStage.objects.filter(name__iexact='Lost').first()
+                                stage_match = LeadStage.objects.filter(name__iexact='Cancelled').first() or \
+                                              LeadStage.objects.filter(name__iexact='Lost').first()
                             elif 'FOLLOW' in apt_upper:
-                                stage_match = LeadStage.objects.filter(name__iexact='Follow-up').first()
+                                stage_match = LeadStage.objects.filter(name__iexact='Follow up').first()
                         if stage_match:
                             saved_lead.stage = stage_match
                         elif has_call_interaction:
-                            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+                            contacted_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
                             if contacted_stage:
                                 saved_lead.stage = contacted_stage
                     elif has_call_interaction:
-                        contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
+                        contacted_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
                         saved_lead.stage = contacted_stage
-                        if saved_lead.temperature == LeadTemperature.UNCONTACTED:
-                            saved_lead.temperature = LeadTemperature.WARM
                     else:
                         assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
                         if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
@@ -1764,7 +1971,7 @@ def lead_edit(request, pk):
                         if won_stage:
                             saved_lead.stage = won_stage
                         saved_lead.deal_status = DealStatus.WON
-                        saved_lead.admission_status = AdmissionStatus.ADMISSION_DONE
+                        saved_lead.admission_status = AdmissionStatus.WON
                         cd['deal_status'] = 'Won (Admission Done)'
                         saved_lead.custom_data = cd
                     elif cd.get('deal_status') or cd.get('stage'):
@@ -1779,8 +1986,6 @@ def lead_edit(request, pk):
                     elif has_call_interaction:
                         contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.create(name='Contacted', order=3)
                         saved_lead.stage = contacted_stage
-                        if saved_lead.temperature == LeadTemperature.UNCONTACTED:
-                            saved_lead.temperature = LeadTemperature.WARM
                     else:
                         assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.create(name='Assigned', order=2)
                         if not saved_lead.stage or saved_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
@@ -2128,7 +2333,8 @@ def lead_detail(request, pk):
         query_params["return_to"] = return_url
     filter_querystring = query_params.urlencode()
 
-    stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    b_type = LeadStage.BusinessType.HOSPITAL if (lead.hospital or is_lead_hospital) else LeadStage.BusinessType.ACADEMY
+    stages = LeadStage.objects.filter(is_active=True, business_type__in=[b_type, LeadStage.BusinessType.ALL]).order_by("order", "name")
     temperatures = LeadTemperature.choices
     deal_statuses = DealStatus.choices
     admission_statuses = AdmissionStatus.choices
@@ -2154,7 +2360,9 @@ def lead_detail(request, pk):
         "latest_appointment": latest_appointment,
         "appointments_history": appointments_history,
         "custom_field_data": custom_field_data,
-        "followup_modes": FollowUpMode.choices, "followup_statuses": FollowUpStatus.choices,
+        "followup_modes": FollowUpMode.choices,
+        "followup_statuses": FollowUpStatus.get_active_choices(),
+        "followup_update_statuses": FollowUpStatus.get_update_choices(),
         "stages": stages,
         "courses": courses_qs,
         "course_data_json": json.dumps(course_data),
@@ -2254,17 +2462,6 @@ def add_followup(request, pk):
             except ValueError:
                 fu_date = today
 
-        next_fu_date = None
-        if next_fu_date_raw:
-            try:
-                parsed_next = datetime.strptime(next_fu_date_raw, "%Y-%m-%d").date()
-                if parsed_next < today:
-                    messages.error(request, "Next follow-up date cannot be in the past.")
-                    return redirect("leads:lead_detail", pk=pk)
-                next_fu_date = parsed_next
-            except ValueError:
-                next_fu_date = None
-
         fu_time_raw = request.POST.get("followup_time") or None
         fu_time = None
         if fu_time_raw:
@@ -2278,32 +2475,44 @@ def add_followup(request, pk):
             except ValueError:
                 fu_time = None
 
-        # If no explicit next_followup_date set, but followup_date is today or future,
-        # treat followup_date as the next_followup_date so dashboard shows it correctly
-        if next_fu_date is None and fu_date >= today:
-            next_fu_date = fu_date
+        initial_status = request.POST.get("followup_status", FollowUpStatus.PENDING)
+        if not initial_status or initial_status not in FollowUpStatus.values:
+            initial_status = FollowUpStatus.PENDING
+
+        comment_text = request.POST.get("comment", "").strip()
 
         FollowUp.objects.create(
             lead=lead,
             followup_date=fu_date,
             followup_time=fu_time,
             followup_mode=request.POST.get("followup_mode", FollowUpMode.CALL),
-            followup_status=request.POST.get("followup_status", FollowUpStatus.COMPLETED),
-            comment=request.POST.get("comment", ""),
-            next_followup_date=next_fu_date,
-            next_followup_time=request.POST.get("next_followup_time") or None,
+            followup_status=initial_status,
+            comment=comment_text,
+            next_followup_date=fu_date if initial_status == FollowUpStatus.PENDING else None,
+            next_followup_time=fu_time if initial_status == FollowUpStatus.PENDING else None,
             created_by=request.user,
         )
+
+        # Update Lead cache
+        if initial_status == FollowUpStatus.PENDING:
+            lead.next_followup_date = fu_date
+            lead.next_followup_time = fu_time
+        elif not lead.followups.filter(followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]).exists():
+            lead.next_followup_date = None
+            lead.next_followup_time = None
+
         if lead.assigned_to is None:
             lead.assigned_to = request.user
-        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-            fu_stage = LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned']:
+            fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Follow-up').first()
             if fu_stage:
                 lead.stage = fu_stage
-        if lead.temperature == LeadTemperature.UNCONTACTED or lead.temperature == 'UNCONTACTED':
-            lead.temperature = LeadTemperature.WARM
+
+        new_temp = (lead.custom_temperature or "").upper()
+        if new_temp in LeadTemperature.values:
+            lead.temperature = new_temp
         lead.save()
-        messages.success(request, "Follow-up recorded.")
+        messages.success(request, "Follow-up scheduled successfully.")
     return redirect("leads:lead_detail", pk=pk)
 
 
@@ -2318,52 +2527,129 @@ def update_followup_status(request, pk, fu_id):
     
     fu = get_object_or_404(FollowUp, id=fu_id, lead=lead)
     if request.method == "POST":
-        if fu.followup_status == FollowUpStatus.DONE:
-            messages.warning(request, "This follow-up is already marked as Done and cannot be updated.")
+        if fu.followup_status == FollowUpStatus.COMPLETED:
+            messages.warning(request, "This follow-up is already marked as Completed and cannot be modified.")
             return redirect("leads:lead_detail", pk=pk)
 
-        new_status = request.POST.get("followup_status")
+        new_status = request.POST.get("followup_status", "").strip()
         update_note = request.POST.get("update_note", "").strip()
         next_date_str = request.POST.get("next_followup_date", "").strip()
         next_time_str = request.POST.get("next_followup_time", "").strip()
 
-        if new_status and new_status in FollowUpStatus.values:
-            old_status_display = fu.get_followup_status_display()
-            fu.followup_status = new_status
-            if update_note:
-                existing_comment = (fu.comment or "").strip()
-                author_name = request.user.get_full_name() or request.user.username
-                note_entry = f"[Update by {author_name}]: {update_note}"
-                fu.comment = f"{existing_comment}\n{note_entry}".strip() if existing_comment else note_entry
-            
-            if new_status == FollowUpStatus.DONE:
-                fu.next_followup_date = None
-                fu.next_followup_time = None
-            else:
-                if next_date_str:
-                    try:
-                        fu.next_followup_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
-                    except (ValueError, TypeError):
-                        pass
-                if next_time_str:
-                    try:
-                        fu.next_followup_time = datetime.strptime(next_time_str, "%H:%M").time()
-                    except (ValueError, TypeError):
-                        pass
+        # Remarks are mandatory on status update
+        if not update_note:
+            messages.error(request, "Remarks / Update Note is required to update follow-up status.")
+            return redirect("leads:lead_detail", pk=pk)
 
+        today = timezone.localdate()
+        author_name = request.user.get_full_name() or request.user.username
+
+        if new_status in [FollowUpStatus.COMPLETED, "COMPLETED", "DONE"]:
+            # Mark current followup as COMPLETED
+            old_status_display = fu.get_followup_status_display()
+            fu.followup_status = FollowUpStatus.COMPLETED
+            fu.next_followup_date = None
+            fu.next_followup_time = None
+            existing_comment = (fu.comment or "").strip()
+            note_entry = f"[Completed by {author_name} on {today.strftime('%d-%m-%Y')}]: {update_note}"
+            fu.comment = f"{existing_comment}\n{note_entry}".strip() if existing_comment else note_entry
             fu.save()
-            
-            # Log Activity so timeline shows the status update
-            status_display = "Follow-up Done" if new_status == FollowUpStatus.DONE else fu.get_followup_status_display()
+
+            # Update Lead's next and last followup dates
+            lead.last_followup_date = today
+            next_pending_fu = lead.followups.filter(
+                followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]
+            ).exclude(pk=fu.pk).order_by("followup_date", "followup_time").first()
+
+            if next_pending_fu:
+                lead.next_followup_date = next_pending_fu.followup_date
+                lead.next_followup_time = next_pending_fu.followup_time
+            else:
+                lead.next_followup_date = None
+                lead.next_followup_time = None
+            # Recalculate dynamic temperature
+            new_temp = (lead.custom_temperature or "").upper()
+            if new_temp in LeadTemperature.values:
+                lead.temperature = new_temp
+            lead.save()
+
+            # Log Activity
             Activity.objects.create(
                 lead=lead,
                 activity_type=ActivityType.FOLLOWUP,
-                description=f"Follow-up status updated from {old_status_display} to {status_display}" + (f" - Note: {update_note}" if update_note else ""),
+                description=f"Follow-up completed - Remarks: {update_note}",
                 created_by=request.user,
             )
-            messages.success(request, f"Follow-up status updated to {status_display}.")
+            messages.success(request, "Follow-up marked as Completed.")
+
+        elif new_status == FollowUpStatus.RESCHEDULED:
+            # Reschedule requires date and time
+            if not next_date_str:
+                messages.error(request, "New Follow-up date is required for rescheduling.")
+                return redirect("leads:lead_detail", pk=pk)
+
+            try:
+                parsed_next_date = datetime.strptime(next_date_str, "%Y-%m-%d").date()
+                if parsed_next_date < today:
+                    messages.error(request, "New Follow-up date cannot be in the past.")
+                    return redirect("leads:lead_detail", pk=pk)
+            except (ValueError, TypeError):
+                messages.error(request, "Invalid date format for rescheduling.")
+                return redirect("leads:lead_detail", pk=pk)
+
+            parsed_next_time = None
+            if next_time_str:
+                try:
+                    parsed_next_time = datetime.strptime(next_time_str, "%H:%M").time()
+                    if parsed_next_date == today:
+                        now_time = timezone.localtime().time()
+                        if parsed_next_time < now_time:
+                            messages.error(request, f"Reschedule time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}).")
+                            return redirect("leads:lead_detail", pk=pk)
+                except (ValueError, TypeError):
+                    parsed_next_time = None
+
+            # Mark current followup as COMPLETED (or closed interaction)
+            existing_comment = (fu.comment or "").strip()
+            note_entry = f"[Rescheduled by {author_name} on {today.strftime('%d-%m-%Y')}]: {update_note} -> Next scheduled for {parsed_next_date.strftime('%d-%m-%Y')}" + (f" at {parsed_next_time.strftime('%I:%M %p')}" if parsed_next_time else "")
+            fu.followup_status = FollowUpStatus.COMPLETED
+            fu.comment = f"{existing_comment}\n{note_entry}".strip() if existing_comment else note_entry
+            fu.next_followup_date = parsed_next_date
+            fu.next_followup_time = parsed_next_time
+            fu.save()
+
+            # Create NEW FollowUp with status PENDING
+            new_fu = FollowUp.objects.create(
+                lead=lead,
+                followup_date=parsed_next_date,
+                followup_time=parsed_next_time,
+                followup_mode=fu.followup_mode,
+                followup_status=FollowUpStatus.PENDING,
+                comment=f"Rescheduled Follow-up: {update_note}",
+                next_followup_date=parsed_next_date,
+                next_followup_time=parsed_next_time,
+                created_by=request.user,
+            )
+
+            # Update lead next_followup_date & dynamic temperature
+            lead.last_followup_date = today
+            lead.next_followup_date = parsed_next_date
+            lead.next_followup_time = parsed_next_time
+            new_temp = (lead.custom_temperature or "").upper()
+            if new_temp in LeadTemperature.values:
+                lead.temperature = new_temp
+            lead.save()
+
+            # Log Activity
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.FOLLOWUP,
+                description=f"Follow-up rescheduled to {parsed_next_date.strftime('%d-%m-%Y')}" + (f" {parsed_next_time.strftime('%I:%M %p')}" if parsed_next_time else "") + f" - Note: {update_note}",
+                created_by=request.user,
+            )
+            messages.success(request, f"Follow-up rescheduled to {parsed_next_date.strftime('%d-%m-%Y')}.")
         else:
-            messages.warning(request, "Please select a valid follow-up status.")
+            messages.warning(request, "Please select either Completed or Rescheduled.")
     return redirect("leads:lead_detail", pk=pk)
 
 
@@ -2416,13 +2702,14 @@ def convert_admission(request, pk):
         batch = request.POST.get("batch", "").strip()
         admission_date = request.POST.get("admission_date") or timezone.localdate()
 
-        # Update Lead stage to Admission dynamically when converted
-        admission_stage = LeadStage.objects.filter(name__icontains="admission", is_active=True).first()
+        # Update Lead stage to Admission Done dynamically when converted
+        admission_stage = LeadStage.objects.filter(name__iexact="Admission Done", is_active=True).first() or \
+                          LeadStage.objects.filter(name__icontains="admission", is_active=True).first()
         if admission_stage:
             lead.stage = admission_stage
-            lead.deal_status = "WON"
-            lead.admission_status = "ADMISSION_DONE"
-            lead.save(update_fields=["stage", "deal_status", "admission_status"])
+        lead.deal_status = DealStatus.WON
+        lead.admission_status = AdmissionStatus.WON
+        lead.save(update_fields=["stage", "deal_status", "admission_status"])
 
         adm = Admission.objects.create(
             lead=lead,
@@ -2625,12 +2912,120 @@ def lead_quick_update_stage(request, pk):
 
         if new_admission_status in AdmissionStatus.values:
             lead.admission_status = new_admission_status
+            if new_admission_status == AdmissionStatus.LOST:
+                is_hospital = bool(lead.hospital_id and any(k in (lead.hospital.name or "").lower() for k in ["hospital", "clinic", "medical", "nelson"]))
+                if not is_hospital:
+                    lead.temperature = LeadTemperature.FREEZE
+                    b_type = LeadStage.BusinessType.HOSPITAL if is_hospital else LeadStage.BusinessType.ACADEMY
+                    cancelled_stage = (
+                        LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=b_type).first()
+                        or LeadStage.objects.filter(name__iexact="Cancelled", is_active=True).first()
+                        or LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
+                    )
+                    if cancelled_stage:
+                        lead.stage = cancelled_stage
+                    lead.deal_status = DealStatus.LOST
+            elif new_admission_status == AdmissionStatus.WON:
+                lead.deal_status = DealStatus.WON
+                lead.temperature = LeadTemperature.HOT
+            elif new_admission_status == AdmissionStatus.HOLD:
+                lead.deal_status = DealStatus.HOLD
+                lead.temperature = LeadTemperature.COLD
+            elif new_admission_status == AdmissionStatus.OPEN:
+                lead.deal_status = DealStatus.OPEN
+                lead.temperature = LeadTemperature.WARM
 
         if new_deal_status in DealStatus.values:
             lead.deal_status = new_deal_status
 
         lead.save()
         messages.success(request, f"Lead stage and status updated successfully!")
+
+    return redirect("leads:lead_detail", pk=pk)
+
+
+@login_required
+def update_admission_status(request, pk):
+    """
+    Directly updates the admission status for Academy leads from the lead view/detail page.
+    Automatically updates temperature to Freeze and stage to Cancelled if set to LOST.
+    """
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:lead_list")
+    
+    can_edit = _can_edit_lead(request.user, lead)
+    if not can_edit:
+        messages.error(request, "Only the assigned counselor or manager can change this lead's admission status.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    if request.method == "POST":
+        new_status = request.POST.get("admission_status", "").strip().upper()
+        if new_status in AdmissionStatus.values:
+            old_status_disp = lead.get_admission_status_display()
+            lead.admission_status = new_status
+            
+            is_hospital = bool(lead.hospital_id and any(k in (lead.hospital.name or "").lower() for k in ["hospital", "clinic", "medical", "nelson"]))
+            if new_status == AdmissionStatus.LOST:
+                if not is_hospital:
+                    lead.temperature = LeadTemperature.FREEZE
+                    b_type = LeadStage.BusinessType.HOSPITAL if is_hospital else LeadStage.BusinessType.ACADEMY
+                    cancelled_stage = (
+                        LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=b_type).first()
+                        or LeadStage.objects.filter(name__iexact="Cancelled", is_active=True).first()
+                        or LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
+                    )
+                    if cancelled_stage:
+                        lead.stage = cancelled_stage
+                lead.deal_status = DealStatus.LOST
+            elif new_status == AdmissionStatus.WON:
+                lead.deal_status = DealStatus.WON
+                lead.temperature = LeadTemperature.HOT
+                if not is_hospital:
+                    won_stage = (
+                        LeadStage.objects.filter(name__iexact="Admission Done", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first()
+                        or LeadStage.objects.filter(name__iexact="Admission Done", is_active=True).first()
+                        or LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+                    )
+                    if won_stage:
+                        lead.stage = won_stage
+            elif new_status == AdmissionStatus.HOLD:
+                lead.deal_status = DealStatus.HOLD
+                lead.temperature = LeadTemperature.COLD
+                if not is_hospital and (not lead.stage or lead.stage.name.lower() in ("cancelled", "lost")):
+                    b_type = LeadStage.BusinessType.ACADEMY
+                    active_stage = (
+                        LeadStage.objects.filter(name__iexact="Follow up", is_active=True, business_type=b_type).first()
+                        or LeadStage.objects.filter(name__iexact="Assigned", is_active=True, business_type=b_type).first()
+                    )
+                    if active_stage:
+                        lead.stage = active_stage
+            elif new_status == AdmissionStatus.OPEN:
+                lead.deal_status = DealStatus.OPEN
+                lead.temperature = LeadTemperature.WARM
+                if not is_hospital and (not lead.stage or lead.stage.name.lower() in ("cancelled", "lost", "admission done", "payment done")):
+                    b_type = LeadStage.BusinessType.ACADEMY
+                    # Revert stage from Cancelled to Follow up (if followups exist) or Assigned
+                    if lead.followups.exists():
+                        revert_stg = LeadStage.objects.filter(name__iexact="Follow up", is_active=True, business_type=b_type).first()
+                    else:
+                        revert_stg = LeadStage.objects.filter(name__iexact="Assigned", is_active=True, business_type=b_type).first() or \
+                                     LeadStage.objects.filter(name__iexact="New", is_active=True, business_type=b_type).first()
+                    if revert_stg:
+                        lead.stage = revert_stg
+
+            lead.save()
+
+            # Record Activity
+            Activity.objects.create(
+                lead=lead,
+                created_by=request.user,
+                activity_type=ActivityType.STAGE_CHANGE if hasattr(ActivityType, "STAGE_CHANGE") else "STAGE_CHANGE",
+                description=f"Admission status updated from {old_status_disp} to {lead.get_admission_status_display()}.",
+            )
+            messages.success(request, f"Admission status updated to {lead.get_admission_status_display()}.")
+        else:
+            messages.error(request, "Invalid admission status selected.")
 
     return redirect("leads:lead_detail", pk=pk)
 
@@ -3686,7 +4081,6 @@ def master_group_delete(request, pk):
 
 
 @login_required
-@user_passes_test(lambda u: u.can_manage_masters)
 def master_item_add(request):
     if request.method == "POST":
         group_id = request.POST.get("group_id")
@@ -3717,13 +4111,25 @@ def master_item_add(request):
                 defaults={"code": code, "order": order, "is_active": True}
             )
             if created:
-                messages.success(request, f"Remark keyword '{name}' added successfully.")
+                # Log audit trail for keyword addition
+                from audit.utils import log_action
+                biz_label = target_hospital.name if target_hospital else "Global"
+                log_action(
+                    action="ADD_TEMPERATURE_KEYWORD",
+                    obj=item,
+                    new_value=f"Added '{name}' keyword to {group.name} for {biz_label}",
+                    user=request.user
+                )
+                messages.success(request, f"Remark keyword '{name}' added successfully to {group.name}.")
             else:
                 messages.warning(request, f"Keyword '{name}' already exists in {group.name}.")
         else:
             messages.error(request, "Keyword / Remark text is required.")
 
-        if from_view == "hospital_config":
+        if from_view == "temperature_manager":
+            redirect_url = f"/leads/temperature-manager/?business={biz_param}" if biz_param else "/leads/temperature-manager/"
+            return redirect(redirect_url)
+        elif from_view == "hospital_config":
             return redirect("/leads/hospital-configuration/?tab=temperature")
         
         redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
@@ -3732,18 +4138,19 @@ def master_item_add(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.can_manage_masters)
 def master_item_edit(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and item.hospital != request.user.hospital:
+    if not is_superadmin and item.hospital and item.hospital != request.user.hospital:
         messages.error(request, "You do not have permission to edit this item.")
-        return redirect("leads:universal_masters")
+        return redirect("leads:temperature_manager")
         
     biz_param = request.POST.get("business", "").strip()
     from_view = request.POST.get("from_view", "").strip()
 
     if request.method == "POST":
+        old_name = item.name
+        old_active = item.is_active
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
         order = request.POST.get("order", 0)
@@ -3759,55 +4166,92 @@ def master_item_edit(request, pk):
             item.order = order
             item.is_active = is_active
             item.save()
+
+            from audit.utils import log_action
+            log_action(
+                action="UPDATE_TEMPERATURE_KEYWORD",
+                obj=item,
+                old_value=f"{old_name} (Active: {old_active})",
+                new_value=f"{item.name} (Active: {item.is_active})",
+                user=request.user
+            )
             messages.success(request, f"Remark keyword '{item.name}' updated.")
 
-        if from_view == "hospital_config":
+        if from_view == "temperature_manager":
+            redirect_url = f"/leads/temperature-manager/?business={biz_param}" if biz_param else "/leads/temperature-manager/"
+            return redirect(redirect_url)
+        elif from_view == "hospital_config":
             return redirect("/leads/hospital-configuration/?tab=temperature")
         
         redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
         return redirect(redirect_url)
-    return redirect("leads:universal_masters")
+    return redirect("leads:temperature_manager")
 
 
 @login_required
-@user_passes_test(lambda u: u.can_manage_masters)
 def master_item_toggle(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and item.hospital != request.user.hospital:
+    if not is_superadmin and item.hospital and item.hospital != request.user.hospital:
         messages.error(request, "You do not have permission to modify this item.")
-        return redirect("leads:universal_masters")
+        return redirect("leads:temperature_manager")
         
     biz_param = request.GET.get("business", "").strip()
     from_view = request.GET.get("from_view", "").strip()
 
+    old_state = item.is_active
     item.is_active = not item.is_active
     item.save(update_fields=["is_active"])
+
+    from audit.utils import log_action
+    log_action(
+        action="TOGGLE_TEMPERATURE_KEYWORD",
+        obj=item,
+        old_value=f"Active: {old_state}",
+        new_value=f"Active: {item.is_active}",
+        user=request.user
+    )
     messages.success(request, f"Status for '{item.name}' changed to {'Active' if item.is_active else 'Inactive'}.")
     
-    if from_view == "hospital_config":
+    if from_view == "temperature_manager":
+        redirect_url = f"/leads/temperature-manager/?business={biz_param}" if biz_param else "/leads/temperature-manager/"
+        return redirect(redirect_url)
+    elif from_view == "hospital_config":
         return redirect("/leads/hospital-configuration/?tab=temperature")
     redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
     return redirect(redirect_url)
 
 
 @login_required
-@user_passes_test(lambda u: u.can_manage_masters)
 def master_item_delete(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and item.hospital != request.user.hospital:
+    if not is_superadmin and item.hospital and item.hospital != request.user.hospital:
         messages.error(request, "You do not have permission to delete this item.")
-        return redirect("leads:universal_masters")
+        return redirect("leads:temperature_manager")
         
     biz_param = request.POST.get("business", "").strip() or request.GET.get("business", "").strip()
     from_view = request.POST.get("from_view", "").strip() or request.GET.get("from_view", "").strip()
 
     name = item.name
+    group_name = item.group.name if item.group else "Group"
+    biz_label = item.hospital.name if item.hospital else "Global"
+
+    from audit.utils import log_action
+    log_action(
+        action="DELETE_TEMPERATURE_KEYWORD",
+        obj=item,
+        old_value=f"Deleted '{name}' from {group_name} ({biz_label})",
+        user=request.user
+    )
+
     item.delete()
     messages.success(request, f"Remark keyword '{name}' deleted.")
     
-    if from_view == "hospital_config":
+    if from_view == "temperature_manager":
+        redirect_url = f"/leads/temperature-manager/?business={biz_param}" if biz_param else "/leads/temperature-manager/"
+        return redirect(redirect_url)
+    elif from_view == "hospital_config":
         return redirect("/leads/hospital-configuration/?tab=temperature")
     redirect_url = f"/leads/universal-masters/?tab=temperature&business={biz_param}" if biz_param else "/leads/universal-masters/?tab=temperature"
     return redirect(redirect_url)
@@ -3852,6 +4296,67 @@ def universal_master_import(request):
             messages.error(request, f"Error processing file: {str(e)}")
             
     return redirect("leads:universal_masters")
+
+
+@login_required
+def temperature_manager(request):
+    """
+    Temperature Manager View:
+    Accessible by business staff (Counsellors, HR, Lead Attendants, Managers, Admins, SuperAdmins).
+    Restricted for Doctors.
+    """
+    if request.user.role == User.Role.DOCTOR:
+        messages.error(request, "Permission denied: Doctors do not have access to Temperature Manager.")
+        return redirect("dashboard:home")
+    from leads.models import MasterGroup, MasterItem
+    from accounts.models import Hospital
+
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    available_businesses = list(Hospital.objects.filter(is_active=True).order_by("id")) if is_global_admin else []
+    if request.user.hospital and not available_businesses:
+        available_businesses = [request.user.hospital]
+
+    biz_param = request.GET.get("business", "").strip()
+    if is_global_admin:
+        if biz_param == "default":
+            current_hospital = None
+            is_default_tab = True
+        elif biz_param and biz_param.isdigit():
+            current_hospital = Hospital.objects.filter(id=int(biz_param)).first()
+            is_default_tab = False
+        else:
+            current_hospital = request.user.hospital
+            is_default_tab = False if current_hospital else True
+    else:
+        current_hospital = request.user.hospital
+        is_default_tab = False if current_hospital else True
+
+    pos_group, _ = MasterGroup.objects.get_or_create(
+        name="Positive Remarks", 
+        defaults={"description": "Positive call remarks & notes that shift lead temperature UP to Hot / Warm"}
+    )
+    neg_group, _ = MasterGroup.objects.get_or_create(
+        name="Negative Remarks", 
+        defaults={"description": "Negative call remarks & notes that shift lead temperature DOWN to Warm / Cold / Freeze"}
+    )
+
+    pos_items = MasterItem.objects.filter(group=pos_group, hospital=current_hospital).order_by("order", "name")
+    neg_items = MasterItem.objects.filter(group=neg_group, hospital=current_hospital).order_by("order", "name")
+
+    return render(request, "leads/temperature_manager.html", {
+        "active": "temperature_manager",
+        "current_hospital": current_hospital,
+        "is_default_tab": is_default_tab,
+        "available_businesses": available_businesses,
+        "is_global_admin": is_global_admin,
+        "pos_group": pos_group,
+        "neg_group": neg_group,
+        "pos_items": pos_items,
+        "neg_items": neg_items,
+    })
 
 
 

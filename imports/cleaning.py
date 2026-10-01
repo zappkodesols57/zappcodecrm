@@ -165,8 +165,7 @@ TEMP_RULES = [
     (r"^cold$", "COLD"),
     (r"^hot$", "HOT"),
     (r"^warm$", "WARM"),
-    (r"not\s*pick|not\s*receive|switch\s*off|unreachable", "NOT_PICKED"),
-    (r"uncontacted|new", "UNCONTACTED"),
+    (r"^freeze$", "FREEZE"),
 ]
 
 
@@ -182,30 +181,13 @@ def normalize_temperature(raw):
     # Deal-status words leaking into a "lead state" column — not a temperature at all
     if s in ("open", "closed", "hold", "done"):
         return None, True
-    return None, True
-
-
-# A lead marked "Cold" very often just means the call was never actually
-# connected — not that the person is genuinely a cold/uninterested lead.
-# These are two different things and get reported separately.
-NOT_CONNECTED_PATTERNS = re.compile(
-    r"not received|not\s*recdeived|not\s*recieved|not connect|not reach|"
-    r"switch(ed)?\s*off|invalid number|number does ?n[o']?t exist|"
-    r"out of cover(age)?|line busy|incoming.*not avail|no response|"
-    r"not answer(ing)?|not pick|disconnect|call not|busy on another call|"
-    r"phone.*off|not available|no answer"
-)
+    return "WARM", False
 
 
 def refine_temperature(temperature, comment):
-    """If `temperature` came out Cold (or blank) but the follow-up comment
-    shows the call was never actually connected, report 'NOT_PICKED'
-    instead of Cold — genuine cold/uninterested leads (where a conversation
-    happened and the person just wasn't interested) are left as Cold."""
-    if comment and NOT_CONNECTED_PATTERNS.search(str(comment).lower()):
-        if temperature in ("COLD", "UNCONTACTED", "", None):
-            return "NOT_PICKED"
-    return temperature or "UNCONTACTED"
+    if not temperature or temperature not in ("HOT", "WARM", "COLD", "FREEZE"):
+        return "WARM"
+    return temperature
 
 
 def normalize_deal_status(raw, admission_status_raw=""):

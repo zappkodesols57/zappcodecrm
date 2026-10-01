@@ -503,6 +503,7 @@
           </select>
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
+          {% if request.user.is_hospital_user %}
           <select name="deal_status" class="form-select form-select-sm">
             <option value="">All Deal Statuses</option>
             <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
@@ -510,6 +511,15 @@
             <option value="LOST" {% if request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
             <option value="HOLD" {% if request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
           </select>
+          {% else %}
+          <select name="admission_status" class="form-select form-select-sm">
+            <option value="">All Admission Statuses</option>
+            <option value="OPEN" {% if request_get.admission_status == "OPEN" or request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
+            <option value="HOLD" {% if request_get.admission_status == "HOLD" or request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
+            <option value="WON" {% if request_get.admission_status == "WON" or request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
+            <option value="LOST" {% if request_get.admission_status == "LOST" or request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
+          </select>
+          {% endif %}
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
           <select name="assigned_to" class="form-select form-select-sm">
@@ -2288,7 +2298,10 @@ function renderDrilldownTable(leads, bMode) {
                 <a href="${leadDetailHref}" class="fw-bold text-dark text-decoration-none hover-primary">
                     ${lead.name}
                 </a>
-                <div class="text-muted small" style="font-size: 0.72rem;">Added: ${lead.created_date}</div>
+                <div class="mt-0.5">
+                    <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${lead.lead_code || lead.id}</a>
+                    <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
+                </div>
             </td>
             <td>
                 <div class="text-dark fw-semibold">${lead.mobile}</div>
