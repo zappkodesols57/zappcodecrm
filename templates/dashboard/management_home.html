@@ -2,21 +2,61 @@
 {% block title %}Business Analytics & Comparison · Zappcode CRM{% endblock %}
 {% block extra_head %}
 <style>
+  /* ─── Unified Design Tokens (Type Scale, Colors, Corner Radii) ─── */
+  :root {
+    --font-2xs: 0.75rem;
+    /* 12px min floor */
+    --font-xs: 0.8125rem;
+    /* 13px */
+    --font-sm: 0.875rem;
+    /* 14px */
+    --font-base: 1rem;
+    /* 16px */
+    --font-lg: 1.25rem;
+    /* 20px */
+    --font-xl: 1.75rem;
+    /* 28px */
+
+    --text-main: #0f172a;
+    --text-body: #334155;
+    --text-muted: #64748b;
+    --text-brand: #4338ca;
+
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-full: 9999px;
+  }
+
+  /* Universal typography floor */
+  body,
+  .table td,
+  .table th,
+  .form-label {
+    font-size: var(--font-sm);
+    color: var(--text-body);
+  }
+
+  .badge,
+  .biz-chip,
+  .table td small,
+  .text-muted.small {
+    font-size: var(--font-2xs) !important;
+  }
+
   /* Modern Dashboard Tokens */
   .biz-header-card {
     background: #ffffff;
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   }
 
   .biz-chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.78rem;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
     font-weight: 600;
     border: 1px solid transparent;
   }
@@ -25,35 +65,38 @@
     min-width: 290px;
     max-height: 360px;
     overflow-y: auto;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
     border: 1px solid #e2e8f0;
   }
 
   .kpi-link {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border-radius: 14px !important;
+    border-radius: var(--radius-md) !important;
   }
+
   .kpi-link:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.06) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05) !important;
   }
 
   /* Light Soft Modern KPI Card Themes */
   .kpi-card {
-    border-radius: 14px !important;
-    padding: 1.15rem 1.35rem !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.03) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 1.1rem 1.25rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
     border: 1px solid #e2e8f0 !important;
   }
+
   .kpi-card .label {
-    font-size: 0.76rem !important;
+    font-size: var(--font-2xs) !important;
     font-weight: 700 !important;
-    letter-spacing: 0.05em !important;
+    letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
   }
+
   .kpi-card .value {
-    font-size: 1.85rem !important;
+    font-size: var(--font-xl) !important;
     font-weight: 800 !important;
     line-height: 1.15 !important;
     margin-top: 0.35rem !important;
@@ -63,52 +106,77 @@
   .kpi-1 {
     background: linear-gradient(135deg, #f0f7ff 0%, #e0effe 100%) !important;
     border-color: #bae6fd !important;
-    color: #0369a1 !important;
   }
-  .kpi-1 .label { color: #0284c7 !important; }
-  .kpi-1 .value { color: #0c4a6e !important; }
+
+  .kpi-1 .label {
+    color: #0284c7 !important;
+  }
+
+  .kpi-1 .value {
+    color: var(--text-main) !important;
+  }
 
   /* 2. Uncontacted - Soft Light Purple / Violet */
   .kpi-7 {
     background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
     border-color: #e9d5ff !important;
-    color: #7e22ce !important;
   }
-  .kpi-7 .label { color: #9333ea !important; }
-  .kpi-7 .value { color: #581c87 !important; }
+
+  .kpi-7 .label {
+    color: #7c3aed !important;
+  }
+
+  .kpi-7 .value {
+    color: var(--text-main) !important;
+  }
 
   /* 3. Conversion Rate - Soft Light Rose / Pink */
   .kpi-5 {
     background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
     border-color: #fecdd3 !important;
-    color: #be123c !important;
   }
-  .kpi-5 .label { color: #e11d48 !important; }
-  .kpi-5 .value { color: #881337 !important; }
+
+  .kpi-5 .label {
+    color: #e11d48 !important;
+  }
+
+  .kpi-5 .value {
+    color: var(--text-main) !important;
+  }
 
   /* 4. Overdue Follow-ups - Soft Light Cyan / Sky */
   .kpi-3 {
     background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%) !important;
     border-color: #a5f3fc !important;
-    color: #0e7490 !important;
   }
-  .kpi-3 .label { color: #0891b2 !important; }
-  .kpi-3 .value { color: #155e75 !important; }
+
+  .kpi-3 .label {
+    color: #0891b2 !important;
+  }
+
+  .kpi-3 .value {
+    color: var(--text-main) !important;
+  }
 
   /* 5. Total Revenue - Soft Light Amber / Orange */
   .kpi-2 {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
     border-color: #fde68a !important;
-    color: #b45309 !important;
   }
-  .kpi-2 .label { color: #d97706 !important; }
-  .kpi-2 .value { color: #78350f !important; }
+
+  .kpi-2 .label {
+    color: #d97706 !important;
+  }
+
+  .kpi-2 .value {
+    color: var(--text-main) !important;
+  }
 
   /* Comparison pill badge inside KPI Cards */
   .kpi-breakdown-row {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px dashed rgba(0,0,0,0.12);
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -118,42 +186,46 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.73rem;
+    font-size: var(--font-2xs);
     font-weight: 600;
+    color: var(--text-body);
   }
 
   .kpi-dot {
     width: 8px;
     height: 8px;
-    border-radius: 50%;
+    border-radius: var(--radius-full);
     display: inline-block;
     margin-right: 5px;
   }
 
   .btn-outline-brand {
-    color: var(--brand);
-    border-color: var(--brand);
+    color: var(--text-brand);
+    border-color: #c7d2fe;
+    border-radius: var(--radius-sm);
   }
+
   .btn-outline-brand:hover {
-    background-color: var(--brand);
+    background-color: var(--text-brand);
     color: #fff;
   }
-  
+
   .filter-drawer {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
   }
-  
+
   .chart-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
     transition: all 0.2s ease;
   }
+
   .chart-card:hover {
-    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   }
 
   /* Interactive Drilldown Calendar & Pill Styles */
@@ -162,6 +234,7 @@
     grid-template-columns: repeat(7, 1fr);
     gap: 6px;
   }
+
   .cal-header-cell {
     text-align: center;
     font-size: 0.72rem;
@@ -170,6 +243,7 @@
     text-transform: uppercase;
     padding-bottom: 4px;
   }
+
   .cal-day-cell {
     border-radius: 8px;
     border: 1px solid #e2e8f0;
@@ -184,31 +258,37 @@
     justify-content: center;
     align-items: center;
   }
+
   .cal-day-cell:hover {
     border-color: #4f46e5;
     background: #f5f3ff;
     transform: translateY(-2px);
   }
+
   .cal-day-cell.active-day {
     border-color: #4f46e5;
     background: #4f46e5 !important;
     color: #ffffff !important;
     box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
   }
+
   .cal-day-cell.active-day .cal-day-num,
   .cal-day-cell.active-day .cal-day-count {
     color: #ffffff !important;
   }
+
   .cal-day-cell.has-leads {
     border-color: #c7d2fe;
     background: #eef2ff;
   }
+
   .cal-day-num {
     font-size: 0.85rem;
     font-weight: 700;
     color: #1e293b;
     line-height: 1;
   }
+
   .cal-day-count {
     font-size: 0.68rem;
     font-weight: 800;
@@ -217,6 +297,7 @@
     border-radius: 10px;
     line-height: 1;
   }
+
   .nav-time-pill {
     border: 1px solid #cbd5e1;
     background: #ffffff;
@@ -228,12 +309,14 @@
     cursor: pointer;
     transition: all 0.15s ease;
   }
+
   .nav-time-pill:hover,
   .nav-time-pill.active {
     background: #4f46e5;
     border-color: #4f46e5;
     color: #ffffff;
   }
+
   .cal-day-cell.disabled-day {
     opacity: 0.35 !important;
     cursor: not-allowed !important;
@@ -241,6 +324,7 @@
     border-color: #e2e8f0 !important;
     pointer-events: none !important;
   }
+
   .nav-time-pill.disabled-pill {
     opacity: 0.4 !important;
     cursor: not-allowed !important;
@@ -253,60 +337,109 @@
   /* Drilldown Bulk Action Bar & TomSelect styling */
   #drilldownBulkActionBar .ts-wrapper,
   #drilldownAdminAssignControls .ts-wrapper {
-      min-width: 220px !important;
-      border: none !important;
-      padding: 0 !important;
-      background: transparent !important;
-      box-shadow: none !important;
+    min-width: 220px !important;
+    border: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   #drilldownBulkActionBar .ts-control,
   #drilldownAdminAssignControls .ts-control,
   #drilldownBulkAssignSelect {
-      border: 1px solid #cbd5e1 !important;
-      background-color: #ffffff !important;
-      border-radius: 9999px !important;
-      padding: 0.35rem 0.85rem !important;
-      font-size: 0.82rem !important;
-      font-weight: 500 !important;
-      color: #1e293b !important;
-      min-height: 34px !important;
-      height: 34px !important;
-      display: flex !important;
-      align-items: center !important;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    border-radius: 9999px !important;
+    padding: 0.35rem 0.85rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
   }
 
   #drilldownBulkActionBar .ts-control.focus,
   #drilldownAdminAssignControls .ts-control.focus,
   #drilldownBulkAssignSelect:focus {
-      border-color: #4f46e5 !important;
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
-      outline: none !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+    outline: none !important;
   }
 
   #drilldownBulkActionBar .ts-dropdown,
   #drilldownAdminAssignControls .ts-dropdown {
-      border-radius: 12px !important;
-      border: 1px solid #e2e8f0 !important;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
-      margin-top: 4px !important;
-      z-index: 1090 !important;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+    margin-top: 4px !important;
+    z-index: 1090 !important;
   }
 
   /* Temperature & Status Badges */
-  .badge-hot { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-  .badge-warm { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
-  .badge-cold { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
-  .badge-freeze { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+  .badge-hot {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+  }
 
-  .badge-payment-done { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
-  .badge-booking-confirmed { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
-  .badge-booking-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-  .badge-booking { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
-  .badge-followup-needed { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
-  .badge-payment-pending { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+  .badge-warm {
+    background: #fef3c7;
+    color: #d97706;
+    border: 1px solid #fcd34d;
+  }
+
+  .badge-cold {
+    background: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+  }
+
+  .badge-freeze {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+  }
+
+  .badge-payment-done {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+  }
+
+  .badge-booking-confirmed {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+  }
+
+  .badge-booking-pending {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+
+  .badge-booking {
+    background: #fefce8;
+    color: #ca8a04;
+    border: 1px solid #fef08a;
+  }
+
+  .badge-followup-needed {
+    background: #faf5ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+  }
+
+  .badge-payment-pending {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+  }
+
   .filter-drawer .form-select,
   .filter-drawer .form-control,
   .filter-drawer .ts-control,
@@ -356,108 +489,133 @@
 <form id="dashboardFilterForm" method="GET" action="{% url 'dashboard:management_home' %}">
   <!-- Retain current business selection if any -->
   {% for bid in selected_business_ids %}
-    {% if not is_all_businesses %}
-      <input type="hidden" name="business" value="{{ bid }}">
-    {% endif %}
+  {% if not is_all_businesses %}
+  <input type="hidden" name="business" value="{{ bid }}">
+  {% endif %}
   {% endfor %}
 
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2 flex-wrap">
+      <h1 class="h4 fw-bold mb-0 text-dark d-flex align-items-center gap-2 flex-wrap">
         <span>Executive Overview</span>
         {% if is_single_business and selected_businesses %}
-          <span class="badge rounded-pill" style="background: {{ selected_businesses.0.bg }}; color: {{ selected_businesses.0.color }}; border: 1px solid {{ selected_businesses.0.border }}; font-size: 0.78rem;">
-            <i class="fa-solid fa-building me-1"></i> {{ selected_businesses.0.name }}
-          </span>
+        <span class="badge rounded-pill"
+          style="background: {{ selected_businesses.0.bg }}; color: {{ selected_businesses.0.color }}; border: 1px solid {{ selected_businesses.0.border }}; font-size: 0.75rem;">
+          <i class="fa-solid fa-building me-1"></i> {{ selected_businesses.0.name }}
+        </span>
         {% elif is_comparison_mode %}
-          <span class="badge bg-purple bg-opacity-10 text-purple border rounded-pill px-3" style="font-size: 0.78rem;">
-            <i class="fa-solid fa-code-compare me-1"></i> Comparison Mode ({{ selected_businesses|length }} Entities)
-          </span>
+        <span class="badge bg-purple bg-opacity-10 text-purple border rounded-pill px-3" style="font-size: 0.75rem;">
+          <i class="fa-solid fa-code-compare me-1"></i> Comparison Mode ({{ selected_businesses|length }} Entities)
+        </span>
         {% else %}
-          <span class="badge bg-light text-secondary border rounded-pill px-3" style="font-size: 0.78rem;">
-            <i class="fa-solid fa-globe me-1"></i> All Businesses Consolidated
-          </span>
+        <span class="badge bg-light text-secondary border rounded-pill px-3" style="font-size: 0.75rem;">
+          <i class="fa-solid fa-globe me-1"></i> All Businesses Consolidated
+        </span>
         {% endif %}
 
         {% if request_get.assigned_to %}
-          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-user-check me-1"></i> Employee: {{ request_get.assigned_to }}
-            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('assigned_to', '{{ request_get.assigned_to }}')" class="text-success ms-1"><i class="fa-solid fa-xmark"></i></a>
-          </span>
+        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3"
+          style="font-size: 0.75rem;">
+          <i class="fa-solid fa-user-check me-1"></i> Employee: {{ request_get.assigned_to }}
+          <a href="javascript:void(0)"
+            onclick="applyDashboardChartFilter('assigned_to', '{{ request_get.assigned_to }}')"
+            class="text-success ms-1"><i class="fa-solid fa-xmark"></i></a>
+        </span>
         {% endif %}
         {% if request_get.stage %}
-          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-filter me-1"></i> Stage: {{ request_get.stage }}
-            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('stage', '{{ request_get.stage }}')" class="text-primary ms-1"><i class="fa-solid fa-xmark"></i></a>
-          </span>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3"
+          style="font-size: 0.75rem;">
+          <i class="fa-solid fa-filter me-1"></i> Stage: {{ request_get.stage }}
+          <a href="javascript:void(0)" onclick="applyDashboardChartFilter('stage', '{{ request_get.stage }}')"
+            class="text-primary ms-1"><i class="fa-solid fa-xmark"></i></a>
+        </span>
         {% endif %}
         {% if request_get.lead_source_name or request_get.lead_source %}
-          <span class="badge bg-indigo bg-opacity-10 text-indigo border border-indigo-subtle rounded-pill px-3" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-chart-pie me-1"></i> Source: {{ request_get.lead_source_name|default:request_get.lead_source }}
-            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('lead_source_name', '{{ request_get.lead_source_name|default:request_get.lead_source }}')" class="text-indigo ms-1"><i class="fa-solid fa-xmark"></i></a>
-          </span>
+        <span class="badge bg-indigo bg-opacity-10 text-indigo border border-indigo-subtle rounded-pill px-3"
+          style="font-size: 0.75rem;">
+          <i class="fa-solid fa-chart-pie me-1"></i> Source: {% if request_get.lead_source_name %}{{ request_get.lead_source_name }}{% else %}{{ request_get.lead_source }}{% endif %}
+          <a href="javascript:void(0)"
+            onclick="applyDashboardChartFilter('lead_source_name', '{% if request_get.lead_source_name %}{{ request_get.lead_source_name }}{% else %}{{ request_get.lead_source }}{% endif %}')"
+            class="text-indigo ms-1"><i class="fa-solid fa-xmark"></i></a>
+        </span>
         {% endif %}
         {% if request_get.course_name or request_get.course %}
-          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill px-3" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-graduation-cap me-1"></i> {{ primary_cat_meta.unit }}: {{ request_get.course_name|default:request_get.course }}
-            <a href="javascript:void(0)" onclick="applyDashboardChartFilter('course_name', '{{ request_get.course_name|default:request_get.course }}')" class="text-dark ms-1"><i class="fa-solid fa-xmark"></i></a>
-          </span>
+        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill px-3"
+          style="font-size: 0.75rem;">
+          <i class="fa-solid fa-graduation-cap me-1"></i> {{ primary_cat_meta.unit }}: {% if request_get.course_name %}{{ request_get.course_name }}{% else %}{{ request_get.course }}{% endif %}
+          <a href="javascript:void(0)"
+            onclick="applyDashboardChartFilter('course_name', '{% if request_get.course_name %}{{ request_get.course_name }}{% else %}{{ request_get.course }}{% endif %}')"
+            class="text-dark ms-1"><i class="fa-solid fa-xmark"></i></a>
+        </span>
         {% endif %}
-      </h4>
+        </h1>
     </div>
 
     <!-- Right Actions: Quick Date Switcher Pills & Filter Buttons -->
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <!-- Quick Date Filter Switcher Buttons -->
-      <div class="btn-group btn-group-sm bg-white p-1 rounded-pill border shadow-2xs" role="group" aria-label="Date Filters">
-        <a href="javascript:void(0)" onclick="setQuickDateFilter('today')" 
-           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if time_filter == 'today' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}" style="font-size: 0.78rem;">
+      <div class="btn-group btn-group-sm bg-white p-1 rounded-pill border shadow-2xs" role="group"
+        aria-label="Date Filters">
+        <a href="javascript:void(0)" onclick="setQuickDateFilter('today')"
+          class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if time_filter == 'today' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}"
+          style="font-size: 0.78rem;">
           Today
         </a>
-        <a href="javascript:void(0)" onclick="setQuickDateFilter('this_month')" 
-           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if time_filter == 'this_month' or time_filter == 'month' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}" style="font-size: 0.78rem;">
+        <a href="javascript:void(0)" onclick="setQuickDateFilter('this_month')"
+          class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if time_filter == 'this_month' or time_filter == 'month' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}"
+          style="font-size: 0.78rem;">
           This Month
         </a>
-        <a href="javascript:void(0)" onclick="setQuickDateFilter('all_time')" 
-           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if not time_filter and not request_get.date_from and not request_get.date_to or time_filter == 'all_time' or time_filter == 'all' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}" style="font-size: 0.78rem;">
+        <a href="javascript:void(0)" onclick="setQuickDateFilter('all_time')"
+          class="btn btn-sm rounded-pill px-3 py-1 fw-semibold {% if not time_filter and not request_get.date_from and not request_get.date_to or time_filter == 'all_time' or time_filter == 'all' %}btn-primary text-white shadow-xs{% else %}btn-white text-muted{% endif %}"
+          style="font-size: 0.78rem;">
           All Time
         </a>
       </div>
 
       {% if request_get.date_from or request_get.date_to %}
-        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill shadow-2xs small fw-semibold">
-          <i class="fa-solid fa-calendar-day text-primary me-1"></i>
-          {{ request_get.date_from|default:"Start" }} to {{ request_get.date_to|default:"End" }}
-        </span>
+      <span class="badge bg-light text-dark border px-3 py-2 rounded-pill shadow-2xs small fw-semibold">
+        <i class="fa-solid fa-calendar-day text-primary me-1"></i>
+        {{ request_get.date_from|default:"Start" }} to {{ request_get.date_to|default:"End" }}
+      </span>
       {% endif %}
 
       {% if pending_approvals_count > 0 %}
-        <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-warning text-dark fw-bold animate-pulse rounded-pill px-3" style="font-size: 0.78rem;">
-          <i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s)
-        </a>
+      <a href="{% url 'accounts:user_list' %}"
+        class="btn btn-sm btn-warning text-dark fw-bold animate-pulse rounded-pill px-3" style="font-size: 0.78rem;">
+        <i class="fa-solid fa-user-clock me-1"></i> {{ pending_approvals_count }} Approval(s)
+      </a>
       {% endif %}
 
-      <button class="btn {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.date_from or request_get.date_to %}btn-primary text-white shadow-xs{% else %}btn-outline-secondary{% endif %} btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFiltersCollapse" aria-expanded="false" style="font-size: 0.78rem;">
+      <button
+        class="btn {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.date_from or request_get.date_to %}btn-primary text-white shadow-xs{% else %}btn-outline-secondary{% endif %} btn-sm rounded-pill px-3"
+        type="button" data-bs-toggle="collapse" data-bs-target="#advancedFiltersCollapse" aria-expanded="false"
+        style="font-size: 0.78rem;">
         <i class="fa-solid fa-sliders me-1"></i> Filters
       </button>
 
       {% if request_get.q or request_get.city or request_get.course or request_get.course_name or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.lead_source_name or request_get.date_from or request_get.date_to or time_filter %}
-        <a href="{% url 'dashboard:management_home' %}{% if not is_all_businesses and selected_businesses %}?business={{ selected_businesses.0.id }}{% endif %}" class="btn btn-outline-danger btn-sm rounded-pill px-3" style="font-size: 0.78rem;" title="Reset all dashboard filters">
-          <i class="fa-solid fa-arrow-rotate-left me-1"></i> Reset
-        </a>
+      <a href="{% url 'dashboard:management_home' %}{% if not is_all_businesses and selected_businesses %}?business={{ selected_businesses.0.id }}{% endif %}"
+        class="btn btn-outline-danger btn-sm rounded-pill px-3" style="font-size: 0.78rem;"
+        title="Reset all dashboard filters">
+        <i class="fa-solid fa-arrow-rotate-left me-1"></i> Reset
+      </a>
       {% endif %}
     </div>
   </div>
 
   <!-- ─── ADVANCED FILTERS COLLAPSIBLE DRAWER ─── -->
-  <div class="collapse {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.date_from or request_get.date_to %}show{% endif %}" id="advancedFiltersCollapse">
+  <div
+    class="collapse {% if request_get.q or request_get.city or request_get.course or request_get.stage or request_get.temperature or request_get.deal_status or request_get.assigned_to or request_get.date_from or request_get.date_to %}show{% endif %}"
+    id="advancedFiltersCollapse">
     <div class="card filter-drawer p-3 mb-3 shadow-2xs">
       <div class="row g-2">
         <!-- Row 1: 6 Uniform Columns (col-lg-2 col-md-4 col-sm-6) -->
         <div class="col-lg-2 col-md-4 col-sm-6">
           <div class="input-group input-group-sm h-100">
             <input type="search" name="q" class="form-control" placeholder="Search lead..." value="{{ request_get.q }}">
-            <button class="btn btn-primary" type="submit" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <button class="btn btn-primary" type="submit" title="Search"><i
+                class="fa-solid fa-magnifying-glass"></i></button>
           </div>
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
@@ -528,15 +686,20 @@
           </select>
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
-          <input type="date" id="filterDateFrom" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}" max="{{ today|date:'Y-m-d' }}" placeholder="From Date">
+          <input type="date" id="filterDateFrom" name="date_from" class="form-control form-control-sm"
+            value="{{ request_get.date_from }}" max="{{ today|date:'Y-m-d' }}" placeholder="From Date">
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
-          <input type="date" id="filterDateTo" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}" max="{{ today|date:'Y-m-d' }}" {% if request_get.date_from %}min="{{ request_get.date_from }}"{% endif %} placeholder="To Date">
+          <input type="date" id="filterDateTo" name="date_to" class="form-control form-control-sm"
+            value="{{ request_get.date_to }}" max="{{ today|date:'Y-m-d' }}" {% if request_get.date_from %}min="{{ request_get.date_from }}" {% endif %} placeholder="To Date">
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
           <div class="d-flex gap-2 h-100">
-            <button class="btn btn-sm btn-brand text-white w-50 fw-bold" type="submit" style="white-space: nowrap;"><i class="fa-solid fa-filter me-1"></i> Apply</button>
-            <a href="{% url 'dashboard:management_home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center" style="white-space: nowrap;">Reset</a>
+            <button class="btn btn-sm btn-brand text-white w-50 fw-bold" type="submit" style="white-space: nowrap;"><i
+                class="fa-solid fa-filter me-1"></i> Apply</button>
+            <a href="{% url 'dashboard:management_home' %}"
+              class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center"
+              style="white-space: nowrap;">Reset</a>
           </div>
         </div>
       </div>
@@ -546,10 +709,12 @@
 
 <!-- ─── EXACT 5 REQUESTED KPI CARDS (Single Row Grid with Interactive Drilldown) ─── -->
 <div class="row g-3 mb-4">
-  
+
   <!-- 1. Total Leads -->
   <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative" style="cursor: pointer;" onclick="openUniversalCardDrilldown('new_leads', 'Total Leads', 'primary')" title="Click to view leads breakdown">
+    <div class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative"
+      style="cursor: pointer;" onclick="openUniversalCardDrilldown('new_leads', 'Total Leads', 'primary')"
+      title="Click to view leads breakdown">
       <div class="d-flex justify-content-between align-items-center mb-1">
         <div class="label mb-0">Total Leads</div>
         <i class="fa-solid fa-arrow-up-right-from-square small text-primary opacity-75"></i>
@@ -558,7 +723,8 @@
       {% if is_comparison_mode %}
       <div class="kpi-breakdown-row">
         {% for b in business_comparisons %}
-        <div class="kpi-breakdown-item">
+        <div class="kpi-breakdown-item" onclick="event.stopPropagation(); openCardInNewTab('new_leads', '{{ b.id }}');"
+          title="View {{ b.name }} Total Leads">
           <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
           <span style="color: {{ b.color }}; font-weight: 700;">{{ b.total_leads }}</span>
         </div>
@@ -570,7 +736,10 @@
 
   <!-- 2. Uncontacted -->
   <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative" style="cursor: pointer;" onclick="openUniversalCardDrilldown('call_not_done', 'Uncontacted / Call Not Done', 'danger')" title="Click to view uncontacted leads">
+    <div class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative"
+      style="cursor: pointer;"
+      onclick="openUniversalCardDrilldown('call_not_done', 'Uncontacted / Call Not Done', 'danger')"
+      title="Click to view uncontacted leads in new tab">
       <div class="d-flex justify-content-between align-items-center mb-1">
         <div class="label mb-0">Uncontacted</div>
         <i class="fa-solid fa-arrow-up-right-from-square small text-danger opacity-75"></i>
@@ -579,7 +748,9 @@
       {% if is_comparison_mode %}
       <div class="kpi-breakdown-row">
         {% for b in business_comparisons %}
-        <div class="kpi-breakdown-item">
+        <div class="kpi-breakdown-item"
+          onclick="event.stopPropagation(); openCardInNewTab('call_not_done', '{{ b.id }}');"
+          title="View {{ b.name }} Uncontacted Leads">
           <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
           <span style="color: {{ b.color }}; font-weight: 700;">{{ b.uncontacted }}</span>
         </div>
@@ -591,7 +762,10 @@
 
   <!-- 3. Conversion Rate / Admissions -->
   <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative" style="cursor: pointer;" onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Won Conversions', 'warning')" title="Click to view admissions & converted deals">
+    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative"
+      style="cursor: pointer;"
+      onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Won Conversions', 'warning')"
+      title="Click to view admissions & converted deals in new tab">
       <div class="d-flex justify-content-between align-items-center mb-1">
         <div class="label mb-0">Conversion Rate</div>
         <i class="fa-solid fa-arrow-up-right-from-square small text-warning opacity-75"></i>
@@ -600,7 +774,8 @@
       {% if is_comparison_mode %}
       <div class="kpi-breakdown-row">
         {% for b in business_comparisons %}
-        <div class="kpi-breakdown-item">
+        <div class="kpi-breakdown-item" onclick="event.stopPropagation(); openCardInNewTab('opd_booked', '{{ b.id }}');"
+          title="View {{ b.name }} Conversions">
           <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
           <span style="color: {{ b.color }}; font-weight: 700;">{{ b.conversion_rate }}%</span>
         </div>
@@ -612,7 +787,9 @@
 
   <!-- 4. Overdue Follow-ups -->
   <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative" style="cursor: pointer;" onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'purple')" title="Click to view followups list">
+    <div class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative"
+      style="cursor: pointer;" onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'purple')"
+      title="Click to view followups list in new tab">
       <div class="d-flex justify-content-between align-items-center mb-1">
         <div class="label mb-0">Overdue Follow-ups</div>
         <i class="fa-solid fa-arrow-up-right-from-square small text-purple opacity-75"></i>
@@ -621,7 +798,8 @@
       {% if is_comparison_mode %}
       <div class="kpi-breakdown-row">
         {% for b in business_comparisons %}
-        <div class="kpi-breakdown-item">
+        <div class="kpi-breakdown-item" onclick="event.stopPropagation(); openCardInNewTab('followups', '{{ b.id }}');"
+          title="View {{ b.name }} Overdue Followups">
           <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
           <span style="color: {{ b.color }}; font-weight: 700;">{{ b.overdue }}</span>
         </div>
@@ -633,7 +811,9 @@
 
   <!-- 5. Total Revenue -->
   <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative" style="cursor: pointer;" onclick="openUniversalCardDrilldown('opd_booked', 'Revenue & Admissions', 'success')" title="Click to view revenue leads">
+    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100 cursor-pointer position-relative"
+      style="cursor: pointer;" onclick="openUniversalCardDrilldown('opd_booked', 'Revenue & Admissions', 'success')"
+      title="Click to view revenue leads in new tab">
       <div class="d-flex justify-content-between align-items-center mb-1">
         <div class="label mb-0">Total Revenue</div>
         <i class="fa-solid fa-arrow-up-right-from-square small text-success opacity-75"></i>
@@ -642,7 +822,8 @@
       {% if is_comparison_mode %}
       <div class="kpi-breakdown-row">
         {% for b in business_comparisons %}
-        <div class="kpi-breakdown-item">
+        <div class="kpi-breakdown-item" onclick="event.stopPropagation(); openCardInNewTab('opd_booked', '{{ b.id }}');"
+          title="View {{ b.name }} Revenue">
           <span><span class="kpi-dot" style="background: {{ b.color }};"></span>{{ b.name|truncatechars:14 }}</span>
           <span style="color: {{ b.color }}; font-weight: 700;">₹{{ b.revenue|floatformat:0 }}</span>
         </div>
@@ -657,12 +838,13 @@
 
 <!-- ─── COMPARATIVE BAR / FUNNEL CHARTS (With Distinct Business Legends & Colors) ─── -->
 <div class="row g-3 mb-4">
-  
+
   <!-- Lead Stage Funnel Comparison -->
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>Lead Stage Funnel Comparison</h6>
+        <h2 class="h6 text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>Lead Stage Funnel
+          Comparison</h2>
         <span class="badge bg-light text-muted border small">Multi-Entity Bars</span>
       </div>
       <div style="height: 250px; position: relative;">
@@ -675,7 +857,8 @@
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-users me-2 text-success"></i>Leads Assigned per Employee</h6>
+        <h2 class="h6 text-dark fw-bold mb-0"><i class="fa-solid fa-users me-2 text-success"></i>Leads Assigned per
+          Employee</h2>
         <span class="badge bg-light text-muted border small">Team Distribution</span>
       </div>
       <div style="height: 250px; position: relative;">
@@ -695,9 +878,9 @@
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100" style="border-top: 3px solid #6366f1;">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0">
+        <h2 class="h6 text-dark fw-bold mb-0">
           <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source & Channel Distribution
-        </h6>
+        </h2>
         <span class="badge bg-light text-muted border small">Total: {{ business_source_charts.0.total }}</span>
       </div>
       <div style="height: 240px; position: relative;">
@@ -710,9 +893,10 @@
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100" style="border-top: 3px solid #4f46e5;">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0">
-          <i class="fa-solid {{ primary_cat_meta.icon|default:'fa-graduation-cap' }} me-2 text-indigo"></i>{{ primary_cat_meta.title|default:'Course & Department Distribution' }}
-        </h6>
+        <h2 class="h6 text-dark fw-bold mb-0">
+          <i class="fa-solid {{ primary_cat_meta.icon|default:'fa-graduation-cap' }} me-2 text-indigo"></i>{{
+          primary_cat_meta.title|default:'Course & Department Distribution' }}
+        </h2>
         <span class="badge bg-light text-muted border small">Total: {{ business_course_charts.0.total }}</span>
       </div>
       <div style="height: 240px; position: relative;">
@@ -734,13 +918,15 @@
 
   <div class="row g-3">
     {% for sc in business_source_charts %}
-    <div class="{% if business_source_charts|length == 1 %}col-md-12{% elif business_source_charts|length == 2 %}col-md-6{% else %}col-md-4{% endif %}">
+    <div
+      class="{% if business_source_charts|length == 1 %}col-md-12{% elif business_source_charts|length == 2 %}col-md-6{% else %}col-md-4{% endif %}">
       <div class="card chart-card p-3 h-100" style="border-top: 3px solid {{ sc.color }};">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="fw-bold text-dark small" title="{{ sc.business_name }}">
             <span class="kpi-dot" style="background: {{ sc.color }};"></span>{{ sc.business_name|truncatechars:24 }}
           </span>
-          <span class="badge rounded-pill" style="background: {{ sc.color }}20; color: {{ sc.color }};">Total: {{ sc.total }}</span>
+          <span class="badge rounded-pill" style="background: {{ sc.color }}20; color: {{ sc.color }};">Total: {{
+            sc.total }}</span>
         </div>
         <div style="height: 210px; position: relative;">
           <canvas id="sourceChart_{{ forloop.counter }}"></canvas>
@@ -761,14 +947,17 @@
 
   <div class="row g-3">
     {% for cc in business_course_charts %}
-    <div class="{% if business_course_charts|length == 1 %}col-md-12{% elif business_course_charts|length == 2 %}col-md-6{% else %}col-md-4{% endif %}">
+    <div
+      class="{% if business_course_charts|length == 1 %}col-md-12{% elif business_course_charts|length == 2 %}col-md-6{% else %}col-md-4{% endif %}">
       <div class="card chart-card p-3 h-100" style="border-top: 3px solid {{ cc.color }};">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="fw-bold text-dark small" title="{{ cc.business_name }}">
             <i class="fa-solid {{ cc.icon|default:'fa-graduation-cap' }} me-1 text-indigo"></i>
-            <span class="kpi-dot" style="background: {{ cc.color }};"></span>{{ cc.business_name|truncatechars:18 }} ({{ cc.chart_title }})
+            <span class="kpi-dot" style="background: {{ cc.color }};"></span>{{ cc.business_name|truncatechars:18 }} ({{
+            cc.chart_title }})
           </span>
-          <span class="badge rounded-pill" style="background: {{ cc.color }}20; color: {{ cc.color }};">Total: {{ cc.total }}</span>
+          <span class="badge rounded-pill" style="background: {{ cc.color }}20; color: {{ cc.color }};">Total: {{
+            cc.total }}</span>
         </div>
         <div style="height: 210px; position: relative;">
           <canvas id="courseChart_{{ forloop.counter }}"></canvas>
@@ -789,7 +978,8 @@
       <i class="fa-solid fa-users-gear text-primary fs-5"></i>
       <h5 class="card-title mb-0 fw-bold">Team Activity Today — {{ today|date:"d M Y" }}</h5>
     </div>
-    <a href="{% url 'dashboard:management_daily_reports' %}?date_from={{ today|date:'Y-m-d' }}&date_to={{ today|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3">
+    <a href="{% url 'dashboard:management_daily_reports' %}?date_from={{ today|date:'Y-m-d' }}&date_to={{ today|date:'Y-m-d' }}"
+      class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3">
       View EOD Reports Log
     </a>
   </div>
@@ -825,13 +1015,15 @@
           <td>{{ stat.email }}</td>
           <td><strong class="text-dark">{{ stat.total_entries }}</strong></td>
           <td class="text-end">
-            <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">View Log</a>
+            <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}"
+              class="btn btn-sm btn-outline-secondary rounded-pill px-3">View Log</a>
           </td>
         </tr>
         {% empty %}
         <tr>
           <td colspan="10" class="text-center text-muted py-4">
-            <i class="fa-solid fa-users-slash fs-4 d-block mb-2"></i> No active team activity found for selected business filter.
+            <i class="fa-solid fa-users-slash fs-4 d-block mb-2"></i> No active team activity found for selected
+            business filter.
           </td>
         </tr>
         {% endfor %}
@@ -844,397 +1036,410 @@
 <!-- UNIVERSAL INTERACTIVE CARD DRILLDOWN MODAL (Today / Previous / Next / All / Custom Calendar) -->
 <!-- ========================================================================= -->
 <div class="modal fade" id="universalCardDrilldownModal" tabindex="-1" aria-labelledby="universalCardModalTitle"
-    aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 92vw;">
-        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
+  aria-hidden="true" style="z-index: 1060;">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 92vw;">
+    <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
 
-            <!-- Modal Header with Time Navigator Pills -->
-            <div class="modal-header bg-light border-bottom py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-2">
-                    <span id="drilldownCardBadgeIcon" class="badge bg-primary p-2 rounded-3 fs-6">
-                        <i class="fa-solid fa-table-cells-large"></i>
-                    </span>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="universalCardModalTitle">
-                            Card Leads Breakdown
-                        </h5>
-                        <p class="text-muted small mb-0" id="universalCardModalSubtitle">
-                            Viewing records for: <strong id="drilldownActiveDateLabel" class="text-primary">Today</strong> (<span id="drilldownTotalBadge">0</span> records)
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Interactive Time Modes (Today / Previous / Next / All / Custom) -->
-                <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')" title="Previous Day">
-                        <i class="fa-solid fa-chevron-left me-1"></i> Prev
-                    </button>
-                    <button type="button" class="nav-time-pill active" id="pillToday" onclick="drilldownSetMode('today')" title="Today's Leads">
-                        <i class="fa-solid fa-sun me-1"></i> Today
-                    </button>
-                    <button type="button" class="nav-time-pill" id="pillNext" onclick="drilldownSetMode('next')" title="Next Day">
-                        Next <i class="fa-solid fa-chevron-right ms-1"></i>
-                    </button>
-                    <button type="button" class="nav-time-pill" id="pillAll" onclick="drilldownSetMode('all')" title="All Time Leads">
-                        <i class="fa-solid fa-database me-1"></i> All
-                    </button>
-                    <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()" title="Pick Any Specific Date with Live Count">
-                        <i class="fa-solid fa-calendar-days me-1"></i> Custom Date <i class="fa-solid fa-chevron-down ms-1"></i>
-                    </button>
-                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body p-4 bg-light bg-opacity-25">
-
-                <!-- Custom Interactive Calendar Heatmap Picker & Date Range (Collapsible) -->
-                <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3" style="display: none; background: #ffffff;">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                <i class="fa-solid fa-calendar-days text-primary"></i>
-                                Select Any Date / Date Range (<span id="calMonthTitle">Calendar</span>)
-                            </h6>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <div class="d-flex align-items-center gap-1 bg-light p-1 rounded-pill border">
-                                    <span class="small text-muted fw-bold ps-2" style="font-size: 0.72rem;">From:</span>
-                                    <input type="date" id="drilldownStartDateInput" class="form-control form-control-sm border-0 bg-transparent py-0 px-1" style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownStartDateChange(this.value)">
-                                    <span class="small text-muted fw-bold" style="font-size: 0.72rem;">To:</span>
-                                    <input type="date" id="drilldownEndDateInput" class="form-control form-control-sm border-0 bg-transparent py-0 px-1" style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownEndDateChange(this.value)">
-                                    <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fw-bold" onclick="applyDrilldownDateRange()">
-                                        <i class="fa-solid fa-check me-1"></i> Apply Range
-                                    </button>
-                                </div>
-                                <div class="d-flex align-items-center gap-1">
-                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(-1)">
-                                        <i class="fa-solid fa-chevron-left"></i> Prev Month
-                                    </button>
-                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" onclick="changeCalMonth(1)">
-                                        Next Month <i class="fa-solid fa-chevron-right"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 7 Column Calendar Days Grid -->
-                        <div class="cal-grid mb-2">
-                            <div class="cal-header-cell">Sun</div>
-                            <div class="cal-header-cell">Mon</div>
-                            <div class="cal-header-cell">Tue</div>
-                            <div class="cal-header-cell">Wed</div>
-                            <div class="cal-header-cell">Thu</div>
-                            <div class="cal-header-cell">Fri</div>
-                            <div class="cal-header-cell">Sat</div>
-                        </div>
-                        <div id="calDaysContainer" class="cal-grid">
-                            <!-- Populated dynamically via JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Campaign Wise Filter Bar (Active Campaigns & Counts) -->
-                <div id="drilldownCampaignBarWrapper" class="card shadow-sm border-0 mb-3 bg-white rounded-3" style="display: none;">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-primary bg-opacity-10 text-primary p-1 rounded">
-                                    <i class="fa-solid fa-bullhorn"></i>
-                                </span>
-                                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Campaign-wise Records</span>
-                                <span class="badge bg-light text-muted border rounded-pill" id="campaignsTotalCountBadge">0 Campaigns</span>
-                            </div>
-                            <span class="text-muted small" style="font-size: 0.75rem;">Click any campaign to filter records</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap" id="drilldownCampaignPillsContainer">
-                            <!-- Populated dynamically with active campaigns and counts -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bulk Assignment Floating Bar -->
-                <div id="drilldownBulkActionBar" class="card shadow-sm mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2" style="display: none; border: 1px solid #cbd5e1 !important; border-left: 5px solid #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0 Leads Selected</span>
-                        <span class="text-muted small">Choose an employee or self-assign the selected leads:</span>
-                    </div>
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        {% if request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' %}
-                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm"
-                            id="drilldownBulkSelfAssignBtn"
-                            onclick="executeDrilldownBulkSelfAssign()"
-                            title="Self-assign selected leads to yourself">
-                            <i class="fa-solid fa-hand-holding-hand"></i>
-                            <span>Bulk Assign to Me</span>
-                            <span class="badge bg-white text-success rounded-pill px-2 py-1 ms-1" id="drilldownSelfAssignBadge" style="font-size: 0.72rem;">0 / 25</span>
-                        </button>
-                        {% endif %}
-                        <div class="d-flex align-items-center gap-2" id="drilldownAdminAssignControls" style="display: none !important;">
-                            <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill border border-secondary-subtle px-3" style="min-width: 200px; height: 34px;">
-                                <option value="">-- Select Employee --</option>
-                            </select>
-                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm" onclick="executeDrilldownBulkAssign()">
-                                <i class="fa-solid fa-user-check me-1"></i> Bulk Assign
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modern In-Window Confirmation & Alert Modal for Drilldown & In-page Alerts -->
-                <div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px); z-index: 1080;">
-                  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-                    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
-                      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2">
-                          <div id="modalIconContainer" class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
-                            <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
-                          </div>
-                          <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel" style="font-size: 1.1rem;">Confirm Action</h5>
-                        </div>
-                        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
-                      </div>
-                      <div class="modal-body px-4 py-3">
-                        <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
-                        <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2" style="display: none;"></div>
-                      </div>
-                      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm" id="modalConfirmBtn">Confirm & Apply</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Leads Table Section -->
-                <div class="card shadow-sm border-0 bg-white rounded-3">
-                    <div class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="fw-bold text-dark" id="leadsTableHeading">Lead Records</span>
-                            <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0 Leads</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <button type="button" id="drilldownClearFiltersBtn"
-                                class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
-                                style="display: none; font-size: 0.78rem;" onclick="resetAllHeaderFilters()">
-                                <i class="fa-solid fa-filter-circle-xmark"></i>
-                                <span>Clear Filters</span>
-                            </button>
-                            <input type="text" id="drilldownSearchInput" class="form-control form-control-sm rounded-pill" placeholder="Search in this list..." style="width: 200px;" oninput="filterDrilldownTable()">
-                        </div>
-                    </div>
-                    <div id="drilldownActiveFilterChipsBar" class="px-3 py-1.5 bg-light bg-opacity-50 border-bottom d-flex align-items-center gap-2 flex-wrap" style="display: none !important;">
-                        <!-- Populated dynamically with active filter tags -->
-                    </div>
-
-                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-                        <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable" style="font-size: 0.85rem;">
-                            <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
-                                <tr>
-                                    <th class="py-2 px-3" style="width: 40px;">
-                                        <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
-                                    </th>
-                                    <th class="py-2">Lead / Candidate</th>
-                                    <th class="py-2">Contact</th>
-                                    <th class="py-2">Business / Source</th>
-                                    <th class="py-2">Dept / Course</th>
-                                    <th class="py-2">Temp</th>
-                                    <th class="py-2">Status / Admission</th>
-                                    <th class="py-2" style="min-width: 150px;">Assigned To</th>
-                                    <th class="py-2" style="min-width: 180px;">Comments</th>
-                                    <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="drilldownTableBody">
-                                <!-- Populated dynamically via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div id="drilldownEmptyState" class="text-center py-5 text-muted" style="display: none;">
-                        <i class="fa-solid fa-inbox fs-1 opacity-25 d-block mb-2"></i>
-                        <h6 class="fw-bold text-dark">No Leads Found For This Date / Mode</h6>
-                        <p class="small text-muted mb-0">Try picking another date from the calendar or click 'All' to view all records.</p>
-                    </div>
-
-                    <div id="drilldownLoadingState" class="text-center py-5 text-primary" style="display: none;">
-                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                        <span class="fw-semibold">Loading live lead metrics...</span>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="modal-footer bg-light py-2 px-4 border-top d-flex justify-content-between align-items-center">
-                <span class="text-muted small">
-                    <i class="fa-solid fa-circle-info me-1"></i> Showing real-time updated lead status & temperatures
-                </span>
-                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-            </div>
+      <!-- Modal Header with Time Navigator Pills -->
+      <div
+        class="modal-header bg-light border-bottom py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2">
+          <span id="drilldownCardBadgeIcon" class="badge bg-primary p-2 rounded-3 fs-6">
+            <i class="fa-solid fa-table-cells-large"></i>
+          </span>
+          <div>
+            <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="universalCardModalTitle">
+              Card Leads Breakdown
+            </h5>
+            <p class="text-muted small mb-0" id="universalCardModalSubtitle">
+              Viewing records for: <strong id="drilldownActiveDateLabel" class="text-primary">Today</strong> (<span
+                id="drilldownTotalBadge">0</span> records)
+            </p>
+          </div>
         </div>
+
+        <!-- Interactive Time Modes (Today / Previous / Next / All / Custom) -->
+        <div class="d-flex align-items-center gap-1 flex-wrap">
+          <button type="button" class="nav-time-pill" id="pillPrev" onclick="drilldownSetMode('previous')"
+            title="Previous Day">
+            <i class="fa-solid fa-chevron-left me-1"></i> Prev
+          </button>
+          <button type="button" class="nav-time-pill active" id="pillToday" onclick="drilldownSetMode('today')"
+            title="Today's Leads">
+            <i class="fa-solid fa-sun me-1"></i> Today
+          </button>
+          <button type="button" class="nav-time-pill" id="pillNext" onclick="drilldownSetMode('next')" title="Next Day">
+            Next <i class="fa-solid fa-chevron-right ms-1"></i>
+          </button>
+          <button type="button" class="nav-time-pill" id="pillAll" onclick="drilldownSetMode('all')"
+            title="All Time Leads">
+            <i class="fa-solid fa-database me-1"></i> All
+          </button>
+          <button type="button" class="nav-time-pill" id="pillCustom" onclick="drilldownToggleCalendar()"
+            title="Pick Any Specific Date with Live Count">
+            <i class="fa-solid fa-calendar-days me-1"></i> Custom Date <i class="fa-solid fa-chevron-down ms-1"></i>
+          </button>
+          <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body p-4 bg-light bg-opacity-25">
+
+        <!-- Custom Interactive Calendar Heatmap Picker & Date Range (Collapsible) -->
+        <div id="drilldownCalendarWrapper" class="card shadow-sm border-0 mb-3"
+          style="display: none; background: #ffffff;">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                <i class="fa-solid fa-calendar-days text-primary"></i>
+                Select Any Date / Date Range (<span id="calMonthTitle">Calendar</span>)
+              </h6>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="d-flex align-items-center gap-1 bg-light p-1 rounded-pill border">
+                  <span class="small text-muted fw-bold ps-2" style="font-size: 0.72rem;">From:</span>
+                  <input type="date" id="drilldownStartDateInput"
+                    class="form-control form-control-sm border-0 bg-transparent py-0 px-1"
+                    style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownStartDateChange(this.value)">
+                  <span class="small text-muted fw-bold" style="font-size: 0.72rem;">To:</span>
+                  <input type="date" id="drilldownEndDateInput"
+                    class="form-control form-control-sm border-0 bg-transparent py-0 px-1"
+                    style="font-size: 0.78rem; width: 125px;" onchange="onDrilldownEndDateChange(this.value)">
+                  <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fw-bold"
+                    onclick="applyDrilldownDateRange()">
+                    <i class="fa-solid fa-check me-1"></i> Apply Range
+                  </button>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                  <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                    onclick="changeCalMonth(-1)">
+                    <i class="fa-solid fa-chevron-left"></i> Prev Month
+                  </button>
+                  <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1"
+                    onclick="changeCalMonth(1)">
+                    Next Month <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 7 Column Calendar Days Grid -->
+            <div class="cal-grid mb-2">
+              <div class="cal-header-cell">Sun</div>
+              <div class="cal-header-cell">Mon</div>
+              <div class="cal-header-cell">Tue</div>
+              <div class="cal-header-cell">Wed</div>
+              <div class="cal-header-cell">Thu</div>
+              <div class="cal-header-cell">Fri</div>
+              <div class="cal-header-cell">Sat</div>
+            </div>
+            <div id="calDaysContainer" class="cal-grid">
+              <!-- Populated dynamically via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Campaign Wise Filter Bar (Active Campaigns & Counts) -->
+        <div id="drilldownCampaignBarWrapper" class="card shadow-sm border-0 mb-3 bg-white rounded-3"
+          style="display: none;">
+          <div class="card-body p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary p-1 rounded">
+                  <i class="fa-solid fa-bullhorn"></i>
+                </span>
+                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Campaign-wise
+                  Records</span>
+                <span class="badge bg-light text-muted border rounded-pill" id="campaignsTotalCountBadge">0
+                  Campaigns</span>
+              </div>
+              <span class="text-muted small" style="font-size: 0.75rem;">Click any campaign to filter records</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap" id="drilldownCampaignPillsContainer">
+              <!-- Populated dynamically with active campaigns and counts -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Bulk Assignment Floating Bar -->
+        <div id="drilldownBulkActionBar"
+          class="card shadow-sm mb-3 bg-white rounded-3 p-2 d-flex flex-row align-items-center justify-content-between flex-wrap gap-2"
+          style="display: none; border: 1px solid #cbd5e1 !important; border-left: 5px solid #2563eb !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0 Leads
+              Selected</span>
+            <span class="text-muted small">Choose an employee or self-assign the selected leads:</span>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' %}
+            <button type="button"
+              class="btn btn-sm btn-success rounded-pill px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm"
+              id="drilldownBulkSelfAssignBtn" onclick="executeDrilldownBulkSelfAssign()"
+              title="Self-assign selected leads to yourself">
+              <i class="fa-solid fa-hand-holding-hand"></i>
+              <span>Bulk Assign to Me</span>
+              <span class="badge bg-white text-success rounded-pill px-2 py-1 ms-1" id="drilldownSelfAssignBadge"
+                style="font-size: 0.72rem;">0 / 25</span>
+            </button>
+            {% endif %}
+            <div class="d-flex align-items-center gap-2" id="drilldownAdminAssignControls"
+              style="display: none !important;">
+              <select id="drilldownBulkAssignSelect"
+                class="form-select form-select-sm rounded-pill border border-secondary-subtle px-3"
+                style="min-width: 200px; height: 34px;">
+                <option value="">-- Select Employee --</option>
+              </select>
+              <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm"
+                onclick="executeDrilldownBulkAssign()">
+                <i class="fa-solid fa-user-check me-1"></i> Bulk Assign
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modern In-Window Confirmation & Alert Modal for Drilldown & In-page Alerts -->
+        <div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel"
+          aria-hidden="true" style="backdrop-filter: blur(4px); z-index: 1080;">
+          <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
+              <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                  <div id="modalIconContainer"
+                    class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center"
+                    style="width: 42px; height: 42px;">
+                    <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
+                  </div>
+                  <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel"
+                    style="font-size: 1.1rem;">Confirm Action</h5>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"
+                  style="font-size: 0.8rem;"></button>
+              </div>
+              <div class="modal-body px-4 py-3">
+                <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
+                <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2"
+                  style="display: none;"></div>
+              </div>
+              <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium"
+                  id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm"
+                  id="modalConfirmBtn">Confirm & Apply</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leads Table Section -->
+        <div class="card shadow-sm border-0 bg-white rounded-3">
+          <div
+            class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold text-dark" id="leadsTableHeading">Lead Records</span>
+              <span class="badge bg-light text-secondary border rounded-pill" id="leadsTableCountBadge">0 Leads</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" id="drilldownClearFiltersBtn"
+                class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
+                style="display: none; font-size: 0.78rem;" onclick="resetAllHeaderFilters()">
+                <i class="fa-solid fa-filter-circle-xmark"></i>
+                <span>Clear Filters</span>
+              </button>
+              <input type="text" id="drilldownSearchInput" class="form-control form-control-sm rounded-pill"
+                placeholder="Search in this list..." style="width: 200px;" oninput="filterDrilldownTable()">
+            </div>
+          </div>
+          <div id="drilldownActiveFilterChipsBar"
+            class="px-3 py-1.5 bg-light bg-opacity-50 border-bottom d-flex align-items-center gap-2 flex-wrap"
+            style="display: none !important;">
+            <!-- Populated dynamically with active filter tags -->
+          </div>
+
+          <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0" id="drilldownLeadsTable" style="font-size: 0.85rem;">
+              <thead class="bg-light sticky-top text-muted" style="z-index: 5;">
+                <tr>
+                  <th class="py-2 px-3" style="width: 40px;">
+                    <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input"
+                      onchange="toggleDrilldownSelectAll(this)">
+                  </th>
+                  <th class="py-2">Lead / Candidate</th>
+                  <th class="py-2">Contact</th>
+                  <th class="py-2">Business / Source</th>
+                  <th class="py-2">Dept / Course</th>
+                  <th class="py-2">Temp</th>
+                  <th class="py-2">Status / Admission</th>
+                  <th class="py-2" style="min-width: 150px;">Assigned To</th>
+                  <th class="py-2" style="min-width: 180px;">Comments</th>
+                  <th class="py-2 px-3 position-sticky end-0 bg-light"
+                    style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
+                    Action</th>
+                </tr>
+              </thead>
+              <tbody id="drilldownTableBody">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="drilldownEmptyState" class="text-center py-5 text-muted" style="display: none;">
+            <i class="fa-solid fa-inbox fs-1 opacity-25 d-block mb-2"></i>
+            <h6 class="fw-bold text-dark">No Leads Found For This Date / Mode</h6>
+            <p class="small text-muted mb-0">Try picking another date from the calendar or click 'All' to view all
+              records.</p>
+          </div>
+
+          <div id="drilldownLoadingState" class="text-center py-5 text-primary" style="display: none;">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            <span class="fw-semibold">Loading live lead metrics...</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer bg-light py-2 px-4 border-top d-flex justify-content-between align-items-center">
+        <span class="text-muted small">
+          <i class="fa-solid fa-circle-info me-1"></i> Showing real-time updated lead status & temperatures
+        </span>
+        <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
+  </div>
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// =========================================================================
-// UNIVERSAL DRILLDOWN ENGINE (Today, Prev, Next, All, Custom Calendar with Counts)
-// =========================================================================
-let currentDrilldownCard = 'new_leads';
-let currentDrilldownCardTitle = "Leads";
-let currentDrilldownMode = 'today';
-let currentDrilldownDate = '{{ today|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
-let currentCalYear = new Date().getFullYear();
-let currentCalMonth = new Date().getMonth() + 1;
-let cachedLeadItems = [];
+  // =========================================================================
+  // UNIVERSAL DRILLDOWN ENGINE (Today, Prev, Next, All, Custom Calendar with Counts)
+  // =========================================================================
+  let currentDrilldownCard = 'new_leads';
+  let currentDrilldownCardTitle = "Leads";
+  let currentDrilldownMode = 'today';
+  let currentDrilldownDate = '{{ today|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
+  let currentCalYear = new Date().getFullYear();
+  let currentCalMonth = new Date().getMonth() + 1;
+  let cachedLeadItems = [];
 
-const cardBaseNameMap = {
+  const cardBaseNameMap = {
     'new_leads': 'Total Leads',
     'call_not_done': 'Uncontacted Leads',
     'opd_booked': 'Admissions / OPD Booked',
     'followups': 'Follow-ups Queue',
     'walkin': 'Walk-in Leads',
-};
+  };
 
-const cardIconMap = {
+  const cardIconMap = {
     'new_leads': { icon: 'fa-user-plus', colorClass: 'bg-primary' },
     'call_not_done': { icon: 'fa-phone-slash', colorClass: 'bg-danger' },
     'opd_booked': { icon: 'fa-calendar-check', colorClass: 'bg-warning' },
     'followups': { icon: 'fa-clock-rotate-left', colorClass: 'bg-purple' },
     'walkin': { icon: 'fa-person-walking', colorClass: 'bg-success' },
-};
+  };
 
-const todayStrGlobal = '{{ today|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
+  const todayStrGlobal = '{{ today|date:"Y-m-d" }}' || new Date().toISOString().split('T')[0];
 
-function isFutureDateAllowed() {
+  function isFutureDateAllowed() {
     return currentDrilldownCard === 'opd_booked' || currentDrilldownCard === 'followups';
-}
+  }
 
-function updateModalDynamicTitle(dateDisplay) {
+  function updateModalDynamicTitle(dateDisplay) {
     const baseName = cardBaseNameMap[currentDrilldownCard] || 'Leads';
     const modalTitleEl = document.getElementById('universalCardModalTitle');
     const leadsTableHeading = document.getElementById('leadsTableHeading');
 
     if (modalTitleEl) {
-        if (dateDisplay && dateDisplay.toLowerCase() !== 'all time') {
-            modalTitleEl.innerText = `${baseName} for ${dateDisplay}`;
-        } else if (dateDisplay && dateDisplay.toLowerCase() === 'all time') {
-            modalTitleEl.innerText = `All ${baseName}`;
-        } else {
-            modalTitleEl.innerText = `${baseName} Breakdown`;
-        }
+      if (dateDisplay && dateDisplay.toLowerCase() !== 'all time') {
+        modalTitleEl.innerText = `${baseName} for ${dateDisplay}`;
+      } else if (dateDisplay && dateDisplay.toLowerCase() === 'all time') {
+        modalTitleEl.innerText = `All ${baseName}`;
+      } else {
+        modalTitleEl.innerText = `${baseName} Breakdown`;
+      }
     }
     if (leadsTableHeading) {
-        leadsTableHeading.innerText = `${baseName} Records`;
+      leadsTableHeading.innerText = `${baseName} Records`;
     }
-}
+  }
 
-function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
-    currentDrilldownCard = cardType;
-    currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
-
-    // Check if page has active time filter
+  function openCardInNewTab(cardType, businessId = '') {
     const pageParams = new URLSearchParams(window.location.search);
-    const activeTimeFilter = pageParams.get('time_filter') || 'today';
+    const activeTimeFilter = pageParams.get('time_filter') || 'all';
+    const dateFrom = pageParams.get('date_from') || '';
+    const dateTo = pageParams.get('date_to') || '';
+    const activeBiz = businessId || pageParams.get('business') || '{{ selected_businesses.0.id|default:"" }}';
 
-    if (activeTimeFilter === 'all_time') {
-        currentDrilldownMode = 'all';
-        currentDrilldownDate = 'all';
-        updateModalDynamicTitle('All Time');
-        updatePillUI('all');
+    const drillParams = new URLSearchParams();
+    drillParams.set('card_type', cardType);
+    if (cardBaseNameMap[cardType]) {
+      drillParams.set('card_title', cardBaseNameMap[cardType]);
+    }
+    if (activeBiz && activeBiz !== 'all') {
+      drillParams.set('business', activeBiz);
+    }
+
+    if (activeTimeFilter === 'today') {
+      drillParams.set('mode', 'today');
+      drillParams.set('date_from', todayStrGlobal);
+    } else if (activeTimeFilter === 'this_month') {
+      drillParams.set('mode', 'this_month');
+    } else if (activeTimeFilter === 'custom' || (dateFrom || dateTo)) {
+      drillParams.set('mode', 'date_range');
+      if (dateFrom) drillParams.set('date_from', dateFrom);
+      if (dateTo) drillParams.set('date_to', dateTo);
     } else {
-        currentDrilldownMode = 'today';
-        currentDrilldownDate = todayStrGlobal;
-        updateModalDynamicTitle('Today');
-        updatePillUI('today');
+      drillParams.set('mode', 'all');
     }
 
-    currentCalYear = new Date().getFullYear();
-    currentCalMonth = new Date().getMonth() + 1;
+    const targetUrl = `/dashboard/card-drilldown/?${drillParams.toString()}`;
+    window.open(targetUrl, '_blank');
+  }
 
-    const iconConfig = cardIconMap[cardType] || { icon: 'fa-table-cells-large', colorClass: 'bg-primary' };
-    const badgeEl = document.getElementById('drilldownCardBadgeIcon');
-    if (badgeEl) {
-        badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
-        badgeEl.innerHTML = `<i class="fa-solid ${iconConfig.icon}"></i>`;
-    }
+  function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
+    // Open dedicated drilldown page in new tab
+    openCardInNewTab(cardType);
+  }
 
-    // Configure Next Day Pill
-    const pillNext = document.getElementById('pillNext');
-    if (pillNext) {
-        if (isFutureDateAllowed()) {
-            pillNext.classList.remove('disabled-pill');
-            pillNext.disabled = false;
-            pillNext.title = 'Next Day';
-        } else {
-            pillNext.classList.add('disabled-pill');
-            pillNext.disabled = true;
-            pillNext.title = 'Future dates are only available for Booked & Follow-ups';
-        }
-    }
-
-    document.getElementById('drilldownCalendarWrapper').style.display = 'none';
-    document.getElementById('drilldownSearchInput').value = '';
-    selectedCampaignFilter = null;
-    tableHeaderFilters = {
-        source: 'all',
-        dept: 'all',
-        temp: 'all',
-        status: 'all',
-        assigned: 'all'
-    };
-    const startInputReset = document.getElementById('drilldownStartDateInput');
-    const endInputReset = document.getElementById('drilldownEndDateInput');
-    if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
-    if (endInputReset) { endInputReset.value = ''; endInputReset.min = ''; }
-
-    // Show Modal & Fetch
-    const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
-    modal.show();
-
-    fetchDrilldownData();
-}
-
-function drilldownSetMode(mode) {
+  function drilldownSetMode(mode) {
     if (mode === 'next' && !isFutureDateAllowed()) {
-        return;
+      return;
     }
     currentDrilldownMode = mode;
     updatePillUI(mode);
     if (mode !== 'custom') {
-        document.getElementById('drilldownCalendarWrapper').style.display = 'none';
+      document.getElementById('drilldownCalendarWrapper').style.display = 'none';
     }
     fetchDrilldownData();
-}
+  }
 
-function drilldownToggleCalendar() {
+  function drilldownToggleCalendar() {
     const calWrapper = document.getElementById('drilldownCalendarWrapper');
     if (calWrapper.style.display === 'none') {
-        calWrapper.style.display = 'block';
-        updatePillUI('custom');
-        currentDrilldownMode = 'custom';
-        fetchDrilldownData();
+      calWrapper.style.display = 'block';
+      updatePillUI('custom');
+      currentDrilldownMode = 'custom';
+      fetchDrilldownData();
     } else {
-        calWrapper.style.display = 'none';
+      calWrapper.style.display = 'none';
     }
-}
+  }
 
-function updatePillUI(mode) {
+  function updatePillUI(mode) {
     ['pillPrev', 'pillToday', 'pillNext', 'pillAll', 'pillCustom'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('active');
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
     });
 
     const pillNext = document.getElementById('pillNext');
     if (pillNext) {
-        if (isFutureDateAllowed()) {
-            pillNext.classList.remove('disabled-pill');
-            pillNext.disabled = false;
-        } else {
-            pillNext.classList.add('disabled-pill');
-            pillNext.disabled = true;
-        }
+      if (isFutureDateAllowed()) {
+        pillNext.classList.remove('disabled-pill');
+        pillNext.disabled = false;
+      } else {
+        pillNext.classList.add('disabled-pill');
+        pillNext.disabled = true;
+      }
     }
 
     if (mode === 'today') document.getElementById('pillToday')?.classList.add('active');
@@ -1242,56 +1447,56 @@ function updatePillUI(mode) {
     else if (mode === 'next' && isFutureDateAllowed()) document.getElementById('pillNext')?.classList.add('active');
     else if (mode === 'all') document.getElementById('pillAll')?.classList.add('active');
     else if (mode === 'custom') document.getElementById('pillCustom')?.classList.add('active');
-}
+  }
 
-function changeCalMonth(delta) {
+  function changeCalMonth(delta) {
     const now = new Date();
     const currentRealYear = now.getFullYear();
     const currentRealMonth = now.getMonth() + 1;
 
     if (delta > 0 && !isFutureDateAllowed()) {
-        if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
-            return;
-        }
+      if (currentCalYear > currentRealYear || (currentCalYear === currentRealYear && currentCalMonth >= currentRealMonth)) {
+        return;
+      }
     }
 
     currentCalMonth += delta;
     if (currentCalMonth > 12) {
-        currentCalMonth = 1;
-        currentCalYear += 1;
+      currentCalMonth = 1;
+      currentCalYear += 1;
     } else if (currentCalMonth < 1) {
-        currentCalMonth = 12;
-        currentCalYear -= 1;
+      currentCalMonth = 12;
+      currentCalYear -= 1;
     }
     fetchDrilldownData();
-}
+  }
 
-let currentDrilldownStartDate = '';
-let currentDrilldownEndDate = '';
+  let currentDrilldownStartDate = '';
+  let currentDrilldownEndDate = '';
 
-function onDrilldownStartDateChange(val) {
+  function onDrilldownStartDateChange(val) {
     const endInput = document.getElementById('drilldownEndDateInput');
     if (endInput) {
-        endInput.min = val || '';
-        if (val && endInput.value && endInput.value < val) {
-            endInput.value = val;
-        }
+      endInput.min = val || '';
+      if (val && endInput.value && endInput.value < val) {
+        endInput.value = val;
+      }
     }
-}
+  }
 
-function onDrilldownEndDateChange(val) {
+  function onDrilldownEndDateChange(val) {
     const startInput = document.getElementById('drilldownStartDateInput');
     if (startInput) {
-        startInput.max = val || '';
-        if (val && startInput.value && startInput.value > val) {
-            startInput.value = val;
-        }
+      startInput.max = val || '';
+      if (val && startInput.value && startInput.value > val) {
+        startInput.value = val;
+      }
     }
-}
+  }
 
-function selectCalendarDate(dateStr) {
+  function selectCalendarDate(dateStr) {
     if (!isFutureDateAllowed() && dateStr > todayStrGlobal) {
-        return;
+      return;
     }
     currentDrilldownDate = dateStr;
     currentDrilldownMode = 'custom';
@@ -1299,28 +1504,28 @@ function selectCalendarDate(dateStr) {
     currentDrilldownEndDate = '';
     updatePillUI('custom');
     fetchDrilldownData();
-}
+  }
 
-function applyDrilldownDateRange() {
+  function applyDrilldownDateRange() {
     const startInput = document.getElementById('drilldownStartDateInput');
     const endInput = document.getElementById('drilldownEndDateInput');
     let startVal = startInput ? startInput.value : '';
     let endVal = endInput ? endInput.value : '';
 
     if (!startVal && !endVal) {
-        alert('Please select at least one date for the date range.');
-        return;
+      alert('Please select at least one date for the date range.');
+      return;
     }
 
     if (startVal && !endVal) endVal = startVal;
     if (endVal && !startVal) startVal = endVal;
 
     if (startVal > endVal) {
-        const temp = startVal;
-        startVal = endVal;
-        endVal = temp;
-        if (startInput) startInput.value = startVal;
-        if (endInput) endInput.value = endVal;
+      const temp = startVal;
+      startVal = endVal;
+      endVal = temp;
+      if (startInput) startInput.value = startVal;
+      if (endInput) endInput.value = endVal;
     }
 
     currentDrilldownMode = 'date_range';
@@ -1328,22 +1533,22 @@ function applyDrilldownDateRange() {
     currentDrilldownEndDate = endVal;
     updatePillUI('custom');
     fetchDrilldownData();
-}
+  }
 
-let cachedHospitalName = "{{ request.user.hospital.name|default:'Zappcode CRM'|escapejs }}";
-let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Admissions & Support Team'|escapejs }}";
-let selectedCampaignFilter = null;
-let cachedAssignableUsers = [];
-let canUserAssign = false;
-let canUserSelfAssign = false;
-let bulkSelfAssignLimit = {{ request.user.bulk_self_assign_limit|default:25 }};
-let selectedDrilldownLeadIds = new Set();
+  let cachedHospitalName = "{{ request.user.hospital.name|default:'Zappcode CRM'|escapejs }}";
+  let cachedAgentName = "{% if request.user.get_full_name %}{{ request.user.get_full_name|escapejs }}{% elif request.user.username %}{{ request.user.username|escapejs }}{% else %}Admissions & Support Team{% endif %}";
+  let selectedCampaignFilter = null;
+  let cachedAssignableUsers = [];
+  let canUserAssign = false;
+  let canUserSelfAssign = false;
+  let bulkSelfAssignLimit = {{ request.user.bulk_self_assign_limit|default:25 }};
+  let selectedDrilldownLeadIds = new Set();
 
-function showInWindowAlert(title, message, iconType = 'warning') {
+  function showInWindowAlert(title, message, iconType = 'warning') {
     const modalEl = document.getElementById('inWindowActionModal');
     if (!modalEl) {
-        alert(message.replace(/<[^>]*>?/gm, ''));
-        return;
+      alert(message.replace(/<[^>]*>?/gm, ''));
+      return;
     }
     const modalTitle = document.getElementById('inWindowActionModalLabel');
     const modalText = document.getElementById('modalMessageText');
@@ -1356,44 +1561,44 @@ function showInWindowAlert(title, message, iconType = 'warning') {
     modalTitle.textContent = title;
     modalText.innerHTML = message;
     if (modalDetails) {
-        modalDetails.style.display = 'none';
-        modalDetails.innerHTML = '';
+      modalDetails.style.display = 'none';
+      modalDetails.innerHTML = '';
     }
 
     if (iconType === 'warning') {
-        modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
-        modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
-        confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
-        confirmBtn.textContent = 'OK';
+      modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
     } else if (iconType === 'error') {
-        modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
-        modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
-        confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
-        confirmBtn.textContent = 'OK';
+      modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
     } else {
-        modalIcon.className = 'fa-solid fa-circle-info fa-lg';
-        modalIconContainer.className = 'p-2 rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center';
-        confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
-        confirmBtn.textContent = 'OK';
+      modalIcon.className = 'fa-solid fa-circle-info fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
     }
 
     if (cancelBtn) cancelBtn.style.display = 'none';
-    confirmBtn.onclick = function() {
-        const bsModal = bootstrap.Modal.getInstance(modalEl);
-        if (bsModal) bsModal.hide();
+    confirmBtn.onclick = function () {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
     };
 
     const bsModal = new bootstrap.Modal(modalEl);
     bsModal.show();
-}
+  }
 
-function showInWindowConfirm(options) {
+  function showInWindowConfirm(options) {
     const modalEl = document.getElementById('inWindowActionModal');
     if (!modalEl) {
-        if (confirm(options.message ? options.message.replace(/<[^>]*>?/gm, '') : 'Confirm action?')) {
-            if (typeof options.onConfirm === 'function') options.onConfirm();
-        }
-        return;
+      if (confirm(options.message ? options.message.replace(/<[^>]*>?/gm, '') : 'Confirm action?')) {
+        if (typeof options.onConfirm === 'function') options.onConfirm();
+      }
+      return;
     }
     const modalTitle = document.getElementById('inWindowActionModalLabel');
     const modalText = document.getElementById('modalMessageText');
@@ -1407,36 +1612,36 @@ function showInWindowConfirm(options) {
     modalText.innerHTML = options.message || 'Are you sure you want to proceed?';
 
     if (options.detailsHtml && modalDetails) {
-        modalDetails.innerHTML = options.detailsHtml;
-        modalDetails.style.display = 'block';
+      modalDetails.innerHTML = options.detailsHtml;
+      modalDetails.style.display = 'block';
     } else if (modalDetails) {
-        modalDetails.style.display = 'none';
-        modalDetails.innerHTML = '';
+      modalDetails.style.display = 'none';
+      modalDetails.innerHTML = '';
     }
 
     modalIcon.className = options.icon || 'fa-solid fa-circle-question fa-lg';
     modalIconContainer.className = 'p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center';
 
     if (cancelBtn) {
-        cancelBtn.style.display = 'inline-block';
-        cancelBtn.textContent = 'Cancel';
+      cancelBtn.style.display = 'inline-block';
+      cancelBtn.textContent = 'Cancel';
     }
     confirmBtn.className = options.confirmBtnClass || 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
     confirmBtn.textContent = options.confirmText || 'Confirm & Apply';
 
-    confirmBtn.onclick = function() {
-        const bsModal = bootstrap.Modal.getInstance(modalEl);
-        if (bsModal) bsModal.hide();
-        if (typeof options.onConfirm === 'function') {
-            options.onConfirm();
-        }
+    confirmBtn.onclick = function () {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+      if (typeof options.onConfirm === 'function') {
+        options.onConfirm();
+      }
     };
 
     const bsModal = new bootstrap.Modal(modalEl);
     bsModal.show();
-}
+  }
 
-function fetchDrilldownData() {
+  function fetchDrilldownData() {
     const loadingEl = document.getElementById('drilldownLoadingState');
     const emptyEl = document.getElementById('drilldownEmptyState');
     const tbody = document.getElementById('drilldownTableBody');
@@ -1459,112 +1664,112 @@ function fetchDrilldownData() {
     searchParams.set('year', currentCalYear);
     searchParams.set('month', currentCalMonth);
     if (selectedCampaignFilter) {
-        searchParams.set('campaign', selectedCampaignFilter);
+      searchParams.set('campaign', selectedCampaignFilter);
     }
 
     const url = `/dashboard/superadmin/card-drilldown-api/?${searchParams.toString()}`;
 
     fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            loadingEl.style.display = 'none';
-            if (data.status === 'success') {
-                cachedLeadItems = data.lead_items || [];
-                cachedAssignableUsers = data.users || [];
-                canUserAssign = !!data.can_assign;
+      .then(res => res.json())
+      .then(data => {
+        loadingEl.style.display = 'none';
+        if (data.status === 'success') {
+          cachedLeadItems = data.lead_items || [];
+          cachedAssignableUsers = data.users || [];
+          canUserAssign = !!data.can_assign;
 
-                if (data.hospital_name) cachedHospitalName = data.hospital_name;
-                if (data.agent_name) cachedAgentName = data.agent_name;
-                if (data.business_mode) cachedBusinessMode = data.business_mode;
+          if (data.hospital_name) cachedHospitalName = data.hospital_name;
+          if (data.agent_name) cachedAgentName = data.agent_name;
+          if (data.business_mode) cachedBusinessMode = data.business_mode;
 
-                if (data.selected_date !== 'all') {
-                    currentDrilldownDate = data.selected_date;
-                }
+          if (data.selected_date !== 'all') {
+            currentDrilldownDate = data.selected_date;
+          }
 
-                updateModalDynamicTitle(data.selected_date_display);
-                populateBulkAssignDropdown(cachedAssignableUsers);
+          updateModalDynamicTitle(data.selected_date_display);
+          populateBulkAssignDropdown(cachedAssignableUsers);
 
-                document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
-                document.getElementById('drilldownTotalBadge').innerText = data.total_count;
-                document.getElementById('leadsTableCountBadge').innerText = `${data.total_count} Leads`;
-                document.getElementById('calMonthTitle').innerText = data.cal_month_name;
+          document.getElementById('drilldownActiveDateLabel').innerText = data.selected_date_display;
+          document.getElementById('drilldownTotalBadge').innerText = data.total_count;
+          document.getElementById('leadsTableCountBadge').innerText = `${data.total_count} Leads`;
+          document.getElementById('calMonthTitle').innerText = data.cal_month_name;
 
-                renderCampaignPills(data.campaign_breakdown || [], data.total_count);
-                renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
-                applyAllDrilldownFilters();
-            }
-        })
-        .catch(err => {
-            loadingEl.style.display = 'none';
-            console.error("Failed to load drilldown data:", err);
-        });
-}
+          renderCampaignPills(data.campaign_breakdown || [], data.total_count);
+          renderCalendarGrid(data.cal_year, data.cal_month, data.calendar_counts, data.selected_date);
+          applyAllDrilldownFilters();
+        }
+      })
+      .catch(err => {
+        loadingEl.style.display = 'none';
+        console.error("Failed to load drilldown data:", err);
+      });
+  }
 
-function populateBulkAssignDropdown(users) {
+  function populateBulkAssignDropdown(users) {
     const sel = document.getElementById('drilldownBulkAssignSelect');
     if (!sel) return;
 
     const optionsList = [];
     (users || []).forEach(u => {
-        optionsList.push({
-            value: String(u.id),
-            text: u.name || u.username
-        });
+      optionsList.push({
+        value: String(u.id),
+        text: u.name || u.username
+      });
     });
 
     if (sel.tomselect) {
-        const ts = sel.tomselect;
-        ts.clear();
-        ts.clearOptions();
-        ts.settings.placeholder = '-- Select Employee --';
-        if (ts.input) ts.input.setAttribute('placeholder', '-- Select Employee --');
-        if (ts.control_input) ts.control_input.setAttribute('placeholder', '-- Select Employee --');
-        optionsList.forEach(opt => {
-            ts.addOption({ value: opt.value, text: opt.text });
-        });
-        ts.setValue('', true);
-        ts.refreshOptions(false);
+      const ts = sel.tomselect;
+      ts.clear();
+      ts.clearOptions();
+      ts.settings.placeholder = '-- Select Employee --';
+      if (ts.input) ts.input.setAttribute('placeholder', '-- Select Employee --');
+      if (ts.control_input) ts.control_input.setAttribute('placeholder', '-- Select Employee --');
+      optionsList.forEach(opt => {
+        ts.addOption({ value: opt.value, text: opt.text });
+      });
+      ts.setValue('', true);
+      ts.refreshOptions(false);
     }
 
     sel.innerHTML = '<option value="">-- Select Employee --</option>';
     optionsList.forEach(opt => {
-        const elOpt = document.createElement('option');
-        elOpt.value = opt.value;
-        elOpt.textContent = opt.text;
-        sel.appendChild(elOpt);
+      const elOpt = document.createElement('option');
+      elOpt.value = opt.value;
+      elOpt.textContent = opt.text;
+      sel.appendChild(elOpt);
     });
-}
+  }
 
-function toggleDrilldownSelectAll(masterCheckbox) {
+  function toggleDrilldownSelectAll(masterCheckbox) {
     const isChecked = masterCheckbox.checked;
     const checkboxes = document.querySelectorAll('.drilldown-row-checkbox');
     checkboxes.forEach(cb => {
-        cb.checked = isChecked;
-        const leadId = parseInt(cb.value);
-        if (isChecked) {
-            selectedDrilldownLeadIds.add(leadId);
-        } else {
-            selectedDrilldownLeadIds.delete(leadId);
-        }
+      cb.checked = isChecked;
+      const leadId = parseInt(cb.value);
+      if (isChecked) {
+        selectedDrilldownLeadIds.add(leadId);
+      } else {
+        selectedDrilldownLeadIds.delete(leadId);
+      }
     });
     updateBulkActionBar();
-}
+  }
 
-function toggleDrilldownRowSelect(checkbox, leadId) {
+  function toggleDrilldownRowSelect(checkbox, leadId) {
     if (checkbox.checked) {
-        selectedDrilldownLeadIds.add(leadId);
+      selectedDrilldownLeadIds.add(leadId);
     } else {
-        selectedDrilldownLeadIds.delete(leadId);
+      selectedDrilldownLeadIds.delete(leadId);
     }
     const allCbs = document.querySelectorAll('.drilldown-row-checkbox');
     const masterCb = document.getElementById('drilldownSelectAllCheckbox');
     if (masterCb && allCbs.length > 0) {
-        masterCb.checked = (selectedDrilldownLeadIds.size === allCbs.length);
+      masterCb.checked = (selectedDrilldownLeadIds.size === allCbs.length);
     }
     updateBulkActionBar();
-}
+  }
 
-function updateBulkActionBar() {
+  function updateBulkActionBar() {
     const bar = document.getElementById('drilldownBulkActionBar');
     const badge = document.getElementById('drilldownSelectedCountBadge');
     const selfBtn = document.getElementById('drilldownBulkSelfAssignBtn');
@@ -1573,104 +1778,104 @@ function updateBulkActionBar() {
     const count = selectedDrilldownLeadIds.size;
 
     if (count > 0 && (canUserAssign || canUserSelfAssign)) {
-        bar.style.display = 'flex';
-        badge.innerText = `${count} Leads Selected`;
+      bar.style.display = 'flex';
+      badge.innerText = `${count} Leads Selected`;
 
-        if (canUserAssign) {
-            if (adminControls) adminControls.style.setProperty('display', 'flex', 'important');
-        } else {
-            if (adminControls) adminControls.style.setProperty('display', 'none', 'important');
-        }
+      if (canUserAssign) {
+        if (adminControls) adminControls.style.setProperty('display', 'flex', 'important');
+      } else {
+        if (adminControls) adminControls.style.setProperty('display', 'none', 'important');
+      }
 
-        if (selfBtn) {
-            if (canUserSelfAssign) {
-                selfBtn.style.setProperty('display', 'inline-flex', 'important');
-                if (selfBadge) {
-                    selfBadge.innerText = `${count} / ${bulkSelfAssignLimit}`;
-                    if (count > bulkSelfAssignLimit) {
-                        selfBadge.className = 'badge bg-danger text-white rounded-pill px-2 py-1 ms-1';
-                        selfBtn.className = 'btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm';
-                    } else {
-                        selfBadge.className = 'badge bg-white text-success rounded-pill px-2 py-1 ms-1';
-                        selfBtn.className = 'btn btn-sm btn-success rounded-pill px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm';
-                    }
-                }
+      if (selfBtn) {
+        if (canUserSelfAssign) {
+          selfBtn.style.setProperty('display', 'inline-flex', 'important');
+          if (selfBadge) {
+            selfBadge.innerText = `${count} / ${bulkSelfAssignLimit}`;
+            if (count > bulkSelfAssignLimit) {
+              selfBadge.className = 'badge bg-danger text-white rounded-pill px-2 py-1 ms-1';
+              selfBtn.className = 'btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm';
             } else {
-                selfBtn.style.setProperty('display', 'none', 'important');
+              selfBadge.className = 'badge bg-white text-success rounded-pill px-2 py-1 ms-1';
+              selfBtn.className = 'btn btn-sm btn-success rounded-pill px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm';
             }
+          }
+        } else {
+          selfBtn.style.setProperty('display', 'none', 'important');
         }
+      }
     } else {
-        bar.style.display = 'none';
+      bar.style.display = 'none';
     }
-}
+  }
 
-function executeDrilldownBulkSelfAssign() {
+  function executeDrilldownBulkSelfAssign() {
     const count = selectedDrilldownLeadIds.size;
     if (count === 0) {
-        showInWindowAlert("Selection Required", "Please select at least 1 lead to assign to yourself.", "warning");
-        return;
+      showInWindowAlert("Selection Required", "Please select at least 1 lead to assign to yourself.", "warning");
+      return;
     }
 
     if (count > bulkSelfAssignLimit) {
-        showInWindowAlert(
-            "Limit Exceeded",
-            `You can only bulk self-assign up to <strong>${bulkSelfAssignLimit}</strong> leads at a time, but you have selected <strong>${count}</strong> leads.<br><br>Please uncheck at least <strong>${count - bulkSelfAssignLimit}</strong> lead(s) before proceeding.`,
-            "error"
-        );
-        return;
+      showInWindowAlert(
+        "Limit Exceeded",
+        `You can only bulk self-assign up to <strong>${bulkSelfAssignLimit}</strong> leads at a time, but you have selected <strong>${count}</strong> leads.<br><br>Please uncheck at least <strong>${count - bulkSelfAssignLimit}</strong> lead(s) before proceeding.`,
+        "error"
+      );
+      return;
     }
 
     showInWindowConfirm({
-        title: "Confirm Bulk Self-Assignment",
-        message: `Are you sure you want to assign <strong>${count}</strong> selected lead(s) to yourself?`,
-        detailsHtml: `<div><strong>Total Leads:</strong> ${count}</div><div><strong>Your Limit:</strong> ${bulkSelfAssignLimit} leads per action</div>`,
-        confirmText: "Yes, Assign to Me",
-        confirmBtnClass: "btn btn-sm btn-success px-4 rounded-pill fw-bold shadow-sm",
-        icon: "fa-solid fa-user-check fa-lg",
-        onConfirm: function() {
-            const formData = new FormData();
-            formData.append('bulk_action', 'self_assign');
-            selectedDrilldownLeadIds.forEach(id => formData.append('selected', id));
+      title: "Confirm Bulk Self-Assignment",
+      message: `Are you sure you want to assign <strong>${count}</strong> selected lead(s) to yourself?`,
+      detailsHtml: `<div><strong>Total Leads:</strong> ${count}</div><div><strong>Your Limit:</strong> ${bulkSelfAssignLimit} leads per action</div>`,
+      confirmText: "Yes, Assign to Me",
+      confirmBtnClass: "btn btn-sm btn-success px-4 rounded-pill fw-bold shadow-sm",
+      icon: "fa-solid fa-user-check fa-lg",
+      onConfirm: function () {
+        const formData = new FormData();
+        formData.append('bulk_action', 'self_assign');
+        selectedDrilldownLeadIds.forEach(id => formData.append('selected', id));
 
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
 
-            fetch('/leads/bulk-action/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    selectedDrilldownLeadIds.clear();
-                    updateBulkActionBar();
-                    fetchDrilldownData();
-                    showInWindowAlert("Self-Assignment Successful", data.message || `Successfully self-assigned ${count} lead(s).`, "info");
-                } else {
-                    showInWindowAlert("Assignment Failed", data.message || "Could not complete self-assignment.", "error");
-                }
-            })
-            .catch(err => {
-                console.error("Bulk self-assign error:", err);
-                showInWindowAlert("Network Error", "An error occurred while communicating with the server.", "error");
-            });
-        }
+        fetch('/leads/bulk-action/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formData
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success') {
+              selectedDrilldownLeadIds.clear();
+              updateBulkActionBar();
+              fetchDrilldownData();
+              showInWindowAlert("Self-Assignment Successful", data.message || `Successfully self-assigned ${count} lead(s).`, "info");
+            } else {
+              showInWindowAlert("Assignment Failed", data.message || "Could not complete self-assignment.", "error");
+            }
+          })
+          .catch(err => {
+            console.error("Bulk self-assign error:", err);
+            showInWindowAlert("Network Error", "An error occurred while communicating with the server.", "error");
+          });
+      }
     });
-}
+  }
 
-function executeDrilldownBulkAssign() {
+  function executeDrilldownBulkAssign() {
     const assignSelect = document.getElementById('drilldownBulkAssignSelect');
     const assignToId = (assignSelect && assignSelect.tomselect) ? assignSelect.tomselect.getValue() : (assignSelect ? assignSelect.value : '');
     if (!assignToId) {
-        showInWindowAlert("Selection Required", "Please select an employee to assign the leads to.", "warning");
-        return;
+      showInWindowAlert("Selection Required", "Please select an employee to assign the leads to.", "warning");
+      return;
     }
     if (selectedDrilldownLeadIds.size === 0) {
-        showInWindowAlert("Selection Required", "Please select at least one lead.", "warning");
-        return;
+      showInWindowAlert("Selection Required", "Please select at least one lead.", "warning");
+      return;
     }
 
     const formData = new FormData();
@@ -1681,55 +1886,55 @@ function executeDrilldownBulkAssign() {
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
 
     fetch('/leads/bulk-action/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrfToken,
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formData
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: formData
     })
-    .then(res => res.json())
-    .then(data => {
+      .then(res => res.json())
+      .then(data => {
         if (data.status === 'success') {
-            selectedDrilldownLeadIds.clear();
-            updateBulkActionBar();
-            fetchDrilldownData();
-            showInWindowAlert("Success", data.message || "Leads successfully assigned.", "info");
+          selectedDrilldownLeadIds.clear();
+          updateBulkActionBar();
+          fetchDrilldownData();
+          showInWindowAlert("Success", data.message || "Leads successfully assigned.", "info");
         } else {
-            showInWindowAlert("Assignment Failed", data.message || 'Failed to assign leads.', "error");
+          showInWindowAlert("Assignment Failed", data.message || 'Failed to assign leads.', "error");
         }
-    })
-    .catch(err => {
+      })
+      .catch(err => {
         console.error("Bulk assign error:", err);
         showInWindowAlert("Error", 'Error performing bulk assign.', "error");
-    });
-}
+      });
+  }
 
-function executeSingleLeadAssign(leadId, assigneeId) {
+  function executeSingleLeadAssign(leadId, assigneeId) {
     if (!leadId) return;
     const formData = new FormData();
     formData.append('assigned_to', assigneeId || '');
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
 
     fetch(`/leads/${leadId}/assign/`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken },
-        body: formData
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: formData
     })
-    .then(res => {
+      .then(res => {
         if (res.ok) {
-            fetchDrilldownData();
+          fetchDrilldownData();
         } else {
-            alert('Failed to update lead assignment.');
+          alert('Failed to update lead assignment.');
         }
-    })
-    .catch(err => {
+      })
+      .catch(err => {
         console.error("Single assign error:", err);
         alert('Error updating assignment.');
-    });
-}
+      });
+  }
 
-function renderCampaignPills(campaignList, totalCount) {
+  function renderCampaignPills(campaignList, totalCount) {
     const wrapper = document.getElementById('drilldownCampaignBarWrapper');
     const container = document.getElementById('drilldownCampaignPillsContainer');
     const countBadge = document.getElementById('campaignsTotalCountBadge');
@@ -1737,8 +1942,8 @@ function renderCampaignPills(campaignList, totalCount) {
     if (!wrapper || !container) return;
 
     if (!campaignList || campaignList.length === 0) {
-        wrapper.style.display = 'none';
-        return;
+      wrapper.style.display = 'none';
+      return;
     }
 
     wrapper.style.display = 'block';
@@ -1756,74 +1961,74 @@ function renderCampaignPills(campaignList, totalCount) {
 
     // Individual Campaign Pills
     campaignList.forEach(camp => {
-        const isSelected = selectedCampaignFilter === camp.campaign_name;
-        const pill = document.createElement('button');
-        pill.type = 'button';
-        pill.className = `btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 ${isSelected ? 'btn-primary text-white shadow-xs' : 'btn-light border text-dark'}`;
-        pill.style.fontSize = '0.78rem';
-        pill.innerHTML = `<span>${camp.campaign_name}</span> <span class="badge ${isSelected ? 'bg-white text-primary' : 'bg-primary bg-opacity-10 text-primary'} rounded-pill">${camp.count}</span>`;
-        pill.onclick = () => selectCampaignFilter(camp.campaign_name);
-        container.appendChild(pill);
+      const isSelected = selectedCampaignFilter === camp.campaign_name;
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = `btn btn-sm rounded-pill px-3 py-1 fw-bold d-inline-flex align-items-center gap-2 ${isSelected ? 'btn-primary text-white shadow-xs' : 'btn-light border text-dark'}`;
+      pill.style.fontSize = '0.78rem';
+      pill.innerHTML = `<span>${camp.campaign_name}</span> <span class="badge ${isSelected ? 'bg-white text-primary' : 'bg-primary bg-opacity-10 text-primary'} rounded-pill">${camp.count}</span>`;
+      pill.onclick = () => selectCampaignFilter(camp.campaign_name);
+      container.appendChild(pill);
     });
-}
+  }
 
-function selectCampaignFilter(campName) {
+  function selectCampaignFilter(campName) {
     if (selectedCampaignFilter === campName) {
-        selectedCampaignFilter = null;
+      selectedCampaignFilter = null;
     } else {
-        selectedCampaignFilter = campName;
+      selectedCampaignFilter = campName;
     }
 
     fetchDrilldownData();
-}
+  }
 
-// Table column header filters state
-let tableHeaderFilters = {
+  // Table column header filters state
+  let tableHeaderFilters = {
     source: 'all',
     dept: 'all',
     temp: 'all',
     status: 'all',
     assigned: 'all'
-};
+  };
 
-function setHeaderFilter(columnKey, value) {
+  function setHeaderFilter(columnKey, value) {
     tableHeaderFilters[columnKey] = value;
     applyAllDrilldownFilters();
-}
+  }
 
-function resetAllHeaderFilters() {
+  function resetAllHeaderFilters() {
     tableHeaderFilters = {
-        source: 'all',
-        dept: 'all',
-        temp: 'all',
-        status: 'all',
-        assigned: 'all'
+      source: 'all',
+      dept: 'all',
+      temp: 'all',
+      status: 'all',
+      assigned: 'all'
     };
     const searchInput = document.getElementById('drilldownSearchInput');
     if (searchInput) searchInput.value = '';
     applyAllDrilldownFilters();
-}
+  }
 
-function filterDrilldownTable() {
+  function filterDrilldownTable() {
     applyAllDrilldownFilters();
-}
+  }
 
-function applyAllDrilldownFilters() {
+  function applyAllDrilldownFilters() {
     let filtered = cachedLeadItems;
 
     // 1. Filter lead items by selected campaign
     if (selectedCampaignFilter) {
-        const targetCamp = selectedCampaignFilter.toLowerCase().trim();
-        const directKeywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', ''];
-        filtered = filtered.filter(l => {
-            const leadCamp = (l.campaign || '').toLowerCase().trim();
-            const isTargetDirect = directKeywords.includes(targetCamp);
-            const isLeadDirect = directKeywords.includes(leadCamp);
-            if (isTargetDirect) {
-                return isLeadDirect;
-            }
-            return leadCamp === targetCamp;
-        });
+      const targetCamp = selectedCampaignFilter.toLowerCase().trim();
+      const directKeywords = ['nan', 'general / direct', 'direct hospital visit', 'direct walk-in', 'direct walk in', 'walk-in', 'general', 'direct', 'none', ''];
+      filtered = filtered.filter(l => {
+        const leadCamp = (l.campaign || '').toLowerCase().trim();
+        const isTargetDirect = directKeywords.includes(targetCamp);
+        const isLeadDirect = directKeywords.includes(leadCamp);
+        if (isTargetDirect) {
+          return isLeadDirect;
+        }
+        return leadCamp === targetCamp;
+      });
     }
 
     // Track active filters for Clear button & filter chips
@@ -1831,86 +2036,86 @@ function applyAllDrilldownFilters() {
 
     // 2. Column Header Filter: Source / Campaign
     if (tableHeaderFilters.source && tableHeaderFilters.source !== 'all') {
-        const selSrc = tableHeaderFilters.source.toLowerCase().trim();
-        activeChips.push({ key: 'source', label: `Source: ${tableHeaderFilters.source}` });
-        filtered = filtered.filter(l => {
-            const s1 = (l.lead_source || '').toLowerCase().trim();
-            const s2 = (l.campaign || '').toLowerCase().trim();
-            const s3 = (l.business_name || '').toLowerCase().trim();
-            return s1 === selSrc || s2 === selSrc || s3 === selSrc;
-        });
+      const selSrc = tableHeaderFilters.source.toLowerCase().trim();
+      activeChips.push({ key: 'source', label: `Source: ${tableHeaderFilters.source}` });
+      filtered = filtered.filter(l => {
+        const s1 = (l.lead_source || '').toLowerCase().trim();
+        const s2 = (l.campaign || '').toLowerCase().trim();
+        const s3 = (l.business_name || '').toLowerCase().trim();
+        return s1 === selSrc || s2 === selSrc || s3 === selSrc;
+      });
     }
 
     // 3. Column Header Filter: Department / Course / Doctor
     if (tableHeaderFilters.dept && tableHeaderFilters.dept !== 'all') {
-        const selDept = tableHeaderFilters.dept.toLowerCase().trim();
-        activeChips.push({ key: 'dept', label: `Dept: ${tableHeaderFilters.dept}` });
-        filtered = filtered.filter(l => {
-            const d1 = (l.department || '').toLowerCase().trim();
-            const d2 = (l.course || '').toLowerCase().trim();
-            const d3 = (l.doctor || '').toLowerCase().trim();
-            return d1 === selDept || d2 === selDept || d3 === selDept;
-        });
+      const selDept = tableHeaderFilters.dept.toLowerCase().trim();
+      activeChips.push({ key: 'dept', label: `Dept: ${tableHeaderFilters.dept}` });
+      filtered = filtered.filter(l => {
+        const d1 = (l.department || '').toLowerCase().trim();
+        const d2 = (l.course || '').toLowerCase().trim();
+        const d3 = (l.doctor || '').toLowerCase().trim();
+        return d1 === selDept || d2 === selDept || d3 === selDept;
+      });
     }
 
     // 4. Column Header Filter: Temperature
     if (tableHeaderFilters.temp && tableHeaderFilters.temp !== 'all') {
-        const selTemp = tableHeaderFilters.temp.toUpperCase().trim();
-        activeChips.push({ key: 'temp', label: `Temp: ${tableHeaderFilters.temp}` });
-        filtered = filtered.filter(l => {
-            const t = (l.temperature || 'UNCONTACTED').toUpperCase().trim();
-            return t === selTemp;
-        });
+      const selTemp = tableHeaderFilters.temp.toUpperCase().trim();
+      activeChips.push({ key: 'temp', label: `Temp: ${tableHeaderFilters.temp}` });
+      filtered = filtered.filter(l => {
+        const t = (l.temperature || 'UNCONTACTED').toUpperCase().trim();
+        return t === selTemp;
+      });
     }
 
     // 5. Column Header Filter: Status / Appointment Status
     if (tableHeaderFilters.status && tableHeaderFilters.status !== 'all') {
-        const selSt = tableHeaderFilters.status.toLowerCase().trim();
-        activeChips.push({ key: 'status', label: `Status: ${tableHeaderFilters.status}` });
-        filtered = filtered.filter(l => {
-            const st = (l.appointment_status || l.status || 'Open').toLowerCase().trim();
-            const adm = (l.admission_status || '').toLowerCase().trim();
-            return st === selSt || adm === selSt;
-        });
+      const selSt = tableHeaderFilters.status.toLowerCase().trim();
+      activeChips.push({ key: 'status', label: `Status: ${tableHeaderFilters.status}` });
+      filtered = filtered.filter(l => {
+        const st = (l.appointment_status || l.status || 'Open').toLowerCase().trim();
+        const adm = (l.admission_status || '').toLowerCase().trim();
+        return st === selSt || adm === selSt;
+      });
     }
 
     // 6. Column Header Filter: Assigned To
     if (tableHeaderFilters.assigned && tableHeaderFilters.assigned !== 'all') {
-        const selAssigned = String(tableHeaderFilters.assigned);
-        activeChips.push({ key: 'assigned', label: `Assigned: ${tableHeaderFilters.assigned === 'unassigned' ? 'Unassigned' : tableHeaderFilters.assigned}` });
-        filtered = filtered.filter(l => {
-            if (selAssigned === 'unassigned') {
-                return !l.assigned_to_id || l.assigned_to === 'Unassigned' || !l.assigned_to;
-            }
-            return String(l.assigned_to_id) === selAssigned || (l.assigned_to || '').toLowerCase() === selAssigned.toLowerCase();
-        });
+      const selAssigned = String(tableHeaderFilters.assigned);
+      activeChips.push({ key: 'assigned', label: `Assigned: ${tableHeaderFilters.assigned === 'unassigned' ? 'Unassigned' : tableHeaderFilters.assigned}` });
+      filtered = filtered.filter(l => {
+        if (selAssigned === 'unassigned') {
+          return !l.assigned_to_id || l.assigned_to === 'Unassigned' || !l.assigned_to;
+        }
+        return String(l.assigned_to_id) === selAssigned || (l.assigned_to || '').toLowerCase() === selAssigned.toLowerCase();
+      });
     }
 
     // 7. Apply quick search if typed
     const query = (document.getElementById('drilldownSearchInput')?.value || '').toLowerCase().trim();
     if (query) {
-        activeChips.push({ key: 'search', label: `Search: "${query}"` });
-        filtered = filtered.filter(l =>
-            (l.name || '').toLowerCase().includes(query) ||
-            (l.mobile || '').toLowerCase().includes(query) ||
-            (l.doctor || '').toLowerCase().includes(query) ||
-            (l.department || '').toLowerCase().includes(query) ||
-            (l.campaign || '').toLowerCase().includes(query) ||
-            (l.lead_source || '').toLowerCase().includes(query) ||
-            (l.appointment_status || '').toLowerCase().includes(query)
-        );
+      activeChips.push({ key: 'search', label: `Search: "${query}"` });
+      filtered = filtered.filter(l =>
+        (l.name || '').toLowerCase().includes(query) ||
+        (l.mobile || '').toLowerCase().includes(query) ||
+        (l.doctor || '').toLowerCase().includes(query) ||
+        (l.department || '').toLowerCase().includes(query) ||
+        (l.campaign || '').toLowerCase().includes(query) ||
+        (l.lead_source || '').toLowerCase().includes(query) ||
+        (l.appointment_status || '').toLowerCase().includes(query)
+      );
     }
 
     // Update Clear Filters Button & Filter Chips Bar
     const clearBtn = document.getElementById('drilldownClearFiltersBtn');
     const chipsBar = document.getElementById('drilldownActiveFilterChipsBar');
     if (clearBtn) {
-        clearBtn.style.display = activeChips.length > 0 ? 'inline-flex' : 'none';
+      clearBtn.style.display = activeChips.length > 0 ? 'inline-flex' : 'none';
     }
     if (chipsBar) {
-        if (activeChips.length > 0) {
-            chipsBar.style.setProperty('display', 'flex', 'important');
-            chipsBar.innerHTML = `
+      if (activeChips.length > 0) {
+        chipsBar.style.setProperty('display', 'flex', 'important');
+        chipsBar.innerHTML = `
                 <span class="text-muted small fw-bold" style="font-size: 0.72rem;">Active Filters:</span>
                 ${activeChips.map(c => `
                     <span class="badge bg-white text-dark border d-inline-flex align-items-center gap-1.5 px-2 py-1 shadow-xs rounded-pill" style="font-size: 0.72rem;">
@@ -1920,17 +2125,17 @@ function applyAllDrilldownFilters() {
                 `).join('')}
                 <button type="button" class="btn btn-link text-danger p-0 ms-1 fw-bold text-decoration-none" style="font-size: 0.72rem;" onclick="resetAllHeaderFilters()">Clear All</button>
             `;
-        } else {
-            chipsBar.style.setProperty('display', 'none', 'important');
-            chipsBar.innerHTML = '';
-        }
+      } else {
+        chipsBar.style.setProperty('display', 'none', 'important');
+        chipsBar.innerHTML = '';
+      }
     }
 
     document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
     renderDrilldownTable(filtered, cachedBusinessMode);
-}
+  }
 
-function renderCalendarGrid(year, month, countsMap, activeDate) {
+  function renderCalendarGrid(year, month, countsMap, activeDate) {
     const container = document.getElementById('calDaysContainer');
     container.innerHTML = '';
 
@@ -1939,49 +2144,49 @@ function renderCalendarGrid(year, month, countsMap, activeDate) {
     const allowFuture = isFutureDateAllowed();
 
     for (let i = 0; i < firstDayIdx; i++) {
-        const emptyCell = document.createElement('div');
-        emptyCell.className = 'cal-day-cell text-muted opacity-25';
-        emptyCell.style.background = '#f8fafc';
-        container.appendChild(emptyCell);
+      const emptyCell = document.createElement('div');
+      emptyCell.className = 'cal-day-cell text-muted opacity-25';
+      emptyCell.style.background = '#f8fafc';
+      container.appendChild(emptyCell);
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-        const mm = String(month).padStart(2, '0');
-        const dd = String(day).padStart(2, '0');
-        const dateStr = `${year}-${mm}-${dd}`;
-        const count = countsMap[dateStr] || 0;
-        const isFuture = dateStr > todayStrGlobal;
-        const isDisabled = isFuture && !allowFuture;
+      const mm = String(month).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      const dateStr = `${year}-${mm}-${dd}`;
+      const count = countsMap[dateStr] || 0;
+      const isFuture = dateStr > todayStrGlobal;
+      const isDisabled = isFuture && !allowFuture;
 
-        const dayCell = document.createElement('div');
+      const dayCell = document.createElement('div');
 
-        if (isDisabled) {
-            dayCell.className = 'cal-day-cell disabled-day';
-            dayCell.title = 'Future dates are disabled for this metric';
-        } else {
-            const isActive = (activeDate === dateStr);
-            const hasLeadsClass = count > 0 ? 'has-leads' : '';
-            const activeClass = isActive ? 'active-day' : '';
+      if (isDisabled) {
+        dayCell.className = 'cal-day-cell disabled-day';
+        dayCell.title = 'Future dates are disabled for this metric';
+      } else {
+        const isActive = (activeDate === dateStr);
+        const hasLeadsClass = count > 0 ? 'has-leads' : '';
+        const activeClass = isActive ? 'active-day' : '';
 
-            dayCell.className = `cal-day-cell ${hasLeadsClass} ${activeClass}`;
-            dayCell.onclick = () => selectCalendarDate(dateStr);
-        }
+        dayCell.className = `cal-day-cell ${hasLeadsClass} ${activeClass}`;
+        dayCell.onclick = () => selectCalendarDate(dateStr);
+      }
 
-        const countBadgeClass = count > 0
-            ? (currentDrilldownCard === 'call_not_done' ? 'bg-danger text-white' : 'bg-primary text-white')
-            : 'text-muted';
+      const countBadgeClass = count > 0
+        ? (currentDrilldownCard === 'call_not_done' ? 'bg-danger text-white' : 'bg-primary text-white')
+        : 'text-muted';
 
-        dayCell.innerHTML = `
+      dayCell.innerHTML = `
             <div class="cal-day-num">${day}</div>
             <div class="cal-day-count ${countBadgeClass}">${count}</div>
         `;
-        container.appendChild(dayCell);
+      container.appendChild(dayCell);
     }
-}
+  }
 
-let cachedBusinessMode = 'all';
+  let cachedBusinessMode = 'all';
 
-function renderDrilldownTableHeaders(bMode) {
+  function renderDrilldownTableHeaders(bMode) {
     const thead = document.querySelector('#drilldownLeadsTable thead tr');
     if (!thead) return;
 
@@ -1992,24 +2197,24 @@ function renderDrilldownTableHeaders(bMode) {
     let col9Title = 'Action';
 
     if (bMode === 'hospital') {
-        col1Title = 'PATIENT';
-        col3Title = 'SOURCE';
-        col4Title = 'DEPARTMENT';
-        col7Title = 'ASSIGNED TO';
-        col9Title = 'ACTIONS';
+      col1Title = 'PATIENT';
+      col3Title = 'SOURCE';
+      col4Title = 'DEPARTMENT';
+      col7Title = 'ASSIGNED TO';
+      col9Title = 'ACTIONS';
     } else if (bMode === 'academy') {
-        col1Title = 'NAME';
-        col3Title = 'SOURCE / CAMPAIGN';
-        col4Title = 'COURSE / SERVICE';
-        col7Title = 'ASSIGNED TO';
-        col9Title = 'ACTION';
+      col1Title = 'NAME';
+      col3Title = 'SOURCE / CAMPAIGN';
+      col4Title = 'COURSE / SERVICE';
+      col7Title = 'ASSIGNED TO';
+      col9Title = 'ACTION';
     } else {
-        // 'all' businesses view
-        col1Title = 'LEAD NAME';
-        col3Title = 'SOURCE / CAMPAIGN';
-        col4Title = 'COURSE / DEPARTMENT';
-        col7Title = 'ASSIGNED TO';
-        col9Title = 'ACTION';
+      // 'all' businesses view
+      col1Title = 'LEAD NAME';
+      col3Title = 'SOURCE / CAMPAIGN';
+      col4Title = 'COURSE / DEPARTMENT';
+      col7Title = 'ASSIGNED TO';
+      col9Title = 'ACTION';
     }
 
     // Build distinct options from cachedLeadItems for dropdowns
@@ -2020,34 +2225,34 @@ function renderDrilldownTableHeaders(bMode) {
     const distinctAssignees = new Map();
 
     cachedLeadItems.forEach(l => {
-        if (l.lead_source) distinctSources.add(l.lead_source);
-        if (l.campaign && l.campaign !== 'nan') distinctSources.add(l.campaign);
-        
-        if (bMode === 'hospital') {
-            if (l.department) distinctDepts.add(l.department);
-            if (l.doctor && l.doctor !== 'Not Assigned') distinctDepts.add(l.doctor);
-        } else {
-            if (l.course) distinctDepts.add(l.course);
-            if (l.department) distinctDepts.add(l.department);
-        }
+      if (l.lead_source) distinctSources.add(l.lead_source);
+      if (l.campaign && l.campaign !== 'nan') distinctSources.add(l.campaign);
 
-        const temp = (l.temperature || 'UNCONTACTED').toUpperCase();
-        if (temp) distinctTemps.add(temp);
+      if (bMode === 'hospital') {
+        if (l.department) distinctDepts.add(l.department);
+        if (l.doctor && l.doctor !== 'Not Assigned') distinctDepts.add(l.doctor);
+      } else {
+        if (l.course) distinctDepts.add(l.course);
+        if (l.department) distinctDepts.add(l.department);
+      }
 
-        const st = l.appointment_status || l.status || 'Open';
-        if (st) distinctStatuses.add(st);
+      const temp = (l.temperature || 'UNCONTACTED').toUpperCase();
+      if (temp) distinctTemps.add(temp);
 
-        if (l.assigned_to_id) {
-            distinctAssignees.set(String(l.assigned_to_id), l.assigned_to || 'Assigned');
-        } else if (l.assigned_to && l.assigned_to !== 'Unassigned') {
-            distinctAssignees.set(l.assigned_to, l.assigned_to);
-        }
+      const st = l.appointment_status || l.status || 'Open';
+      if (st) distinctStatuses.add(st);
+
+      if (l.assigned_to_id) {
+        distinctAssignees.set(String(l.assigned_to_id), l.assigned_to || 'Assigned');
+      } else if (l.assigned_to && l.assigned_to !== 'Unassigned') {
+        distinctAssignees.set(l.assigned_to, l.assigned_to);
+      }
     });
 
     const buildSelectHtml = (columnKey, label, options, currentValue) => {
-        const hasFilter = currentValue && currentValue !== 'all';
-        const btnClass = hasFilter ? 'btn-primary text-white shadow-xs' : 'btn-light text-dark border';
-        return `
+      const hasFilter = currentValue && currentValue !== 'all';
+      const btnClass = hasFilter ? 'btn-primary text-white shadow-xs' : 'btn-light text-dark border';
+      return `
             <div class="d-flex align-items-center justify-content-between gap-1">
                 <span class="fw-bold">${label}</span>
                 <div class="dropdown d-inline-block">
@@ -2059,11 +2264,11 @@ function renderDrilldownTableHeaders(bMode) {
                         <li><button class="dropdown-item rounded-2 py-1 px-2 ${!hasFilter ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', 'all')">All ${label}</button></li>
                         <li><hr class="dropdown-divider my-1"></li>
                         ${options.map(opt => {
-                            const optVal = typeof opt === 'object' ? opt.value : opt;
-                            const optLabel = typeof opt === 'object' ? opt.label : opt;
-                            const isSel = (currentValue === optVal);
-                            return `<li><button class="dropdown-item rounded-2 py-1 px-2 text-truncate ${isSel ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', '${optVal.replace(/'/g, "\\'")}')">${optLabel}</button></li>`;
-                        }).join('')}
+        const optVal = typeof opt === 'object' ? opt.value : opt;
+        const optLabel = typeof opt === 'object' ? opt.label : opt;
+        const isSel = (currentValue === optVal);
+        return `<li><button class="dropdown-item rounded-2 py-1 px-2 text-truncate ${isSel ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', '${optVal.replace(/'/g, "\\'")}')">${optLabel}</button></li>`;
+      }).join('')}
                     </ul>
                 </div>
             </div>
@@ -2074,10 +2279,10 @@ function renderDrilldownTableHeaders(bMode) {
     const deptOptions = Array.from(distinctDepts).sort();
     const tempOptions = Array.from(distinctTemps).sort();
     const statusOptions = Array.from(distinctStatuses).sort();
-    
+
     const assigneeOptions = [{ value: 'unassigned', label: 'Unassigned' }];
     distinctAssignees.forEach((name, id) => {
-        assigneeOptions.push({ value: id, label: name });
+      assigneeOptions.push({ value: id, label: name });
     });
 
     const showCheckbox = (currentDrilldownCard !== 'opd_booked');
@@ -2095,9 +2300,9 @@ function renderDrilldownTableHeaders(bMode) {
         <th class="py-2" style="min-width: 160px;">COMMENTS</th>
         <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">${col9Title}</th>
     `;
-}
+  }
 
-function renderDrilldownTable(leads, bMode) {
+  function renderDrilldownTable(leads, bMode) {
     const currentMode = bMode || cachedBusinessMode || 'all';
     renderDrilldownTableHeaders(currentMode);
 
@@ -2106,121 +2311,121 @@ function renderDrilldownTable(leads, bMode) {
     tbody.innerHTML = '';
 
     if (!leads || leads.length === 0) {
-        emptyEl.style.display = 'block';
-        return;
+      emptyEl.style.display = 'block';
+      return;
     }
 
     emptyEl.style.display = 'none';
 
     leads.forEach(lead => {
-        const tr = document.createElement('tr');
+      const tr = document.createElement('tr');
 
-        // Temperature Badge
-        let tempBadge = '';
-        const tempUpper = (lead.temperature || '').toUpperCase();
-        if (tempUpper === 'HOT') {
-            tempBadge = `<span class="badge badge-hot"><i class="fa-solid fa-fire me-1"></i>Hot</span>`;
-        } else if (tempUpper === 'WARM') {
-            tempBadge = `<span class="badge badge-warm"><i class="fa-solid fa-temperature-half me-1"></i>Warm</span>`;
-        } else if (tempUpper === 'COLD') {
-            tempBadge = `<span class="badge badge-cold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>`;
-        } else if (tempUpper === 'FREEZE') {
-            tempBadge = `<span class="badge badge-freeze"><i class="fa-regular fa-snowflake me-1"></i>Freeze</span>`;
-        } else {
-            tempBadge = `<span class="badge bg-light text-secondary border">Uncontacted</span>`;
+      // Temperature Badge
+      let tempBadge = '';
+      const tempUpper = (lead.temperature || '').toUpperCase();
+      if (tempUpper === 'HOT') {
+        tempBadge = `<span class="badge badge-hot"><i class="fa-solid fa-fire me-1"></i>Hot</span>`;
+      } else if (tempUpper === 'WARM') {
+        tempBadge = `<span class="badge badge-warm"><i class="fa-solid fa-temperature-half me-1"></i>Warm</span>`;
+      } else if (tempUpper === 'COLD') {
+        tempBadge = `<span class="badge badge-cold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>`;
+      } else if (tempUpper === 'FREEZE') {
+        tempBadge = `<span class="badge badge-freeze"><i class="fa-regular fa-snowflake me-1"></i>Freeze</span>`;
+      } else {
+        tempBadge = `<span class="badge bg-light text-secondary border">Uncontacted</span>`;
+      }
+
+      // Status Badge
+      const displaySt = lead.appointment_status || lead.status || 'Open';
+      let statusBadge = `<span class="badge bg-light text-dark border">${displaySt}</span>`;
+      const stLower = displaySt.toLowerCase();
+      if (stLower.includes('payment done') || stLower.includes('won')) {
+        statusBadge = `<span class="badge badge-payment-done"><i class="fa-solid fa-check me-1"></i>Payment Done</span>`;
+      } else if (stLower.includes('confirm')) {
+        statusBadge = `<span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed</span>`;
+      } else if (stLower.includes('approval pending') || stLower.includes('await')) {
+        statusBadge = `<span class="badge badge-booking-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Awaiting Approval</span>`;
+      } else if (stLower.includes('book')) {
+        statusBadge = `<span class="badge badge-booking"><i class="fa-solid fa-calendar-days me-1"></i>Booked</span>`;
+      } else if (stLower.includes('follow')) {
+        statusBadge = `<span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up</span>`;
+        if (lead.next_followup && lead.next_followup !== '-' && lead.next_followup !== 'None') {
+          statusBadge += `<div class="mt-1 small text-muted" style="font-size:0.7rem;"><i class="fa-solid fa-calendar-day me-1"></i>${lead.next_followup}</div>`;
+        }
+      } else if (stLower.includes('payment pending')) {
+        statusBadge = `<span class="badge badge-payment-pending"><i class="fa-solid fa-clock me-1"></i>Payment Pending</span>`;
+      } else if (stLower.includes('assign')) {
+        statusBadge = `<span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>`;
+      } else if (stLower.includes('cancel') || stLower.includes('lost') || stLower.includes('not int')) {
+        statusBadge = `<span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>${displaySt}</span>`;
+      } else if (stLower.includes('new') || stLower.includes('open')) {
+        statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${displaySt}</span>`;
+      }
+
+      // Direct Call & WhatsApp Action shortcuts
+      let directCallBtn = '';
+      let whatsappBtn = '';
+
+      if (lead.clean_mobile && lead.clean_mobile.length >= 10) {
+        const phoneDigits = lead.clean_mobile;
+        const leadName = encodeURIComponent(lead.name || 'Valued Client');
+        const bizName = encodeURIComponent(lead.business_name || cachedHospitalName || 'CRM Portal');
+        const agentName = encodeURIComponent(cachedAgentName || 'Admissions & Support Team');
+        const docName = encodeURIComponent(lead.doctor || 'our specialist');
+        const apptDate = lead.appointment_date ? encodeURIComponent(lead.appointment_date) : '';
+        const apptTime = lead.appointment_time ? encodeURIComponent(lead.appointment_time) : '';
+
+        let waText = lead.whatsapp_message;
+        if (!waText) {
+          if (lead.is_hospital) {
+            if (lead.is_booked) {
+              const datePart = apptDate ? `%20for%20${apptDate}` : '';
+              const timePart = apptTime ? `%20at%20${apptTime}` : '';
+              waText = `Hello%20${leadName},%20Greetings%20from%20${bizName}!%0A%0AYour%20appointment%20with%20Dr.%20${docName}%20at%20${bizName}%20is%20confirmed${datePart}${timePart}.%0A%0APlease%20reach%2015%20minutes%20prior%20to%20your%20scheduled%20slot.%20Thank%20you!%0A%0AWarm%20Regards,%0A${bizName}`;
+            } else {
+              waText = `Hello%20${leadName},%20Greetings%20from%20${bizName}!%0A%0AThank%20you%20for%20connecting%20with%20us.%20We%20are%20pleased%20to%20assist%20you%20with%20your%20healthcare%20and%20consultation%20inquiry.%0A%0APlease%20let%20us%20know%20how%20we%20may%20best%20assist%20you%20today.%0A%0AWarm%20Regards,%0A${agentName}%20-%20${bizName}`;
+            }
+          } else {
+            waText = `Hello%20${leadName},%20Greetings%20from%20Zappcode%20Academy!%0A%0AThank%20you%20for%20your%20interest%20in%20our%20programs.%20We%20would%20love%20to%20guide%20you%20through%20our%20courses%20and%20career%20opportunities.%0A%0AWarm%20Regards,%0A${agentName}%20-%20Zappcode%20Academy`;
+          }
         }
 
-        // Status Badge
-        const displaySt = lead.appointment_status || lead.status || 'Open';
-        let statusBadge = `<span class="badge bg-light text-dark border">${displaySt}</span>`;
-        const stLower = displaySt.toLowerCase();
-        if (stLower.includes('payment done') || stLower.includes('won')) {
-            statusBadge = `<span class="badge badge-payment-done"><i class="fa-solid fa-check me-1"></i>Payment Done</span>`;
-        } else if (stLower.includes('confirm')) {
-            statusBadge = `<span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed</span>`;
-        } else if (stLower.includes('approval pending') || stLower.includes('await')) {
-            statusBadge = `<span class="badge badge-booking-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Awaiting Approval</span>`;
-        } else if (stLower.includes('book')) {
-            statusBadge = `<span class="badge badge-booking"><i class="fa-solid fa-calendar-days me-1"></i>Booked</span>`;
-        } else if (stLower.includes('follow')) {
-            statusBadge = `<span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up</span>`;
-            if (lead.next_followup && lead.next_followup !== '-' && lead.next_followup !== 'None') {
-                statusBadge += `<div class="mt-1 small text-muted" style="font-size:0.7rem;"><i class="fa-solid fa-calendar-day me-1"></i>${lead.next_followup}</div>`;
-            }
-        } else if (stLower.includes('payment pending')) {
-            statusBadge = `<span class="badge badge-payment-pending"><i class="fa-solid fa-clock me-1"></i>Payment Pending</span>`;
-        } else if (stLower.includes('assign')) {
-            statusBadge = `<span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>`;
-        } else if (stLower.includes('cancel') || stLower.includes('lost') || stLower.includes('not int')) {
-            statusBadge = `<span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>${displaySt}</span>`;
-        } else if (stLower.includes('new') || stLower.includes('open')) {
-            statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${displaySt}</span>`;
-        }
-
-        // Direct Call & WhatsApp Action shortcuts
-        let directCallBtn = '';
-        let whatsappBtn = '';
-
-        if (lead.clean_mobile && lead.clean_mobile.length >= 10) {
-            const phoneDigits = lead.clean_mobile;
-            const leadName = encodeURIComponent(lead.name || 'Valued Client');
-            const bizName = encodeURIComponent(lead.business_name || cachedHospitalName || 'CRM Portal');
-            const agentName = encodeURIComponent(cachedAgentName || 'Admissions & Support Team');
-            const docName = encodeURIComponent(lead.doctor || 'our specialist');
-            const apptDate = lead.appointment_date ? encodeURIComponent(lead.appointment_date) : '';
-            const apptTime = lead.appointment_time ? encodeURIComponent(lead.appointment_time) : '';
-            
-            let waText = lead.whatsapp_message;
-            if (!waText) {
-                if (lead.is_hospital) {
-                    if (lead.is_booked) {
-                        const datePart = apptDate ? `%20for%20${apptDate}` : '';
-                        const timePart = apptTime ? `%20at%20${apptTime}` : '';
-                        waText = `Hello%20${leadName},%20Greetings%20from%20${bizName}!%0A%0AYour%20appointment%20with%20Dr.%20${docName}%20at%20${bizName}%20is%20confirmed${datePart}${timePart}.%0A%0APlease%20reach%2015%20minutes%20prior%20to%20your%20scheduled%20slot.%20Thank%20you!%0A%0AWarm%20Regards,%0A${bizName}`;
-                    } else {
-                        waText = `Hello%20${leadName},%20Greetings%20from%20${bizName}!%0A%0AThank%20you%20for%20connecting%20with%20us.%20We%20are%20pleased%20to%20assist%20you%20with%20your%20healthcare%20and%20consultation%20inquiry.%0A%0APlease%20let%20us%20know%20how%20we%20may%20best%20assist%20you%20today.%0A%0AWarm%20Regards,%0A${agentName}%20-%20${bizName}`;
-                    }
-                } else {
-                    waText = `Hello%20${leadName},%20Greetings%20from%20Zappcode%20Academy!%0A%0AThank%20you%20for%20your%20interest%20in%20our%20programs.%20We%20would%20love%20to%20guide%20you%20through%20our%20courses%20and%20career%20opportunities.%0A%0AWarm%20Regards,%0A${agentName}%20-%20Zappcode%20Academy`;
-                }
-            }
-            
-            directCallBtn = `
+        directCallBtn = `
                 <a href="tel:${phoneDigits}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="Direct Call to ${lead.mobile}">
                     <i class="fa-solid fa-phone"></i>
                 </a>
             `;
 
-            const btnTitle = lead.is_hospital ? (lead.is_booked ? 'Send WhatsApp Appointment Confirmation' : `Send WhatsApp Welcome Message from ${lead.business_name}`) : 'Send WhatsApp Message to Candidate';
-            
-            whatsappBtn = `
+        const btnTitle = lead.is_hospital ? (lead.is_booked ? 'Send WhatsApp Appointment Confirmation' : `Send WhatsApp Welcome Message from ${lead.business_name}`) : 'Send WhatsApp Message to Candidate';
+
+        whatsappBtn = `
                 <a href="https://wa.me/91${phoneDigits}?text=${waText}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1 shadow-xs" style="font-size: 0.75rem;" title="${btnTitle}">
                     <i class="fa-brands fa-whatsapp text-success"></i>
                 </a>
             `;
-        }
-        
-        let commentsHtml = '-';
-        if (lead.all_comments && lead.all_comments.length > 0) {
-            const lis = lead.all_comments.map(c => `<li class="mb-1">${c}</li>`).join('');
-            commentsHtml = `<ul class="mb-0 ps-3 text-start" style="list-style-type: disc;">${lis}</ul>`;
-        }
+      }
 
-        // Column 3: Source / Campaign cell rendering based on business mode
-        let sourceColumnHtml = '';
-        if (currentMode === 'hospital') {
-            sourceColumnHtml = `
+      let commentsHtml = '-';
+      if (lead.all_comments && lead.all_comments.length > 0) {
+        const lis = lead.all_comments.map(c => `<li class="mb-1">${c}</li>`).join('');
+        commentsHtml = `<ul class="mb-0 ps-3 text-start" style="list-style-type: disc;">${lis}</ul>`;
+      }
+
+      // Column 3: Source / Campaign cell rendering based on business mode
+      let sourceColumnHtml = '';
+      if (currentMode === 'hospital') {
+        sourceColumnHtml = `
                 <div class="text-dark fw-semibold text-truncate" title="${lead.lead_source}">${lead.lead_source}</div>
                 ${lead.campaign && lead.campaign !== 'Nelson General Campaign' && lead.campaign !== 'nan' ? `<div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${lead.campaign}">${lead.campaign}</div>` : ''}
             `;
-        } else if (currentMode === 'academy') {
-            sourceColumnHtml = `
+      } else if (currentMode === 'academy') {
+        sourceColumnHtml = `
                 <div class="text-dark fw-semibold text-truncate" title="${lead.lead_source}">${lead.lead_source}</div>
                 <div class="text-muted small mt-1 text-truncate" style="font-size: 0.72rem;" title="${lead.campaign || 'Direct / Organic'}">${lead.campaign || 'Direct / Organic'}</div>
             `;
-        } else {
-            // 'all' business view: show business badge + source/campaign
-            sourceColumnHtml = `
+      } else {
+        // 'all' business view: show business badge + source/campaign
+        sourceColumnHtml = `
                 <div class="text-truncate mb-1" title="${lead.business_name}">
                     <span class="badge ${lead.is_hospital ? 'bg-info bg-opacity-10 text-info border' : 'bg-primary bg-opacity-10 text-primary border'} text-truncate" style="max-width: 100%;">
                         <i class="fa-solid ${lead.is_hospital ? 'fa-hospital' : 'fa-building'} me-1"></i>${lead.business_name}
@@ -2229,68 +2434,68 @@ function renderDrilldownTable(leads, bMode) {
                 <div class="text-dark fw-semibold text-truncate" style="font-size: 0.75rem;" title="${lead.lead_source}">${lead.lead_source}</div>
                 ${lead.campaign && lead.campaign !== 'nan' ? `<div class="text-muted small text-truncate" style="font-size: 0.7rem;" title="${lead.campaign}">${lead.campaign}</div>` : ''}
             `;
-        }
+      }
 
-        // Column 4: Department / Course cell rendering based on business mode
-        let deptCourseHtml = '';
-        if (currentMode === 'hospital') {
-            deptCourseHtml = `
+      // Column 4: Department / Course cell rendering based on business mode
+      let deptCourseHtml = '';
+      if (currentMode === 'hospital') {
+        deptCourseHtml = `
                 <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor || 'Doctor Not Assigned'}</div>
                 <div class="text-muted small" style="font-size: 0.72rem;">${lead.department || 'General OPD'}</div>
             `;
-        } else if (currentMode === 'academy') {
-            deptCourseHtml = `
+      } else if (currentMode === 'academy') {
+        deptCourseHtml = `
                 <div class="text-dark fw-semibold"><i class="fa-solid fa-graduation-cap text-indigo me-1"></i>${lead.course || 'General Training'}</div>
                 <div class="text-muted small" style="font-size: 0.72rem;">${lead.stage || 'Inquiry / Lead'}</div>
             `;
-        } else {
-            if (lead.is_hospital) {
-                deptCourseHtml = `
+      } else {
+        if (lead.is_hospital) {
+          deptCourseHtml = `
                     <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor || 'Doctor Not Assigned'}</div>
                     <div class="text-muted small" style="font-size: 0.72rem;">${lead.department || 'General OPD'}</div>
                 `;
-            } else {
-                deptCourseHtml = `
+        } else {
+          deptCourseHtml = `
                     <div class="text-dark fw-semibold"><i class="fa-solid fa-graduation-cap text-indigo me-1"></i>${lead.course || 'General Training'}</div>
                     <div class="text-muted small" style="font-size: 0.72rem;">${lead.stage || 'Inquiry'}</div>
                 `;
-            }
         }
+      }
 
-        // Status / Admission Representation
-        let statusAdmissionHtml = statusBadge;
-        if (!lead.is_hospital && lead.admission_status && lead.admission_status !== 'Not Applied') {
-            statusAdmissionHtml += `<div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;"><i class="fa-solid fa-user-graduate me-1"></i>${lead.admission_status}</span></div>`;
-        }
+      // Status / Admission Representation
+      let statusAdmissionHtml = statusBadge;
+      if (!lead.is_hospital && lead.admission_status && lead.admission_status !== 'Not Applied') {
+        statusAdmissionHtml += `<div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;"><i class="fa-solid fa-user-graduate me-1"></i>${lead.admission_status}</span></div>`;
+      }
 
-        // Assigned To with Quick Reassign Dropdown (if user has permissions)
-        let assignedToHtml = '';
-        if (canUserAssign && cachedAssignableUsers.length > 0) {
-            let opts = `<option value="">Unassigned</option>`;
-            cachedAssignableUsers.forEach(u => {
-                const isSel = (lead.assigned_to_id && lead.assigned_to_id === u.id) ? 'selected' : '';
-                opts += `<option value="${u.id}" ${isSel}>${u.name}</option>`;
-            });
-            assignedToHtml = `
+      // Assigned To with Quick Reassign Dropdown (if user has permissions)
+      let assignedToHtml = '';
+      if (canUserAssign && cachedAssignableUsers.length > 0) {
+        let opts = `<option value="">Unassigned</option>`;
+        cachedAssignableUsers.forEach(u => {
+          const isSel = (lead.assigned_to_id && lead.assigned_to_id === u.id) ? 'selected' : '';
+          opts += `<option value="${u.id}" ${isSel}>${u.name}</option>`;
+        });
+        assignedToHtml = `
                 <select class="form-select form-select-sm rounded-pill border-light-subtle shadow-2xs py-0 px-2" style="font-size:0.75rem; width:130px;" onchange="executeSingleLeadAssign(${lead.id}, this.value)">
                     ${opts}
                 </select>
             `;
-        } else {
-            assignedToHtml = `<span class="badge bg-light text-dark border">${lead.assigned_to}</span>`;
-        }
+      } else {
+        assignedToHtml = `<span class="badge bg-light text-dark border">${lead.assigned_to}</span>`;
+      }
 
-        const isRowChecked = selectedDrilldownLeadIds.has(lead.id) ? 'checked' : '';
+      const isRowChecked = selectedDrilldownLeadIds.has(lead.id) ? 'checked' : '';
 
-        const currentRetUrl = new URL(window.location.href);
-        currentRetUrl.searchParams.set('drilldown_card', currentDrilldownCard);
-        currentRetUrl.searchParams.set('drilldown_mode', currentDrilldownMode);
-        if (currentDrilldownDate) currentRetUrl.searchParams.set('drilldown_date', currentDrilldownDate);
-        if (currentDrilldownCardTitle) currentRetUrl.searchParams.set('drilldown_title', currentDrilldownCardTitle);
-        
-        let leadDetailHref = `${lead.detail_url}?return_to=${encodeURIComponent(currentRetUrl.pathname + currentRetUrl.search)}`;
+      const currentRetUrl = new URL(window.location.href);
+      currentRetUrl.searchParams.set('drilldown_card', currentDrilldownCard);
+      currentRetUrl.searchParams.set('drilldown_mode', currentDrilldownMode);
+      if (currentDrilldownDate) currentRetUrl.searchParams.set('drilldown_date', currentDrilldownDate);
+      if (currentDrilldownCardTitle) currentRetUrl.searchParams.set('drilldown_title', currentDrilldownCardTitle);
 
-        tr.innerHTML = `
+      let leadDetailHref = `${lead.detail_url}?return_to=${encodeURIComponent(currentRetUrl.pathname + currentRetUrl.search)}`;
+
+      tr.innerHTML = `
             <td class="text-center px-3">
                 <input type="checkbox" class="form-check-input drilldown-row-checkbox" value="${lead.id}" ${isRowChecked} onchange="toggleDrilldownRowSelect(this, ${lead.id})">
             </td>
@@ -2332,76 +2537,76 @@ function renderDrilldownTable(leads, bMode) {
                 </a>
             </td>
         `;
-        tbody.appendChild(tr);
+      tbody.appendChild(tr);
     });
-}
+  }
 
-function filterDrilldownTable() {
+  function filterDrilldownTable() {
     const query = document.getElementById('drilldownSearchInput').value.toLowerCase().trim();
     let filtered = cachedLeadItems;
 
     if (selectedCampaignFilter) {
-        filtered = filtered.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
+      filtered = filtered.filter(l => (l.campaign || '').toLowerCase() === selectedCampaignFilter.toLowerCase());
     }
 
     if (query) {
-        filtered = filtered.filter(l =>
-            l.name.toLowerCase().includes(query) ||
-            l.mobile.toLowerCase().includes(query) ||
-            l.doctor.toLowerCase().includes(query) ||
-            l.department.toLowerCase().includes(query) ||
-            l.campaign.toLowerCase().includes(query) ||
-            l.lead_source.toLowerCase().includes(query)
-        );
+      filtered = filtered.filter(l =>
+        l.name.toLowerCase().includes(query) ||
+        l.mobile.toLowerCase().includes(query) ||
+        l.doctor.toLowerCase().includes(query) ||
+        l.department.toLowerCase().includes(query) ||
+        l.campaign.toLowerCase().includes(query) ||
+        l.lead_source.toLowerCase().includes(query)
+      );
     }
     document.getElementById('leadsTableCountBadge').innerText = `${filtered.length} Leads`;
     renderDrilldownTable(filtered);
-}
+  }
 
-function setQuickDateFilter(filterType) {
+  function setQuickDateFilter(filterType) {
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.delete('date_from');
     urlParams.delete('date_to');
     if (filterType === 'all_time' || filterType === 'all') {
-        urlParams.delete('time_filter');
+      urlParams.delete('time_filter');
     } else {
-        urlParams.set('time_filter', filterType);
+      urlParams.set('time_filter', filterType);
     }
     window.location.search = urlParams.toString();
-}
+  }
 
-function applyDashboardChartFilter(param, value) {
+  function applyDashboardChartFilter(param, value) {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get(param) === value) {
-        urlParams.delete(param);
+      urlParams.delete(param);
     } else {
-        urlParams.set(param, value);
+      urlParams.set(param, value);
     }
     window.location.search = urlParams.toString();
-}
-
-document.addEventListener("DOMContentLoaded", function() {
-  const palette = [
-    '#6366f1', // Indigo / Iris
-    '#0ea5e9', // Sky Blue
-    '#10b981', // Emerald
-    '#f59e0b', // Amber
-    '#ec4899', // Pink
-    '#8b5cf6', // Violet
-    '#14b8a6', // Teal
-    '#f97316', // Orange
-    '#64748b'  // Slate
-  ];
-
-  // 1. Funnel Comparison Bar Chart
-  const funnelData = {{ funnel_chart_data|safe }};
-  if (funnelData && funnelData.datasets) {
-    funnelData.datasets.forEach(ds => {
-      ds.backgroundColor = ds.backgroundColor === '#4f46e5' ? '#6366f1' : ds.backgroundColor;
-      ds.borderRadius = 6;
-      ds.barThickness = 14;
-    });
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const palette = [
+      '#6366f1', // Indigo / Iris
+      '#0ea5e9', // Sky Blue
+      '#10b981', // Emerald
+      '#f59e0b', // Amber
+      '#ec4899', // Pink
+      '#8b5cf6', // Violet
+      '#14b8a6', // Teal
+      '#f97316', // Orange
+      '#64748b'  // Slate
+    ];
+
+    // 1. Funnel Comparison Bar Chart
+    const funnelData = {{ funnel_chart_data|safe }};
+    if (funnelData && funnelData.datasets) {
+      funnelData.datasets.forEach(ds => {
+        ds.backgroundColor = ds.backgroundColor === '#4f46e5' ? '#6366f1' : ds.backgroundColor;
+        ds.borderRadius = 6;
+        ds.barThickness = 14;
+      });
+    }
   if (document.getElementById('funnelComparisonChart')) {
     new Chart(document.getElementById('funnelComparisonChart'), {
       type: 'bar',
@@ -2470,17 +2675,17 @@ document.addEventListener("DOMContentLoaded", function() {
             labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } }
           }
         },
-        scales: {
-          x: { grid: { color: 'rgba(0,0,0,0.04)' } },
-          y: { grid: { display: false } }
-        }
+  scales: {
+    x: { grid: { color: 'rgba(0,0,0,0.04)' } },
+    y: { grid: { display: false } }
+  }
       }
     });
   }
 
   // 3. Source Doughnut Charts per Business
   const isMobileScreen = window.innerWidth < 768;
-  const sourceCharts = {{ business_source_charts_json|safe }};
+  const sourceCharts = {{ business_source_charts_json| safe }};
   sourceCharts.forEach((item, idx) => {
     const canvasId = `sourceChart_${idx + 1}`;
     const el = document.getElementById(canvasId);
@@ -2524,7 +2729,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // 4. Course / Department Pie Charts per Business
-  const courseCharts = {{ business_course_charts_json|safe }};
+  const courseCharts = {{ business_course_charts_json| safe }};
   courseCharts.forEach((item, idx) => {
     const canvasId = `courseChart_${idx + 1}`;
     const el = document.getElementById(canvasId);
@@ -2575,7 +2780,7 @@ document.addEventListener("DOMContentLoaded", function() {
     dateFromInput.max = todayStr;
     dateToInput.max = todayStr;
 
-    dateFromInput.addEventListener('change', function() {
+    dateFromInput.addEventListener('change', function () {
       if (this.value) {
         dateToInput.min = this.value;
         if (dateToInput.value && dateToInput.value < this.value) {
@@ -2613,4 +2818,3 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 {% endblock %}
-

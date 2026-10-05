@@ -898,61 +898,36 @@
     }
 
     function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
-        currentDrilldownCard = cardType;
-        currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
+        const pageParams = new URLSearchParams(window.location.search);
+        const activeTimeFilter = pageParams.get('time_filter') || '{{ time_filter|default:"today" }}';
+        const activeStartDate = pageParams.get('start_date') || '{{ custom_start|default:"" }}';
+        const activeEndDate = pageParams.get('end_date') || '{{ custom_end|default:"" }}';
+        const activeBiz = pageParams.get('hospital') || pageParams.get('business') || '{{ request.user.hospital_id|default:"" }}';
 
-        currentDrilldownMode = 'today';
-        currentDrilldownDate = todayStrGlobal;
-        updateModalDynamicTitle('Today');
-        updatePillUI('today');
-
-        currentCalYear = new Date().getFullYear();
-        currentCalMonth = new Date().getMonth() + 1;
-
-        // Reset campaign filter when a NEW card is opened (fresh start)
-        selectedCampaignFilter = null;
-
-        const iconConfig = cardIconMap[cardType] || { icon: 'fa-table-cells-large', colorClass: 'bg-primary' };
-        const badgeEl = document.getElementById('drilldownCardBadgeIcon');
-        if (badgeEl) {
-            badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
-            badgeEl.innerHTML = `<i class="fa-solid ${iconConfig.icon}"></i>`;
+        const drillParams = new URLSearchParams();
+        drillParams.set('card_type', cardType);
+        if (cardBaseNameMap[cardType]) {
+            drillParams.set('card_title', cardBaseNameMap[cardType]);
+        }
+        if (activeBiz) {
+            drillParams.set('business', activeBiz);
         }
 
-        // Configure Next Day Pill
-        const pillNext = document.getElementById('pillNext');
-        if (pillNext) {
-            if (isFutureDateAllowed()) {
-                pillNext.classList.remove('disabled-pill');
-                pillNext.disabled = false;
-                pillNext.title = 'Next Day';
-            } else {
-                pillNext.classList.add('disabled-pill');
-                pillNext.disabled = true;
-                pillNext.title = 'Future dates are only available for Booked & Follow-ups';
-            }
+        if (activeStartDate || activeEndDate) {
+            drillParams.set('mode', 'date_range');
+            if (activeStartDate) drillParams.set('date_from', activeStartDate);
+            if (activeEndDate) drillParams.set('date_to', activeEndDate);
+        } else if (activeTimeFilter === 'all_time' || activeTimeFilter === 'all') {
+            drillParams.set('mode', 'all');
+        } else if (activeTimeFilter === 'this_month') {
+            drillParams.set('mode', 'this_month');
+        } else {
+            drillParams.set('mode', 'today');
+            drillParams.set('date_from', todayStrGlobal);
         }
 
-        document.getElementById('drilldownCalendarWrapper').style.display = 'none';
-        document.getElementById('drilldownSearchInput').value = '';
-        selectedCampaignFilter = null;
-        tableHeaderFilters = {
-            source: 'all',
-            dept: 'all',
-            temp: 'all',
-            status: 'all',
-            assigned: 'all'
-        };
-        const startInputReset = document.getElementById('drilldownStartDateInput');
-        const endInputReset = document.getElementById('drilldownEndDateInput');
-        if (startInputReset) { startInputReset.value = ''; startInputReset.max = ''; }
-        if (endInputReset) { endInputReset.value = ''; endInputReset.min = ''; }
-
-        // Show Modal & Fetch
-        const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
-        modal.show();
-
-        fetchDrilldownData();
+        const targetUrl = `/dashboard/card-drilldown/?${drillParams.toString()}`;
+        window.open(targetUrl, '_blank');
     }
 
     function drilldownSetMode(mode) {
@@ -2030,36 +2005,6 @@
           `;
             tbody.appendChild(tr);
         });
-    }
-
-    function filterDrilldownTable() {
-        const searchVal = (document.getElementById('drilldownSearchInput')?.value || '').toLowerCase().trim();
-        let filtered = cachedLeadItems;
-
-        if (selectedCampaignFilter) {
-            const targetCamp = selectedCampaignFilter.toLowerCase().trim();
-            filtered = filtered.filter(l => {
-                const leadCamp = (l.campaign || '').toLowerCase().trim();
-                if (targetCamp === 'nan' || targetCamp === 'general / direct') {
-                    return leadCamp === 'nan' || leadCamp === 'general / direct' || leadCamp === '' || leadCamp === 'none';
-                }
-                return leadCamp === targetCamp;
-            });
-        }
-
-        if (searchVal) {
-            filtered = filtered.filter(l => {
-                const name = (l.name || '').toLowerCase();
-                const mob = (l.mobile || '').toLowerCase();
-                const email = (l.email || '').toLowerCase();
-                const course = (l.course || '').toLowerCase();
-                const camp = (l.campaign || '').toLowerCase();
-                const st = (l.status || '').toLowerCase();
-                return name.includes(searchVal) || mob.includes(searchVal) || email.includes(searchVal) || course.includes(searchVal) || camp.includes(searchVal) || st.includes(searchVal);
-            });
-        }
-
-        renderDrilldownTable(filtered);
     }
 
     function getCsrfToken() {

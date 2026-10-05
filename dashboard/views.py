@@ -1709,7 +1709,12 @@ def nel_card_drilldown_api(request):
                 team = User.objects.filter(reports_to=user)
                 hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
             elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
-                hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True))
+                # Counsellors / HR / Telecallers: see assigned leads, leads created by them, or fresh unassigned leads in their business
+                # Also allow seeing new leads for current business so drilldown counts and cards match perfectly
+                if card_type in ('new_leads', 'walkin'):
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True) | Q(created_at__date=today) | Q(inquiry_date=today))
+                else:
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True))
     else:
         raw_biz = request.GET.get("business", "").strip()
         raw_hosp = request.GET.get("hospital", "").strip()
@@ -1723,6 +1728,19 @@ def nel_card_drilldown_api(request):
         else:
             selected_hospital_id = ""
             hospital_qs = Lead.objects.filter(is_archived=False)
+            
+        if not user.can_view_all_leads:
+            if user.can_view_team_leads:
+                team = User.objects.filter(reports_to=user)
+                hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team))
+            elif user.role == User.Role.MANAGER:
+                team = User.objects.filter(reports_to=user)
+                hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
+            elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+                if card_type in ('new_leads', 'walkin'):
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True) | Q(created_at__date=today) | Q(inquiry_date=today))
+                else:
+                    hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True))
 
     # Extract Active Slicer Filters
     campaign_filter = request.GET.get('campaign', '').strip()
@@ -1734,6 +1752,15 @@ def nel_card_drilldown_api(request):
     age_group_filter = request.GET.get('age_group', '').strip()
     payment_type_filter = request.GET.get('payment_type', '').strip()
     final_status_filter = request.GET.get('final_lead_status', '').strip()
+
+    # Cache optimization: for heavy queries (e.g. all time or month queries), check cache
+    from django.core.cache import cache
+    cache_key = None
+    if mode in ('all', 'this_month') and not (source_filter or department_filter or doctor_filter or location_filter or gender_filter or age_group_filter or payment_type_filter or final_status_filter):
+        cache_key = f"drilldown_api_{user.id}_{card_type}_{mode}_{selected_hospital_id}_{campaign_filter}_{year_param}_{month_param}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return JsonResponse(cached_response)
 
     if source_filter:
         hospital_qs = hospital_qs.filter(Q(lead_source__name__iexact=source_filter) | Q(custom_data__lead_source__iexact=source_filter))
@@ -1800,14 +1827,29 @@ def nel_card_drilldown_api(request):
     if card_type == 'new_leads':
         base_card_qs = hospital_qs
     elif card_type == 'call_not_done':
+        uncontacted_q = (
+            Q(stage__name__icontains="new") |
+            Q(deal_status="OPEN", followup_count=0) |
+            Q(temperature="UNCONTACTED")
+        )
         if user.role == User.Role.LEAD_ATTENDENT:
-            c_base = hospital_qs.filter(
+            base_card_qs = hospital_qs.filter(uncontacted_q).filter(
                 Q(assigned_to=user) | Q(assigned_to__isnull=True) | Q(custom_data__lead_attendant__in=['Unassigned', '', None, 'nan'])
+            ).exclude(
+                deal_status__in=[DealStatus.WON, DealStatus.LOST, 'WON', 'LOST', 'CLOSED']
+            ).exclude(
+                admission_status__in=[AdmissionStatus.WON, 'ADMISSION_DONE', 'WON']
+            ).exclude(
+                admission__isnull=False
             )
         else:
-            c_base = hospital_qs
-        cnd_matched_ids = filter_uncontacted_leads_ids(c_base, today=today)
-        base_card_qs = hospital_qs.filter(id__in=cnd_matched_ids)
+            base_card_qs = hospital_qs.filter(uncontacted_q).exclude(
+                deal_status__in=[DealStatus.WON, DealStatus.LOST, 'WON', 'LOST', 'CLOSED']
+            ).exclude(
+                admission_status__in=[AdmissionStatus.WON, 'ADMISSION_DONE', 'WON']
+            ).exclude(
+                admission__isnull=False
+            )
     elif card_type == 'telecaller_opd_booked':
         card_leads_qs = hospital_qs.filter(assigned_to=user) if user.role == User.Role.LEAD_ATTENDENT else hospital_qs
         status_q = Q(custom_data__appointment_status__iexact='OPD Booking') | \
@@ -2534,7 +2576,7 @@ def nel_card_drilldown_api(request):
                     "name": u_name,
                 })
 
-    return JsonResponse({
+    res_payload = {
         "status": "success",
         "card_type": card_type,
         "mode": mode,
@@ -2557,7 +2599,10 @@ def nel_card_drilldown_api(request):
         "can_assign": is_admin_or_superadmin,
         "can_self_assign": bool(getattr(user, "can_self_assign", True)),
         "self_assign_limit": getattr(user, "bulk_self_assign_limit", 25),
-    })
+    }
+    if cache_key:
+        cache.set(cache_key, res_payload, 180)  # 3 minutes cache for fast drilldown loading
+    return JsonResponse(res_payload)
 
 
 @login_required

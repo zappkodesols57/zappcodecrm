@@ -19,6 +19,7 @@ urlpatterns = [
     path("welcome/", views.welcome_view, name="welcome"),
     path("superadmin/", views.superadmin_home, name="superadmin_home"),
     path("superadmin/card-drilldown-api/", views.nel_card_drilldown_api, name="nel_card_drilldown_api"),
+    path("card-drilldown/", zappcode_views.card_drilldown_page, name="card_drilldown_page"),
     path("api/live-metrics/", views.live_metrics_api, name="live_metrics_api"),
     path("management/", zappcode_views.management_home, name="management_home"),
     path("nelson/roles-permissions/", views.roles_permissions_view, name="roles_permissions"),

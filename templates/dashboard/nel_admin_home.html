@@ -1657,90 +1657,36 @@
     }
 
     function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {
-        currentDrilldownCard = cardType;
-        currentDrilldownCardTitle = cardBaseNameMap[cardType] || cardTitle || 'Leads';
-
-        // Check if page has active time filter (e.g. all_time, this_month, today, or custom dates)
         const pageParams = new URLSearchParams(window.location.search);
         const activeTimeFilter = pageParams.get('time_filter') || '{{ time_filter|default:"today" }}';
         const activeStartDate = pageParams.get('start_date') || '{{ custom_start|default:"" }}';
         const activeEndDate = pageParams.get('end_date') || '{{ custom_end|default:"" }}';
+        const activeBiz = pageParams.get('hospital') || pageParams.get('business') || '{{ selected_hospital_id|default:"" }}';
+
+        const drillParams = new URLSearchParams();
+        drillParams.set('card_type', cardType);
+        if (cardBaseNameMap[cardType]) {
+            drillParams.set('card_title', cardBaseNameMap[cardType]);
+        }
+        if (activeBiz) {
+            drillParams.set('business', activeBiz);
+        }
 
         if (activeStartDate || activeEndDate) {
-            currentDrilldownMode = 'date_range';
-            currentDrilldownStartDate = activeStartDate;
-            currentDrilldownEndDate = activeEndDate || activeStartDate;
-            updateModalDynamicTitle(`${currentDrilldownStartDate} to ${currentDrilldownEndDate}`);
-            updatePillUI('custom');
-        } else if (activeTimeFilter === 'all_time') {
-            currentDrilldownMode = 'all';
-            currentDrilldownDate = 'all';
-            currentDrilldownStartDate = '';
-            currentDrilldownEndDate = '';
-            updateModalDynamicTitle('All Time');
-            updatePillUI('all');
+            drillParams.set('mode', 'date_range');
+            if (activeStartDate) drillParams.set('date_from', activeStartDate);
+            if (activeEndDate) drillParams.set('date_to', activeEndDate);
+        } else if (activeTimeFilter === 'all_time' || activeTimeFilter === 'all') {
+            drillParams.set('mode', 'all');
         } else if (activeTimeFilter === 'this_month') {
-            currentDrilldownMode = 'this_month';
-            currentDrilldownDate = todayStrGlobal;
-            currentDrilldownStartDate = '';
-            currentDrilldownEndDate = '';
-            updateModalDynamicTitle('This Month');
-            updatePillUI('custom'); // Or keep appropriate pill
+            drillParams.set('mode', 'this_month');
         } else {
-            currentDrilldownMode = 'today';
-            currentDrilldownDate = todayStrGlobal;
-            currentDrilldownStartDate = '';
-            currentDrilldownEndDate = '';
-            updateModalDynamicTitle('Today');
-            updatePillUI('today');
+            drillParams.set('mode', 'today');
+            drillParams.set('date_from', todayStrGlobal);
         }
 
-        currentCalYear = new Date().getFullYear();
-        currentCalMonth = new Date().getMonth() + 1;
-
-        const iconConfig = cardIconMap[cardType] || { icon: 'ph-squares-four', colorClass: 'bg-primary' };
-        const badgeEl = document.getElementById('drilldownCardBadgeIcon');
-        if (badgeEl) {
-            badgeEl.className = `badge p-2 rounded-3 fs-6 ${iconConfig.colorClass}`;
-            badgeEl.innerHTML = `<i class="ph ${iconConfig.icon}"></i>`;
-        }
-
-        // Configure Next Day Pill
-        const pillNext = document.getElementById('pillNext');
-        if (pillNext) {
-            if (isFutureDateAllowed()) {
-                pillNext.classList.remove('disabled-pill');
-                pillNext.disabled = false;
-                pillNext.title = 'Next Day';
-            } else {
-                pillNext.classList.add('disabled-pill');
-                pillNext.disabled = true;
-                pillNext.title = 'Future dates are only available for OPD Booked & Follow-ups';
-            }
-        }
-
-        document.getElementById('drilldownCalendarWrapper').style.display = (currentDrilldownMode === 'date_range') ? 'block' : 'none';
-        document.getElementById('drilldownSearchInput').value = '';
-        selectedBookingTypeFilter = 'all';
-        selectedFollowupTypeFilter = 'all';
-        selectedCampaignFilter = null;
-        tableHeaderFilters = {
-            source: 'all',
-            dept: 'all',
-            temp: 'all',
-            status: 'all',
-            assigned: 'all'
-        };
-        const startInputReset = document.getElementById('drilldownStartDateInput');
-        const endInputReset = document.getElementById('drilldownEndDateInput');
-        if (startInputReset) { startInputReset.value = currentDrilldownStartDate || ''; }
-        if (endInputReset) { endInputReset.value = currentDrilldownEndDate || ''; }
-
-        // Show Modal & Fetch
-        const modal = new bootstrap.Modal(document.getElementById('universalCardDrilldownModal'));
-        modal.show();
-
-        fetchDrilldownData();
+        const targetUrl = `/dashboard/card-drilldown/?${drillParams.toString()}`;
+        window.open(targetUrl, '_blank');
     }
 
     function drilldownSetMode(mode) {
