@@ -8,6 +8,27 @@ class Hospital(models.Model):
     Core Multi-Tenant Organization / Business entity.
     Represents any business entity onboarded on the CRM (e.g. Zappcode Academy, Nelson Hospital, Clinics, Companies).
     """
+    class Industry(models.TextChoices):
+        HOSPITAL = "HOSPITAL", "Healthcare / Hospital / Clinic"
+        ACADEMY = "ACADEMY", "Education / Academy / Coaching"
+        IT_SERVICES = "IT_SERVICES", "IT Services / Software Agency"
+        REAL_ESTATE = "REAL_ESTATE", "Real Estate / Builders"
+        OTHER = "OTHER", "Other / General Business"
+
+    business_code = models.CharField(
+        max_length=50, 
+        unique=True, 
+        blank=True, 
+        db_index=True,
+        help_text="Unique Business ID / Code (e.g. BIZ-HOSP-001, BIZ-ACAD-002)"
+    )
+    industry = models.CharField(
+        max_length=50,
+        choices=Industry.choices,
+        default=Industry.ACADEMY,
+        db_index=True,
+        help_text="Industry category for this business"
+    )
     name = models.CharField(max_length=255)
     logo = models.ImageField(upload_to='hospital_logos/', null=True, blank=True)
     contact_email = models.EmailField(blank=True)
@@ -20,24 +41,68 @@ class Hospital(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Business / Hospital"
-        verbose_name_plural = "Businesses / Hospitals"
+        verbose_name = "Business"
+        verbose_name_plural = "Businesses"
+
+    def save(self, *args, **kwargs):
+        # Auto-generate unique business_code if not set
+        if not self.business_code:
+            prefix_map = {
+                self.Industry.HOSPITAL: "BIZ-HOSP",
+                self.Industry.ACADEMY: "BIZ-ACAD",
+                self.Industry.IT_SERVICES: "BIZ-IT",
+                self.Industry.REAL_ESTATE: "BIZ-REAL",
+                self.Industry.OTHER: "BIZ-GEN",
+            }
+            prefix = prefix_map.get(self.industry, "BIZ-CORP")
+            # Determine next index
+            last_item = Hospital.objects.filter(business_code__startswith=prefix).order_by("-id").first()
+            if last_item and last_item.business_code:
+                try:
+                    num_part = int(last_item.business_code.split("-")[-1])
+                    next_num = num_part + 1
+                except Exception:
+                    next_num = (Hospital.objects.count() + 1)
+            else:
+                next_num = Hospital.objects.count() + 1
+            self.business_code = f"{prefix}-{next_num:03d}"
+
+        # Initialize business_type inside settings dict according to selected industry
+        if not isinstance(self.settings, dict):
+            self.settings = {}
+        if self.industry == self.Industry.HOSPITAL:
+            self.settings.setdefault("business_type", "hospital")
+        elif self.industry == self.Industry.ACADEMY:
+            self.settings.setdefault("business_type", "academy")
+        else:
+            self.settings.setdefault("business_type", self.industry.lower())
+
+        super().save(*args, **kwargs)
 
     def get_allowed_roles(self):
-        """Returns list of allowed role keys for this business. Excludes Super Admin & Zappcode internal roles for hospitals."""
+        """Returns list of allowed role keys for this business."""
         if self.allowed_roles and isinstance(self.allowed_roles, list) and len(self.allowed_roles) > 0:
             return self.allowed_roles
-        # Hospital Roles: only Admin, Manager, Lead Attendant, and Doctor
-        hospital_default_roles = [
-            User.Role.ADMIN,
-            User.Role.MANAGER,
-            User.Role.LEAD_ATTENDENT,
-            User.Role.DOCTOR,
-        ]
-        return [r for r in hospital_default_roles if r in [c[0] for c in User.Role.choices]]
+        if self.industry == self.Industry.HOSPITAL:
+            hospital_default_roles = [
+                User.Role.ADMIN,
+                User.Role.MANAGER,
+                User.Role.LEAD_ATTENDENT,
+                User.Role.DOCTOR,
+            ]
+            return [r for r in hospital_default_roles if r in [c[0] for c in User.Role.choices]]
+        else:
+            academy_default_roles = [
+                User.Role.ADMIN,
+                User.Role.MANAGER,
+                User.Role.COUNSELLOR,
+                User.Role.HR,
+            ]
+            return [r for r in academy_default_roles if r in [c[0] for c in User.Role.choices]]
 
     def __str__(self):
-        return self.name
+        code_prefix = f"[{self.business_code}] " if self.business_code else ""
+        return f"{code_prefix}{self.name}"
 
 
 class User(AbstractUser):
@@ -118,31 +183,40 @@ class User(AbstractUser):
         return self.hospital_id
 
     @property
+    def industry(self):
+        """Standardized business industry (e.g. 'HOSPITAL', 'ACADEMY', 'IT_SERVICES', 'REAL_ESTATE', 'OTHER')."""
+        if self.hospital:
+            return self.hospital.industry
+        return Hospital.Industry.ACADEMY
+
+    @property
     def business_type(self):
         """
-        Returns the business type of the user's assigned tenant/organization:
-        - 'hospital': Healthcare / clinic tenants (e.g. Nelson Hospital)
-        - 'academy': Education / coaching / Zappcode Academy tenants
+        Returns normalized business type string based on industry:
+        - 'hospital' for HOSPITAL industry
+        - 'academy' for ACADEMY industry
         """
         if not self.hospital:
             return "academy"
-        btype = (self.hospital.settings or {}).get("business_type")
-        if btype:
-            return str(btype).strip().lower()
-        name_lower = (self.hospital.name or "").lower()
-        if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
+        if self.hospital.industry == Hospital.Industry.HOSPITAL:
             return "hospital"
-        return "academy"
+        elif self.hospital.industry == Hospital.Industry.ACADEMY:
+            return "academy"
+        return str(self.hospital.industry).lower()
 
     @property
     def is_hospital_user(self):
-        """True if user belongs to a hospital-type business."""
-        return self.business_type == "hospital"
+        """True if user belongs to a Healthcare / Hospital business."""
+        if not self.hospital:
+            return False
+        return self.hospital.industry == Hospital.Industry.HOSPITAL
 
     @property
     def is_zappcode_user(self):
-        """True if user belongs to academy/education business or global Zappcode super admin."""
-        return self.business_type == "academy"
+        """True if user belongs to Academy / Education business or is global superadmin."""
+        if not self.hospital:
+            return True
+        return self.hospital.industry == Hospital.Industry.ACADEMY
 
     @property
     def custom_role_display(self):

@@ -54,31 +54,49 @@
     position: relative;
   }
 
-  .crm-form-field .form-control {
-    height: 42px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 7px;
-    font-size: 0.94rem;
-    font-weight: 550;
-    color: #0f172a;
-    background-color: #fcfdfe;
-    transition: all 0.2s ease;
-    padding: 0.45rem 0.85rem;
-    box-sizing: border-box;
+  /* Universal input & select styling: EXACT SAME HEIGHT & BORDER ON ALL FIELDS */
+  .crm-form-card input.form-control,
+  .crm-form-card .form-control,
+  .crm-form-field input,
+  #id_name {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.45rem 0.85rem !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    display: block !important;
+    width: 100% !important;
+    line-height: 1.5 !important;
   }
 
-  .crm-form-field .form-select,
+  /* Universal select styling with generous right padding and background-position to prevent arrow overlap */
+  .crm-form-card select.form-select,
+  .crm-form-card .form-select,
   .crm-form-field select {
-    height: 42px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 7px;
-    font-size: 0.94rem;
-    font-weight: 550;
-    color: #0f172a;
-    background-color: #ffffff;
-    transition: all 0.2s ease;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
     padding: 0.45rem 2.25rem 0.45rem 0.85rem !important;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    display: block !important;
+    width: 100% !important;
+    line-height: 1.5 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -91,39 +109,45 @@
     -moz-appearance: none !important;
   }
 
-  .crm-form-field textarea.form-control {
-    height: auto;
-    min-height: 42px;
-    font-weight: normal;
-    resize: vertical;
-  }
-
-  .crm-name-field-wrap input.form-control,
-  #id_name {
-    font-size: 0.95rem !important;
-    font-weight: 500 !important;
-    color: #1e293b !important;
-    height: 42px !important;
-    background-color: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
-    box-shadow: none !important;
+  /* Textarea exception for auto height */
+  .crm-form-card textarea.form-control,
+  .crm-form-field textarea {
+    height: auto !important;
+    min-height: 42px !important;
+    max-height: none !important;
+    border: 1.5px solid #94a3b8 !important;
     border-radius: 7px !important;
-    letter-spacing: normal !important;
-  }
-
-  .crm-name-field-wrap input.form-control:focus,
-  #id_name:focus {
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
     background-color: #ffffff !important;
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+    padding: 0.45rem 0.85rem !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    resize: vertical !important;
   }
 
-  .crm-form-field .form-control:focus,
-  .crm-form-field .form-select:focus,
-  .crm-form-field select:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-    outline: none;
+  /* Hover states */
+  .crm-form-card input:hover,
+  .crm-form-card select:hover,
+  .crm-form-card textarea:hover,
+  .crm-form-field input:hover,
+  .crm-form-field select:hover,
+  .crm-form-field textarea:hover {
+    border-color: #64748b !important;
+  }
+
+  /* Focus states */
+  .crm-form-card input:focus,
+  .crm-form-card select:focus,
+  .crm-form-card textarea:focus,
+  .crm-form-field input:focus,
+  .crm-form-field select:focus,
+  .crm-form-field textarea:focus {
+    border-color: #4f46e5 !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.18) !important;
+    outline: none !important;
   }
 
   .crm-owner-badge {
@@ -171,7 +195,7 @@
     color: #334155;
   }
 
-  /* High Zoom & Screen Responsiveness */
+  /* High Zoom & Screen Responsiveness (when zoomed to 125%-175% or screens <= 1100px) */
   @media (max-width: 1100px) {
     .crm-form-label {
       width: 36%;
@@ -228,7 +252,7 @@
     </div>
     <div class="d-flex gap-2 align-items-center">
       {% if obj and obj.mobile %}
-      <a href="https://wa.me/91{{ obj.clean_mobile }}?text={{ obj.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-bold d-flex align-items-center gap-1" title="{% if obj.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
+      <a href="https://wa.me/91{{ obj.clean_phone_number }}?text={{ obj.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-bold d-flex align-items-center gap-1" title="{% if obj.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
         <i class="fa-brands fa-whatsapp fs-6 text-success"></i> {% if obj.is_booked %}WhatsApp Booking Details{% else %}WhatsApp Message{% endif %}
       </a>
       {% endif %}
@@ -254,19 +278,14 @@
 
   {% if is_doctor %}
   <div
-    class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between rounded-3 border-0 shadow-sm"
+    class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center gap-2 rounded-3 border-0 shadow-sm"
     style="max-width: 1100px; margin: 0 auto 1.5rem auto; background: #eff6ff; color: #1d4ed8; border-left: 4px solid #3b82f6 !important;">
-    <div class="d-flex align-items-center gap-2">
-      <i class="fa-solid fa-lock text-primary fs-5"></i>
-      <div>
-        <div class="fw-bold mb-0">Read-Only View Mode (Doctor)</div>
-        <div class="small text-muted" style="font-size: 0.78rem;">You can view and review all patient details. Editing
-          is disabled for Doctor role.</div>
-      </div>
+    <i class="fa-solid fa-lock text-primary fs-5"></i>
+    <div>
+      <div class="fw-bold mb-0">Read-Only View Mode (Doctor)</div>
+      <div class="small text-muted" style="font-size: 0.78rem;">You can view and review all patient details. Editing
+        is disabled for Doctor role.</div>
     </div>
-    <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-      Back to Appointments
-    </a>
   </div>
   {% endif %}
 
@@ -340,7 +359,6 @@
       <div class="crm-section-header">
         <i class="fa-solid fa-id-card text-primary opacity-75"></i> Lead Information
       </div>
-
       <!-- Full-Width Top Bar: Assign To / Lead Owner -->
       <div class="row mb-3 pb-3 border-bottom">
         <div class="col-md-6">
@@ -349,14 +367,9 @@
             <div class="crm-form-field">
               {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
               {{ form.assigned_to }}
-              <div class="form-text small text-muted" style="font-size: 0.72rem;"><i
-                  class="fa-solid fa-user-check me-1"></i>Select the Lead Attendant / Staff member to assign this lead
-                to.</div>
               {% else %}
-              <div
-                class="crm-owner-badge d-flex justify-content-between align-items-center p-2 rounded border bg-light">
-                <span><i class="fa-solid fa-circle-user text-primary me-2"></i><strong>{{
-                    user.get_full_name|default:user.username }}</strong></span>
+              <div class="crm-owner-badge d-flex justify-content-between align-items-center p-2 rounded border bg-light">
+                <span><i class="fa-solid fa-circle-user text-primary me-2"></i><strong>{{ user.get_full_name|default:user.username }}</strong></span>
                 <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
               </div>
               <input type="hidden" name="assigned_to" value="{{ user.pk }}">
@@ -365,6 +378,7 @@
           </div>
         </div>
       </div>
+
 
       <!-- ================================================================= -->
       <!-- ROW-BY-ROW BALANCED 2-COLUMN GRID (Left=Odd, Right=Even)            -->
@@ -551,7 +565,48 @@
       {% endfor %}
 
       <!-- Real-time Appointment Slots & Follow-up popup containers -->
-      {% if is_appointment_confirmed %}
+      {% if is_appointment_pending or is_appointment_scheduled %}
+      <!-- Pending / Scheduled Appointment Warning & Confirmation Box -->
+      <div id="pendingAppointmentCard" class="mb-3 p-3 rounded-3 bg-white border border-warning shadow-sm">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-warning text-dark px-2 py-1">
+              <i class="fa-solid fa-clock-rotate-left me-1"></i> 
+              {% if is_appointment_scheduled %}Doctor Follow-up Scheduled (Pending Patient Confirmation){% else %}Appointment Pending Doctor Approval{% endif %}
+            </span>
+            <span class="fw-bold text-dark fs-6">Dr. {{ latest_appointment.doctor_name|default:saved_initial.doctor|default:"Consultant" }}</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm"
+              onclick="toggleBookNextAppointment(true)">
+              <i class="fa-solid fa-pen-to-square me-1"></i> Change Date / Slot
+            </button>
+          </div>
+        </div>
+        <div class="row g-2 align-items-center">
+          <div class="col-sm-4">
+            <small class="text-muted d-block">Requested / Scheduled Date:</small>
+            <span class="fw-bold text-dark"><i class="fa-solid fa-calendar-day text-primary me-1"></i> {{ latest_appointment.appointment_date|default:saved_initial.appo_booked_date|default:"Pending Date" }}</span>
+          </div>
+          <div class="col-sm-4">
+            <small class="text-muted d-block">Slot Time:</small>
+            <span class="fw-bold text-dark"><i class="fa-solid fa-clock text-warning me-1"></i> {{ latest_appointment.appointment_time|time:"h:i A"|default:saved_initial.appointment_time|default:"Slot not fixed" }}</span>
+          </div>
+          <div class="col-sm-4">
+            <small class="text-muted d-block">Status / Action Required:</small>
+            <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1">
+              {{ latest_appointment.get_status_display|default:"Awaiting Confirmation" }}
+            </span>
+          </div>
+          {% if latest_appointment.doctor_notes or lead.custom_doctor_remark %}
+          <div class="col-12 mt-2 pt-2 border-top">
+            <small class="text-secondary fw-bold d-block"><i class="fa-solid fa-user-doctor me-1 text-primary"></i> Doctor Instructions / Consultation Notes:</small>
+            <div class="small text-dark mt-1 p-2 bg-light rounded border">{{ latest_appointment.doctor_notes|default:lead.custom_doctor_remark }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% elif is_appointment_confirmed %}
       <!-- Confirmed Appointment Banner with 'Add Next Appointment' Option -->
       <div id="confirmedAppointmentCard" class="mb-3 p-3 rounded-3 bg-white border border-success shadow-sm">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
@@ -581,6 +636,55 @@
               <i class="fa-solid fa-check-circle me-1"></i> {{ latest_appointment.get_status_display|default:"Payment Done / Confirmed" }}
             </span>
           </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Past Appointments & Consultation History (if lead has past completed appointments) -->
+      {% if all_appointments %}
+      <div class="mb-3 p-3 rounded-3 bg-white border shadow-none">
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+          <span class="small fw-bold text-secondary">
+            <i class="fa-solid fa-clock-rotate-left text-primary me-1"></i> Patient Consultation & Appointment History
+          </span>
+          <span class="badge bg-light text-muted border">{{ all_appointments|length }} record(s)</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
+            <thead class="table-light">
+              <tr>
+                <th>Date & Time</th>
+                <th>Doctor</th>
+                <th>Status</th>
+                <th>Remarks / Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for apt in all_appointments %}
+              <tr>
+                <td class="fw-semibold">
+                  <i class="fa-regular fa-calendar me-1 text-muted"></i>{{ apt.appointment_date|date:"d M Y" }}
+                  {% if apt.appointment_time %}<span class="text-muted ms-1">{{ apt.appointment_time|time:"h:i A" }}</span>{% endif %}
+                </td>
+                <td>Dr. {{ apt.doctor_name|default:saved_initial.doctor|default:"Consultant" }}</td>
+                <td>
+                  {% if apt.status == 'COMPLETED' %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-check-circle me-1"></i>Completed</span>
+                  {% elif apt.status == 'APPROVED' %}
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-check me-1"></i>Confirmed</span>
+                  {% elif apt.status == 'SCHEDULED' %}
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-calendar-days me-1"></i>Next Follow-up</span>
+                  {% elif apt.status == 'PENDING_APPROVAL' %}
+                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Pending Doctor</span>
+                  {% else %}
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ apt.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-muted text-break">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
       {% endif %}
@@ -635,9 +739,11 @@
                       class="fs-6 text-dark">—</span></div>
                 </div>
               </div>
+              {% if not is_appointment_completed and not is_payment_done %}
               <button type="button" id="btnChangeSlot"
                 class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold"
                 style="font-size: 0.75rem;">Change</button>
+              {% endif %}
             </div>
             <div id="slotsCalendarBox" class="p-2 border rounded-3 bg-white">
               <div id="slotsLoading" style="display:none;" class="text-primary small py-2 text-center">
@@ -1041,7 +1147,9 @@
     const selectedText = appStatusSelect.selectedIndex >= 0 ? (appStatusSelect.options[appStatusSelect.selectedIndex]?.text || '').toUpperCase() : '';
     const combinedVal = `${val} ${selectedText}`;
 
-    const isBooking = combinedVal.includes('BOOK') || combinedVal.includes('YES');
+    const isCancelling = combinedVal.includes('CANCEL') || combinedVal.includes('NOT INT') || combinedVal.includes('NOT_INT') || combinedVal.includes('REJECT') || combinedVal.includes('DECLINE') || combinedVal.includes('DROP') || combinedVal.includes('LOST');
+    const isBooking = !isCancelling && (combinedVal.includes('BOOK') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
+    const isFollowup = !isCancelling && !isBooking && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
     const isCompleted = combinedVal.includes('COMPLET') || combinedVal.includes('DONE') || combinedVal.includes('VISIT') || {{ is_appointment_completed|yesno:"true,false" }};
 
     const hasConfirmedCard = {{ is_appointment_confirmed|yesno:"true,false" }};
@@ -1293,30 +1401,6 @@
 
     el.disabled = !!isDisabled;
 
-    // 1. If TomSelect instance exists on element
-    if (el.tomselect) {
-      const ts = el.tomselect;
-      ts.clear();
-      ts.clearOptions();
-
-      if (placeholderText) {
-        ts.settings.placeholder = placeholderText;
-        ts.input.setAttribute('placeholder', placeholderText);
-        if (ts.control_input) {
-          ts.control_input.setAttribute('placeholder', placeholderText);
-        }
-      }
-
-      if (isDisabled) {
-        ts.disable();
-      } else {
-        ts.enable();
-      }
-
-      optionsList.forEach(opt => {
-        ts.addOption({ value: opt.value, text: opt.text });
-      });
-
     // Helper for fuzzy match (e.g. 'rahul' vs 'Dr. rahul')
     function findMatchingOpt(val, list) {
       if (!val) return null;
@@ -1328,6 +1412,7 @@
       });
     }
 
+    // 1. If TomSelect instance exists on element
     if (el.tomselect) {
       const ts = el.tomselect;
       ts.clear();
@@ -1418,7 +1503,8 @@
         } else {
           setSelectOptions(dSelect, [], '-- No Departments in this Branch --', '', true);
         }
-        // Trigger department change to refresh doctors & diseases
+        
+        // Pass whether user explicitly triggered this or initial load
         onDepartmentChanged(isUserChange);
       })
       .catch(e => console.error('Error fetching branch data:', e));

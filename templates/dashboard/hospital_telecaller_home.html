@@ -8,17 +8,17 @@
 
 <style>
     :root {
-        --primary: #4f46e5;
-        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-        --text-main: #1e293b;
+        --primary: #0f2744;
+        --primary-gradient: linear-gradient(135deg, #0f2744 0%, #091a2f 100%);
+        --text-main: #0f2744;
         --text-muted: #64748b;
         --bg-color: #f8fafc;
         --surface: #ffffff;
-        --border: rgba(99, 102, 241, 0.12);
-        --radius-lg: 18px;
+        --border: #e2e8f0;
+        --radius-lg: 16px;
         --radius-md: 12px;
-        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
-        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+        --shadow-sm: 0 2px 8px rgba(15, 39, 68, 0.04);
+        --shadow-md: 0 8px 20px -4px rgba(15, 39, 68, 0.08);
     }
 
     .nelson-dashboard {
@@ -34,12 +34,13 @@
     }
 
     .stat-card {
+        background: #ffffff !important;
         border-radius: var(--radius-lg);
         padding: 1.25rem;
         position: relative;
         overflow: hidden;
         box-shadow: var(--shadow-sm);
-        border: 1px solid rgba(255, 255, 255, 0.8);
+        border: 1px solid #e2e8f0;
         transition: transform 0.25s ease, box-shadow 0.25s ease;
         display: flex;
         flex-direction: column;
@@ -51,14 +52,15 @@
     .stat-card:hover {
         transform: translateY(-3px);
         box-shadow: var(--shadow-md);
+        border-color: #cbd5e1;
     }
 
-    .stat-card.c-leads { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
-    .stat-card.c-callnotdone { background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); }
-    .stat-card.c-appo { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
-    .stat-card.c-followup { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); }
-    .stat-card.c-walkin { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
-    .stat-card.c-target { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+    .stat-card.c-leads,
+    .stat-card.c-callnotdone,
+    .stat-card.c-appo,
+    .stat-card.c-followup,
+    .stat-card.c-walkin,
+    .stat-card.c-target { background: #ffffff !important; }
 
     .stat-header {
         display: flex;

@@ -122,8 +122,6 @@ class LeadStage(models.Model):
         return self.hospital_id
 
     def __str__(self):
-        if self.hospital:
-            return f"{self.name} ({self.hospital.name})"
         return self.name
 
 

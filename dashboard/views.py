@@ -583,26 +583,52 @@ def home(request):
                     pass
             billing_today = custom_total_sum
 
-    # 5. Upcoming Follow-ups: next_followup_date >= today OR a FollowUp scheduled for today/future
+    # 5. Follow-ups Scheduled for TODAY ONLY
     from followups.models import FollowUp as FollowUpModel
-    upcoming_followup_lead_ids = set(
-        leads.filter(next_followup_date__gte=today).values_list('id', flat=True)
+    todays_followup_lead_ids = set(
+        leads.filter(next_followup_date=today).values_list('id', flat=True)
     ) | set(
         leads.filter(
-            followups__followup_date__gte=today
+            followups__followup_date=today
+        ).values_list('id', flat=True)
+    )
+    todays_followups = len(todays_followup_lead_ids)
+
+    # 5b. Upcoming & Overdue Follow-ups (for breakdown/filters)
+    upcoming_followup_lead_ids = set(
+        leads.filter(next_followup_date__gt=today).values_list('id', flat=True)
+    ) | set(
+        leads.filter(
+            followups__followup_date__gt=today
         ).values_list('id', flat=True)
     )
     upcoming_followups = len(upcoming_followup_lead_ids)
 
-    # 6. Overdue Follow-ups: next_followup_date < today OR a past FollowUp with no future follow-up
     overdue_followup_lead_ids = set(
         leads.filter(next_followup_date__lt=today).values_list('id', flat=True)
     ) | set(
         leads.filter(
             followups__followup_date__lt=today
-        ).exclude(id__in=upcoming_followup_lead_ids).values_list('id', flat=True)
+        ).exclude(id__in=todays_followup_lead_ids | upcoming_followup_lead_ids).values_list('id', flat=True)
     )
     overdue_followups = len(overdue_followup_lead_ids)
+
+    # 6. Today's Visit Planned (Stage contains 'Visit' or appointment scheduled for today)
+    visit_planned_leads = leads.filter(
+        Q(stage__name__icontains="visit") |
+        Q(custom_data__deal_status__icontains="visit") |
+        Q(custom_data__appointment_status__icontains="visit") |
+        Q(custom_data__visit_date=sel_date_str) |
+        Q(custom_data__visit_date=sel_alt_str)
+    ).filter(
+        Q(next_followup_date=today) |
+        Q(custom_data__visit_date=sel_date_str) |
+        Q(custom_data__visit_date=sel_alt_str) |
+        Q(followups__followup_date=today) |
+        Q(updated_at__range=(today_start, today_end)) |
+        Q(inquiry_date=today)
+    ).distinct()
+    visit_planned_today = visit_planned_leads.count()
 
     # Also keep legacy metrics for backward compatibility if needed
     admissions_qs = Admission.objects.filter(lead__in=leads)
@@ -713,8 +739,18 @@ def home(request):
                 "total_entries": total_entries,
             })
 
+    # 9. Recent Activity Leads (sorted by updated_at descending, excluding lost/cancelled leads)
+    recent_leads = leads.exclude(
+        Q(deal_status=DealStatus.LOST) |
+        Q(admission_status__in=['LOST', 'CANCELLED']) |
+        Q(stage__name__icontains='lost') |
+        Q(stage__name__icontains='cancel') |
+        Q(temperature='FREEZE')
+    ).select_related("stage", "assigned_to", "course", "lead_source").order_by("-updated_at")[:25]
+
     context = {
         "active": "dashboard",
+        "recent_leads": recent_leads,
         "kpis": {
             "total_leads": total_leads,
             "todays_new": todays_new_leads,
@@ -722,9 +758,11 @@ def home(request):
             "admission_today": admission_today,
             "billing_today": billing_today,
             "billing_count_today": billing_count_today,
+            "todays_followups": todays_followups,
+            "visit_planned_today": visit_planned_today,
             "upcoming_followups": upcoming_followups,
             "overdue_followups": overdue_followups,
-            "total_followups": upcoming_followups + overdue_followups,
+            "total_followups": todays_followups,
             "uncontacted": todays_new_leads,
             "contacted_today": total_leads - call_not_done,
             "booked_today": admission_today,
@@ -1609,7 +1647,7 @@ def superadmin_home(request):
         "has_active_filters": has_active_filters,
         "selected_hospital_id": selected_hospital_id,
     }
-    return render(request, "dashboard/nel_admin_home.html", context)
+    return render(request, "dashboard/hospital_admin_home.html", context)
 
 
 @login_required
@@ -3396,7 +3434,7 @@ def nelson_module_view(request, module_name):
         'profile-security': 'Profile & Security',
     }
     title = titles.get(module_name, module_name.replace('-', ' ').title())
-    return render(request, "dashboard/nelson_generic.html", {"title": title, "module_name": module_name, "active": module_name})
+    return render(request, "dashboard/hospital_generic.html", {"title": title, "module_name": module_name, "active": module_name})
 
 
 @login_required
@@ -4987,7 +5025,7 @@ def telecaller_home(request):
         'pending_and_upcoming_followups_count': pending_and_upcoming_followups_count,
         'today_date': today_date,
     }
-    return render(request, "dashboard/nel_telecaller_home.html", context)
+    return render(request, "dashboard/hospital_telecaller_home.html", context)
 
 @login_required
 def placeholder_view(request, module_name):
@@ -5547,7 +5585,7 @@ def doctor_home(request):
         'today_count': today_apts.count(),
         'pending_count': pending_apts.count(),
     }
-    return render(request, "dashboard/nel_doctor_home.html", context)
+    return render(request, "dashboard/hospital_doctor_home.html", context)
 
 
 @login_required

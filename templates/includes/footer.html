@@ -245,58 +245,66 @@
     });
   }
 
-  // Sidebar Minimize & State Persistence
+  // Sidebar Pinning & Hover-Expand / Auto-Minimize Persistence
   document.addEventListener("DOMContentLoaded", function() {
-    const isSidebarMinimized = localStorage.getItem('sidebar_minimized') === 'true';
-    if (isSidebarMinimized && window.innerWidth >= 992) {
-      document.body.classList.add('sidebar-minimized');
+    const topbarToggleBtn = document.getElementById('sidebarMinimizeBtn');
+    const innerToggleBtn = document.getElementById('sidebarInnerToggleBtn');
+    const innerToggleIcon = document.getElementById('sidebarInnerToggleIcon');
+    const topbarMinimizeIcon = document.getElementById('sidebarMinimizeIcon');
+
+    // Check if user previously pinned the sidebar permanently open
+    const isPinnedOpen = localStorage.getItem('sidebar_pinned_open') === 'true';
+    if (isPinnedOpen && window.innerWidth >= 992) {
+      document.body.classList.add('sidebar-pinned-open');
+      updateButtonStates(true);
+    } else {
+      document.body.classList.remove('sidebar-pinned-open');
+      updateButtonStates(false);
     }
 
-    function toggleSidebar() {
-      const willMinimize = !document.body.classList.contains('sidebar-minimized');
-      if (willMinimize) {
-        document.body.classList.add('sidebar-minimized');
-        localStorage.setItem('sidebar_minimized', 'true');
-      } else {
-        document.body.classList.remove('sidebar-minimized');
-        localStorage.setItem('sidebar_minimized', 'false');
+    function updateButtonStates(pinned) {
+      if (topbarToggleBtn) {
+        if (pinned) {
+          topbarToggleBtn.classList.add('pinned-active');
+          topbarToggleBtn.setAttribute('title', 'Return Sidebar to Auto-Minimize');
+        } else {
+          topbarToggleBtn.classList.remove('pinned-active');
+          topbarToggleBtn.setAttribute('title', 'Keep Sidebar Permanently Maximized');
+        }
+      }
+      if (innerToggleBtn) {
+        if (pinned) {
+          innerToggleBtn.classList.add('pinned-active');
+          innerToggleBtn.setAttribute('title', 'Return Sidebar to Auto-Minimize');
+          if (innerToggleIcon) innerToggleIcon.className = 'fa-solid fa-chevron-left';
+        } else {
+          innerToggleBtn.classList.remove('pinned-active');
+          innerToggleBtn.setAttribute('title', 'Keep Sidebar Permanently Maximized');
+          if (innerToggleIcon) innerToggleIcon.className = 'fa-solid fa-chevron-right';
+        }
       }
     }
 
-    const topbarToggleBtn = document.getElementById('sidebarMinimizeBtn');
+    function togglePinSidebar() {
+      const willPin = !document.body.classList.contains('sidebar-pinned-open');
+      if (willPin) {
+        document.body.classList.add('sidebar-pinned-open');
+        localStorage.setItem('sidebar_pinned_open', 'true');
+        updateButtonStates(true);
+      } else {
+        document.body.classList.remove('sidebar-pinned-open');
+        localStorage.setItem('sidebar_pinned_open', 'false');
+        updateButtonStates(false);
+      }
+    }
+
     if (topbarToggleBtn) {
-      topbarToggleBtn.addEventListener('click', toggleSidebar);
+      topbarToggleBtn.addEventListener('click', togglePinSidebar);
     }
 
-    const innerToggleBtn = document.getElementById('sidebarInnerToggleBtn');
     if (innerToggleBtn) {
-      innerToggleBtn.addEventListener('click', toggleSidebar);
+      innerToggleBtn.addEventListener('click', togglePinSidebar);
     }
-
-    // When clicking a section icon while minimized, auto-expand sidebar and reveal its subtabs
-    document.querySelectorAll('.sidebar .nav-section-btn, .sidebar .nav-sub-item-btn').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        if (document.body.classList.contains('sidebar-minimized')) {
-          e.preventDefault();
-          e.stopPropagation();
-          // Expand sidebar
-          document.body.classList.remove('sidebar-minimized');
-          localStorage.setItem('sidebar_minimized', 'false');
-
-          // Open targeted collapse cleanly
-          const targetSelector = btn.getAttribute('data-bs-target');
-          if (targetSelector) {
-            const targetEl = document.querySelector(targetSelector);
-            if (targetEl && window.bootstrap && window.bootstrap.Collapse) {
-              const bsCollapse = bootstrap.Collapse.getOrCreateInstance(targetEl, { toggle: false });
-              bsCollapse.show();
-              btn.classList.remove('collapsed');
-              btn.setAttribute('aria-expanded', 'true');
-            }
-          }
-        }
-      });
-    });
   });
 </script>
 

@@ -149,7 +149,8 @@
         position: relative;
         overflow: hidden;
         box-shadow: var(--shadow-sm);
-        border: 1px solid rgba(255, 255, 255, 0.8);
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
         transition: transform 0.25s ease, box-shadow 0.25s ease;
         display: flex;
         flex-direction: column;
@@ -159,55 +160,23 @@
 
     .stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 8px 20px rgba(15, 39, 68, 0.06);
     }
 
-    .stat-card.c-leads {
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    }
-
-    .stat-card.c-callnotdone {
-        background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
-    }
-
-    .stat-card.c-appo {
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    }
-
-    .stat-card.c-followup {
-        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-    }
-
-    .stat-card.c-walkin {
-        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    }
-
-    .stat-card.c-conv {
-        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    }
-
-    .stat-card.c-won {
-        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-    }
-
-    .stat-card.c-total-rev {
-        background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
-    }
-
-    .stat-card.c-opd {
-        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-    }
-
-    .stat-card.c-pharm {
-        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    }
-
-    .stat-card.c-ipd {
-        background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%);
-    }
-
+    .stat-card.c-leads,
+    .stat-card.c-callnotdone,
+    .stat-card.c-appo,
+    .stat-card.c-followup,
+    .stat-card.c-walkin,
+    .stat-card.c-conv,
+    .stat-card.c-won,
+    .stat-card.c-total-rev,
+    .stat-card.c-opd,
+    .stat-card.c-pharm,
+    .stat-card.c-ipd,
     .stat-card.c-inv {
-        background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
     }
 
     .stat-header {
@@ -233,7 +202,9 @@
         align-items: center;
         justify-content: center;
         font-size: 1.15rem;
-        color: white;
+        background: #f8fafc !important;
+        color: #0f2744 !important;
+        border: 1px solid #e2e8f0;
     }
 
     .stat-value {

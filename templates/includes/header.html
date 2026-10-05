@@ -59,22 +59,22 @@
   {% endif %}
   <div class="ms-auto d-flex align-items-center gap-2">
     {% if user.role != 'DOCTOR' and user.can_add_leads %}
-    <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-brand text-white d-none d-sm-inline-flex align-items-center gap-1">
-      <i class="fa-solid fa-user-plus"></i> Add Lead
+    <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-primary text-white d-none d-sm-inline-flex align-items-center gap-1 rounded-pill px-3 shadow-xs" style="background-color: var(--brand) !important; border-color: var(--brand) !important; height: 34px;">
+      <i class="fa-solid fa-plus"></i> Add Lead
     </a>
     {% endif %}
 
     {% if user.can_import_export or user.role == 'LEAD_ATTENDENT' or user.role == 'MANAGER' or user.role == 'ADMIN' or user.role == 'SUPER_ADMIN' %}
-    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-success d-none d-sm-inline-flex align-items-center gap-1 fw-semibold shadow-sm" title="Import Leads from XML / Excel / CSV / Google Sheets">
-      <i class="fa-solid fa-file-import"></i> Import Leads
+    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1 fw-semibold rounded-pill px-3 shadow-xs" title="Import Leads from XML / Excel / CSV / Google Sheets" style="height: 34px; border-color: #cbd5e1 !important; color: #0f2744 !important; background: #ffffff !important;">
+      <i class="fa-solid fa-file-arrow-up"></i> Import Leads
     </a>
     {% endif %}
 
     <!-- Notification Bell -->
     <div class="dropdown me-2" id="notifDropdownWrapper">
-      <button class="btn btn-sm btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false" id="notifDropdownBtn" style="border: none; background: transparent; font-size: 1.2rem;">
-        <i class="fa-solid fa-bell text-secondary"></i>
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notifBadge" style="display: none; font-size: 0.65rem;">
+      <button class="btn btn-sm btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false" id="notifDropdownBtn" style="border: 1px solid #e2e8f0; background: #ffffff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+        <i class="fa-solid fa-bell text-dark" style="font-size: 0.9rem;"></i>
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill" id="notifBadge" style="display: none; font-size: 0.65rem; background-color: var(--brand);">
           0
         </span>
       </button>
@@ -82,7 +82,7 @@
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
           <h6 class="mb-0 fw-bold">Notifications</h6>
           <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-link p-0 text-decoration-none small text-primary fw-semibold" id="markAllReadBtn" style="font-size: 0.75rem;">Mark all read</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none small text-dark fw-semibold" id="markAllReadBtn" style="font-size: 0.75rem;">Mark all read</button>
             <span class="text-muted small">·</span>
             <a href="{% url 'notifications:list' %}" class="small text-decoration-none text-secondary" style="font-size: 0.75rem;">View All</a>
           </div>
@@ -93,15 +93,15 @@
       </div>
     </div>
 
-    <span class="badge bg-light text-secondary border me-1 fw-semibold">
+    <span class="badge bg-light text-dark border me-1 fw-semibold rounded-pill px-2.5 py-1.5" style="border-color: #cbd5e1 !important;">
       {{ user.get_role_display }}
     </span>
     <div class="dropdown">
-      <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 rounded-pill" data-bs-toggle="dropdown" style="background: #ffffff;">
+      <button class="btn btn-sm dropdown-toggle d-flex align-items-center gap-2 py-1 px-2.5 rounded-pill" data-bs-toggle="dropdown" style="background: #ffffff; border: 1px solid #cbd5e1;">
         {% if user.profile_picture %}
           <img src="{{ user.profile_picture.url }}" alt="{{ user.username }}" class="rounded-circle object-fit-cover" style="width: 24px; height: 24px; border: 1px solid #cbd5e1;">
         {% else %}
-          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.72rem;">
+          <div class="rounded-circle bg-light text-dark d-flex align-items-center justify-content-center fw-bold border" style="width: 24px; height: 24px; font-size: 0.72rem;">
             {{ user.first_name|first|default:user.username|first|upper }}
           </div>
         {% endif %}

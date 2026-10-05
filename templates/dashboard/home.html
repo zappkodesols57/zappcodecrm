@@ -283,166 +283,267 @@
 {% endif %}
 {% endif %}
 
-<!-- ─── EXACT 6 COUNSELLOR / HR KPI CARDS (Interactive Click with Prev, Today, Next, All, Calendar) ─── -->
+<!-- ─── TODAY'S 5 COUNSELLOR / HR KPI CARDS (Interactive Click with Prev, Today, Next, All, Calendar) ─── -->
 <div class="row g-3 mb-4">
 
     <!-- 1. Today's New Leads -->
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
-            style="border-left: 4px solid #3b82f6 !important;"
+    <div class="col-12 col-sm-6 col-lg">
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-xs cursor-pointer"
+            style="border: 1px solid #e2e8f0 !important; border-radius: 14px;"
             onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'primary')"
-            title="Click to view fresh leads & records">
+            title="Click to view fresh new leads">
             <div>
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="kpi-label">Today's New Leads</span>
-                    <span class="badge bg-primary-subtle text-primary p-2 rounded-circle" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
-                        <i class="fa-solid fa-user-plus text-primary"></i>
+                    <span class="kpi-label" style="color: #475569; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.5px;">TODAY'S NEW LEADS</span>
+                    <span class="badge bg-light text-dark p-2 rounded-circle border" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-color: #e2e8f0 !important;">
+                        <i class="fa-solid fa-user-group" style="color: #000066; font-size: 0.85rem;"></i>
                     </span>
                 </div>
-                <div class="kpi-value">{{ kpis.todays_new|default:0 }}</div>
+                <div class="kpi-value" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ kpis.todays_new|default:0 }}</div>
             </div>
-            <div class="kpi-footer text-muted">
-                <span class="text-primary fw-semibold"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</span>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Active</span>
+            <div class="kpi-footer text-muted" style="border-top: 1px solid #f1f5f9; padding-top: 0.6rem;">
+                <span class="text-dark fw-semibold" style="font-size: 0.75rem;"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View Fresh Leads</span>
+                <span class="badge rounded-pill bg-light text-dark border px-2 py-0.5" style="border-color: #cbd5e1 !important; font-size: 0.65rem;">Active</span>
             </div>
         </div>
     </div>
 
-    <!-- 2. Call Not Done (Pending First Call / Uncontacted) -->
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
-            style="border-left: 4px solid #f59e0b !important;"
+    <!-- 2. Call Not Done -->
+    <div class="col-12 col-sm-6 col-lg">
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-xs cursor-pointer"
+            style="border: 1px solid #e2e8f0 !important; border-radius: 14px;"
             onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'warning')"
             title="Click to view pending calls & calling queue">
             <div>
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="kpi-label">Call Not Done</span>
-                    <span class="badge bg-warning-subtle text-warning p-2 rounded-circle" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
-                        <i class="fa-solid fa-phone-slash"></i>
+                    <span class="kpi-label" style="color: #475569; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.5px;">CALL NOT DONE</span>
+                    <span class="badge bg-light text-dark p-2 rounded-circle border" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-color: #e2e8f0 !important;">
+                        <i class="fa-solid fa-phone" style="color: #000066; font-size: 0.85rem;"></i>
                     </span>
                 </div>
-                <div class="kpi-value">{{ kpis.call_not_done|default:0 }}</div>
+                <div class="kpi-value" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ kpis.call_not_done|default:0 }}</div>
             </div>
-            <div class="kpi-footer text-muted">
-                <span class="text-warning fw-semibold"><i class="fa-solid fa-headset me-1"></i>Pending Calls</span>
-                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Queue</span>
+            <div class="kpi-footer text-muted" style="border-top: 1px solid #f1f5f9; padding-top: 0.6rem;">
+                <span class="text-dark fw-semibold" style="font-size: 0.75rem;"><i class="fa-solid fa-headset me-1"></i>Pending Calls</span>
+                <span class="badge rounded-pill bg-light text-dark border px-2 py-0.5" style="border-color: #cbd5e1 !important; font-size: 0.65rem;">Queue</span>
             </div>
         </div>
     </div>
 
-    <!-- 3. Admission & Billing Today (Merged Single KPI Card with Breakdown) -->
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
-            style="border-left: 4px solid #10b981 !important;"
+    <!-- 3. Today's Follow-ups -->
+    <div class="col-12 col-sm-6 col-lg">
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-xs cursor-pointer"
+            style="border: 1px solid #e2e8f0 !important; border-radius: 14px;"
+            onclick="openUniversalCardDrilldown('followups', 'Today\'s Follow-ups', 'info')"
+            title="Click to view today's scheduled follow-ups">
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="kpi-label" style="color: #475569; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.5px;">TODAY'S FOLLOW-UPS</span>
+                    <span class="badge bg-light text-dark p-2 rounded-circle border" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-color: #e2e8f0 !important;">
+                        <i class="fa-regular fa-calendar-check" style="color: #000066; font-size: 0.85rem;"></i>
+                    </span>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="kpi-value" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ kpis.todays_followups|default:0 }}</div>
+                    <small class="text-muted fw-semibold" style="font-size: 0.82rem;">Today Due</small>
+                </div>
+            </div>
+            <div class="kpi-footer text-muted" style="border-top: 1px solid #f1f5f9; padding-top: 0.6rem;">
+                <span class="text-dark fw-semibold" style="font-size: 0.75rem;"><i class="fa-regular fa-clock me-1"></i>Today: {{ kpis.todays_followups|default:0 }}</span>
+                <span class="text-muted fw-semibold" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue: {{ kpis.overdue_followups|default:0 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Today's Visit Planned -->
+    <div class="col-12 col-sm-6 col-lg">
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-xs cursor-pointer"
+            style="border: 1px solid #e2e8f0 !important; border-radius: 14px;"
+            onclick="openUniversalCardDrilldown('walkin', 'Today\'s Visit Planned', 'primary')"
+            title="Click to view today's visit planned records">
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="kpi-label" style="color: #475569; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.5px;">TODAY'S VISIT PLANNED</span>
+                    <span class="badge bg-light text-dark p-2 rounded-circle border" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-color: #e2e8f0 !important;">
+                        <i class="fa-solid fa-person-walking" style="color: #000066; font-size: 0.85rem;"></i>
+                    </span>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="kpi-value" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ kpis.visit_planned_today|default:0 }}</div>
+                    <small class="text-muted fw-semibold" style="font-size: 0.82rem;">Visits</small>
+                </div>
+            </div>
+            <div class="kpi-footer text-muted" style="border-top: 1px solid #f1f5f9; padding-top: 0.6rem;">
+                <span class="text-dark fw-semibold" style="font-size: 0.75rem;"><i class="fa-solid fa-location-dot me-1"></i>Branch Visits</span>
+                <span class="badge rounded-pill bg-light text-dark border px-2 py-0.5" style="border-color: #cbd5e1 !important; font-size: 0.65rem;">Planned</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Admission & Billing Today -->
+    <div class="col-12 col-sm-6 col-lg">
+        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-xs cursor-pointer"
+            style="border: 1px solid #e2e8f0 !important; border-radius: 14px;"
             onclick="openUniversalCardDrilldown('opd_booked', 'Admissions & Billing Today', 'success')"
             title="Click to view admissions & billing records">
             <div>
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="kpi-label">Admission & Billing</span>
-                    <div class="d-flex gap-1">
-                        <span class="badge bg-success-subtle text-success p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-user-graduate" style="font-size: 0.75rem;"></i>
-                        </span>
-                        <span class="badge bg-purple-subtle text-purple p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: #f3e8ff; color: #8b5cf6;">
-                            <i class="fa-solid fa-receipt" style="font-size: 0.75rem;"></i>
-                        </span>
-                    </div>
+                    <span class="kpi-label" style="color: #475569; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.5px;">ADMISSION & BILLING</span>
+                    <span class="badge bg-light text-dark p-2 rounded-circle border" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-color: #e2e8f0 !important;">
+                        <i class="fa-solid fa-file-invoice" style="color: #000066; font-size: 0.85rem;"></i>
+                    </span>
                 </div>
                 <div class="d-flex align-items-baseline gap-2">
-                    <div class="kpi-value">{{ kpis.admission_today|default:0 }}</div>
-                    <small class="text-muted fw-semibold">Admissions</small>
+                    <div class="kpi-value" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ kpis.admission_today|default:0 }}</div>
+                    <small class="text-muted fw-semibold" style="font-size: 0.82rem;">Admissions</small>
                 </div>
             </div>
-            <div class="kpi-footer text-muted">
-                <span class="text-success fw-semibold"><i class="fa-solid fa-circle-check me-1"></i>Adm: {{ kpis.admission_today|default:0 }}</span>
-                <span class="text-secondary fw-semibold"><i class="fa-solid fa-credit-card me-1"></i>Bill: {% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}</span>
+            <div class="kpi-footer text-muted" style="border-top: 1px solid #f1f5f9; padding-top: 0.6rem;">
+                <span class="text-dark fw-semibold" style="font-size: 0.75rem;"><i class="fa-regular fa-circle-check me-1"></i>Adm: {{ kpis.admission_today|default:0 }}</span>
+                <span class="text-muted fw-semibold" style="font-size: 0.75rem;"><i class="fa-solid fa-receipt me-1"></i>Bill: {% if kpis.billing_today > 0 %}₹{{ kpis.billing_today|floatformat:0 }}{% else %}{{ kpis.billing_count_today|default:0 }}{% endif %}</span>
             </div>
         </div>
     </div>
 
-    <!-- 4. Follow-ups Queue (Upcoming & Overdue Merged Single KPI Card with Breakdown) -->
-    <div class="col-12 col-sm-6 col-lg-3">
-        <div class="dashboard-kpi-card text-decoration-none h-100 shadow-sm cursor-pointer"
-            style="border-left: 4px solid #06b6d4 !important;"
-            onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'info')"
-            title="Click to view upcoming and overdue follow-ups">
+</div>
+
+<!-- ─── RECENT LEADS TABLE (Sorted by Recent Activity Date & Time) ─── -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 14px; border: 1px solid #e2e8f0 !important;">
+    <div class="card-header bg-white py-3 px-4 border-0 d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-bottom: 1px solid #f1f5f9 !important;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark p-2 rounded-circle border" style="width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-color: #e2e8f0 !important;">
+                <i class="fa-solid fa-clock-rotate-left" style="color: #000066; font-size: 0.9rem;"></i>
+            </span>
             <div>
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="kpi-label">Follow-ups Queue</span>
-                    <div class="d-flex gap-1">
-                        <span class="badge bg-info-subtle text-info p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-calendar-days" style="font-size: 0.75rem;"></i>
-                        </span>
-                        <span class="badge bg-danger-subtle text-danger p-1 rounded-circle" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
-                            <i class="fa-solid fa-bell-slash" style="font-size: 0.75rem;"></i>
-                        </span>
-                    </div>
-                </div>
-                <div class="d-flex align-items-baseline gap-2">
-                    <div class="kpi-value">{{ kpis.total_followups|default:0 }}</div>
-                    <small class="text-muted fw-semibold">Total Due</small>
-                </div>
-            </div>
-            <div class="kpi-footer text-muted">
-                <span class="text-info fw-semibold"><i class="fa-solid fa-clock me-1"></i>Upcoming: {{ kpis.upcoming_followups|default:0 }}</span>
-                <span class="text-danger fw-semibold"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue: {{ kpis.overdue_followups|default:0 }}</span>
+                <h5 class="fw-bold text-dark mb-0" style="font-size: 1.05rem;">Recent Leads Activity</h5>
+                <span class="text-muted small">My leads sorted by latest updated date & time</span>
             </div>
         </div>
-    </div>
-
-</div>
-
-<!-- ─── CHARTS SECTION (Side-by-Side Modern Clean Layout) ─── -->
-<div class="row g-3 mb-4">
-    <!-- Lead Stage Funnel -->
-    <div class="col-md-6">
-        <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>My Lead Stage
-                    Funnel</h6>
-                <span class="badge bg-light text-muted border small">Funnel</span>
-            </div>
-            <div style="height: 240px; position: relative;"><canvas id="funnelChart"></canvas></div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3" style="font-size: 0.8rem;">
+                <i class="fa-solid fa-list-ul me-1"></i> View All Leads
+            </a>
+            <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-primary rounded-pill px-3" style="font-size: 0.8rem;">
+                <i class="fa-solid fa-plus me-1"></i> Add Lead
+            </a>
         </div>
     </div>
-
-    <!-- Monthly Lead Trend -->
-    <div class="col-md-6">
-        <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up me-2 text-info"></i>Monthly
-                    Activity Trend</h6>
-                <span class="badge bg-light text-muted border small">Timeline</span>
-            </div>
-            <div style="height: 240px; position: relative;"><canvas id="trendChart"></canvas></div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <!-- Lead Source Distribution -->
-    <div class="col-md-6">
-        <div class="card p-3 h-100 shadow-sm border-0"
-            style="border-radius: 14px; border-top: 3px solid #6366f1 !important;">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source
-                    Distribution</h6>
-                <span class="badge bg-light text-muted border small">Channels</span>
-            </div>
-            <div style="height: 240px; position: relative;"><canvas id="sourceChart"></canvas></div>
-        </div>
-    </div>
-
-    <!-- Course-wise Leads -->
-    <div class="col-md-6">
-        <div class="card p-3 h-100 shadow-sm border-0"
-            style="border-radius: 14px; border-top: 3px solid #10b981 !important;">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="text-dark fw-bold mb-0"><i
-                        class="fa-solid fa-graduation-cap me-2 text-success"></i>Course-wise Distribution</h6>
-                <span class="badge bg-light text-muted border small">Courses</span>
-            </div>
-            <div style="height: 240px; position: relative;"><canvas id="courseChart"></canvas></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                    <tr>
+                        <th class="py-3 px-4 text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px;">Student Name</th>
+                        <th class="py-3 px-3 text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px;">Contact Info</th>
+                        <th class="py-3 px-3 text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px;">Course / Source</th>
+                        <th class="py-3 px-3 text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px;">Stage</th>
+                        <th class="py-3 px-3 text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px; min-width: 180px;">Latest Comment</th>
+                        <th class="py-3 px-3 text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px;">Recent Update On</th>
+                        <th class="py-3 px-4 text-end text-muted small text-uppercase fw-bold" style="letter-spacing: 0.5px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in recent_leads %}
+                    <tr style="transition: background-color 0.15s ease;">
+                        <td class="py-3 px-4">
+                            <div class="fw-bold text-dark">
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-dark text-decoration-none hover-primary">
+                                    {{ lead.name }}
+                                </a>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 mt-1">
+                                {% if lead.temperature == 'HOT' %}
+                                    <span class="badge bg-light text-danger border border-danger-subtle px-2 py-0.5" style="font-size: 0.65rem;">Hot</span>
+                                {% elif lead.temperature == 'WARM' %}
+                                    <span class="badge bg-light text-warning border border-warning-subtle px-2 py-0.5" style="font-size: 0.65rem;">Warm</span>
+                                {% elif lead.temperature == 'COLD' %}
+                                    <span class="badge bg-light text-info border border-info-subtle px-2 py-0.5" style="font-size: 0.65rem;">Cold</span>
+                                {% endif %}
+                                {% if not lead.assigned_to %}
+                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-1.5 py-0.5" style="font-size: 0.62rem;">Unassigned</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="fw-semibold text-dark"><i class="fa-solid fa-phone text-muted me-1.5 small"></i>{{ lead.mobile }}</div>
+                            {% if lead.email %}
+                            <div class="text-muted small text-truncate" style="max-width: 180px;"><i class="fa-solid fa-envelope text-muted me-1.5 small"></i>{{ lead.email }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3">
+                            {% if lead.course_id and lead.course %}
+                                <div class="fw-semibold text-dark">{{ lead.course.name }}</div>
+                            {% else %}
+                                <div class="text-muted">—</div>
+                            {% endif %}
+                            <div class="text-muted small">
+                                {% if lead.lead_source_id and lead.lead_source %}
+                                    {{ lead.lead_source.name }}
+                                {% elif lead.source_category_id and lead.source_category %}
+                                    {{ lead.source_category.name }}
+                                {% else %}
+                                    Direct / Organic
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="py-3 px-3">
+                            {% if lead.stage_id and lead.stage %}
+                                <span class="badge bg-light text-dark border px-2.5 py-1 fw-semibold" style="border-color: #cbd5e1 !important; font-size: 0.72rem;">
+                                    {{ lead.stage.name }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border px-2.5 py-1" style="font-size: 0.72rem;">{{ lead.get_deal_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="text-muted small" style="max-width: 220px; word-break: break-word; line-height: 1.35;" title="{{ lead.interaction_remark }}">
+                                {% if lead.interaction_remark and lead.interaction_remark != '—' %}
+                                    <i class="fa-regular fa-comment-dots text-secondary me-1"></i>{{ lead.interaction_remark|truncatechars:70 }}
+                                {% else %}
+                                    <span class="text-muted opacity-50">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="fw-semibold text-dark" style="font-size: 0.82rem;">{{ lead.updated_at|date:"d M Y, h:i A" }}</div>
+                            <div class="text-muted small" style="font-size: 0.72rem;">
+                                Created: {{ lead.created_at|date:"d M Y" }}
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-end">
+                            <div class="d-flex align-items-center justify-content-end gap-1.5 flex-nowrap">
+                                {% if not lead.assigned_to %}
+                                <a href="{% url 'leads:lead_self_assign' lead.pk %}?next={% url 'dashboard:home' %}" class="btn btn-sm btn-success rounded-pill px-2.5 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs" style="font-size: 0.74rem;" title="Capture this unassigned lead">
+                                    <i class="fa-solid fa-hand-holding-hand"></i>Capture
+                                </a>
+                                {% endif %}
+                                {% if lead.mobile %}
+                                <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-light border rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-color: #e2e8f0 !important;" title="Call Lead">
+                                    <i class="fa-solid fa-phone" style="color: #000066; font-size: 0.8rem;"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-color: #e2e8f0 !important;" title="View Details">
+                                    <i class="fa-regular fa-eye" style="color: #000066; font-size: 0.8rem;"></i>
+                                </a>
+                                <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.76rem;" title="Edit Lead">
+                                    <i class="fa-solid fa-pen me-1"></i>Edit
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <div class="d-flex flex-column align-items-center justify-content-center">
+                                <i class="fa-solid fa-inbox text-muted mb-2" style="font-size: 2rem;"></i>
+                                <span class="fw-semibold">No recent leads activity found</span>
+                                <span class="small text-muted">Assigned leads will appear here automatically sorted by recent activity.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -824,7 +925,7 @@
     if (document.getElementById('funnelChart')) {
         new Chart(document.getElementById('funnelChart'), {
             type: 'bar',
-            data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#4f46e5' }] },
+            data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#0f2744', borderRadius: 4 }] },
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
     }
@@ -832,7 +933,7 @@
     if (document.getElementById('trendChart')) {
         new Chart(document.getElementById('trendChart'), {
             type: 'line',
-            data: { labels: chartData.trend.labels, datasets: [{ label: 'Leads', data: chartData.trend.counts, borderColor: '#0ea5e9', tension: .3, fill: false }] },
+            data: { labels: chartData.trend.labels, datasets: [{ label: 'Leads', data: chartData.trend.counts, borderColor: '#0f2744', backgroundColor: '#0f2744', pointBackgroundColor: '#0f2744', pointRadius: 4, borderWidth: 2.5, tension: .3, fill: false }] },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
     }
@@ -840,7 +941,7 @@
     if (document.getElementById('courseChart')) {
         new Chart(document.getElementById('courseChart'), {
             type: 'bar',
-            data: { labels: chartData.course.labels, datasets: [{ label: 'Leads', data: chartData.course.counts, backgroundColor: '#10b981' }] },
+            data: { labels: chartData.course.labels, datasets: [{ label: 'Leads', data: chartData.course.counts, backgroundColor: '#0f2744', borderRadius: 4 }] },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
     }
@@ -1964,8 +2065,7 @@
                       <a href="${leadDetailHref}" class="text-dark text-decoration-none hover-primary">${item.name}</a>
                   </div>
                   <div class="mt-0.5">
-                      <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${item.lead_code || item.id}</a>
-                      <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${item.created_date}</span>
+                      <span class="text-muted small" style="font-size: 0.72rem;">Added: ${item.created_date}</span>
                   </div>
               </td>
               <td class="py-2">
