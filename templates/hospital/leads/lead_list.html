@@ -28,7 +28,6 @@
       id="bulkSelfAssignBtn"
       onclick="submitBulkSelfAssign()"
       title="Bulk assign selected leads to yourself (Max limit: {{ request.user.bulk_self_assign_limit }})">
-      <i class="fa-solid fa-hand-holding-hand text-success"></i>
       <span>Bulk Assign to Me</span>
       <span class="badge bg-success rounded-pill px-2 py-1" id="bulkSelfAssignBadge" style="font-size: 0.7rem;">
         <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
@@ -52,7 +51,7 @@
 
     {% if active_filters_count > 0 %}
       <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-3" title="Clear all applied filters">
-        <i class="fa-solid fa-rotate-left me-1"></i> Clear
+        Clear
       </a>
     {% endif %}
 
@@ -253,8 +252,7 @@
         <thead class="bg-light border-bottom">
           <tr>
             <th style="width: 40px;"><input type="checkbox" id="masterLeadCheckbox" onclick="toggleAllCheckboxes(this)"></th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase">Lead ID</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Date</th>
+            <th class="py-2 px-3 fw-bold text-dark small text-uppercase">Date</th>
             <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Patient Name</th>
             <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Phone</th>
             <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Doctor / Dept</th>
@@ -267,11 +265,10 @@
         </thead>
         <tbody>
           {% for lead in page_obj %}
-          <tr>
-            <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-            <td><a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" class="fw-bold">{{ lead.lead_code }}</a></td>
+          <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+            <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
             <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
-            <td><strong>{{ lead.name }}</strong></td>
+            <td><strong class="text-dark">{{ lead.name }}</strong></td>
             <td>{{ lead.mobile }}</td>
             <td>
               {% if lead.custom_data.doctor %}

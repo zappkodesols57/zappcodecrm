@@ -104,7 +104,7 @@ class LeadForm(forms.ModelForm):
             n_lower = (target_hospital.name or "").lower()
             is_hospital_tenant = (str(btype).strip().lower() == "hospital") or any(k in n_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])
         elif user and hasattr(user, "is_hospital_user"):
-            is_hospital_tenant = user.is_hospital_user
+            is_hospital_tenant = user.industry == 'HOSPITAL'
 
         # Filter master choice fields to active options from Master Data
         if "course" in self.fields:

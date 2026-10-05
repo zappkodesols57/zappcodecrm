@@ -28,7 +28,7 @@
     
     <!-- Group Action: Merge Button -->
     <button type="button" class="btn btn-sm btn-brand text-white rounded-pill px-3 shadow-xs" data-bs-toggle="modal" data-bs-target="#mergeModal{{ forloop.counter }}">
-      <i class="fa-solid fa-code-merge me-1"></i> Merge Group Leads
+      Merge Group Leads
     </button>
   </div>
 
@@ -56,8 +56,8 @@
             {% endif %}
           </td>
           <td>
-            <div class="small fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-secondary"></i>{{ l.mobile }}</div>
-            {% if l.email %}<div class="small text-muted"><i class="fa-solid fa-envelope me-1 text-secondary"></i>{{ l.email }}</div>{% endif %}
+            <div class="small fw-semibold text-dark">{{ l.mobile }}</div>
+            {% if l.email %}<div class="small text-muted">{{ l.email }}</div>{% endif %}
           </td>
           <td>
             <span class="badge bg-light text-dark border">
@@ -81,7 +81,7 @@
           <td class="text-end pe-4">
             <div class="d-inline-flex gap-1">
               <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-2" title="View Lead Profile" target="_blank">
-                <i class="fa-solid fa-eye me-1"></i> View
+                View
               </a>
               
               <!-- Individual Delete / Remove -->

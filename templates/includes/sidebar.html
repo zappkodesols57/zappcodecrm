@@ -7,7 +7,7 @@
       <img src="{{ user.hospital.logo.url }}" alt="{{ user.hospital.name }}"
         style="max-height: 28px; max-width: 90px; object-fit: contain;">
       <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">CRM</span>
-      {% elif user.is_hospital_user %}
+      {% elif user.industry == 'HOSPITAL' %}
       <i class="fa-solid fa-hospital section-icon" style="color: #ffffff; font-size: 1.2rem;"></i>
       <span class="brand-text" style="font-weight: 700; color: #ffffff; font-size: 1rem; white-space: nowrap;">{{ user.hospital.name|truncatechars:14 }}</span>
       {% else %}
@@ -25,12 +25,12 @@
 
   <div class="sidebar-nav-container" id="sidebarAccordion">
 
-    {% if user.is_hospital_user and user.role == 'SUPER_ADMIN' or user.is_hospital_user and user.role == 'ADMIN' or user.is_hospital_user and user.role == 'MANAGER' or user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}
+    {% if user.industry == 'HOSPITAL' and user.role == 'SUPER_ADMIN' or user.industry == 'HOSPITAL' and user.role == 'ADMIN' or user.industry == 'HOSPITAL' and user.role == 'MANAGER' or user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' %}
     {# 👑 SUPER ADMIN, HOSPITAL ADMIN & MANAGER SIDEBAR #}
 
     <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'superadmin_home' or active == 'management_dashboard' %}active{% endif %}"
-      href="{% if user.is_hospital_user %}{% url 'dashboard:superadmin_home' %}{% else %}{% url 'dashboard:management_home' %}{% endif %}" title="Dashboard" style="margin-top: 4px;">
+      href="{% if user.industry == 'HOSPITAL' %}{% url 'dashboard:superadmin_home' %}{% else %}{% url 'dashboard:management_home' %}{% endif %}" title="Dashboard" style="margin-top: 4px;">
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
@@ -156,7 +156,7 @@
               <i class="fa-solid fa-graduation-cap text-primary"></i> <span class="nav-text">Admissions Done</span>
             </a>
           {% endif %}
-        {% elif user.hospital and user.is_hospital_user %}
+        {% elif user.hospital and user.industry == 'HOSPITAL' %}
           <!-- Appointments Done (Hospital Bound User) -->
           <a class="nav-link {% if request.GET.filter == 'appo_booked' or request.GET.deal_status == 'BOOKING CONFIRMED' %}active{% endif %}"
             href="{% url 'leads:lead_list' %}?deal_status=BOOKING+CONFIRMED" title="Appointments Done">
@@ -180,7 +180,7 @@
           <i class="fa-solid fa-indian-rupee-sign text-warning"></i> <span class="nav-text">Payments Done</span>
         </a>
 
-        {% if user.is_hospital_user %}
+        {% if user.industry == 'HOSPITAL' %}
         <a class="nav-link {% if not request.user.can_view_financials %}opacity-50 pe-none{% endif %} {% if active == 'financial-overview' %}active{% endif %}"
           href="{% url 'dashboard:nelson_module' 'financial-overview' %}" title="Financial Overview">
           <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Financial Overview</span>
@@ -215,11 +215,11 @@
 
         <!-- EOD Reports -->
         <a class="nav-link {% if active == 'reports' or active == 'eod_reports' or active == 'reports_daily' %}active{% endif %}"
-          href="{% if user.is_hospital_user %}{% url 'dashboard:admin_reports' %}#eod-reports{% else %}{% url 'dashboard:management_daily_reports' %}{% endif %}" title="EOD Reports">
+          href="{% if user.industry == 'HOSPITAL' %}{% url 'dashboard:admin_reports' %}#eod-reports{% else %}{% url 'dashboard:management_daily_reports' %}{% endif %}" title="EOD Reports">
           <i class="fa-solid fa-file-signature text-success"></i> <span class="nav-text">EOD Reports</span>
         </a>
 
-        {% if user.is_hospital_user %}
+        {% if user.industry == 'HOSPITAL' %}
         <a class="nav-link" href="{% url 'dashboard:admin_reports' %}#user-logs" title="User Logs">
           <i class="fa-solid fa-user-clock"></i> <span class="nav-text">User Logs</span>
         </a>
@@ -246,8 +246,7 @@
       <div
         class="collapse {% if active in 'settings course_master hospital-profile hospital_profile hospital_config universal_masters' %}show{% endif %} nav-sub-items"
         id="sec_master_mgmt">
-        
-        {% if user.is_hospital_user or active_business and "hospital" in active_business.name|lower or active_business and "nelson" in active_business.name|lower %}
+        {% if user.industry == 'HOSPITAL' or active_business and active_business.industry == 'HOSPITAL' %}
         <a class="nav-link {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if active == 'hospital-profile' or active == 'hospital_profile' or active_tab == 'profile' %}active{% endif %}"
           href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
           <i class="fa-solid fa-id-card"></i> <span class="nav-text">Hospital Profile</span>
@@ -348,7 +347,7 @@
       </div>
     </div>
 
-    {% if not request.user.is_hospital_user %}
+    {% if not request.user.industry == 'HOSPITAL' %}
     <!-- 4. Section: Admissions & Billings -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button"

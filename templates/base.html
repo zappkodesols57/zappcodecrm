@@ -616,18 +616,56 @@
       font-weight: 600;
     }
 
-    .table thead th {
-      font-size: .72rem;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: #64748b;
-      border-bottom: 1px solid #e2e8f0;
-      background: #f8fafc;
-      font-weight: 700;
+    /* Universal Clean Table Header Theme: Light/Neutral background with Dark Bold Text */
+    .table thead th,
+    .table-light th,
+    thead tr th {
+      font-size: .78rem !important;
+      text-transform: uppercase !important;
+      letter-spacing: .05em !important;
+      color: #0f172a !important; /* Crisp Dark Text */
+      background-color: #f8fafc !important; /* Clean neutral light background */
+      border-bottom: 2px solid #e2e8f0 !important;
+      border-top: none !important;
+      font-weight: 700 !important;
+      padding: 0.75rem 1rem !important;
+      vertical-align: middle !important;
+    }
+
+    .table thead th a,
+    .table-light th a {
+      color: #0f172a !important;
+      text-decoration: none !important;
+      font-weight: 700 !important;
+    }
+
+    /* Clickable Table Row UX */
+    tr.clickable-lead-row,
+    tr[data-href] {
+      cursor: pointer;
+      transition: background-color 0.15s ease-in-out;
+    }
+    tr.clickable-lead-row:hover,
+    tr[data-href]:hover {
+      background-color: rgba(14, 165, 233, 0.04) !important;
+    }
+
+    /* Clean Button Standard: Only text, no icons when text exists */
+    .btn:not(.btn-icon-only):not([title=""]):has(> i) i:not(:only-child),
+    .btn:not(.btn-icon-only) i.fa-plus,
+    .btn:not(.btn-icon-only) i.fa-file-arrow-up,
+    .btn:not(.btn-icon-only) i.fa-filter,
+    .btn:not(.btn-icon-only) i.fa-download,
+    .btn:not(.btn-icon-only) i.fa-rotate-left,
+    .btn:not(.btn-icon-only) i.fa-user-check,
+    .btn:not(.btn-icon-only) i.fa-pen,
+    .btn:not(.btn-icon-only) i.fa-trash,
+    .btn:not(.btn-icon-only) i.fa-magnifying-glass:not(:only-child) {
+      display: none !important;
     }
 
     .table td {
-      font-size: .875rem;
+      font-size: .85rem;
       vertical-align: middle;
       border-bottom: 1px solid #f1f5f9;
       color: #0f172a;
@@ -953,6 +991,32 @@
           resizer.classList.remove('resizing');
           document.body.style.userSelect = '';
           document.body.style.cursor = '';
+        }
+      });
+    });
+
+    // Universal Lead Table Row Click Handler
+    document.addEventListener('DOMContentLoaded', function () {
+      document.body.addEventListener('click', function (e) {
+        // Ignore if user clicked on an interactive element (link, button, input, select, etc.)
+        if (e.target.closest('a, button, input, select, textarea, label, .dropdown-menu, .modal, .btn, [onclick]')) {
+          return;
+        }
+
+        // Check if clicked inside a row that has data-href or contains a lead detail link
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+
+        const href = tr.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+          return;
+        }
+
+        // Fallback: If no data-href but row contains a lead detail anchor
+        const detailLink = tr.querySelector('a[href*="/leads/"][href$="/"], a[href*="/leads/detail/"]');
+        if (detailLink && detailLink.href) {
+          window.location.href = detailLink.href;
         }
       });
     });

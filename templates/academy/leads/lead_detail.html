@@ -48,13 +48,13 @@
       <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-pen me-1"></i> Edit</a>
       {% endif %}
       {% if not admission %}
-        {% if request.user.is_hospital_user %}
+        {% if request.user.industry == 'HOSPITAL' %}
           <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#appointmentModal"><i class="fa-solid fa-stethoscope me-1"></i> Book Appointment</button>
         {% elif can_convert %}
           <button class="btn btn-sm btn-brand text-white fw-semibold" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap me-1"></i> Convert to Admission</button>
         {% endif %}
       {% endif %}
-      {% if can_edit and not request.user.is_hospital_user %}
+      {% if can_edit and not request.user.industry == 'HOSPITAL' %}
         <div class="dropdown d-inline-block">
           <button class="btn btn-sm btn-outline-dark dropdown-toggle fw-semibold d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Change Admission Status">
             <i class="fa-solid fa-id-card-clip text-primary me-1"></i>

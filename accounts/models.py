@@ -185,9 +185,9 @@ class User(AbstractUser):
     @property
     def industry(self):
         """Standardized business industry (e.g. 'HOSPITAL', 'ACADEMY', 'IT_SERVICES', 'REAL_ESTATE', 'OTHER')."""
-        if self.hospital:
-            return self.hospital.industry
-        return Hospital.Industry.ACADEMY
+        if self.business:
+            return self.business.industry
+        return "ACADEMY"
 
     @property
     def business_type(self):
@@ -196,41 +196,29 @@ class User(AbstractUser):
         - 'hospital' for HOSPITAL industry
         - 'academy' for ACADEMY industry
         """
-        if not self.hospital:
+        if not self.business:
             return "academy"
-        if self.hospital.industry == Hospital.Industry.HOSPITAL:
-            return "hospital"
-        elif self.hospital.industry == Hospital.Industry.ACADEMY:
-            return "academy"
-        return str(self.hospital.industry).lower()
+        return str(self.business.industry).lower()
 
     @property
     def is_hospital_user(self):
         """True if user belongs to a Healthcare / Hospital business."""
-        if not self.hospital:
+        if not self.business:
             return False
-        return self.hospital.industry == Hospital.Industry.HOSPITAL
+        return self.business.industry == "HOSPITAL"
 
     @property
     def is_zappcode_user(self):
         """True if user belongs to Academy / Education business or is global superadmin."""
-        if not self.hospital:
+        if not self.business:
             return True
-        return self.hospital.industry == Hospital.Industry.ACADEMY
+        return self.business.industry == "ACADEMY"
 
     @property
     def custom_role_display(self):
-        is_hospital = self.is_hospital_user
-        prefix = "hospital-user" if is_hospital else "zappcode-user"
-        if self.role == self.Role.SUPER_ADMIN:
-            role_name = "Hospital Super Admin" if is_hospital else "Zappcode Super Admin"
-        elif self.role == self.Role.ADMIN:
-            role_name = "Hospital Admin" if is_hospital else "Zappcode Admin"
-        elif self.role == self.Role.MANAGER:
-            role_name = "Hospital Manager" if is_hospital else "Zappcode Manager"
-        else:
-            role_name = self.get_role_display()
-        return f"{prefix} ({role_name})"
+        biz_title = self.business.name if self.business else "Global"
+        role_name = self.get_role_display()
+        return f"{biz_title} ({role_name})"
 
     @property
     def doctor_departments_list(self):

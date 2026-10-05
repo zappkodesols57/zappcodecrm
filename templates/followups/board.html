@@ -7,7 +7,7 @@
             {{ title }}
         </h4>
         <p class="text-muted small mb-0">
-            {% if is_hospital_business or request.user.is_hospital_user %}
+            {% if is_hospital_business or request.user.industry == 'HOSPITAL' %}
                 Track and manage patient follow-ups, doctor appointments, and callback schedules.
             {% else %}
                 Track and manage student follow-ups, course admissions, and counseling callback schedules.
@@ -22,7 +22,7 @@
         <form method="GET" action="" class="d-flex flex-wrap align-items-center gap-2 m-0 p-0">
             <!-- Search Keyword -->
             <div class="flex-grow-1" style="min-width: 170px;">
-                <input type="text" name="q" class="form-control form-control-sm rounded-1" style="height: 36px; border: 1px solid #ced4da !important; font-size: 0.85rem;" placeholder="{% if is_hospital_business or request.user.is_hospital_user %}Search Patient, Mobile...{% else %}Search Student, Mobile...{% endif %}" value="{{ q }}">
+                <input type="text" name="q" class="form-control form-control-sm rounded-1" style="height: 36px; border: 1px solid #ced4da !important; font-size: 0.85rem;" placeholder="{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Search Patient, Mobile...{% else %}Search Student, Mobile...{% endif %}" value="{{ q }}">
             </div>
 
             <!-- Date From -->
@@ -36,7 +36,7 @@
             </div>
 
             <!-- Business Scoped Dropdown Filters -->
-            {% if not is_hospital_business and not request.user.is_hospital_user %}
+            {% if not is_hospital_business and not request.user.industry == 'HOSPITAL' %}
                 <!-- Course Filter (Academy) -->
                 {% if courses %}
                 <div style="min-width: 125px; max-width: 155px;" class="flex-grow-1">
@@ -78,7 +78,7 @@
             {% if team_members %}
             <div style="min-width: 130px; max-width: 160px;" class="flex-grow-1">
                 <select name="user_id" class="form-select form-select-sm rounded-1 no-tom-select" style="height: 36px; border: 1px solid #ced4da !important; font-size: 0.85rem;">
-                    <option value="">{% if is_hospital_business or request.user.is_hospital_user %}All Attendants{% else %}All Counselors{% endif %}</option>
+                    <option value="">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}All Attendants{% else %}All Counselors{% endif %}</option>
                     {% for m in team_members %}
                         <option value="{{ m.id }}" {% if selected_user_id == m.id|stringformat:'s' %}selected{% endif %}>{{ m.get_full_name|default:m.username }}</option>
                     {% endfor %}
@@ -112,27 +112,21 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="border-0 px-3 py-3 text-muted small text-uppercase">Lead ID</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.is_hospital_user %}Patient Name{% else %}Student Name{% endif %}</th>
+                        <th class="border-0 px-3 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Patient Name{% else %}Student Name{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.is_hospital_user %}Doctor / Dept{% else %}Course{% endif %}</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.is_hospital_user %}Status & Priority{% else %}Admission Status{% endif %}</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Doctor / Dept{% else %}Course{% endif %}</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Status & Priority{% else %}Admission Status{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Latest Follow-up Date</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Follow-up Status</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Remarks / Notes</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.is_hospital_user %}Assigned Attendant{% else %}Assigned Counselor{% endif %}</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Assigned Attendant{% else %}Assigned Counselor{% endif %}</th>
                         <th class="border-0 px-3 py-3 text-end text-muted small text-uppercase">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for lead in leads %}
-                    <tr class="{% if active == 'fu_overdue' %}table-danger-subtle{% elif active == 'fu_today' %}table-light{% elif active == 'fu_completed' %}table-success-subtle{% endif %}">
+                    <tr class="clickable-lead-row {% if active == 'fu_overdue' %}table-danger-subtle{% elif active == 'fu_today' %}table-light{% elif active == 'fu_completed' %}table-success-subtle{% endif %}" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
                         <td class="px-3">
-                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border fw-bold text-decoration-none" title="View Lead Details">
-                                {{ lead.lead_code }}
-                            </a>
-                        </td>
-                        <td>
                             <div class="fw-bold text-dark">{{ lead.name }}</div>
                             {% if lead.city or lead.location %}
                             <div class="small text-muted"><i class="fa-solid fa-location-dot me-1 text-muted"></i>{{ lead.location|default:lead.city }}</div>
@@ -142,7 +136,7 @@
                             <div><i class="fa-solid fa-phone text-muted me-1 small"></i> {{ lead.mobile }}</div>
                         </td>
                         <td>
-                            {% if is_hospital_business or request.user.is_hospital_user %}
+                            {% if is_hospital_business or request.user.industry == 'HOSPITAL' %}
                                 {% if lead.hospital_doctor %}
                                     <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i> {{ lead.hospital_doctor }}</span></div>
                                 {% endif %}
@@ -163,7 +157,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if is_hospital_business or request.user.is_hospital_user %}
+                            {% if is_hospital_business or request.user.industry == 'HOSPITAL' %}
                                 <div class="d-flex align-items-center gap-1 flex-wrap">
                                     {% if lead.display_status == 'Payment Done' %}
                                         <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1" style="font-size: 0.74rem;">

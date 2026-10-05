@@ -244,7 +244,6 @@
     <table class="table align-middle mb-0 leads-custom-table" style="min-width: 1050px;">
       <thead>
         <tr>
-          <th class="py-2.5 px-3">Lead ID</th>
           <th class="py-2.5 px-3">Inquiry Date</th>
           <th class="py-2.5 px-3">Student Name</th>
           <th class="py-2.5 px-3">Mobile</th>
@@ -258,12 +257,7 @@
       </thead>
       <tbody>
         {% for lead in page_obj %}
-        <tr>
-          <td class="px-3">
-            <a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" class="fw-bold text-primary text-decoration-none">
-              {{ lead.lead_code }}
-            </a>
-          </td>
+        <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
           <td class="px-3 text-nowrap small text-muted">
             {{ lead.inquiry_date|date:"d-m-Y" }}
           </td>

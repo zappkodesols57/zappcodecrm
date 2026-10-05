@@ -18,7 +18,7 @@
 
   <div class="d-flex align-items-center gap-2">
     <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
-      <i class="fa-solid fa-users me-1"></i> Active Leads
+      Active Leads
     </a>
   </div>
 </div>
@@ -102,12 +102,12 @@
             <div class="text-muted">—</div>
             {% endif %}
             <div class="text-muted small">
-              {{ lead.lead_source.name|default:lead.source_category.name|default:'Direct / Organic' }}
+              {% if lead.lead_source %}{{ lead.lead_source.name }}{% elif lead.source_category %}{{ lead.source_category.name }}{% else %}Direct / Organic{% endif %}
             </div>
           </td>
           <td class="py-3 px-3">
             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1 fw-semibold" style="font-size: 0.72rem;">
-              <i class="fa-solid fa-ban me-1"></i>{{ lead.stage.name|default:'Cancelled / Lost' }}
+              <i class="fa-solid fa-ban me-1"></i>{% if lead.stage %}{{ lead.stage.name }}{% else %}Cancelled / Lost{% endif %}
             </span>
             <div class="text-muted small mt-0.5" style="font-size: 0.68rem;">
               Adm: {{ lead.get_admission_status_display|default:lead.admission_status|default:'Cancelled' }}
@@ -137,7 +137,7 @@
                 <i class="fa-regular fa-eye" style="color: #000066; font-size: 0.8rem;"></i>
               </a>
               <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.76rem;" title="Edit / Re-open Lead">
-                <i class="fa-solid fa-pen me-1"></i>Edit
+                Edit
               </a>
             </div>
           </td>

@@ -608,7 +608,7 @@
           </select>
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
-          {% if request.user.is_hospital_user %}
+          {% if request.user.industry == 'HOSPITAL' %}
           <select name="deal_status" class="form-select form-select-sm">
             <option value="">All Deal Statuses</option>
             <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
@@ -790,8 +790,7 @@
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 class="h6 text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>Lead Stage Funnel
-          Comparison</h2>
+        <h2 class="h6 text-dark fw-bold mb-0">Lead Stage Funnel Comparison</h2>
         <span class="badge bg-light text-muted border small">Multi-Entity Bars</span>
       </div>
       <div style="height: 250px; position: relative;">
@@ -804,8 +803,7 @@
   <div class="col-md-6">
     <div class="card chart-card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 class="h6 text-dark fw-bold mb-0"><i class="fa-solid fa-users me-2 text-success"></i>Leads Assigned per
-          Employee</h2>
+        <h2 class="h6 text-dark fw-bold mb-0">Leads Assigned per Employee</h2>
         <span class="badge bg-light text-muted border small">Team Distribution</span>
       </div>
       <div style="height: 250px; position: relative;">
@@ -826,7 +824,7 @@
     <div class="card chart-card p-3 h-100" style="border-top: 3px solid #6366f1;">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 text-dark fw-bold mb-0">
-          <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source & Channel Distribution
+          Source & Channel Distribution
         </h2>
         <span class="badge bg-light text-muted border small">Total: {{ business_source_charts.0.total }}</span>
       </div>
@@ -841,7 +839,7 @@
     <div class="card chart-card p-3 h-100" style="border-top: 3px solid #0284c7;">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 text-dark fw-bold mb-0">
-          <i class="fa-solid {{ primary_cat_meta.icon|default:'fa-graduation-cap' }} me-2 text-primary"></i>{% if primary_cat_meta.title %}{{ primary_cat_meta.title }}{% else %}Course & Department Distribution{% endif %}
+          {% if primary_cat_meta.title %}{{ primary_cat_meta.title }}{% else %}Course & Department Distribution{% endif %}
         </h2>
         <span class="badge bg-light text-muted border small">Total: {{ business_course_charts.0.total }}</span>
       </div>
@@ -857,7 +855,7 @@
 <div class="mb-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h5 class="fw-bold text-dark mb-0">
-      <i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source & Channel Distribution per Business
+      Source & Channel Distribution per Business
     </h5>
     <span class="badge bg-white border text-muted small">Distinct Doughnut per Business</span>
   </div>
@@ -886,7 +884,7 @@
 <div class="mb-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h5 class="fw-bold text-dark mb-0">
-      <i class="fa-solid fa-layer-group me-2 text-indigo"></i>Specialization & Department Distribution per Business
+      Specialization & Department Distribution per Business
     </h5>
     <span class="badge bg-white border text-muted small">Distinct Pie per Business</span>
   </div>
@@ -898,7 +896,6 @@
       <div class="card chart-card p-3 h-100" style="border-top: 3px solid {{ cc.color }};">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="fw-bold text-dark small" title="{{ cc.business_name }}">
-            <i class="fa-solid {{ cc.icon|default:'fa-graduation-cap' }} me-1 text-indigo"></i>
             <span class="kpi-dot" style="background: {{ cc.color }};"></span>{{ cc.business_name|truncatechars:18 }} ({{
             cc.chart_title }})
           </span>
@@ -1209,17 +1206,19 @@
                     <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input"
                       onchange="toggleDrilldownSelectAll(this)">
                   </th>
-                  <th class="py-2">Lead / Candidate</th>
+                  <th class="py-2">Lead Name</th>
                   <th class="py-2">Contact</th>
-                  <th class="py-2">Business / Source</th>
-                  <th class="py-2">Dept / Course</th>
-                  <th class="py-2">Temp</th>
-                  <th class="py-2">Status / Admission</th>
-                  <th class="py-2" style="min-width: 150px;">Assigned To</th>
+                  <th class="py-2">Source</th>
+                  <th class="py-2">Campaign</th>
+                  <th class="py-2">Course / Department</th>
+                  <th class="py-2">Stages</th>
+                  <th class="py-2">Status</th>
+                  <th class="py-2" style="min-width: 130px;">Telecaller</th>
+                  <th class="py-2" style="min-width: 120px;">Next Follow-up</th>
                   <th class="py-2" style="min-width: 180px;">Comments</th>
                   <th class="py-2 px-3 position-sticky end-0 bg-light"
                     style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
-                    Action</th>
+                    Actions</th>
                 </tr>
               </thead>
               <tbody id="drilldownTableBody">
@@ -2136,43 +2135,68 @@
     const thead = document.querySelector('#drilldownLeadsTable thead tr');
     if (!thead) return;
 
-    let col1Title = 'Lead / Candidate';
-    let col3Title = 'Business / Source';
-    let col4Title = 'Dept / Course';
-    let col7Title = 'Assigned To';
-    let col9Title = 'Action';
+    let col1Title = 'Lead Name';
+    let col2Title = 'Contact';
+    let col3Title = 'Source';
+    let col4Title = 'Campaign';
+    let col5Title = 'Course / Department';
+    let col6Title = 'Stages';
+    let col7Title = 'Status';
+    let col8Title = 'Telecaller';
+    let col9Title = 'Next Follow-up';
+    let col10Title = 'Comments';
+    let col11Title = 'Actions';
 
     if (bMode === 'hospital') {
-      col1Title = 'PATIENT';
-      col3Title = 'SOURCE';
-      col4Title = 'DEPARTMENT';
-      col7Title = 'ASSIGNED TO';
-      col9Title = 'ACTIONS';
+      col1Title = 'Patient Name';
+      col2Title = 'Phone / Contact';
+      col3Title = 'Source';
+      col4Title = 'Campaign';
+      col5Title = 'Doctor / Dept';
+      col6Title = 'Stage';
+      col7Title = 'Status';
+      col8Title = 'Attendant';
+      col9Title = 'Next Follow-up';
+      col10Title = 'Remarks';
+      col11Title = 'Actions';
     } else if (bMode === 'academy') {
-      col1Title = 'NAME';
-      col3Title = 'SOURCE / CAMPAIGN';
-      col4Title = 'COURSE / SERVICE';
-      col7Title = 'ASSIGNED TO';
-      col9Title = 'ACTION';
+      col1Title = 'Student Name';
+      col2Title = 'Mobile';
+      col3Title = 'Lead Source';
+      col4Title = 'Campaign';
+      col5Title = 'Course Interested';
+      col6Title = 'Stage';
+      col7Title = 'Admission Status';
+      col8Title = 'Counselor';
+      col9Title = 'Next Follow-up';
+      col10Title = 'Calling Remarks';
+      col11Title = 'Actions';
     } else {
-      // 'all' businesses view
-      col1Title = 'LEAD NAME';
-      col3Title = 'SOURCE / CAMPAIGN';
-      col4Title = 'COURSE / DEPARTMENT';
-      col7Title = 'ASSIGNED TO';
-      col9Title = 'ACTION';
+      // 'all' businesses view (General Headings requested by user)
+      col1Title = 'Lead Name';
+      col2Title = 'Contact';
+      col3Title = 'Source';
+      col4Title = 'Campaign';
+      col5Title = 'Course / Department';
+      col6Title = 'Stages';
+      col7Title = 'Status';
+      col8Title = 'Telecaller';
+      col9Title = 'Next Follow-up';
+      col10Title = 'Comments';
+      col11Title = 'Actions';
     }
 
     // Build distinct options from cachedLeadItems for dropdowns
     const distinctSources = new Set();
+    const distinctCampaigns = new Set();
     const distinctDepts = new Set();
-    const distinctTemps = new Set();
+    const distinctStages = new Set();
     const distinctStatuses = new Set();
     const distinctAssignees = new Map();
 
     cachedLeadItems.forEach(l => {
       if (l.lead_source) distinctSources.add(l.lead_source);
-      if (l.campaign && l.campaign !== 'nan') distinctSources.add(l.campaign);
+      if (l.campaign && l.campaign !== 'nan' && l.campaign !== 'None') distinctCampaigns.add(l.campaign);
 
       if (bMode === 'hospital') {
         if (l.department) distinctDepts.add(l.department);
@@ -2182,8 +2206,8 @@
         if (l.department) distinctDepts.add(l.department);
       }
 
-      const temp = (l.temperature || 'UNCONTACTED').toUpperCase();
-      if (temp) distinctTemps.add(temp);
+      const stage = (l.stage || '').trim();
+      if (stage) distinctStages.add(stage);
 
       const st = l.appointment_status || l.status || 'Open';
       if (st) distinctStatuses.add(st);
@@ -2222,8 +2246,9 @@
     };
 
     const sourceOptions = Array.from(distinctSources).sort();
+    const campaignOptions = Array.from(distinctCampaigns).sort();
     const deptOptions = Array.from(distinctDepts).sort();
-    const tempOptions = Array.from(distinctTemps).sort();
+    const stageOptions = Array.from(distinctStages).sort();
     const statusOptions = Array.from(distinctStatuses).sort();
 
     const assigneeOptions = [{ value: 'unassigned', label: 'Unassigned' }];
@@ -2231,20 +2256,21 @@
       assigneeOptions.push({ value: id, label: name });
     });
 
-    const showCheckbox = (currentDrilldownCard !== 'opd_booked');
     thead.innerHTML = `
         <th class="py-2 px-3" style="width: 40px;">
             <input type="checkbox" id="drilldownSelectAllCheckbox" class="form-check-input" onchange="toggleDrilldownSelectAll(this)">
         </th>
-        <th class="py-2" style="min-width: 120px;">${col1Title}</th>
-        <th class="py-2" style="min-width: 100px;">CONTACT</th>
-        <th class="py-2" style="min-width: 140px;">${buildSelectHtml('source', col3Title, sourceOptions, tableHeaderFilters.source)}</th>
-        <th class="py-2" style="min-width: 140px;">${buildSelectHtml('dept', col4Title, deptOptions, tableHeaderFilters.dept)}</th>
-        <th class="py-2" style="min-width: 120px;">${buildSelectHtml('temp', 'TEMP', tempOptions, tableHeaderFilters.temp)}</th>
-        <th class="py-2" style="min-width: 130px;">${buildSelectHtml('status', 'STATUS', statusOptions, tableHeaderFilters.status)}</th>
-        <th class="py-2" style="min-width: 150px;">${buildSelectHtml('assigned', col7Title, assigneeOptions, tableHeaderFilters.assigned)}</th>
-        <th class="py-2" style="min-width: 160px;">COMMENTS</th>
-        <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">${col9Title}</th>
+        <th class="py-2" style="min-width: 130px;">${col1Title}</th>
+        <th class="py-2" style="min-width: 110px;">${col2Title}</th>
+        <th class="py-2" style="min-width: 120px;">${buildSelectHtml('source', col3Title, sourceOptions, tableHeaderFilters.source)}</th>
+        <th class="py-2" style="min-width: 130px;">${buildSelectHtml('campaign', col4Title, campaignOptions, tableHeaderFilters.campaign)}</th>
+        <th class="py-2" style="min-width: 140px;">${buildSelectHtml('dept', col5Title, deptOptions, tableHeaderFilters.dept)}</th>
+        <th class="py-2" style="min-width: 110px;">${buildSelectHtml('stage', col6Title, stageOptions, tableHeaderFilters.stage)}</th>
+        <th class="py-2" style="min-width: 120px;">${buildSelectHtml('status', col7Title, statusOptions, tableHeaderFilters.status)}</th>
+        <th class="py-2" style="min-width: 130px;">${buildSelectHtml('assigned', col8Title, assigneeOptions, tableHeaderFilters.assigned)}</th>
+        <th class="py-2" style="min-width: 120px;">${col9Title}</th>
+        <th class="py-2" style="min-width: 170px;">${col10Title}</th>
+        <th class="py-2 px-3 position-sticky end-0 bg-light" style="z-index: 6; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">${col11Title}</th>
     `;
   }
 
@@ -2411,10 +2437,58 @@
       // Status / Admission Representation
       let statusAdmissionHtml = statusBadge;
       if (!lead.is_hospital && lead.admission_status && lead.admission_status !== 'Not Applied') {
-        statusAdmissionHtml += `<div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;"><i class="fa-solid fa-user-graduate me-1"></i>${lead.admission_status}</span></div>`;
+      // Column 3: Source rendering
+      let sourceColumnHtml = '';
+      if (currentMode === 'all') {
+        sourceColumnHtml = `
+            <div class="text-truncate mb-1" title="${lead.business_name}">
+                <span class="badge ${lead.is_hospital ? 'bg-info bg-opacity-10 text-info border' : 'bg-primary bg-opacity-10 text-primary border'} text-truncate" style="max-width: 100%;">
+                    ${lead.business_name}
+                </span>
+            </div>
+            <div class="text-dark fw-semibold text-truncate" style="font-size: 0.78rem;" title="${lead.lead_source}">${lead.lead_source || '—'}</div>
+        `;
+      } else {
+        sourceColumnHtml = `<div class="text-dark fw-semibold text-truncate" title="${lead.lead_source}">${lead.lead_source || '—'}</div>`;
       }
 
-      // Assigned To with Quick Reassign Dropdown (if user has permissions)
+      // Column 4: Campaign rendering
+      let campaignColumnHtml = `<span class="small text-muted">${(lead.campaign && lead.campaign !== 'nan' && lead.campaign !== 'None') ? lead.campaign : '—'}</span>`;
+
+      // Column 5: Department / Course cell rendering based on business mode
+      let deptCourseHtml = '';
+      if (currentMode === 'hospital') {
+        deptCourseHtml = `
+            <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor || 'Doctor Not Assigned'}</div>
+            <div class="text-muted small" style="font-size: 0.72rem;">${lead.department || 'General OPD'}</div>
+        `;
+      } else if (currentMode === 'academy') {
+        deptCourseHtml = `
+            <div class="text-dark fw-semibold"><i class="fa-solid fa-graduation-cap text-primary me-1"></i>${lead.course || 'General Course'}</div>
+        `;
+      } else {
+        if (lead.is_hospital) {
+          deptCourseHtml = `
+                <div class="text-dark fw-semibold"><i class="fa-solid fa-user-doctor text-primary me-1"></i>${lead.doctor || 'Doctor Not Assigned'}</div>
+                <div class="text-muted small" style="font-size: 0.72rem;">${lead.department || 'General OPD'}</div>
+            `;
+        } else {
+          deptCourseHtml = `
+                <div class="text-dark fw-semibold"><i class="fa-solid fa-graduation-cap text-primary me-1"></i>${lead.course || 'General Training'}</div>
+            `;
+        }
+      }
+
+      // Column 6: Stage rendering
+      let stageHtml = `<span class="badge bg-light text-dark border">${lead.stage || 'Inquiry'}</span>`;
+
+      // Column 7: Status / Admission Representation
+      let statusAdmissionHtml = statusBadge;
+      if (!lead.is_hospital && lead.admission_status && lead.admission_status !== 'Not Applied' && lead.admission_status !== 'None') {
+        statusAdmissionHtml += `<div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;">${lead.admission_status}</span></div>`;
+      }
+
+      // Column 8: Assigned To / Telecaller with Quick Reassign Dropdown (if user has permissions)
       let assignedToHtml = '';
       if (canUserAssign && cachedAssignableUsers.length > 0) {
         let opts = `<option value="">Unassigned</option>`;
@@ -2423,13 +2497,16 @@
           opts += `<option value="${u.id}" ${isSel}>${u.name}</option>`;
         });
         assignedToHtml = `
-                <select class="form-select form-select-sm rounded-pill border-light-subtle shadow-2xs py-0 px-2" style="font-size:0.75rem; width:130px;" onchange="executeSingleLeadAssign(${lead.id}, this.value)">
-                    ${opts}
-                </select>
-            `;
+            <select class="form-select form-select-sm rounded-pill border-light-subtle shadow-2xs py-0 px-2" style="font-size:0.75rem; width:130px;" onchange="executeSingleLeadAssign(${lead.id}, this.value)">
+                ${opts}
+            </select>
+        `;
       } else {
         assignedToHtml = `<span class="badge bg-light text-dark border">${lead.assigned_to}</span>`;
       }
+
+      // Column 9: Next Follow-up
+      let nextFollowupHtml = `<span class="small text-nowrap text-muted">${(lead.next_followup && lead.next_followup !== '-' && lead.next_followup !== 'None') ? lead.next_followup : '—'}</span>`;
 
       const isRowChecked = selectedDrilldownLeadIds.has(lead.id) ? 'checked' : '';
 
@@ -2442,7 +2519,7 @@
       let leadDetailHref = `${lead.detail_url}?return_to=${encodeURIComponent(currentRetUrl.pathname + currentRetUrl.search)}`;
 
       tr.innerHTML = `
-            <td class="text-center px-3">
+            <td class="text-center px-3" onclick="event.stopPropagation();">
                 <input type="checkbox" class="form-check-input drilldown-row-checkbox" value="${lead.id}" ${isRowChecked} onchange="toggleDrilldownRowSelect(this, ${lead.id})">
             </td>
             <td class="text-start">
@@ -2450,39 +2527,50 @@
                     ${lead.name}
                 </a>
                 <div class="mt-0.5">
-                    <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${lead.lead_code || lead.id}</a>
-                    <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
+                    <span class="text-muted small" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
                 </div>
             </td>
             <td>
                 <div class="text-dark fw-semibold">${lead.mobile}</div>
                 <div class="text-muted small" style="font-size: 0.72rem;">${lead.email !== '-' ? lead.email : ''}</div>
             </td>
-            <td style="max-width: 140px;">
+            <td>
                 ${sourceColumnHtml}
+            </td>
+            <td>
+                ${campaignColumnHtml}
             </td>
             <td>
                 ${deptCourseHtml}
             </td>
-            <td>${tempBadge}</td>
-            <td>${statusAdmissionHtml}</td>
+            <td>
+                ${stageHtml}
+            </td>
+            <td>
+                ${statusAdmissionHtml}
+            </td>
             <td>
                 ${assignedToHtml}
             </td>
             <td>
-                <div class="text-muted small text-wrap text-start" style="font-size: 0.72rem; min-width: 200px; max-width: 320px;">${commentsHtml}</div>
+                ${nextFollowupHtml}
             </td>
-            <td class="px-3 text-nowrap position-sticky end-0 bg-white" style="z-index: 2; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);">
+            <td>
+                <div class="text-muted small text-wrap text-start" style="font-size: 0.72rem; min-width: 170px; max-width: 260px;">${commentsHtml}</div>
+            </td>
+            <td class="px-3 text-nowrap position-sticky end-0 bg-white" style="z-index: 2; border-left: 1px solid #dee2e6; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.1);" onclick="event.stopPropagation();">
                 ${directCallBtn}
                 ${whatsappBtn}
                 <a href="${leadDetailHref}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" style="font-size: 0.75rem;" title="View Lead Details">
-                    <i class="fa-solid fa-eye me-1"></i> View
+                    View
                 </a>
                 <a href="${lead.edit_url}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="font-size: 0.75rem;" title="Edit Lead Form">
-                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                    Edit
                 </a>
             </td>
         `;
+      tr.setAttribute('data-href', leadDetailHref);
+      tr.style.cursor = 'pointer';
       tbody.appendChild(tr);
     });
   }

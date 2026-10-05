@@ -226,8 +226,7 @@
           <table class="table table-hover align-middle mb-0 lead-preview-table">
             <thead>
               <tr>
-                <th class="px-3 py-2">Lead ID</th>
-                <th class="py-2">Name</th>
+                <th class="px-3 py-2">Name</th>
                 <th class="py-2">Mobile</th>
                 <th class="py-2">City</th>
                 <th class="py-2">Status</th>
@@ -236,7 +235,7 @@
             </thead>
             <tbody id="leadPreviewTableBody">
               <tr>
-                <td colspan="6" class="text-center py-4 text-muted">
+                <td colspan="5" class="text-center py-4 text-muted">
                   Please select a <strong>Source User</strong> to preview their assigned leads.
                 </td>
               </tr>
@@ -360,16 +359,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.leads.length === 0) {
           previewTableBody.innerHTML = `
             <tr>
-              <td colspan="6" class="text-center py-4 text-muted">
+              <td colspan="5" class="text-center py-4 text-muted">
                 No leads found for the selected user and filters.
               </td>
             </tr>`;
           paginationFooter.style.setProperty('display', 'none', 'important');
         } else {
           previewTableBody.innerHTML = data.leads.map(l => `
-            <tr>
-              <td class="px-3 fw-bold text-dark">${l.lead_code}</td>
-              <td class="fw-semibold">${l.name || '—'}</td>
+            <tr class="clickable-lead-row" data-href="/leads/${l.id}/" style="cursor: pointer;">
+              <td class="px-3 fw-semibold text-dark">${l.name || '—'}</td>
               <td>${l.mobile || '—'}</td>
               <td>${l.city || '—'}</td>
               <td><span class="badge bg-secondary">${l.deal_status || 'Open'}</span></td>

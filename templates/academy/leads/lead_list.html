@@ -53,7 +53,6 @@
     <button
       class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
       type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Sidebar Filters">
-      <i class="fa-solid fa-sliders text-primary"></i>
       <span>Filter</span>
       {% if active_filters_count > 0 %}
       <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ active_filters_count }}</span>
@@ -66,7 +65,6 @@
       id="bulkSelfAssignBtn"
       onclick="submitBulkSelfAssign()"
       title="Bulk assign selected leads to yourself (Max limit: {{ request.user.bulk_self_assign_limit }})">
-      <i class="fa-solid fa-hand-holding-hand text-success"></i>
       <span>Bulk Assign to Me</span>
       <span class="badge bg-success rounded-pill px-2 py-1" id="bulkSelfAssignBadge" style="font-size: 0.7rem;">
         <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
@@ -79,7 +77,6 @@
       <button
         class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 fw-semibold px-3 shadow-sm rounded-pill dropdown-toggle"
         type="button" id="titleSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
-        <i class="fa-solid fa-arrow-down-short-wide text-primary"></i>
         <span>Sort</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="titleSortDropdown"
@@ -100,7 +97,7 @@
     {% if active_filters_count > 0 %}
     <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-3"
       title="Clear all applied filters">
-      <i class="fa-solid fa-rotate-left me-1"></i> Clear
+      Clear
     </a>
     {% endif %}
 
@@ -108,7 +105,7 @@
     <div class="dropdown">
       <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle shadow-sm" type="button"
         id="topHeaderExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="fa-solid fa-file-export me-1"></i> Export
+        Export
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportDropdown"
         style="font-size: 0.85rem; min-width: 170px;">
@@ -254,21 +251,14 @@
                 <th style="width: 40px;"><input type="checkbox" id="masterLeadCheckbox"
                     onclick="toggleAllCheckboxes(this)"></th>
 
-                <!-- 1. Lead ID -->
+                <!-- 1. Date -->
                 <th class="position-relative py-2 px-3">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <span class="ms-1 fw-bold text-dark small text-uppercase">Lead ID</span>
-                  </div>
-                </th>
-
-                <!-- 2. Date -->
-                <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
                   <div class="d-flex align-items-center justify-content-between">
                     <span class="ms-1 fw-bold text-dark small text-uppercase">Inquiry Date</span>
                   </div>
                 </th>
 
-                <!-- 3. Student Name -->
+                <!-- 2. Student Name -->
                 <th class="position-relative py-2 px-3" style="border-left: 1px solid #e2e8f0 !important;">
                   <div class="d-flex align-items-center justify-content-between">
                     <span class="ms-1 fw-bold text-dark small text-uppercase">Student Name</span>
@@ -325,11 +315,10 @@
             </thead>
             <tbody>
               {% for lead in page_obj %}
-              <tr>
-                <td><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-                <td><a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" class="fw-bold">{{ lead.lead_code }}</a></td>
+              <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+                <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
                 <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
-                <td><strong>{{ lead.name }}</strong></td>
+                <td><strong class="text-dark">{{ lead.name }}</strong></td>
                 <td>
                   <span class="fw-semibold">{{ lead.mobile }}</span>
                 </td>

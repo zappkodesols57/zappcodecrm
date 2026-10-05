@@ -550,8 +550,7 @@
 
 {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
 <div class="card mb-4 shadow-sm border-0">
-    <div class="card-header bg-white py-3 border-0 d-flex align-items-center gap-2">
-        <i class="fa-solid fa-users-gear text-primary fs-5"></i>
+    <div class="card-header bg-white py-3 border-0 d-flex align-items-center">
         <h5 class="card-title mb-0 fw-bold">Team Activity Today</h5>
     </div>
     <div class="table-responsive">
@@ -585,8 +584,7 @@
                     <td><strong class="text-dark fs-6">{{ stat.total_entries }}</strong></td>
                     <td class="text-end">
                         <a href="{% url 'dashboard:employee_detail_activity' stat.member.id %}"
-                            class="btn btn-sm btn-outline-brand"><i class="fa-solid fa-file-invoice me-1"></i>View Daily
-                            Entry Log</a>
+                            class="btn btn-sm btn-outline-brand">View Daily Entry Log</a>
                     </td>
                 </tr>
                 {% empty %}

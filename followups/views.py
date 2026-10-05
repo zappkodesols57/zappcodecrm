@@ -55,7 +55,7 @@ def _board(request, leads, active, title, date_info=None):
             if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
                 btype = "hospital"
         is_hospital_business = str(btype).strip().lower() == "hospital"
-    elif user.is_hospital_user:
+    elif user.industry == 'HOSPITAL':
         is_hospital_business = True
 
     # Search keyword filter
