@@ -224,7 +224,7 @@ def upload(request):
     if effective_hospital:
         is_hospital = "nelson" in effective_hospital.name.lower() or "hospital" in effective_hospital.name.lower()
     else:
-        is_hospital = bool(user.is_hospital_user)
+        is_hospital = bool(user.industry == 'HOSPITAL')
 
     # Available campaigns & courses with current leads count
     from django.db.models import Count, Q
@@ -1396,7 +1396,7 @@ def export_leads(request):
     if effective_hospital:
         is_hospital = "nelson" in effective_hospital.name.lower() or "hospital" in effective_hospital.name.lower()
     else:
-        is_hospital = bool(user.is_hospital_user)
+        is_hospital = bool(user.industry == 'HOSPITAL')
 
     is_download = request.GET.get("download") == "1"
     is_preview = request.GET.get("preview") == "1"
@@ -1668,7 +1668,7 @@ def download_template(request):
     wb = Workbook()
     ws = wb.active
 
-    is_hospital = request.user.is_hospital_user
+    is_hospital = request.user.industry == 'HOSPITAL'
 
     if is_hospital:
         ws.title = "Hospital Leads Template"

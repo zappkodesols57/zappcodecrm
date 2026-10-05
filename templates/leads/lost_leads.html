@@ -102,12 +102,12 @@
             <div class="text-muted">—</div>
             {% endif %}
             <div class="text-muted small">
-              {{ lead.lead_source.name|default:lead.source_category.name|default:'Direct / Organic' }}
+              {% if lead.lead_source %}{{ lead.lead_source.name }}{% elif lead.source_category %}{{ lead.source_category.name }}{% else %}Direct / Organic{% endif %}
             </div>
           </td>
           <td class="py-3 px-3">
             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1 fw-semibold" style="font-size: 0.72rem;">
-              <i class="fa-solid fa-ban me-1"></i>{{ lead.stage.name|default:'Cancelled / Lost' }}
+              <i class="fa-solid fa-ban me-1"></i>{% if lead.stage %}{{ lead.stage.name }}{% else %}Cancelled / Lost{% endif %}
             </span>
             <div class="text-muted small mt-0.5" style="font-size: 0.68rem;">
               Adm: {{ lead.get_admission_status_display|default:lead.admission_status|default:'Cancelled' }}

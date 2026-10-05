@@ -220,17 +220,10 @@ class User(AbstractUser):
 
     @property
     def custom_role_display(self):
-        is_hospital = self.is_hospital_user
-        prefix = "hospital-user" if is_hospital else "zappcode-user"
-        if self.role == self.Role.SUPER_ADMIN:
-            role_name = "Hospital Super Admin" if is_hospital else "Zappcode Super Admin"
-        elif self.role == self.Role.ADMIN:
-            role_name = "Hospital Admin" if is_hospital else "Zappcode Admin"
-        elif self.role == self.Role.MANAGER:
-            role_name = "Hospital Manager" if is_hospital else "Zappcode Manager"
-        else:
-            role_name = self.get_role_display()
-        return f"{prefix} ({role_name})"
+        ind = self.industry
+        biz_title = self.hospital.name if self.hospital else "Global"
+        role_name = self.get_role_display()
+        return f"{biz_title} ({role_name})"
 
     @property
     def doctor_departments_list(self):

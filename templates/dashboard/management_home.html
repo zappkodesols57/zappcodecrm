@@ -608,7 +608,7 @@
           </select>
         </div>
         <div class="col-lg-2 col-md-4 col-sm-6">
-          {% if request.user.is_hospital_user %}
+          {% if request.user.industry == 'HOSPITAL' %}
           <select name="deal_status" class="form-select form-select-sm">
             <option value="">All Deal Statuses</option>
             <option value="OPEN" {% if request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>

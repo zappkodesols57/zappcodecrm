@@ -404,7 +404,7 @@ def welcome_view(request):
 def home(request):
     from accounts.models import User
     # If user belongs to a specific hospital role, send them directly to their dedicated dashboard
-    if request.user.hospital and request.user.is_hospital_user:
+    if request.user.hospital and request.user.industry == 'HOSPITAL':
         if request.user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_home")
         elif request.user.role == User.Role.DOCTOR:

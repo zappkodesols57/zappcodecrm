@@ -26,7 +26,7 @@ def portal_select(request):
 
 def _role_redirect(user):
     """Return a redirect response based on user role."""
-    if user.hospital and user.is_hospital_user:
+    if user.hospital and user.industry == 'HOSPITAL':
         if user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
             return redirect("dashboard:superadmin_home")
         if user.role == User.Role.DOCTOR:
@@ -1279,7 +1279,7 @@ def switch_business(request):
 
     next_url = request.GET.get("next") or request.POST.get("next") or request.META.get("HTTP_REFERER")
     if not next_url:
-        next_url = reverse("dashboard:superadmin_home") if request.user.is_hospital_user else reverse("dashboard:management_home")
+        next_url = reverse("dashboard:superadmin_home") if request.user.industry == 'HOSPITAL' else reverse("dashboard:management_home")
 
     # Update or set 'business' parameter in next_url query string so both session and URL stay in sync
     try:

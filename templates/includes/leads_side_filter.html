@@ -326,7 +326,7 @@ Features:
           {% endif %}
 
           <!-- 5. Admission Status (Academy) / Department (Hospital) -->
-          {% if admission_status_choices and not request.user.is_hospital_user %}
+          {% if admission_status_choices and not request.user.industry == 'HOSPITAL' %}
           <div class="py-2 border-bottom">
             <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-bold py-1"
               data-bs-toggle="collapse" href="#attAdmissionStatusFilter" role="button" style="font-size: 0.86rem;">
@@ -532,7 +532,7 @@ Features:
           <div class="ps-2 mb-3">
 
             <!-- Courses (For Zappcode / Academy Users) -->
-            {% if not request.user.is_hospital_user and courses %}
+            {% if not request.user.industry == 'HOSPITAL' and courses %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subCourse" role="button" style="font-size: 0.84rem;">
@@ -574,7 +574,7 @@ Features:
             {% endif %}
 
             <!-- Departments (Only for Hospital Users) -->
-            {% if request.user.is_hospital_user and filter_departments %}
+            {% if request.user.industry == 'HOSPITAL' and filter_departments %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subDept" role="button" style="font-size: 0.84rem;">
@@ -595,7 +595,7 @@ Features:
             {% endif %}
 
             <!-- Doctors (Only for Hospital Users) -->
-            {% if request.user.is_hospital_user and filter_doctors %}
+            {% if request.user.industry == 'HOSPITAL' and filter_doctors %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subDoctors" role="button" style="font-size: 0.84rem;">
@@ -616,7 +616,7 @@ Features:
             {% endif %}
 
             <!-- Lead Status (Only for Hospital Users) -->
-            {% if request.user.is_hospital_user %}
+            {% if request.user.industry == 'HOSPITAL' %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
@@ -647,7 +647,7 @@ Features:
             {% endif %}
 
             <!-- Admission Status (Only for Academy Users) -->
-            {% if not request.user.is_hospital_user and admission_status_choices %}
+            {% if not request.user.industry == 'HOSPITAL' and admission_status_choices %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subAdmStatus" role="button" style="font-size: 0.84rem;">
@@ -669,7 +669,7 @@ Features:
             {% endif %}
 
             <!-- Appointment Status (Only for Hospital Users) -->
-            {% if request.user.is_hospital_user and filter_appointment_statuses %}
+            {% if request.user.industry == 'HOSPITAL' and filter_appointment_statuses %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subApptStatus" role="button" style="font-size: 0.84rem;">

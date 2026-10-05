@@ -699,7 +699,7 @@ def lead_list(request):
 
     is_viewing_hospital = False
     if request.user.hospital:
-        is_viewing_hospital = request.user.is_hospital_user
+        is_viewing_hospital = request.user.industry == 'HOSPITAL'
     elif target_hospital:
         is_viewing_hospital = "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
     else:
@@ -1843,7 +1843,7 @@ def lead_add(request):
         return redirect("dashboard:doctor_home")
         
     duplicates = None
-    is_hospital = request.user.is_hospital_user
+    is_hospital = request.user.industry == 'HOSPITAL'
     FormClass = HospitalLeadForm if is_hospital else LeadForm
     template = "leads/hospital_lead_form.html" if is_hospital else "leads/academy_lead_form.html"
     
@@ -6106,7 +6106,7 @@ def bulk_lead_transfer(request):
                 user=target_user,
                 title="Bulk Leads Assigned",
                 message=f"{transfer_count} leads have been reassigned/transferred to you from {source_name} by {admin_name}. You can now follow up with them.",
-                link="/leads/my-leads/" if not target_user.is_hospital_user else "/dashboard/telecaller/my-leads/",
+                link="/leads/my-leads/" if not target_user.industry == 'HOSPITAL' else "/dashboard/telecaller/my-leads/",
             )
 
         messages.success(request, f"Successfully transferred {transfer_count} lead(s) from '{source_name}' to '{target_name}'! All previous call remarks and timeline history remain intact.")
