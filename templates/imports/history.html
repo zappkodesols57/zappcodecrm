@@ -133,7 +133,7 @@
             {% if j.sheet_name %}<small class="text-muted d-block">Sheet: {{ j.sheet_name }}</small>{% endif %}
           </td>
           <td style="white-space: nowrap;">
-            <span class="small fw-semibold text-dark">{{ j.created_by.get_full_name|default:j.created_by.username|default:"System" }}</span>
+            <span class="small fw-semibold text-dark">{{ j.uploader_name }}</span>
           </td>
           <td class="text-center"><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
           <td class="text-center fw-bold">{{ j.total_rows }}</td>
@@ -303,7 +303,7 @@
         updated: {{ j.updated_count }},
         duplicate: {{ j.duplicate_count }},
         date: "{{ j.created_at|date:'d-m-Y H:i' }}",
-        user: "{{ j.created_by.get_full_name|default:j.created_by.username|default:'Admin'|escapejs }}"
+        user: "{{ j.uploader_name|default:'Admin'|escapejs }}"
       },
     {% endfor %}
   ];

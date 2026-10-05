@@ -194,6 +194,14 @@ def management_home(request):
     total_leads = filtered_leads.count()
     new_leads = filtered_leads.filter(inquiry_date__gte=today - timedelta(days=7)).count()
     
+    uncontacted_filter = (
+        Q(stage__name__icontains="new") |
+        Q(deal_status="OPEN", followup_count=0) |
+        Q(temperature="UNCONTACTED")
+    )
+    uncontacted = filtered_leads.filter(uncontacted_filter).distinct().count()
+    not_picked = filtered_leads.filter(Q(deal_status="NOT_PICKED") | Q(custom_data__call_status__icontains="not pick")).count()
+
     hot = filtered_leads.filter(temperature=LeadTemperature.HOT).count()
     warm = filtered_leads.filter(temperature=LeadTemperature.WARM).count()
     cold = filtered_leads.filter(temperature=LeadTemperature.COLD).count()
@@ -204,7 +212,7 @@ def management_home(request):
     overdue = FollowUp.objects.filter(lead_id__in=lead_ids, followup_date__lt=today, followup_status="PENDING").count()
     
     admissions_filter = (
-        Q(admission_status="ADMISSION_DONE") | Q(deal_status="WON") | Q(stage__name__icontains="admission") | Q(admission__isnull=False)
+        Q(admission_status="WON") | Q(deal_status="WON") | Q(stage__name__icontains="admission") | Q(admission__isnull=False)
     )
     admissions_count = filtered_leads.filter(admissions_filter).distinct().count()
     visits_count = filtered_leads.filter(Q(stage__name__icontains="visit") | Q(custom_data__appointment_status__icontains="Visit")).count()
@@ -498,3 +506,44 @@ def management_home(request):
         "business_course_charts": business_course_charts,
     }
     return render(request, "dashboard/management_home.html", context)
+
+
+@login_required
+def card_drilldown_page(request):
+    """
+    Dedicated Full-Page Leads Drilldown View for Dashboard KPI Cards.
+    Displays applied filters in heading, campaign-wise count pills, date navigator (Prev, Today, Next, All, Custom Calendar with counts).
+    """
+    today = timezone.localdate()
+    card_type = request.GET.get('card_type', 'new_leads').strip()
+    card_title = request.GET.get('card_title', 'Total Leads').strip()
+    active_business_id = request.GET.get('business', '').strip()
+    
+    # Resolve business object if filtered
+    business_obj = None
+    if active_business_id and active_business_id.isdigit():
+        business_obj = Hospital.objects.filter(id=int(active_business_id)).first()
+    elif request.user.hospital:
+        business_obj = request.user.hospital
+
+    # Fetch employees for bulk assignment controls
+    if business_obj:
+        employees = User.objects.filter(hospital=business_obj, is_active=True).order_by('first_name', 'username')
+    elif request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN:
+        employees = User.objects.filter(is_active=True).order_by('first_name', 'username')
+    else:
+        employees = User.objects.filter(is_active=True).order_by('first_name', 'username')
+
+    context = {
+        "active": "management_dashboard",
+        "today": today,
+        "today_str": today.isoformat(),
+        "card_type": card_type,
+        "card_title": card_title,
+        "business_id": active_business_id,
+        "business_obj": business_obj,
+        "employees": employees,
+        "request_get": request.GET,
+    }
+    return render(request, "dashboard/drilldown_page.html", context)
+

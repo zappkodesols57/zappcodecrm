@@ -454,20 +454,24 @@ def get_filtered_leads(request, base_qs=None):
         leads = leads.filter(
             Q(created_at__date=today) | Q(inquiry_date=today)
         )
-    elif quick_filter == "call_not_done":
+    elif quick_filter in ("call_not_done", "uncontacted"):
+        uncontacted_filter = (
+            Q(stage__name__icontains="new") |
+            Q(stage__name__icontains="fresh") |
+            Q(stage__name__icontains="uncontacted") |
+            Q(deal_status="OPEN", followup_count=0) |
+            Q(temperature="UNCONTACTED")
+        )
         leads = leads.filter(
             deal_status__in=[DealStatus.OPEN, 'New', 'OPEN'],
-            admission_status__in=[AdmissionStatus.OPEN, '', None],
-            admission__isnull=True,
-            followup_count=0,
-            next_followup_date__isnull=True,
-        ).filter(
-            Q(stage__isnull=True) | Q(stage__name__in=['New', 'Fresh', 'Uncontacted', 'new', 'fresh', 'uncontacted'])
-        ).distinct()
-    elif quick_filter == "admission_today":
-        leads = leads.filter(
-            Q(admission_status="ADMISSION_DONE") | Q(deal_status="WON") | Q(admission__admission_date=today) | Q(custom_data__admission_date=str(today))
-        ).distinct()
+            admission_status__in=[AdmissionStatus.OPEN, 'OPEN', '', None],
+            admission__isnull=True
+        ).filter(uncontacted_filter).exclude(deal_status__in=[DealStatus.WON, DealStatus.LOST]).distinct()
+    elif quick_filter in ("admission_today", "admissions", "won", "conversions"):
+        admissions_filter = (
+            Q(admission_status="WON") | Q(deal_status="WON") | Q(stage__name__icontains="admission") | Q(admission__isnull=False)
+        )
+        leads = leads.filter(admissions_filter).distinct()
     elif quick_filter == "billing_today":
         leads = leads.filter(
             Q(admission__payments__payment_status='SUCCESS', admission__payments__created_at__date=today) |
@@ -3678,7 +3682,7 @@ def _ensure_business_core_fields(h):
             ('temperature', 'Lead Temperature', 'DROPDOWN', 12, False, True, 'Select Temperature', 'HOT, WARM, COLD'),
             ('stage', 'Lead Stage', 'DROPDOWN', 13, True, True, 'Select Stage', 'New, Contacted, Follow Up, Demo Attended, Interested, Admission Confirmed, Lost / Dropped'),
             ('deal_status', 'Deal Status', 'DROPDOWN', 14, False, True, 'Select Deal Status', 'OPEN, WON, LOST, ON_HOLD'),
-            ('admission_status', 'Admission Status', 'DROPDOWN', 15, True, True, 'Select Admission Status', 'NOT_APPLIED, APPLIED, INTERESTED, ADMISSION_DONE, CANCELLED'),
+            ('admission_status', 'Admission Status', 'DROPDOWN', 15, True, True, 'Select Admission Status', 'OPEN, HOLD, WON, LOST'),
             ('inquiry_date', 'Inquiry Date', 'DATE', 16, True, True, 'Select inquiry date', ''),
             ('lead_source', 'Lead Source', 'DROPDOWN', 17, False, True, 'Select Source', 'Meta Ads, Google Ads, Direct Walk-in, College Visit, JustDial, Website Form, Referral, Student Referral'),
             ('campaign', 'Campaign', 'DROPDOWN', 18, False, True, 'Select Campaign', 'ZA Meta Campaign 2026, Summer Batch Campaign, Python Masters, B2B Zappkode'),

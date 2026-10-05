@@ -28,8 +28,15 @@ class ImportJob(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    @property
+    def uploader_name(self):
+        if self.created_by:
+            return self.created_by.get_full_name() or self.created_by.username or "System"
+        return "System"
+
     def __str__(self):
         return f"Import {self.original_filename} ({self.status})"
+
 
 
 class ImportError(models.Model):

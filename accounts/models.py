@@ -4,6 +4,10 @@ from django.db import models
 
 
 class Hospital(models.Model):
+    """
+    Core Multi-Tenant Organization / Business entity.
+    Represents any business entity onboarded on the CRM (e.g. Zappcode Academy, Nelson Hospital, Clinics, Companies).
+    """
     name = models.CharField(max_length=255)
     logo = models.ImageField(upload_to='hospital_logos/', null=True, blank=True)
     contact_email = models.EmailField(blank=True)
@@ -14,6 +18,10 @@ class Hospital(models.Model):
     allowed_roles = models.JSONField(default=list, blank=True, help_text="List of roles enabled for this business/tenant (e.g. ['ADMIN', 'MANAGER', 'LEAD_ATTENDENT', 'DOCTOR'])")
     is_active = models.BooleanField(default=True, db_index=True, help_text="Active status of this business/tenant")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Business / Hospital"
+        verbose_name_plural = "Businesses / Hospitals"
 
     def get_allowed_roles(self):
         """Returns list of allowed role keys for this business. Excludes Super Admin & Zappcode internal roles for hospitals."""
@@ -30,6 +38,7 @@ class Hospital(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class User(AbstractUser):
     """Custom user with CRM role. Role drives server-side permission checks
@@ -71,6 +80,7 @@ class User(AbstractUser):
         ("PHYSIOTHERAPY", "PHYSIOTHERAPY"),
         ("ENT", "ENT"),
         ("DERMATOLOGIST", "DERMATOLOGIST"),
+        ("Other", "Other"),
     ]
 
     SPECIALITY_CHOICES = [
