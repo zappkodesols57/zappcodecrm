@@ -589,10 +589,19 @@ class Lead(models.Model):
     def __str__(self):
         return f"{self.lead_code} — {self.name}"
 
+    def get_custom(self, key, default=""):
+        """Safely fetch values from custom_data dictionary."""
+        if not self.custom_data or not isinstance(self.custom_data, dict):
+            return default
+        val = self.custom_data.get(key)
+        return val if val is not None else default
+
+
     @property
     def business(self):
         """Standardized business tenant object."""
         return self.hospital
+
 
     @property
     def business_id(self):
