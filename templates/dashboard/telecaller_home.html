@@ -5,86 +5,103 @@
 <!-- Simple Dashboard Header -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
-        <h4 class="fw-bold text-dark mb-0">Dashboard</h4>
-        <span class="text-muted small">Welcome, {{ request.user.get_full_name|default:request.user.username }}</span>
+        <h3 class="fw-bold text-dark mb-0" style="color: #0f172a; font-weight: 800; letter-spacing: -0.02em;">Dashboard</h3>
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'dashboard:tasks' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm">
+        <a href="{% url 'dashboard:tasks' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-xs" style="border-color: #cbd5e1 !important; color: #0f2744 !important; background: #ffffff !important; font-weight: 600;">
             <i class="fa-solid fa-list-check me-1"></i> Manage Tasks
         </a>
-        <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+        <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-primary rounded-pill px-4 shadow-xs" style="background-color: var(--brand) !important; border-color: var(--brand) !important; font-weight: 600;">
             <i class="fa-solid fa-user-tag me-1"></i> My Leads
         </a>
     </div>
 </div>
 
-<!-- 4 Key Metric Cards -->
+<!-- 4 Key Metric Cards (Clean 2-Color Design: Dark Navy & White) -->
 <div class="row g-3 mb-4">
-    <!-- 1. Calls Today -->
+    <!-- 1. Calls Today / Today's New Leads -->
     <div class="col-6 col-lg-3">
         <a href="{% url 'dashboard:call_history' %}?call_date={{ today_date|date:'Y-m-d' }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-primary border-4 h-100 position-relative">
+            <div class="card border p-3.5 bg-white h-100 position-relative" style="border: 1px solid #e2e8f0 !important; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                 <div class="position-absolute top-0 end-0 p-3">
-                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="fa-solid fa-phone-volume fs-6"></i>
+                    <div class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center border" style="width: 34px; height: 34px; border-color: #e2e8f0 !important;">
+                        <i class="fa-solid fa-user-group fs-6" style="color: #0f2744;"></i>
                     </div>
                 </div>
                 <div class="pe-4">
-                    <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Calls Today</span>
-                    <h2 class="fw-bold text-primary mb-0 mt-1">{{ calls_today_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">By you today</span>
+                    <span class="small fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px; color: #475569;">TODAY'S NEW LEADS</span>
+                    <h2 class="fw-bold mb-1 mt-2" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ calls_today_count }}</h2>
+                    <div class="d-flex align-items-center gap-1.5 mt-2">
+                        <span class="badge rounded-pill bg-light text-dark border px-2 py-0.5" style="font-size: 0.65rem; border-color: #cbd5e1 !important;">Active</span>
+                        <span class="small text-muted" style="font-size: 0.72rem;">View Fresh Leads</span>
+                    </div>
                 </div>
             </div>
         </a>
     </div>
 
-    <!-- 2. Today's Appointments Booked -->
+    <!-- 2. Call Not Done -->
     <div class="col-6 col-lg-3">
         <a href="{% url 'leads:lead_list' %}?appointment_status=Booked" class="text-decoration-none">
-            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-success border-4 h-100 position-relative">
+            <div class="card border p-3.5 bg-white h-100 position-relative" style="border: 1px solid #e2e8f0 !important; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                 <div class="position-absolute top-0 end-0 p-3">
-                    <div class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="fa-solid fa-calendar-check fs-6"></i>
+                    <div class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center border" style="width: 34px; height: 34px; border-color: #e2e8f0 !important;">
+                        <i class="fa-solid fa-phone fs-6" style="color: #0f2744;"></i>
                     </div>
                 </div>
                 <div class="pe-4">
-                    <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Today's Appointments Booked</span>
-                    <h2 class="fw-bold text-success mb-0 mt-1">{{ appts_today_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">Scheduled / Booked for today</span>
+                    <span class="small fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px; color: #475569;">CALL NOT DONE</span>
+                    <h2 class="fw-bold mb-1 mt-2" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ appts_today_count }}</h2>
+                    <div class="d-flex align-items-center gap-1.5 mt-2">
+                        <span class="badge rounded-pill bg-light text-dark border px-2 py-0.5" style="font-size: 0.65rem; border-color: #cbd5e1 !important;">Queue</span>
+                        <span class="small text-muted" style="font-size: 0.72rem;">Pending Calls</span>
+                    </div>
                 </div>
             </div>
         </a>
     </div>
 
-    <!-- 3. New Hot Leads Today Overall -->
+    <!-- 3. Admission & Billing -->
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-warning border-4 h-100 position-relative">
+        <div class="card border p-3.5 bg-white h-100 position-relative" style="border: 1px solid #e2e8f0 !important; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <div class="position-absolute top-0 end-0 p-3">
-                <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                    <i class="fa-solid fa-fire fs-6"></i>
+                <div class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center border" style="width: 34px; height: 34px; border-color: #e2e8f0 !important;">
+                    <i class="fa-solid fa-file-invoice fs-6" style="color: #0f2744;"></i>
                 </div>
             </div>
             <div class="pe-4">
-                <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">New Hot Leads</span>
-                <h2 class="fw-bold text-warning mb-0 mt-1">{{ hot_leads_today_count }}</h2>
-                <span class="small text-muted" style="font-size: 0.72rem;">Received today</span>
+                <span class="small fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px; color: #475569;">ADMISSION & BILLING</span>
+                <div class="d-flex align-items-baseline gap-2 mt-2 mb-1">
+                    <h2 class="fw-bold mb-0" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ hot_leads_today_count }}</h2>
+                    <span class="small text-muted fw-semibold" style="font-size: 0.82rem;">Admissions</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <span class="small text-muted" style="font-size: 0.72rem;"><i class="fa-regular fa-circle-check me-1"></i>Adm: {{ hot_leads_today_count }}</span>
+                    <span class="small text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-receipt me-1"></i>Bill: 0</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 4. Pending Follow-ups Remaining -->
+    <!-- 4. Follow-ups Queue -->
     <div class="col-6 col-lg-3">
         <a href="{% url 'followups:today' %}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-danger border-4 h-100 position-relative">
+            <div class="card border p-3.5 bg-white h-100 position-relative" style="border: 1px solid #e2e8f0 !important; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                 <div class="position-absolute top-0 end-0 p-3">
-                    <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="fa-solid fa-clock-rotate-left fs-6"></i>
+                    <div class="rounded-circle bg-light text-dark d-inline-flex align-items-center justify-content-center border" style="width: 34px; height: 34px; border-color: #e2e8f0 !important;">
+                        <i class="fa-regular fa-calendar-check fs-6" style="color: #0f2744;"></i>
                     </div>
                 </div>
                 <div class="pe-4">
-                    <span class="small text-muted fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px;">Pending Follow-ups</span>
-                    <h2 class="fw-bold text-danger mb-0 mt-1">{{ pending_followups_count|default:overdue_followups_count }}</h2>
-                    <span class="small text-muted" style="font-size: 0.72rem;">Scheduled & pending calls</span>
+                    <span class="small fw-bold text-uppercase d-block" style="font-size: 0.72rem; letter-spacing: 0.5px; color: #475569;">FOLLOW-UPS QUEUE</span>
+                    <div class="d-flex align-items-baseline gap-2 mt-2 mb-1">
+                        <h2 class="fw-bold mb-0" style="color: #0f172a; font-size: 2rem; font-weight: 800;">{{ pending_followups_count|default:overdue_followups_count }}</h2>
+                        <span class="small text-muted fw-semibold" style="font-size: 0.82rem;">Total Due</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <span class="small text-muted" style="font-size: 0.72rem;"><i class="fa-regular fa-clock me-1"></i>Upcoming: {{ upcoming_followups_count|default:0 }}</span>
+                        <span class="small text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i>Overdue: {{ overdue_followups_count|default:0 }}</span>
+                    </div>
                 </div>
             </div>
         </a>

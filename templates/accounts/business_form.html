@@ -14,9 +14,24 @@
       {% csrf_token %}
       
       <div class="row g-3">
+        <!-- Industry Type & Business Code -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold text-dark"><i class="fa-solid fa-industry text-primary me-1"></i> Industry / Business Type <span class="text-danger">*</span></label>
+          {{ form.industry }}
+          {% if form.industry.errors %}<div class="text-danger small mt-1">{{ form.industry.errors|striptags }}</div>{% endif %}
+          <div class="text-muted small mt-1" style="font-size: 0.75rem;">Defines industry metrics, default workflows & custom form tabs.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label small fw-bold text-dark"><i class="fa-solid fa-fingerprint text-primary me-1"></i> Unique Business ID</label>
+          {{ form.business_code }}
+          {% if form.business_code.errors %}<div class="text-danger small mt-1">{{ form.business_code.errors|striptags }}</div>{% endif %}
+          <div class="text-muted small mt-1" style="font-size: 0.75rem;">Auto-generated unique ID per business tenant.</div>
+        </div>
+
         <!-- Business Name -->
         <div class="col-md-12">
-          <label class="form-label small fw-bold text-dark">Business / Hospital / Organization Name <span class="text-danger">*</span></label>
+          <label class="form-label small fw-bold text-dark">Business / Organization Name <span class="text-danger">*</span></label>
           {{ form.name }}
           {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors|striptags }}</div>{% endif %}
         </div>

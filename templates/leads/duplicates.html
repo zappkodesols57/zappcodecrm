@@ -1,29 +1,186 @@
 {% extends "base.html" %}
 {% block title %}Duplicate Management{% endblock %}
 {% block content %}
-<h4 class="mb-3">Duplicate Management</h4>
-<p class="text-muted small">Leads sharing the same mobile number (normalized). Review and merge/archive manually — the CRM never auto-deletes data.</p>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clone text-brand me-2"></i>Duplicate Management</h4>
+    <p class="text-muted small mb-0">Review leads with matching mobile numbers. Easily <strong>Delete</strong> redundant duplicates or <strong>Merge</strong> multiple entries into a single master record.</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
+      <i class="fa-solid fa-layer-group me-1"></i> {{ dup_groups|length }} Duplicate Groups Detected
+    </span>
+  </div>
+</div>
 
 {% for group in dup_groups %}
-<div class="card mb-3">
-  <div class="card-body">
-    <div class="small text-muted mb-2">Mobile match: {{ group.0.mobile }} · {{ group|length }} records</div>
-    <table class="table table-sm mb-0">
-      <thead><tr><th>Lead ID</th><th>Name</th><th>Course</th><th>Source</th><th>Stage</th><th>Assigned</th><th>Created</th><th></th></tr></thead>
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 14px;">
+  <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2 rounded-top-4">
+    <div class="d-flex align-items-center gap-2">
+      <div style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000066;">
+        <i class="fa-solid fa-phone"></i>
+      </div>
+      <div>
+        <h6 class="mb-0 fw-bold text-dark">Mobile: {{ group.0.mobile }}</h6>
+        <span class="text-muted small" style="font-size: 0.75rem;">Total <strong>{{ group|length }}</strong> matching records</span>
+      </div>
+    </div>
+    
+    <!-- Group Action: Merge Button -->
+    <button type="button" class="btn btn-sm btn-brand text-white rounded-pill px-3 shadow-xs" data-bs-toggle="modal" data-bs-target="#mergeModal{{ forloop.counter }}">
+      <i class="fa-solid fa-code-merge me-1"></i> Merge Group Leads
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Student Name</th>
+          <th>Contact & Email</th>
+          <th>Course / Department</th>
+          <th>Source</th>
+          <th>Stage</th>
+          <th>Assigned To</th>
+          <th>Created Date</th>
+          <th class="text-end pe-4">Actions</th>
+        </tr>
+      </thead>
       <tbody>
         {% for l in group %}
         <tr>
-          <td>{{ l.lead_code }}</td><td>{{ l.name }}</td><td>{{ l.course|default:"—" }}</td>
-          <td>{{ l.lead_source|default:"—" }}</td><td>{{ l.stage }}</td><td>{{ l.assigned_to|default:"—" }}</td>
-          <td>{{ l.created_at|date:"d-m-Y" }}</td>
-          <td><a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-primary">View</a></td>
+          <td class="ps-4">
+            <div class="fw-bold text-dark">{{ l.name }}</div>
+            {% if forloop.first %}
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 rounded-pill" style="font-size: 0.68rem;">Oldest Record</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="small fw-semibold text-dark"><i class="fa-solid fa-phone me-1 text-secondary"></i>{{ l.mobile }}</div>
+            {% if l.email %}<div class="small text-muted"><i class="fa-solid fa-envelope me-1 text-secondary"></i>{{ l.email }}</div>{% endif %}
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border">
+              {{ l.course.name|default:l.custom_dept|default:"—" }}
+            </span>
+          </td>
+          <td>{{ l.lead_source.name|default:"—" }}</td>
+          <td>
+            <span class="badge bg-secondary-subtle text-dark border">
+              {{ l.stage.name|default:"—" }}
+            </span>
+          </td>
+          <td>
+            {% if l.assigned_to %}
+              {{ l.assigned_to.get_full_name|default:l.assigned_to.username }}
+            {% else %}
+              <span class="text-muted">Unassigned</span>
+            {% endif %}
+          </td>
+          <td>{{ l.effective_created_display|default:l.created_at|date:"d M Y" }}</td>
+          <td class="text-end pe-4">
+            <div class="d-inline-flex gap-1">
+              <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-2" title="View Lead Profile" target="_blank">
+                <i class="fa-solid fa-eye me-1"></i> View
+              </a>
+              
+              <!-- Individual Delete / Remove -->
+              <form method="post" action="{% url 'leads:duplicate_lead_delete' l.pk %}" class="d-inline m-0 p-0" onsubmit="return confirm('Are you sure you want to remove duplicate lead \'{{ l.name }}\' ({{ l.mobile }})?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2.5 rounded-2" title="Delete Duplicate Record">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- Merge Modal for this Group -->
+<div class="modal fade" id="mergeModal{{ forloop.counter }}" tabindex="-1" aria-labelledby="mergeModalLabel{{ forloop.counter }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form method="post" action="{% url 'leads:duplicate_leads_merge' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold text-dark" id="mergeModalLabel{{ forloop.counter }}">
+            <i class="fa-solid fa-code-merge text-primary me-2"></i> Merge Duplicate Leads ({{ group.0.mobile }})
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        
+        <div class="modal-body py-3">
+          <p class="text-muted small mb-3">
+            Select the <strong>Master Record (Primary Lead)</strong> to keep. All notes, follow-up history, and interaction logs from the duplicate records will be automatically transferred to the Master Record, and duplicate records will be safely archived.
+          </p>
+          
+          <div class="table-responsive border rounded-3">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 50px;" class="text-center">Master</th>
+                  <th>Student Name</th>
+                  <th>Course / Dept</th>
+                  <th>Stage</th>
+                  <th>Assigned To</th>
+                  <th>Created Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for l in group %}
+                <tr>
+                  <td class="text-center">
+                    <input class="form-check-input" type="radio" name="primary_lead_id" value="{{ l.pk }}" id="primary_{{ l.pk }}" {% if forloop.first %}checked{% endif %} required>
+                    <input type="hidden" name="duplicate_lead_ids" value="{{ l.pk }}">
+                  </td>
+                  <td>
+                    <label class="form-check-label fw-bold text-dark cursor-pointer d-block" for="primary_{{ l.pk }}">
+                      {{ l.name }}
+                    </label>
+                    <small class="text-muted">{{ l.email|default:"No email" }}</small>
+                  </td>
+                  <td>{{ l.course.name|default:l.custom_dept|default:"—" }}</td>
+                  <td>{{ l.stage.name|default:"—" }}</td>
+                  <td>
+                    {% if l.assigned_to %}
+                      {{ l.assigned_to.get_full_name|default:l.assigned_to.username }}
+                    {% else %}
+                      <span class="text-muted">Unassigned</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ l.effective_created_display|default:l.created_at|date:"d M Y" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="alert alert-info small mt-3 mb-0">
+            <i class="fa-solid fa-circle-info me-1"></i> <strong>Note:</strong> Merging will consolidate all notes and follow-ups into the selected Master record. Duplicate entries will be removed from active lead queues.
+          </div>
+        </div>
+        
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary fw-bold px-4">
+            <i class="fa-solid fa-code-merge me-1"></i> Confirm & Merge Leads
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% empty %}
-<div class="card"><div class="card-body"><div class="empty-state"><i class="fa-solid fa-circle-check"></i>No duplicate leads found.</div></div></div>
+<div class="card shadow-sm border-0" style="border-radius: 14px;">
+  <div class="card-body text-center py-5">
+    <i class="fa-solid fa-circle-check text-success fs-1 d-block mb-3"></i>
+    <h5 class="fw-bold text-dark">No Duplicate Leads Found</h5>
+    <p class="text-muted small mb-0">All leads across your assigned organization have unique phone numbers.</p>
+  </div>
+</div>
 {% endfor %}
 {% endblock %}

@@ -3,83 +3,115 @@
 
 {% block content %}
 <!-- Top Header & Actions -->
-<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-  <div>
-    <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
-    <h4 class="mb-1 fw-bold text-dark d-flex align-items-center gap-2 flex-wrap">{{ lead.name }}
-      {% if lead.display_status == 'Payment Done' %}
-        <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done ({{ lead.remark_detail }})</span>
-      {% elif lead.display_status == 'Booking Confirmed' %}
-        <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed ({{ lead.remark_detail }})</span>
-      {% elif lead.display_status == 'Booked' %}
-        <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked ({{ lead.remark_detail }})</span>
-      {% elif lead.display_status == 'Booking Approval Pending' %}
-        <span class="badge badge-booking-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Booking Approval Pending</span>
-      {% elif lead.display_status == 'Follow-up Needed' %}
-        <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
-      {% elif lead.display_status == 'Payment Pending' %}
-        <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
-      {% elif lead.display_status == 'New' %}
-        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
-      {% elif lead.display_status == 'Open' %}
-        <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
-      {% elif lead.display_status == 'Assigned' %}
-        <span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
-      {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
-        <span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
-      {% else %}
-        <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
-      {% endif %}
+<div class="row align-items-center mb-3 g-2">
+  <div class="col-12 col-xl-6 col-lg-5">
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'leads:lead_list' %}';" class="btn btn-sm btn-light border shadow-2xs rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" title="Go Back">
+        <i class="fa-solid fa-arrow-left text-secondary"></i>
+      </button>
+      <div class="text-truncate">
+        <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h4 class="mb-0 fw-bold text-dark d-inline">{{ lead.name }}</h4>
+          {% if lead.display_status == 'Payment Done' %}
+            <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done{% if lead.total_billed_amount > 0 %} (₹{{ lead.total_billed_amount|floatformat:0 }}){% endif %}</span>
+          {% elif lead.display_status == 'Booking Confirmed' %}
+            <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed</span>
+          {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
+            <span class="badge badge-booking-pending"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
+          {% elif lead.display_status == 'Booked' %}
+            <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked</span>
+          {% elif lead.display_status == 'Follow-up Needed' %}
+            <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
+            {% if lead.next_followup_date %}
+              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
+            {% endif %}
+          {% elif lead.display_status == 'Payment Pending' %}
+            <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
+          {% elif lead.display_status == 'New' %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
+          {% elif lead.display_status == 'Open' %}
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
+          {% elif lead.display_status == 'Assigned' %}
+            <span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
+          {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
+            <span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
+          {% else %}
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
+          {% endif %}
 
-      {% if lead.custom_temperature %}
-        {% if lead.custom_temperature == 'Hot' %}
-          <span class="badge badge-hot"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
-        {% elif lead.custom_temperature == 'Warm' %}
-          <span class="badge badge-warm"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
-        {% elif lead.custom_temperature == 'Cold' %}
-          <span class="badge badge-cold"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
-        {% elif lead.custom_temperature == 'Freeze' %}
-          <span class="badge badge-freeze"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
-        {% endif %}
-      {% endif %}
-    </h4>
-    <div class="text-muted small d-flex gap-3 mt-1">
-      <span><i class="fa-solid fa-phone text-secondary me-1"></i><strong>{{ lead.mobile }}</strong></span>
-      {% if lead.city or lead.custom_data.location %}
-        <span><i class="fa-solid fa-location-dot text-danger me-1"></i>{{ lead.custom_data.location|default:lead.city }}</span>
-      {% endif %}
-      {% if lead.custom_data.gender %}
-        <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
-      {% endif %}
-      <span>
-        <i class="fa-solid fa-user-check text-success me-1"></i>Lead Owner:
-        <strong class="text-dark">{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</strong>
-      </span>
-      <span>
-        <i class="fa-regular fa-calendar-days text-primary me-1"></i>Created:
-        <strong class="text-dark">{{ lead.effective_created_display }}</strong>
-      </span>
+          {% if lead.custom_temperature %}
+            {% if lead.custom_temperature == 'Hot' %}
+              <span class="badge badge-hot"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
+            {% elif lead.custom_temperature == 'Warm' %}
+              <span class="badge badge-warm"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
+            {% elif lead.custom_temperature == 'Cold' %}
+              <span class="badge badge-cold"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
+            {% elif lead.custom_temperature == 'Freeze' %}
+              <span class="badge badge-freeze"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="text-muted small d-flex gap-3 mt-1 flex-wrap align-items-center">
+          <span><i class="fa-solid fa-phone text-secondary me-1"></i><strong>{{ lead.mobile }}</strong></span>
+          {% if lead.city or lead.custom_data.location %}
+            <span><i class="fa-solid fa-location-dot text-danger me-1"></i>{{ lead.custom_data.location|default:lead.city }}</span>
+          {% endif %}
+          {% if lead.custom_data.gender %}
+            <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
+          {% endif %}
+          <span>
+            <i class="fa-solid fa-user-check text-success me-1"></i>Lead Owner:
+            <strong class="text-dark">{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</strong>
+          </span>
+          <span>
+            <i class="fa-regular fa-calendar-days text-primary me-1"></i>Created:
+            <strong class="text-dark">{{ lead.effective_created_display }}</strong>
+          </span>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="d-flex gap-2 align-items-center flex-wrap">
-    <!-- 1-Click Dynamic WhatsApp Message to Patient -->
-    {% if lead.mobile %}
-    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
-      <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
-    </a>
-    {% endif %}
-    <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
-    {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-    <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
-      <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
-    </a>
-    {% endif %}
+  <div class="col-12 col-xl-6 col-lg-7">
+    <div class="d-flex gap-2 justify-content-lg-end align-items-center flex-wrap">
+      <!-- 1-Click Dynamic WhatsApp Message to Patient -->
+      {% if lead.mobile %}
+      <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
+        <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
+      </a>
+      {% endif %}
+      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+      {% if prev_lead %}
+        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
+      {% endif %}
+      {% if next_lead %}
+        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
+      {% endif %}
+      {% if not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' %}
+      <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}" class="d-inline" onsubmit="return confirm('Do you want to capture and assign this patient lead to yourself?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3">
+          <i class="fa-solid fa-hand-holding-hand me-1"></i> Capture & Assign to Me
+        </button>
+      </form>
+      {% endif %}
+      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
+      {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+      <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
+        <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
+      </a>
+      {% endif %}
+    </div>
   </div>
 </div>
 
 <div class="row g-3">
   <!-- Left Column: Patient & Hospital Info -->
-  <div class="col-lg-8">
+  <div class="col-lg-6">
 
     <!-- Hospital Consultation & Appointment Info -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
@@ -138,7 +170,71 @@
             </div>
           </div>
           {% endfor %}
+
+          <!-- Doctor Remarks Box (if any) -->
+          {% if lead.custom_doctor_remark or latest_appointment.doctor_notes %}
+          <div class="col-12">
+            <div class="p-3 border rounded-3 bg-primary bg-opacity-10 border-primary-subtle">
+              <span class="text-primary d-block fw-bold small mb-1">
+                <i class="fa-solid fa-user-doctor me-1"></i> Latest Doctor Clinical Remarks &amp; Instructions:
+              </span>
+              <div class="text-dark small text-break" style="white-space: pre-wrap;">{{ lead.custom_doctor_remark|default:latest_appointment.doctor_notes }}</div>
+            </div>
+          </div>
+          {% endif %}
         </div>
+
+        <!-- Appointments & Consultations History Table (if multiple / historical appointments exist) -->
+        {% if appointments_history %}
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold small text-dark"><i class="fa-solid fa-clock-rotate-left text-primary me-1"></i> Consultation &amp; Appointment History</span>
+            <span class="badge bg-light text-secondary border">{{ appointments_history|length }} Total</span>
+          </div>
+          <div class="table-responsive rounded-3 border">
+            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.78rem;">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3 py-2 text-muted">DATE &amp; TIME</th>
+                  <th class="py-2 text-muted">DOCTOR</th>
+                  <th class="py-2 text-muted">STATUS</th>
+                  <th class="py-2 text-muted">CLINICAL REMARKS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for apt in appointments_history %}
+                <tr>
+                  <td class="ps-3 py-2 fw-semibold text-nowrap">
+                    {{ apt.appointment_date|date:"d M Y" }}
+                    {% if apt.appointment_time %}<small class="text-muted d-block">{{ apt.appointment_time|time:"h:i A" }}</small>{% endif %}
+                  </td>
+                  <td class="py-2">
+                    <span class="fw-bold text-dark">Dr. {{ apt.doctor_name }}</span>
+                  </td>
+                  <td class="py-2 text-nowrap">
+                    {% if apt.status == 'COMPLETED' %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>Completed</span>
+                    {% elif apt.status == 'APPROVED' %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i>Confirmed</span>
+                    {% elif apt.status == 'SCHEDULED' %}
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i>Scheduled (Next)</span>
+                    {% elif apt.status == 'CANCELLED' %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">Cancelled</span>
+                    {% else %}
+                      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1">{{ apt.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="py-2 text-muted text-break" style="max-width: 250px;">
+                    {{ apt.doctor_notes|default:"—" }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
       </div>
     </div>
 
@@ -173,105 +269,214 @@
               <strong class="fs-6">₹{{ lead.custom_data.total|default:"0.00" }}</strong>
             </div>
           </div>
+          {% if lead.custom_data.payment_remarks or lead.custom_data.remark_1 %}
+          <div class="col-12 mt-2">
+            <div class="p-2 border rounded-3 bg-light">
+              <span class="text-muted d-block fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-comment-dollar text-success me-1"></i>Payment Remarks:</span>
+              <span class="text-dark">{{ lead.custom_data.payment_remarks|default:lead.custom_data.remark_1 }}</span>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
 
-    <!-- Telecaller Calling Remarks History -->
+    <!-- Import & System Provenance Card -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-headset text-info me-2"></i>Attendant Calling Remarks</h6>
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-import text-primary me-2"></i>Import & Creation Provenance</h6>
+        {% if lead.import_job or lead.import_source_file %}
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill">Imported File Record</span>
+        {% elif lead.external_lead_id %}
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">Meta API Sync</span>
+        {% else %}
+          <span class="badge bg-light text-secondary border rounded-pill">Direct CRM Record</span>
+        {% endif %}
       </div>
       <div class="card-body">
-        <div class="list-group list-group-flush">
-          {% if lead.custom_data.remark_1 or lead.custom_data.calling_date_remark_1 %}
-          <div class="list-group-item px-0 py-2">
-            <div class="d-flex justify-content-between small mb-1">
-              <strong>Remark 1 (Initial Call)</strong>
-              <span class="text-muted">{{ lead.custom_data.calling_date_remark_1|default:"" }}</span>
+        <div class="row g-2 small">
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">Lead Received / Created Time</span>
+              <strong class="text-dark"><i class="fa-regular fa-calendar-check text-success me-1"></i>{{ lead.effective_created_formatted|default:lead.inquiry_date }}</strong>
             </div>
-            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_1|default:"No notes recorded" }}</p>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">CRM System Import Date</span>
+              <strong class="text-dark">
+                {% if lead.import_job %}
+                  <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.import_job.created_at|date:"d M Y, h:i A" }}
+                {% elif lead.created_at %}
+                  <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.created_at|date:"d M Y, h:i A" }}
+                {% else %}
+                  —
+                {% endif %}
+              </strong>
+            </div>
+          </div>
+          {% if lead.import_source_file or lead.import_job %}
+          <div class="col-12">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">Import Source File</span>
+              <strong class="text-primary text-break"><i class="fa-solid fa-file-excel me-1"></i>{% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}</strong>
+            </div>
           </div>
           {% endif %}
-
-          {% if lead.custom_data.remark_2 or lead.custom_data.calling_date_remark_2 %}
-          <div class="list-group-item px-0 py-2">
-            <div class="d-flex justify-content-between small mb-1">
-              <strong>Remark 2 (Follow-up Call)</strong>
-              <span class="text-muted">{{ lead.custom_data.calling_date_remark_2|default:"" }} {{ lead.custom_data.calling_time_remark_2|default:"" }}</span>
+          {% if lead.external_lead_id %}
+          <div class="col-12">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block" style="font-size: 0.72rem;">Meta External Lead ID</span>
+              <span class="font-monospace text-muted">{{ lead.external_lead_id }}</span>
             </div>
-            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_2|default:"No notes recorded" }}</p>
           </div>
-          {% endif %}
-
-          {% if lead.custom_data.remark_3 or lead.custom_data.calling_date_remark_3 %}
-          <div class="list-group-item px-0 py-2">
-            <div class="d-flex justify-content-between small mb-1">
-              <strong>Remark 3 (Final Status)</strong>
-              <span class="text-muted">{{ lead.custom_data.calling_date_remark_3|default:"" }}</span>
-            </div>
-            <p class="mb-0 small text-secondary">{{ lead.custom_data.remark_3|default:"No notes recorded" }}</p>
-          </div>
-          {% endif %}
-
-          {% if not lead.custom_data.remark_1 and not lead.custom_data.remark_2 and not lead.custom_data.remark_3 %}
-          <div class="text-muted text-center py-2 small">No calling remarks recorded yet.</div>
           {% endif %}
         </div>
       </div>
     </div>
 
+  </div>
 
-    <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-secondary me-2"></i>Activity Timeline</h6>
+  <!-- Right Column: Campaign, Source, Owner & Timeline -->
+  <div class="col-lg-6">
+    <!-- Activity Timeline & Remarks -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-primary me-2"></i>Activity Timeline & Remarks</h6>
+        <span class="badge bg-light text-secondary border">{{ timeline|length }} events</span>
       </div>
       <div class="card-body">
-        <div class="timeline">
+        <!-- Lead Confidential Notes / Form Remarks (if present) -->
+        {% if lead.notes %}
+        <div class="p-2 mb-3 rounded-3 bg-light border border-secondary-subtle">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <span class="fw-bold text-dark small"><i class="fa-solid fa-comment-dots text-primary me-1"></i> Form Note / Remarks</span>
+            <span class="badge bg-white text-muted border" style="font-size: 0.68rem;">Original</span>
+          </div>
+          <div class="text-secondary small text-break" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;">{{ lead.notes }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Add Note / Remark Form right inside Timeline -->
+        <form method="post" action="{% url 'leads:add_note' lead.pk %}" class="mb-3">
+          {% csrf_token %}
+          <div class="input-group input-group-sm">
+            <textarea name="note" class="form-control" rows="2" placeholder="Add confidential note or remark..." required style="font-size: 0.82rem;"></textarea>
+            <button class="btn btn-brand text-white px-3" type="submit" title="Add Note to Timeline">
+              <i class="fa-solid fa-paper-plane me-1"></i> Add
+            </button>
+          </div>
+        </form>
+
+        <!-- Timeline Activities & Notes Feed -->
+        <div class="timeline" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">
           {% for item in timeline %}
-          <div class="timeline-item pb-3 mb-3 border-bottom small">
-            <div class="d-flex justify-content-between text-muted">
-              <span><strong>{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}</strong> — {{ item.get_activity_type_display }}</span>
-              <span>{{ item.created_at|date:"d M Y, h:i A" }}</span>
+          <div class="p-2 mb-2 rounded-3 border {% if item.activity_type == 'NOTE' %}bg-warning bg-opacity-10 border-warning-subtle{% elif item.activity_type == 'FOLLOWUP' %}bg-info bg-opacity-10 border-info-subtle{% else %}bg-light-subtle border-light-subtle{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+              <span class="fw-bold {% if item.activity_type == 'NOTE' %}text-warning-emphasis{% elif item.activity_type == 'FOLLOWUP' %}text-info-emphasis{% else %}text-dark{% endif %}">
+                {% if item.activity_type == 'NOTE' %}
+                  <i class="fa-solid fa-note-sticky text-warning me-1"></i>Note
+                {% elif item.activity_type == 'FOLLOWUP' %}
+                  <i class="fa-solid fa-phone-volume text-info me-1"></i>Follow-up
+                {% elif item.activity_type == 'STAGE_CHANGE' %}
+                  <i class="fa-solid fa-arrows-split-up-and-left text-primary me-1"></i>Stage
+                {% elif item.activity_type == 'ASSIGNMENT' %}
+                  <i class="fa-solid fa-user-check text-success me-1"></i>Assignment
+                {% else %}
+                  <i class="fa-solid fa-clock text-secondary me-1"></i>{{ item.get_activity_type_display }}
+                {% endif %}
+                &nbsp;·&nbsp;
+                {% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}
+              </span>
+              <span class="text-muted">{{ item.created_at|date:"d M Y, h:i A" }}</span>
             </div>
-            <div class="text-dark mt-1">{{ item.description }}</div>
+            <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ item.description }}</div>
           </div>
           {% empty %}
-          <div class="text-muted text-center py-3 small">No activity recorded yet.</div>
+          <div class="text-muted text-center py-4 small"><i class="fa-solid fa-clock me-1"></i> No activity recorded yet.</div>
           {% endfor %}
         </div>
       </div>
     </div>
 
-    <!-- Scheduled Follow-ups Section -->
-    {% if followups %}
+    <!-- Scheduled Follow-ups & Add Follow-up Section -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark">
-          <i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Scheduled Follow-ups
-        </h6>
-        <span class="badge bg-light text-secondary border rounded-pill">{{ followups|length }} follow-up{% if followups|length > 1 %}s{% endif %}</span>
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Scheduled Follow-ups
+          </h6>
+          {% if followups %}
+          <span class="badge bg-light text-secondary border rounded-pill">{{ followups|length }} follow-up{% if followups|length > 1 %}s{% endif %}</span>
+          {% endif %}
+        </div>
+        <!-- Toggle Button for Add Follow-up Form -->
+        <button class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
+          type="button" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="{% if not followups %}true{% else %}false{% endif %}" aria-controls="addFollowupCollapse"
+          style="font-size: 0.78rem;">
+          <i class="fa-solid fa-plus"></i> Add Follow-up
+        </button>
       </div>
+
+      <!-- Collapsible Add Follow-up Section -->
+      <div class="collapse {% if not followups %}show{% endif %}" id="addFollowupCollapse">
+        <div class="p-3 bg-light border-bottom">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="fw-bold small text-dark"><i class="fa-solid fa-calendar-plus text-primary me-1"></i> New Follow-up Entry</span>
+            <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-label="Close" style="font-size: 0.7rem;"></button>
+          </div>
+          <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
+            {% csrf_token %}
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Follow-up Date *</label>
+                <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Time</label>
+                <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Status</label>
+                <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
+                  <option value="PENDING" selected>Pending</option>
+                  <option value="RESCHEDULED">Rescheduled</option>
+                  <option value="COMPLETED">Completed</option>
+                </select>
+              </div>
+            </div>
+            <!-- Real-time time error alert -->
+            <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.78rem;">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
+            </div>
+            <div class="input-group">
+              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up remark or comment..." required>
+              <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Save Follow-up</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <div class="card-body p-3">
-        <div class="d-flex flex-column gap-2" style="max-height: 280px; overflow-y: auto;">
+        {% if followups %}
+        <div class="d-flex flex-column gap-2" style="max-height: 320px; overflow-y: auto;">
           {% for fu in followups %}
           <div class="p-3 rounded-3 border bg-white shadow-xs">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <div class="d-flex align-items-center gap-1 flex-wrap">
-                {% if fu.followup_status == 'DONE' %}
+                {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
                 <span class="badge bg-success" style="font-size: 0.72rem;">
-                  <i class="fa-solid fa-check-double me-1"></i>Follow-up Done
+                  <i class="fa-solid fa-check-double me-1"></i>Follow-up Completed
                 </span>
                 {% else %}
-                <span class="badge {% if fu.followup_status == 'COMPLETED' %}bg-success{% elif fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' or fu.followup_status == 'CALL_BACK' %}bg-info text-dark{% elif fu.followup_status == 'CANCELLED' or fu.followup_status == 'NOT_INTERESTED' %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size: 0.72rem;">
+                <span class="badge {% if fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' %}bg-info text-dark{% else %}bg-secondary{% endif %}" style="font-size: 0.72rem;">
                   {{ fu.get_followup_status_display }}
                 </span>
                 {% endif %}
-                <span class="badge bg-light text-secondary border" style="font-size: 0.72rem;">{{ fu.get_followup_mode_display }}</span>
               </div>
-              {% if fu.followup_status == 'DONE' %}
+              {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
               <span class="badge bg-secondary bg-opacity-10 text-muted border py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.73rem;">
-                <i class="fa-solid fa-lock me-1"></i>Follow-up Closed
+                <i class="fa-solid fa-lock me-1"></i>Completed
               </span>
               {% else %}
               <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#updateFollowupModal{{ fu.id }}" title="Update Follow-up Status">
@@ -294,42 +499,13 @@
           </div>
           {% endfor %}
         </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Add Follow-up & Interaction Section -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Add Follow-up</h6>
-      </div>
-      <div class="card-body">
-        <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
-          {% csrf_token %}
-          <div class="row g-2 mb-2">
-            <div class="col-md-4">
-              <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
-            </div>
-            <div class="col-md-4">
-              <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-4">
-              <select name="followup_status" class="form-select form-select-sm no-tom-select">
-                <option value="PENDING" selected>Pending</option>
-                <option value="RESCHEDULED">Rescheduled</option>
-                <option value="COMPLETED">Completed</option>
-              </select>
-            </div>
-          </div>
-          <!-- Real-time time error alert -->
-          <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.78rem;">
-            <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
-          </div>
-          <div class="input-group">
-            <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up remark or comment..." required>
-            <button type="submit" class="btn btn-sm btn-brand text-white" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Add</button>
-          </div>
-        </form>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="fa-regular fa-calendar-xmark fs-3 mb-2 opacity-50 d-block"></i>
+          <div class="small fw-semibold">No scheduled follow-ups yet</div>
+          <div class="small text-muted mb-2">Click "+ Add Follow-up" above to schedule the next follow-up call or visit.</div>
+        </div>
+        {% endif %}
       </div>
     </div>
     <script>
@@ -400,24 +576,7 @@
     </script>
 
   </div>
-
-  <!-- Right Column: Quick Notes -->
-  <div class="col-lg-4">
-    <!-- Quick Notes -->
-    <div class="card border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-regular fa-note-sticky text-warning me-2"></i>Internal Notes</h6>
-      </div>
-      <div class="card-body">
-        <form method="post" action="{% url 'leads:add_note' lead.pk %}">
-          {% csrf_token %}
-          <textarea name="notes" class="form-control form-control-sm mb-2" rows="3" placeholder="Add confidential notes...">{{ lead.notes }}</textarea>
-          <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-floppy-disk me-1"></i> Save Notes</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Follow-up Status Update Modals -->
 {% for fu in followups %}
 {% if fu.followup_status != 'COMPLETED' and fu.followup_status != 'DONE' %}
 <div class="modal fade" id="updateFollowupModal{{ fu.id }}" tabindex="-1" aria-labelledby="updateFollowupModalLabel{{ fu.id }}" aria-hidden="true">
@@ -437,7 +596,7 @@
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
-            <select name="followup_status" id="hospFuStatusSelect{{ fu.id }}" class="form-select form-select-sm no-tom-select modal-select" required onchange="const row = document.getElementById('hospRescheduleRow{{ fu.id }}'); const dIn = document.getElementById('hospReschedDate{{ fu.id }}'); if (this.value === 'RESCHEDULED') { if (row) row.style.display = 'flex'; if (dIn) dIn.required = true; } else { if (row) row.style.display = 'none'; if (dIn) dIn.required = false; }">
+            <select name="followup_status" id="fuStatusSelect{{ fu.id }}" class="form-select form-select-sm no-tom-select modal-select" required onchange="const row = document.getElementById('rescheduleRow{{ fu.id }}'); const dIn = document.getElementById('reschedDate{{ fu.id }}'); if (this.value === 'RESCHEDULED') { if (row) row.style.display = 'flex'; if (dIn) dIn.required = true; } else { if (row) row.style.display = 'none'; if (dIn) dIn.required = false; }">
               <option value="" disabled selected>-- Select Action (Complete or Reschedule) --</option>
               {% for val, label in followup_update_statuses %}
                 <option value="{{ val }}">{{ label }}</option>
@@ -445,16 +604,19 @@
             </select>
             <div class="form-text text-muted" style="font-size: 0.72rem;"><strong>Complete</strong> removes lead from active follow-ups. <strong>Reschedule</strong> creates new follow-up date/time.</div>
           </div>
-          <div class="row g-2 mb-3" id="hospRescheduleRow{{ fu.id }}" style="display: none;">
+
+          <!-- Reschedule / Next Date (Required when Reschedule selected) -->
+          <div class="row g-2 mb-3" id="rescheduleRow{{ fu.id }}" style="display: none;">
             <div class="col-7">
               <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">New Follow-up Date *</label>
-              <input type="date" name="next_followup_date" id="hospReschedDate{{ fu.id }}" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
+              <input type="date" name="next_followup_date" id="reschedDate{{ fu.id }}" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
             </div>
             <div class="col-5">
               <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
               <input type="time" name="next_followup_time" class="form-control form-control-sm">
             </div>
           </div>
+
           <div class="mb-2">
             <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Remarks / Interaction Note *</label>
             <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call/interaction or reason for status update..." required></textarea>
@@ -472,4 +634,58 @@
 </div>
 {% endif %}
 {% endfor %}
+
+<!-- Modal Popup for Queue Boundary (Top / Bottom of Leads Queue) -->
+<div class="modal fade" id="queueBoundaryModal" tabindex="-1" aria-labelledby="queueBoundaryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+            <i class="fa-solid fa-circle-info fs-5"></i>
+          </div>
+          <h6 class="modal-title fw-bold text-dark mb-0" id="queueBoundaryModalLabel">Leads Queue</h6>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <p class="text-secondary mb-0" id="queueBoundaryModalText" style="font-size: 0.95rem; line-height: 1.5;"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0 pb-3 px-4">
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill shadow-xs" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showQueueModal(title, message) {
+    const titleEl = document.getElementById('queueBoundaryModalLabel');
+    const textEl = document.getElementById('queueBoundaryModalText');
+    if (titleEl) titleEl.textContent = title;
+    if (textEl) textEl.textContent = message;
+    const modalEl = document.getElementById('queueBoundaryModal');
+    if (modalEl) {
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const queueModalEl = document.getElementById('queueBoundaryModal');
+    if (queueModalEl) {
+      queueModalEl.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        if (button) {
+          const title = button.getAttribute('data-modal-title') || 'Notice';
+          const message = button.getAttribute('data-modal-message') || 'Queue boundary reached.';
+          const titleEl = document.getElementById('queueBoundaryModalLabel');
+          const textEl = document.getElementById('queueBoundaryModalText');
+          if (titleEl) titleEl.textContent = title;
+          if (textEl) textEl.textContent = message;
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

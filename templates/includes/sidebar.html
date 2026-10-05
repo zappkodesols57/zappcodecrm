@@ -1,22 +1,19 @@
 {% if user.is_authenticated %}
 <nav class="sidebar" id="sidebar">
   <div class="brand"
-    style="padding: 0.9rem 0.8rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    style="padding: 1.1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06);">
     <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
       {% if user.hospital and user.hospital.logo %}
       <img src="{{ user.hospital.logo.url }}" alt="{{ user.hospital.name }}"
         style="max-height: 28px; max-width: 90px; object-fit: contain;">
-      <span class="brand-text"
-        style="font-family: 'Dancing Script', cursive; font-size: 1.7rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1; margin-top: -2px;">CRM</span>
+      <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">CRM</span>
       {% elif user.is_hospital_user %}
-      <i class="fa-solid fa-hospital" style="color:#818cf8; font-size:1.3rem;"></i>
-      <span class="brand-text" style="font-weight: 700; color: #fff; font-size: 1rem; white-space: nowrap;">{{
-        user.hospital.name|truncatechars:14 }}</span>
+      <i class="fa-solid fa-hospital section-icon" style="color: #ffffff; font-size: 1.2rem;"></i>
+      <span class="brand-text" style="font-weight: 700; color: #ffffff; font-size: 1rem; white-space: nowrap;">{{ user.hospital.name|truncatechars:14 }}</span>
       {% else %}
-      <img src="/media/zappkode_logo.png" alt="Zappkode Logo"
-        style="max-height: 28px; max-width: 90px; object-fit: contain;">
-      <span class="brand-text"
-        style="font-family: 'Dancing Script', cursive; font-size: 1.7rem; font-weight: 700; color: #818cf8; text-shadow: 0 0 10px rgba(129,140,248,0.35); white-space: nowrap; line-height: 1; margin-top: -2px;">CRM</span>
+      <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">
+        ZAPPCODE <span style="font-weight: 400; opacity: 0.85;">CRM</span>
+      </span>
       {% endif %}
     </div>
     <button type="button" class="sidebar-minimize-btn brand-text d-none d-lg-flex" id="sidebarInnerToggleBtn"
@@ -86,6 +83,10 @@
             </a>
           </div>
         </div>
+
+        <!-- Submodule: Lost Leads -->
+        <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
+          title="Lost Leads"><i class="fa-solid fa-user-xmark text-danger"></i> <span class="nav-text">Lost Leads</span></a>
 
         <!-- Submodule: Archived Leads -->
         <a class="nav-link {% if active == 'archived_leads' %}active{% endif %}" href="{% url 'leads:archived_leads' %}"
@@ -307,17 +308,17 @@
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div
-        class="collapse {% if active in 'leads_all my_leads team_history leads_add leads_dup' %}show{% endif %} nav-sub-items"
+        class="collapse {% if active in 'leads_all my_leads lost_leads team_history leads_add leads_dup' %}show{% endif %} nav-sub-items"
         id="sec_emp_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
         <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
           title="My Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
+        <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
+          title="Lost Leads"><i class="fa-solid fa-user-xmark text-danger"></i> <span class="nav-text">Lost Leads</span></a>
         <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
           title="Teams History"><i class="fa-solid fa-users-viewfinder"></i> <span class="nav-text">Teams
             History</span></a>
-        <a class="nav-link {% if active == 'leads_add' %}active{% endif %}" href="{% url 'leads:lead_add' %}"
-          title="Add New Lead"><i class="fa-solid fa-user-plus"></i> <span class="nav-text">Add New Lead</span></a>
         <a class="nav-link {% if active == 'leads_dup' %}active{% endif %}" href="{% url 'leads:duplicates' %}"
           title="Duplicate Management"><i class="fa-solid fa-clone"></i> <span class="nav-text">Duplicate
             Management</span></a>

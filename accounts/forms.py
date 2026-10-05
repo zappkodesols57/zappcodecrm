@@ -425,6 +425,22 @@ class CRMUserRegisterForm(UserCreationForm):
 
 from .models import Hospital
 class BusinessForm(forms.ModelForm):
+    industry = forms.ChoiceField(
+        choices=Hospital.Industry.choices,
+        widget=forms.Select(attrs={"class": "form-select", "id": "id_industry"}),
+        label="Industry Type",
+        help_text="Select industry to configure metrics, roles, and business workflows."
+    )
+    business_code = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control", 
+            "placeholder": "Auto-generated (e.g. BIZ-HOSP-001, BIZ-ACAD-002)",
+            "readonly": "readonly"
+        }),
+        label="Unique Business ID / Code",
+        help_text="Unique identifier assigned to this business tenant."
+    )
     allowed_roles = forms.MultipleChoiceField(
         choices=User.Role.choices,
         widget=forms.CheckboxSelectMultiple,
@@ -434,14 +450,18 @@ class BusinessForm(forms.ModelForm):
 
     class Meta:
         model = Hospital
-        fields = ("name", "contact_email", "phone", "address", "allowed_roles", "is_active")
+        fields = ("name", "business_code", "industry", "contact_email", "phone", "address", "allowed_roles", "is_active")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk and self.instance.allowed_roles:
-            self.initial["allowed_roles"] = self.instance.get_allowed_roles()
+        if self.instance and self.instance.pk:
+            if self.instance.allowed_roles:
+                self.initial["allowed_roles"] = self.instance.get_allowed_roles()
+            if self.instance.business_code:
+                self.fields["business_code"].initial = self.instance.business_code
         else:
-            self.initial["allowed_roles"] = [User.Role.ADMIN, User.Role.MANAGER, User.Role.LEAD_ATTENDENT, User.Role.DOCTOR]
+            self.initial["allowed_roles"] = [User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.HR]
+            self.fields["business_code"].help_text = "Will be automatically generated upon creation based on industry."
 
         for name, field in self.fields.items():
             if name != "allowed_roles" and not isinstance(field.widget, forms.CheckboxInput):

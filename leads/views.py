@@ -138,6 +138,16 @@ def get_filtered_leads(request, base_qs=None):
     if request.user.hospital:
         # Tenant user: always scoped to their business
         leads = leads.filter(hospital=request.user.hospital)
+        # For Academy tenants: Exclude lost/cancelled leads by default from active lead lists
+        is_hosp_b = bool((request.user.hospital.settings or {}).get("business_type") == "hospital" or "hospital" in (request.user.hospital.name or "").lower())
+        if not is_hosp_b and not request.GET.get("deal_status") and not request.GET.get("show_lost") and not request.GET.get("stage"):
+            leads = leads.exclude(
+                Q(deal_status=DealStatus.LOST) |
+                Q(admission_status__in=['LOST', 'CANCELLED']) |
+                Q(stage__name__icontains='lost') |
+                Q(stage__name__icontains='cancel') |
+                Q(temperature='FREEZE')
+            )
         # Branch-level isolation for Branch Managers / Attendants
         if request.user.role == User.Role.MANAGER and request.user.branch:
             b_name = request.user.branch.name
@@ -802,7 +812,7 @@ def lead_list(request):
         ).order_by("first_name", "last_name", "username")
         context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
 
-    template_name = "leads/nel_lead_list.html" if is_viewing_hospital else "leads/zapp_lead_list.html"
+    template_name = "leads/hospital_lead_list.html" if is_viewing_hospital else "leads/academy_lead_list.html"
     return render(request, template_name, context)
 
 
@@ -825,6 +835,16 @@ def my_leads(request):
     
     # Strictly leads assigned to the logged in user
     leads = leads.filter(assigned_to=request.user)
+
+    # Exclude lost/cancelled leads from My Leads list
+    if not request.GET.get("deal_status") and not request.GET.get("stage") and not request.GET.get("admission_status"):
+        leads = leads.exclude(
+            Q(deal_status=DealStatus.LOST) |
+            Q(admission_status__in=['LOST', 'CANCELLED']) |
+            Q(stage__name__icontains='lost') |
+            Q(stage__name__icontains='cancel') |
+            Q(temperature='FREEZE')
+        )
 
     # Search keyword
     q = request.GET.get("q", "").strip()
@@ -1037,7 +1057,7 @@ def my_leads(request):
         "query_params": query_params.urlencode(),
         "today_str": today.strftime("%Y-%m-%d"),
     }
-    return render(request, "leads/zapp_my_leads.html", context)
+    return render(request, "leads/academy_my_leads.html", context)
 
 
 @login_required
@@ -1460,8 +1480,89 @@ def team_history(request):
         "current_hospital": hospital,
         "is_hospital_business": is_hospital_business,
     }
-    template = "leads/nel_team_history.html" if is_hospital_business else "leads/zapp_team_history.html"
+    template = "leads/hospital_team_history.html" if is_hospital_business else "leads/academy_team_history.html"
     return render(request, template, context)
+
+
+@login_required
+def lost_leads(request):
+    """
+    Dedicated Lost & Cancelled Leads View:
+    Displays all leads with Lost or Cancelled status / Freezed temperature for Academy/Hospital.
+    Supports Search, Course Filter, Date Filter, and pagination.
+    """
+    hospital = request.user.hospital
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    leads = Lead.objects.filter(is_archived=False)
+    if hospital:
+        leads = leads.filter(hospital=hospital)
+
+    # Scoped strictly to Lost / Cancelled / Freeze leads
+    lost_q = (
+        Q(deal_status=DealStatus.LOST) |
+        Q(admission_status__in=['LOST', 'CANCELLED']) |
+        Q(stage__name__icontains='lost') |
+        Q(stage__name__icontains='cancel') |
+        Q(temperature='FREEZE') |
+        Q(custom_data__deal_status__icontains='lost') |
+        Q(custom_data__deal_status__icontains='cancel')
+    )
+    leads = leads.filter(lost_q).distinct()
+
+    # Search keyword
+    q = request.GET.get("q", "").strip()
+    if q:
+        leads = leads.filter(
+            Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+            | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
+        )
+
+    # Course Filter
+    selected_course = request.GET.get("course", "").strip()
+    if selected_course:
+        if selected_course.isdigit():
+            leads = leads.filter(course_id=int(selected_course))
+        else:
+            leads = leads.filter(course__name__icontains=selected_course)
+
+    # Date Filter
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    if date_from:
+        leads = leads.filter(inquiry_date__gte=date_from)
+    if date_to:
+        leads = leads.filter(inquiry_date__lte=date_to)
+
+    courses = Course.objects.filter(is_active=True)
+    if hospital:
+        courses = courses.filter(hospital=hospital)
+
+    sort_by = request.GET.get("sort", "-updated_at")
+    leads = leads.select_related("course", "stage", "lead_source", "assigned_to").order_by(sort_by)
+
+    total_count = leads.count()
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+
+    context = {
+        "active": "lost_leads",
+        "page_obj": page_obj,
+        "total_count": total_count,
+        "q": q,
+        "courses": courses,
+        "selected_course": selected_course,
+        "date_from": date_from,
+        "date_to": date_to,
+        "query_params": query_params.urlencode(),
+    }
+    return render(request, "leads/lost_leads.html", context)
 
 
 @login_required
@@ -1744,7 +1845,7 @@ def lead_add(request):
     duplicates = None
     is_hospital = request.user.is_hospital_user
     FormClass = HospitalLeadForm if is_hospital else LeadForm
-    template = "leads/nel_lead_form.html" if is_hospital else "leads/zapp_lead_form.html"
+    template = "leads/hospital_lead_form.html" if is_hospital else "leads/academy_lead_form.html"
     
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
@@ -1893,7 +1994,7 @@ def lead_edit(request, pk):
     lead_btype = lead_hospital_settings.get("business_type", "hospital")
     is_lead_hospital_type = (lead_btype == "hospital")
     FormClass = HospitalLeadForm if is_lead_hospital_type else LeadForm
-    template = "leads/nel_lead_form.html" if is_lead_hospital_type else "leads/zapp_lead_form.html"
+    template = "leads/hospital_lead_form.html" if is_lead_hospital_type else "leads/academy_lead_form.html"
     
     if request.method == "POST":
         if is_view_only:
@@ -2353,7 +2454,7 @@ def lead_detail(request, pk):
         for c in courses_qs
     }
 
-    template = "leads/nel_lead_detail.html" if is_lead_hospital else "leads/zapp_lead_detail.html"
+    template = "leads/hospital_lead_detail.html" if is_lead_hospital else "leads/academy_lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "followups": followups, "admission": admission,
         "is_lead_hospital": is_lead_hospital,
@@ -3268,7 +3369,7 @@ def archived_leads(request):
 
 @login_required
 def duplicates(request):
-    leads_qs = Lead.objects.select_related("stage", "assigned_to", "lead_source").filter(is_archived=False)
+    leads_qs = Lead.objects.select_related("stage", "assigned_to", "lead_source", "course").filter(is_archived=False)
     if request.user.hospital:
         leads_qs = leads_qs.filter(hospital=request.user.hospital)
     elif not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
@@ -3282,6 +3383,109 @@ def duplicates(request):
     dup_groups = [g for g in groups.values() if len(g) > 1]
     dup_groups.sort(key=lambda g: -len(g))
     return render(request, "leads/duplicates.html", {"active": "leads_dup", "dup_groups": dup_groups})
+
+
+@login_required
+def duplicate_lead_delete(request, pk):
+    """Delete or archive a specific duplicate lead."""
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        return redirect("leads:duplicates")
+    
+    if request.method == "POST":
+        lead_name = lead.name
+        lead_code = lead.lead_code
+        lead.is_archived = True
+        lead.save(update_fields=["is_archived"])
+        
+        Activity.objects.create(
+            lead=lead,
+            created_by=request.user,
+            activity_type="SYSTEM",
+            description=f"Duplicate lead #{lead_code} ({lead_name}) archived/removed via Duplicate Management by {request.user.get_full_name() or request.user.username}.",
+        )
+        messages.success(request, f"Lead #{lead_code} ({lead_name}) has been removed successfully.")
+    return redirect("leads:duplicates")
+
+
+@login_required
+def duplicate_leads_merge(request):
+    """
+    Merge multiple duplicate leads into a chosen Master / Primary Lead.
+    Preserves all notes, followups, activities, and audit history onto the master record,
+    then archives/removes the duplicate secondary records.
+    """
+    if request.method == "POST":
+        primary_id = request.POST.get("primary_lead_id")
+        duplicate_ids = request.POST.getlist("duplicate_lead_ids")
+
+        if not primary_id or not duplicate_ids:
+            messages.error(request, "Please select a Primary Lead and at least one Duplicate Lead to merge.")
+            return redirect("leads:duplicates")
+
+        primary_lead = Lead.objects.filter(pk=primary_id, is_archived=False).first()
+        if not primary_lead:
+            messages.error(request, "Primary lead not found.")
+            return redirect("leads:duplicates")
+
+        # Verify tenant security
+        if request.user.hospital and primary_lead.hospital != request.user.hospital:
+            messages.error(request, "Permission denied.")
+            return redirect("leads:duplicates")
+
+        merged_count = 0
+        merged_codes = []
+
+        for d_id in duplicate_ids:
+            if str(d_id) == str(primary_id):
+                continue
+            dup_lead = Lead.objects.filter(pk=d_id, is_archived=False).first()
+            if not dup_lead:
+                continue
+
+            if request.user.hospital and dup_lead.hospital != request.user.hospital:
+                continue
+
+            # 1. Transfer notes (related_name is 'lead_notes')
+            dup_lead.lead_notes.all().update(lead=primary_lead)
+
+            # 2. Transfer followups
+            dup_lead.followups.all().update(lead=primary_lead)
+
+            # 3. Transfer activities
+            dup_lead.activities.all().update(lead=primary_lead)
+
+            # 4. Fill in any missing primary fields (e.g., email, qualification, course, city)
+            if not primary_lead.email and dup_lead.email:
+                primary_lead.email = dup_lead.email
+            if not primary_lead.city and dup_lead.city:
+                primary_lead.city = dup_lead.city
+            if not primary_lead.qualification and dup_lead.qualification:
+                primary_lead.qualification = dup_lead.qualification
+            if not primary_lead.course_id and dup_lead.course_id:
+                primary_lead.course = dup_lead.course
+            if not primary_lead.assigned_to_id and dup_lead.assigned_to_id:
+                primary_lead.assigned_to = dup_lead.assigned_to
+
+            # 5. Archive duplicate secondary lead
+            dup_lead.is_archived = True
+            dup_lead.save(update_fields=["is_archived"])
+
+            merged_codes.append(dup_lead.lead_code or f"ID-{dup_lead.pk}")
+            merged_count += 1
+
+        primary_lead.save()
+
+        # Log Merge Activity on Primary Record
+        Activity.objects.create(
+            lead=primary_lead,
+            created_by=request.user,
+            activity_type="SYSTEM",
+            description=f"Merged {merged_count} duplicate record(s) ({', '.join(merged_codes)}) into this primary lead by {request.user.get_full_name() or request.user.username}.",
+        )
+
+        messages.success(request, f"Successfully merged {merged_count} duplicate lead(s) into #{primary_lead.lead_code} ({primary_lead.name}).")
+    return redirect("leads:duplicates")
 
 
 @login_required

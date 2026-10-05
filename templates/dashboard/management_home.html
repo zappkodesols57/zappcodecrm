@@ -83,9 +83,10 @@
   /* Light Soft Modern KPI Card Themes */
   .kpi-card {
     border-radius: var(--radius-md) !important;
-    padding: 1.1rem 1.25rem !important;
+    padding: 1.25rem 1.4rem !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
     border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
   }
 
   .kpi-card .label {
@@ -93,6 +94,7 @@
     font-weight: 700 !important;
     letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
+    color: #64748b !important;
   }
 
   .kpi-card .value {
@@ -100,76 +102,21 @@
     font-weight: 800 !important;
     line-height: 1.15 !important;
     margin-top: 0.35rem !important;
+    color: #0f172a !important;
   }
 
-  /* 1. Total Leads - Soft Light Blue */
-  .kpi-1 {
-    background: linear-gradient(135deg, #f0f7ff 0%, #e0effe 100%) !important;
-    border-color: #bae6fd !important;
+  /* Universal Crisp 2-Color styling for all KPI Cards */
+  .kpi-1, .kpi-2, .kpi-3, .kpi-5, .kpi-6, .kpi-7, .kpi-8 {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
   }
 
-  .kpi-1 .label {
-    color: #0284c7 !important;
+  .kpi-1 .label, .kpi-2 .label, .kpi-3 .label, .kpi-5 .label, .kpi-6 .label, .kpi-7 .label, .kpi-8 .label {
+    color: #64748b !important;
   }
 
-  .kpi-1 .value {
-    color: var(--text-main) !important;
-  }
-
-  /* 2. Uncontacted - Soft Light Purple / Violet */
-  .kpi-7 {
-    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
-    border-color: #e9d5ff !important;
-  }
-
-  .kpi-7 .label {
-    color: #7c3aed !important;
-  }
-
-  .kpi-7 .value {
-    color: var(--text-main) !important;
-  }
-
-  /* 3. Conversion Rate - Soft Light Rose / Pink */
-  .kpi-5 {
-    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%) !important;
-    border-color: #fecdd3 !important;
-  }
-
-  .kpi-5 .label {
-    color: #e11d48 !important;
-  }
-
-  .kpi-5 .value {
-    color: var(--text-main) !important;
-  }
-
-  /* 4. Overdue Follow-ups - Soft Light Cyan / Sky */
-  .kpi-3 {
-    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%) !important;
-    border-color: #a5f3fc !important;
-  }
-
-  .kpi-3 .label {
-    color: #0891b2 !important;
-  }
-
-  .kpi-3 .value {
-    color: var(--text-main) !important;
-  }
-
-  /* 5. Total Revenue - Soft Light Amber / Orange */
-  .kpi-2 {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
-    border-color: #fde68a !important;
-  }
-
-  .kpi-2 .label {
-    color: #d97706 !important;
-  }
-
-  .kpi-2 .value {
-    color: var(--text-main) !important;
+  .kpi-1 .value, .kpi-2 .value, .kpi-3 .value, .kpi-5 .value, .kpi-6 .value, .kpi-7 .value, .kpi-8 .value {
+    color: #0f172a !important;
   }
 
   /* Comparison pill badge inside KPI Cards */
@@ -891,11 +838,10 @@
 
   <!-- 2. Course & Department Distribution (Dynamic based on selected business) -->
   <div class="col-md-6">
-    <div class="card chart-card p-3 h-100" style="border-top: 3px solid #4f46e5;">
+    <div class="card chart-card p-3 h-100" style="border-top: 3px solid #0284c7;">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 text-dark fw-bold mb-0">
-          <i class="fa-solid {{ primary_cat_meta.icon|default:'fa-graduation-cap' }} me-2 text-indigo"></i>{{
-          primary_cat_meta.title|default:'Course & Department Distribution' }}
+          <i class="fa-solid {{ primary_cat_meta.icon|default:'fa-graduation-cap' }} me-2 text-primary"></i>{% if primary_cat_meta.title %}{{ primary_cat_meta.title }}{% else %}Course & Department Distribution{% endif %}
         </h2>
         <span class="badge bg-light text-muted border small">Total: {{ business_course_charts.0.total }}</span>
       </div>
@@ -2586,23 +2532,25 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    const palette = [
-      '#6366f1', // Indigo / Iris
-      '#0ea5e9', // Sky Blue
-      '#10b981', // Emerald
-      '#f59e0b', // Amber
-      '#ec4899', // Pink
-      '#8b5cf6', // Violet
-      '#14b8a6', // Teal
-      '#f97316', // Orange
-      '#64748b'  // Slate
+    // Harmonized Dual-Tone Color System (Primary Indigo & Sky Blue 2-Tone Theme)
+    const primaryTwoTone = ['#6366f1', '#0ea5e9'];
+    const dualTonePalette = [
+      '#6366f1', // Royal Indigo (Primary)
+      '#0ea5e9', // Sky Cyan (Secondary)
+      '#818cf8', // Indigo Tint
+      '#38bdf8', // Sky Light
+      '#4f46e5', // Deep Indigo
+      '#0284c7', // Deep Cyan
+      '#a5b4fc', // Soft Iris
+      '#7dd3fc'  // Soft Aqua
     ];
 
-    // 1. Funnel Comparison Bar Chart
+    // 1. Funnel Comparison Bar Chart (Royal Indigo Theme)
     const funnelData = {{ funnel_chart_data|safe }};
     if (funnelData && funnelData.datasets) {
-      funnelData.datasets.forEach(ds => {
-        ds.backgroundColor = ds.backgroundColor === '#4f46e5' ? '#6366f1' : ds.backgroundColor;
+      funnelData.datasets.forEach((ds, dIdx) => {
+        const toneColor = dIdx % 2 === 0 ? '#6366f1' : '#0ea5e9';
+        ds.backgroundColor = ds.backgroundColor ? toneColor : '#6366f1';
         ds.borderRadius = 6;
         ds.barThickness = 14;
       });
@@ -2640,11 +2588,12 @@
     });
   }
 
-  // 2. Employee Leads Comparison Bar Chart
+  // 2. Employee Leads Comparison Bar Chart (Electric Sky Blue / Cyan Theme)
   const empData = {{ employee_chart_data|safe }};
   if (empData && empData.datasets) {
-    empData.datasets.forEach(ds => {
-      ds.backgroundColor = ds.backgroundColor === '#10b981' ? '#10b981' : ds.backgroundColor;
+    empData.datasets.forEach((ds, dIdx) => {
+      const toneColor = dIdx % 2 === 0 ? '#0ea5e9' : '#6366f1';
+      ds.backgroundColor = toneColor;
       ds.borderRadius = 6;
       ds.barThickness = 14;
     });
@@ -2683,7 +2632,7 @@
     });
   }
 
-  // 3. Source Doughnut Charts per Business
+  // 3. Source Doughnut Charts per Business (2-Color Dual Palette)
   const isMobileScreen = window.innerWidth < 768;
   const sourceCharts = {{ business_source_charts_json| safe }};
   sourceCharts.forEach((item, idx) => {
@@ -2696,7 +2645,7 @@
           labels: item.labels,
           datasets: [{
             data: item.counts,
-            backgroundColor: palette,
+            backgroundColor: dualTonePalette,
             borderWidth: 2,
             borderColor: '#ffffff'
           }]
@@ -2728,7 +2677,7 @@
     }
   });
 
-  // 4. Course / Department Pie Charts per Business
+  // 4. Course / Department Pie Charts per Business (2-Color Dual Palette)
   const courseCharts = {{ business_course_charts_json| safe }};
   courseCharts.forEach((item, idx) => {
     const canvasId = `courseChart_${idx + 1}`;
@@ -2740,7 +2689,7 @@
           labels: item.labels,
           datasets: [{
             data: item.counts,
-            backgroundColor: palette,
+            backgroundColor: dualTonePalette,
             borderWidth: 2,
             borderColor: '#ffffff'
           }]
