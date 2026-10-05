@@ -59,14 +59,14 @@
   {% endif %}
   <div class="ms-auto d-flex align-items-center gap-2">
     {% if user.role != 'DOCTOR' and user.can_add_leads %}
-    <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-primary text-white d-none d-sm-inline-flex align-items-center gap-1 rounded-pill px-3 shadow-xs" style="background-color: var(--brand) !important; border-color: var(--brand) !important; height: 34px;">
-      <i class="fa-solid fa-plus"></i> Add Lead
+    <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-primary text-white d-none d-sm-inline-flex align-items-center rounded-pill px-3 shadow-xs" style="background-color: var(--brand) !important; border-color: var(--brand) !important; height: 34px;">
+      Add Lead
     </a>
     {% endif %}
 
     {% if user.can_import_export or user.role == 'LEAD_ATTENDENT' or user.role == 'MANAGER' or user.role == 'ADMIN' or user.role == 'SUPER_ADMIN' %}
-    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1 fw-semibold rounded-pill px-3 shadow-xs" title="Import Leads from XML / Excel / CSV / Google Sheets" style="height: 34px; border-color: #cbd5e1 !important; color: #0f2744 !important; background: #ffffff !important;">
-      <i class="fa-solid fa-file-arrow-up"></i> Import Leads
+    <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center fw-semibold rounded-pill px-3 shadow-xs" title="Import Leads from XML / Excel / CSV / Google Sheets" style="height: 34px; border-color: #cbd5e1 !important; color: #0f2744 !important; background: #ffffff !important;">
+      Import Leads
     </a>
     {% endif %}
 

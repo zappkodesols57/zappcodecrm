@@ -342,8 +342,7 @@
     <table class="table table-hover align-middle mb-0" style="font-size: 0.8125rem;">
       <thead class="table-light">
         <tr>
-          <th class="ps-3">Lead ID</th>
-          <th>Name</th>
+          <th class="ps-3">Name</th>
           <th>Mobile</th>
           <th>{% if is_hospital_business %}Doctor / Dept{% else %}Course{% endif %}</th>
           <th>Temperature</th>
@@ -354,13 +353,8 @@
       </thead>
       <tbody>
         {% for lead in recent_leads %}
-        <tr>
-          <td class="ps-3 fw-semibold text-primary">
-            <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-decoration-none text-primary fw-bold">
-              {{ lead.lead_code }}
-            </a>
-          </td>
-          <td class="fw-semibold text-dark">{{ lead.name }}</td>
+        <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
+          <td class="ps-3 fw-semibold text-dark">{{ lead.name }}</td>
           <td class="text-muted">{{ lead.mobile }}</td>
           <td>
             {% if is_hospital_business %}

@@ -63,10 +63,13 @@ staticfiles/
 .DS_Store
 Thumbs.db
 
-# Data files
+# Data files & Database dumps
 *.xlsx
 *.xls
 *.csv
+*.sql
+*.sqlite3
+*.db
 
 # Temporary scripts
 fix_gyn_leads.py

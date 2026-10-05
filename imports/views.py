@@ -642,7 +642,7 @@ def campaign_import_process(request):
             "rows": processed_rows,
             "cache_key": cache_key,
         }
-        return render(request, "imports/hospital_campaign_import_preview.html", context)
+        return render(request, "hospital/imports/campaign_import_preview.html", context)
 
     # Automatic execution based on strategy (skip / create / update)
     return _execute_campaign_leads_import(

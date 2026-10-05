@@ -1647,7 +1647,7 @@ def superadmin_home(request):
         "has_active_filters": has_active_filters,
         "selected_hospital_id": selected_hospital_id,
     }
-    return render(request, "dashboard/hospital_admin_home.html", context)
+    return render(request, "hospital/dashboard/admin_home.html", context)
 
 
 @login_required
@@ -2834,7 +2834,7 @@ def nelson_module_view(request, module_name):
             messages.success(request, "Hospital Profile updated successfully.")
             return redirect('dashboard:nelson_module', module_name='hospital-profile')
             
-        return render(request, "dashboard/hospital_profile.html", {
+        return render(request, "hospital/dashboard/profile.html", {
             "title": "Hospital Profile", 
             "hospital": hospital, 
             "active": module_name
@@ -3434,7 +3434,7 @@ def nelson_module_view(request, module_name):
         'profile-security': 'Profile & Security',
     }
     title = titles.get(module_name, module_name.replace('-', ' ').title())
-    return render(request, "dashboard/hospital_generic.html", {"title": title, "module_name": module_name, "active": module_name})
+    return render(request, "hospital/dashboard/generic.html", {"title": title, "module_name": module_name, "active": module_name})
 
 
 @login_required
@@ -4182,13 +4182,13 @@ def submit_daily_report(request):
         is_doctor_form = False
         is_hospital_form = True
         FormClass = HospitalDailyReportForm
-        template_name = "dashboard/hospital_daily_report_form.html"
+        template_name = "hospital/dashboard/daily_report_form.html"
     else:
         # Zappcode Academy Business (Counsellor, HR, Manager, Admin, Super Admin)
         is_doctor_form = False
         is_hospital_form = False
         FormClass = AcademyDailyReportForm
-        template_name = "dashboard/academy_reports_form.html"
+        template_name = "academy/dashboard/reports_form.html"
 
     if request.method == "POST":
         from django.db import IntegrityError, transaction
@@ -5025,7 +5025,7 @@ def telecaller_home(request):
         'pending_and_upcoming_followups_count': pending_and_upcoming_followups_count,
         'today_date': today_date,
     }
-    return render(request, "dashboard/hospital_telecaller_home.html", context)
+    return render(request, "hospital/dashboard/telecaller_home.html", context)
 
 @login_required
 def placeholder_view(request, module_name):
@@ -5585,7 +5585,7 @@ def doctor_home(request):
         'today_count': today_apts.count(),
         'pending_count': pending_apts.count(),
     }
-    return render(request, "dashboard/hospital_doctor_home.html", context)
+    return render(request, "hospital/dashboard/doctor_home.html", context)
 
 
 @login_required
@@ -6608,7 +6608,7 @@ def roles_permissions_view(request):
             } for u in users
         })
     }
-    return render(request, "dashboard/nelson/roles_permissions.html", context)
+    return render(request, "hospital/dashboard/roles_permissions.html", context)
 
 
 @login_required

@@ -112,8 +112,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="border-0 px-3 py-3 text-muted small text-uppercase">Lead ID</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Patient Name{% else %}Student Name{% endif %}</th>
+                        <th class="border-0 px-3 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Patient Name{% else %}Student Name{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Contact</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Doctor / Dept{% else %}Course{% endif %}</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Status & Priority{% else %}Admission Status{% endif %}</th>
@@ -126,13 +125,8 @@
                 </thead>
                 <tbody>
                     {% for lead in leads %}
-                    <tr class="{% if active == 'fu_overdue' %}table-danger-subtle{% elif active == 'fu_today' %}table-light{% elif active == 'fu_completed' %}table-success-subtle{% endif %}">
+                    <tr class="clickable-lead-row {% if active == 'fu_overdue' %}table-danger-subtle{% elif active == 'fu_today' %}table-light{% elif active == 'fu_completed' %}table-success-subtle{% endif %}" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
                         <td class="px-3">
-                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border fw-bold text-decoration-none" title="View Lead Details">
-                                {{ lead.lead_code }}
-                            </a>
-                        </td>
-                        <td>
                             <div class="fw-bold text-dark">{{ lead.name }}</div>
                             {% if lead.city or lead.location %}
                             <div class="small text-muted"><i class="fa-solid fa-location-dot me-1 text-muted"></i>{{ lead.location|default:lead.city }}</div>

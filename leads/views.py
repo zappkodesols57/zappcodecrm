@@ -810,9 +810,14 @@ def lead_list(request):
             is_active=True,
             is_approved=True
         ).order_by("first_name", "last_name", "username")
-        context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
+    # Determine template
+    if not selected_hospital_id and is_global_admin:
+        template_name = "leads/lead_list.html"
+    elif is_viewing_hospital:
+        template_name = "hospital/leads/lead_list.html"
+    else:
+        template_name = "academy/leads/lead_list.html"
 
-    template_name = "leads/hospital_lead_list.html" if is_viewing_hospital else "leads/academy_lead_list.html"
     return render(request, template_name, context)
 
 
@@ -1057,7 +1062,7 @@ def my_leads(request):
         "query_params": query_params.urlencode(),
         "today_str": today.strftime("%Y-%m-%d"),
     }
-    return render(request, "leads/academy_my_leads.html", context)
+    return render(request, "academy/leads/my_leads.html", context)
 
 
 @login_required
@@ -1480,7 +1485,7 @@ def team_history(request):
         "current_hospital": hospital,
         "is_hospital_business": is_hospital_business,
     }
-    template = "leads/hospital_team_history.html" if is_hospital_business else "leads/academy_team_history.html"
+    template = "hospital/leads/team_history.html" if is_hospital_business else "academy/leads/team_history.html"
     return render(request, template, context)
 
 
@@ -1845,7 +1850,7 @@ def lead_add(request):
     duplicates = None
     is_hospital = request.user.industry == 'HOSPITAL'
     FormClass = HospitalLeadForm if is_hospital else LeadForm
-    template = "leads/hospital_lead_form.html" if is_hospital else "leads/academy_lead_form.html"
+    template = "hospital/leads/lead_form.html" if is_hospital else "academy/leads/lead_form.html"
     
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
@@ -1994,7 +1999,7 @@ def lead_edit(request, pk):
     lead_btype = lead_hospital_settings.get("business_type", "hospital")
     is_lead_hospital_type = (lead_btype == "hospital")
     FormClass = HospitalLeadForm if is_lead_hospital_type else LeadForm
-    template = "leads/hospital_lead_form.html" if is_lead_hospital_type else "leads/academy_lead_form.html"
+    template = "hospital/leads/lead_form.html" if is_lead_hospital_type else "academy/leads/lead_form.html"
     
     if request.method == "POST":
         if is_view_only:
@@ -2454,7 +2459,7 @@ def lead_detail(request, pk):
         for c in courses_qs
     }
 
-    template = "leads/hospital_lead_detail.html" if is_lead_hospital else "leads/academy_lead_detail.html"
+    template = "hospital/leads/lead_detail.html" if is_lead_hospital else "academy/leads/lead_detail.html"
     return render(request, template, {
         "active": "leads_all", "lead": lead, "timeline": timeline, "followups": followups, "admission": admission,
         "is_lead_hospital": is_lead_hospital,
@@ -4904,7 +4909,7 @@ def hospital_configuration_view(request):
         "active_tab": active_tab,
         "doctor_users": doctor_users,
     }
-    return render(request, "leads/hospital_configuration.html", context)
+    return render(request, "hospital/leads/configuration.html", context)
 
 
 @login_required
@@ -5797,7 +5802,7 @@ def export_hospital_config_pdf(request):
         "mapping_rows": mapping_rows,
         "now": timezone.now(),
     }
-    return render(request, "leads/hospital_config_print_pdf.html", context)
+    return render(request, "hospital/leads/config_print_pdf.html", context)
 
 
 @login_required
