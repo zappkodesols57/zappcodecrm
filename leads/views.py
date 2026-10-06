@@ -20,7 +20,7 @@ from .models import (
     Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, 
     MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
     HospitalDisease, DoctorBranchAvailability, DealStatus, LeadTemperature,
-    AdmissionStatus,
+    AdmissionStatus, Appointment, AppointmentStatus,
 )
 from .forms import (
     LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
@@ -6129,6 +6129,232 @@ def bulk_lead_transfer(request):
             ("LOST", "Lost / Cancelled / Not Interested"),
         ],
     })
+
+
+@login_required
+def appointments_done_list(request):
+    """
+    Appointments Done / Conversion Page for Healthcare / Nelson Hospital.
+    Shows booked & confirmed appointment leads with dynamic KPI calculations:
+    - Total Leads, Appointment Done, Conversion Rate (%), Payment Done, Payment Pending
+    - Filters: Date Range, Department, Telecaller/Attendant, Doctor, Source, Campaign, Search
+    - Scoped by business selection: If an Academy business is active, returns 0 counts.
+    """
+    is_global_admin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+
+    # Active business determination
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+
+    target_hospital = None
+    if request.user.hospital:
+        target_hospital = request.user.hospital
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
+
+    # If an academy or non-hospital business is explicitly selected, appointment counts are 0
+    is_healthcare_scope = True
+    if target_hospital:
+        is_healthcare_scope = (
+            target_hospital.industry == Hospital.Industry.HOSPITAL
+            or "hospital" in target_hospital.name.lower()
+            or "clinic" in target_hospital.name.lower()
+            or "nelson" in target_hospital.name.lower()
+        )
+
+    # Base Appointment / Healthcare lead queryset
+    if not is_healthcare_scope:
+        base_qs = Lead.objects.none()
+    else:
+        base_qs = Lead.objects.select_related(
+            "hospital", "assigned_to", "stage", "campaign", "lead_source"
+        ).filter(is_archived=False)
+
+        if target_hospital:
+            base_qs = base_qs.filter(hospital=target_hospital)
+        elif request.user.hospital:
+            base_qs = base_qs.filter(hospital=request.user.hospital)
+        elif not is_global_admin:
+            base_qs = base_qs.filter(hospital__isnull=True)
+
+    # Filter by OPD booking / appointment history criteria
+    # Ensures all leads that reached OPD Booking are included, even if subsequent status became Visited, Payment Done, Cancelled, etc.
+    appt_condition = (
+        Q(custom_data__appo_booked_date__isnull=False)
+        | Q(custom_data__appo_booked_date__gt="")
+        | Q(appointments__isnull=False)
+        | Q(custom_data__appointment_status__icontains="book")
+        | Q(custom_data__appointment_status__icontains="confirm")
+        | Q(custom_data__appointment_status__icontains="approv")
+        | Q(custom_data__appointment_status__icontains="visit")
+        | Q(custom_data__appointment_status__icontains="done")
+        | Q(custom_data__appo_book__icontains="yes")
+        | Q(custom_data__appo_book__icontains="book")
+        | Q(deal_status__in=[DealStatus.WON, "BOOKING CONFIRMED", "PAYMENT DONE", "VISITED"])
+        | Q(custom_data__deal_status__icontains="book")
+        | Q(custom_data__deal_status__icontains="won")
+        | Q(custom_data__deal_status__icontains="payment")
+        | Q(custom_data__opd_bill__gt=0)
+        | Q(custom_data__total__gt=0)
+    )
+
+    leads_qs = base_qs.filter(appt_condition).distinct()
+
+    # Filter dropdown choices options
+    if target_hospital:
+        departments_list = list(HospitalDepartment.objects.filter(hospital=target_hospital, is_active=True).values_list("name", flat=True))
+        if not departments_list:
+            departments_list = list(MasterGroup.get_active_choices("Departments").filter(hospital=target_hospital).values_list("name", flat=True))
+        doctors_list = list(HospitalDoctor.objects.filter(hospital=target_hospital, is_active=True).values_list("name", flat=True))
+        if not doctors_list:
+            doctors_list = list(MasterGroup.get_active_choices("Doctors").filter(hospital=target_hospital).values_list("name", flat=True))
+        telecallers_qs = User.objects.filter(
+            hospital=target_hospital,
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
+            is_active=True
+        ).order_by("first_name", "last_name", "username")
+        campaigns_list = list(MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital).values_list("name", flat=True))
+        sources_list = list(MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital).values_list("name", flat=True))
+    else:
+        departments_list = list(HospitalDepartment.objects.filter(is_active=True).values_list("name", flat=True).distinct())
+        if not departments_list:
+            departments_list = list(MasterGroup.get_active_choices("Departments").values_list("name", flat=True).distinct())
+        doctors_list = list(HospitalDoctor.objects.filter(is_active=True).values_list("name", flat=True).distinct())
+        if not doctors_list:
+            doctors_list = list(MasterGroup.get_active_choices("Doctors").values_list("name", flat=True).distinct())
+        telecallers_qs = User.objects.filter(
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
+            is_active=True
+        ).order_by("first_name", "last_name", "username")
+        campaigns_list = list(MasterGroup.get_active_choices("Campaigns").values_list("name", flat=True).distinct())
+        sources_list = list(MasterGroup.get_active_choices("Lead Sources").values_list("name", flat=True).distinct())
+
+    # Apply Header Filters
+    search_q = request.GET.get("q", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    sel_dept = request.GET.get("department", "").strip()
+    sel_telecaller = request.GET.get("telecaller", "").strip()
+    sel_doctor = request.GET.get("doctor", "").strip()
+    sel_source = request.GET.get("lead_source", "").strip()
+    sel_campaign = request.GET.get("campaign", "").strip()
+
+    if search_q:
+        leads_qs = leads_qs.filter(
+            Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
+        )
+    if date_from:
+        leads_qs = leads_qs.filter(
+            Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
+        )
+    if date_to:
+        leads_qs = leads_qs.filter(
+            Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
+        )
+    if sel_dept:
+        leads_qs = leads_qs.filter(custom_data__department__iexact=sel_dept)
+    if sel_telecaller:
+        if sel_telecaller.isdigit():
+            leads_qs = leads_qs.filter(assigned_to_id=int(sel_telecaller))
+        else:
+            leads_qs = leads_qs.filter(
+                Q(assigned_to__username__iexact=sel_telecaller)
+                | Q(assigned_to__first_name__icontains=sel_telecaller)
+            )
+    if sel_doctor:
+        leads_qs = leads_qs.filter(
+            Q(custom_data__doctor__icontains=sel_doctor)
+            | Q(appointments__doctor_name__icontains=sel_doctor)
+        )
+    if sel_source:
+        leads_qs = leads_qs.filter(
+            Q(lead_source__name__iexact=sel_source) | Q(custom_data__lead_source__iexact=sel_source)
+        )
+    if sel_campaign:
+        leads_qs = leads_qs.filter(
+            Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
+        )
+
+    # Dynamic KPI Stats calculation
+    total_leads_count = leads_qs.count()
+    
+    # Calculate Appointments Done, Payment Done, Payment Pending based on display status and billing
+    leads_list = list(leads_qs)
+    
+    payment_done_count = 0
+    payment_pending_count = 0
+    appointment_done_count = 0
+
+    for l in leads_list:
+        st = l.display_status
+        tot = 0
+        try:
+            tot = float(l.custom_data.get('total') or l.custom_data.get('opd_bill') or 0)
+        except Exception:
+            tot = 0
+
+        if st == "Payment Done" or tot > 0:
+            payment_done_count += 1
+            appointment_done_count += 1
+        elif st in ("Completed Appointment", "Visited / OPD Done", "Payment Pending"):
+            payment_pending_count += 1
+            appointment_done_count += 1
+        elif "Book" in st or "Confirm" in st or "Approv" in st:
+            appointment_done_count += 1
+        else:
+            appointment_done_count += 1
+
+    # Conversion Rate (%) = (Payment Done / Total Appointments Done) * 100
+    if appointment_done_count > 0:
+        conversion_rate = round((payment_done_count / appointment_done_count) * 100, 1)
+    else:
+        conversion_rate = 0.0
+
+    # Sort and paginate
+    leads_list.sort(key=lambda x: x.inquiry_date or timezone.localdate(), reverse=True)
+    
+    from django.core.paginator import Paginator
+    paginator = Paginator(leads_list, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Build query string for pagination links
+    query_params_dict = request.GET.copy()
+    if "page" in query_params_dict:
+        del query_params_dict["page"]
+    query_params = query_params_dict.urlencode()
+
+    return render(request, "leads/appointments_done_list.html", {
+        "active": "appointments",
+        "target_hospital": target_hospital,
+        "is_healthcare_scope": is_healthcare_scope,
+        "page_obj": page_obj,
+        "total_leads_count": total_leads_count,
+        "appointment_done_count": appointment_done_count,
+        "conversion_rate": conversion_rate,
+        "payment_done_count": payment_done_count,
+        "payment_pending_count": payment_pending_count,
+        # Filters state
+        "search_q": search_q,
+        "date_from": date_from,
+        "date_to": date_to,
+        "sel_dept": sel_dept,
+        "sel_telecaller": sel_telecaller,
+        "sel_doctor": sel_doctor,
+        "sel_source": sel_source,
+        "sel_campaign": sel_campaign,
+        # Choices
+        "departments_list": sorted(list(set(departments_list))),
+        "doctors_list": sorted(list(set(doctors_list))),
+        "telecallers_qs": telecallers_qs,
+        "campaigns_list": sorted(list(set(campaigns_list))),
+        "sources_list": sorted(list(set(sources_list))),
+        "query_params": query_params,
+    })
+
 
 
 

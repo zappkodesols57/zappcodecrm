@@ -145,8 +145,8 @@
         {% if active_business %}
           {% if "nelson" in active_business.name|lower or "hospital" in active_business.name|lower or "clinic" in active_business.name|lower or "medical" in active_business.name|lower %}
             <!-- Appointments Done (Nelson Hospital Selected) -->
-            <a class="nav-link {% if request.GET.filter == 'appo_booked' or request.GET.deal_status == 'BOOKING CONFIRMED' %}active{% endif %}"
-              href="{% url 'leads:lead_list' %}?deal_status=BOOKING+CONFIRMED" title="Appointments Done">
+            <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
+              href="{% url 'leads:appointments_done' %}" title="Appointments Done">
               <i class="fa-solid fa-calendar-check text-success"></i> <span class="nav-text">Appointments Done</span>
             </a>
           {% else %}
@@ -158,8 +158,8 @@
           {% endif %}
         {% elif user.hospital and user.industry == 'HOSPITAL' %}
           <!-- Appointments Done (Hospital Bound User) -->
-          <a class="nav-link {% if request.GET.filter == 'appo_booked' or request.GET.deal_status == 'BOOKING CONFIRMED' %}active{% endif %}"
-            href="{% url 'leads:lead_list' %}?deal_status=BOOKING+CONFIRMED" title="Appointments Done">
+          <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
+            href="{% url 'leads:appointments_done' %}" title="Appointments Done">
             <i class="fa-solid fa-calendar-check text-success"></i> <span class="nav-text">Appointments Done</span>
           </a>
         {% else %}
@@ -168,8 +168,8 @@
             href="{% url 'admissions:list' %}" title="Admissions Done (Academy)">
             <i class="fa-solid fa-graduation-cap text-primary"></i> <span class="nav-text">Admissions Done</span>
           </a>
-          <a class="nav-link {% if request.GET.filter == 'appo_booked' or request.GET.deal_status == 'BOOKING CONFIRMED' %}active{% endif %}"
-            href="{% url 'leads:lead_list' %}?deal_status=BOOKING+CONFIRMED" title="Appointments Done (Hospital)">
+          <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
+            href="{% url 'leads:appointments_done' %}" title="Appointments Done (Hospital)">
             <i class="fa-solid fa-calendar-check text-success"></i> <span class="nav-text">Appointments Done</span>
           </a>
         {% endif %}

@@ -435,7 +435,7 @@ class BusinessForm(forms.ModelForm):
         required=False,
         widget=forms.TextInput(attrs={
             "class": "form-control", 
-            "placeholder": "Auto-generated (e.g. BIZ-HOSP-001, BIZ-ACAD-002)",
+            "placeholder": "Auto-generated",
             "readonly": "readonly"
         }),
         label="Unique Business ID / Code",
@@ -466,21 +466,30 @@ class BusinessForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name != "allowed_roles" and not isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", "form-control")
+        if "name" in self.fields:
+            self.fields["name"].widget.attrs.update({
+                "placeholder": "Business Name",
+            })
+        if "address" in self.fields:
+            self.fields["address"].widget.attrs.update({
+                "placeholder": "Address or Location",
+                "rows": 2,
+            })
         if "phone" in self.fields:
             self.fields["phone"].widget.attrs.update({
                 "maxlength": "10",
                 "minlength": "10",
                 "pattern": "^[0-9]{10}$",
                 "inputmode": "numeric",
-                "placeholder": "10-digit phone number",
+                "placeholder": "Phone Number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
         if "contact_email" in self.fields:
             self.fields["contact_email"].widget = forms.EmailInput(attrs={
                 "class": "form-control",
-                "placeholder": "contact@business.com",
+                "placeholder": "Email Address",
                 "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
-                "title": "Please enter a valid email address containing '@' (e.g. contact@business.com)",
+                "title": "Please enter a valid email address containing '@'",
             })
 
     def clean_contact_email(self):

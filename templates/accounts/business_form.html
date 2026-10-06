@@ -3,12 +3,12 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h4 class="mb-0 fw-bold"><i class="fa-solid fa-building text-brand me-2"></i>{{ mode }} Business</h4>
+    <h4 class="mb-0 fw-bold text-dark">{{ mode }} Business</h4>
   </div>
-  <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+  <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
 </div>
 
-<div class="card shadow-sm border-0 rounded-3" style="max-width: 750px;">
+<div class="card shadow-sm border-0 rounded-3 w-100">
   <div class="card-body p-4">
     <form method="post">
       {% csrf_token %}
@@ -16,14 +16,14 @@
       <div class="row g-3">
         <!-- Industry Type & Business Code -->
         <div class="col-md-6">
-          <label class="form-label small fw-bold text-dark"><i class="fa-solid fa-industry text-primary me-1"></i> Industry / Business Type <span class="text-danger">*</span></label>
+          <label class="form-label small fw-bold text-dark">Industry / Business Type <span class="text-danger">*</span></label>
           {{ form.industry }}
           {% if form.industry.errors %}<div class="text-danger small mt-1">{{ form.industry.errors|striptags }}</div>{% endif %}
           <div class="text-muted small mt-1" style="font-size: 0.75rem;">Defines industry metrics, default workflows & custom form tabs.</div>
         </div>
 
         <div class="col-md-6">
-          <label class="form-label small fw-bold text-dark"><i class="fa-solid fa-fingerprint text-primary me-1"></i> Unique Business ID</label>
+          <label class="form-label small fw-bold text-dark">Unique Business ID</label>
           {{ form.business_code }}
           {% if form.business_code.errors %}<div class="text-danger small mt-1">{{ form.business_code.errors|striptags }}</div>{% endif %}
           <div class="text-muted small mt-1" style="font-size: 0.75rem;">Auto-generated unique ID per business tenant.</div>
@@ -58,15 +58,14 @@
         <!-- Allowed Roles for this Business -->
         <div class="col-md-12 mt-3">
           <div class="card bg-light border p-3 rounded-3">
-            <label class="form-label small fw-bold text-dark mb-1 d-flex align-items-center gap-2">
-              <i class="fa-solid fa-users-gear text-primary"></i>
-              <span>Allowed Roles for this Business</span>
+            <label class="form-label small fw-bold text-dark mb-1">
+              Allowed Roles for this Business
             </label>
             <p class="text-muted small mb-2" style="font-size: 0.78rem;">Select which employee roles are enabled and can be assigned to users in this organization.</p>
             
             <div class="row g-2 pt-1">
               {% for choice in form.allowed_roles %}
-              <div class="col-md-4 col-sm-6">
+              <div class="col-md-3 col-sm-6">
                 <div class="form-check p-2 bg-white rounded border d-flex align-items-center gap-2">
                   {{ choice.tag }}
                   <label class="form-check-label small fw-semibold text-dark m-0 cursor-pointer" for="{{ choice.id_for_label }}">
@@ -90,8 +89,8 @@
       </div>
 
       <div class="d-flex gap-2 mt-4 pt-3 border-top">
-        <button type="submit" class="btn btn-brand text-white fw-bold px-4"><i class="fa-solid fa-check me-1"></i> Save Business</button>
-        <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary px-3">Cancel</a>
+        <button type="submit" class="btn btn-brand text-white fw-bold px-4 rounded-pill shadow-sm"><i class="fa-solid fa-check me-1"></i> Save Business</button>
+        <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary px-3 rounded-pill">Cancel</a>
       </div>
     </form>
   </div>
