@@ -57,16 +57,16 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h4 class="mb-0 fw-bold"><i class="fa-solid fa-user-plus text-brand me-2"></i>{{ mode }} Employee User</h4>
+    <h4 class="mb-0 fw-bold text-dark">{{ mode }} Employee User</h4>
     <p class="text-muted small mb-0">Create or edit team member accounts with role and credentials.</p>
   </div>
-  <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back to Users</a>
+  <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3"><i class="fa-solid fa-arrow-left me-1"></i> Back to Users</a>
 </div>
 
 <div class="card shadow-sm border-0 rounded-4 w-100 mb-4 bg-white">
   <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
     <div class="d-flex align-items-center gap-2">
-      <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-id-card text-primary me-2"></i>{{ mode }} Employee User</h5>
+      <h5 class="fw-bold text-dark mb-0">{{ mode }} Employee User</h5>
     </div>
     <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold">{{ mode }} Mode</span>
   </div>

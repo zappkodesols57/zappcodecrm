@@ -1,124 +1,105 @@
 {% extends "base.html" %}
-{% block title %}Report Already Submitted · CRM{% endblock %}
-{% block content %}
-<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
-  <div class="text-center" style="max-width: 480px;">
+{% block title %}EOD Report Submitted · CRM{% endblock %}
 
-    <!-- Green check animation -->
-    <div style="width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669);
-      display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;
-      box-shadow: 0 0 0 16px rgba(16,185,129,0.12), 0 0 0 32px rgba(16,185,129,0.05);">
-      <i class="fa-solid fa-check" style="font-size: 2.5rem; color: #fff;"></i>
+{% block content %}
+<div class="container-fluid px-0 py-4 d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+  <div class="card border-0 shadow-sm rounded-3 p-4 bg-white text-center" style="max-width: 650px; width: 100%; border: 1px solid #e2e8f0 !important;">
+
+    <!-- Minimal success badge -->
+    <div class="mb-3">
+      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-1.5 fw-semibold" style="font-size: 0.85rem;">
+        Report Submitted Successfully
+      </span>
     </div>
 
-    <h3 class="fw-bold mb-1">Report Already Submitted!</h3>
-    <p class="text-muted mb-4">
-      Aapki <strong>{{ report_date|date:"d F Y" }}</strong> ki daily report already submit ho chuki hai.
-      <br>Kal phir submit kar sakte hain. 😊
+    <h5 class="fw-bold text-dark mb-1">Daily EOD Report Submitted</h5>
+    <p class="text-muted small mb-3">
+      Report date: <strong class="text-dark">{{ report_date|date:"d F Y" }}</strong>
     </p>
 
-    <!-- Summary of submitted report -->
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1rem; text-align: left;">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold mb-0 text-muted text-uppercase small">Today's Report Summary</h6>
-          <span class="badge bg-light text-dark border">
-            <i class="fa-solid fa-right-to-bracket text-success me-1"></i> In: {% if report.first_login_at %}{{ report.first_login_at|time:"h:i A" }}{% else %}Active{% endif %}
-          </span>
+    <!-- Clean summary grid (3 per row) -->
+    <div class="p-3 bg-light rounded-3 border mb-3 text-start">
+      <div class="row g-2 mb-2">
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Total Leads Assigned</span>
+          <strong class="text-dark fs-6">{{ report.leads_assigned }}</strong>
         </div>
-
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <div class="p-2 rounded" style="background: #eff6ff; border: 1px solid #dbeafe;">
-              <div style="font-size: 0.7rem; color: #1e40af; font-weight: 600;">Assigned Leads</div>
-              <div style="font-size: 1.3rem; font-weight: 800; color: #1d4ed8;">{{ report.leads_assigned }}</div>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="p-2 rounded" style="background: #f0fdf4; border: 1px solid #dcfce7;">
-              <div style="font-size: 0.7rem; color: #15803d; font-weight: 600;">Calls / Touches</div>
-              <div style="font-size: 1.3rem; font-weight: 800; color: #16a34a;">{{ report.calls_attended }}</div>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="p-2 rounded" style="background: #faf5ff; border: 1px solid #f3e8ff;">
-              <div style="font-size: 0.7rem; color: #7e22ce; font-weight: 600;">Admissions Done</div>
-              <div style="font-size: 1.3rem; font-weight: 800; color: #9333ea;">{{ report.admissions_done }}</div>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="p-2 rounded" style="background: #ecfdf5; border: 1px solid #d1fae5;">
-              <div style="font-size: 0.7rem; color: #047857; font-weight: 600;">Payments Done</div>
-              <div style="font-size: 1.3rem; font-weight: 800; color: #059669;">{{ report.payments_done }} <span style="font-size: 0.75rem; font-weight: 600; color: #059669;">(₹{{ report.fees_collected|floatformat:0 }})</span></div>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="p-2 rounded" style="background: #fffbeb; border: 1px solid #fef3c7;">
-              <div style="font-size: 0.7rem; color: #b45309; font-weight: 600;">Pending Leads</div>
-              <div style="font-size: 1.3rem; font-weight: 800; color: #d97706;">{{ report.pending_leads }}</div>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="p-2 rounded" style="background: #f0fdfa; border: 1px solid #ccfbf1;">
-              <div style="font-size: 0.7rem; color: #0f766e; font-weight: 600;">Tomorrow Follow-ups</div>
-              <div style="font-size: 1.3rem; font-weight: 800; color: #0d9488;">{{ report.tomorrow_followups }}</div>
-            </div>
-          </div>
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Appointments Booked</span>
+          <strong class="text-dark fs-6">{{ report.appointments_booked }}</strong>
         </div>
-
-        {% if report.key_highlight %}
-        <div class="mb-2">
-          <div class="text-muted small fw-semibold">⭐ Key Highlight</div>
-          <div class="small text-dark">{{ report.key_highlight }}</div>
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Payments Done</span>
+          <strong class="text-dark fs-6">{{ report.payments_done }}</strong>
         </div>
-        {% endif %}
+      </div>
 
-        <div class="d-flex align-items-center justify-content-between gap-2 mt-3 pt-2 border-top">
-          <div class="d-flex align-items-center gap-1.5">
-            <div class="text-muted small fw-semibold">Mood:</div>
-            <span class="badge bg-light text-dark border px-2 py-1 fw-bold">{{ report.mood_display }}</span>
-          </div>
+      <div class="row g-2 mb-2">
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Follow-ups Taken</span>
+          <strong class="text-dark fs-6">{{ report.follow_ups_taken }}</strong>
+        </div>
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Interested Leads</span>
+          <strong class="text-dark fs-6">{{ report.leads_interested }}</strong>
+        </div>
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Not Interested</span>
+          <strong class="text-dark fs-6">{{ report.leads_cold }}</strong>
+        </div>
+      </div>
 
-          <div class="text-muted" style="font-size: 0.72rem;">
-            <i class="fa-solid fa-clock me-1"></i> Submitted {{ report.created_at|date:"h:i A" }}
-          </div>
+      <div class="row g-2">
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Lost Leads</span>
+          <strong class="text-dark fs-6">{{ report.freeze_leads }}</strong>
+        </div>
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Walk-in Leads</span>
+          <strong class="text-dark fs-6">{{ report.leads_visited }}</strong>
+        </div>
+        <div class="col-4">
+          <span class="text-muted small d-block" style="font-size: 0.75rem;">Calls Attended</span>
+          <strong class="text-dark fs-6">{{ report.calls_attended }}</strong>
         </div>
       </div>
     </div>
 
-    <div class="d-flex justify-content-center gap-2 flex-wrap">
-      <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-outline-success px-4 py-2 fw-semibold">
-        <i class="fa-solid fa-file-excel text-success me-1"></i> Export Today's Leads (Excel)
+    <!-- Action Options: Download PDF, Submit New / Edit, Dashboard -->
+    <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+      <a href="{% url 'dashboard:download_eod_report_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary rounded-2 px-3 py-2 fw-semibold">
+        Download PDF
       </a>
 
-      <a href="{% url 'dashboard:submit_daily_report' %}?edit=1" class="btn btn-outline-primary px-4 py-2 fw-semibold">
-        <i class="fa-solid fa-pen-to-square me-1"></i> Edit / Update Report
+      <a href="{% url 'dashboard:submit_daily_report' %}?edit=1" class="btn btn-sm btn-outline-secondary rounded-2 px-3 py-2 fw-semibold">
+        Submit New / Edit
       </a>
 
       {% if user.hospital %}
         {% if user.role == 'LEAD_ATTENDENT' %}
-          <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
-            <i class="fa-solid fa-gauge-high me-1"></i> Go to My Dashboard
+          <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
+            Dashboard
           </a>
         {% elif user.role == 'DOCTOR' %}
-          <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
-            <i class="fa-solid fa-gauge-high me-1"></i> Go to Doctor Portal
+          <a href="{% url 'dashboard:doctor_home' %}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
+            Dashboard
           </a>
         {% elif user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' %}
-          <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
-            <i class="fa-solid fa-gauge-high me-1"></i> Go to Admin Dashboard
+          <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
+            Dashboard
           </a>
         {% else %}
-          <a href="{% url 'dashboard:home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
-            <i class="fa-solid fa-gauge-high me-1"></i> Go to Dashboard
+          <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
+            Dashboard
           </a>
         {% endif %}
       {% else %}
-        <a href="{% url 'dashboard:home' %}" class="btn btn-primary px-4 py-2 fw-semibold">
-          <i class="fa-solid fa-gauge-high me-1"></i> Go to Dashboard
+        <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
+          Dashboard
         </a>
       {% endif %}
     </div>
+
   </div>
 </div>
 {% endblock %}

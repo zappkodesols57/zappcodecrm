@@ -340,14 +340,26 @@
 
                 <!-- 7. Status -->
                 <td>
-                  {% if lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' or lead.display_status == 'Payment Done' %}
+                  {% if lead.display_status == 'Won' %}
                   <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-                    <i class="fa-solid fa-circle-check me-1"></i>Won / Done
+                    <i class="fa-solid fa-circle-check me-1"></i>Won
                   </span>
-                  {% elif lead.temperature %}
-                  <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
-                  {% elif lead.custom_temperature %}
-                  <span class="badge badge-{{ lead.custom_temperature|lower }}">{{ lead.custom_temperature }}</span>
+                  {% elif lead.display_status == 'Pending' %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
+                    <i class="fa-solid fa-hourglass-half me-1"></i>Pending
+                  </span>
+                  {% elif lead.display_status == 'Open' %}
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">
+                    <i class="fa-solid fa-folder-open me-1"></i>Open
+                  </span>
+                  {% elif lead.display_status == 'New' %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                    <i class="fa-solid fa-circle-plus me-1"></i>New
+                  </span>
+                  {% elif lead.display_status == 'Lost' %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                    <i class="fa-solid fa-ban me-1"></i>Lost
+                  </span>
                   {% else %}
                   <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.display_status|default:"Open" }}</span>
                   {% endif %}

@@ -372,6 +372,17 @@ class User(AbstractUser):
         return self.has_dynamic_permission("delete_leads", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
 
     @property
+    def can_transfer_branch(self):
+        """Checks if user has permission to transfer leads to other branches."""
+        if self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER):
+            return True
+        if "allow_branch_transfer" in self.custom_permissions:
+            return bool(self.custom_permissions["allow_branch_transfer"])
+        if "can_transfer_branch" in self.custom_permissions:
+            return bool(self.custom_permissions["can_transfer_branch"])
+        return self.has_dynamic_permission("allow_branch_transfer", default=False)
+
+    @property
     def can_delete_master_data(self):
         """Permission to delete/purge master lead data. Super Admin always can; Business Admin can only if granted permission."""
         if self.role == self.Role.SUPER_ADMIN:

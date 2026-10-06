@@ -5,6 +5,7 @@ app_name = "leads"
 
 urlpatterns = [
     path("", views.lead_list, name="lead_list"),
+    path("appointments-done/", views.appointments_done_list, name="appointments_done"),
     path("my-leads/", views.my_leads, name="my_leads"),
     path("lost-leads/", views.lost_leads, name="lost_leads"),
     path("team-history/", views.team_history, name="team_history"),
@@ -49,6 +50,7 @@ urlpatterns = [
     path("universal-masters/item/<int:pk>/delete/", views.master_item_delete, name="master_item_delete"),
     # Temperature Manager route
     path("temperature-manager/", views.temperature_manager, name="temperature_manager"),
+    path("custom-messages/", views.custom_message_manager, name="custom_message_manager"),
 
     # Dynamic Lead Custom Form Fields routes
     path("universal-masters/custom-fields/add/", views.custom_field_add, name="custom_field_add"),

@@ -90,3 +90,4 @@ scratch/
 *.xml
 celerybeat-schedule*
 
+HOSPITAL_LEAD_LIFECYCLE_FLOWCHART.md

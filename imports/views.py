@@ -1299,14 +1299,14 @@ def run_import(request, pk):
 
 
 @login_required
-@user_passes_test(lambda u: u.can_import_export)
+@user_passes_test(_can_user_access_import)
 def job_detail(request, pk):
     job = get_object_or_404(ImportJob, pk=pk)
     return render(request, "imports/job_detail.html", {"active": "import_history", "job": job, "errors": job.errors.all()[:200]})
 
 
 @login_required
-@user_passes_test(lambda u: u.can_import_export)
+@user_passes_test(_can_user_access_import)
 def history(request):
     from datetime import datetime, timedelta
     from django.utils import timezone
@@ -2404,7 +2404,7 @@ def quick_import(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.can_import_export)
+@user_passes_test(_can_user_access_import)
 def delete_import(request, pk):
     if request.method == "POST":
         job = get_object_or_404(ImportJob, pk=pk)
