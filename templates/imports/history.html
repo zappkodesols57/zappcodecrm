@@ -1,250 +1,250 @@
 {% extends "base.html" %}
-{% block title %}Import History{% endblock %}
+{% block title %}Import History | CRM{% endblock %}
 
 {% block extra_head %}
 <style>
+  :root {
+    --theme-navy: #0f2744;
+    --theme-border: #cbd5e1;
+    --theme-border-subtle: #e2e8f0;
+    --theme-bg-subtle: #f8fafc;
+    --theme-text-muted: #64748b;
+  }
   .filter-pill-btn {
-    border-radius: 9999px;
-    padding: 0.35rem 0.95rem;
-    font-size: 0.82rem;
+    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--theme-border-subtle);
     color: #475569;
     background: #fff;
   }
   .filter-pill-btn:hover {
     background: #f1f5f9;
     color: #0f172a;
-    border-color: #cbd5e1;
   }
   .filter-pill-btn.active {
-    background: #4f46e5;
+    background: var(--theme-navy);
     color: #fff;
-    border-color: #4f46e5;
-    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
-  }
-  .btn-whatsapp-theme {
-    background: #25D366;
-    color: #fff;
-    border: 1px solid #25D366;
-    font-weight: 600;
-    transition: all 0.2s ease;
-  }
-  .btn-whatsapp-theme:hover {
-    background: #1eb956;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+    border-color: var(--theme-navy);
   }
   .msg-preview-box {
-    background: #eef8f1;
-    border: 1px solid #c7ebd2;
-    border-radius: 12px;
+    background: var(--theme-bg-subtle);
+    border: 1px solid var(--theme-border-subtle);
+    border-radius: 6px;
     font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 0.86rem;
+    font-size: 0.82rem;
     white-space: pre-wrap;
-    padding: 1rem;
-    color: #111827;
+    padding: 0.85rem;
+    color: #0f172a;
     max-height: 280px;
     overflow-y: auto;
+  }
+  .history-table th {
+    font-size: 0.76rem;
+    letter-spacing: 0.3px;
+    color: var(--theme-text-muted);
+    font-weight: 600;
+    background: #f8fafc !important;
+    border-bottom: 1px solid var(--theme-border-subtle);
+  }
+  .history-table td {
+    font-size: 0.84rem;
+    border-bottom: 1px solid var(--theme-border-subtle);
+    vertical-align: middle;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-  <div>
-    <h4 class="fw-bold text-dark mb-1">Lead Import History</h4>
-    <p class="text-muted small mb-0">Track all uploaded lead batches, view lead lists, and share upload reports on WhatsApp.</p>
-  </div>
-  <div class="d-flex gap-2 align-items-center flex-wrap">
-    <button type="button" class="btn btn-whatsapp-theme btn-sm rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappHistoryModal" style="height: 34px; display: inline-flex; align-items: center;">
-      Send Upload Summary
-    </button>
-    <a href="{% url 'imports:upload' %}" class="btn btn-brand btn-sm text-white rounded-pill px-3" style="height: 34px; display: inline-flex; align-items: center;">New Import</a>
-  </div>
-</div>
+<div class="container-fluid px-0 py-2">
 
-<!-- Date Filter Bar -->
-<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-1 flex-wrap">
-      <span class="text-muted small fw-bold me-2">Date Filter:</span>
-      <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">
-        Today
-      </a>
-      <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">
-        Yesterday
-      </a>
-      <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">
-        Last 7 Days
-      </a>
-      <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">
-        This Month
-      </a>
-      <a href="?date_preset=all_time" class="filter-pill-btn {% if date_preset == 'all_time' %}active{% endif %}">
-        All Time
+  <!-- Header Strip -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h5 class="fw-bold text-dark mb-0">Import History</h5>
+      <div class="text-muted small mt-0.5">Track uploaded lead files and manage batch records.</div>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#whatsappHistoryModal" style="font-size: 0.82rem;">
+        WhatsApp Report
+      </button>
+      <a href="{% url 'imports:upload' %}" class="btn btn-primary btn-sm px-3 fw-semibold" style="font-size: 0.82rem; background: var(--theme-navy); border-color: var(--theme-navy);">
+        New Import
       </a>
     </div>
+  </div>
 
-    <!-- Custom Date Range Form -->
-    <form method="GET" class="d-flex align-items-center gap-2 mb-0">
-      <input type="hidden" name="date_preset" value="custom">
-      <div class="input-group input-group-sm" style="max-width: 320px;">
-        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date" style="height: 34px;">
-        <span class="input-group-text bg-light text-muted small">to</span>
-        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date" style="height: 34px;">
-        <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center justify-content-center" type="submit" style="height: 34px; width: 34px;"><i class="fa-solid fa-filter"></i></button>
+  <!-- Date Filter Bar -->
+  <div class="card border rounded-2 mb-3 bg-white p-2 px-3" style="border-color: var(--theme-border-subtle) !important;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-1 flex-wrap">
+        <span class="text-muted small fw-semibold me-1">Period:</span>
+        <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">Today</a>
+        <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">Yesterday</a>
+        <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">Last 7 Days</a>
+        <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">This Month</a>
+        <a href="?date_preset=all_time" class="filter-pill-btn {% if date_preset == 'all_time' %}active{% endif %}">All Time</a>
       </div>
-      {% if date_preset != 'all_time' %}
-        <a href="?date_preset=all_time" class="btn btn-sm btn-outline-secondary rounded-pill d-inline-flex align-items-center justify-content-center" title="Reset filter" style="height: 34px; width: 34px;">
-          <i class="fa-solid fa-xmark"></i>
-        </a>
-      {% endif %}
-    </form>
-  </div>
-</div>
 
-<div class="card border-0 shadow-sm rounded-4">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="bg-light">
-        <tr>
-          <th class="border-0 px-3 py-3 text-muted small text-uppercase" style="max-width: 280px;">File Name</th>
-          <th class="border-0 py-3 text-muted small text-uppercase" style="white-space: nowrap;">Uploaded By</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center" style="white-space: nowrap;">Status</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center">Total</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center">Imported</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center">Updated</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center">Duplicate</th>
-          <th class="border-0 py-3 text-muted small text-uppercase text-center" style="white-space: nowrap;">Date & Time</th>
-          <th class="border-0 px-3 py-3 text-muted small text-uppercase text-end" style="min-width: 250px; white-space: nowrap;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for j in jobs %}
-        <tr>
-          <td class="px-3" style="max-width: 280px;">
-            <div class="fw-bold text-dark text-break" title="{{ j.original_filename|default:'Upload Batch' }}" style="font-size: 0.88rem; word-break: break-all;">{{ j.original_filename|default:"Upload Batch" }}</div>
-            {% if j.sheet_name %}<small class="text-muted d-block">Sheet: {{ j.sheet_name }}</small>{% endif %}
-          </td>
-          <td style="white-space: nowrap;">
-            <span class="small fw-semibold text-dark">{{ j.uploader_name }}</span>
-          </td>
-          <td class="text-center"><span class="badge badge-stage">{{ j.get_status_display }}</span></td>
-          <td class="text-center fw-bold">{{ j.total_rows }}</td>
-          <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">{{ j.imported_count }}</span></td>
-          <td class="text-center">{{ j.updated_count }}</td>
-          <td class="text-center">{{ j.duplicate_count }}</td>
-          <td class="text-center text-muted small" style="white-space: nowrap;">{{ j.created_at|date:"d-m-Y H:i" }}</td>
-          <td class="px-3 text-end" style="white-space: nowrap;">
-            <div class="d-inline-flex gap-1 align-items-center justify-content-end" style="flex-wrap: nowrap;">
-              <!-- Single File WhatsApp Share -->
-              <button type="button" class="btn btn-sm btn-outline-success rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0" title="Share this file upload report on WhatsApp"
-                style="height: 32px; width: 34px; padding: 0;"
-                onclick="openSingleJobWhatsApp('{{ j.original_filename|escapejs }}', '{{ j.imported_count }}', '{{ j.updated_count }}', '{{ j.duplicate_count }}', '{{ j.total_rows }}', '{{ j.created_at|date:'d-m-Y H:i' }}')">
-                <i class="fa-brands fa-whatsapp"></i>
-              </button>
-              <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-primary rounded-3 d-inline-flex align-items-center justify-content-center px-2 flex-shrink-0 text-nowrap" title="View Leads Imported from this File" style="height: 32px; font-size: 0.82rem; font-weight: 600; white-space: nowrap;">
-                View Leads
-              </a>
-              <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary rounded-3 d-inline-flex align-items-center justify-content-center px-2.5 flex-shrink-0 text-nowrap" style="height: 32px; font-size: 0.82rem; white-space: nowrap;">Details</a>
-              <form id="deleteJobForm_{{ j.pk }}" method="post" action="{% url 'imports:delete_job' j.pk %}" style="display:inline-flex; margin: 0;">
-                {% csrf_token %}
-                <button type="button" class="btn btn-sm btn-outline-danger rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0" title="Delete Import File & Leads" style="height: 32px; width: 34px; padding: 0;" onclick="confirmDeleteImport('{{ j.pk }}', '{{ j.original_filename|escapejs }}', '{{ j.imported_count }}')">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="9"><div class="empty-state">No imports found for {{ preset_label }}.</div></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      <!-- Custom Date Range Form -->
+      <form method="GET" class="d-flex align-items-center gap-2 mb-0">
+        <input type="hidden" name="date_preset" value="custom">
+        <div class="input-group input-group-sm" style="max-width: 300px;">
+          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date" style="font-size: 0.8rem; border-color: var(--theme-border);">
+          <span class="input-group-text bg-light text-muted small py-0 px-2" style="border-color: var(--theme-border);">to</span>
+          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date" style="font-size: 0.8rem; border-color: var(--theme-border);">
+          <button class="btn btn-outline-secondary btn-sm" type="submit" style="font-size: 0.8rem; border-color: var(--theme-border);"><i class="fa-solid fa-filter"></i></button>
+        </div>
+        {% if date_preset != 'all_time' %}
+          <a href="?date_preset=all_time" class="btn btn-sm btn-outline-secondary px-2" title="Reset filter" style="font-size: 0.78rem;">
+            Reset
+          </a>
+        {% endif %}
+      </form>
+    </div>
   </div>
+
+  <!-- History Table Card -->
+  <div class="card border rounded-2 bg-white" style="border-color: var(--theme-border-subtle) !important;">
+    <div class="table-responsive">
+      <table class="table history-table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="px-3 py-2.5 text-uppercase" style="max-width: 260px;">File Name</th>
+            <th class="py-2.5 text-uppercase" style="white-space: nowrap;">Uploaded By</th>
+            <th class="py-2.5 text-uppercase text-center" style="white-space: nowrap;">Status</th>
+            <th class="py-2.5 text-uppercase text-center">Total</th>
+            <th class="py-2.5 text-uppercase text-center">Imported</th>
+            <th class="py-2.5 text-uppercase text-center">Updated</th>
+            <th class="py-2.5 text-uppercase text-center">Duplicate</th>
+            <th class="py-2.5 text-uppercase text-center" style="white-space: nowrap;">Date</th>
+            <th class="px-3 py-2.5 text-uppercase text-end" style="min-width: 180px; white-space: nowrap;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for j in jobs %}
+          <tr>
+            <td class="px-3" style="max-width: 260px;">
+              <div class="fw-semibold text-dark text-break" title="{{ j.original_filename|default:'Upload Batch' }}" style="font-size: 0.86rem; word-break: break-all;">{{ j.original_filename|default:"Upload Batch" }}</div>
+              {% if j.sheet_name %}<div class="text-muted small" style="font-size: 0.75rem;">Sheet: {{ j.sheet_name }}</div>{% endif %}
+            </td>
+            <td style="white-space: nowrap;">
+              <span class="small fw-semibold text-dark">{{ j.uploader_name }}</span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-light text-dark border px-2 py-0.5 small">{{ j.get_status_display }}</span>
+            </td>
+            <td class="text-center fw-bold">{{ j.total_rows }}</td>
+            <td class="text-center fw-bold text-dark">{{ j.imported_count }}</td>
+            <td class="text-center text-muted">{{ j.updated_count }}</td>
+            <td class="text-center text-muted">{{ j.duplicate_count }}</td>
+            <td class="text-center text-muted small" style="white-space: nowrap;">{{ j.created_at|date:"d-m-Y H:i" }}</td>
+            <td class="px-3 text-end" style="white-space: nowrap;">
+              <div class="d-inline-flex gap-1 align-items-center justify-content-end">
+                <a href="{% url 'leads:lead_list' %}?import_job={{ j.id }}" class="btn btn-sm btn-outline-secondary px-2 py-0.5" title="View Leads Imported from this File" style="font-size: 0.78rem;">
+                  View Leads
+                </a>
+                <a href="{% url 'imports:job_detail' j.pk %}" class="btn btn-sm btn-outline-secondary px-2 py-0.5" style="font-size: 0.78rem;">
+                  Details
+                </a>
+                <form id="deleteJobForm_{{ j.pk }}" method="post" action="{% url 'imports:delete_job' j.pk %}" style="display:inline-flex; margin: 0;">
+                  {% csrf_token %}
+                  <button type="button" class="btn btn-sm btn-outline-danger px-2 py-0.5" title="Delete Import File & Leads" style="font-size: 0.78rem;" onclick="confirmDeleteImport('{{ j.pk }}', '{{ j.original_filename|escapejs }}', '{{ j.imported_count }}')">
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4 small">
+              No imports found for {{ preset_label }}.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
 <!-- Modal: WhatsApp Upload History Report Customizer -->
 <div class="modal fade" id="whatsappHistoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-0 pb-0 bg-light rounded-top-4 p-4">
+    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border-subtle);">
+      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border-subtle);">
         <div>
-          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="fa-brands fa-whatsapp text-success fs-4"></i> Share Uploaded Leads Summary on WhatsApp
-          </h5>
-          <p class="text-muted small mb-0">Period: <strong class="text-primary">{{ preset_label }}</strong> &bull; Hospital: <strong>{{ hospital_name }}</strong></p>
+          <h6 class="modal-title fw-bold text-dark mb-0">WhatsApp Uploads Summary</h6>
+          <div class="text-muted small" style="font-size: 0.76rem;">Period: {{ preset_label }} &bull; Hospital: {{ hospital_name }}</div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body p-4">
+      <div class="modal-body p-3">
         <div class="row g-3">
-          <!-- Left: Customization Controls -->
-          <div class="col-md-6 border-end">
-            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-sliders text-primary me-1"></i> Customize Message</h6>
+          <!-- Left: Controls -->
+          <div class="col-md-6 border-end" style="border-color: var(--theme-border-subtle) !important;">
+            <div class="fw-semibold text-dark mb-2 small">Customize Message</div>
             
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-muted text-uppercase">Recipient WhatsApp Number (Optional)</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text"><i class="fa-solid fa-phone text-muted"></i></span>
-                <input type="text" id="waHistRecipientNumber" class="form-control" placeholder="e.g. 919876543210 (with country code)" oninput="updateHistWhatsAppPreview()">
-              </div>
-              <small class="text-muted" style="font-size: 0.72rem;">Leave empty to choose contact in WhatsApp directly.</small>
+            <div class="mb-2.5">
+              <label class="form-label small fw-semibold text-muted text-uppercase" style="font-size: 0.72rem;">Recipient WhatsApp Number (Optional)</label>
+              <input type="text" id="waHistRecipientNumber" class="form-control form-control-sm" placeholder="e.g. 919876543210 (with country code)" oninput="updateHistWhatsAppPreview()">
+              <small class="text-muted" style="font-size: 0.72rem;">Leave empty to select contact in WhatsApp.</small>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-muted text-uppercase">Header Title</label>
+            <div class="mb-2.5">
+              <label class="form-label small fw-semibold text-muted text-uppercase" style="font-size: 0.72rem;">Header Title</label>
               <input type="text" id="waHistGreeting" class="form-control form-control-sm" value="*Leads Upload & Import History Report*" oninput="updateHistWhatsAppPreview()">
             </div>
 
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-muted text-uppercase">Include Sections</label>
-              <div class="form-check form-switch mb-2">
+            <div class="mb-2.5">
+              <label class="form-label small fw-semibold text-muted text-uppercase" style="font-size: 0.72rem;">Include Sections</label>
+              <div class="form-check mb-1">
                 <input class="form-check-input" type="checkbox" id="waHistIncludeTotals" checked onchange="updateHistWhatsAppPreview()">
                 <label class="form-check-label small" for="waHistIncludeTotals">Total Files & Leads Count</label>
               </div>
-              <div class="form-check form-switch mb-2">
+              <div class="form-check mb-1">
                 <input class="form-check-input" type="checkbox" id="waHistIncludeDetails" checked onchange="updateHistWhatsAppPreview()">
                 <label class="form-check-label small" for="waHistIncludeDetails">Individual File Breakdown</label>
               </div>
-              <div class="form-check form-switch">
+              <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="waHistIncludeSender" checked onchange="updateHistWhatsAppPreview()">
                 <label class="form-check-label small" for="waHistIncludeSender">Sender Info ({{ request.user.get_full_name|default:request.user.username }})</label>
               </div>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-muted text-uppercase">Custom Closing Remark / Note</label>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold text-muted text-uppercase" style="font-size: 0.72rem;">Custom Closing Remark</label>
               <input type="text" id="waHistCustomNote" class="form-control form-control-sm" placeholder="e.g. All batch leads imported successfully." oninput="updateHistWhatsAppPreview()">
             </div>
           </div>
 
-          <!-- Right: Live WhatsApp Text Preview -->
+          <!-- Right: Live Preview -->
           <div class="col-md-6">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-eye text-success me-1"></i> Message Preview</h6>
-              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill py-0 px-2" onclick="copyHistWhatsAppText()">
-                <i class="fa-solid fa-copy me-1"></i> Copy
+            <div class="d-flex justify-content-between align-items-center mb-1.5">
+              <span class="fw-semibold text-dark small">Message Preview</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" onclick="copyHistWhatsAppText()">
+                Copy
               </button>
             </div>
             <div id="waHistPreviewText" class="msg-preview-box"></div>
           </div>
         </div>
       </div>
-      <div class="modal-footer border-0 pt-0 bg-light rounded-bottom-4 p-3 d-flex justify-content-between">
-        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+      <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-between" style="border-color: var(--theme-border-subtle);">
+        <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Close</button>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="copyHistWhatsAppText()">
-            <i class="fa-solid fa-copy me-1"></i> Copy Message
+          <button type="button" class="btn btn-sm btn-outline-secondary px-3" onclick="copyHistWhatsAppText()">
+            Copy Message
           </button>
-          <button type="button" class="btn btn-whatsapp-theme rounded-pill px-4 shadow" onclick="sendHistToWhatsApp()">
-            <i class="fa-brands fa-whatsapp fa-lg me-1"></i> Open in WhatsApp
+          <button type="button" class="btn btn-sm btn-primary px-3 fw-semibold" style="background: var(--theme-navy); border-color: var(--theme-navy);" onclick="sendHistToWhatsApp()">
+            Open in WhatsApp
           </button>
         </div>
       </div>
@@ -252,41 +252,33 @@
   </div>
 </div>
 
-<!-- Modern In-Window Delete Import Confirmation Modal -->
-<div class="modal fade" id="deleteImportModal" tabindex="-1" aria-labelledby="deleteImportModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px);">
+<!-- Modal: Delete Import Confirmation -->
+<div class="modal fade" id="deleteImportModal" tabindex="-1" aria-labelledby="deleteImportModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
-      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-3">
-          <div class="p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; flex-shrink: 0;">
-            <i class="fa-solid fa-triangle-exclamation fa-lg"></i>
-          </div>
-          <div>
-            <h5 class="modal-title fw-bold text-dark mb-0" id="deleteImportModalLabel" style="font-size: 1.1rem;">Delete Import File</h5>
-            <small class="text-muted">Permanent Action</small>
-          </div>
-        </div>
-        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border-subtle);">
+      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border-subtle);">
+        <h6 class="modal-title fw-bold text-dark" id="deleteImportModalLabel">Delete Import File</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body px-4 py-3">
-        <p class="text-secondary mb-3" style="font-size: 0.92rem; line-height: 1.5;">
-          Are you sure you want to delete this import? This will delete the job history and all leads imported by this excel file.
+      <div class="modal-body px-3 py-3">
+        <p class="text-secondary mb-3" style="font-size: 0.88rem; line-height: 1.5;">
+          Are you sure you want to delete this import? This will delete the batch record and all leads created by this file.
         </p>
-        <div class="p-3 bg-light rounded-3 border small">
-          <div class="d-flex justify-content-between mb-1">
-            <span class="text-muted">File Name:</span>
-            <span class="fw-bold text-dark text-truncate ms-2" style="max-width: 230px;" id="delModalFileName">-</span>
+        <div class="p-2.5 bg-light rounded-2 border small" style="border-color: var(--theme-border-subtle);">
+          <div class="d-flex justify-content-between mb-1.5">
+            <span class="text-muted">File:</span>
+            <span class="fw-bold text-dark text-truncate ms-2" style="max-width: 220px;" id="delModalFileName">-</span>
           </div>
-          <div class="d-flex justify-content-between">
+          <div class="d-flex justify-content-between align-items-center">
             <span class="text-muted">Imported Leads:</span>
-            <span class="badge bg-danger bg-opacity-10 text-danger fw-bold" id="delModalLeadsCount">0</span>
+            <span class="fw-bold text-dark" id="delModalLeadsCount">0</span>
           </div>
         </div>
       </div>
-      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
-        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm" id="confirmDeleteSubmitBtn">
-          <i class="fa-solid fa-trash-can me-1"></i> Yes, Delete
+      <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border-subtle);">
+        <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 fw-semibold" id="confirmDeleteSubmitBtn">
+          Yes, Delete
         </button>
       </div>
     </div>
@@ -330,18 +322,18 @@
 
     let lines = [];
     if (greeting) lines.push(greeting);
-    lines.push(`🏥 *${HIST_META.hospitalName}*`);
-    lines.push(`📅 *Period:* ${HIST_META.presetLabel}`);
+    lines.push(`*${HIST_META.hospitalName}*`);
+    lines.push(`*Period:* ${HIST_META.presetLabel}`);
     lines.push(`────────────────────`);
 
     if (includeTotals) {
-      lines.push(`📁 *Total Files Uploaded:* ${JOBS_DATA.length}`);
-      lines.push(`👥 *Total Leads Imported:* ${totalImported}`);
+      lines.push(`*Total Files Uploaded:* ${JOBS_DATA.length}`);
+      lines.push(`*Total Leads Imported:* ${totalImported}`);
       lines.push(``);
     }
 
     if (includeDetails && JOBS_DATA.length > 0) {
-      lines.push(`📋 *Files Summary:*`);
+      lines.push(`*Files Summary:*`);
       JOBS_DATA.forEach((j, idx) => {
         lines.push(`${idx + 1}. *${j.filename}*`);
         lines.push(`   • Created: *${j.imported}* | Updated: ${j.updated} | Dups: ${j.duplicate}`);
@@ -351,7 +343,7 @@
     }
 
     if (customNote) {
-      lines.push(`📝 *Note:* ${customNote}`);
+      lines.push(`*Note:* ${customNote}`);
       lines.push(``);
     }
 
@@ -394,23 +386,6 @@
     });
   }
 
-  function openSingleJobWhatsApp(filename, imported, updated, duplicate, total, dt) {
-    let msg = `*File Upload Lead Report*\n` +
-              `🏥 *${HIST_META.hospitalName}*\n` +
-              `📁 *File:* ${filename}\n` +
-              `📅 *Date:* ${dt}\n` +
-              `────────────────────\n` +
-              `✅ *New Leads Created:* ${imported}\n` +
-              `🔄 *Existing Leads Updated:* ${updated}\n` +
-              `⚠️ *Duplicates Handled:* ${duplicate}\n` +
-              `📊 *Total Rows:* ${total}\n` +
-              `────────────────────\n` +
-              `_Report by: ${HIST_META.senderName}_`;
-    
-    let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
-  }
-
   let currentDeleteJobId = null;
 
   function confirmDeleteImport(jobId, filename, importedCount) {
@@ -435,7 +410,7 @@
           const form = document.getElementById('deleteJobForm_' + currentDeleteJobId);
           if (form) {
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Deleting...';
+            confirmBtn.innerHTML = 'Deleting...';
             form.submit();
           }
         }
@@ -445,4 +420,3 @@
   });
 </script>
 {% endblock %}
-

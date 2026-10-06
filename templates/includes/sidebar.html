@@ -30,20 +30,20 @@
 
     <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'superadmin_home' or active == 'management_dashboard' %}active{% endif %}"
-      href="{% if user.industry == 'HOSPITAL' %}{% url 'dashboard:superadmin_home' %}{% else %}{% url 'dashboard:management_home' %}{% endif %}" title="Dashboard" style="margin-top: 4px;">
+      href="{% if user.role == 'SUPER_ADMIN' %}{% url 'dashboard:superadmin_home' %}{% else %}{% url 'dashboard:management_home' %}{% endif %}" title="Dashboard" style="margin-top: 4px;">
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
     <!-- 2. Section: Lead Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads lost_leads' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_lead_mgmt"
-        aria-expanded="{% if active in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads lost_leads' %}true{% else %}false{% endif %}"
         title="Lead Management">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads lost_leads' %}show{% endif %} nav-sub-items"
         id="sec_lead_mgmt">
         <!-- Submodule: All Leads -->
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
@@ -55,7 +55,7 @@
 
         <!-- Submodule: Bulk Lead Transfer -->
         <a class="nav-link {% if active == 'bulk_transfer' %}active{% endif %}" href="{% url 'leads:bulk_lead_transfer' %}"
-          title="Bulk Transfer"><i class="fa-solid fa-arrows-split-up-and-left text-primary"></i> <span class="nav-text">Bulk Transfer</span></a>
+          title="Bulk Transfer"><i class="fa-solid fa-arrows-split-up-and-left"></i> <span class="nav-text">Bulk Transfer</span></a>
 
         <!-- Submodule: Import / Export Leads -->
         <div class="nav-sub-item-group">
@@ -86,11 +86,11 @@
 
         <!-- Submodule: Lost Leads -->
         <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
-          title="Lost Leads"><i class="fa-solid fa-user-xmark text-danger"></i> <span class="nav-text">Lost Leads</span></a>
+          title="Lost Leads"><i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span></a>
 
         <!-- Submodule: Archived Leads -->
         <a class="nav-link {% if active == 'archived_leads' %}active{% endif %}" href="{% url 'leads:archived_leads' %}"
-          title="Archived Leads"><i class="fa-solid fa-box-archive text-danger"></i> <span class="nav-text">Archived Leads</span></a>
+          title="Archived Leads"><i class="fa-solid fa-box-archive"></i> <span class="nav-text">Archived Leads</span></a>
       </div>
     </div>
 
@@ -147,37 +147,37 @@
             <!-- Appointments Done (Nelson Hospital Selected) -->
             <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
               href="{% url 'leads:appointments_done' %}" title="Appointments Done">
-              <i class="fa-solid fa-calendar-check text-success"></i> <span class="nav-text">Appointments Done</span>
+              <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
             </a>
           {% else %}
             <!-- Admissions Done (Academy Selected) -->
             <a class="nav-link {% if active == 'admissions' or request.GET.filter == 'admission_today' or request.GET.admission_status == 'ADMISSION_DONE' %}active{% endif %}"
               href="{% url 'admissions:list' %}" title="Admissions Done">
-              <i class="fa-solid fa-graduation-cap text-primary"></i> <span class="nav-text">Admissions Done</span>
+              <i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions Done</span>
             </a>
           {% endif %}
         {% elif user.hospital and user.industry == 'HOSPITAL' %}
           <!-- Appointments Done (Hospital Bound User) -->
           <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
             href="{% url 'leads:appointments_done' %}" title="Appointments Done">
-            <i class="fa-solid fa-calendar-check text-success"></i> <span class="nav-text">Appointments Done</span>
+            <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
           </a>
         {% else %}
           {# Both shown when All Businesses / Global view is active #}
           <a class="nav-link {% if active == 'admissions' or request.GET.filter == 'admission_today' or request.GET.admission_status == 'ADMISSION_DONE' %}active{% endif %}"
             href="{% url 'admissions:list' %}" title="Admissions Done (Academy)">
-            <i class="fa-solid fa-graduation-cap text-primary"></i> <span class="nav-text">Admissions Done</span>
+            <i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions Done</span>
           </a>
           <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
             href="{% url 'leads:appointments_done' %}" title="Appointments Done (Hospital)">
-            <i class="fa-solid fa-calendar-check text-success"></i> <span class="nav-text">Appointments Done</span>
+            <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
           </a>
         {% endif %}
 
         <!-- Tab: Payments (Payments Done Leads Business-Wise) -->
         <a class="nav-link {% if active == 'payments' or request.GET.filter == 'billing_today' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.has_revenue == '1' %}active{% endif %}"
           href="{% url 'leads:lead_list' %}?deal_status=PAYMENT+DONE" title="Payments Done">
-          <i class="fa-solid fa-indian-rupee-sign text-warning"></i> <span class="nav-text">Payments Done</span>
+          <i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments Done</span>
         </a>
 
         {% if user.industry == 'HOSPITAL' %}
@@ -209,14 +209,14 @@
         {% if user.role == 'SUPER_ADMIN' %}
         <a class="nav-link {% if active == 'roles_permissions' %}active{% endif %}"
           href="{% url 'dashboard:roles_permissions' %}" title="Roles & Permissions"><i
-            class="fa-solid fa-shield-halved text-info"></i> <span class="nav-text">Roles & Permissions</span></a>
+            class="fa-solid fa-shield-halved"></i> <span class="nav-text">Roles & Permissions</span></a>
         {% endif %}
         {% endif %}
 
         <!-- EOD Reports -->
         <a class="nav-link {% if active == 'reports' or active == 'eod_reports' or active == 'reports_daily' %}active{% endif %}"
           href="{% if user.industry == 'HOSPITAL' %}{% url 'dashboard:admin_reports' %}#eod-reports{% else %}{% url 'dashboard:management_daily_reports' %}{% endif %}" title="EOD Reports">
-          <i class="fa-solid fa-file-signature text-success"></i> <span class="nav-text">EOD Reports</span>
+          <i class="fa-solid fa-file-signature"></i> <span class="nav-text">EOD Reports</span>
         </a>
 
         {% if user.industry == 'HOSPITAL' %}
@@ -268,7 +268,11 @@
         </a>
         <a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
           href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
-          <i class="fa-solid fa-temperature-half text-danger"></i> <span class="nav-text">Temperature Manager</span>
+          <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
+        </a>
+        <a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
+          href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
+          <i class="fa-brands fa-whatsapp"></i> <span class="nav-text">Custom Message</span>
         </a>
       </div>
     </div>
@@ -288,8 +292,93 @@
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
     </a>
 
+    {% elif user.role == 'DOCTOR' %}
+    {# 🩺 DOCTOR SIDEBAR #}
+
+    <!-- 1. Dashboard Link -->
+    <a class="nav-link {% if active == 'doctor_home' and not request.GET.tab %}active{% endif %}" href="{% url 'dashboard:home' %}"
+      title="Dashboard" style="margin-top: 4px;">
+      <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
+    </a>
+
+    <!-- 2. Section: Appointments -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if request.GET.tab != 'appointments' and request.GET.tab not in 'completed cancelled' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_doc_appointments"
+        aria-expanded="{% if request.GET.tab == 'appointments' or request.GET.tab in 'completed cancelled' %}true{% else %}false{% endif %}"
+        title="Appointments">
+        <span><i class="fa-solid fa-calendar-check section-icon"></i><span class="section-title">Appointments</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if request.GET.tab == 'appointments' or request.GET.tab in 'completed cancelled' %}show{% endif %} nav-sub-items"
+        id="sec_doc_appointments">
+        <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'pending' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=appointments&subtab=pending" title="Pending Requests">
+          <i class="fa-solid fa-hourglass-half"></i> <span class="nav-text">Pending Requests</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'today' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=appointments&subtab=today" title="Today's Appointments">
+          <i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's Appointments</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'upcoming' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=appointments&subtab=upcoming" title="Upcoming Appointments">
+          <i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming Appointments</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'admitted' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=appointments&subtab=admitted" title="Admitted">
+          <i class="fa-solid fa-bed-pulse"></i> <span class="nav-text">Admitted</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'completed' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=completed" title="Completed">
+          <i class="fa-solid fa-circle-check"></i> <span class="nav-text">Completed</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'cancelled' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=cancelled" title="Cancelled">
+          <i class="fa-solid fa-circle-xmark"></i> <span class="nav-text">Cancelled</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 3. Section: Calendar -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if request.GET.tab != 'calendar' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_doc_calendar"
+        aria-expanded="{% if request.GET.tab == 'calendar' %}true{% else %}false{% endif %}"
+        title="Calendar">
+        <span><i class="fa-solid fa-calendar-days section-icon"></i><span class="section-title">Calendar</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if request.GET.tab == 'calendar' %}show{% endif %} nav-sub-items"
+        id="sec_doc_calendar">
+        <a class="nav-link {% if request.GET.tab == 'calendar' and request.GET.subtab == 'hours' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=calendar&subtab=hours" title="Regular Working Hours">
+          <i class="fa-solid fa-clock"></i> <span class="nav-text">Regular Working Hours</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'calendar' and request.GET.subtab == 'add_leave' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=calendar&subtab=add_leave" title="Leave Calendar">
+          <i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Leave Calendar</span>
+        </a>
+        <a class="nav-link {% if request.GET.tab == 'calendar' and request.GET.subtab == 'recorded_leaves' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=calendar&subtab=recorded_leaves" title="Leaves History">
+          <i class="fa-solid fa-list-check"></i> <span class="nav-text">Leaves History</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 4. Submit EOD Report -->
+    <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
+      href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
+      <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
+    </a>
+
+    <!-- 5. Notifications -->
+    <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
+      title="Notifications">
+      <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
+    </a>
+
     {% else %}
-    {# 💼 COUNSELLOR / HR EMPLOYEE SIDEBAR #}
+    {# 💼 COUNSELLOR / HR EMPLOYEE / LEAD ATTENDANT SIDEBAR #}
 
     <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}"
@@ -300,21 +389,30 @@
     <!-- 2. Section: Lead Management -->
     <div class="nav-section-group">
       <button
-        class="nav-section-btn {% if active not in 'leads_all my_leads team_history leads_add leads_dup' %}collapsed{% endif %}"
+        class="nav-section-btn {% if active not in 'leads_all my_leads lost_leads team_history leads_add leads_dup' and request.GET.tab not in 'myleads lost' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_leads"
-        aria-expanded="{% if active in 'leads_all' or active in 'my_leads' or active in 'team_history' or active in 'leads_add' or active in 'leads_dup' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'leads_all my_leads lost_leads team_history leads_add leads_dup' or request.GET.tab in 'myleads lost' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div
-        class="collapse {% if active in 'leads_all my_leads lost_leads team_history leads_add leads_dup' %}show{% endif %} nav-sub-items"
+        class="collapse {% if active in 'leads_all my_leads lost_leads team_history leads_add leads_dup' or request.GET.tab in 'myleads lost' %}show{% endif %} nav-sub-items"
         id="sec_emp_leads">
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
           title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
-        <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
-          title="My Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
-        <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
-          title="Lost Leads"><i class="fa-solid fa-user-xmark text-danger"></i> <span class="nav-text">Lost Leads</span></a>
+        
+        {% if user.role == 'LEAD_ATTENDENT' or user.industry == 'HOSPITAL' %}
+          <a class="nav-link {% if active == 'my_leads' or request.GET.tab == 'myleads' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=myleads&subtab=assigned"
+            title="My Leads (Assigned)"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
+          <a class="nav-link {% if active == 'lost_leads' or request.GET.tab == 'lost' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=lost"
+            title="Lost Leads"><i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span></a>
+        {% else %}
+          <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
+            title="My Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
+          <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
+            title="Lost Leads"><i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span></a>
+        {% endif %}
+
         <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
           title="Teams History"><i class="fa-solid fa-users-viewfinder"></i> <span class="nav-text">Teams
             History</span></a>
@@ -326,29 +424,57 @@
 
     <!-- 3. Section: Follow-up Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'fu_today fu_upcoming fu_overdue fu_completed' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'fu_today fu_upcoming fu_overdue fu_completed' and request.GET.tab != 'followups' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_fu"
-        aria-expanded="{% if active in 'fu_today fu_upcoming fu_overdue fu_completed' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'fu_today fu_upcoming fu_overdue fu_completed' or request.GET.tab == 'followups' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-calendar-check section-icon"></i><span
             class="section-title">Follow-ups</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'fu_today fu_upcoming fu_overdue fu_completed' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'fu_today fu_upcoming fu_overdue fu_completed' or request.GET.tab == 'followups' %}show{% endif %} nav-sub-items"
         id="sec_emp_fu">
-        <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"
-          title="Today's Follow-ups"><i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's
-            Follow-ups</span></a>
-        <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"
-          title="Upcoming"><i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming</span></a>
-        <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}"
-          title="Overdue"><i class="fa-solid fa-calendar-xmark"></i> <span class="nav-text">Overdue</span></a>
-        <a class="nav-link {% if active == 'fu_completed' %}active{% endif %}" href="{% url 'followups:completed' %}"
-          title="Completed"><i class="fa-solid fa-circle-check text-success"></i> <span class="nav-text">Completed</span></a>
+        {% if user.role == 'LEAD_ATTENDENT' or user.industry == 'HOSPITAL' %}
+          <a class="nav-link {% if active == 'fu_today' or request.GET.subtab == 'today_fu' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=followups&subtab=today_fu"
+            title="Today's Follow-ups"><i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's
+              Follow-ups</span></a>
+          <a class="nav-link {% if active == 'fu_upcoming' or request.GET.subtab == 'upcoming_fu' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=followups&subtab=upcoming_fu"
+            title="Upcoming"><i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming</span></a>
+          <a class="nav-link {% if active == 'fu_overdue' or request.GET.subtab == 'overdue_fu' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=followups&subtab=overdue_fu"
+            title="Overdue"><i class="fa-solid fa-calendar-xmark"></i> <span class="nav-text">Overdue</span></a>
+          <a class="nav-link {% if active == 'fu_completed' or request.GET.subtab == 'completed_fu' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=followups&subtab=completed_fu"
+            title="Completed"><i class="fa-solid fa-circle-check"></i> <span class="nav-text">Completed</span></a>
+        {% else %}
+          <a class="nav-link {% if active == 'fu_today' %}active{% endif %}" href="{% url 'followups:today' %}"
+            title="Today's Follow-ups"><i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's
+              Follow-ups</span></a>
+          <a class="nav-link {% if active == 'fu_upcoming' %}active{% endif %}" href="{% url 'followups:upcoming' %}"
+            title="Upcoming"><i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming</span></a>
+          <a class="nav-link {% if active == 'fu_overdue' %}active{% endif %}" href="{% url 'followups:overdue' %}"
+            title="Overdue"><i class="fa-solid fa-calendar-xmark"></i> <span class="nav-text">Overdue</span></a>
+          <a class="nav-link {% if active == 'fu_completed' %}active{% endif %}" href="{% url 'followups:completed' %}"
+            title="Completed"><i class="fa-solid fa-circle-check"></i> <span class="nav-text">Completed</span></a>
+        {% endif %}
       </div>
     </div>
 
-    {% if not request.user.industry == 'HOSPITAL' %}
-    <!-- 4. Section: Admissions & Billings -->
+    {% if user.role == 'LEAD_ATTENDENT' or user.industry == 'HOSPITAL' %}
+    <!-- 4. Section: Appointments & Billings (Hospital Telecaller Dashboard Tabs) -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if request.GET.tab not in 'appointments billings' %}collapsed{% endif %}" type="button"
+        data-bs-toggle="collapse" data-bs-target="#sec_emp_hosp_tabs"
+        aria-expanded="{% if request.GET.tab in 'appointments billings' %}true{% else %}false{% endif %}">
+        <span><i class="fa-solid fa-stethoscope section-icon"></i><span class="section-title">Appointments & Billing</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if request.GET.tab in 'appointments billings' %}show{% endif %} nav-sub-items" id="sec_emp_hosp_tabs">
+        <a class="nav-link {% if request.GET.tab == 'appointments' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=appointments&subtab=today_apts"
+          title="Appointments"><i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments</span></a>
+        <a class="nav-link {% if request.GET.tab == 'billings' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=billings&subtab=payment_pending"
+          title="Billings & Payments"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Billings</span></a>
+      </div>
+    </div>
+    {% elif not request.user.industry == 'HOSPITAL' %}
+    <!-- 4. Section: Admissions & Billings (Academy) -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button"
         data-bs-toggle="collapse" data-bs-target="#sec_emp_adm"
@@ -371,7 +497,11 @@
     <!-- 5. Temperature Manager Tab for Counsellors / HR / Lead Attendants -->
     <a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
       href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
-      <i class="fa-solid fa-temperature-half text-danger"></i> <span class="nav-text">Temperature Manager</span>
+      <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
+    </a>
+    <a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
+      href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
+      <i class="fa-brands fa-whatsapp"></i> <span class="nav-text">Custom Message</span>
     </a>
     {% endif %}
 
@@ -396,8 +526,8 @@
 
     <form method="post" action="{% url 'accounts:logout' %}" class="m-0 p-0">
       {% csrf_token %}
-      <button type="submit" class="nav-link text-danger" title="Logout">
-        <i class="fa-solid fa-right-from-bracket text-danger"></i> <span class="nav-text">Logout</span>
+      <button type="submit" class="nav-link" title="Logout">
+        <i class="fa-solid fa-right-from-bracket"></i> <span class="nav-text">Logout</span>
       </button>
     </form>
   </div>

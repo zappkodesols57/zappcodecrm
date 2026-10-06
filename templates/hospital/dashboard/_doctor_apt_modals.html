@@ -1,0 +1,161 @@
+<!-- Doctor Actions Modal Partial: Change Slot, Complete Consultation, Reject/Cancel -->
+
+<!-- 1. Change Slot / Reschedule Modal -->
+<div class="modal fade text-start" id="changeSlotModal{{ apt.pk }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
+        <input type="hidden" name="action" value="change_slot">
+        <input type="hidden" name="ref_tab" value="{{ current_subtab|default:'appointments' }}">
+        
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="fa-solid fa-calendar-days text-primary me-2"></i>Reschedule Slot for {{ apt.lead.name }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 pt-3">
+          <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-dark small mb-3">
+            Current slot: <strong>{{ apt.appointment_date|date:"d M Y" }} at {{ apt.appointment_time|time:"h:i A"|default:"Slot not fixed" }}</strong>.
+          </div>
+          
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark mb-1">New Date <span class="text-danger">*</span></label>
+              <input type="date" name="new_date" class="form-control" value="{{ apt.appointment_date|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark mb-1">New Time <span class="text-danger">*</span></label>
+              <input type="time" name="new_time" class="form-control" value="{{ apt.appointment_time|time:'H:i' }}" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark mb-1">Doctor Remarks / Instructions <span class="text-danger">*</span></label>
+            <textarea name="doctor_remark" class="form-control" rows="3" placeholder="e.g. Shifted consultation to evening OPD batch." required>{{ apt.doctor_notes }}</textarea>
+            <small class="text-muted" style="font-size: 0.72rem;">Assigned Telecaller will receive an automatic notification.</small>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 pb-4 px-4">
+          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold" style="background: #0f2744; border-color: #0f2744;">
+            Save &amp; Reschedule
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Mark Completed / Add Next Consultation Modal -->
+<div class="modal fade text-start" id="markDoneModal{{ apt.pk }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
+        <input type="hidden" name="action" value="complete">
+        <input type="hidden" name="ref_tab" value="completed">
+        
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <div>
+            <h5 class="modal-title fw-bold text-dark">
+              <i class="fa-solid fa-circle-check text-success me-2"></i>Complete Consultation - {{ apt.lead.name }}
+            </h5>
+            <small class="text-muted">Slot: {{ apt.appointment_date|date:"d M Y" }} at {{ apt.appointment_time|time:"h:i A"|default:"Anytime" }}</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 pt-3">
+          
+          <!-- Previous Remarks & Notes History -->
+          {% if apt.lead.notes or apt.doctor_notes or apt.lead.custom_doctor_remark %}
+          <div class="p-3 mb-3 bg-light rounded-3 border">
+            <div class="small fw-bold text-secondary mb-1">
+              <i class="fa-solid fa-clock-rotate-left me-1"></i> Patient History / Previous Notes:
+            </div>
+            <div class="small text-dark text-break" style="white-space: pre-wrap;">{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.lead.notes }}</div>
+          </div>
+          {% endif %}
+
+          <!-- Doctor Clinical Remarks for Current Consultation -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark mb-1">
+              <i class="fa-solid fa-user-doctor text-primary me-1"></i> Doctor Clinical Remarks / Diagnosis Notes
+            </label>
+            <textarea name="doctor_notes" class="form-control" rows="3" placeholder="e.g. Patient diagnosed. Prescribed medications. Advised 1 week follow-up.">{{ apt.doctor_notes }}</textarea>
+          </div>
+
+          <!-- Next Follow-up Consultation Toggle Box -->
+          <div class="p-3 border rounded-3 bg-light bg-opacity-50">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptCheckDoc{{ apt.pk }}" onchange="document.getElementById('nextAptDetailsWrapDoc{{ apt.pk }}').style.display = this.checked ? 'block' : 'none';">
+              <label class="form-check-label fw-bold text-primary small cursor-pointer" for="addNextAptCheckDoc{{ apt.pk }}">
+                <i class="fa-solid fa-calendar-plus me-1"></i> Schedule Next Follow-up Appointment for Patient
+              </label>
+            </div>
+
+            <div id="nextAptDetailsWrapDoc{{ apt.pk }}" style="display: none;" class="pt-2 mt-2 border-top">
+              <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-dark mb-1">Next Appointment Date <span class="text-danger">*</span></label>
+                  <input type="date" name="next_appointment_date" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-dark mb-1">Next Time Slot</label>
+                  <input type="time" name="next_appointment_time" class="form-control form-control-sm">
+                </div>
+              </div>
+              <div>
+                <label class="form-label small fw-bold text-dark mb-1">Instructions for Telecaller / Patient</label>
+                <input type="text" name="next_appointment_notes" class="form-control form-control-sm" placeholder="e.g. Review blood reports on next visit.">
+                <small class="text-muted" style="font-size: 0.72rem;">Telecaller will receive an alert to confirm this appointment with the patient.</small>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
+          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+            <i class="fa-solid fa-check me-1"></i> Mark Consultation Completed
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Cancel / Reject Modal -->
+<div class="modal fade text-start" id="rejectModal{{ apt.pk }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
+        <input type="hidden" name="action" value="cancel">
+        <input type="hidden" name="ref_tab" value="cancelled">
+        
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <h5 class="modal-title fw-bold text-danger">
+            <i class="fa-solid fa-ban me-2"></i>Cancel Appointment - {{ apt.lead.name }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 pt-3">
+          <p class="small text-muted mb-2">
+            Please provide the reason for cancelling this appointment (e.g. Doctor emergency surgery / unavailable).
+          </p>
+          <label class="form-label small fw-bold text-dark mb-1">Cancellation Reason <span class="text-danger">*</span></label>
+          <textarea name="reject_reason" class="form-control" rows="3" placeholder="Enter reason for cancellation..." required></textarea>
+        </div>
+        <div class="modal-footer border-0 pt-0 pb-4 px-4">
+          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Cancellation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

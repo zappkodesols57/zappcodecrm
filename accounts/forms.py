@@ -29,6 +29,12 @@ class CRMUserCreateForm(UserCreationForm):
         label="Allow Self-Assign Leads",
         help_text="Check to allow this employee to self-assign unassigned leads from dashboards and lead lists."
     )
+    allow_branch_transfer = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Allow Branch Transfer",
+        help_text="Check to allow this Lead Attendant / Employee to transfer leads to other branches of this business."
+    )
     bulk_self_assign_limit = forms.IntegerField(
         required=False,
         initial=25,
@@ -39,7 +45,7 @@ class CRMUserCreateForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -154,6 +160,7 @@ class CRMUserCreateForm(UserCreationForm):
         can_del_master = self.cleaned_data.get("can_delete_master_data", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
+        allow_branch_transfer = self.cleaned_data.get("allow_branch_transfer", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
 
         # Manager, Admin, Super Admin, and Doctor roles should never have self-assign or daily calling target
@@ -169,6 +176,7 @@ class CRMUserCreateForm(UserCreationForm):
         user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
+        user.custom_permissions["allow_branch_transfer"] = bool(allow_branch_transfer)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
         if commit:
             user.save()
@@ -191,6 +199,11 @@ class CRMUserEditForm(forms.ModelForm):
         label="Allow Self-Assign Leads",
         help_text="Check to allow this employee to self-assign unassigned leads from dashboards and lead lists."
     )
+    allow_branch_transfer = forms.BooleanField(
+        required=False,
+        label="Allow Branch Transfer",
+        help_text="Check to allow this Lead Attendant / Employee to transfer leads to other branches of this business."
+    )
     daily_call_target = forms.IntegerField(
         required=False,
         min_value=0,
@@ -206,7 +219,7 @@ class CRMUserEditForm(forms.ModelForm):
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -217,6 +230,7 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["can_delete_master_data"].initial = self.instance.has_dynamic_permission("delete_master_data", default=False)
             self.fields["daily_call_target"].initial = self.instance.daily_call_target
             self.fields["allow_self_assign"].initial = self.instance.can_self_assign
+            self.fields["allow_branch_transfer"].initial = self.instance.can_transfer_branch
             self.fields["bulk_self_assign_limit"].initial = self.instance.bulk_self_assign_limit
 
         if self.user and self.user.hospital:
@@ -323,6 +337,7 @@ class CRMUserEditForm(forms.ModelForm):
         can_del_master = self.cleaned_data.get("can_delete_master_data", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
         allow_self_assign = self.cleaned_data.get("allow_self_assign", False)
+        allow_branch_transfer = self.cleaned_data.get("allow_branch_transfer", False)
         bulk_limit = self.cleaned_data.get("bulk_self_assign_limit", 25) or 25
 
         # Manager, Admin, Super Admin, and Doctor roles should never have self-assign or daily calling target
@@ -338,6 +353,7 @@ class CRMUserEditForm(forms.ModelForm):
         user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
+        user.custom_permissions["allow_branch_transfer"] = bool(allow_branch_transfer)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
         if commit:
             user.save()

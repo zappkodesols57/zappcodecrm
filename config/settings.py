@@ -105,7 +105,7 @@ if USE_MYSQL:
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
             'PORT': os.environ.get('DB_PORT', '3306'),
-            'CONN_MAX_AGE': 60,
+            'CONN_MAX_AGE': 0,
             'OPTIONS': {
                 'charset': 'utf8mb4',
                 'connect_timeout': 60,
@@ -263,12 +263,11 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'logging.FileHandler',
             'filename': LOGS_DIR / 'django.log',
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB per file
-            'backupCount': 3,              # keep last 3 rotated files
             'formatter': 'verbose',
             'encoding': 'utf-8',
+            'delay': True,
         },
         'console': {
             'level': 'INFO',

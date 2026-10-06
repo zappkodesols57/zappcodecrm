@@ -450,6 +450,8 @@ class HospitalLeadForm(forms.ModelForm):
     )
     department = NonStrictChoiceField(choices=[], required=False)
     doctor = NonStrictChoiceField(choices=[], required=False)
+    hospital_branch = NonStrictChoiceField(choices=[], required=False)
+    disease = NonStrictChoiceField(choices=[], required=False)
     appointment_status = NonStrictChoiceField(choices=[], required=False)
     appo_booked_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     appointment_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
@@ -567,9 +569,15 @@ class HospitalLeadForm(forms.ModelForm):
         cd = (self.instance.custom_data or {}) if (self.instance and self.instance.pk) else {}
         # Load JSON fields into form
         if self.instance and self.instance.pk:
-            for field in ['gender', 'age', 'department', 'doctor', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'payment_remarks', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
+            for field in ['gender', 'age', 'department', 'doctor', 'hospital_branch', 'disease', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'payment_remarks', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
                 if field in cd and field in self.fields:
                     self.fields[field].initial = cd[field]
+
+            # Fallback for hospital_branch / disease synonyms
+            if not self.fields['hospital_branch'].initial:
+                self.fields['hospital_branch'].initial = cd.get('branch') or cd.get('dyn_hospital_branch') or cd.get('dyn_branch')
+            if not self.fields['disease'].initial:
+                self.fields['disease'].initial = cd.get('dyn_disease')
 
             # In billing section, ensure Payment Remarks / remark_1 loads specific payment remark (from billing history or payment_remarks)
             billing_history = cd.get('billing_history', [])
@@ -817,6 +825,24 @@ class HospitalLeadForm(forms.ModelForm):
             self.fields["location"].choices = [("", "-- Select Patient Location (City, State) --")] + loc_options
             self.fields["campaign"].choices = [("", "-- Select Campaign --")] + master_campaigns
             self.fields["lead_source"].choices = [("", "-- Select Lead Source --")] + master_sources
+
+            # Populate Hospital Branch choices
+            b_qs = HospitalBranch.objects.filter(is_active=True)
+            if user and user.hospital:
+                b_qs = b_qs.filter(hospital=user.hospital)
+            self.fields["hospital_branch"].choices = [("", "-- Select Hospital Branch --")] + [(b.name, b.name) for b in b_qs]
+            if not self.fields["hospital_branch"].initial and user and getattr(user, 'branch', None):
+                self.fields["hospital_branch"].initial = user.branch.name
+
+            # Populate Disease choices
+            dis_qs = HospitalDisease.objects.filter(is_active=True)
+            if user and user.hospital:
+                dis_qs = dis_qs.filter(hospital=user.hospital)
+            if init_dept:
+                dis_qs = dis_qs.filter(department__name__iexact=str(init_dept))
+                self.fields["disease"].choices = [("", "-- Select Disease / Condition --")] + [(dis.name, dis.name) for dis in dis_qs]
+            else:
+                self.fields["disease"].choices = [("", "-- Select Department First --")] + [(dis.name, f"{dis.name} ({dis.department.name})" if dis.department else dis.name) for dis in dis_qs]
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -885,6 +911,9 @@ class HospitalLeadForm(forms.ModelForm):
                     if user and user.hospital:
                         b_qs = b_qs.filter(hospital=user.hospital)
                     opts = [("", f"-- Select {cf.label} --")] + [(b.name, b.name) for b in b_qs]
+                    # Default branch from user profile if not already set
+                    if not field_initial and user and user.branch:
+                        field_initial = user.branch.name
                 else:
                     opts = [("", f"-- Select {cf.label} --")] + [(opt, opt) for opt in cf.get_options_list()]
                 self.fields[fname] = NonStrictChoiceField(choices=opts, required=cf.is_required, label=cf.label, initial=field_initial)
@@ -922,7 +951,15 @@ class HospitalLeadForm(forms.ModelForm):
             # Global Super Admin: show all configured fields (no hospital restriction)
             configured_fields = LeadCustomField.objects.filter(is_active=True).order_by('order', 'id')
             
+        # Note: Hospital Branch, Department, Doctor, and Disease are rendered dynamically in the dedicated Booking Section
+        booking_specific_keys = {"hospital_branch", "branch", "department", "doctor", "disease"}
+        filtered_ordered_items = []
+
         for fld in configured_fields:
+            clean_name = fld.name.strip().lower()
+            if clean_name in booking_specific_keys:
+                continue
+
             if fld.is_system:
                 # Update standard field label / required / placeholder if overridden
                 if fld.name in self.fields:
@@ -931,7 +968,7 @@ class HospitalLeadForm(forms.ModelForm):
                     self.fields[fld.name].required = fld.is_required
                     if fld.placeholder and hasattr(self.fields[fld.name].widget, 'attrs'):
                         self.fields[fld.name].widget.attrs['placeholder'] = fld.placeholder
-                    all_ordered_items.append({
+                    filtered_ordered_items.append({
                         "type": "standard",
                         "key": fld.name,
                         "order": fld.order,
@@ -939,7 +976,7 @@ class HospitalLeadForm(forms.ModelForm):
                     })
             else:
                 fld.form_field = self[f"dyn_{fld.name}"]
-                all_ordered_items.append({
+                filtered_ordered_items.append({
                     "type": "custom",
                     "key": f"dyn_{fld.name}",
                     "order": fld.order,
@@ -947,7 +984,9 @@ class HospitalLeadForm(forms.ModelForm):
                     "is_required": fld.is_required,
                 })
 
-        # Fallback if DB not yet initialized: keep default standard sequence
+        all_ordered_items = filtered_ordered_items
+
+        # Fallback if DB not yet initialized: keep default standard sequence (Location -> Lead Source -> Campaign -> Appointment Status)
         if not all_ordered_items:
             base_standard_fields = [
                 {"type": "standard", "key": "name", "order": 1},
@@ -956,11 +995,9 @@ class HospitalLeadForm(forms.ModelForm):
                 {"type": "standard", "key": "gender", "order": 4},
                 {"type": "standard", "key": "comments", "order": 5},
                 {"type": "standard", "key": "location", "order": 6},
-                {"type": "standard", "key": "doctor", "order": 7},
-                {"type": "standard", "key": "department", "order": 8},
-                {"type": "standard", "key": "lead_source", "order": 9},
-                {"type": "standard", "key": "appointment_status", "order": 10},
-                {"type": "standard", "key": "campaign", "order": 11},
+                {"type": "standard", "key": "lead_source", "order": 7},
+                {"type": "standard", "key": "campaign", "order": 8},
+                {"type": "standard", "key": "appointment_status", "order": 9},
             ]
             all_ordered_items = base_standard_fields
 
@@ -1057,17 +1094,78 @@ class HospitalLeadForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        
+        # Check if lead is marked as Cancelled or Not Interested
+        appo_st = str(cleaned_data.get("appointment_status") or self.data.get("appointment_status") or "").strip().lower()
+        deal_st = str(cleaned_data.get("deal_status") or self.data.get("deal_status") or "").strip().lower()
+        is_cancelled = ("cancel" in appo_st or "not int" in appo_st or "cancel" in deal_st or "lost" in deal_st)
+        
+        # Check if branch transfer is requested
+        is_branch_transfer = (self.data.get("is_branch_transfer") == "1")
+        target_branch = (self.data.get("transfer_target_branch") or "").strip()
+        
+        if is_cancelled:
+            # Clear all non-critical field validation errors
+            reason = (cleaned_data.get("cancellation_reason") or self.data.get("cancellation_reason") or "").strip()
+            if not reason:
+                self.add_error("cancellation_reason", "Please provide a reason for cancelling or marking this lead as Not Interested.")
+            # Clear other field errors except cancellation_reason, name and mobile
+            for field in list(self.errors.keys()):
+                if field not in ("cancellation_reason", "name", "mobile", "__all__"):
+                    del self.errors[field]
+            return cleaned_data
+
+        if is_branch_transfer:
+            if not target_branch:
+                self.add_error(None, "Please select the target branch for transferring this lead.")
+            # Clear other non-critical errors during branch transfer
+            for field in list(self.errors.keys()):
+                if field not in ("name", "mobile", "__all__"):
+                    del self.errors[field]
+            return cleaned_data
+
+        # Sync Hospital Branch between standard field and dynamic custom field
+        b_val = (cleaned_data.get("hospital_branch") or 
+                 cleaned_data.get("dyn_hospital_branch") or 
+                 cleaned_data.get("dyn_branch") or 
+                 self.data.get("hospital_branch") or 
+                 self.data.get("dyn_hospital_branch") or 
+                 self.data.get("dyn_branch") or "").strip()
+        
+        if b_val:
+            cleaned_data["hospital_branch"] = b_val
+            if "dyn_hospital_branch" in self.fields:
+                cleaned_data["dyn_hospital_branch"] = b_val
+            if "dyn_branch" in self.fields:
+                cleaned_data["dyn_branch"] = b_val
+            # Remove any required validation errors if branch is filled
+            if "dyn_hospital_branch" in self.errors:
+                del self.errors["dyn_hospital_branch"]
+            if "dyn_branch" in self.errors:
+                del self.errors["dyn_branch"]
+            if "hospital_branch" in self.errors:
+                del self.errors["hospital_branch"]
+
+        # Determine if booking/appointment is being scheduled
+        appo_st_raw = str(cleaned_data.get("appointment_status") or self.data.get("appointment_status") or "").strip().upper()
+        appo_dt_raw = cleaned_data.get("appo_booked_date") or self.data.get("appo_booked_date")
+        is_booking_active = ("BOOK" in appo_st_raw) or bool(appo_dt_raw)
+
         fu_date = cleaned_data.get("followup_date")
         fu_time = cleaned_data.get("followup_time")
 
-        if fu_date:
+        # When booking an appointment, follow-up date/time is NOT required; only validate follow-up when explicitly adding a follow-up
+        if fu_date and not is_booking_active:
             today = timezone.localdate()
-            if fu_date < today:
-                self.add_error("followup_date", "Follow-up date cannot be in the past.")
-            elif fu_date == today and fu_time:
-                now_time = timezone.localtime().time()
-                if fu_time < now_time:
-                    self.add_error("followup_time", f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
+            is_existing_lead = bool(self.instance and self.instance.pk)
+            # If creating a new lead or if follow-up date was changed to a past date
+            if not is_existing_lead:
+                if fu_date < today:
+                    self.add_error("followup_date", "Follow-up date cannot be in the past.")
+                elif fu_date == today and fu_time:
+                    now_time = timezone.localtime().time()
+                    if fu_time < now_time:
+                        self.add_error("followup_time", f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
 
         return cleaned_data
 
@@ -1140,6 +1238,8 @@ class HospitalLeadForm(forms.ModelForm):
         appo_status_upper = appo_status.upper()
         appo_date = self.cleaned_data.get('appo_booked_date')
         doc_name = self.cleaned_data.get('doctor')
+        fu_date = self.cleaned_data.get('followup_date')
+        fu_time = self.cleaned_data.get('followup_time')
         
         # Check if Appointment is already Completed or doctor completed it
         from leads.models import Appointment, AppointmentStatus
@@ -1227,27 +1327,44 @@ class HospitalLeadForm(forms.ModelForm):
                 existing_apt.status = AppointmentStatus.COMPLETED
                 existing_apt.save(update_fields=['status'])
 
-        elif is_booking_selected or (appo_date and doc_name and not cd.get('appointment_status')):
+        # 1. Booking Status (OPD Booking, Consultation Booking, Slot Booking)
+        if is_booking_selected or (appo_date and doc_name and not is_cancelled_or_not_interested and not is_followup_needed and not has_payment):
             cd['appointment_status'] = "Awaiting Approval from Doctor"
             if appo_date and not instance.next_followup_date:
                 instance.next_followup_date = appo_date
+            from leads.models import LeadStage
+            booking_stage = LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
+                            LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
+                            LeadStage.objects.filter(name__iexact='Appointment Confirmed').first()
+            if booking_stage:
+                instance.stage = booking_stage
 
+        # 2. Cancelled / Not Interested Status -> Move strictly to Lost stage & DealStatus.LOST
         elif is_cancelled_or_not_interested:
-            from leads.models import DealStatus
+            from leads.models import DealStatus, LeadStage
             instance.deal_status = DealStatus.LOST
             cd['deal_status'] = 'Lost'
             cd['appointment_status'] = appo_status or 'Cancelled'
+            lost_stage = LeadStage.objects.filter(name__iexact='Lost').first() or \
+                         LeadStage.objects.filter(name__iexact='Cancelled').first()
+            if lost_stage:
+                instance.stage = lost_stage
 
-        elif appo_status:
-            cd['appointment_status'] = appo_status
-
-        # If Appointment Status is Follow-up Needed / Waiting and followup_date is provided
-        fu_date = self.cleaned_data.get('followup_date')
-        fu_time = self.cleaned_data.get('followup_time')
-        if is_followup_needed or fu_date:
+        # 3. Follow-up Needed Status
+        elif is_followup_needed or fu_date:
+            from leads.models import LeadStage
+            if appo_status:
+                cd['appointment_status'] = appo_status
             if fu_date:
                 instance.next_followup_date = fu_date
                 instance.next_followup_time = fu_time
+            fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or \
+                       LeadStage.objects.filter(name__iexact='Follow-up').first()
+            if fu_stage:
+                instance.stage = fu_stage
+
+        elif appo_status:
+            cd['appointment_status'] = appo_status
 
         # Sync Campaign foreign key if matching Campaign object exists
         camp_name = self.cleaned_data.get('campaign')
@@ -1257,35 +1374,13 @@ class HospitalLeadForm(forms.ModelForm):
             if camp_obj:
                 instance.campaign = camp_obj
 
-        # Ensure stage is set accurately based on business type and appointment/payment status
-        from leads.models import LeadStage
-        assigned_stage = None
-        if has_payment or is_already_completed:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Payment Done').first() or \
-                             LeadStage.objects.filter(name__iexact='Appointment Completed').first()
-        elif is_cancelled_or_not_interested:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Cancelled').first() or \
-                             LeadStage.objects.filter(name__iexact='Lost').first()
-        elif is_booking_selected:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Appointment Confirmed').first() or \
-                             LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
-                             LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
-        elif is_followup_needed or fu_date:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or \
-                             LeadStage.objects.filter(name__iexact='Follow-up').first()
-        elif appo_status:
-            assigned_stage = LeadStage.objects.filter(name__iexact=appo_status).first()
-
-        if not assigned_stage and instance.assigned_to:
-            assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first()
-
-        if not assigned_stage:
-            assigned_stage = LeadStage.objects.filter(name__iexact='New').first() or \
-                             LeadStage.objects.filter(order=1).first() or \
-                             LeadStage.objects.first()
-
-        if assigned_stage:
-            instance.stage = assigned_stage
+        # Fallback stage resolution if not already set
+        if not instance.stage:
+            from leads.models import LeadStage
+            if instance.assigned_to:
+                instance.stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.order_by("order", "id").first()
+            else:
+                instance.stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.order_by("order", "id").first()
 
         instance.custom_data = cd
         def _save_related():
@@ -1293,34 +1388,25 @@ class HospitalLeadForm(forms.ModelForm):
             from notifications.models import Notification
             today_d = timezone.localdate()
 
-            # 1. Map appointment status to FollowUpStatus
-            fu_status_mapped = FollowUpStatus.COMPLETED
-            if is_cancelled_or_not_interested:
-                if "NOT INT" in appo_status_upper:
-                    fu_status_mapped = FollowUpStatus.NOT_INTERESTED
-                else:
-                    fu_status_mapped = FollowUpStatus.CANCELLED
-            elif "NOT CON" in appo_status_upper:
-                fu_status_mapped = FollowUpStatus.NOT_CONNECTED
-            elif is_followup_needed:
-                fu_status_mapped = FollowUpStatus.RESCHEDULED if fu_date else FollowUpStatus.PENDING
-            elif "INTEREST" in appo_status_upper:
-                fu_status_mapped = FollowUpStatus.INTERESTED
-
-            # Compose remark text
             fu_remark = self.cleaned_data.get('followup_remark')
             remark_text = fu_remark or self.cleaned_data.get('remark_1') or cancel_reason_val or cd.get('comments') or ''
             if not remark_text:
                 remark_text = f"Updated lead status to {appo_status or instance.get_deal_status_display()}"
 
+            # If Cancelled or Not Interested: complete any existing pending followups
+            if is_cancelled_or_not_interested:
+                instance.followups.filter(
+                    followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]
+                ).update(followup_status=FollowUpStatus.COMPLETED)
+
             # If a new follow-up date is scheduled
-            if fu_date:
+            elif fu_date:
                 # Mark previous pending follow-ups as COMPLETED since a new date is scheduled
                 instance.followups.filter(
                     followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]
                 ).update(followup_status=FollowUpStatus.COMPLETED)
 
-                # Create the scheduled pending follow-up
+                # Create the scheduled pending follow-up in the follow-ups tab
                 FollowUp.objects.create(
                     lead=instance,
                     followup_date=fu_date,
@@ -1332,22 +1418,7 @@ class HospitalLeadForm(forms.ModelForm):
                     next_followup_time=fu_time,
                     created_by=getattr(self, 'current_user', None)
                 )
-            else:
-                # Always record today's contact/edit activity for team visibility
-                FollowUp.objects.create(
-                    lead=instance,
-                    followup_date=today_d,
-                    followup_time=timezone.localtime().time(),
-                    followup_mode=FollowUpMode.CALL,
-                    followup_status=fu_status_mapped,
-                    comment=remark_text,
-                    next_followup_date=None,
-                    next_followup_time=None,
-                    created_by=getattr(self, 'current_user', None)
-                )
 
-            # Send Notification if a future follow-up is scheduled
-            if fu_date:
                 target_user = instance.assigned_to or getattr(self, 'current_user', None)
                 if target_user:
                     time_str = f" at {fu_time.strftime('%I:%M %p')}" if fu_time else ""
@@ -1357,27 +1428,26 @@ class HospitalLeadForm(forms.ModelForm):
                         message=f"Follow-up scheduled for patient {instance.name} on {fu_date}{time_str}. Mobile: {instance.mobile}",
                         link=f"/leads/{instance.pk}/"
                     )
-                
-            # 2. Create Appointment record if Booked with appointment date
-            appo_date = self.cleaned_data.get('appo_booked_date')
-            appo_time = self.cleaned_data.get('appointment_time')
-            doc_name = self.cleaned_data.get('doctor')
+
+            # 2. Appointment Booking -> Create / Update Appointment record with PENDING_APPROVAL for Doctor
+            appo_date_val = self.cleaned_data.get('appo_booked_date')
+            appo_time_val = self.cleaned_data.get('appointment_time')
+            doc_name_val = self.cleaned_data.get('doctor')
             
-            # If appo_time is a string from hidden input
-            if isinstance(appo_time, str) and appo_time.strip():
+            if isinstance(appo_time_val, str) and appo_time_val.strip():
                 try:
                     from datetime import datetime
-                    appo_time = datetime.strptime(appo_time.strip(), "%H:%M").time()
+                    appo_time_val = datetime.strptime(appo_time_val.strip(), "%H:%M").time()
                 except Exception:
                     pass
 
-            if "BOOKED" in appo_status or (appo_date and doc_name):
-                if appo_date and doc_name:
+            if is_booking_selected or (appo_date_val and doc_name_val and not is_cancelled_or_not_interested):
+                if appo_date_val and doc_name_val:
                     import re
                     from leads.models import Appointment, AppointmentStatus
                     
                     doc_user = None
-                    clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name, flags=re.IGNORECASE).strip()
+                    clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name_val, flags=re.IGNORECASE).strip()
                     user_qs = User.objects.filter(role=User.Role.DOCTOR)
                     if getattr(self, 'current_user', None) and self.current_user.hospital:
                         user_qs = user_qs.filter(hospital=self.current_user.hospital)
@@ -1387,30 +1457,31 @@ class HospitalLeadForm(forms.ModelForm):
                         u_clean = re.sub(r'^(dr\.?|doctor)\s+', '', full_name, flags=re.IGNORECASE).strip()
                         username = u.username.lower()
                         search_low = clean_doc_name.lower()
-                        doc_raw_low = doc_name.lower()
+                        doc_raw_low = doc_name_val.lower()
                         if (search_low and (search_low in full_name or search_low in u_clean or search_low in username)) or \
                            (doc_raw_low and (doc_raw_low in full_name or doc_raw_low in username)):
                             doc_user = u
                             break
                         
-                    # Update active/latest appointment or create new for this lead
+                    # Transfer / create appointment in PENDING_APPROVAL status until doctor confirms
                     existing_apt = Appointment.objects.filter(lead=instance).order_by('-id').first()
                     if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
                         existing_apt.hospital = getattr(instance, 'hospital', None)
-                        existing_apt.doctor_name = doc_name
+                        existing_apt.doctor_name = doc_name_val
                         existing_apt.doctor_user = doc_user
-                        existing_apt.appointment_date = appo_date
-                        existing_apt.appointment_time = appo_time
+                        existing_apt.appointment_date = appo_date_val
+                        existing_apt.appointment_time = appo_time_val
+                        existing_apt.status = AppointmentStatus.PENDING_APPROVAL
                         existing_apt.notes = self.cleaned_data.get('remark_1') or existing_apt.notes
-                        existing_apt.save(update_fields=['hospital', 'doctor_name', 'doctor_user', 'appointment_date', 'appointment_time', 'notes'])
+                        existing_apt.save(update_fields=['hospital', 'doctor_name', 'doctor_user', 'appointment_date', 'appointment_time', 'status', 'notes'])
                     else:
                         Appointment.objects.create(
                             lead=instance,
                             hospital=getattr(instance, 'hospital', None),
-                            doctor_name=doc_name,
+                            doctor_name=doc_name_val,
                             doctor_user=doc_user,
-                            appointment_date=appo_date,
-                            appointment_time=appo_time,
+                            appointment_date=appo_date_val,
+                            appointment_time=appo_time_val,
                             status=AppointmentStatus.PENDING_APPROVAL,
                             notes=self.cleaned_data.get('remark_1') or '',
                             created_by=getattr(self, 'current_user', None)

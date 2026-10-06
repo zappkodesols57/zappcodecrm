@@ -195,6 +195,60 @@
         border-color: #e2e8f0 !important;
         color: #94a3b8 !important;
     }
+
+    /* =================================================== */
+    /* BRAND BASE COLOR TAB STYLING (Primary Navy & White) */
+    /* =================================================== */
+    /* Main Dashboard Pills */
+    #mainDashboardTabs .nav-link {
+        color: #475569 !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        transition: all 0.2s ease;
+    }
+    #mainDashboardTabs .nav-link:hover {
+        background: #f8fafc !important;
+        color: var(--primary) !important;
+        border-color: #cbd5e1 !important;
+    }
+    #mainDashboardTabs .nav-link.active {
+        background: var(--primary) !important;
+        color: #ffffff !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 4px 12px rgba(15, 39, 68, 0.25) !important;
+    }
+    #mainDashboardTabs .nav-link.active .badge {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    }
+
+    /* Subtabs inside Panes */
+    .nav-tabs .nav-link {
+        color: #64748b !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-bottom: none !important;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        margin-bottom: -1px;
+    }
+    .nav-tabs .nav-link:hover {
+        color: var(--primary) !important;
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+    }
+    .nav-tabs .nav-link.active {
+        background: var(--primary) !important;
+        color: #ffffff !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 2px 8px rgba(15, 39, 68, 0.18) !important;
+    }
+    .nav-tabs .nav-link.active .badge {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    }
 </style>
 {% endblock %}
 
@@ -222,8 +276,8 @@
     <!-- 6 REDESIGNED KPI CARDS -->
     <div class="stats-kpi-grid">
         
-        <!-- CARD 1: Today's New Leads -->
-        <div class="stat-card c-leads" onclick="openUniversalCardDrilldown('new_leads', 'Today\'s New Leads', 'bg-primary')" title="Click to view full records & calendar breakdown">
+        <!-- CARD 1: Today's New Leads (Switches to My Leads -> New Leads) -->
+        <div class="stat-card c-leads" onclick="switchDashboardTab('myleads-main-tab', 'myleads-new-tab')" title="Click to view New Leads">
             <div class="stat-header">
                 <span class="stat-title">Today's New Leads</span>
             </div>
@@ -233,8 +287,8 @@
             </div>
         </div>
 
-        <!-- CARD 2: Call Not Done -->
-        <div class="stat-card c-callnotdone" onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done Leads', 'bg-danger')" title="Click to view pending calling queue">
+        <!-- CARD 2: Call Not Done (Switches to My Leads -> Assigned Leads) -->
+        <div class="stat-card c-callnotdone" onclick="switchDashboardTab('myleads-main-tab', 'myleads-assigned-tab')" title="Click to view Assigned Leads calling queue">
             <div class="stat-header">
                 <span class="stat-title">Call Not Done</span>
             </div>
@@ -244,8 +298,8 @@
             </div>
         </div>
 
-        <!-- CARD 3: Today's Bookings (OPD & Consultation Combined) -->
-        <div class="stat-card c-appo" onclick="openUniversalCardDrilldown('telecaller_opd_booked', 'Today\'s OPD & Consultation Booked', 'bg-warning')" title="Click to view OPD & Consultation appointments">
+        <!-- CARD 3: Today's Bookings (Switches to Appointments -> Today's Appointments) -->
+        <div class="stat-card c-appo" onclick="switchDashboardTab('appointments-main-tab', 'todays-apts-tab')" title="Click to view Today's Appointments">
             <div class="stat-header">
                 <span class="stat-title">Today's Bookings</span>
             </div>
@@ -257,8 +311,8 @@
             </div>
         </div>
 
-        <!-- CARD 4: Today's Follow-ups -->
-        <div class="stat-card c-followup" onclick="openUniversalCardDrilldown('followups', 'Today\'s Follow-ups', 'bg-purple')" title="Click to view today's follow-up list">
+        <!-- CARD 4: Today's Follow-ups (Switches to Follow-ups -> Today's Follow-ups) -->
+        <div class="stat-card c-followup" onclick="switchDashboardTab('followups-main-tab', 'todays-tab')" title="Click to view Today's Follow-ups">
             <div class="stat-header">
                 <span class="stat-title">Today's Follow-ups</span>
             </div>
@@ -270,8 +324,8 @@
             </div>
         </div>
 
-        <!-- CARD 5: Today's Walk-in -->
-        <div class="stat-card c-walkin" onclick="openUniversalCardDrilldown('walkin', 'Today\'s Walk-in Leads', 'bg-success')" title="Click to view walk-in patients">
+        <!-- CARD 5: Today's Walk-in (Non-clickable) -->
+        <div class="stat-card c-walkin" style="cursor: default;" title="Today's Walk-in Leads">
             <div class="stat-header">
                 <span class="stat-title">Today's Walk-in</span>
             </div>
@@ -281,8 +335,8 @@
             </div>
         </div>
 
-        <!-- CARD 6: Today's Target (Remaining Countdown) -->
-        <div class="stat-card c-target" onclick="location.href='{% url 'dashboard:call_history' %}?call_date={{ today_date|date:'Y-m-d' }}'" title="Target: {{ daily_target }} calls | Completed: {{ calls_completed_today }} calls | Click to view call history">
+        <!-- CARD 6: Today's Target (Non-clickable) -->
+        <div class="stat-card c-target" style="cursor: default;" title="Target: {{ daily_target }} calls | Completed: {{ calls_completed_today }} calls">
             <div class="stat-header">
                 <span class="stat-title">Today's Target</span>
             </div>
@@ -297,356 +351,601 @@
 
     </div>
 
-    <!-- ROW 1: Follow-ups Queue & Upcoming OPD / Appointments (Equally Sized) -->
-    <div class="row g-4 mb-4">
-        
-        <!-- Left Column: Follow-ups Queue (col-lg-6) -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
-                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold text-dark mb-0">
-                            Follow-ups Queue <span class="fw-semibold text-secondary" style="font-size: 0.95rem;">({{ pending_and_upcoming_followups_count|default:0 }})</span>
-                        </h5>
-                        <small class="text-muted">All active follow-ups: Billing, Call, & Appointments</small>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="openUniversalCardDrilldown('followups', 'Follow-ups', 'bg-purple')">
-                        Calendar View
+    <!-- 5 MAIN DASHBOARD TABS SECTION -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+        <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+            
+            <!-- MAIN 5 TABS (Clean brand-navy styling) -->
+            <ul class="nav nav-pills gap-2 pb-3 border-bottom" id="mainDashboardTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="myleads-main-tab" data-bs-toggle="pill" data-bs-target="#myleads-main-pane" type="button" role="tab" aria-controls="myleads-main-pane" aria-selected="true" style="font-size: 0.95rem;">
+                        My Leads
                     </button>
-                </div>
-                <div class="card-body p-0 flex-grow-1 d-flex flex-column">
-                    <div class="table-responsive flex-grow-1" style="max-height: 380px; overflow-y: auto;">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light sticky-top" style="z-index: 1;">
-                                <tr>
-                                    <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Category</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Due Date</th>
-                                    <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lead in pending_and_upcoming_followups %}
-                                <tr>
-                                    <td class="px-4">
-                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
-                                            {{ lead.name }}
-                                        </a>
-                                        <div class="small mt-0.5">
-                                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</a>
-                                            <span class="text-muted ms-1">{{ lead.mobile }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if lead.followup_category == 'Billing Follow-up' %}
-                                             <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
-                                                Billing
-                                            </span>
-                                        {% elif lead.followup_category == 'Appointment Follow-up' %}
-                                            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1">
-                                                Appointment
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
-                                                Call
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="fw-bold {% if lead.is_overdue %}text-danger{% elif lead.next_followup_date == today_date %}text-success{% else %}text-dark{% endif %}">
-                                            {{ lead.next_followup_date|date:"d M Y" }}
-                                        </div>
-                                        {% if lead.is_overdue %}
-                                            <span class="badge bg-danger text-white" style="font-size: 0.65rem;">Overdue</span>
-                                        {% elif lead.next_followup_date == today_date %}
-                                            <span class="badge bg-success text-white" style="font-size: 0.65rem;">Today</span>
-                                        {% else %}
-                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Upcoming</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-4 text-end text-nowrap">
-                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                                            View
-                                        </a>
-                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Record Follow-up Interaction">
-                                            Follow-up
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-center py-5">
-                                        <h6 class="fw-bold text-dark">No pending or upcoming follow-ups</h6>
-                                        <p class="text-muted small mb-0">Schedule next follow-up dates while editing leads to keep track here.</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="followups-main-tab" data-bs-toggle="pill" data-bs-target="#followups-main-pane" type="button" role="tab" aria-controls="followups-main-pane" aria-selected="false" style="font-size: 0.95rem;">
+                        Follow-ups
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="appointments-main-tab" data-bs-toggle="pill" data-bs-target="#appointments-main-pane" type="button" role="tab" aria-controls="appointments-main-pane" aria-selected="false" style="font-size: 0.95rem;">
+                        Appointments <span class="badge bg-light text-dark border ms-2" style="font-size: 0.72rem;">{{ total_appointments_count|default:0 }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="billings-main-tab" data-bs-toggle="pill" data-bs-target="#billings-main-pane" type="button" role="tab" aria-controls="billings-main-pane" aria-selected="false" style="font-size: 0.95rem;">
+                        Billings <span class="badge bg-light text-dark border ms-2" style="font-size: 0.72rem;">{{ total_billings_count|default:0 }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="lost-main-tab" data-bs-toggle="pill" data-bs-target="#lost-main-pane" type="button" role="tab" aria-controls="lost-main-pane" aria-selected="false" style="font-size: 0.95rem;">
+                        Lost <span class="badge bg-light text-dark border ms-2" style="font-size: 0.72rem;">{{ lost_leads_count|default:0 }}</span>
+                    </button>
+                </li>
+            </ul>
         </div>
 
-        <!-- Right Column: Upcoming OPD / Appointments (col-lg-6) -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
-                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold text-dark mb-0">
-                            Upcoming OPD / Appointments <span class="fw-semibold text-secondary" style="font-size: 0.95rem;">({{ upcoming_opd_count|default:0 }})</span>
-                        </h5>
-                        <small class="text-muted">Confirmed future consultations & visits scheduled ahead of today</small>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold" onclick="openUniversalCardDrilldown('telecaller_opd_booked', 'OPD Booked', 'bg-warning')">
-                        Calendar View
-                    </button>
-                </div>
-                <div class="card-body p-0 flex-grow-1 d-flex flex-column">
-                    <div class="table-responsive flex-grow-1" style="max-height: 380px; overflow-y: auto;">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light sticky-top" style="z-index: 1;">
-                                <tr>
-                                    <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">OPD Date & Time</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
-                                    <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lead in upcoming_opd_leads %}
-                                <tr>
-                                    <td class="px-4">
-                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
-                                            {{ lead.name }}
-                                        </a>
-                                        <div class="small mt-0.5">
-                                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</a>
-                                            <span class="text-muted ms-1">{{ lead.mobile }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="fw-bold text-dark">
-                                            {{ lead.booking_scheduled_date|date:"d M Y"|default:lead.custom_data.appo_booked_date }}
-                                        </div>
-                                        <div class="small text-muted">
-                                            {{ lead.booking_scheduled_time|default:'Scheduled Slot' }}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if lead.custom_doctor %}
-                                            <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="ph ph-stethoscope me-1"></i> {{ lead.custom_doctor }}</span></div>
-                                        {% endif %}
-                                        {% if lead.custom_dept %}
-                                            <div class="small fw-semibold text-secondary mt-1">{{ lead.custom_dept }}</div>
-                                        {% elif not lead.custom_doctor %}
-                                            <span class="text-muted small">General OPD</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-4 text-end text-nowrap">
-                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                                            <i class="ph ph-eye"></i>
-                                        </a>
-                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Edit & Call Patient">
-                                            <i class="ph ph-pencil-simple"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-center py-5">
-                                        <div class="text-muted mb-2"><i class="ph ph-calendar-blank fs-1 opacity-25"></i></div>
-                                        <h6 class="fw-bold text-dark">No upcoming OPD appointments booked</h6>
-                                        <p class="text-muted small mb-0">Book appointments through lead profile or calling queue to see them here.</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div class="card-body p-0">
+            <div class="tab-content" id="mainDashboardTabsContent">
+                
+                <!-- ========================================== -->
+                <!-- MAIN TAB 1: MY LEADS (Default Active)      -->
+                <!-- ========================================== -->
+                <div class="tab-pane fade show active p-4" id="myleads-main-pane" role="tabpanel" aria-labelledby="myleads-main-tab" tabindex="0">
+                    
+                    <!-- My Leads Sub-tabs -->
+                    <ul class="nav nav-tabs border-bottom gap-2 mb-3" id="myLeadsSubTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="myleads-new-tab" data-bs-toggle="tab" data-bs-target="#myleads-new-pane" type="button" role="tab" aria-controls="myleads-new-pane" aria-selected="true">
+                                New Leads <span class="badge bg-primary text-white rounded-pill ms-2">{{ new_leads_count|default:0 }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-assigned-tab" data-bs-toggle="tab" data-bs-target="#myleads-assigned-pane" type="button" role="tab" aria-controls="myleads-assigned-pane" aria-selected="false">
+                                Assigned Leads <span class="badge bg-secondary text-white rounded-pill ms-2">{{ assigned_leads_count|default:0 }}</span>
+                            </button>
+                        </li>
+                    </ul>
 
-    </div>
+                    <div class="tab-content" id="myLeadsSubTabsContent">
+                        
+                        <!-- SUBTAB 1.1: New Leads (Unassigned Pool) -->
+                        <div class="tab-pane fade show active" id="myleads-new-pane" role="tabpanel" aria-labelledby="myleads-new-tab" tabindex="0">
+                            
+                            <!-- Bulk Actions Bar for New Leads -->
+                            {% if can_self_assign %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 px-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="form-check d-flex align-items-center ms-2 me-1">
+                                        <input class="form-check-input" type="checkbox" id="selectAllNewLeads" title="Select All On This Page" onchange="toggleSelectAllNewLeads(this)" style="cursor: pointer; transform: scale(1.15);">
+                                        <label class="form-check-label text-muted small fw-semibold ms-2" for="selectAllNewLeads" style="cursor: pointer;">Select All</label>
+                                    </div>
+                                    <span id="selectedNewLeadsCountBadge" class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill" style="display: none; font-size: 0.78rem;">
+                                        <span id="selectedNewLeadsCount">0</span> selected
+                                    </span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" id="bulkSelfAssignBtn" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 shadow-sm fw-bold d-inline-flex align-items-center" onclick="performBulkSelfAssign()" disabled title="Self-assign selected leads">
+                                        <i class="fa-solid fa-hand-holding-hand me-1.5"></i> Bulk Self Assign
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
 
-    <!-- ROW 2: My Recent Leads & Today's Tasks (Equally Sized) -->
-    <div class="row g-4">
-        
-        <!-- Left Column: My Recent Leads (col-lg-6) -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
-                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold text-dark mb-0">
-                            My Recent Leads
-                        </h5>
-                        <small class="text-muted">Latest patient records updated in your active calling queue</small>
-                    </div>
-                    <a href="{% url 'dashboard:telecaller_my_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold">
-                        View All
-                    </a>
-                </div>
-                <div class="card-body p-0 flex-grow-1 d-flex flex-column">
-                    <div class="table-responsive flex-grow-1" style="max-height: 380px; overflow-y: auto;">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light sticky-top" style="z-index: 1;">
-                                <tr>
-                                    <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold text-center">Status</th>
-                                    <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Recent Remark</th>
-                                    <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lead in my_recent_leads %}
-                                <tr>
-                                    <td class="px-4">
-                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
-                                            {{ lead.name }}
-                                        </a>
-                                        <div class="small mt-0.5">
-                                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</a>
-                                            <span class="text-muted ms-1">{{ lead.mobile }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if lead.custom_doctor %}
-                                            <div><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ lead.custom_doctor }}</span></div>
-                                        {% endif %}
-                                        {% if lead.custom_dept %}
-                                            <div class="small fw-semibold text-secondary mt-1">{{ lead.custom_dept }}</div>
-                                        {% elif not lead.custom_doctor %}
-                                            <span class="text-muted small">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if lead.custom_deal_status == 'Payment Done' %}
-                                            <span class="badge badge-payment-done px-2 py-1">Payment Done</span>
-                                        {% elif lead.custom_deal_status == 'Booking Confirmed' %}
-                                            <span class="badge badge-booking-confirmed px-2 py-1">Booking Confirmed</span>
-                                        {% elif lead.custom_deal_status == 'Awaiting Approval from Doctor' or lead.custom_deal_status == 'Booking Approval Pending' %}
-                                            <span class="badge badge-booking-pending px-2 py-1">Awaiting Approval from Doctor</span>
-                                        {% elif lead.custom_deal_status == 'Booked' %}
-                                            <span class="badge badge-booking px-2 py-1">Booked</span>
-                                        {% elif lead.custom_deal_status == 'Follow-up Needed' %}
-                                            <span class="badge badge-followup-needed px-2 py-1">Follow-up</span>
-                                            {% if lead.next_followup_date %}
-                                                <div class="small text-muted mt-1" style="font-size: 0.7rem;">{{ lead.next_followup_date|date:"d M, y" }}</div>
+                            <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light sticky-top" style="z-index: 1;">
+                                        <tr>
+                                            {% if can_self_assign %}
+                                            <th class="border-0 px-3 py-3 text-center" style="width: 44px;">
+                                                <i class="fa-regular fa-square-check text-muted"></i>
+                                            </th>
                                             {% endif %}
-                                        {% elif lead.custom_deal_status == 'Payment Pending' %}
-                                            <span class="badge badge-payment-pending px-2 py-1">Payment Pending</span>
-                                        {% elif lead.custom_deal_status == 'Assigned' %}
-                                            <span class="badge badge-assigned px-2 py-1">Assigned</span>
-                                        {% elif lead.custom_deal_status == 'Lost' or lead.custom_deal_status == 'Cancelled' or lead.custom_deal_status == 'Not Interested' %}
-                                            <span class="badge badge-lost px-2 py-1">{{ lead.custom_deal_status }}</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">{{ lead.custom_deal_status|default:'Open' }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="max-width: 150px;">
-                                        <span class="small text-secondary text-truncate d-inline-block" style="max-width: 150px;" title="{{ lead.custom_data.remark_1|default:lead.notes|default:'No remarks recorded' }}">
-                                            {{ lead.custom_data.remark_1|default:lead.notes|default:'—' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 text-end text-nowrap">
-                                        <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                                            View
-                                        </a>
-                                        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-primary rounded-pill px-2 py-1" style="background: var(--primary-gradient); border: none;" title="Edit & Call Lead">
-                                            Edit
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-5">
-                                        <h6 class="fw-bold text-dark">No assigned leads in your queue yet</h6>
-                                        <p class="text-muted small mb-0">Open <strong>Call Not Done</strong> or <strong>New Enquiries</strong> to pick leads and start calling.</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                            <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Name</th>
+                                            <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                                            <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source</th>
+                                            <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Campaign</th>
+                                            <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Remarks</th>
+                                            <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Date Time</th>
+                                            <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="newLeadsTableBody">
+                                        {% for lead in new_leads_list %}
+                                        <tr id="lead-row-{{ lead.pk }}">
+                                            {% if can_self_assign %}
+                                            <td class="px-3 text-center">
+                                                <input type="checkbox" class="form-check-input new-lead-checkbox" value="{{ lead.pk }}" style="cursor: pointer;" onchange="updateNewLeadsSelection()">
+                                            </td>
+                                            {% endif %}
+                                            <td class="px-4">
+                                                <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                                                    {{ lead.name }}
+                                                </a>
+                                                <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                                                {% if lead.email and lead.email != '-' %}
+                                                    <div class="small text-muted">{{ lead.email }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-secondary border">{{ lead.custom_source|default:'nan' }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="small text-dark">{{ lead.custom_camp|default:'nan' }}</span>
+                                            </td>
+                                            <td style="max-width: 200px;">
+                                                <span class="small text-secondary text-truncate d-inline-block" style="max-width: 200px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks' }}">
+                                                    {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
+                                            </td>
+                                            <td class="px-4 text-end text-nowrap">
+                                                {% if can_self_assign %}
+                                                <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 me-1 shadow-xs fw-bold" onclick="captureLeadFromTable({{ lead.pk }}, '{{ lead.name|escapejs }}')" title="Capture & Assign to Me">
+                                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Capture
+                                                </button>
+                                                {% endif %}
+                                                <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </a>
+                                                {% if lead.clean_phone_number %}
+                                                <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                                                    <i class="fa-brands fa-whatsapp"></i>
+                                                </a>
+                                                <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                                                    <i class="fa-solid fa-phone"></i>
+                                                </a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="{% if can_self_assign %}8{% else %}7{% endif %}" class="text-center py-5">
+                                                <h6 class="fw-bold text-dark mb-1">No new unassigned leads</h6>
+                                                <p class="text-muted small mb-0">New patient inquiries for your branch will appear here.</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
 
-        <!-- Right Column: Today's Tasks (col-lg-6) -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white d-flex flex-column">
-                <div class="card-header bg-white border-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold text-dark mb-0">
-                            Today's Tasks
-                        </h5>
-                        <small class="text-muted">Assigned by Management or Self</small>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-3 fw-semibold" title="View All Tasks">
-                            View All
-                        </a>
-                        <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border rounded-pill px-2" title="New Task">
-                            New Task
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body p-4 flex-grow-1" style="max-height: 380px; overflow-y: auto;">
-                    {% if todays_tasks %}
-                        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
-                            {% for task in todays_tasks %}
-                            <li class="p-3 rounded-3 bg-light border border-light-subtle position-relative d-flex align-items-start gap-3">
-                                <div class="mt-1">
-                                    {% if task.priority == 'URGENT' %}
-                                        <i class="ph-fill ph-warning-circle text-danger fs-5"></i>
-                                    {% elif task.priority == 'HIGH' %}
-                                        <i class="ph-fill ph-lightning text-warning fs-5"></i>
-                                    {% else %}
-                                        <i class="ph-fill ph-check-circle text-primary fs-5"></i>
-                                    {% endif %}
+                            <!-- Pagination for New Leads Table -->
+                            {% if new_leads_page and new_leads_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">
+                                    Showing <span class="fw-semibold text-dark">{{ new_leads_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ new_leads_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ new_leads_count }}</span> leads
                                 </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ task.title }}</span>
-                                        {% if task.due_time %}
-                                            <span class="badge bg-white text-muted border small" style="font-size: 0.7rem;"><i class="ph ph-clock me-1"></i>{{ task.due_time|time:"h:i A" }}</span>
-                                        {% endif %}
-                                    </div>
-                                    {% if task.description %}
-                                        <p class="small text-muted mb-2" style="font-size: 0.8rem;">{{ task.description }}</p>
-                                    {% endif %}
-
-                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-light-subtle">
-                                        {% if task.lead %}
-                                            <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="small fw-semibold text-primary text-decoration-none" style="font-size: 0.75rem;">
-                                                <i class="ph ph-user me-1"></i>{{ task.lead.name }}
+                                <nav aria-label="New Leads Pagination">
+                                    <ul class="pagination pagination-sm mb-0 gap-1">
+                                        {% if new_leads_page.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=new&page={{ new_leads_page.previous_page_number }}">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
                                             </a>
+                                        </li>
                                         {% else %}
-                                            <span class="small text-muted" style="font-size: 0.75rem;">General Task</span>
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </span>
+                                        </li>
                                         {% endif %}
 
-                                        {% if task.user != request.user %}
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">By {{ task.user.get_full_name|default:task.user.username }}</span>
+                                        <li class="page-item active">
+                                            <span class="page-link rounded-pill px-3 py-1 fw-bold">
+                                                Page {{ new_leads_page.number }} of {{ new_leads_page.paginator.num_pages }}
+                                            </span>
+                                        </li>
+
+                                        {% if new_leads_page.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=new&page={{ new_leads_page.next_page_number }}">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </a>
+                                        </li>
                                         {% else %}
-                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">Self</span>
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </span>
+                                        </li>
                                         {% endif %}
-                                    </div>
-                                </div>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="text-center text-muted py-5">
-                            <i class="ph ph-calendar-check fs-1 mb-2 opacity-50 text-success d-block"></i>
-                            <p class="text-muted small mb-0">No pending tasks for today. Click <strong>+</strong> above to add a task.</p>
+                                    </ul>
+                                </nav>
+                            </div>
+                            {% endif %}
                         </div>
+
+                        <!-- SUBTAB 1.2: Assigned Leads -->
+                        <div class="tab-pane fade" id="myleads-assigned-pane" role="tabpanel" aria-labelledby="myleads-assigned-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="assigned_leads" leads=assigned_leads_list %}
+                            </div>
+
+                            <!-- Pagination for Assigned Leads Table -->
+                            {% if assigned_leads_page and assigned_leads_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">
+                                    Showing <span class="fw-semibold text-dark">{{ assigned_leads_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ assigned_leads_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ assigned_leads_count }}</span> leads
+                                </div>
+                                <nav aria-label="Assigned Leads Pagination">
+                                    <ul class="pagination pagination-sm mb-0 gap-1">
+                                        {% if assigned_leads_page.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=assigned&page={{ assigned_leads_page.previous_page_number }}">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </span>
+                                        </li>
+                                        {% endif %}
+
+                                        <li class="page-item active">
+                                            <span class="page-link rounded-pill px-3 py-1 fw-bold">
+                                                Page {{ assigned_leads_page.number }} of {{ assigned_leads_page.paginator.num_pages }}
+                                            </span>
+                                        </li>
+
+                                        {% if assigned_leads_page.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=assigned&page={{ assigned_leads_page.next_page_number }}">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </span>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MAIN TAB 2: FOLLOW-UPS                     -->
+                <!-- ========================================== -->
+                <div class="tab-pane fade p-4" id="followups-main-pane" role="tabpanel" aria-labelledby="followups-main-tab" tabindex="0">
+                    
+                    <!-- Follow-ups 4 Sub-tabs -->
+                    <div class="mb-3">
+                        <ul class="nav nav-tabs border-bottom gap-2 mb-0" id="followupsSubTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="todays-tab" data-bs-toggle="tab" data-bs-target="#todays-followups-pane" type="button" role="tab" aria-controls="todays-followups-pane" aria-selected="true">
+                                    Today's Follow-ups <span class="badge bg-primary text-white rounded-pill ms-2">{{ todays_followups_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming-followups-pane" type="button" role="tab" aria-controls="upcoming-followups-pane" aria-selected="false">
+                                    Upcoming Follow-ups <span class="badge bg-secondary text-white rounded-pill ms-2">{{ upcoming_followups_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="overdue-tab" data-bs-toggle="tab" data-bs-target="#overdue-followups-pane" type="button" role="tab" aria-controls="overdue-followups-pane" aria-selected="false">
+                                    Overdue Follow-ups <span class="badge bg-danger text-white rounded-pill ms-2">{{ overdue_followups_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-followups-pane" type="button" role="tab" aria-controls="completed-followups-pane" aria-selected="false">
+                                    Completed <span class="badge bg-success text-white rounded-pill ms-2">{{ completed_followups_count|default:0 }}</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="tab-content" id="followupsSubTabsContent">
+                        
+                        <!-- SUBTAB 2.1: Today's Follow-ups -->
+                        <div class="tab-pane fade show active" id="todays-followups-pane" role="tabpanel" aria-labelledby="todays-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="followups_todays" leads=todays_tele_followups_list %}
+                            </div>
+                            {% if todays_fu_page and todays_fu_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ todays_fu_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ todays_fu_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ todays_followups_count }}</span> follow-ups</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if todays_fu_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=today_fu&page={{ todays_fu_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ todays_fu_page.number }} of {{ todays_fu_page.paginator.num_pages }}</span></li>
+                                    {% if todays_fu_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=today_fu&page={{ todays_fu_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 2.2: Upcoming Follow-ups -->
+                        <div class="tab-pane fade" id="upcoming-followups-pane" role="tabpanel" aria-labelledby="upcoming-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="followups_upcoming" leads=upcoming_tele_followups_list %}
+                            </div>
+                            {% if upcoming_fu_page and upcoming_fu_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ upcoming_fu_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ upcoming_fu_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ upcoming_followups_count }}</span> follow-ups</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if upcoming_fu_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=upcoming_fu&page={{ upcoming_fu_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ upcoming_fu_page.number }} of {{ upcoming_fu_page.paginator.num_pages }}</span></li>
+                                    {% if upcoming_fu_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=upcoming_fu&page={{ upcoming_fu_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 2.3: Overdue Follow-ups -->
+                        <div class="tab-pane fade" id="overdue-followups-pane" role="tabpanel" aria-labelledby="overdue-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="followups_overdue" leads=overdue_tele_followups_list %}
+                            </div>
+                            {% if overdue_fu_page and overdue_fu_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ overdue_fu_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ overdue_fu_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ overdue_followups_count }}</span> follow-ups</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if overdue_fu_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=overdue_fu&page={{ overdue_fu_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ overdue_fu_page.number }} of {{ overdue_fu_page.paginator.num_pages }}</span></li>
+                                    {% if overdue_fu_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=overdue_fu&page={{ overdue_fu_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 2.4: Completed Follow-ups -->
+                        <div class="tab-pane fade" id="completed-followups-pane" role="tabpanel" aria-labelledby="completed-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="followups_completed" leads=completed_tele_followups_list %}
+                            </div>
+                            {% if completed_fu_page and completed_fu_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ completed_fu_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ completed_fu_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ completed_followups_count }}</span> follow-ups</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if completed_fu_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=completed_fu&page={{ completed_fu_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ completed_fu_page.number }} of {{ completed_fu_page.paginator.num_pages }}</span></li>
+                                    {% if completed_fu_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=followups&subtab=completed_fu&page={{ completed_fu_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MAIN TAB 3: APPOINTMENTS (4 SUB-TABS)      -->
+                <!-- ========================================== -->
+                <div class="tab-pane fade p-4" id="appointments-main-pane" role="tabpanel" aria-labelledby="appointments-main-tab" tabindex="0">
+                    
+                    <!-- Appointments Sub-tabs -->
+                    <div class="border-bottom mb-3 pb-2">
+                        <ul class="nav nav-tabs border-0 gap-2 mb-0" id="appointmentsSubTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="todays-apts-tab" data-bs-toggle="tab" data-bs-target="#todays-apts-pane" type="button" role="tab" aria-controls="todays-apts-pane" aria-selected="true">
+                                    Today's Appointments <span class="badge bg-warning text-dark rounded-pill ms-2">{{ todays_appointments_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="upcoming-apts-tab" data-bs-toggle="tab" data-bs-target="#upcoming-apts-pane" type="button" role="tab" aria-controls="upcoming-apts-pane" aria-selected="false">
+                                    Upcoming <span class="badge bg-primary text-white rounded-pill ms-2">{{ upcoming_appointments_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="admitted-apts-tab" data-bs-toggle="tab" data-bs-target="#admitted-apts-pane" type="button" role="tab" aria-controls="admitted-apts-pane" aria-selected="false">
+                                    Admitted <span class="badge bg-success text-white rounded-pill ms-2">{{ admitted_appointments_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="pending-approval-apts-tab" data-bs-toggle="tab" data-bs-target="#pending-approval-apts-pane" type="button" role="tab" aria-controls="pending-approval-apts-pane" aria-selected="false">
+                                    Approval Pending <span class="badge bg-danger text-white rounded-pill ms-2">{{ approval_pending_appointments_count|default:0 }}</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="tab-content" id="appointmentsSubTabsContent">
+                        
+                        <!-- SUBTAB 3.1: Today's Appointments -->
+                        <div class="tab-pane fade show active" id="todays-apts-pane" role="tabpanel" aria-labelledby="todays-apts-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="appointments_todays" leads=todays_appointments_list %}
+                            </div>
+                            {% if todays_apts_page and todays_apts_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ todays_apts_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ todays_apts_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ todays_appointments_count }}</span> appointments</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if todays_apts_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=todays&page={{ todays_apts_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ todays_apts_page.number }} of {{ todays_apts_page.paginator.num_pages }}</span></li>
+                                    {% if todays_apts_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=todays&page={{ todays_apts_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 3.2: Upcoming Appointments -->
+                        <div class="tab-pane fade" id="upcoming-apts-pane" role="tabpanel" aria-labelledby="upcoming-apts-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="appointments_upcoming" leads=upcoming_appointments_list %}
+                            </div>
+                            {% if upcoming_apts_page and upcoming_apts_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ upcoming_apts_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ upcoming_apts_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ upcoming_appointments_count }}</span> appointments</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if upcoming_apts_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=upcoming&page={{ upcoming_apts_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ upcoming_apts_page.number }} of {{ upcoming_apts_page.paginator.num_pages }}</span></li>
+                                    {% if upcoming_apts_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=upcoming&page={{ upcoming_apts_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 3.3: Admitted (Booking Confirmed, Past Date, Pending Doctor Completion) -->
+                        <div class="tab-pane fade" id="admitted-apts-pane" role="tabpanel" aria-labelledby="admitted-apts-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="appointments_admitted" leads=admitted_appointments_list %}
+                            </div>
+                            {% if admitted_apts_page and admitted_apts_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ admitted_apts_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ admitted_apts_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ admitted_appointments_count }}</span> appointments</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if admitted_apts_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=admitted&page={{ admitted_apts_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ admitted_apts_page.number }} of {{ admitted_apts_page.paginator.num_pages }}</span></li>
+                                    {% if admitted_apts_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=admitted&page={{ admitted_apts_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 3.4: Approval Pending -->
+                        <div class="tab-pane fade" id="pending-approval-apts-pane" role="tabpanel" aria-labelledby="pending-approval-apts-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="appointments_pending" leads=approval_pending_appointments_list %}
+                            </div>
+                            {% if approval_pending_apts_page and approval_pending_apts_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ approval_pending_apts_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ approval_pending_apts_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ approval_pending_appointments_count }}</span> appointments</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if approval_pending_apts_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=pending&page={{ approval_pending_apts_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ approval_pending_apts_page.number }} of {{ approval_pending_apts_page.paginator.num_pages }}</span></li>
+                                    {% if approval_pending_apts_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=pending&page={{ approval_pending_apts_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MAIN TAB 4: BILLINGS (2 SUB-TABS)          -->
+                <!-- ========================================== -->
+                <div class="tab-pane fade p-4" id="billings-main-pane" role="tabpanel" aria-labelledby="billings-main-tab" tabindex="0">
+                    
+                    <!-- Billings Sub-tabs (Payment Done vs Payment Pending) -->
+                    <div class="border-bottom mb-3 pb-2">
+                        <ul class="nav nav-tabs border-0 gap-2 mb-0" id="billingsSubTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="payment-pending-tab" data-bs-toggle="tab" data-bs-target="#payment-pending-pane" type="button" role="tab" aria-controls="payment-pending-pane" aria-selected="true">
+                                    Payment Pending <span class="badge bg-warning text-dark rounded-pill ms-2">{{ payment_pending_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="payment-done-tab" data-bs-toggle="tab" data-bs-target="#payment-done-pane" type="button" role="tab" aria-controls="payment-done-pane" aria-selected="false">
+                                    Payment Done <span class="badge bg-success text-white rounded-pill ms-2">{{ payment_done_count|default:0 }}</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="tab-content" id="billingsSubTabsContent">
+                        
+                        <!-- SUBTAB 4.1: Payment Pending -->
+                        <div class="tab-pane fade show active" id="payment-pending-pane" role="tabpanel" aria-labelledby="payment-pending-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="billings_pending" leads=payment_pending_list %}
+                            </div>
+                            {% if payment_pending_page and payment_pending_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ payment_pending_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ payment_pending_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ payment_pending_count }}</span> billings</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if payment_pending_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=billings&subtab=pending&page={{ payment_pending_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ payment_pending_page.number }} of {{ payment_pending_page.paginator.num_pages }}</span></li>
+                                    {% if payment_pending_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=billings&subtab=pending&page={{ payment_pending_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 4.2: Payment Done -->
+                        <div class="tab-pane fade" id="payment-done-pane" role="tabpanel" aria-labelledby="payment-done-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="billings_done" leads=payment_done_list %}
+                            </div>
+                            {% if payment_done_page and payment_done_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ payment_done_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ payment_done_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ payment_done_count }}</span> billings</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if payment_done_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=billings&subtab=done&page={{ payment_done_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ payment_done_page.number }} of {{ payment_done_page.paginator.num_pages }}</span></li>
+                                    {% if payment_done_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=billings&subtab=done&page={{ payment_done_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MAIN TAB 5: LOST / CANCELLED / FREEZE LEADS-->
+                <!-- ========================================== -->
+                <div class="tab-pane fade p-4" id="lost-main-pane" role="tabpanel" aria-labelledby="lost-main-tab" tabindex="0">
+                    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                        {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="lost" leads=lost_cancelled_leads_list total_count=lost_leads_count %}
+                    </div>
+
+                    <!-- Pagination for Lost Leads Table -->
+                    {% if lost_page and lost_page.paginator.num_pages > 1 %}
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                        <div class="text-muted small">
+                            Showing <span class="fw-semibold text-dark">{{ lost_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ lost_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ lost_leads_count }}</span> leads
+                        </div>
+                        <nav aria-label="Lost Leads Pagination">
+                            <ul class="pagination pagination-sm mb-0 gap-1">
+                                {% if lost_page.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=lost&page={{ lost_page.previous_page_number }}">
+                                        <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                        <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                    </span>
+                                </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link rounded-pill px-3 py-1 fw-bold">
+                                        Page {{ lost_page.number }} of {{ lost_page.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if lost_page.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=lost&page={{ lost_page.next_page_number }}">
+                                        Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                        Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                    </span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
                     {% endif %}
                 </div>
+
             </div>
         </div>
-
     </div>
 
 </div>
@@ -966,6 +1265,30 @@
         }
         if (leadsTableHeading) {
             leadsTableHeading.innerText = `${baseName} Records`;
+        }
+    }
+
+    function switchDashboardTab(mainTabBtnId, subTabBtnId) {
+        if (mainTabBtnId) {
+            const mainBtn = document.getElementById(mainTabBtnId);
+            if (mainBtn) {
+                const tabInstance = bootstrap.Tab.getOrCreateInstance(mainBtn);
+                tabInstance.show();
+            }
+        }
+        if (subTabBtnId) {
+            setTimeout(() => {
+                const subBtn = document.getElementById(subTabBtnId);
+                if (subBtn) {
+                    const subTabInstance = bootstrap.Tab.getOrCreateInstance(subBtn);
+                    subTabInstance.show();
+                }
+            }, 50);
+        }
+        // Smooth scroll to the main dashboard tabs container
+        const tabsSection = document.getElementById('mainDashboardTabs');
+        if (tabsSection) {
+            tabsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
@@ -2117,12 +2440,224 @@
         });
     }
 
+    function captureLeadFromTable(leadId, leadName) {
+        const patientName = leadName || 'this patient';
+        showInWindowConfirm({
+            title: "Capture Patient Lead",
+            message: `Do you want to capture and assign <strong>${patientName}</strong> to yourself?`,
+            detailsHtml: `<div class="text-primary"><i class="fa-solid fa-circle-info me-1"></i>This patient will be assigned directly to your queue.</div>`,
+            confirmText: "Capture Now",
+            confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
+            icon: "ph-bold ph-hand-palm fa-lg",
+            onConfirm: function() {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+                fetch(`/leads/${leadId}/self-assign/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showInWindowAlert("Lead Captured", data.message || "Patient successfully captured and assigned to you!", "info");
+                        const row = document.getElementById(`lead-row-${leadId}`);
+                        if (row) {
+                            row.style.transition = 'all 0.35s ease';
+                            row.style.opacity = '0';
+                            row.style.transform = 'scale(0.95)';
+                            setTimeout(() => {
+                                row.remove();
+                                updateNewLeadsSelection();
+                            }, 350);
+                        }
+                    } else {
+                        showInWindowAlert("Capture Failed", data.message || "Could not capture this lead.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Capture lead error:", err);
+                    showInWindowAlert("Network Error", "An error occurred while communicating with the server.", "error");
+                });
+            }
+        });
+    }
+
+    function toggleSelectAllNewLeads(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('.new-lead-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = masterCheckbox.checked;
+        });
+        updateNewLeadsSelection();
+    }
+
+    function updateNewLeadsSelection() {
+        const selectedCheckboxes = document.querySelectorAll('.new-lead-checkbox:checked');
+        const count = selectedCheckboxes.length;
+        const allCheckboxes = document.querySelectorAll('.new-lead-checkbox');
+        const selectAll = document.getElementById('selectAllNewLeads');
+        const badge = document.getElementById('selectedNewLeadsCountBadge');
+        const countSpan = document.getElementById('selectedNewLeadsCount');
+        const assignBtn = document.getElementById('bulkSelfAssignBtn');
+
+        if (selectAll && allCheckboxes.length > 0) {
+            selectAll.checked = (count === allCheckboxes.length);
+            selectAll.indeterminate = (count > 0 && count < allCheckboxes.length);
+        }
+
+        if (badge && countSpan) {
+            countSpan.textContent = count;
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+
+        if (assignBtn) {
+            assignBtn.disabled = (count === 0);
+        }
+    }
+
+    function performBulkSelfAssign() {
+        const selectedCheckboxes = document.querySelectorAll('.new-lead-checkbox:checked');
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        if (selectedIds.length === 0) {
+            showInWindowAlert("No Leads Selected", "Please select at least one patient lead to assign to yourself.", "warning");
+            return;
+        }
+
+        const maxLimit = parseInt('{{ bulk_self_assign_limit|default:25 }}', 10);
+        if (selectedIds.length > maxLimit) {
+            showInWindowAlert(
+                "Limit Exceeded",
+                `You can self-assign a maximum of <strong>${maxLimit}</strong> leads at a time. You have selected <strong>${selectedIds.length}</strong> leads.`,
+                "error"
+            );
+            return;
+        }
+
+        showInWindowConfirm({
+            title: "Bulk Self-Assign Leads",
+            message: `Do you want to self-assign all <strong>${selectedIds.length}</strong> selected patient lead(s) to your queue?`,
+            detailsHtml: `<div class="text-primary small"><i class="fa-solid fa-circle-check me-1"></i>Selected leads will be moved to your assigned queue immediately.</div>`,
+            confirmText: `Assign ${selectedIds.length} Leads`,
+            confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
+            icon: "ph-bold ph-hand-palm fa-lg",
+            onConfirm: function() {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+                fetch('/leads/bulk-action/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        bulk_action: 'self_assign',
+                        lead_ids: selectedIds
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showInWindowAlert("Leads Assigned", data.message || `Successfully assigned ${selectedIds.length} leads to yourself!`, "info");
+                        selectedIds.forEach(id => {
+                            const row = document.getElementById(`lead-row-${id}`);
+                            if (row) {
+                                row.style.transition = 'all 0.3s ease';
+                                row.style.opacity = '0';
+                                row.style.transform = 'scale(0.95)';
+                                setTimeout(() => row.remove(), 300);
+                            }
+                        });
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1200);
+                    } else {
+                        showInWindowAlert("Assignment Notice", data.message || "Failed to complete bulk self-assignment.", "error");
+                    }
+                })
+                .catch(err => {
+                    console.error("Bulk self-assign error:", err);
+                    showInWindowAlert("Network Error", "An error occurred while communicating with the server.", "error");
+                });
+            }
+        });
+    }
+
     function filterDrilldownTable() {
         applyAllDrilldownFilters();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        // Tab switching via URL param (e.g. ?tab=lost or ?tab=myleads&subtab=assigned)
         const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab');
+        const activeSubtab = urlParams.get('subtab');
+
+        if (activeTab) {
+            const tabBtnMap = {
+                'myleads': 'myleads-main-tab',
+                'my_leads': 'myleads-main-tab',
+                'followups': 'followups-main-tab',
+                'follow_ups': 'followups-main-tab',
+                'appointments': 'appointments-main-tab',
+                'billings': 'billings-main-tab',
+                'lost': 'lost-main-tab',
+                'lost_leads': 'lost-main-tab'
+            };
+            const targetBtnId = tabBtnMap[activeTab.toLowerCase()];
+            if (targetBtnId) {
+                const targetBtn = document.getElementById(targetBtnId);
+                if (targetBtn) {
+                    const bsTab = bootstrap.Tab.getOrCreateInstance(targetBtn);
+                    bsTab.show();
+                }
+            }
+        }
+
+        if (activeSubtab) {
+            const subtabBtnMap = {
+                'assigned': 'myleads-assigned-tab',
+                'new': 'myleads-new-tab',
+                'today_fu': 'todays-tab',
+                'today': 'todays-tab',
+                'todays': 'todays-tab',
+                'upcoming_fu': 'upcoming-tab',
+                'upcoming': 'upcoming-tab',
+                'overdue_fu': 'overdue-tab',
+                'overdue': 'overdue-tab',
+                'completed_fu': 'completed-tab',
+                'completed': 'completed-tab',
+                'todays_apts': 'todays-apts-tab',
+                'today_apts': 'todays-apts-tab',
+                'upcoming_apts': 'upcoming-apts-tab',
+                'admitted_apts': 'admitted-apts-tab',
+                'admitted': 'admitted-apts-tab',
+                'pending_apts': 'pending-approval-apts-tab',
+                'pending': 'pending-approval-apts-tab',
+                'payment_pending': 'payment-pending-tab',
+                'payment_done': 'payment-done-tab',
+                'done': 'payment-done-tab'
+            };
+            const targetSubBtnId = subtabBtnMap[activeSubtab.toLowerCase()];
+            if (targetSubBtnId) {
+                const targetSubBtn = document.getElementById(targetSubBtnId);
+                if (targetSubBtn) {
+                    const bsSubTab = bootstrap.Tab.getOrCreateInstance(targetSubBtn);
+                    bsSubTab.show();
+                }
+            }
+        }
+
+        if (activeTab || activeSubtab) {
+            setTimeout(() => {
+                const tabsContainer = document.getElementById('mainDashboardTabs');
+                if (tabsContainer) {
+                    tabsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 150);
+        }
+
+        // Drilldown URL handling
         const drilldownCard = urlParams.get('drilldown_card');
         if (drilldownCard) {
             const drilldownTitle = urlParams.get('drilldown_title') || 'Lead Records';

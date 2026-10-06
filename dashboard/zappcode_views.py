@@ -546,4 +546,3 @@ def card_drilldown_page(request):
         "request_get": request.GET,
     }
     return render(request, "dashboard/drilldown_page.html", context)
-

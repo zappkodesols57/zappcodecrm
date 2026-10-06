@@ -45,18 +45,18 @@ class AcademyDailyReportForm(forms.ModelForm):
 
 
 class HospitalDailyReportForm(forms.ModelForm):
-    """Specific form for Hospital / Nelson Medical consultations."""
-    MOOD_RATING_CHOICES = [
-        (1, "😞 Very Low"),
-        (2, "😕 Low"),
-        (3, "😐 Moderate"),
-        (4, "🙂 Good"),
-        (5, "😄 Great"),
+    """Clean EOD form for Hospital Telecaller / Staff with 3-field layout."""
+    MOOD_CHOICES = [
+        ("Great", "Great"),
+        ("Good", "Good"),
+        ("Moderate", "Moderate"),
+        ("Tired", "Tired"),
+        ("Exhausted", "Exhausted"),
+        ("Sick", "Sick"),
     ]
-    mood_rating = forms.TypedChoiceField(
-        choices=MOOD_RATING_CHOICES,
-        coerce=int,
-        initial=3,
+    mood = forms.ChoiceField(
+        choices=MOOD_CHOICES,
+        initial="Good",
         required=False,
         widget=forms.Select(attrs={"class": "form-select no-tom-select"})
     )
@@ -64,44 +64,41 @@ class HospitalDailyReportForm(forms.ModelForm):
     class Meta:
         model = DailyReport
         fields = [
-            "leads_assigned", "calls_attended", "outgoing_calls", "incoming_calls", "calls_not_connected",
-            "follow_ups_taken", "follow_ups_pending", "appointments_booked", "freeze_leads",
-            "leads_cold", "leads_interested", "leads_visited", "admissions_done",
-            "key_highlight", "challenges_faced", "tomorrow_priority", "other_updates",
-            "mood_rating",
+            "leads_assigned", "appointments_booked", "payments_done",
+            "follow_ups_taken", "leads_interested", "leads_cold",
+            "freeze_leads", "leads_visited", "calls_attended",
+            "incoming_calls", "outgoing_calls", "calls_not_connected",
+            "mood", "challenges_faced", "tomorrow_priority",
         ]
         widgets = {
-            "leads_assigned":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "calls_attended":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "outgoing_calls":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "incoming_calls":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "calls_not_connected":forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "follow_ups_taken":   forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "follow_ups_pending": forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "appointments_booked":forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "freeze_leads":       forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "leads_cold":         forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "leads_interested":   forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "leads_visited":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "admissions_done":    forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()", "oninput": "if(this.value.length > 1 && this.value.startsWith('0')) this.value = this.value.replace(/^0+/, '') || '0'"}),
-            "key_highlight":      forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Completed all patient calls, 2 appointments confirmed..."}),
-            "challenges_faced":   forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Any issues, blockers, or difficult patient leads..."}),
-            "tomorrow_priority":  forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "What will you focus on tomorrow?"}),
-            "other_updates":      forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Any other updates or summary notes..."}),
+            "leads_assigned":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "appointments_booked":forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "payments_done":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "follow_ups_taken":   forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "leads_interested":   forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "leads_cold":         forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "freeze_leads":       forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "leads_visited":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "calls_attended":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "incoming_calls":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "outgoing_calls":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "calls_not_connected":forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0", "onfocus": "this.select()"}),
+            "challenges_faced":   forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Enter remarks / notes for today..."}),
+            "tomorrow_priority":  forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Enter tomorrow's plan / tasks..."}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
-            if name not in ["key_highlight", "challenges_faced", "tomorrow_priority", "other_updates", "mood_rating"]:
-                field.required = False
+            field.required = False
 
     def clean(self):
         cleaned_data = super().clean()
         int_fields = [
-            "leads_assigned", "calls_attended", "outgoing_calls", "incoming_calls", "calls_not_connected",
-            "follow_ups_taken", "follow_ups_pending", "appointments_booked", "freeze_leads",
-            "leads_cold", "leads_interested", "leads_visited", "admissions_done",
+            "leads_assigned", "appointments_booked", "payments_done",
+            "follow_ups_taken", "leads_interested", "leads_cold",
+            "freeze_leads", "leads_visited", "calls_attended",
+            "incoming_calls", "outgoing_calls", "calls_not_connected",
         ]
         for field in int_fields:
             val = cleaned_data.get(field)

@@ -1,0 +1,416 @@
+{% load humanize %}
+
+{% if tab == "assigned_leads" %}
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Campaign</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Remarks</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Date Time</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                        {{ lead.name }}
+                    </a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}
+                        <div class="small text-muted">{{ lead.email }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-light text-secondary border">{{ lead.custom_source|default:'nan' }}</span>
+                </td>
+                <td>
+                    <span class="small text-dark">{{ lead.custom_camp|default:'nan' }}</span>
+                </td>
+                <td style="max-width: 200px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 200px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td>
+                    <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No assigned leads</h6>
+                    <p class="text-muted small mb-0">Capture leads from the New Leads tab to start calling.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% elif tab == "followups_todays" or tab == "followups_upcoming" or tab == "followups_overdue" or tab == "followups_completed" %}
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source / Campaign</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Department</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Follow up Date / Status</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Latest Remark</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">{{ lead.name }}</a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}<div class="small text-muted">{{ lead.email }}</div>{% endif %}
+                </td>
+                <td>
+                    <div><span class="badge bg-light text-secondary border">{{ lead.custom_source|default:'nan' }}</span></div>
+                    <div class="small text-muted mt-0.5">{{ lead.custom_camp|default:'nan' }}</div>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.custom_doctor|default:'General' }}</div>
+                    <div class="small text-muted">{{ lead.custom_dept|default:'—' }}</div>
+                </td>
+                <td>
+                    {% if tab == "followups_todays" %}
+                        <div class="fw-bold text-success">{{ lead.next_followup_date|date:"d M Y"|default:today_date|date:"d M Y" }}</div>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.7rem;">Today</span>
+                    {% elif tab == "followups_upcoming" %}
+                        <div class="fw-bold text-primary">{{ lead.next_followup_date|date:"d M Y" }}</div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.7rem;">Scheduled</span>
+                    {% elif tab == "followups_overdue" %}
+                        <div class="fw-bold text-danger">{{ lead.next_followup_date|date:"d M Y" }}</div>
+                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle" style="font-size: 0.7rem;">Overdue</span>
+                    {% else %}
+                        <div class="fw-bold text-success">{{ lead.last_followup_date|date:"d M Y"|default:lead.updated_at|date:"d M Y" }}</div>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.7rem;">Completed</span>
+                    {% endif %}
+                </td>
+                <td style="max-width: 220px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 220px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No follow-ups in this list</h6>
+                    <p class="text-muted small mb-0">Follow-up appointments and calls will appear here automatically.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% elif tab == "appointments_todays" or tab == "appointments_upcoming" or tab == "appointments_admitted" or tab == "appointments_pending" %}
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source / Campaign</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Department</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Booking Date / Slot Time</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">OPD / Consultation</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Remarks</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                        {{ lead.name }}
+                    </a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}<div class="small text-muted">{{ lead.email }}</div>{% endif %}
+                </td>
+                <td>
+                    <div><span class="badge bg-light text-secondary border">{{ lead.custom_source|default:'nan' }}</span></div>
+                    <div class="small text-muted mt-0.5">{{ lead.custom_camp|default:'nan' }}</div>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.custom_doctor|default:'Specialist Doctor' }}</div>
+                    <div class="small text-muted">{{ lead.custom_dept|default:'General OPD' }}</div>
+                </td>
+                <td>
+                    {% if tab == "appointments_todays" %}
+                        <div class="fw-bold text-primary">{{ lead.appointment_scheduled_date|date:"d M Y"|default:today_date|date:"d M Y" }}</div>
+                        <div class="small text-muted">{{ lead.appointment_scheduled_time|default:'Today Slot' }}</div>
+                    {% elif tab == "appointments_upcoming" %}
+                        <div class="fw-bold text-primary">{{ lead.appointment_scheduled_date|date:"d M Y" }}</div>
+                        <div class="small text-muted">{{ lead.appointment_scheduled_time|default:'Scheduled Slot' }}</div>
+                    {% elif tab == "appointments_admitted" %}
+                        <div class="fw-bold text-success">{{ lead.appointment_scheduled_date|date:"d M Y" }}</div>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;">Admitted / In Clinic</span>
+                    {% else %}
+                        <div class="fw-bold text-danger">{{ lead.appointment_scheduled_date|date:"d M Y"|default:"Slot Requested" }}</div>
+                        <div class="small text-muted">{{ lead.appointment_scheduled_time|default:'Awaiting Confirmation' }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge {% if lead.appointment_type_label == 'OPD' %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% else %}bg-info bg-opacity-10 text-info border border-info-subtle{% endif %} px-2.5 py-1">
+                        {{ lead.appointment_type_label|default:'OPD' }}
+                    </span>
+                </td>
+                <td style="max-width: 200px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 200px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks recorded' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No appointments found</h6>
+                    <p class="text-muted small mb-0">Appointments booked for doctors will appear here automatically.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% elif tab == "billings_pending" or tab == "billings_done" %}
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Department</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Appointment Date / Slot</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Appointment Done Date / Time</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Latest Remarks</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Billing Amount</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                        {{ lead.name }}
+                    </a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}<div class="small text-muted">{{ lead.email }}</div>{% endif %}
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.custom_doctor|default:'Consultant Doctor' }}</div>
+                    <div class="small text-muted">{{ lead.custom_dept|default:'General OPD' }}</div>
+                </td>
+                <td>
+                    <div class="fw-bold text-dark">{{ lead.apt_scheduled_date|date:"d M Y"|default:lead.custom_data.appo_booked_date|default:"Scheduled" }}</div>
+                    <div class="small text-muted">{{ lead.apt_scheduled_time|default:'Scheduled Slot' }}</div>
+                </td>
+                <td>
+                    {% if tab == "billings_pending" %}
+                        <div class="small fw-bold text-info">{{ lead.appointment_done_display }}</div>
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle" style="font-size: 0.68rem;">OPD Complete</span>
+                    {% else %}
+                        <div class="small fw-bold text-success">{{ lead.appointment_done_display }}</div>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle" style="font-size: 0.68rem;">Payment Done</span>
+                    {% endif %}
+                </td>
+                <td style="max-width: 200px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 200px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks recorded' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td>
+                    {% if tab == "billings_pending" %}
+                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2.5 py-1">
+                            Pending
+                        </span>
+                    {% else %}
+                        <div class="fw-bold text-success fs-6">₹{{ lead.display_billed_amount|floatformat:2 }}</div>
+                        {% if lead.opd_bill_amt or lead.pharmacy_bill_amt %}
+                        <div class="small text-muted" style="font-size: 0.7rem;">OPD: ₹{{ lead.opd_bill_amt|default:0 }} | Pharm: ₹{{ lead.pharmacy_bill_amt|default:0 }}</div>
+                        {% endif %}
+                    {% endif %}
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Receipt">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="View / Edit Billing Info">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No billing records found</h6>
+                    <p class="text-muted small mb-0">Patients with billing entries or pending payments will appear here.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% elif tab == "lost" %}
+    <div class="mb-3">
+        <h5 class="fw-bold text-dark mb-0">Lost & Cancelled Leads</h5>
+        <small class="text-muted">Archived inquiries, cancelled appointments, and freeze leads</small>
+    </div>
+
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source / Campaign</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Follow ups</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Last Remark</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Enquiry Date</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Closing Date</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                        {{ lead.name }}
+                    </a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}
+                        <div class="small text-muted">{{ lead.email }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <div><span class="badge bg-light text-secondary border">{{ lead.custom_source|default:'nan' }}</span></div>
+                    <div class="small text-muted mt-0.5">{{ lead.custom_camp|default:'nan' }}</div>
+                </td>
+                <td>
+                    <div class="fw-bold text-dark">
+                        <span class="badge bg-light text-dark border me-1">{{ lead.display_followup_count|default:lead.followup_count|default:0 }} Calls</span>
+                    </div>
+                    <div class="small text-muted mt-0.5">
+                        Last: {{ lead.last_followup_date|date:"d M Y"|default:lead.next_followup_date|date:"d M Y"|default:"—" }}
+                    </div>
+                </td>
+                <td style="max-width: 220px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 220px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remark recorded' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td>
+                    <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
+                </td>
+                <td>
+                    <div class="small fw-bold text-danger">{{ lead.closing_datetime_display }}</div>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle" style="font-size: 0.68rem;">{{ lead.custom_deal_status|default:"Lost" }}</span>
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No lost / cancelled leads</h6>
+                    <p class="text-muted small mb-0">Closed or lost inquiries will appear here.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+

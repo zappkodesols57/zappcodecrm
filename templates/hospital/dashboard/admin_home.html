@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}{{ request.user.hospital.name|default:'Nelson Hospital' }} Interactive Analytics Dashboard{% endblock %}
+{% block title %}{% if request.user.hospital %}{{ request.user.hospital.name }} Analytics Dashboard{% else %}Super Admin
+Analytics Dashboard{% endif %}{% endblock %}
 
 {% block extra_head %}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -9,17 +10,23 @@
 
 <style>
     :root {
-        --primary: #4f46e5;
-        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-        --text-main: #1e293b;
+        --primary: #052042;
+        --primary-gradient: linear-gradient(135deg, #052042 0%, #0A294F 100%);
+        --text-main: #253247;
+        --text-heading: #052042;
         --text-muted: #64748b;
-        --bg-color: #f8fafc;
+        --bg-color: #F7F8F9;
         --surface: #ffffff;
-        --border: rgba(99, 102, 241, 0.12);
-        --radius-lg: 18px;
-        --radius-md: 12px;
-        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.04);
-        --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+        --border: #E5E7EB;
+        --radius-lg: 14px;
+        --radius-md: 10px;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 12px rgba(5, 32, 66, 0.06);
+    }
+
+    body {
+        background-color: #F7F8F9 !important;
+        color: #253247 !important;
     }
 
     .nelson-dashboard {
@@ -27,10 +34,32 @@
         color: var(--text-main);
     }
 
+    .nelson-dashboard h1,
+    .nelson-dashboard h2,
+    .nelson-dashboard h3,
+    .nelson-dashboard h4,
+    .nelson-dashboard h5,
+    .nelson-dashboard h6 {
+        color: #052042 !important;
+    }
+
+    .btn-primary {
+        background-color: #052042 !important;
+        border-color: #052042 !important;
+        color: #ffffff !important;
+    }
+
+    .btn-primary:hover,
+    .btn-primary:focus {
+        background-color: #0A294F !important;
+        border-color: #0A294F !important;
+        color: #ffffff !important;
+    }
+
     .filter-panel {
         background: #ffffff;
         border-radius: var(--radius-lg);
-        border: 1px solid #e2e8f0;
+        border: 1px solid #E5E7EB;
         box-shadow: var(--shadow-sm);
         padding: 1.25rem 1.5rem;
         margin-bottom: 1.5rem;
@@ -47,15 +76,15 @@
     .nelson-dashboard .filter-panel .custom-filter-select,
     .nelson-dashboard .filter-panel .custom-filter-input,
     .nelson-dashboard .filter-panel .ts-control {
-        border: 1px solid #cbd5e1 !important;
+        border: 1px solid #E5E7EB !important;
         background-color: #ffffff !important;
         border-radius: 8px !important;
         padding: 0.42rem 0.75rem !important;
         font-size: 0.82rem !important;
         font-weight: 500 !important;
-        color: #1e293b !important;
+        color: #253247 !important;
         min-height: 38px !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
         transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
 
@@ -71,7 +100,7 @@
     .filter-panel .ts-wrapper .ts-control,
     .nelson-dashboard .filter-panel select.form-select:not(.ts-wrapper),
     .nelson-dashboard .filter-panel .ts-wrapper .ts-control {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23052042' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
         background-repeat: no-repeat !important;
         background-position: right 0.75rem center !important;
         background-size: 14px 10px !important;
@@ -86,6 +115,7 @@
         box-shadow: none !important;
         background: transparent !important;
         font-size: 0.82rem !important;
+        color: #253247 !important;
     }
 
     .filter-panel .custom-filter-select:focus,
@@ -100,8 +130,8 @@
     .nelson-dashboard .filter-panel .custom-filter-input:focus,
     .nelson-dashboard .filter-panel .ts-control.focus,
     .nelson-dashboard .filter-panel .ts-wrapper.focus .ts-control {
-        border-color: #4f46e5 !important;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+        border-color: #052042 !important;
+        box-shadow: 0 0 0 3px rgba(5, 32, 66, 0.12) !important;
         outline: none !important;
     }
 
@@ -109,7 +139,7 @@
         font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
-        color: #475569;
+        color: #052042;
         margin-bottom: 0.35rem;
         display: block;
         letter-spacing: 0.5px;
@@ -176,7 +206,7 @@
     .stat-card.c-ipd,
     .stat-card.c-inv {
         background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid #E5E7EB !important;
     }
 
     .stat-header {
@@ -190,7 +220,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #475569;
+        color: #052042;
         margin-bottom: 0.35rem;
     }
 
@@ -203,14 +233,14 @@
         justify-content: center;
         font-size: 1.15rem;
         background: #f8fafc !important;
-        color: #0f2744 !important;
-        border: 1px solid #e2e8f0;
+        color: #052042 !important;
+        border: 1px solid #E5E7EB;
     }
 
     .stat-value {
         font-size: 1.65rem;
         font-weight: 800;
-        color: #0f172a;
+        color: #052042;
         margin: 0;
         line-height: 1.1;
     }
@@ -218,7 +248,7 @@
     .stat-sub {
         font-size: 0.72rem;
         font-weight: 600;
-        color: #64748b;
+        color: #253247;
         margin-top: 0.25rem;
     }
 
@@ -239,7 +269,7 @@
     .chart-card {
         background: #ffffff;
         border-radius: var(--radius-lg);
-        border: 1px solid #e2e8f0;
+        border: 1px solid #E5E7EB;
         box-shadow: var(--shadow-sm);
         padding: 1.25rem 1.5rem;
         display: flex;
@@ -271,14 +301,14 @@
         align-items: center;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid #E5E7EB;
         flex-wrap: gap-2;
     }
 
     .chart-title {
         font-size: 0.95rem;
         font-weight: 700;
-        color: #1e293b;
+        color: #052042;
         margin: 0;
         display: flex;
         align-items: center;
@@ -286,13 +316,13 @@
     }
 
     .top-n-select {
-        border: 1px solid #cbd5e1;
-        background: #f8fafc;
+        border: 1px solid #E5E7EB;
+        background: #F7F8F9;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
         padding: 2px 6px;
-        color: #334155;
+        color: #253247;
         cursor: pointer;
     }
 
@@ -459,10 +489,11 @@
     <!-- Header & Top Actions -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
         <div>
-            <h4 class="fw-bold mb-0 text-dark">Dashboard</h4>
+            <h4 class="fw-bold mb-0 text-dark">Analytics Dashboard</h4>
+            <span class="text-muted small">Real-time Lead Insights & Operational Metrics</span>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            <!-- 1. Single Filter Toggle Button right next to Today Date -->
+            <!-- 1. Single Filter Toggle Button -->
             <button type="button"
                 class="btn {% if has_active_filters %}btn-primary text-white shadow-sm{% else %}btn-white bg-white text-dark border{% endif %} btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2"
                 id="filterToggleBtn" style="font-size: 0.82rem;">
@@ -483,32 +514,19 @@
             </a>
             {% endif %}
 
-            {% if current_final_status %}
-            <!-- Active Final Status Slicer Chip -->
-            <div class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-3 py-1 rounded-pill d-flex align-items-center gap-2"
-                style="font-size: 0.8rem; font-weight: 600;">
-                <span>Status: <strong>{{ current_final_status }}</strong></span>
-                <a href="javascript:void(0)"
-                    onclick="applyFilterParam('final_lead_status', '{{ current_final_status }}')"
-                    class="text-danger text-decoration-none" title="Remove Status Filter">
-                    <i class="ph ph-x-circle fw-bold"></i>
-                </a>
-            </div>
-            {% endif %}
-
-            <!-- 3. Time Filter Toggle: Today vs This Month -->
+            <!-- 3. Time Filter Toggle: Today vs This Month vs All Time -->
             <div class="btn-group shadow-sm rounded-pill p-1 bg-white border" role="group">
-                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}"
+                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"
                     class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'today' or not time_filter %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
                     style="font-size: 0.8rem;">
                     <i class="ph-bold ph-sun me-1"></i> Today
                 </a>
-                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=this_month{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}"
+                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=this_month{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"
                     class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'this_month' %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
                     style="font-size: 0.8rem;">
                     <i class="ph-bold ph-calendar-blank me-1"></i> This Month
                 </a>
-                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=all_time{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}"
+                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=all_time{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"
                     class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'all_time' %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
                     style="font-size: 0.8rem;">
                     <i class="ph-bold ph-database me-1"></i> All Time
@@ -530,24 +548,81 @@
         </div>
     </div>
 
-    <!-- Interactive Filter Panel (Collapsible / Toggleable) -->
-    <div class="filter-panel mb-4" id="filterCollapseBody" style="display: none;">
+    <!-- Interactive Top Filter Panel (Positioned Above KPIs) -->
+    <div class="filter-panel mb-4" id="filterCollapseBody"
+        style="{% if has_active_filters %}display: block;{% else %}display: none;{% endif %}">
         <form method="GET" action="{% url 'dashboard:superadmin_home' %}" id="interactiveFilterForm">
             <div class="row g-3">
-                <!-- 1. Campaign Filter -->
-                <div class="col-md-3 col-sm-6">
-                    <label class="filter-label">CAMPAIGN</label>
-                    <select name="campaign" class="form-select custom-filter-select">
-                        <option value="">All Campaigns</option>
-                        {% for camp in campaigns %}
-                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}
-                        </option>
+                <!-- 1. Industry Filter -->
+                {% if not request.user.hospital %}
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">INDUSTRY</label>
+                    <select name="industry" class="form-select custom-filter-select">
+                        <option value="">All Industries</option>
+                        {% for code, name in industries %}
+                        <option value="{{ code }}" {% if current_industry == code %}selected{% endif %}>{{ name }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 2. Source Filter -->
-                <div class="col-md-3 col-sm-6">
+                <!-- 2. Business / Tenant Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">BUSINESS</label>
+                    <select name="business" class="form-select custom-filter-select">
+                        <option value="">All Businesses</option>
+                        {% for biz in businesses %}
+                        <option value="{{ biz.id }}" {% if selected_hospital_id == biz.id|stringformat:"s" %}selected{% endif %}>{{ biz.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- 3. Stage Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">STAGE</label>
+                    <select name="stage" class="form-select custom-filter-select">
+                        <option value="">All Stages</option>
+                        {% for stg in stages %}
+                        <option value="{{ stg }}" {% if current_stage == stg %}selected{% endif %}>{{ stg }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 4. Deal Status Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">DEAL STATUS</label>
+                    <select name="deal_status" class="form-select custom-filter-select">
+                        <option value="">All Deal Statuses</option>
+                        {% for code, label in deal_statuses %}
+                        <option value="{{ code }}" {% if current_deal_status == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 5. Temperature Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">TEMPERATURE</label>
+                    <select name="temperature" class="form-select custom-filter-select">
+                        <option value="">All Temperatures</option>
+                        {% for code, label in temperatures %}
+                        <option value="{{ code }}" {% if current_temperature == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 6. Campaign Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">CAMPAIGN</label>
+                    <select name="campaign" class="form-select custom-filter-select">
+                        <option value="">All Campaigns</option>
+                        {% for camp in campaigns %}
+                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 7. Lead Source Filter -->
+                <div class="col-md-2 col-sm-6">
                     <label class="filter-label">LEAD SOURCE</label>
                     <select name="source" class="form-select custom-filter-select">
                         <option value="">All Lead Sources</option>
@@ -557,21 +632,20 @@
                     </select>
                 </div>
 
-                <!-- 3. Department Filter -->
-                <div class="col-md-3 col-sm-6">
+                <!-- 8. Department Filter -->
+                <div class="col-md-2 col-sm-6">
                     <label class="filter-label">DEPARTMENT</label>
                     <select name="department" class="form-select custom-filter-select">
                         <option value="">All Departments</option>
                         {% for dept in departments %}
-                        <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}
-                        </option>
+                        <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 4. Doctor Filter -->
-                <div class="col-md-3 col-sm-6">
-                    <label class="filter-label">DOCTOR NAME</label>
+                <!-- 9. Doctor Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">DOCTOR</label>
                     <select name="doctor" class="form-select custom-filter-select">
                         <option value="">All Doctors</option>
                         {% for doc in doctors %}
@@ -580,8 +654,8 @@
                     </select>
                 </div>
 
-                <!-- 5. Location Filter -->
-                <div class="col-md-3 col-sm-6">
+                <!-- 10. Location Filter -->
+                <div class="col-md-2 col-sm-6">
                     <label class="filter-label">LOCATION</label>
                     <select name="location" class="form-select custom-filter-select">
                         <option value="">All Locations</option>
@@ -591,81 +665,15 @@
                     </select>
                 </div>
 
-                <!-- 6. Payments Breakdown Filter -->
-                <div class="col-md-3 col-sm-6">
-                    <label class="filter-label">PAYMENT / BILL FILTER</label>
-                    <select name="payment_type" class="form-select custom-filter-select">
-                        <option value="">All Leads (Paid & Unpaid)</option>
-                        <option value="all_paid" {% if current_payment_type == 'all_paid' %}selected{% endif %}>Won (All
-                            Paid Leads)</option>
-                        <option value="opd" {% if current_payment_type == 'opd' %}selected{% endif %}>Has OPD Bill
-                        </option>
-                        <option value="pharmacy" {% if current_payment_type == 'pharmacy' %}selected{% endif %}>Has
-                            Pharmacy Bill</option>
-                        <option value="ipd" {% if current_payment_type == 'ipd' %}selected{% endif %}>Has IPD Bill
-                        </option>
-                        <option value="investigation" {% if current_payment_type == 'investigation' %}selected{% endif %}>
-                            Has Investigation Bill</option>
-                        <option value="unpaid" {% if current_payment_type == 'unpaid' %}selected{% endif %}>Unpaid Leads
-                            Only</option>
-                    </select>
-                </div>
-
-                <!-- 7. Month Filter -->
-                <div class="col-md-2 col-sm-4">
-                    <label class="filter-label">MONTH</label>
-                    <select name="month" class="form-select custom-filter-select">
-                        <option value="">All Months</option>
-                        {% for m in months %}
-                        <option value="{{ m }}" {% if current_month == m %}selected{% endif %}>{{ m }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- 8. Year Filter -->
-                <div class="col-md-2 col-sm-4">
-                    <label class="filter-label">YEAR</label>
-                    <select name="year" class="form-select custom-filter-select">
-                        <option value="">All Years</option>
-                        {% for y in available_years %}
-                        <option value="{{ y }}" {% if current_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- 9. Week Day Filter -->
-                <div class="col-md-2 col-sm-4">
-                    <label class="filter-label">WEEK DAY</label>
-                    <select name="weekday" class="form-select custom-filter-select">
-                        <option value="">All Week Days</option>
-                        {% for wd in weekdays %}
-                        <option value="{{ wd }}" {% if current_weekday == wd %}selected{% endif %}>{{ wd }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- 10. Gender Filter -->
-                <div class="col-md-2 col-sm-4">
-                    <label class="filter-label">GENDER</label>
-                    <select name="gender" class="form-select custom-filter-select">
-                        <option value="">All Genders</option>
-                        <option value="FEMALE" {% if current_gender == 'FEMALE' %}selected{% endif %}>Female</option>
-                        <option value="MALE" {% if current_gender == 'MALE' %}selected{% endif %}>Male</option>
-                        <option value="Not Mentioned" {% if current_gender == 'Not Mentioned' %}selected{% endif %}>Not
-                            Mentioned</option>
-                    </select>
-                </div>
-
-                <!-- 11. Custom Date Range Inputs (Locked to today's max date) -->
-                <div class="col-md-3 col-sm-6">
+                <!-- 11. Custom Date Range Inputs -->
+                <div class="col-md-2 col-sm-6">
                     <label class="filter-label">FROM DATE</label>
                     <input type="date" name="start_date" id="filterStartDate"
                         class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}"
                         max="{{ today_str }}" onchange="onFilterStartDateChange(this.value)">
                 </div>
 
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-2 col-sm-6">
                     <label class="filter-label">TO DATE</label>
                     <input type="date" name="end_date" id="filterEndDate"
                         class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}"
@@ -675,152 +683,136 @@
                 {% if current_final_status %}
                 <input type="hidden" name="final_lead_status" value="{{ current_final_status }}">
                 {% endif %}
-                {% if selected_hospital_id %}
-                <input type="hidden" name="business" value="{{ selected_hospital_id }}">
-                {% endif %}
             </div>
 
             <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-2 border-top">
-                <a href="{% url 'dashboard:superadmin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-medium">
-                    <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset Slicers
+                <a href="{% url 'dashboard:superadmin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
+                    class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-medium">
+                    <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset Filters
                 </a>
                 <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
-                    <i class="ph ph-check me-1"></i> Apply Slicers
+                    <i class="ph ph-check me-1"></i> Apply Filters
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Main KPIs Cards Grid (5 Interactive Cards) -->
-<div class="stats-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));">
+<!-- Main KPIs Cards Grid (5 Core Interactive Cards) -->
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
 
-    <!-- 1. Today's New Leads -->
+    <!-- KPI 1: New Leads (Unassigned + Total Leads count) -->
     <div class="stat-card c-leads cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('new_leads', 'New Leads', 'primary')" title="Click to view breakdown">
-        <div class="stat-header">
-            <div>
-                <div class="stat-title d-flex align-items-center gap-1">
-                    <span>{{ period_title_prefix }} New Leads</span>
-                    <i class="ph ph-arrow-up-right text-primary small" style="font-size: 0.85rem;"></i>
-                </div>
-                <div class="stat-value" data-live-metric="today_leads">{{ insights.todays_new_leads|default:0|intcomma }}</div>
-            </div>
-            <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);">
-                <i class="ph ph-user-plus"></i>
-            </div>
-        </div>
-        <div class="stat-sub pt-1 text-muted"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(59, 130, 246, 0.2);">
-            <span class="text-primary fw-semibold">Campaign: {{ insights.todays_campaign_leads|default:0 }}</span>
-            &nbsp;•&nbsp;
-            <span class="text-success fw-semibold">Organic: {{ insights.todays_organic_leads|default:0 }}</span>
-            &nbsp;•&nbsp;
-            <span class="text-purple fw-semibold">Walk-in: {{ insights.todays_walkin_leads|default:0 }}</span>
-        </div>
-    </div>
-
-    <!-- 2. Call Not Done -->
-    <div class="stat-card c-callnotdone cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done', 'danger')"
+        onclick="openUniversalCardDrilldown('new_leads', 'New Unassigned Leads', 'primary')"
         title="Click to view breakdown">
-        <div class="stat-header">
-            <div>
-                <div class="stat-title d-flex align-items-center gap-1">
-                    <span class="text-danger">Call Not Done</span>
-                    <i class="ph ph-arrow-up-right text-danger small" style="font-size: 0.85rem;"></i>
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>{{ period_title_prefix }} New Leads</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
                 </div>
-                <div class="stat-value text-danger" data-live-metric="call_not_done">{{ insights.call_not_done|default:0|intcomma }}</div>
-            </div>
-            <div class="stat-icon" style="background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);">
-                <i class="ph ph-phone-x"></i>
+                <div class="stat-value text-primary mt-1" data-live-metric="unassigned_leads">{{ insights.unassigned_leads|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-1 text-muted d-flex justify-content-between align-items-center"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(239, 68, 68, 0.2);">
-            <span>Uncontacted & Hot Leads</span>
-            <span class="text-danger fw-semibold">Action Required</span>
+        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(79, 70, 229, 0.2);">
+            <span class="text-dark fw-bold">Total Leads: {{ insights.total_leads|default:0|intcomma }}</span>
+            <span class="text-muted">Assigned: {{ insights.assigned_leads|default:0|intcomma }}</span>
         </div>
     </div>
 
-    <!-- 3. OPD & Consultation Bookings Combined Card -->
-    <div class="stat-card c-appo cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('opd_booked', 'OPD & Consultation Bookings', 'warning')"
-        title="Click to view OPD & Consultation breakdown">
-        <div class="stat-header">
-            <div>
-                <div class="stat-title d-flex align-items-center gap-1">
-                    <span>{{ period_title_prefix }} Bookings</span>
-                    <i class="ph ph-arrow-up-right text-warning small" style="font-size: 0.85rem;"></i>
+    <!-- KPI 2: Call Not Done (Assigned leads with NO remarks, NO followups, NO stage updates) -->
+    <div class="stat-card c-callnotdone cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done (Assigned Untouched)', 'danger')"
+        title="Click to view breakdown">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span class="text-dark">Call Not Done</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-danger small" style="font-size: 0.72rem; opacity: 0.75;"></i>
                 </div>
-                <div class="stat-value" data-live-metric="today_appointments">{{ insights.appointments_booked|default:0|intcomma }}</div>
-            </div>
-            <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
-                <i class="ph ph-calendar-check"></i>
+                <div class="stat-value text-dark mt-1" data-live-metric="call_not_done">{{ insights.call_not_done|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-1 text-muted d-flex align-items-center gap-2"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(245, 158, 11, 0.2);">
-            <span class="text-warning fw-semibold">OPD: {{ insights.opd_booked|default:0 }}</span>
-            &nbsp;•&nbsp;
-            <span class="text-primary fw-semibold">Consultation: {{ insights.consultation_booked|default:0 }}</span>
+        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(15, 23, 42, 0.2);">
+            <span>Assigned & Untouched</span>
+            <span class="text-primary fw-semibold">No Remarks Added</span>
         </div>
     </div>
 
-    <!-- 4. Today's Follow-ups -->
+    <!-- KPI 3: Won Leads -->
+    <div class="stat-card c-won cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('won_leads', 'Won Leads', 'primary')"
+        title="Click to view Won Leads breakdown">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Won Leads</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
+                </div>
+                <div class="stat-value text-primary mt-1" data-live-metric="won_leads">{{ insights.won_leads|default:0|intcomma }}</div>
+            </div>
+        </div>
+        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(79, 70, 229, 0.2);">
+            <span class="text-dark fw-semibold">Completed / Billed</span>
+            <span class="text-primary fw-semibold">Converted</span>
+        </div>
+    </div>
+
+    <!-- KPI 4: Follow-ups (with Status Breakdown) -->
     <div class="stat-card c-followup cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'purple')" title="Click to view breakdown">
-        <div class="stat-header">
-            <div>
-                <div class="stat-title d-flex align-items-center gap-1">
-                    <span>{{ period_title_prefix }} Follow-ups</span>
-                    <i class="ph ph-arrow-up-right text-purple small" style="font-size: 0.85rem;"></i>
+        onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'primary')"
+        title="Click to view breakdown">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Follow-ups</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
                 </div>
-                <div class="stat-value" data-live-metric="today_followups">{{ insights.period_followups|default:0|intcomma }}</div>
-            </div>
-            <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);">
-                <i class="ph ph-clock-countdown"></i>
+                <div class="stat-value text-dark mt-1" data-live-metric="total_followups">{{ insights.total_followups|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-1 text-muted d-flex align-items-center gap-2"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(139, 92, 246, 0.2);">
-            <span class="text-danger fw-semibold">Overdue: {{ insights.overdue_followups|default:0 }}</span>
+        <div class="stat-sub pt-2 text-muted d-flex align-items-center gap-1 flex-wrap"
+            style="font-size: 0.74rem; font-weight: 500; border-top: 1px dashed rgba(15, 23, 42, 0.2);">
+            <span class="text-primary fw-semibold">Pending: {{ insights.fu_pending|default:0 }}</span>
             &nbsp;•&nbsp;
-            <span class="text-primary fw-semibold">Upcoming: {{ insights.upcoming_followups|default:0 }}</span>
+            <span class="text-dark fw-semibold">Rescheduled: {{ insights.fu_rescheduled|default:0 }}</span>
+            &nbsp;•&nbsp;
+            <span class="text-muted fw-semibold">Overdue: {{ insights.fu_overdue|default:0 }}</span>
         </div>
     </div>
 
-    <!-- 5. Today's Walk-in -->
-    <div class="stat-card c-walkin cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('walkin', 'Walk-in Inquiries', 'success')" title="Click to view breakdown">
-        <div class="stat-header">
-            <div>
-                <div class="stat-title d-flex align-items-center gap-1">
-                    <span>{{ period_title_prefix }} Walk-in</span>
-                    <i class="ph ph-arrow-up-right text-success small" style="font-size: 0.85rem;"></i>
+    <!-- KPI 5: Total Revenue -->
+    <div class="stat-card c-revenue cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
+        onclick="openUniversalCardDrilldown('won_leads', 'Revenue Breakdown', 'primary')"
+        title="Exact Revenue: ₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }} (Click to view breakdown)">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Revenue</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
                 </div>
-                <div class="stat-value text-success">{{ insights.todays_walkin|default:0|intcomma }}</div>
-            </div>
-            <div class="stat-icon" style="background: linear-gradient(135deg, #10B981 0%, #047857 100%);">
-                <i class="ph ph-person-simple-walk"></i>
+                <div class="stat-value text-primary mt-1" data-live-metric="total_revenue" style="letter-spacing: -0.5px; font-size: 1.55rem; white-space: nowrap;">{{ insights.formatted_revenue|default:"₹0" }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-1 text-muted d-flex justify-content-between align-items-center"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(16, 185, 129, 0.2);">
-            <span>Direct Reception Inquiries</span>
-            <span class="text-success fw-semibold">Physical Walk-in</span>
+        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
+            style="font-size: 0.74rem; font-weight: 500; border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span class="text-dark fw-semibold" title="₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }}">₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }}</span>
+            <span class="text-primary fw-semibold">Realized</span>
         </div>
     </div>
 
 </div>
 
-<!-- Charts Row 1: Location & Final Lead Status -->
+<!-- Charts Grid (Clean 2-Color Theme) -->
 <div class="charts-grid">
     <!-- 1. Location Wise Chart -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
-                <i class="ph-bold ph-map-pin text-primary"></i> Location-wise Leads
+                <i class="ph-bold ph-map-pin text-primary"></i> Location-wise Volume
             </h5>
             <div class="d-flex align-items-center gap-1">
                 <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
@@ -828,7 +820,6 @@
                     <option value="5">Top 5</option>
                     <option value="10" selected>Top 10</option>
                     <option value="15">Top 15</option>
-                    <option value="25">Top 25</option>
                     <option value="all">All</option>
                 </select>
             </div>
@@ -838,14 +829,21 @@
         </div>
     </div>
 
-    <!-- 2. Final Lead Status Chart (Exchanged with Department Distribution) -->
+    <!-- 2. Final Lead Status / Deal Status Bar Chart -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
-                <i class="ph-bold ph-chart-pie-slice text-primary"></i> Final Lead Status
+                <i class="ph-bold ph-chart-bar text-primary"></i> Lead Status Distribution
             </h5>
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i
-                    class="ph-bold ph-cursor-click me-1"></i>Click to Filter Dashboard</span>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                <select class="top-n-select" id="finalStatusTopN" onchange="updateFinalStatusChart()">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="15">Top 15</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
         </div>
         <div class="chart-container-wrapper">
             <canvas id="finalStatusChart"></canvas>
@@ -853,22 +851,21 @@
     </div>
 </div>
 
-<!-- Charts Row 2: Month Wise & Department Distribution -->
 <div class="charts-grid">
-    <!-- 3. Month Wise Leads Chart -->
+    <!-- 3. Month Wise Trends -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
-                <i class="ph-bold ph-calendar text-primary"></i> Month-wise Inquiries
+                <i class="ph-bold ph-calendar text-primary"></i> Monthly Inquiry Trend
             </h5>
-            <span class="badge bg-light text-muted border">Interactive</span>
+            <span class="badge bg-light text-muted border">Trend Analysis</span>
         </div>
         <div class="chart-container-wrapper">
             <canvas id="monthChart"></canvas>
         </div>
     </div>
 
-    <!-- 4. Department Wise Chart (Exchanged with Final Lead Status) -->
+    <!-- 4. Department / Unit Distribution -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
@@ -890,30 +887,8 @@
     </div>
 </div>
 
-<!-- Charts Row 3: Doctor Performance & Campaign Wise -->
 <div class="charts-grid">
-    <!-- 5. Doctor Wise Chart -->
-    <div class="chart-card">
-        <div class="chart-header">
-            <h5 class="chart-title">
-                <i class="ph-bold ph-user-circle-gear text-primary"></i> Doctor-wise Leads
-            </h5>
-            <div class="d-flex align-items-center gap-1">
-                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
-                <select class="top-n-select" id="doctorTopN" onchange="updateDoctorChart()">
-                    <option value="5">Top 5</option>
-                    <option value="10" selected>Top 10</option>
-                    <option value="15">Top 15</option>
-                    <option value="all">All</option>
-                </select>
-            </div>
-        </div>
-        <div class="chart-container-wrapper">
-            <canvas id="doctorChart"></canvas>
-        </div>
-    </div>
-
-    <!-- 6. Campaign Wise Chart -->
+    <!-- 5. Campaign Wise Chart -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
@@ -933,33 +908,25 @@
             <canvas id="campaignChart"></canvas>
         </div>
     </div>
-</div>
 
-<!-- Charts Row 4: Appointment Status & Day of Week -->
-<div class="charts-grid">
-    <!-- 7. Appointment Status Chart -->
+    <!-- 6. Doctor / Attendant Wise Chart -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
-                <i class="ph-bold ph-check-square-offset text-primary"></i> Appointment Status Breakdown
+                <i class="ph-bold ph-user-circle text-primary"></i> Doctor / Attendant Performance
             </h5>
-            <span class="badge bg-light text-muted border">Click to Filter</span>
+            <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
+                <select class="top-n-select" id="doctorTopN" onchange="updateDoctorChart()">
+                    <option value="5">Top 5</option>
+                    <option value="10" selected>Top 10</option>
+                    <option value="15">Top 15</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
         </div>
-        <div class="chart-container-wrapper" style="height: 270px;">
-            <canvas id="appointmentStatusChart"></canvas>
-        </div>
-    </div>
-
-    <!-- 8. Day of Week Pattern -->
-    <div class="chart-card">
-        <div class="chart-header">
-            <h5 class="chart-title">
-                <i class="ph-bold ph-clock text-primary"></i> Day of Week Pattern
-            </h5>
-            <span class="badge bg-light text-muted border">Click to Filter</span>
-        </div>
-        <div class="chart-container-wrapper" style="height: 270px;">
-            <canvas id="weekdayChart"></canvas>
+        <div class="chart-container-wrapper">
+            <canvas id="doctorChart"></canvas>
         </div>
     </div>
 </div>
@@ -1197,7 +1164,8 @@
                         {% endif %}
                         <div class="d-flex align-items-center gap-2" id="drilldownAdminAssignControls"
                             style="display: none !important;">
-                            <select id="drilldownBulkAssignSelect" class="form-select form-select-sm rounded-pill border border-secondary-subtle px-3"
+                            <select id="drilldownBulkAssignSelect"
+                                class="form-select form-select-sm rounded-pill border border-secondary-subtle px-3"
                                 style="min-width: 200px; height: 34px;">
                                 <option value="">-- Select Lead Attendant --</option>
                             </select>
@@ -1266,7 +1234,9 @@
                                 style="width: 200px;" oninput="filterDrilldownTable()">
                         </div>
                     </div>
-                    <div id="drilldownActiveFilterChipsBar" class="px-3 py-1.5 bg-light bg-opacity-50 border-bottom d-flex align-items-center gap-2 flex-wrap" style="display: none !important;">
+                    <div id="drilldownActiveFilterChipsBar"
+                        class="px-3 py-1.5 bg-light bg-opacity-50 border-bottom d-flex align-items-center gap-2 flex-wrap"
+                        style="display: none !important;">
                         <!-- Populated dynamically with active filter tags -->
                     </div>
 
@@ -1330,9 +1300,10 @@
 {% block extra_js %}
 <script>
     const insights = {{ insights_json| safe }};
+    const singleChartColor = '#052042';
 
-    Chart.defaults.color = '#334155';
-    Chart.defaults.borderColor = 'rgba(226, 232, 240, 0.8)';
+    Chart.defaults.color = '#253247';
+    Chart.defaults.borderColor = '#E5E7EB';
     Chart.defaults.font.family = "'Outfit', sans-serif";
 
     // Chart instances store
@@ -1348,7 +1319,7 @@
         };
     }
 
-    function createBarChart(canvasId, filterParam, colorHex, isHorizontal = true) {
+    function createBarChart(canvasId, filterParam, colorHex = singleChartColor, isHorizontal = true) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return null;
         const ctx = canvas.getContext('2d');
@@ -1388,74 +1359,6 @@
         });
     }
 
-    function createDoughnutChart(canvasId, filterParam, dataObj, colorPalette) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return null;
-        const ctx = canvas.getContext('2d');
-        const labels = Object.keys(dataObj || {});
-        const values = Object.values(dataObj || {});
-
-        return new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colorPalette || ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#64748B'],
-                    borderWidth: 2,
-                    borderColor: '#ffffff',
-                    hoverOffset: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '60%',
-                layout: {
-                    padding: { top: 4, bottom: 4, left: 4, right: 4 }
-                },
-                onHover: (e, elements) => {
-                    if (e && e.native && e.native.target) {
-                        e.native.target.style.cursor = (elements && elements.length > 0) ? 'pointer' : 'default';
-                    }
-                },
-                onClick: (e, elements) => {
-                    if (elements.length > 0) {
-                        const idx = elements[0].index;
-                        const label = labels[idx];
-                        if (filterParam === 'redirect_deal_status') {
-                            window.location.href = `/leads/?deal_status=${encodeURIComponent(label)}`;
-                        } else if (filterParam === 'redirect_appointment_status') {
-                            window.location.href = `/leads/?appointment_status=${encodeURIComponent(label)}`;
-                        } else if (filterParam) {
-                            applyFilterParam(filterParam, label);
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        align: 'center',
-                        labels: {
-                            boxWidth: 8,
-                            boxHeight: 8,
-                            padding: 6,
-                            usePointStyle: true,
-                            font: { size: 10, family: "'Outfit', sans-serif", weight: '500' }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (ctx) {
-                                return ' ' + ctx.label + ': ' + ctx.raw.toLocaleString('en-IN') + ' leads (Click to filter dashboard)';
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
     function applyFilterParam(param, val) {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get(param) === val) {
@@ -1473,6 +1376,14 @@
         chartInstances['locationChart'].data.labels = sorted.labels;
         chartInstances['locationChart'].data.datasets[0].data = sorted.values;
         chartInstances['locationChart'].update();
+    }
+
+    function updateFinalStatusChart() {
+        const limit = document.getElementById('finalStatusTopN').value;
+        const sorted = getSortedTopN(insights.final_lead_status_distribution, limit);
+        chartInstances['finalStatusChart'].data.labels = sorted.labels;
+        chartInstances['finalStatusChart'].data.datasets[0].data = sorted.values;
+        chartInstances['finalStatusChart'].update();
     }
 
     function updateDepartmentChart() {
@@ -1531,48 +1442,33 @@
             });
         }
 
-
-
-        // --- 3. Initialize Interactive Charts ---
+        // --- 2. Initialize Interactive Bar Charts with consistent Single Color (#052042) ---
         // 1. Location Bar Chart (Default Top 10)
-        chartInstances['locationChart'] = createBarChart('locationChart', 'location', '#4f46e5', true);
+        chartInstances['locationChart'] = createBarChart('locationChart', 'location', singleChartColor, true);
         updateLocationChart();
 
-        // 2. Department Bar Chart (Default Top 10)
-        chartInstances['departmentChart'] = createBarChart('departmentChart', 'department', '#06b6d4', true);
-        updateDepartmentChart();
+        // 2. Final Lead Status Bar Chart (Converted from Doughnut)
+        chartInstances['finalStatusChart'] = createBarChart('finalStatusChart', 'final_lead_status', singleChartColor, true);
+        updateFinalStatusChart();
 
         // 3. Month Wise Bar Chart (Vertical)
-        chartInstances['monthChart'] = createBarChart('monthChart', 'month', '#8b5cf6', false);
+        chartInstances['monthChart'] = createBarChart('monthChart', 'month', singleChartColor, false);
         const monthEntries = Object.entries(insights.month_distribution || {});
         chartInstances['monthChart'].data.labels = monthEntries.map(e => e[0]);
         chartInstances['monthChart'].data.datasets[0].data = monthEntries.map(e => e[1]);
         chartInstances['monthChart'].update();
 
-        // 4. Final Lead Status (Doughnut) - Slices the Dashboard
-        chartInstances['finalStatusChart'] = createDoughnutChart('finalStatusChart', 'final_lead_status', insights.final_lead_status_distribution, [
-            '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#64748B', '#14B8A6'
-        ]);
+        // 4. Department Bar Chart (Default Top 10)
+        chartInstances['departmentChart'] = createBarChart('departmentChart', 'department', singleChartColor, true);
+        updateDepartmentChart();
 
-        // 5. Doctor Wise Bar Chart (Default Top 10)
-        chartInstances['doctorChart'] = createBarChart('doctorChart', 'doctor', '#10b981', true);
-        updateDoctorChart();
-
-        // 6. Campaign Wise Bar Chart (Default Top 10)
-        chartInstances['campaignChart'] = createBarChart('campaignChart', 'campaign', '#f59e0b', true);
+        // 5. Campaign Wise Bar Chart (Default Top 10)
+        chartInstances['campaignChart'] = createBarChart('campaignChart', 'campaign', singleChartColor, true);
         updateCampaignChart();
 
-        // 7. Appointment Status (Doughnut)
-        chartInstances['appointmentStatusChart'] = createDoughnutChart('appointmentStatusChart', 'redirect_appointment_status', insights.appointment_status_distribution, [
-            '#10B981', '#64748B', '#EF4444', '#F59E0B', '#3B82F6'
-        ]);
-
-        // 8. Weekday Bar Chart (Vertical)
-        chartInstances['weekdayChart'] = createBarChart('weekdayChart', 'weekday', '#ec4899', false);
-        const wdEntries = Object.entries(insights.weekday_distribution || {});
-        chartInstances['weekdayChart'].data.labels = wdEntries.map(e => e[0]);
-        chartInstances['weekdayChart'].data.datasets[0].data = wdEntries.map(e => e[1]);
-        chartInstances['weekdayChart'].update();
+        // 6. Doctor Wise Bar Chart (Default Top 10)
+        chartInstances['doctorChart'] = createBarChart('doctorChart', 'doctor', singleChartColor, true);
+        updateDoctorChart();
     });
 
     // =========================================================================
@@ -2693,7 +2589,7 @@
         cachedLeadItems.forEach(l => {
             if (l.lead_source) distinctSources.add(l.lead_source);
             if (l.campaign && l.campaign !== 'nan') distinctSources.add(l.campaign);
-            
+
             if (bMode === 'hospital') {
                 if (l.department) distinctDepts.add(l.department);
                 if (l.doctor && l.doctor !== 'Not Assigned') distinctDepts.add(l.doctor);
@@ -2730,11 +2626,11 @@
                             <li><button class="dropdown-item rounded-2 py-1 px-2 ${!hasFilter ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', 'all')">All ${label}</button></li>
                             <li><hr class="dropdown-divider my-1"></li>
                             ${options.map(opt => {
-                                const optVal = typeof opt === 'object' ? opt.value : opt;
-                                const optLabel = typeof opt === 'object' ? opt.label : opt;
-                                const isSel = (currentValue === optVal);
-                                return `<li><button class="dropdown-item rounded-2 py-1 px-2 text-truncate ${isSel ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', '${optVal.replace(/'/g, "\\'")}')">${optLabel}</button></li>`;
-                            }).join('')}
+                const optVal = typeof opt === 'object' ? opt.value : opt;
+                const optLabel = typeof opt === 'object' ? opt.label : opt;
+                const isSel = (currentValue === optVal);
+                return `<li><button class="dropdown-item rounded-2 py-1 px-2 text-truncate ${isSel ? 'active fw-bold' : ''}" type="button" onclick="setHeaderFilter('${columnKey}', '${optVal.replace(/'/g, "\\'")}')">${optLabel}</button></li>`;
+            }).join('')}
                         </ul>
                     </div>
                 </div>
@@ -2745,7 +2641,7 @@
         const deptOptions = Array.from(distinctDepts).sort();
         const tempOptions = Array.from(distinctTemps).sort();
         const statusOptions = Array.from(distinctStatuses).sort();
-        
+
         const assigneeOptions = [{ value: 'unassigned', label: 'Unassigned' }];
         distinctAssignees.forEach((name, id) => {
             assigneeOptions.push({ value: id, label: name });
@@ -2963,7 +2859,7 @@
             currentRetUrl.searchParams.set('drilldown_mode', currentDrilldownMode);
             if (currentDrilldownDate) currentRetUrl.searchParams.set('drilldown_date', currentDrilldownDate);
             if (currentDrilldownCardTitle) currentRetUrl.searchParams.set('drilldown_title', currentDrilldownCardTitle);
-            
+
             let leadDetailHref = `${lead.detail_url}?return_to=${encodeURIComponent(currentRetUrl.pathname + currentRetUrl.search)}`;
 
             tr.innerHTML = `

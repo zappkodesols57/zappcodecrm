@@ -26,15 +26,16 @@ def portal_select(request):
 
 def _role_redirect(user):
     """Return a redirect response based on user role."""
+    if user.role == User.Role.SUPER_ADMIN:
+        return redirect("dashboard:superadmin_home")
     if user.hospital and user.industry == 'HOSPITAL':
-        if user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
+        if user.role in (User.Role.ADMIN, User.Role.MANAGER):
             return redirect("dashboard:superadmin_home")
         if user.role == User.Role.DOCTOR:
             return redirect("dashboard:doctor_home")
         if user.role == User.Role.LEAD_ATTENDENT:
             return redirect("dashboard:telecaller_home")
-        return redirect("dashboard:superadmin_home")
-    if user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
+    if user.role == User.Role.MANAGER:
         return redirect("dashboard:management_home")
     return redirect("dashboard:home")
 

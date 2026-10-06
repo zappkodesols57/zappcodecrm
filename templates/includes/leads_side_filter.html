@@ -736,9 +736,11 @@ Features:
                   <div class="form-check mb-1 filter-item-row">
                     <input class="form-check-input filter-checkbox" type="checkbox" name="priority" value="{{ prio }}" id="prio_{{ forloop.counter }}" {% if prio in selected_priorities or prio in selected_temperatures %}checked{% endif %}>
                     <label class="form-check-label text-dark filter-label" for="prio_{{ forloop.counter }}" style="font-size: 0.82rem;">
-                      {% if prio == 'Hot' %}<span class="text-danger fw-semibold">🔥 Hot</span>
-                      {% elif prio == 'Warm' %}<span class="text-warning fw-semibold">⚡ Warm</span>
-                      {% else %}<span class="text-info fw-semibold">❄️ Cold</span>{% endif %}
+                      {% if prio == 'Hot' %}<span class="text-danger fw-semibold">Hot</span>
+                      {% elif prio == 'Warm' %}<span class="text-warning fw-semibold">Warm</span>
+                      {% elif prio == 'Cold' %}<span class="text-info fw-semibold">Cold</span>
+                      {% elif prio == 'Freeze' %}<span class="text-secondary fw-semibold">Freeze</span>
+                      {% else %}<span class="text-dark fw-semibold">{{ prio }}</span>{% endif %}
                     </label>
                   </div>
                   {% endfor %}

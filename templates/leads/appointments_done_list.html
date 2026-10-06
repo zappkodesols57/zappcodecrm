@@ -205,7 +205,15 @@
 
           <!-- Campaign -->
           <td>
-            <span class="small text-muted">{{ lead.campaign|default:lead.custom_data.campaign|default:"—" }}</span>
+            {% with camp=lead.campaign|default:lead.custom_data.campaign %}
+              {% if camp and camp != '—' %}
+                <span class="small text-muted d-inline-block text-truncate" style="max-width: 140px; vertical-align: middle;" title="{{ camp }}">
+                  {{ camp }}
+                </span>
+              {% else %}
+                <span class="small text-muted">—</span>
+              {% endif %}
+            {% endwith %}
           </td>
 
           <!-- Doctor / Dept -->
@@ -230,21 +238,29 @@
 
           <!-- Status -->
           <td>
-            {% if lead.display_status == 'Payment Done' %}
+            {% if lead.display_status == 'Won' %}
             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-              <i class="fa-solid fa-circle-check me-1"></i>Payment Done
+              <i class="fa-solid fa-circle-check me-1"></i>Won
             </span>
-            {% elif lead.display_status == 'Completed Appointment' or lead.display_status == 'Payment Pending' %}
+            {% elif lead.display_status == 'Pending' %}
             <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
-              <i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending
+              <i class="fa-solid fa-hourglass-half me-1"></i>Pending
             </span>
-            {% elif lead.display_status == 'Booking Confirmed' or lead.display_status == 'Booked' %}
+            {% elif lead.display_status == 'Open' %}
+            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">
+              <i class="fa-solid fa-folder-open me-1"></i>Open
+            </span>
+            {% elif lead.display_status == 'New' %}
             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
-              <i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed
+              <i class="fa-solid fa-circle-plus me-1"></i>New
+            </span>
+            {% elif lead.display_status == 'Lost' %}
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+              <i class="fa-solid fa-ban me-1"></i>Lost
             </span>
             {% else %}
             <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">
-              {{ lead.display_status|default:"Scheduled" }}
+              {{ lead.display_status|default:"Open" }}
             </span>
             {% endif %}
           </td>

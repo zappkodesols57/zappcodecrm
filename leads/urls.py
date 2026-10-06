@@ -50,6 +50,7 @@ urlpatterns = [
     path("universal-masters/item/<int:pk>/delete/", views.master_item_delete, name="master_item_delete"),
     # Temperature Manager route
     path("temperature-manager/", views.temperature_manager, name="temperature_manager"),
+    path("custom-messages/", views.custom_message_manager, name="custom_message_manager"),
 
     # Dynamic Lead Custom Form Fields routes
     path("universal-masters/custom-fields/add/", views.custom_field_add, name="custom_field_add"),

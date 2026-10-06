@@ -267,7 +267,7 @@ def get_filtered_leads(request, base_qs=None):
                 emp_q |= Q(assigned_to_id=uid) | Q(created_by_id=uid)
         leads = leads.filter(emp_q)
 
-    # 6. Deal Status / Stage filter
+    # 6. Deal Status / Lead Status filter
     if selected_deal_statuses:
         st_q = Q()
         for ds_val in selected_deal_statuses:
@@ -276,79 +276,59 @@ def get_filtered_leads(request, base_qs=None):
             v = ds_val.strip()
             v_up = v.upper()
 
-            if 'PAYMENT DONE' in v_up or v_up in ('WON', 'ADMISSION DONE', 'ADMISSION'):
+            if v_up == 'LOST':
+                sub_q = (
+                    Q(deal_status=DealStatus.LOST) |
+                    Q(temperature=LeadTemperature.FREEZE) |
+                    Q(admission_status__in=['LOST', 'CANCELLED']) |
+                    Q(stage__name__icontains='Cancel') |
+                    Q(stage__name__icontains='Lost') |
+                    Q(custom_data__deal_status__icontains='Lost') |
+                    Q(custom_data__deal_status__icontains='Cancel') |
+                    Q(custom_data__appointment_status__icontains='Cancel') |
+                    Q(custom_data__appointment_status__icontains='Not Int')
+                )
+            elif v_up == 'WON':
                 sub_q = (
                     Q(deal_status=DealStatus.WON) |
+                    Q(admission_status__in=['WON', 'ADMISSION_DONE']) |
                     Q(custom_data__total_paid__gt='0') |
                     Q(custom_data__total__gt='0') |
-                    Q(custom_data__deal_status__icontains='Payment Done') |
                     Q(custom_data__deal_status__icontains='Won') |
-                    Q(custom_data__deal_status__icontains='Admission Done')
+                    Q(custom_data__deal_status__icontains='Payment Done') |
+                    Q(custom_data__appointment_status__icontains='Complete') |
+                    Q(custom_data__appointment_status__icontains='Done') |
+                    Q(custom_data__appointment_status__icontains='Visit') |
+                    Q(stage__name__icontains='Payment Done') |
+                    Q(stage__name__icontains='Completed')
                 )
-            elif any(k in v_up for k in ('BOOKING CONFIRMED', 'BOOKING APPROVAL', 'AWAITING APPROVAL', 'BOOKED')):
+            elif v_up == 'PENDING':
                 sub_q = (
+                    Q(next_followup_date__isnull=False) |
+                    Q(stage__name__icontains='Follow') |
+                    Q(stage__name__icontains='Booking') |
+                    Q(stage__name__icontains='Payment') |
                     Q(custom_data__appointment_status__icontains='Book') |
                     Q(custom_data__appointment_status__icontains='Confirm') |
                     Q(custom_data__appointment_status__icontains='Approv') |
                     Q(custom_data__appointment_status__icontains='Await') |
-                    Q(custom_data__appointment_status__iexact='YES') |
+                    Q(custom_data__appointment_status__icontains='Follow') |
                     Q(custom_data__appo_booked_date__isnull=False)
                 )
-            elif 'PAYMENT PENDING' in v_up or 'BILLING PENDING' in v_up:
+            elif v_up == 'OPEN':
                 sub_q = (
-                    Q(custom_data__appointment_status__icontains='Complet') |
-                    Q(custom_data__appointment_status__icontains='Done') |
-                    Q(custom_data__appointment_status__icontains='Visit')
-                )
-            elif 'FOLLOW' in v_up:
-                sub_q = (
-                    Q(custom_data__appointment_status__icontains='Follow') |
-                    Q(next_followup_date__isnull=False) |
-                    Q(custom_data__deal_status__icontains='Follow')
-                )
-            elif 'NOT INT' in v_up or 'NOT INTERESTED' in v_up:
-                sub_q = (
-                    Q(custom_data__appointment_status__icontains='Not Int') |
-                    Q(custom_data__deal_status__icontains='Not Int') |
-                    Q(deal_status=DealStatus.LOST, custom_data__appointment_status__icontains='Not Int')
-                )
-            elif 'CANCEL' in v_up:
-                sub_q = (
-                    Q(custom_data__appointment_status__icontains='Cancel') |
-                    Q(custom_data__deal_status__icontains='Cancel')
-                )
-            elif v_up == 'LOST':
-                sub_q = (
-                    Q(deal_status=DealStatus.LOST) |
-                    Q(custom_data__deal_status__icontains='Lost')
-                )
-            elif 'ASSIGNED' in v_up:
-                sub_q = (
-                    Q(assigned_to__isnull=False) |
-                    Q(custom_data__deal_status__iexact='Assigned')
+                    Q(assigned_to__isnull=False) &
+                    Q(followup_count=0) &
+                    Q(next_followup_date__isnull=True) &
+                    Q(last_followup_date__isnull=True) &
+                    ~Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) &
+                    ~Q(stage__name__icontains='Payment') &
+                    ~Q(stage__name__icontains='Booking')
                 )
             elif v_up == 'NEW':
-                today_date = timezone.localdate()
                 sub_q = (
                     Q(assigned_to__isnull=True) &
-                    (Q(created_at__date=today_date) | Q(inquiry_date=today_date))
-                )
-            elif v_up == 'OPEN':
-                today_date = timezone.localdate()
-                sub_q = Q(assigned_to__isnull=True) & ~(
-                    Q(created_at__date=today_date) | Q(inquiry_date=today_date)
-                )
-            elif 'CONTACTED' in v_up:
-                sub_q = (
-                    Q(deal_status=DealStatus.CONTACTED) |
-                    Q(custom_data__deal_status__icontains='Contacted') |
-                    Q(stage__name__icontains='Contacted') |
-                    Q(stage__name__icontains='Follow') |
-                    Q(next_followup_date__isnull=False) |
-                    Q(last_followup_date__isnull=False) |
-                    Q(followup_count__gt=0) |
-                    Q(followups__isnull=False) |
-                    Q(custom_data__remark_1__isnull=False) & ~Q(custom_data__remark_1__in=["", "nan", "None", "-"])
+                    ~Q(deal_status__in=[DealStatus.WON, DealStatus.LOST])
                 )
             else:
                 sub_q = (
@@ -727,7 +707,7 @@ def lead_list(request):
         filter_doctors = []
         filter_appointment_statuses = []
 
-    filter_priorities = ["Hot", "Warm", "Cold"]
+    filter_priorities = ["Hot", "Warm", "Cold", "Freeze"]
 
     # Businesses dropdown is ONLY for global superadmin (no user.hospital)
     available_businesses = Hospital.objects.filter(is_active=True).order_by("name") if (is_global_admin and not request.user.hospital) else Hospital.objects.none()
@@ -832,7 +812,10 @@ def my_leads(request):
     from datetime import date, datetime, time, timedelta
     from django.db.models.functions import TruncMonth, TruncYear
 
-    # Restrict to Academy tenant
+    # Restrict to Academy tenant / Forward Hospital Telecallers
+    if request.user.role == User.Role.LEAD_ATTENDENT or (request.user.industry == 'HOSPITAL' and request.user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR)):
+        return redirect("dashboard:telecaller_my_leads")
+
     hospital = request.user.hospital
     leads = Lead.objects.filter(is_archived=False)
     if hospital:
@@ -1896,6 +1879,22 @@ def lead_add(request):
                 custom_dict["admission_date"] = custom_adm
             if custom_reason:
                 custom_dict["cancellation_reason"] = custom_reason
+            
+            # Hospital branch transfer support
+            is_branch_transfer = request.POST.get("is_branch_transfer") == "1"
+            transfer_target_branch = (request.POST.get("transfer_target_branch") or "").strip()
+            transfer_reason = (request.POST.get("transfer_reason") or "").strip()
+            if is_branch_transfer and transfer_target_branch:
+                custom_dict["hospital_branch"] = transfer_target_branch
+                custom_dict["branch"] = transfer_target_branch
+                if transfer_reason:
+                    custom_dict["transfer_reason"] = transfer_reason
+                # Unassign from current telecaller so it becomes a fresh lead for the target branch
+                lead.assigned_to = None
+                new_stg = LeadStage.objects.filter(name__iexact="New").first() or LeadStage.objects.order_by("order", "id").first()
+                if new_stg:
+                    lead.stage = new_stg
+            
             lead.custom_data = custom_dict
 
             # Safeguard: Ensure stage is never null
@@ -1913,7 +1912,11 @@ def lead_add(request):
 
             lead.save()
             form.save_m2m()
-            messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) saved successfully! ✅")
+            
+            if is_branch_transfer and transfer_target_branch:
+                messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully created and transferred to branch '{transfer_target_branch}' as a New Lead! ✅")
+            else:
+                messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) saved successfully! ✅")
 
             # 1. Send Notification to assigned Telecaller / Staff member
             if lead.assigned_to and lead.assigned_to != request.user:
@@ -1949,17 +1952,38 @@ def lead_add(request):
                         link="/dashboard/doctor/",
                     )
 
-            if request.user.role == User.Role.LEAD_ATTENDENT:
-                return redirect("dashboard:telecaller_my_leads")
-            return redirect("leads:lead_list")
+            send_whatsapp = request.POST.get("send_whatsapp") == "1"
+            if send_whatsapp and lead.mobile:
+                import urllib.parse
+                clean_phone = lead.clean_phone_number
+                cd = lead.custom_data or {}
+                apt_st = str(cd.get("appointment_status") or "").upper()
+                msg_type = "BOOKING" if any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']) else "FOLLOWUP"
+                msg_text = lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
+                encoded_msg = urllib.parse.quote(msg_text)
+                wa_url = f"https://wa.me/91{clean_phone}?text={encoded_msg}"
+                request.session['auto_open_whatsapp'] = wa_url
+
+            # Redirect directly to this lead's detail view form
+            return redirect("leads:lead_detail", pk=lead.pk)
         else:
             messages.error(request, "Could not save lead. Please check the highlighted fields below.")
     else:
         from django.utils import timezone
         form = FormClass(initial={"inquiry_date": timezone.localdate()}, user=request.user)
+    
+    # Available hospital branches for transfer
+    available_branches = []
+    if is_hospital:
+        from leads.models import HospitalBranch
+        b_qs = HospitalBranch.objects.filter(is_active=True)
+        if request.user.hospital:
+            b_qs = b_qs.filter(hospital=request.user.hospital)
+        available_branches = list(b_qs.order_by("name"))
         
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
+        "available_branches": available_branches,
     })
 
 @login_required
@@ -2115,11 +2139,20 @@ def lead_edit(request, pk):
                 except ValueError:
                     pass
             
-            if custom_adm:
-                cd["admission_date"] = custom_adm
-            if custom_reason:
-                cd["cancellation_reason"] = custom_reason
-            saved_lead.custom_data = cd
+            # Hospital branch transfer support
+            is_branch_transfer = request.POST.get("is_branch_transfer") == "1"
+            transfer_target_branch = (request.POST.get("transfer_target_branch") or "").strip()
+            transfer_reason = (request.POST.get("transfer_reason") or "").strip()
+            if is_branch_transfer and transfer_target_branch:
+                cd["hospital_branch"] = transfer_target_branch
+                cd["branch"] = transfer_target_branch
+                if transfer_reason:
+                    cd["transfer_reason"] = transfer_reason
+                # Unassign from current attendant so it becomes a fresh New Lead in the target branch pool
+                saved_lead.assigned_to = None
+                new_stg = LeadStage.objects.filter(name__iexact="New").first() or LeadStage.objects.order_by("order", "id").first()
+                if new_stg:
+                    saved_lead.stage = new_stg
 
             prev_assigned = lead.assigned_to
             saved_lead.save()
@@ -2239,16 +2272,28 @@ def lead_edit(request, pk):
 
             messages.success(request, f"Lead #{saved_lead.lead_code or saved_lead.pk} ({saved_lead.name}) updated and assigned successfully! ✅")
             
-            # Smart Redirect: Return to previous list page if specified, otherwise role-based redirect
-            return_url = request.POST.get("return_to") or request.GET.get("return_to") or request.GET.get("next")
-            if return_url:
-                return redirect(return_url)
+            send_whatsapp = request.POST.get("send_whatsapp") == "1"
+            if send_whatsapp and saved_lead.mobile:
+                import urllib.parse
+                clean_phone = saved_lead.clean_phone_number
+                cd = saved_lead.custom_data or {}
+                apt_st = str(cd.get("appointment_status") or "").upper()
+                msg_type = "BOOKING" if any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']) else "FOLLOWUP"
+                msg_text = saved_lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
+                encoded_msg = urllib.parse.quote(msg_text)
+                wa_url = f"https://wa.me/91{clean_phone}?text={encoded_msg}"
+                request.session['auto_open_whatsapp'] = wa_url
 
-            if request.user.role == User.Role.LEAD_ATTENDENT:
-                return redirect("dashboard:telecaller_my_leads")
-            elif request.user.hospital:
-                return redirect("leads:lead_list")
-            return redirect("leads:lead_detail", pk=lead.pk)
+            # Redirect directly to this lead's detail view form
+            return redirect("leads:lead_detail", pk=saved_lead.pk)
+        else:
+            # Surface form errors clearly
+            err_list = []
+            for field, errs in form.errors.items():
+                err_list.append(f"{field}: {', '.join(errs)}")
+            err_msg = " | ".join(err_list) if err_list else "Please check the form inputs."
+            print(f"Lead Edit Form Validation Failed for Lead #{lead.pk}: {err_msg}")
+            messages.error(request, f"Could not save changes. {err_msg}")
     else:
         form = FormClass(instance=lead, user=request.user)
 
@@ -3904,13 +3949,13 @@ def _ensure_business_core_fields(h):
             ('gender', 'Gender', 'DROPDOWN', 4, False, True, 'Select Gender', 'Male, Female, Other'),
             ('comments', 'Comments / Notes', 'TEXTAREA', 5, False, True, 'Enter patient notes...', ''),
             ('location', 'Location', 'DROPDOWN', 6, False, True, 'Select Location', 'Nagpur, Wardha, Hinganghat, Chandrapur, Amravati, Bhandara, Yavatmal, Gondia'),
-            ('doctor', 'Doctor', 'DROPDOWN', 7, False, True, 'Select Doctor', 'Dr. Pradeep Patil, Dr. Rahul Sharma, Dr. Priya Deshmukh, Dr. Amit Verma'),
-            ('department', 'Department', 'DROPDOWN', 8, False, True, 'Select Department', 'Cardiology, Neurology, Orthopedics, Pediatrics, Oncology, Gynecology, General Medicine'),
-            ('lead_source', 'Lead Source', 'DROPDOWN', 9, False, True, 'Select Lead Source', 'Google Ads, Facebook / Instagram, Walk-in, Doctor Referral, Website, Newspaper, Camp / Event'),
-            ('appointment_status', 'Appointment Status', 'DROPDOWN', 10, False, True, 'Select Status', 'Interested, Booked, Visited, Follow-up Needed, Cancelled / Rescheduled, Not Interested'),
-            ('campaign', 'Campaign', 'DROPDOWN', 11, False, True, 'Select Campaign', 'Summer Health Checkup, Cardiology Camp, Free OPD Camp, Digital Awareness 2026'),
-            ('hospital_branch', 'Hospital Branch', 'DROPDOWN', 12, True, True, 'Select Branch', 'Dhantoli, Main Branch'),
-            ('disease', 'Disease', 'DROPDOWN', 13, False, True, 'Select Disease', ''),
+            ('lead_source', 'Lead Source', 'DROPDOWN', 7, False, True, 'Select Lead Source', 'Google Ads, Facebook / Instagram, Walk-in, Doctor Referral, Website, Newspaper, Camp / Event'),
+            ('campaign', 'Campaign', 'DROPDOWN', 8, False, True, 'Select Campaign', 'Summer Health Checkup, Cardiology Camp, Free OPD Camp, Digital Awareness 2026'),
+            ('appointment_status', 'Appointment Status', 'DROPDOWN', 9, False, True, 'Select Status', 'Interested, Booked, Visited, Follow-up Needed, Cancelled / Rescheduled, Not Interested'),
+            ('hospital_branch', 'Hospital Branch', 'DROPDOWN', 10, True, True, 'Select Branch', 'Dhantoli, Main Branch'),
+            ('department', 'Department', 'DROPDOWN', 11, False, True, 'Select Department', 'Cardiology, Neurology, Orthopedics, Pediatrics, Oncology, Gynecology, General Medicine'),
+            ('disease', 'Disease', 'DROPDOWN', 12, False, True, 'Select Disease', ''),
+            ('doctor', 'Doctor', 'DROPDOWN', 13, False, True, 'Select Doctor', 'Dr. Pradeep Patil, Dr. Rahul Sharma, Dr. Priya Deshmukh, Dr. Amit Verma'),
         ]
     else:
         # Any other / new business automatically inherits the Default Custom Lead Form!
@@ -4559,22 +4604,108 @@ def temperature_manager(request):
     pos_items = MasterItem.objects.filter(group=pos_group, hospital=current_hospital).order_by("order", "name")
     neg_items = MasterItem.objects.filter(group=neg_group, hospital=current_hospital).order_by("order", "name")
 
-    return render(request, "leads/temperature_manager.html", {
+    context = {
         "active": "temperature_manager",
         "current_hospital": current_hospital,
-        "is_default_tab": is_default_tab,
-        "available_businesses": available_businesses,
         "is_global_admin": is_global_admin,
+        "available_businesses": available_businesses,
+        "is_default_tab": is_default_tab,
         "pos_group": pos_group,
         "neg_group": neg_group,
         "pos_items": pos_items,
         "neg_items": neg_items,
-    })
-
-
+    }
+    return render(request, "leads/temperature_manager.html", context)
 
 
 @login_required
+def custom_message_manager(request):
+    """
+    WhatsApp Custom Template Manager:
+    Allows user to customize Booking Message & Follow-up Message.
+    Default system templates are used until user defines and confirms custom templates.
+    """
+    if request.user.role == User.Role.DOCTOR:
+        messages.error(request, "Permission denied: Doctors do not have access to Custom Message Manager.")
+        return redirect("dashboard:home")
+
+    from leads.models import UserCustomMessage
+    from accounts.models import Hospital
+    import urllib.parse
+
+    user = request.user
+    hosp = user.hospital
+
+    # Default system messages
+    hosp_name = hosp.name if hosp else "Nelson Mother & Child Care Hospital"
+    agent_name = user.get_full_name() or user.username
+
+    default_booking_text = (
+        f"Hello {{patient_name}},\n\n"
+        f"Welcome to {{hospital_name}} ({{branch_name}})!\n\n"
+        f"Your consultation appointment with {{doctor_name}} is confirmed on {{appointment_date}} at {{appointment_time}}.\n\n"
+        f"Hospital Address: {{hospital_address}}\n\n"
+        f"Please arrive 15 minutes prior to your scheduled slot. We look forward to assisting you.\n\n"
+        f"For any queries or assistance, feel free to contact us.\n\n"
+        f"Warm Regards,\n{{user_name}}\n{{hospital_name}}"
+    )
+
+    default_followup_text = (
+        f"Hello {{patient_name}},\n\n"
+        f"Thank you for your enquiry with {{hospital_name}} ({{branch_name}})!\n\n"
+        f"We are pleased to assist you with your healthcare and doctor consultation inquiry.\n\n"
+        f"Hospital Address: {{hospital_address}}\n\n"
+        f"Please let us know your preferred date, time, or specialist requirement so we can schedule your appointment promptly.\n\n"
+        f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
+    )
+
+    booking_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+        user=user, message_type="BOOKING",
+        defaults={"hospital": hosp, "custom_text": default_booking_text, "is_confirmed": False}
+    )
+    followup_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+        user=user, message_type="FOLLOWUP",
+        defaults={"hospital": hosp, "custom_text": default_followup_text, "is_confirmed": False}
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action", "save")
+        msg_type = request.POST.get("message_type", "BOOKING").upper()
+        custom_text = request.POST.get("custom_text", "").strip()
+
+        target_obj = booking_msg_obj if msg_type == "BOOKING" else followup_msg_obj
+        
+        if action == "save":
+            target_obj.custom_text = custom_text
+            target_obj.hospital = hosp
+            target_obj.save()
+            messages.success(request, f"{target_obj.get_message_type_display()} updated successfully. Please confirm to activate your custom message.")
+        elif action == "confirm":
+            target_obj.custom_text = custom_text or target_obj.custom_text
+            target_obj.is_confirmed = True
+            target_obj.hospital = hosp
+            target_obj.save()
+            messages.success(request, f"✅ Custom {target_obj.get_message_type_display()} confirmed and activated! System will now send your customized message.")
+        elif action == "reset_default":
+            target_obj.is_confirmed = False
+            target_obj.custom_text = default_booking_text if msg_type == "BOOKING" else default_followup_text
+            target_obj.save()
+            messages.info(request, f"Switched back to System Generated Default template for {target_obj.get_message_type_display()}.")
+
+        return redirect(f"/leads/custom-messages/?tab={msg_type.lower()}")
+
+    active_tab = request.GET.get("tab", "booking").lower()
+
+    return render(request, "leads/custom_message_manager.html", {
+        "active": "custom_message_manager",
+        "booking_msg": booking_msg_obj,
+        "followup_msg": followup_msg_obj,
+        "default_booking_text": default_booking_text,
+        "default_followup_text": default_followup_text,
+        "active_tab": active_tab,
+        "hosp": hosp,
+    })
+
 def book_appointment(request, pk):
     from django.core.exceptions import PermissionDenied
     from django.contrib import messages
@@ -4674,6 +4805,10 @@ def doctor_slots_api(request):
     from accounts.models import User
     from leads.models import Appointment, DoctorSchedule, DoctorLeave, AppointmentStatus
     
+    if request.GET.get("clear_wa_session") == "1":
+        request.session.pop("auto_open_whatsapp", None)
+        return JsonResponse({"status": "cleared"})
+        
     try:
         doctor_name = request.GET.get("doctor", "").strip()
         date_str = request.GET.get("date", "").strip()
@@ -6242,46 +6377,75 @@ def appointments_done_list(request):
     sel_source = request.GET.get("lead_source", "").strip()
     sel_campaign = request.GET.get("campaign", "").strip()
 
+    # Base filtered queryset across all leads of this business / healthcare industry
+    filtered_all_leads_qs = base_qs
+
     if search_q:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
+        )
         leads_qs = leads_qs.filter(
             Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
         )
     if date_from:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
+        )
         leads_qs = leads_qs.filter(
             Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
         )
     if date_to:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
+        )
         leads_qs = leads_qs.filter(
             Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
         )
     if sel_dept:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(custom_data__department__iexact=sel_dept)
         leads_qs = leads_qs.filter(custom_data__department__iexact=sel_dept)
     if sel_telecaller:
         if sel_telecaller.isdigit():
+            filtered_all_leads_qs = filtered_all_leads_qs.filter(assigned_to_id=int(sel_telecaller))
             leads_qs = leads_qs.filter(assigned_to_id=int(sel_telecaller))
         else:
+            filtered_all_leads_qs = filtered_all_leads_qs.filter(
+                Q(assigned_to__username__iexact=sel_telecaller)
+                | Q(assigned_to__first_name__icontains=sel_telecaller)
+            )
             leads_qs = leads_qs.filter(
                 Q(assigned_to__username__iexact=sel_telecaller)
                 | Q(assigned_to__first_name__icontains=sel_telecaller)
             )
     if sel_doctor:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(custom_data__doctor__icontains=sel_doctor)
+            | Q(appointments__doctor_name__icontains=sel_doctor)
+        )
         leads_qs = leads_qs.filter(
             Q(custom_data__doctor__icontains=sel_doctor)
             | Q(appointments__doctor_name__icontains=sel_doctor)
         )
     if sel_source:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(lead_source__name__iexact=sel_source) | Q(custom_data__lead_source__iexact=sel_source)
+        )
         leads_qs = leads_qs.filter(
             Q(lead_source__name__iexact=sel_source) | Q(custom_data__lead_source__iexact=sel_source)
         )
     if sel_campaign:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
+        )
         leads_qs = leads_qs.filter(
             Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
         )
 
-    # Dynamic KPI Stats calculation
-    total_leads_count = leads_qs.count()
+    # Dynamic KPI Stats calculation:
+    # 1. Total Leads: all leads in the active business / healthcare scope with applied filters
+    total_leads_count = filtered_all_leads_qs.count()
     
-    # Calculate Appointments Done, Payment Done, Payment Pending based on display status and billing
+    # 2. Appointments Done, Payment Done, Payment Pending calculated on appointment-booked leads
     leads_list = list(leads_qs)
     
     payment_done_count = 0

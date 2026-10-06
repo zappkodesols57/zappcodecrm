@@ -13,42 +13,38 @@
         <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <h4 class="mb-0 fw-bold text-dark d-inline">{{ lead.name }}</h4>
-          {% if lead.display_status == 'Payment Done' %}
-            <span class="badge badge-payment-done"><i class="fa-solid fa-circle-check me-1"></i>Payment Done{% if lead.total_billed_amount > 0 %} (₹{{ lead.total_billed_amount|floatformat:0 }}){% endif %}</span>
-          {% elif lead.display_status == 'Booking Confirmed' %}
-            <span class="badge badge-booking-confirmed"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed</span>
-          {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' %}
-            <span class="badge badge-booking-pending"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
-          {% elif lead.display_status == 'Booked' %}
-            <span class="badge badge-booking"><i class="fa-solid fa-calendar-check me-1"></i>Booked</span>
-          {% elif lead.display_status == 'Follow-up Needed' %}
-            <span class="badge badge-followup-needed"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
+          {% if lead.total_billed_amount > 0 or lead.custom_data.total or lead.custom_data.total_paid or lead.custom_data.deal_status == 'Won (Payment Done)' or 'PAYMENT' in lead.stage.name.upper or lead.display_status == 'Payment Done' %}
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Complete (₹{{ lead.total_billed_amount|floatformat:0 }})</span>
+          {% elif latest_appointment and latest_appointment.status == 'COMPLETED' or lead.display_status == 'Won' or lead.display_status == 'Completed' or lead.custom_data.appointment_status == 'Completed' %}
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-check-double me-1"></i>Consultation Completed</span>
+          {% elif latest_appointment and latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Appointment Confirmed</span>
+          {% elif latest_appointment and latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper %}
+            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-user-clock me-1"></i>Doctor Approval Pending</span>
+          {% elif latest_appointment and latest_appointment.status == 'CANCELLED' or lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or 'CANCEL' in lead.custom_data.appointment_status.upper %}
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>Cancelled</span>
+          {% elif lead.display_status == 'Pending' %}
+            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Pending Follow-up</span>
             {% if lead.next_followup_date %}
-              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
+              <span class="badge bg-light text-muted border"><i class="fa-regular fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
             {% endif %}
-          {% elif lead.display_status == 'Payment Pending' %}
-            <span class="badge badge-payment-pending"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
-          {% elif lead.display_status == 'New' %}
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
           {% elif lead.display_status == 'Open' %}
-            <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
-          {% elif lead.display_status == 'Assigned' %}
-            <span class="badge badge-assigned"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
-          {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
-            <span class="badge badge-lost"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
+            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-folder-open me-1"></i>Open</span>
+          {% elif lead.display_status == 'New' %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-circle-plus me-1"></i>New</span>
           {% else %}
             <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
           {% endif %}
 
           {% if lead.custom_temperature %}
             {% if lead.custom_temperature == 'Hot' %}
-              <span class="badge badge-hot"><i class="fa-solid fa-fire text-danger me-1"></i>Hot</span>
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Hot</span>
             {% elif lead.custom_temperature == 'Warm' %}
-              <span class="badge badge-warm"><i class="fa-solid fa-temperature-half text-warning me-1"></i>Warm</span>
+              <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle">Warm</span>
             {% elif lead.custom_temperature == 'Cold' %}
-              <span class="badge badge-cold"><i class="fa-solid fa-snowflake text-info me-1"></i>Cold</span>
+              <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">Cold</span>
             {% elif lead.custom_temperature == 'Freeze' %}
-              <span class="badge badge-freeze"><i class="fa-solid fa-icicles text-secondary me-1"></i>Freeze</span>
+              <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">Freeze</span>
             {% endif %}
           {% endif %}
         </div>
@@ -142,6 +138,24 @@
                   —
                 {% endif %}
               </strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-2 border rounded-3 bg-light-subtle">
+              <span class="text-muted d-block">Appointment Status</span>
+              {% if lead.total_billed_amount > 0 or lead.custom_data.total or lead.custom_data.total_paid or lead.custom_data.deal_status == 'Won (Payment Done)' or 'PAYMENT' in lead.stage.name.upper %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold"><i class="fa-solid fa-circle-check me-1"></i>Payment Complete (₹{{ lead.total_billed_amount|floatformat:0 }})</span>
+              {% elif latest_appointment.status == 'COMPLETED' or lead.custom_data.appointment_status == 'Completed' or lead.display_status == 'Won' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold"><i class="fa-solid fa-check-double me-1"></i>Consultation Completed</span>
+              {% elif latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-bold"><i class="fa-solid fa-calendar-check me-1"></i>Confirmed by Doctor</span>
+              {% elif latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle fw-bold"><i class="fa-solid fa-user-clock me-1"></i>Doctor Approval Pending</span>
+              {% elif latest_appointment.status == 'CANCELLED' or lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or 'CANCEL' in lead.custom_data.appointment_status.upper %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-ban me-1"></i>Cancelled</span>
+              {% else %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border fw-bold">{{ lead.custom_data.appointment_status|default:lead.stage.name }}</span>
+              {% endif %}
             </div>
           </div>
           <div class="col-sm-6">
@@ -672,6 +686,11 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
+    // Notify other open tabs (table list tabs) that a lead has been updated
+    try {
+      localStorage.setItem('crm_lead_updated', '{{ lead.pk }}_' + Date.now());
+    } catch(e) {}
+
     const queueModalEl = document.getElementById('queueBoundaryModal');
     if (queueModalEl) {
       queueModalEl.addEventListener('show.bs.modal', function(event) {

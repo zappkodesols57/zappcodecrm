@@ -958,6 +958,11 @@
           }
         });
       }
+
+      // Notify other open tabs (table list tabs) that a lead has been updated
+      try {
+        localStorage.setItem('crm_lead_updated', '{{ lead.pk }}_' + Date.now());
+      } catch(e) {}
     })();
   });
 </script>

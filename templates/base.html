@@ -22,16 +22,16 @@
     :root {
       --sidebar-w: 265px;
       --sidebar-collapsed-w: 70px;
-      --brand: #000066;
-      /* Core Dark Navy Blue */
-      --brand-dark: #00004d;
-      /* Deep Navy Blue Hover */
-      --brand-blue: #000066;
-      --brand-accent: #000066;
-      --bg: #f8fafc;
-      /* Crisp clean light surface */
-      --card-border: #e2e8f0;
-      /* Subtle borders */
+      --brand: #052042;
+      /* Primary Navy */
+      --brand-dark: #0A294F;
+      /* Active menu / hover Navy */
+      --brand-blue: #052042;
+      --brand-accent: #052042;
+      --bg: #F7F8F9;
+      /* Page background */
+      --card-border: #E5E7EB;
+      /* Borders */
     }
 
     body {
@@ -109,15 +109,15 @@
       left: 0;
       bottom: 0;
       width: var(--sidebar-w);
-      background: #000066;
-      color: #e2e8f0;
+      background: #052042;
+      color: #cbd5e1;
       overflow-y: auto;
       overflow-x: hidden;
       z-index: 1030;
       transition: width .25s ease, transform .25s ease;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid rgba(255, 255, 255, 0.06);
+      border-right: 1px solid #E5E7EB;
     }
 
     .sidebar::-webkit-scrollbar {
@@ -137,7 +137,7 @@
       display: flex;
       align-items: center;
       gap: .6rem;
-      border-bottom: 1px solid rgba(255, 255, 255, .06);
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
       transition: padding .25s ease;
       position: relative;
     }
@@ -155,7 +155,7 @@
     .sidebar-footer-box {
       margin-top: auto;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(39, 5, 98, 0.2);
+      background: rgba(5, 32, 66, 0.6);
       padding: 6px 0;
     }
 
@@ -241,22 +241,36 @@
     }
 
     .sidebar .nav-link:hover {
-      background: rgba(255, 255, 255, .05);
+      background: #0A294F;
       color: #ffffff;
     }
 
     .sidebar .nav-link.active {
-      background: rgba(255, 255, 255, .1);
+      background: #0A294F;
       color: #ffffff;
-      border-left-color: #ffffff;
+      border-left-color: #3b82f6;
       font-weight: 600;
     }
 
-    .sidebar .nav-link i {
+    .sidebar .nav-link i,
+    .sidebar .section-icon,
+    .sidebar .nav-section-btn i,
+    .sidebar .nav-sub-item-btn i {
       width: 20px;
       text-align: center;
-      opacity: .9;
+      color: #cbd5e1 !important;
+      opacity: 0.95;
       flex-shrink: 0;
+      transition: color 0.15s ease;
+    }
+
+    .sidebar .nav-link:hover i,
+    .sidebar .nav-link.active i,
+    .sidebar .nav-section-btn:hover i,
+    .sidebar .nav-section-btn:not(.collapsed) i,
+    .sidebar .nav-sub-item-btn:hover i,
+    .sidebar .nav-sub-item-btn:not(.collapsed) i {
+      color: #ffffff !important;
     }
 
     .sidebar .sub-link {
@@ -758,23 +772,7 @@
       }
     }
 
-    /* Sidebar Resizer Handle */
-    .sidebar-resizer-handle {
-      position: fixed;
-      top: 0;
-      left: var(--sidebar-w);
-      bottom: 0;
-      width: 6px;
-      cursor: col-resize;
-      z-index: 1035;
-      background: transparent;
-      transition: background 0.15s ease;
-    }
 
-    .sidebar-resizer-handle:hover,
-    .sidebar-resizer-handle.resizing {
-      background: #6366f1;
-    }
 
     /* Filter Panel Resizer Handle */
     .filter-resizer-handle {
@@ -922,9 +920,6 @@
 
   {% include "includes/sidebar.html" %}
 
-  <!-- Draggable Sidebar Resizer Handle -->
-  <div class="sidebar-resizer-handle d-none d-lg-block" id="sidebarResizer"></div>
-
   <div class="main-wrap">
     {% include "includes/header.html" %}
 
@@ -938,72 +933,62 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <script>
-    // Sidebar Draggable Width Resizer
+    // Universal Lead Table Row & Detail Click Handler (Opens in New Tab)
     document.addEventListener('DOMContentLoaded', function () {
-      const resizer = document.getElementById('sidebarResizer');
-      const sidebar = document.getElementById('sidebar');
-      const mainWrap = document.querySelector('.main-wrap');
-      if (!resizer || !sidebar || !mainWrap) return;
-
-      // Load saved width from localStorage
-      const savedWidth = localStorage.getItem('crmSidebarCustomWidth');
-      if (savedWidth && window.innerWidth >= 992) {
-        document.documentElement.style.setProperty('--sidebar-w', savedWidth + 'px');
-        resizer.style.left = savedWidth + 'px';
-      }
-
-      let isResizing = false;
-
-      resizer.addEventListener('mousedown', function (e) {
-        isResizing = true;
-        resizer.classList.add('resizing');
-        document.body.style.userSelect = 'none';
-        document.body.style.cursor = 'col-resize';
-      });
-
-      document.addEventListener('mousemove', function (e) {
-        if (!isResizing) return;
-        let newWidth = e.clientX;
-        if (newWidth < 180) newWidth = 180;
-        if (newWidth > 450) newWidth = 450;
-
-        document.documentElement.style.setProperty('--sidebar-w', newWidth + 'px');
-        resizer.style.left = newWidth + 'px';
-        localStorage.setItem('crmSidebarCustomWidth', newWidth);
-      });
-
-      document.addEventListener('mouseup', function () {
-        if (isResizing) {
-          isResizing = false;
-          resizer.classList.remove('resizing');
-          document.body.style.userSelect = '';
-          document.body.style.cursor = '';
-        }
-      });
-    });
-
-    // Universal Lead Table Row Click Handler
-    document.addEventListener('DOMContentLoaded', function () {
+      // 1. Table row click -> Open lead detail in new tab
       document.body.addEventListener('click', function (e) {
-        // Ignore if user clicked on an interactive element (link, button, input, select, etc.)
-        if (e.target.closest('a, button, input, select, textarea, label, .dropdown-menu, .modal, .btn, [onclick]')) {
+        // Ignore if user clicked directly on interactive action elements (buttons, checkboxes, dropdowns, inputs)
+        if (e.target.closest('button, input, select, textarea, label, .dropdown-menu, .modal, .btn, [onclick]')) {
           return;
         }
 
-        // Check if clicked inside a row that has data-href or contains a lead detail link
+        // If an <a> tag was clicked inside the row, check if it's a lead detail / edit link
+        const clickedAnchor = e.target.closest('a');
+        if (clickedAnchor) {
+          const aHref = clickedAnchor.getAttribute('href') || '';
+          if (aHref.includes('/leads/') && (aHref.endsWith('/') || aHref.includes('?') || aHref.includes('/detail/'))) {
+            clickedAnchor.setAttribute('target', '_blank');
+            clickedAnchor.setAttribute('rel', 'noopener noreferrer');
+          }
+          return;
+        }
+
+        // Row Click: Check data-href or find lead link
         const tr = e.target.closest('tr');
         if (!tr) return;
 
         const href = tr.getAttribute('data-href');
         if (href) {
-          window.location.href = href;
+          window.open(href, '_blank', 'noopener,noreferrer');
           return;
         }
 
         // Fallback: If no data-href but row contains a lead detail anchor
         const detailLink = tr.querySelector('a[href*="/leads/"][href$="/"], a[href*="/leads/detail/"]');
         if (detailLink && detailLink.href) {
-          window.location.href = detailLink.href;
+          window.open(detailLink.href, '_blank', 'noopener,noreferrer');
+        }
+      });
+
+      // 2. Ensure all lead detail links in tables/cards open in new tab
+      document.querySelectorAll('a[href*="/leads/"]').forEach(function(link) {
+        const href = link.getAttribute('href') || '';
+        if (href.match(/\/leads\/\d+\/(\?|$)/) || href.includes('/leads/detail/')) {
+          link.setAttribute('target', '_blank');
+          link.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+
+      // 3. Auto-refresh lead tables when returning to tab after lead update
+      window.addEventListener('storage', function(e) {
+        if (e.key === 'crm_lead_updated') {
+          // If on a table/dashboard page, smoothly reload data so changed status leads transfer out
+          const path = window.location.pathname;
+          if (path.includes('/dashboard/') || path.includes('/leads/') || path.includes('/followups/')) {
+            if (!document.querySelector('.modal.show') && !document.activeElement.matches('input, textarea')) {
+              window.location.reload();
+            }
+          }
         }
       });
     });
@@ -1011,6 +996,19 @@
 
   {% load static %}
   <script src="{% static 'js/crm_live_sync.js' %}"></script>
+
+  {% if request.session.auto_open_whatsapp %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const waUrl = "{{ request.session.auto_open_whatsapp|escapejs }}";
+      if (waUrl) {
+        window.open(waUrl, "_blank");
+        // Clear via quick async fetch or session cleanup
+        fetch("{% url 'leads:doctor_slots_api' %}?clear_wa_session=1").catch(() => {});
+      }
+    });
+  </script>
+  {% endif %}
 
   {% include "includes/footer.html" %}
   {% block extra_js %}{% endblock %}

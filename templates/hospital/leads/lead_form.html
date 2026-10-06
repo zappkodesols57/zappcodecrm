@@ -251,11 +251,6 @@
       <span class="text-muted small">{% if user.hospital %}{{ user.hospital.name }}{% endif %}</span>
     </div>
     <div class="d-flex gap-2 align-items-center">
-      {% if obj and obj.mobile %}
-      <a href="https://wa.me/91{{ obj.clean_phone_number }}?text={{ obj.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-bold d-flex align-items-center gap-1" title="{% if obj.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
-        <i class="fa-brands fa-whatsapp fs-6 text-success"></i> {% if obj.is_booked %}WhatsApp Booking Details{% else %}WhatsApp Message{% endif %}
-      </a>
-      {% endif %}
       {% if is_doctor %}
       <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-sm btn-primary rounded-pill px-3 shadow-none">
         <i class="fa-solid fa-arrow-left me-1"></i> Back to Appointments
@@ -264,14 +259,6 @@
       <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="btn btn-sm btn-secondary rounded-pill px-3">
         <i class="fa-solid fa-arrow-left me-1"></i> Back
       </a>
-      {% else %}
-      <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}"
-        class="crm-btn-cancel">
-        Cancel
-      </a>
-      <button type="submit" form="nelsonLeadForm" class="crm-btn-save">
-        Save Lead
-      </button>
       {% endif %}
     </div>
   </div>
@@ -353,7 +340,6 @@
     <form method="POST" id="nelsonLeadForm" class="needs-validation">
       {% csrf_token %}
       {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
-      {% if cancel_url %}<input type="hidden" name="return_to" value="{{ cancel_url }}">{% endif %}
 
       <!-- Section: Lead Information -->
       <div class="crm-section-header">
@@ -467,6 +453,32 @@
               {% if item.cf.form_field.errors %}
               <div class="text-danger small mt-1">{{ item.cf.form_field.errors.0 }}</div>
               {% endif %}
+
+              {% if item.cf.name == 'hospital_branch' or item.cf.name == 'branch' %}
+              {% if user.can_transfer_branch %}
+              <!-- Branch Transfer Option -->
+              <div class="mt-2 pt-2 border-top">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_left" value="1" onchange="toggleBranchTransfer(this.checked)">
+                  <label class="form-check-label small fw-semibold text-dark" for="is_branch_transfer_left">
+                    Transfer to Another Branch
+                  </label>
+                </div>
+                <div id="transfer_branch_container" class="mt-2 p-2 bg-light rounded border border-primary-subtle" style="display: none;">
+                  <label class="form-label small text-muted mb-1 fw-semibold">Select Target Branch <span class="text-danger">*</span>:</label>
+                  <select name="transfer_target_branch" id="transfer_target_branch" class="form-select mb-2">
+                    <option value="">-- Select Target Branch --</option>
+                    {% for b in available_branches %}
+                    <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
+                    {% endfor %}
+                  </select>
+                  <label class="form-label small text-muted mb-1 fw-semibold">Transfer Reason <span class="text-danger">*</span>:</label>
+                  <input type="text" name="transfer_reason" id="transfer_reason_left" class="form-control form-control-sm" placeholder="Reason for transferring branch (Required)">
+                  <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
+                </div>
+              </div>
+              {% endif %}
+              {% endif %}
             </div>
           </div>
           {% endif %}
@@ -554,6 +566,32 @@
                 item.cf.help_text }}</small>{% endif %}
               {% if item.cf.form_field.errors %}
               <div class="text-danger small mt-1">{{ item.cf.form_field.errors.0 }}</div>
+              {% endif %}
+
+              {% if item.cf.name == 'hospital_branch' or item.cf.name == 'branch' %}
+              {% if user.can_transfer_branch %}
+              <!-- Branch Transfer Option -->
+              <div class="mt-2 pt-2 border-top">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_right" value="1" onchange="toggleBranchTransfer(this.checked)">
+                  <label class="form-check-label small fw-semibold text-dark" for="is_branch_transfer_right">
+                    Transfer to Another Branch
+                  </label>
+                </div>
+                <div id="transfer_branch_container_right" class="mt-2 p-2 bg-light rounded border border-primary-subtle" style="display: none;">
+                  <label class="form-label small text-muted mb-1 fw-semibold">Select Target Branch <span class="text-danger">*</span>:</label>
+                  <select name="transfer_target_branch" id="transfer_target_branch_right" class="form-select mb-2">
+                    <option value="">-- Select Target Branch --</option>
+                    {% for b in available_branches %}
+                    <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
+                    {% endfor %}
+                  </select>
+                  <label class="form-label small text-muted mb-1 fw-semibold">Transfer Reason <span class="text-danger">*</span>:</label>
+                  <input type="text" name="transfer_reason" id="transfer_reason_right" class="form-control form-control-sm" placeholder="Reason for transferring branch (Required)">
+                  <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
+                </div>
+              </div>
+              {% endif %}
               {% endif %}
             </div>
           </div>
@@ -689,44 +727,103 @@
       </div>
       {% endif %}
 
-      <div id="bookedFieldsContainer" style="display: none;" class="mb-3 p-3 rounded-3 bg-light border">
+      <!-- ================================================================= -->
+      <!-- DYNAMIC CONDITIONAL SECTIONS                                        -->
+      <!-- ================================================================= -->
+      <!-- 1. Booking Section: Hospital Branch, Department, Disease, Doctor, Date, Slot Calendar -->
+      <div id="bookedFieldsContainer" style="display: none;" class="mb-3 p-3 rounded-3 bg-light border border-primary-subtle shadow-xs">
         <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
           <h6 class="fw-bold text-dark mb-0">
-            <i class="fa-solid fa-calendar-plus text-primary me-1"></i>
-            {% if latest_appointment or is_appointment_confirmed %}Book Next Appointment / Consultation{% else %}Doctor
-            Slot & Appointment Booking{% endif %}
+            <i class="fa-solid fa-hospital-user text-primary me-1"></i>
+            {% if latest_appointment or is_appointment_confirmed %}Book Next Appointment / Consultation{% else %}Doctor Booking & Appointment Slot Details{% endif %}
           </h6>
           {% if latest_appointment or is_appointment_confirmed %}
           <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2"
             onclick="toggleBookNextAppointment(false)">Hide Slot Booking</button>
           {% endif %}
         </div>
-        <div class="row g-3">
-          {% if latest_appointment or is_appointment_confirmed %}
-          <div class="col-md-4">
-            <label class="form-label small fw-bold text-dark">Select Doctor for Appointment <span
-                class="text-danger">*</span></label>
-            <div id="bookingDoctorSelectWrap">
-              <!-- Reuses the hospital & department filtered doctor choices -->
-              <select name="booking_doctor" id="id_booking_doctor" class="form-select form-select-sm">
-                {% for doc_val, doc_lbl in form.fields.doctor.choices %}
-                <option value="{{ doc_val }}" {% if doc_val == form.doctor.value or doc_val == saved_initial.doctor %}selected{% endif %}>{{ doc_lbl }}</option>
-                {% endfor %}
-              </select>
+
+        <div class="row g-3 mb-3">
+          <!-- Branch -->
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required">Hospital Branch</label>
+              <div class="crm-form-field">
+                {{ form.hospital_branch }}
+                {% if user.can_transfer_branch %}
+                <!-- Branch Transfer Option -->
+                <div class="mt-2 pt-2 border-top">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_booking" value="1" onchange="toggleBranchTransfer(this.checked)">
+                    <label class="form-check-label small fw-semibold text-dark" for="is_branch_transfer_booking">
+                      Transfer to Another Branch
+                    </label>
+                  </div>
+                  <div id="transfer_branch_container" class="mt-2 p-2 bg-light rounded border border-primary-subtle" style="display: none;">
+                    <label class="form-label small text-muted mb-1 fw-semibold">Select Target Branch <span class="text-danger">*</span>:</label>
+                    <select name="transfer_target_branch" id="transfer_target_branch" class="form-select mb-2">
+                      <option value="">-- Select Target Branch --</option>
+                      {% for b in available_branches %}
+                      <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
+                      {% endfor %}
+                    </select>
+                    <label class="form-label small text-muted mb-1 fw-semibold">Transfer Reason <span class="text-danger">*</span>:</label>
+                    <input type="text" name="transfer_reason" id="transfer_reason_booking" class="form-control form-control-sm" placeholder="Reason for transferring branch (Required)">
+                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
             </div>
-            <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Default: Assigned doctor. You can change
-              doctor.</small>
           </div>
-          {% endif %}
-          <div class="{% if latest_appointment or is_appointment_confirmed %}col-md-4{% else %}col-md-6{% endif %}">
-            <label class="form-label small fw-bold text-dark">Appointment Date <span
-                class="text-danger">*</span></label>
+
+          <!-- Department -->
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required">Department</label>
+              <div class="crm-form-field">{{ form.department }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <!-- Disease / Condition -->
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label">Disease / Condition</label>
+              <div class="crm-form-field">{{ form.disease }}</div>
+            </div>
+          </div>
+
+          <!-- Doctor -->
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required">Doctor</label>
+              <div class="crm-form-field">
+                {{ form.doctor }}
+                {% if latest_appointment or is_appointment_confirmed %}
+                <div id="bookingDoctorSelectWrap" class="d-none">
+                  <select name="booking_doctor" id="id_booking_doctor" class="form-select form-select-sm">
+                    {% for doc_val, doc_lbl in form.fields.doctor.choices %}
+                    <option value="{{ doc_val }}" {% if doc_val == form.doctor.value or doc_val == saved_initial.doctor %}selected{% endif %}>{{ doc_lbl }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Appointment Date & Slot Selection Grid -->
+        <div class="row g-3 pt-2 border-top">
+          <div class="col-md-6">
+            <label class="form-label small fw-bold text-dark">Appointment Date <span class="text-danger">*</span></label>
             {{ form.appo_booked_date }}
             <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Select today or a future date</small>
           </div>
-          <div class="{% if latest_appointment or is_appointment_confirmed %}col-md-4{% else %}col-md-6{% endif %}">
-            <label class="form-label small fw-bold text-dark">Appointment Slot <span
-                class="text-danger">*</span></label>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold text-dark">Doctor Booking Slot <span class="text-danger">*</span></label>
             <input type="hidden" name="appointment_time" id="id_appointment_time"
               value="{{ form.appointment_time.value|default:'' }}">
             <div id="selectedSlotBanner"
@@ -758,6 +855,7 @@
         </div>
       </div>
 
+      <!-- 2. Follow-up Container -->
       <div id="waitingFieldsContainer" style="display: none;"
         class="mb-3 p-3 rounded-3 bg-light border border-primary-subtle">
         <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold small">
@@ -780,13 +878,13 @@
               reminder will be sent</small>
           </div>
           <div class="col-md-4">
-            <label class="form-label small fw-bold text-dark">Follow-up Remark</label>
+            <label class="form-label small fw-bold text-dark">Follow-up Remark <span class="text-danger">*</span></label>
             {{ form.followup_remark }}
           </div>
         </div>
       </div>
 
-      <!-- Cancellation / Not Interested Reason Container -->
+      <!-- 3. Cancellation / Not Interested Reason Container -->
       <div id="cancellationFieldsContainer" style="display: none;"
         class="mb-3 p-3 rounded-3 bg-danger bg-opacity-10 border border-danger-subtle">
         <div class="d-flex align-items-center gap-2 mb-2 text-danger fw-bold small">
@@ -794,7 +892,7 @@
         </div>
         <div class="row g-2">
           <div class="col-12">
-            <label class="form-label small fw-bold text-dark">Specify Reason</label>
+            <label class="form-label small fw-bold text-dark">Specify Reason <span class="text-danger">*</span></label>
             {{ form.cancellation_reason }}
           </div>
         </div>
@@ -938,7 +1036,7 @@
         </div>
       </div>
 
-      <!-- Footer Buttons -->
+      <!-- Footer Buttons: Strictly Cancel & Save Lead -->
       <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
         {% if is_view_only or is_doctor %}
         <a href="{% url 'dashboard:doctor_appointments' %}" class="btn btn-secondary rounded-pill px-4">
@@ -954,15 +1052,77 @@
           Cancel
         </button>
         {% endif %}
-        <button type="submit" class="crm-btn-save">
+        <button type="button" id="btnOpenSaveModal" class="crm-btn-save" onclick="handleSaveLeadClick()">
           <i class="fa-solid fa-check me-1"></i> Save Lead
         </button>
+        <input type="hidden" name="send_whatsapp" id="id_send_whatsapp" value="0">
         {% endif %}
       </div>
 
     </form>
   </div>
 
+</div>
+
+<!-- ========================================================================= -->
+<!-- SAVE LEAD CONFIRMATION MODAL (Save Only vs Save & Send WhatsApp)          -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="saveConfirmationModal" tabindex="-1" aria-labelledby="saveConfirmationModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3 px-4 bg-light rounded-top-4">
+        <h6 class="modal-title fw-bold text-dark mb-0" id="saveConfirmationModalLabel">
+          <i class="fa-solid fa-circle-check text-primary me-2"></i>Save Lead Confirmation
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="text-center mb-3">
+          <div id="modalStatusIcon" class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2" style="width: 48px; height: 48px;">
+            <i class="fa-solid fa-floppy-disk fs-4"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-1" id="modalPromptTitle">Confirm Lead Action</h5>
+          <p class="text-muted small mb-0" id="modalPromptSubtitle">Choose how you want to save this patient lead.</p>
+        </div>
+
+        <!-- WhatsApp Preview Box (Conditional) -->
+        <div id="modalWhatsAppBox" class="p-3 rounded-3 border bg-light mb-3" style="display: none;">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="small fw-bold text-success">
+              <i class="fa-brands fa-whatsapp me-1 fs-6"></i> WhatsApp Message Preview:
+            </span>
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;" id="modalTemplateBadge">
+              Auto-filled
+            </span>
+          </div>
+          <div class="p-2 bg-white rounded border text-muted small text-break" style="font-size: 0.82rem; white-space: pre-line; max-height: 140px; overflow-y: auto;" id="modalWhatsAppPreviewText">
+            ...
+          </div>
+        </div>
+
+        <!-- Patient Quick Summary -->
+        <div class="p-2 px-3 bg-light rounded-3 border small mb-2 d-flex justify-content-between align-items-center">
+          <span class="text-muted">Patient: <strong class="text-dark" id="modalPatientName">—</strong></span>
+          <span class="text-muted">Mobile: <strong class="text-dark" id="modalPatientMobile">—</strong></span>
+        </div>
+      </div>
+      <div class="modal-footer border-top py-2 px-4 bg-light rounded-bottom-4 d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <div class="d-flex gap-2">
+          <!-- Option 1: Save Lead (Only Save) -->
+          <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" id="btnModalSaveOnly" onclick="submitLeadForm(false)">
+            <i class="fa-solid fa-check me-1"></i> Save Lead
+          </button>
+          <!-- Option 2: Save & Send WhatsApp Message -->
+          <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" id="btnModalSaveWhatsApp" onclick="submitLeadForm(true)" style="display: none;">
+            <i class="fa-brands fa-whatsapp me-1"></i> Save & Send WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1766,6 +1926,232 @@
     });
   }, 350);
   {% endif %}
+
+  // Branch Transfer UI Handler
+  window.toggleBranchTransfer = function(isChecked) {
+    const leftContainer = document.getElementById('transfer_branch_container');
+    const rightContainer = document.getElementById('transfer_branch_container_right');
+    const leftSelect = document.getElementById('transfer_target_branch');
+    const rightSelect = document.getElementById('transfer_target_branch_right');
+    const leftReason = document.getElementById('transfer_reason_booking') || document.getElementById('transfer_reason_left');
+    const rightReason = document.getElementById('transfer_reason_right');
+    const leftCb = document.getElementById('is_branch_transfer_booking') || document.getElementById('is_branch_transfer_left');
+    const rightCb = document.getElementById('is_branch_transfer_right');
+
+    if (leftContainer) leftContainer.style.display = isChecked ? 'block' : 'none';
+    if (rightContainer) rightContainer.style.display = isChecked ? 'block' : 'none';
+    if (leftCb) leftCb.checked = isChecked;
+    if (rightCb) rightCb.checked = isChecked;
+
+    if (leftSelect) leftSelect.required = isChecked;
+    if (rightSelect) rightSelect.required = isChecked;
+    if (leftReason) leftReason.required = isChecked;
+    if (rightReason) rightReason.required = isChecked;
+  };
+
+  // =========================================================================
+  // SAVE LEAD CONFIRMATION MODAL & VALIDATION LOGIC
+  // =========================================================================
+  const formEl = document.getElementById('nelsonLeadForm');
+  const saveModalEl = document.getElementById('saveConfirmationModal');
+  let saveModalInstance = null;
+
+  window.handleSaveLeadClick = function() {
+    if (!formEl) return;
+
+    // 1. Get Selected Appointment Status
+    const appStatusVal = (appStatusSelect ? (appStatusSelect.tomselect ? appStatusSelect.tomselect.getValue() : (appStatusSelect.value || '')) : '').toUpperCase();
+    const isCancelling = appStatusVal.includes('CANCEL') || appStatusVal.includes('NOT INT') || appStatusVal.includes('NOT_INT') || appStatusVal.includes('REJECT') || appStatusVal.includes('DECLINE') || appStatusVal.includes('DROP') || appStatusVal.includes('LOST');
+    const isBooking = !isCancelling && (appStatusVal.includes('BOOK') || appStatusVal.includes('CONFIRM') || appStatusVal.includes('SLOT') || appStatusVal.includes('OPD') || appStatusVal.includes('CONSULT'));
+    const isFollowup = !isCancelling && !isBooking && (appStatusVal.includes('FOLLOW') || appStatusVal.includes('WAIT') || appStatusVal.includes('CALL') || appStatusVal.includes('LATER') || appStatusVal.includes('INTEREST') || appStatusVal.includes('NEED'));
+
+    // Dynamic field requirements based on status
+    const canReasonInput = document.querySelector('textarea[name="cancellation_reason"], input[name="cancellation_reason"]');
+    if (isCancelling) {
+      if (canReasonInput && !canReasonInput.value.trim()) {
+        canReasonInput.setCustomValidity('Reason for Cancellation / Not Interested is required.');
+        canReasonInput.reportValidity();
+        return;
+      } else if (canReasonInput) {
+        canReasonInput.setCustomValidity('');
+      }
+    } else if (canReasonInput) {
+      canReasonInput.setCustomValidity('');
+      canReasonInput.removeAttribute('required');
+    }
+
+    if (isFollowup) {
+      const fuRemarkIn = document.querySelector('textarea[name="followup_remark"], input[name="followup_remark"]');
+      if (fuDateInput && !fuDateInput.value.trim()) {
+        fuDateInput.setCustomValidity('Follow-up Date is required.');
+        fuDateInput.reportValidity();
+        return;
+      } else if (fuDateInput) {
+        fuDateInput.setCustomValidity('');
+      }
+
+      if (fuRemarkIn && !fuRemarkIn.value.trim()) {
+        fuRemarkIn.setCustomValidity('Follow-up Remark is required.');
+        fuRemarkIn.reportValidity();
+        return;
+      } else if (fuRemarkIn) {
+        fuRemarkIn.setCustomValidity('');
+      }
+    } else {
+      if (fuDateInput) fuDateInput.removeAttribute('required');
+      const fuRemarkIn = document.querySelector('textarea[name="followup_remark"], input[name="followup_remark"]');
+      if (fuRemarkIn) fuRemarkIn.removeAttribute('required');
+    }
+
+    if (isBooking) {
+      if (appoDateInput && !appoDateInput.value.trim()) {
+        appoDateInput.setCustomValidity('Appointment Date is required for booking.');
+        appoDateInput.reportValidity();
+        return;
+      } else if (appoDateInput) {
+        appoDateInput.setCustomValidity('');
+      }
+      if (!appoTimeInput || !appoTimeInput.value.trim()) {
+        alert('Please select a doctor booking slot for the appointment.');
+        if (slotsCalendarBox) slotsCalendarBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    } else {
+      if (appoDateInput) appoDateInput.removeAttribute('required');
+      if (appoTimeInput) appoTimeInput.removeAttribute('required');
+    }
+
+    // Check HTML5 validity for visible fields only
+    const allInputs = formEl.querySelectorAll('input, select, textarea');
+    allInputs.forEach(el => {
+      // If element is hidden in a display:none container or detached from view, remove required
+      if (el.offsetParent === null && el.type !== 'hidden') {
+        el.removeAttribute('required');
+        el.setCustomValidity('');
+      }
     });
+
+    const invalidFields = [];
+    allInputs.forEach(el => {
+      if (el.offsetParent !== null && !el.checkValidity()) {
+        invalidFields.push(el);
+      }
+    });
+
+    if (invalidFields.length > 0) {
+      invalidFields[0].reportValidity();
+      return;
+    }
+
+    // 2. Prepare Modal Contents
+    const pName = (document.getElementById('id_name') ? document.getElementById('id_name').value : '') || 'Patient';
+    const pMobile = (document.getElementById('id_mobile') ? document.getElementById('id_mobile').value : '') || '—';
+    const docVal = (doctorSelect ? (doctorSelect.tomselect ? doctorSelect.tomselect.getValue() : doctorSelect.value) : '') || 'Doctor';
+    const docDisplay = docVal.toLowerCase().startsWith('dr') ? docVal : `Dr. ${docVal}`;
+    const branchVal = (bSelect ? (bSelect.tomselect ? bSelect.tomselect.getValue() : bSelect.value) : '') || '{{ user.hospital.name|default:"Hospital" }}';
+    const hospName = '{{ user.hospital.name|default:"Nelson Mother & Child Care Hospital" }}';
+    const agentName = '{{ request.user.get_full_name|default:request.user.username }}';
+    const apptDateVal = appoDateInput ? appoDateInput.value : '';
+    const apptTimeVal = selectedSlotText ? (selectedSlotText.textContent || (appoTimeInput ? appoTimeInput.value : '')) : (appoTimeInput ? appoTimeInput.value : '');
+
+    const pNameEl = document.getElementById('modalPatientName');
+    const pMobileEl = document.getElementById('modalPatientMobile');
+    if (pNameEl) pNameEl.textContent = pName;
+    if (pMobileEl) pMobileEl.textContent = pMobile;
+
+    const modalIcon = document.getElementById('modalStatusIcon');
+    const modalTitle = document.getElementById('modalPromptTitle');
+    const modalSubtitle = document.getElementById('modalPromptSubtitle');
+    const modalWaBox = document.getElementById('modalWhatsAppBox');
+    const modalWaText = document.getElementById('modalWhatsAppPreviewText');
+    const btnSaveWhatsApp = document.getElementById('btnModalSaveWhatsApp');
+
+    if (isCancelling) {
+      // Cancelled or Not Interested: Save only
+      if (modalIcon) {
+        modalIcon.className = 'avatar-sm bg-danger bg-opacity-10 text-danger rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-ban fs-4"></i>';
+      }
+      if (modalTitle) modalTitle.textContent = 'Save Cancelled / Not Interested Lead';
+      if (modalSubtitle) modalSubtitle.textContent = 'Are you sure you want to save this lead as Cancelled / Not Interested?';
+      if (modalWaBox) modalWaBox.style.display = 'none';
+      if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'none';
+    } else if (isBooking) {
+      // Booking: Save & Send WhatsApp with Doctor, Date, Slot
+      if (modalIcon) {
+        modalIcon.className = 'avatar-sm bg-success bg-opacity-10 text-success rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-calendar-check fs-4"></i>';
+      }
+      if (modalTitle) modalTitle.textContent = 'Save Appointment Booking';
+      if (modalSubtitle) modalSubtitle.textContent = 'Appointment slot is locked. Choose whether to save or save and send WhatsApp confirmation to patient.';
+      if (modalWaBox) modalWaBox.style.display = 'block';
+      if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
+
+      if (modalWaText) modalWaText.innerHTML = `Dear <strong>${pName}</strong>,\n\nYour appointment at <strong>${hospName}</strong> (${branchVal}) has been successfully booked.\n\n<strong>Doctor:</strong> ${docDisplay}\n<strong>Date:</strong> ${apptDateVal}\n<strong>Slot:</strong> ${apptTimeVal}\n\nThank you for choosing ${hospName}.\nRegards,\n${agentName}`;
+    } else if (isFollowup) {
+      // Follow-up: Save & Send WhatsApp with Thank you for enquiry
+      if (modalIcon) {
+        modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-calendar-plus fs-4"></i>';
+      }
+      if (modalTitle) modalTitle.textContent = 'Save Follow-up Schedule';
+      if (modalSubtitle) modalSubtitle.textContent = 'Follow-up is scheduled. Choose whether to save or save and send thank you message to patient.';
+      if (modalWaBox) modalWaBox.style.display = 'block';
+      if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
+
+      if (modalWaText) modalWaText.innerHTML = `Dear <strong>${pName}</strong>,\n\nThank you for reaching out and inquiring at <strong>${hospName}</strong> (${branchVal}).\n\nOur healthcare consultant has scheduled your consultation follow-up. Feel free to reply to this message if you have any questions.\n\nWarm regards,\n${agentName}\n${hospName}`;
+    } else {
+      // General Lead save
+      if (modalIcon) {
+        modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-floppy-disk fs-4"></i>';
+      }
+      if (modalTitle) modalTitle.textContent = 'Confirm Save Lead';
+      if (modalSubtitle) modalSubtitle.textContent = 'Confirm saving lead details.';
+      if (modalWaBox) modalWaBox.style.display = 'none';
+      if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'none';
+    }
+
+    // 3. Show Modal or Direct Fallback Submit
+    try {
+      if (saveModalEl) {
+        if (!saveModalInstance && window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+          saveModalInstance = new bootstrap.Modal(saveModalEl);
+        }
+        if (saveModalInstance) {
+          saveModalInstance.show();
+          return;
+        } else if (window.jQuery && typeof jQuery(saveModalEl).modal === 'function') {
+          jQuery(saveModalEl).modal('show');
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Bootstrap modal show failed, falling back to direct submit:', err);
+    }
+
+    // Fallback if modal cannot be initialized
+    submitLeadForm(false);
+  };
+
+  window.submitLeadForm = function(sendWhatsApp = false) {
+    const waInput = document.getElementById('id_send_whatsapp');
+    if (waInput) {
+      waInput.value = sendWhatsApp ? '1' : '0';
+    }
+    if (saveModalInstance) {
+      try { saveModalInstance.hide(); } catch(e){}
+    } else if (window.jQuery && saveModalEl) {
+      try { jQuery(saveModalEl).modal('hide'); } catch(e){}
+    }
+    if (formEl) {
+      // Enable any temporarily disabled fields so form data is serialized properly
+      formEl.querySelectorAll('select:disabled, input:disabled').forEach(el => {
+        el.disabled = false;
+      });
+      formEl.submit();
+    }
+  };
+});
 </script>
 {% endblock %}
