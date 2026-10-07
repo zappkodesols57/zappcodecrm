@@ -2366,6 +2366,7 @@ def lead_edit(request, pk):
         "form": form,
         "mode": "Edit",
         "obj": lead,
+        "lead": lead,
         "cancel_url": cancel_url,
         "is_view_only": is_view_only,
         "is_doctor": is_doctor,
