@@ -1843,6 +1843,12 @@ def lead_add(request):
         if request.user.hospital:
             b_qs = b_qs.filter(hospital=request.user.hospital)
         available_branches = list(b_qs.order_by("name"))
+        
+    # Custom WhatsApp message templates for user
+    from leads.models import UserCustomMessage
+    custom_booking_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BOOKING", is_confirmed=True).first()
+    custom_followup_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="FOLLOWUP", is_confirmed=True).first()
+    custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
     
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
@@ -1855,6 +1861,9 @@ def lead_add(request):
                     return render(request, template, {
                         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
                         "available_branches": available_branches,
+                        "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
+                        "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
+                        "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
                     })
             lead = form.save(commit=False)
             lead.created_by = request.user
