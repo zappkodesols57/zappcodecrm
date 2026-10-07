@@ -4629,6 +4629,10 @@ def custom_message_manager(request):
         messages.error(request, "Permission denied: Doctors do not have access to Custom Message Manager.")
         return redirect("dashboard:home")
 
+    if not (request.user.industry == "HOSPITAL" or request.user.hospital):
+        messages.error(request, "Custom Message Manager is only available for Hospital panels.")
+        return redirect("dashboard:home")
+
     from leads.models import UserCustomMessage
     from accounts.models import Hospital
     import urllib.parse

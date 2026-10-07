@@ -270,10 +270,12 @@
           href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
           <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
         </a>
+        {% if user.industry == 'HOSPITAL' or user.hospital %}
         <a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
           href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
           <i class="fa-brands fa-whatsapp"></i> <span class="nav-text">Custom Message</span>
         </a>
+        {% endif %}
       </div>
     </div>
     {% endif %}
@@ -499,10 +501,12 @@
       href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
       <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
     </a>
+    {% if user.industry == 'HOSPITAL' or user.hospital %}
     <a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
       href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
       <i class="fa-brands fa-whatsapp"></i> <span class="nav-text">Custom Message</span>
     </a>
+    {% endif %}
     {% endif %}
 
     <!-- 6. Submit EOD Report -->
