@@ -1835,6 +1835,15 @@ def lead_add(request):
     FormClass = HospitalLeadForm if is_hospital else LeadForm
     template = "hospital/leads/lead_form.html" if is_hospital else "academy/leads/lead_form.html"
     
+    # Available hospital branches for transfer
+    available_branches = []
+    if is_hospital:
+        from leads.models import HospitalBranch
+        b_qs = HospitalBranch.objects.filter(is_active=True)
+        if request.user.hospital:
+            b_qs = b_qs.filter(hospital=request.user.hospital)
+        available_branches = list(b_qs.order_by("name"))
+    
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
         force = request.POST.get("force_create") == "1"
@@ -1844,7 +1853,8 @@ def lead_add(request):
                 duplicates = Lead.objects.filter(mobile=mobile, is_archived=False)
                 if duplicates.exists():
                     return render(request, template, {
-                        "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates
+                        "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
+                        "available_branches": available_branches,
                     })
             lead = form.save(commit=False)
             lead.created_by = request.user
@@ -1971,15 +1981,6 @@ def lead_add(request):
     else:
         from django.utils import timezone
         form = FormClass(initial={"inquiry_date": timezone.localdate()}, user=request.user)
-    
-    # Available hospital branches for transfer
-    available_branches = []
-    if is_hospital:
-        from leads.models import HospitalBranch
-        b_qs = HospitalBranch.objects.filter(is_active=True)
-        if request.user.hospital:
-            b_qs = b_qs.filter(hospital=request.user.hospital)
-        available_branches = list(b_qs.order_by("name"))
         
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
