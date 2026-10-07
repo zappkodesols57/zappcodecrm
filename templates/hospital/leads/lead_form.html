@@ -636,10 +636,12 @@
               {{ latest_appointment.get_status_display|default:"Awaiting Confirmation" }}
             </span>
           </div>
-          {% if latest_appointment.doctor_notes or lead.custom_doctor_remark %}
+          {% if latest_appointment.doctor_notes or obj.custom_doctor_remark %}
           <div class="col-12 mt-2 pt-2 border-top">
             <small class="text-secondary fw-bold d-block"><i class="fa-solid fa-user-doctor me-1 text-primary"></i> Doctor Instructions / Consultation Notes:</small>
-            <div class="small text-dark mt-1 p-2 bg-light rounded border">{{ latest_appointment.doctor_notes|default:lead.custom_doctor_remark }}</div>
+            <div class="small text-dark mt-1 p-2 bg-light rounded border">
+              {% if latest_appointment.doctor_notes %}{{ latest_appointment.doctor_notes }}{% else %}{{ obj.custom_doctor_remark }}{% endif %}
+            </div>
           </div>
           {% endif %}
         </div>
