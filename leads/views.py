@@ -1984,6 +1984,9 @@ def lead_add(request):
     custom_booking_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BOOKING", is_confirmed=True).first()
     custom_followup_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="FOLLOWUP", is_confirmed=True).first()
     custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
+    # Available hospital branches for transfer
+    from accounts.models import HospitalBranch
+    available_branches = list(HospitalBranch.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True)) if request.user.hospital else []
 
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
