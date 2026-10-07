@@ -95,21 +95,20 @@ def filter_uncontacted_leads_ids(c_base, today=None):
         if st_name in terminal_stages:
             continue
 
-        # Check all remarks fields
+        # Check actual calling remarks fields (excludes lead question/survey notes)
         r1 = cd.get('remark_1')
         r2 = cd.get('remark_2')
         r3 = cd.get('remark_3')
         r4 = cd.get('remark_4')
         r5 = cd.get('remark_5')
         f_rem = cd.get('followup_remark')
-        comm = cd.get('comments')
         c_date1 = cd.get('calling_date_remark_1')
         c_date2 = cd.get('calling_date_remark_2')
         c_date3 = cd.get('calling_date_remark_3')
         last_called = cd.get('last_called_date')
 
-        has_any_remark = any(is_clean_val(rk) for rk in [r1, r2, r3, r4, r5, f_rem, comm, c_date1, c_date2, c_date3, last_called])
-        if has_any_remark or has_user_notes(r['notes']):
+        has_calling_remark = any(is_clean_val(rk) for rk in [r1, r2, r3, r4, r5, f_rem, c_date1, c_date2, c_date3, last_called])
+        if has_calling_remark:
             continue
 
         matched_ids.append(lid)

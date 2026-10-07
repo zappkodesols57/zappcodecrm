@@ -699,7 +699,7 @@ def lead_list(request):
                 filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=target_hospital).values_list("name", flat=True))
             if not filter_doctors:
                 filter_doctors = list(User.objects.filter(hospital=target_hospital, role=User.Role.DOCTOR, is_active=True).values_list("first_name", flat=True))
-        filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
+        filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Approval from Doctor", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
     else:
         courses_qs = Course.objects.filter(id__in=used_course_ids)
         adm_status_choices = AdmissionStatus.choices
@@ -1968,7 +1968,14 @@ def lead_add(request):
                 clean_phone = lead.clean_phone_number
                 cd = lead.custom_data or {}
                 apt_st = str(cd.get("appointment_status") or "").upper()
-                msg_type = "BOOKING" if any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']) else "FOLLOWUP"
+                deal_st = str(cd.get("deal_status") or "").upper()
+                has_bill_entry = bool(cd.get("total") and str(cd.get("total")).strip() not in ["0", "0.0", "0.00", ""])
+                if lead.is_billing_done or has_bill_entry or 'PAYMENT' in apt_st or 'PAYMENT' in deal_st or 'BILLING' in apt_st:
+                    msg_type = "BILLING"
+                elif any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']):
+                    msg_type = "BOOKING"
+                else:
+                    msg_type = "FOLLOWUP"
                 msg_text = lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
                 encoded_msg = urllib.parse.quote(msg_text)
                 wa_url = f"https://wa.me/91{clean_phone}?text={encoded_msg}"
@@ -1985,6 +1992,9 @@ def lead_add(request):
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
         "available_branches": available_branches,
+        "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
+        "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
+        "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
     })
 
 @login_required
@@ -2070,8 +2080,8 @@ def lead_edit(request, pk):
                         if not stage_match:
                             apt_upper = apt_st.upper()
                             if 'APPROV' in apt_upper or 'AWAIT' in apt_upper:
-                                stage_match = LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
-                                              LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first()
+                                stage_match = LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
+                                              LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first()
                             elif 'CONFIRM' in apt_upper or 'BOOK' in apt_upper:
                                 stage_match = LeadStage.objects.filter(name__iexact='Appointment Confirmed').first() or \
                                               LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
@@ -2279,7 +2289,14 @@ def lead_edit(request, pk):
                 clean_phone = saved_lead.clean_phone_number
                 cd = saved_lead.custom_data or {}
                 apt_st = str(cd.get("appointment_status") or "").upper()
-                msg_type = "BOOKING" if any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']) else "FOLLOWUP"
+                deal_st = str(cd.get("deal_status") or "").upper()
+                has_bill_entry = bool(cd.get("total") and str(cd.get("total")).strip() not in ["0", "0.0", "0.00", ""])
+                if saved_lead.is_billing_done or has_bill_entry or 'PAYMENT' in apt_st or 'PAYMENT' in deal_st or 'BILLING' in apt_st:
+                    msg_type = "BILLING"
+                elif any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']):
+                    msg_type = "BOOKING"
+                else:
+                    msg_type = "FOLLOWUP"
                 msg_text = saved_lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
                 encoded_msg = urllib.parse.quote(msg_text)
                 wa_url = f"https://wa.me/91{clean_phone}?text={encoded_msg}"
@@ -2362,11 +2379,18 @@ def lead_edit(request, pk):
         elif latest_appointment.status == AppointmentStatus.SCHEDULED:
             is_appointment_scheduled = True
 
+    # Custom WhatsApp message templates for user
+    from leads.models import UserCustomMessage
+    custom_booking_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BOOKING", is_confirmed=True).first()
+    custom_followup_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="FOLLOWUP", is_confirmed=True).first()
+    custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
+
     return render(request, template, {
         "active": "leads_all",
         "form": form,
         "mode": "Edit",
         "obj": lead,
+        "lead": lead,
         "cancel_url": cancel_url,
         "is_view_only": is_view_only,
         "is_doctor": is_doctor,
@@ -2380,6 +2404,9 @@ def lead_edit(request, pk):
         "latest_appointment": latest_appointment,
         "all_appointments": Appointment.objects.filter(lead=lead).order_by("-appointment_date", "-id"),
         "saved_initial": saved_initial,
+        "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
+        "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
+        "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
     })
 
 
@@ -4664,6 +4691,16 @@ def custom_message_manager(request):
         f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
     )
 
+    default_billing_text = (
+        f"Hello {{patient_name}},\n\n"
+        f"Thank you for visiting {{hospital_name}} ({{branch_name}})!\n\n"
+        f"Your consultation with {{doctor_name}} on {{appointment_date}} has been completed successfully.\n\n"
+        f"We truly appreciate having the opportunity to care for your health and well-being. If you have any follow-up questions, prescription queries, or require further medical assistance, please feel free to reach out to us.\n\n"
+        f"Hospital Address: {{hospital_address}}\n\n"
+        f"Wishing you great health and a speedy recovery!\n\n"
+        f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
+    )
+
     booking_msg_obj, _ = UserCustomMessage.objects.get_or_create(
         user=user, message_type="BOOKING",
         defaults={"hospital": hosp, "custom_text": default_booking_text, "is_confirmed": False}
@@ -4672,13 +4709,25 @@ def custom_message_manager(request):
         user=user, message_type="FOLLOWUP",
         defaults={"hospital": hosp, "custom_text": default_followup_text, "is_confirmed": False}
     )
+    billing_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+        user=user, message_type="BILLING",
+        defaults={"hospital": hosp, "custom_text": default_billing_text, "is_confirmed": False}
+    )
 
     if request.method == "POST":
         action = request.POST.get("action", "save")
         msg_type = request.POST.get("message_type", "BOOKING").upper()
         custom_text = request.POST.get("custom_text", "").strip()
 
-        target_obj = booking_msg_obj if msg_type == "BOOKING" else followup_msg_obj
+        if msg_type == "BOOKING":
+            target_obj = booking_msg_obj
+            default_text = default_booking_text
+        elif msg_type == "BILLING":
+            target_obj = billing_msg_obj
+            default_text = default_billing_text
+        else:
+            target_obj = followup_msg_obj
+            default_text = default_followup_text
         
         if action == "save":
             target_obj.custom_text = custom_text
@@ -4693,7 +4742,7 @@ def custom_message_manager(request):
             messages.success(request, f"✅ Custom {target_obj.get_message_type_display()} confirmed and activated! System will now send your customized message.")
         elif action == "reset_default":
             target_obj.is_confirmed = False
-            target_obj.custom_text = default_booking_text if msg_type == "BOOKING" else default_followup_text
+            target_obj.custom_text = default_text
             target_obj.save()
             messages.info(request, f"Switched back to System Generated Default template for {target_obj.get_message_type_display()}.")
 
@@ -4705,8 +4754,10 @@ def custom_message_manager(request):
         "active": "custom_message_manager",
         "booking_msg": booking_msg_obj,
         "followup_msg": followup_msg_obj,
+        "billing_msg": billing_msg_obj,
         "default_booking_text": default_booking_text,
         "default_followup_text": default_followup_text,
+        "default_billing_text": default_billing_text,
         "active_tab": active_tab,
         "hosp": hosp,
     })

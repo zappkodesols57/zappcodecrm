@@ -37,6 +37,7 @@ urlpatterns = [
     path("doctor/appointments/", views.doctor_appointments, name="doctor_appointments"),
     path("doctor/patient/<int:lead_id>/review/", views.doctor_patient_review, name="doctor_patient_review"),
     path("telecaller/", views.telecaller_home, name="telecaller_home"),
+    path("hospital/telecaller/", views.telecaller_home, name="hospital_telecaller_home"),
     path("telecaller/tab-data/", views.telecaller_tab_data_api, name="telecaller_tab_data_api"),
     path("telecaller/my-leads/", views.telecaller_my_leads, name="telecaller_my_leads"),
     path("telecaller/new-enquiries/", views.telecaller_new_enquiries, name="telecaller_new_enquiries"),

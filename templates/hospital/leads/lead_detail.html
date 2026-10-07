@@ -2,244 +2,643 @@
 {% block title %}{{ lead.name }} · {{ lead.lead_code|default:lead.pk }}{% endblock %}
 
 {% block content %}
-<!-- Top Header & Actions -->
-<div class="row align-items-center mb-3 g-2">
-  <div class="col-12 col-xl-6 col-lg-5">
-    <div class="d-flex align-items-center gap-2">
-      <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'leads:lead_list' %}';" class="btn btn-sm btn-light border shadow-2xs rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" title="Go Back">
-        <i class="fa-solid fa-arrow-left text-secondary"></i>
-      </button>
-      <div class="text-truncate">
-        <div class="text-muted small fw-bold"><i class="fa-solid fa-hospital-user text-primary me-1"></i> Patient Lead ID: {{ lead.lead_code|default:lead.pk }}</div>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <h4 class="mb-0 fw-bold text-dark d-inline">{{ lead.name }}</h4>
-          {% if lead.total_billed_amount > 0 or lead.custom_data.total or lead.custom_data.total_paid or lead.custom_data.deal_status == 'Won (Payment Done)' or 'PAYMENT' in lead.stage.name.upper or lead.display_status == 'Payment Done' %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Complete (₹{{ lead.total_billed_amount|floatformat:0 }})</span>
-          {% elif latest_appointment and latest_appointment.status == 'COMPLETED' or lead.display_status == 'Won' or lead.display_status == 'Completed' or lead.custom_data.appointment_status == 'Completed' %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-check-double me-1"></i>Consultation Completed</span>
-          {% elif latest_appointment and latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Appointment Confirmed</span>
-          {% elif latest_appointment and latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper %}
-            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-user-clock me-1"></i>Doctor Approval Pending</span>
-          {% elif latest_appointment and latest_appointment.status == 'CANCELLED' or lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or 'CANCEL' in lead.custom_data.appointment_status.upper %}
-            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>Cancelled</span>
-          {% elif lead.display_status == 'Pending' %}
-            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Pending Follow-up</span>
-            {% if lead.next_followup_date %}
-              <span class="badge bg-light text-muted border"><i class="fa-regular fa-calendar me-1"></i>{{ lead.next_followup_date|date:"d M Y" }}{% if lead.next_followup_time %} {{ lead.next_followup_time|time:"h:i A" }}{% endif %}</span>
-            {% endif %}
-          {% elif lead.display_status == 'Open' %}
-            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-folder-open me-1"></i>Open</span>
-          {% elif lead.display_status == 'New' %}
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-circle-plus me-1"></i>New</span>
-          {% else %}
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ lead.display_status }}</span>
-          {% endif %}
+<style>
+  /* Clean, restrained 2-color theme & compact typography */
+  .crm-lead-view {
+    --crm-primary: #0f2744;
+    --crm-primary-light: #f0f4f9;
+    --crm-border: #e2e8f0;
+    --crm-text: #1e293b;
+    --crm-muted: #64748b;
+    --crm-card-bg: #ffffff;
+    --crm-bg-soft: #f8fafc;
+  }
+  .crm-lead-view .card {
+    border: 1px solid var(--crm-border);
+    border-radius: 12px;
+    background: var(--crm-card-bg);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+  .crm-lead-view .card-header {
+    background: #ffffff;
+    border-bottom: 1px solid var(--crm-border);
+    padding: 10px 16px;
+    font-weight: 600;
+    color: var(--crm-primary);
+  }
+  .crm-lead-view .card-body {
+    padding: 14px 16px;
+  }
+  .crm-info-box {
+    background: var(--crm-bg-soft);
+    border: 1px solid var(--crm-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    height: 100%;
+  }
+  .crm-info-box .crm-label {
+    font-size: 0.70rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--crm-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+    display: block;
+  }
+  .crm-info-box .crm-val {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--crm-text);
+  }
+  /* Avatar Initials */
+  .crm-avatar-init {
+    width: 48px;
+    height: 48px;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  /* Compact Timeline */
+  .timeline-row {
+    padding: 6px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.8rem;
+    transition: background-color 0.15s ease;
+  }
+  .timeline-row:last-child {
+    border-bottom: none;
+  }
+  .timeline-row:hover {
+    background-color: #f8fafc;
+  }
+  .timeline-row .timeline-author {
+    font-size: 0.72rem;
+    color: var(--crm-muted);
+  }
+  .timeline-row .timeline-time {
+    font-size: 0.72rem;
+    color: var(--crm-muted);
+    white-space: nowrap;
+  }
+  .timeline-pill-btn {
+    border: 1px solid var(--crm-border);
+    background: #fff;
+    color: var(--crm-muted);
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .timeline-pill-btn.active, .timeline-pill-btn:hover {
+    background: var(--crm-primary);
+    color: #fff;
+    border-color: var(--crm-primary);
+  }
 
-          {% if lead.custom_temperature %}
-            {% if lead.custom_temperature == 'Hot' %}
-              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Hot</span>
-            {% elif lead.custom_temperature == 'Warm' %}
-              <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle">Warm</span>
-            {% elif lead.custom_temperature == 'Cold' %}
-              <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">Cold</span>
-            {% elif lead.custom_temperature == 'Freeze' %}
-              <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">Freeze</span>
-            {% endif %}
-          {% endif %}
-        </div>
-        <div class="text-muted small d-flex gap-3 mt-1 flex-wrap align-items-center">
-          <span><i class="fa-solid fa-phone text-secondary me-1"></i><strong>{{ lead.mobile }}</strong></span>
-          {% if lead.city or lead.custom_data.location %}
-            <span><i class="fa-solid fa-location-dot text-danger me-1"></i>{{ lead.custom_data.location|default:lead.city }}</span>
-          {% endif %}
-          {% if lead.custom_data.gender %}
-            <span><i class="fa-solid fa-venus-mars text-info me-1"></i>{{ lead.custom_data.gender }} (Age: {{ lead.custom_data.age|default:"—" }})</span>
-          {% endif %}
-          <span>
-            <i class="fa-solid fa-user-check text-success me-1"></i>Lead Owner:
-            <strong class="text-dark">{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</strong>
-          </span>
-          <span>
-            <i class="fa-regular fa-calendar-days text-primary me-1"></i>Created:
-            <strong class="text-dark">{{ lead.effective_created_display }}</strong>
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-xl-6 col-lg-7">
-    <div class="d-flex gap-2 justify-content-lg-end align-items-center flex-wrap">
-      <!-- 1-Click Dynamic WhatsApp Message to Patient -->
-      {% if lead.mobile %}
-      <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success fw-bold shadow-sm" title="{% if lead.is_booked %}Send WhatsApp Appointment Confirmation{% else %}Send WhatsApp Welcome Message{% endif %}">
-        <i class="fa-brands fa-whatsapp fs-6 me-1"></i> {% if lead.is_booked %}Send Booking Confirmation{% else %}Send WhatsApp Message{% endif %}
+  /* Light Blue Status / Stage / Temperature / Appointment Badge */
+  .crm-badge-lightblue {
+    background-color: #e0f2fe !important;
+    color: #0369a1 !important;
+    border: 1px solid #bae6fd !important;
+    font-weight: 600;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    letter-spacing: 0.2px;
+  }
+
+  /* Universal Consistent Button Hover for Hospital Lead View */
+  .crm-lead-view .btn,
+  .crm-lead-view button.btn,
+  .crm-lead-view a.btn {
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+  .crm-lead-view .btn:hover,
+  .crm-lead-view .btn:focus {
+    background-color: var(--crm-primary) !important;
+    border-color: var(--crm-primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(15, 39, 68, 0.25) !important;
+  }
+  .crm-lead-view .btn-close:hover {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+  }
+</style>
+
+<div class="crm-lead-view">
+
+  <!-- 1. Top Action Buttons (Placed strictly above Patient Heading) -->
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <!-- Left: Navigation (Back, Prev Lead, Next Lead) -->
+    <div class="d-flex align-items-center gap-2">
+      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
+        &larr; Back
       </a>
-      {% endif %}
-      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
       {% if prev_lead %}
-        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;" title="Previous Lead">
+          &lsaquo; Prev Lead
+        </a>
       {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" style="font-size: 0.8rem;" title="Previous Lead">
+          &lsaquo; Prev Lead
+        </button>
       {% endif %}
       {% if next_lead %}
-        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;" title="Next Lead">
+          Next Lead &rsaquo;
+        </a>
       {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" style="font-size: 0.8rem;" title="Next Lead">
+          Next Lead &rsaquo;
+        </button>
       {% endif %}
+    </div>
+
+    <!-- Right: WhatsApp, Edit Details, Options -->
+    <div class="d-flex align-items-center gap-2">
+      {% if lead.mobile %}
+      <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success px-3 rounded-pill fw-semibold" style="font-size: 0.8rem; background-color: #15803d; border-color: #15803d;">
+        Send WhatsApp
+      </a>
+      {% endif %}
+      
       {% if not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' %}
       <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}" class="d-inline" onsubmit="return confirm('Do you want to capture and assign this patient lead to yourself?');">
         {% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-primary fw-bold shadow-sm rounded-pill px-3">
-          <i class="fa-solid fa-hand-holding-hand me-1"></i> Capture & Assign to Me
+        <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-semibold" style="font-size: 0.8rem;">
+          Capture &amp; Assign to Me
         </button>
       </form>
       {% endif %}
-      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-brand text-white"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Patient Details</a>
-      {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
-      <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
-        <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
+
+      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
+        Edit Details
       </a>
+
+      {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; line-height: 1;">
+          &#8942;
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border" style="font-size: 0.82rem;">
+          <li>
+            <a class="dropdown-item text-danger" href="{% url 'leads:lead_archive' lead.pk %}" onclick="return confirm('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
+              {% if lead.is_archived %}Restore Lead{% else %}Archive Lead{% endif %}
+            </a>
+          </li>
+        </ul>
+      </div>
       {% endif %}
     </div>
   </div>
-</div>
 
-<div class="row g-3">
-  <!-- Left Column: Patient & Hospital Info -->
-  <div class="col-lg-6">
-
-    <!-- Hospital Consultation & Appointment Info -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-stethoscope text-primary me-2"></i>Consultation & Appointment Details</h6>
-      </div>
-      <div class="card-body">
-        <div class="row g-3 small">
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">Department / Specialty</span>
-              <strong class="fs-6 text-dark">{{ lead.custom_data.department|default:"—" }}</strong>
+  <!-- 2. Patient Header Card -->
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row align-items-center g-3">
+        <!-- Avatar + Patient Name + Phone/City -->
+        <div class="col-12 col-md-5 col-lg-4">
+          <div class="d-flex align-items-center gap-3">
+            <div class="crm-avatar-init">
+              {{ lead.name|slice:":2"|upper }}
             </div>
-          </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">Consulting Doctor</span>
-              <strong class="fs-6 text-primary"><i class="fa-solid fa-user-doctor me-1"></i>{{ lead.custom_data.doctor|default:"—" }}</strong>
-            </div>
-          </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">Appointment Date & Time</span>
-              <strong class="fs-6 text-dark">
-                {% if lead.custom_data.appo_booked_date %}
-                  {{ lead.custom_data.appo_booked_date }} {{ lead.custom_data.appointment_time|default:"" }}
-                {% else %}
-                  —
+            <div>
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h5 class="mb-0 fw-bold text-dark">{{ lead.name }}</h5>
+                <span class="crm-badge-lightblue">
+                  {{ lead.display_stage|default:lead.stage.name|default:lead.display_status }}
+                </span>
+                {% if lead.custom_temperature %}
+                  <span class="crm-badge-lightblue">{{ lead.custom_temperature }}</span>
                 {% endif %}
-              </strong>
+              </div>
+              <div class="d-flex align-items-center gap-2 text-muted" style="font-size: 0.8rem;">
+                <span class="text-dark fw-medium">{{ lead.mobile }}</span>
+                {% if lead.city or lead.custom_data.location %}
+                  <span>&bull;</span>
+                  <span>{{ lead.custom_data.location|default:lead.city }}</span>
+                {% endif %}
+                {% if lead.custom_data.gender %}
+                  <span>&bull;</span>
+                  <span>{{ lead.custom_data.gender }}{% if lead.custom_data.age %}, {{ lead.custom_data.age }} yrs{% endif %}</span>
+                {% endif %}
+              </div>
             </div>
           </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">Appointment Status</span>
-              {% if lead.total_billed_amount > 0 or lead.custom_data.total or lead.custom_data.total_paid or lead.custom_data.deal_status == 'Won (Payment Done)' or 'PAYMENT' in lead.stage.name.upper %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold"><i class="fa-solid fa-circle-check me-1"></i>Payment Complete (₹{{ lead.total_billed_amount|floatformat:0 }})</span>
-              {% elif latest_appointment.status == 'COMPLETED' or lead.custom_data.appointment_status == 'Completed' or lead.display_status == 'Won' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-bold"><i class="fa-solid fa-check-double me-1"></i>Consultation Completed</span>
-              {% elif latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-bold"><i class="fa-solid fa-calendar-check me-1"></i>Confirmed by Doctor</span>
-              {% elif latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle fw-bold"><i class="fa-solid fa-user-clock me-1"></i>Doctor Approval Pending</span>
-              {% elif latest_appointment.status == 'CANCELLED' or lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or 'CANCEL' in lead.custom_data.appointment_status.upper %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-ban me-1"></i>Cancelled</span>
-              {% else %}
-                <span class="badge bg-secondary bg-opacity-10 text-secondary border fw-bold">{{ lead.custom_data.appointment_status|default:lead.stage.name }}</span>
-              {% endif %}
-            </div>
-          </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">Priority</span>
-              <span class="badge bg-secondary">{{ lead.custom_data.priority|default:"Normal" }}</span>
-            </div>
-          </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">UHID ID NO</span>
-              <strong class="text-dark">{{ lead.custom_data.uhid_id_no|default:"—" }}</strong>
-            </div>
-          </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">IPD NO</span>
-              <strong class="text-dark">{{ lead.custom_data.ipd_no|default:"—" }}</strong>
-            </div>
-          </div>
-          {% for item in custom_field_data %}
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block">{{ item.label }}</span>
-              <strong class="text-dark">{{ item.value }}</strong>
-            </div>
-          </div>
-          {% endfor %}
-
-          <!-- Doctor Remarks Box (if any) -->
-          {% if lead.custom_doctor_remark or latest_appointment.doctor_notes %}
-          <div class="col-12">
-            <div class="p-3 border rounded-3 bg-primary bg-opacity-10 border-primary-subtle">
-              <span class="text-primary d-block fw-bold small mb-1">
-                <i class="fa-solid fa-user-doctor me-1"></i> Latest Doctor Clinical Remarks &amp; Instructions:
-              </span>
-              <div class="text-dark small text-break" style="white-space: pre-wrap;">{{ lead.custom_doctor_remark|default:latest_appointment.doctor_notes }}</div>
-            </div>
-          </div>
-          {% endif %}
         </div>
 
-        <!-- Appointments & Consultations History Table (if multiple / historical appointments exist) -->
-        {% if appointments_history %}
-        <div class="mt-4 pt-3 border-top">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-bold small text-dark"><i class="fa-solid fa-clock-rotate-left text-primary me-1"></i> Consultation &amp; Appointment History</span>
-            <span class="badge bg-light text-secondary border">{{ appointments_history|length }} Total</span>
+        <!-- Meta Info Items: Lead ID, Owner, Status, Created On -->
+        <div class="col-12 col-md-7 col-lg-8">
+          <div class="row g-2 text-start text-md-center">
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Patient Lead ID</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">{{ lead.lead_code|default:lead.pk }}</strong>
+            </div>
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Lead Owner</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">
+                {% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}
+              </strong>
+            </div>
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Status</span>
+              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.75rem; font-weight: 600;">
+                {{ lead.display_status|default:"New" }}
+              </span>
+            </div>
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Created On</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">{{ lead.effective_created_display }}</strong>
+            </div>
           </div>
-          <div class="table-responsive rounded-3 border">
-            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.78rem;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Main Content Two-Column Grid -->
+  <div class="row g-3">
+
+    <!-- LEFT COLUMN: Consultation & Appointments, Billing Summary, Lead Source -->
+    <div class="col-12 col-lg-6">
+
+      <!-- Consultation & Appointment Details (Shown ONLY if consultation / appointment data exists) -->
+      {% if lead.custom_data.department or lead.custom_data.doctor or lead.custom_data.appo_booked_date or latest_appointment or lead.custom_data.uhid_id_no or lead.custom_data.ipd_no or lead.custom_doctor_remark %}
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-bold" style="font-size: 0.88rem;">Consultation &amp; Appointment Details</span>
+        </div>
+        <div class="card-body py-2">
+          <div class="row g-2">
+            <!-- Department -->
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">Department / Specialty</span>
+                <div class="crm-val">{{ lead.custom_data.department|default:"—" }}</div>
+              </div>
+            </div>
+            <!-- Doctor -->
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">Consulting Doctor</span>
+                <div class="crm-val text-primary">{{ lead.custom_data.doctor|default:"—" }}</div>
+              </div>
+            </div>
+            <!-- Appointment Date & Time -->
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">Appointment Date &amp; Time</span>
+                <div class="crm-val">
+                  {% if lead.custom_data.appo_booked_date %}
+                    {{ lead.custom_data.appo_booked_date }}{% if lead.custom_data.appointment_time %}, {{ lead.custom_data.appointment_time }}{% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <!-- Appointment Status (Strictly Approval Pending, Confirmed, Completed, or Blank) -->
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">Appointment Status</span>
+                <div class="crm-val">
+                  {% if latest_appointment.status == 'COMPLETED' or lead.custom_data.appointment_status == 'Completed' or lead.display_status == 'Completed' or lead.display_status == 'Won' %}
+                    <span class="crm-badge-lightblue">Completed</span>
+                  {% elif latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Confirmed' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
+                    <span class="crm-badge-lightblue">Confirmed</span>
+                  {% elif latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Approval Pending' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper or 'ASSIGNED' in lead.custom_data.appointment_status.upper %}
+                    <span class="crm-badge-lightblue">Approval Pending</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <!-- UHID ID No -->
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">UHID ID No</span>
+                <div class="crm-val">{{ lead.custom_data.uhid_id_no|default:"—" }}</div>
+              </div>
+            </div>
+            <!-- IPD No -->
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">IPD No</span>
+                <div class="crm-val">{{ lead.custom_data.ipd_no|default:"—" }}</div>
+              </div>
+            </div>
+
+            <!-- Doctor Clinical Remarks (if present) -->
+            {% if lead.custom_doctor_remark or latest_appointment.doctor_notes %}
+            <div class="col-12">
+              <div class="crm-info-box" style="background: #ffffff;">
+                <span class="crm-label text-dark">Doctor Clinical Remarks</span>
+                <div class="text-dark small text-break mt-1" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.35;">{{ lead.custom_doctor_remark|default:latest_appointment.doctor_notes }}</div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Investigation & Billing Summary (Shown ONLY if billing / investigation details exist) -->
+      {% if lead.custom_data.pharmacy_bill or lead.custom_data.opd_bill or lead.custom_data.investigation or lead.custom_data.total or lead.total_billed_amount > 0 %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <span class="fw-bold" style="font-size: 0.88rem;">Investigation &amp; Billing Summary</span>
+        </div>
+        <div class="card-body py-2">
+          <div class="row g-2 text-center">
+            <div class="col-3">
+              <div class="crm-info-box py-2">
+                <span class="crm-label">Pharmacy Bill</span>
+                <div class="crm-val">₹{{ lead.custom_data.pharmacy_bill|default:"0.00" }}</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="crm-info-box py-2">
+                <span class="crm-label">OPD Bill</span>
+                <div class="crm-val">₹{{ lead.custom_data.opd_bill|default:"0.00" }}</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="crm-info-box py-2">
+                <span class="crm-label">Investigation</span>
+                <div class="crm-val">{{ lead.custom_data.investigation|default:"—" }}</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="crm-info-box py-2 bg-light border-dark-subtle">
+                <span class="crm-label">Total Bill</span>
+                <div class="crm-val text-dark">₹{{ lead.custom_data.total|default:lead.total_billed_amount|default:"0.00" }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Lead Source & Import Info -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-bold" style="font-size: 0.88rem;">Lead Source &amp; Import Info</span>
+          {% if lead.import_job or lead.import_source_file %}
+            <span class="badge bg-light text-dark border rounded-pill" style="font-size: 0.70rem;">Imported File Record</span>
+          {% elif lead.external_lead_id %}
+            <span class="badge bg-light text-dark border rounded-pill" style="font-size: 0.70rem;">Meta API Sync</span>
+          {% else %}
+            <span class="badge bg-light text-dark border rounded-pill" style="font-size: 0.70rem;">Direct Lead</span>
+          {% endif %}
+        </div>
+        <div class="card-body py-2">
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">Lead Received / Created</span>
+                <div class="crm-val">{{ lead.effective_created_formatted|default:lead.inquiry_date }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="crm-info-box">
+                <span class="crm-label">CRM System Import Date</span>
+                <div class="crm-val">
+                  {% if lead.import_job %}
+                    {{ lead.import_job.created_at|date:"d M Y, h:i A" }}
+                  {% elif lead.created_at %}
+                    {{ lead.created_at|date:"d M Y, h:i A" }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% if lead.import_source_file or lead.import_job %}
+            <div class="col-12">
+              <div class="crm-info-box">
+                <span class="crm-label">Import Source File</span>
+                <div class="crm-val text-break text-primary font-monospace" style="font-size: 0.78rem;">
+                  {% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            {% if lead.external_lead_id %}
+            <div class="col-12">
+              <div class="crm-info-box">
+                <span class="crm-label">Meta External Lead ID</span>
+                <div class="crm-val font-monospace text-muted" style="font-size: 0.8rem;">{{ lead.external_lead_id }}</div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Activity Timeline & Remarks, Follow-up Table & Add Action Buttons -->
+    <div class="col-12 col-lg-6">
+
+      <!-- Activity Timeline & Remarks -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="fw-bold" style="font-size: 0.88rem;">Activity Timeline &amp; Remarks</span>
+          <!-- Filter Tabs: All, Remarks, Updates, System -->
+          <div class="d-flex align-items-center gap-1">
+            <button type="button" class="timeline-pill-btn active" onclick="filterTimeline('all', this)">All ({{ timeline|length }})</button>
+            <button type="button" class="timeline-pill-btn" onclick="filterTimeline('remark', this)">Remarks</button>
+            <button type="button" class="timeline-pill-btn" onclick="filterTimeline('update', this)">Updates</button>
+            <button type="button" class="timeline-pill-btn" onclick="filterTimeline('system', this)">System</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          
+          <!-- Original Form Note / Remarks (if present) -->
+          {% if lead.notes %}
+          <div class="timeline-row timeline-item-remark bg-light" style="border-left: 3px solid #64748b;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div>
+                <strong class="text-dark" style="font-size: 0.82rem;">Form Note / Remarks</strong>
+              </div>
+              <span class="timeline-time">{{ lead.effective_created_display }}</span>
+            </div>
+            <div class="text-dark mb-1 text-break" style="font-size: 0.8rem; line-height: 1.35; white-space: pre-wrap;">{{ lead.notes }}</div>
+            <div class="timeline-author">Captured with Lead Form</div>
+          </div>
+          {% endif %}
+
+          <!-- Activities Feed (Compact row heights) -->
+          <div id="timelineContainer" style="max-height: 380px; overflow-y: auto;">
+            {% for item in timeline %}
+            <div class="timeline-row {% if item.activity_type == 'NOTE' %}timeline-item-remark{% elif item.activity_type == 'STAGE_CHANGE' or item.activity_type == 'ASSIGNMENT' %}timeline-item-update{% else %}timeline-item-system{% endif %}">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <strong class="text-dark" style="font-size: 0.82rem;">
+                      {% if item.activity_type == 'NOTE' %}Note / Remark
+                      {% elif item.activity_type == 'FOLLOWUP' %}Follow-up
+                      {% elif item.activity_type == 'STAGE_CHANGE' %}Stage Changed
+                      {% elif item.activity_type == 'ASSIGNMENT' %}Assignment
+                      {% elif item.activity_type == 'CALL' %}Call
+                      {% elif item.activity_type == 'EMAIL' %}Email
+                      {% else %}{{ item.get_activity_type_display }}
+                      {% endif %}
+                    </strong>
+                  </div>
+                  <div class="text-secondary text-break mb-1" style="font-size: 0.78rem; line-height: 1.35; white-space: pre-wrap;">{{ item.description }}</div>
+                  <div class="timeline-author">
+                    {% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}
+                  </div>
+                </div>
+                <div class="timeline-time text-end">
+                  {{ item.created_at|date:"d M Y, h:i A" }}
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            {% if not lead.notes %}
+            <div class="text-muted text-center py-4 small">No activity recorded yet.</div>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons directly beneath Timeline: Add Remark / Note & Add Follow-up -->
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addRemarkCollapse" aria-expanded="false" style="font-size: 0.8rem;">
+          + Add Remark / Note
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="false" style="font-size: 0.8rem;">
+          + Add Follow-up
+        </button>
+      </div>
+
+      <!-- Collapsible Form: Add Remark / Note -->
+      <div class="collapse mb-3" id="addRemarkCollapse">
+        <div class="card border">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold text-dark" style="font-size: 0.82rem;">Add Confidential Note / Remark</span>
+              <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addRemarkCollapse" aria-label="Close" style="font-size: 0.65rem;"></button>
+            </div>
+            <form method="post" action="{% url 'leads:add_note' lead.pk %}">
+              {% csrf_token %}
+              <div class="mb-2">
+                <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Write remark or note here..." required style="font-size: 0.8rem;"></textarea>
+              </div>
+              <div class="text-end">
+                <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-medium" style="font-size: 0.78rem;">Save Remark</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collapsible Form: Add Follow-up -->
+      <div class="collapse mb-3" id="addFollowupCollapse">
+        <div class="card border">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold text-dark" style="font-size: 0.82rem;">Schedule New Follow-up</span>
+              <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-label="Close" style="font-size: 0.65rem;"></button>
+            </div>
+            <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
+              {% csrf_token %}
+              <div class="row g-2 mb-2">
+                <div class="col-4">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Date *</label>
+                  <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required style="font-size: 0.8rem;">
+                </div>
+                <div class="col-4">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time</label>
+                  <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                </div>
+                <div class="col-4">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Status</label>
+                  <select name="followup_status" class="form-select form-select-sm no-tom-select" required style="font-size: 0.8rem;">
+                    <option value="PENDING" selected>Pending</option>
+                    <option value="RESCHEDULED">Rescheduled</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.75rem;">
+                <span id="hosp_detail_time_error_text">Past time cannot be selected for today. Please choose an upcoming time.</span>
+              </div>
+              <div class="mb-2">
+                <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment..." required style="font-size: 0.8rem;">
+              </div>
+              <div class="text-end">
+                <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-medium" id="hosp_detail_fu_submit" style="font-size: 0.78rem;">Save Follow-up</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled Follow-ups Table Card (Shown ONLY if follow-ups exist) -->
+      {% if followups %}
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-bold" style="font-size: 0.88rem;">Scheduled Follow-ups</span>
+          <span class="badge bg-light text-dark border rounded-pill" style="font-size: 0.70rem;">{{ followups|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.78rem;">
               <thead class="table-light">
                 <tr>
-                  <th class="ps-3 py-2 text-muted">DATE &amp; TIME</th>
-                  <th class="py-2 text-muted">DOCTOR</th>
-                  <th class="py-2 text-muted">STATUS</th>
-                  <th class="py-2 text-muted">CLINICAL REMARKS</th>
+                  <th class="ps-3 py-2 text-muted fw-semibold">Follow-up Date</th>
+                  <th class="py-2 text-muted fw-semibold">Time</th>
+                  <th class="py-2 text-muted fw-semibold">Status</th>
+                  <th class="py-2 text-muted fw-semibold">Remarks</th>
+                  <th class="pe-3 py-2 text-end text-muted fw-semibold">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {% for apt in appointments_history %}
+                {% for fu in followups %}
                 <tr>
-                  <td class="ps-3 py-2 fw-semibold text-nowrap">
-                    {{ apt.appointment_date|date:"d M Y" }}
-                    {% if apt.appointment_time %}<small class="text-muted d-block">{{ apt.appointment_time|time:"h:i A" }}</small>{% endif %}
+                  <td class="ps-3 py-2 fw-medium text-nowrap">
+                    {{ fu.followup_date|date:"d M Y" }}
                   </td>
-                  <td class="py-2">
-                    <span class="fw-bold text-dark">Dr. {{ apt.doctor_name }}</span>
+                  <td class="py-2 text-nowrap text-muted">
+                    {% if fu.followup_time %}{{ fu.followup_time|time:"h:i A" }}{% else %}--:--{% endif %}
                   </td>
                   <td class="py-2 text-nowrap">
-                    {% if apt.status == 'COMPLETED' %}
-                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>Completed</span>
-                    {% elif apt.status == 'APPROVED' %}
-                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i>Confirmed</span>
-                    {% elif apt.status == 'SCHEDULED' %}
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1"><i class="fa-solid fa-clock me-1"></i>Scheduled (Next)</span>
-                    {% elif apt.status == 'CANCELLED' %}
-                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">Cancelled</span>
+                    {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
+                      <span class="crm-badge-lightblue">Completed</span>
+                    {% elif fu.followup_status == 'RESCHEDULED' %}
+                      <span class="crm-badge-lightblue">Rescheduled</span>
                     {% else %}
-                      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle px-2 py-1">{{ apt.get_status_display }}</span>
+                      <span class="crm-badge-lightblue">Pending</span>
                     {% endif %}
                   </td>
-                  <td class="py-2 text-muted text-break" style="max-width: 250px;">
-                    {{ apt.doctor_notes|default:"—" }}
+                  <td class="py-2 text-break" style="max-width: 200px;">
+                    {{ fu.comment|default:"—" }}
+                  </td>
+                  <td class="pe-3 py-2 text-end text-nowrap">
+                    {% if fu.followup_status != 'COMPLETED' and fu.followup_status != 'DONE' %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-2 py-0 rounded-pill" style="font-size: 0.72rem;" data-bs-toggle="modal" data-bs-target="#updateFollowupModal{{ fu.id }}" title="Update Status">
+                      Update
+                    </button>
+                    {% else %}
+                    <span class="text-muted" style="font-size: 0.72rem;">Done</span>
+                    {% endif %}
                   </td>
                 </tr>
                 {% endfor %}
@@ -247,361 +646,27 @@
             </table>
           </div>
         </div>
-        {% endif %}
+      </div>
+      {% endif %}
 
-      </div>
-    </div>
-
-    <!-- Hospital Billing & Financial Summary -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i>Investigation & Billing Summary</h6>
-      </div>
-      <div class="card-body">
-        <div class="row g-3 small">
-          <div class="col-sm-3">
-            <div class="p-2 border rounded-3 bg-light text-center">
-              <span class="text-muted d-block">Pharmacy Bill</span>
-              <strong>₹{{ lead.custom_data.pharmacy_bill|default:"0.00" }}</strong>
-            </div>
-          </div>
-          <div class="col-sm-3">
-            <div class="p-2 border rounded-3 bg-light text-center">
-              <span class="text-muted d-block">OPD Bill</span>
-              <strong>₹{{ lead.custom_data.opd_bill|default:"0.00" }}</strong>
-            </div>
-          </div>
-          <div class="col-sm-3">
-            <div class="p-2 border rounded-3 bg-light text-center">
-              <span class="text-muted d-block">Investigation</span>
-              <strong>{{ lead.custom_data.investigation|default:"—" }}</strong>
-            </div>
-          </div>
-          <div class="col-sm-3">
-            <div class="p-2 border rounded-3 bg-success-subtle text-center text-success-emphasis border-success">
-              <span class="text-muted d-block">Total Bill</span>
-              <strong class="fs-6">₹{{ lead.custom_data.total|default:"0.00" }}</strong>
-            </div>
-          </div>
-          {% if lead.custom_data.payment_remarks or lead.custom_data.remark_1 %}
-          <div class="col-12 mt-2">
-            <div class="p-2 border rounded-3 bg-light">
-              <span class="text-muted d-block fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-comment-dollar text-success me-1"></i>Payment Remarks:</span>
-              <span class="text-dark">{{ lead.custom_data.payment_remarks|default:lead.custom_data.remark_1 }}</span>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <!-- Import & System Provenance Card -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-import text-primary me-2"></i>Import & Creation Provenance</h6>
-        {% if lead.import_job or lead.import_source_file %}
-          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill">Imported File Record</span>
-        {% elif lead.external_lead_id %}
-          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">Meta API Sync</span>
-        {% else %}
-          <span class="badge bg-light text-secondary border rounded-pill">Direct CRM Record</span>
-        {% endif %}
-      </div>
-      <div class="card-body">
-        <div class="row g-2 small">
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block" style="font-size: 0.72rem;">Lead Received / Created Time</span>
-              <strong class="text-dark"><i class="fa-regular fa-calendar-check text-success me-1"></i>{{ lead.effective_created_formatted|default:lead.inquiry_date }}</strong>
-            </div>
-          </div>
-          <div class="col-sm-6">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block" style="font-size: 0.72rem;">CRM System Import Date</span>
-              <strong class="text-dark">
-                {% if lead.import_job %}
-                  <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.import_job.created_at|date:"d M Y, h:i A" }}
-                {% elif lead.created_at %}
-                  <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.created_at|date:"d M Y, h:i A" }}
-                {% else %}
-                  —
-                {% endif %}
-              </strong>
-            </div>
-          </div>
-          {% if lead.import_source_file or lead.import_job %}
-          <div class="col-12">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block" style="font-size: 0.72rem;">Import Source File</span>
-              <strong class="text-primary text-break"><i class="fa-solid fa-file-excel me-1"></i>{% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}</strong>
-            </div>
-          </div>
-          {% endif %}
-          {% if lead.external_lead_id %}
-          <div class="col-12">
-            <div class="p-2 border rounded-3 bg-light-subtle">
-              <span class="text-muted d-block" style="font-size: 0.72rem;">Meta External Lead ID</span>
-              <span class="font-monospace text-muted">{{ lead.external_lead_id }}</span>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
     </div>
 
   </div>
 
-  <!-- Right Column: Campaign, Source, Owner & Timeline -->
-  <div class="col-lg-6">
-    <!-- Activity Timeline & Remarks -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-primary me-2"></i>Activity Timeline & Remarks</h6>
-        <span class="badge bg-light text-secondary border">{{ timeline|length }} events</span>
-      </div>
-      <div class="card-body">
-        <!-- Lead Confidential Notes / Form Remarks (if present) -->
-        {% if lead.notes %}
-        <div class="p-2 mb-3 rounded-3 bg-light border border-secondary-subtle">
-          <div class="d-flex align-items-center justify-content-between mb-1">
-            <span class="fw-bold text-dark small"><i class="fa-solid fa-comment-dots text-primary me-1"></i> Form Note / Remarks</span>
-            <span class="badge bg-white text-muted border" style="font-size: 0.68rem;">Original</span>
-          </div>
-          <div class="text-secondary small text-break" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;">{{ lead.notes }}</div>
-        </div>
-        {% endif %}
+</div>
 
-        <!-- Quick Add Note / Remark Form right inside Timeline -->
-        <form method="post" action="{% url 'leads:add_note' lead.pk %}" class="mb-3">
-          {% csrf_token %}
-          <div class="input-group input-group-sm">
-            <textarea name="note" class="form-control" rows="2" placeholder="Add confidential note or remark..." required style="font-size: 0.82rem;"></textarea>
-            <button class="btn btn-brand text-white px-3" type="submit" title="Add Note to Timeline">
-              <i class="fa-solid fa-paper-plane me-1"></i> Add
-            </button>
-          </div>
-        </form>
-
-        <!-- Timeline Activities & Notes Feed -->
-        <div class="timeline" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">
-          {% for item in timeline %}
-          <div class="p-2 mb-2 rounded-3 border {% if item.activity_type == 'NOTE' %}bg-warning bg-opacity-10 border-warning-subtle{% elif item.activity_type == 'FOLLOWUP' %}bg-info bg-opacity-10 border-info-subtle{% else %}bg-light-subtle border-light-subtle{% endif %}">
-            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
-              <span class="fw-bold {% if item.activity_type == 'NOTE' %}text-warning-emphasis{% elif item.activity_type == 'FOLLOWUP' %}text-info-emphasis{% else %}text-dark{% endif %}">
-                {% if item.activity_type == 'NOTE' %}
-                  <i class="fa-solid fa-note-sticky text-warning me-1"></i>Note
-                {% elif item.activity_type == 'FOLLOWUP' %}
-                  <i class="fa-solid fa-phone-volume text-info me-1"></i>Follow-up
-                {% elif item.activity_type == 'STAGE_CHANGE' %}
-                  <i class="fa-solid fa-arrows-split-up-and-left text-primary me-1"></i>Stage
-                {% elif item.activity_type == 'ASSIGNMENT' %}
-                  <i class="fa-solid fa-user-check text-success me-1"></i>Assignment
-                {% else %}
-                  <i class="fa-solid fa-clock text-secondary me-1"></i>{{ item.get_activity_type_display }}
-                {% endif %}
-                &nbsp;·&nbsp;
-                {% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}System{% endif %}
-              </span>
-              <span class="text-muted">{{ item.created_at|date:"d M Y, h:i A" }}</span>
-            </div>
-            <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ item.description }}</div>
-          </div>
-          {% empty %}
-          <div class="text-muted text-center py-4 small"><i class="fa-solid fa-clock me-1"></i> No activity recorded yet.</div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    <!-- Scheduled Follow-ups & Add Follow-up Section -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-          <h6 class="mb-0 fw-bold text-dark">
-            <i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Scheduled Follow-ups
-          </h6>
-          {% if followups %}
-          <span class="badge bg-light text-secondary border rounded-pill">{{ followups|length }} follow-up{% if followups|length > 1 %}s{% endif %}</span>
-          {% endif %}
-        </div>
-        <!-- Toggle Button for Add Follow-up Form -->
-        <button class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
-          type="button" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="{% if not followups %}true{% else %}false{% endif %}" aria-controls="addFollowupCollapse"
-          style="font-size: 0.78rem;">
-          <i class="fa-solid fa-plus"></i> Add Follow-up
-        </button>
-      </div>
-
-      <!-- Collapsible Add Follow-up Section -->
-      <div class="collapse {% if not followups %}show{% endif %}" id="addFollowupCollapse">
-        <div class="p-3 bg-light border-bottom">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fw-bold small text-dark"><i class="fa-solid fa-calendar-plus text-primary me-1"></i> New Follow-up Entry</span>
-            <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-label="Close" style="font-size: 0.7rem;"></button>
-          </div>
-          <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="addFollowupForm">
-            {% csrf_token %}
-            <div class="row g-2 mb-2">
-              <div class="col-md-4">
-                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Follow-up Date *</label>
-                <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Time</label>
-                <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.72rem;">Status</label>
-                <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
-                  <option value="PENDING" selected>Pending</option>
-                  <option value="RESCHEDULED">Rescheduled</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
-              </div>
-            </div>
-            <!-- Real-time time error alert -->
-            <div id="hosp_detail_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.78rem;">
-              <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="hosp_detail_time_error_text">Past time cannot be selected for today's follow-up. Please choose an upcoming time.</span>
-            </div>
-            <div class="input-group">
-              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up remark or comment..." required>
-              <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3" id="hosp_detail_fu_submit"><i class="fa-solid fa-plus me-1"></i> Save Follow-up</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="card-body p-3">
-        {% if followups %}
-        <div class="d-flex flex-column gap-2" style="max-height: 320px; overflow-y: auto;">
-          {% for fu in followups %}
-          <div class="p-3 rounded-3 border bg-white shadow-xs">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <div class="d-flex align-items-center gap-1 flex-wrap">
-                {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
-                <span class="badge bg-success" style="font-size: 0.72rem;">
-                  <i class="fa-solid fa-check-double me-1"></i>Follow-up Completed
-                </span>
-                {% else %}
-                <span class="badge {% if fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' %}bg-info text-dark{% else %}bg-secondary{% endif %}" style="font-size: 0.72rem;">
-                  {{ fu.get_followup_status_display }}
-                </span>
-                {% endif %}
-              </div>
-              {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
-              <span class="badge bg-secondary bg-opacity-10 text-muted border py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.73rem;">
-                <i class="fa-solid fa-lock me-1"></i>Completed
-              </span>
-              {% else %}
-              <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fw-semibold rounded-pill d-inline-flex align-items-center gap-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#updateFollowupModal{{ fu.id }}" title="Update Follow-up Status">
-                <i class="fa-solid fa-pen-to-square"></i> Update Status
-              </button>
-              {% endif %}
-            </div>
-            <div class="text-muted small d-flex justify-content-between align-items-center mb-1" style="font-size: 0.75rem;">
-              <span><i class="fa-regular fa-calendar me-1"></i>{{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
-              {% if fu.created_by %}<span class="text-truncate" style="max-width: 140px;"><i class="fa-solid fa-user me-1"></i>By: {{ fu.created_by.get_full_name|default:fu.created_by.username }}</span>{% endif %}
-            </div>
-            {% if fu.next_followup_date %}
-            <div class="small text-info mb-1" style="font-size: 0.73rem;">
-              <i class="fa-solid fa-arrow-right me-1"></i>Next Scheduled: <strong>{{ fu.next_followup_date|date:"d M Y" }}{% if fu.next_followup_time %} at {{ fu.next_followup_time|time:"h:i A" }}{% endif %}</strong>
-            </div>
-            {% endif %}
-            {% if fu.comment %}
-            <div class="text-dark small text-break p-2 bg-light rounded mt-1" style="font-size: 0.78rem; line-height: 1.4; white-space: pre-wrap;">{{ fu.comment }}</div>
-            {% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center py-4 text-muted">
-          <i class="fa-regular fa-calendar-xmark fs-3 mb-2 opacity-50 d-block"></i>
-          <div class="small fw-semibold">No scheduled follow-ups yet</div>
-          <div class="small text-muted mb-2">Click "+ Add Follow-up" above to schedule the next follow-up call or visit.</div>
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    <script>
-      (function() {
-        const dInput = document.getElementById('hosp_detail_fu_date');
-        const tInput = document.getElementById('hosp_detail_fu_time');
-        const errBox = document.getElementById('hosp_detail_time_error');
-        const errText = document.getElementById('hosp_detail_time_error_text');
-        const submitBtn = document.getElementById('hosp_detail_fu_submit');
-
-        function syncMinTime() {
-          if (!dInput || !tInput) return;
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const todayStr = `${year}-${month}-${day}`;
-          dInput.min = todayStr;
-
-          const hours = String(now.getHours()).padStart(2, '0');
-          const minutes = String(now.getMinutes()).padStart(2, '0');
-          const curTime = `${hours}:${minutes}`;
-
-          if (dInput.value === todayStr) {
-            tInput.min = curTime;
-            if (tInput.value && tInput.value < curTime) {
-              tInput.classList.add('is-invalid');
-              if (errBox) {
-                errBox.classList.remove('d-none');
-                if (errText) errText.textContent = `Invalid Time: Selected time (${tInput.value}) has already passed. Please select a time after ${curTime}.`;
-              }
-              if (submitBtn) submitBtn.disabled = true;
-              tInput.setCustomValidity(`Please select an upcoming time after ${curTime}`);
-            } else {
-              tInput.classList.remove('is-invalid');
-              if (errBox) errBox.classList.add('d-none');
-              if (submitBtn) submitBtn.disabled = false;
-              tInput.setCustomValidity('');
-            }
-          } else {
-            tInput.removeAttribute('min');
-            tInput.classList.remove('is-invalid');
-            if (errBox) errBox.classList.add('d-none');
-            if (submitBtn) submitBtn.disabled = false;
-            tInput.setCustomValidity('');
-          }
-        }
-
-        if (dInput && tInput) {
-          syncMinTime();
-          dInput.addEventListener('change', syncMinTime);
-          dInput.addEventListener('input', syncMinTime);
-          tInput.addEventListener('change', syncMinTime);
-          tInput.addEventListener('input', syncMinTime);
-        }
-
-        const fuForm = document.getElementById('addFollowupForm');
-        if (fuForm) {
-          fuForm.addEventListener('submit', function(e) {
-            syncMinTime();
-            if (tInput && tInput.classList.contains('is-invalid')) {
-              e.preventDefault();
-              tInput.focus();
-            }
-          });
-        }
-      })();
-    </script>
-
-  </div>
 <!-- Follow-up Status Update Modals -->
 {% for fu in followups %}
 {% if fu.followup_status != 'COMPLETED' and fu.followup_status != 'DONE' %}
 <div class="modal fade" id="updateFollowupModal{{ fu.id }}" tabindex="-1" aria-labelledby="updateFollowupModalLabel{{ fu.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
-    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-      <div class="modal-header bg-light border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
         <div>
           <h6 class="modal-title fw-bold text-dark mb-0" id="updateFollowupModalLabel{{ fu.id }}">
-            <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>Update Follow-up Status
+            Update Follow-up Status
           </h6>
-          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -609,37 +674,36 @@
         {% csrf_token %}
         <div class="modal-body p-4">
           <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">Follow-up Status *</label>
             <select name="followup_status" id="fuStatusSelect{{ fu.id }}" class="form-select form-select-sm no-tom-select modal-select" required onchange="const row = document.getElementById('rescheduleRow{{ fu.id }}'); const dIn = document.getElementById('reschedDate{{ fu.id }}'); if (this.value === 'RESCHEDULED') { if (row) row.style.display = 'flex'; if (dIn) dIn.required = true; } else { if (row) row.style.display = 'none'; if (dIn) dIn.required = false; }">
-              <option value="" disabled selected>-- Select Action (Complete or Reschedule) --</option>
+              <option value="" disabled selected>-- Select Action --</option>
               {% for val, label in followup_update_statuses %}
                 <option value="{{ val }}">{{ label }}</option>
               {% endfor %}
             </select>
-            <div class="form-text text-muted" style="font-size: 0.72rem;"><strong>Complete</strong> removes lead from active follow-ups. <strong>Reschedule</strong> creates new follow-up date/time.</div>
           </div>
 
           <!-- Reschedule / Next Date (Required when Reschedule selected) -->
           <div class="row g-2 mb-3" id="rescheduleRow{{ fu.id }}" style="display: none;">
             <div class="col-7">
-              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">New Follow-up Date *</label>
+              <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">New Follow-up Date *</label>
               <input type="date" name="next_followup_date" id="reschedDate{{ fu.id }}" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
             </div>
             <div class="col-5">
-              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
+              <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
               <input type="time" name="next_followup_time" class="form-control form-control-sm">
             </div>
           </div>
 
           <div class="mb-2">
-            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Remarks / Interaction Note *</label>
-            <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call/interaction or reason for status update..." required></textarea>
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">Remarks / Update Note *</label>
+            <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call or reason for update..." required></textarea>
           </div>
         </div>
-        <div class="modal-footer bg-light border-0 py-2 px-4 d-flex justify-content-between">
+        <div class="modal-footer border-top py-2 px-4 d-flex justify-content-between">
           <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-brand text-white px-4 fw-semibold rounded-pill shadow-sm" id="btnSaveUpdate{{ fu.id }}">
-            <i class="fa-solid fa-check me-1"></i> Save Update
+          <button type="submit" class="btn btn-sm btn-primary px-4 fw-medium rounded-pill" id="btnSaveUpdate{{ fu.id }}">
+            Save Update
           </button>
         </div>
       </form>
@@ -649,30 +713,52 @@
 {% endif %}
 {% endfor %}
 
-<!-- Modal Popup for Queue Boundary (Top / Bottom of Leads Queue) -->
+<!-- Modal Popup for Queue Boundary -->
 <div class="modal fade" id="queueBoundaryModal" tabindex="-1" aria-labelledby="queueBoundaryModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
       <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-            <i class="fa-solid fa-circle-info fs-5"></i>
-          </div>
-          <h6 class="modal-title fw-bold text-dark mb-0" id="queueBoundaryModalLabel">Leads Queue</h6>
-        </div>
+        <h6 class="modal-title fw-bold text-dark mb-0" id="queueBoundaryModalLabel">Leads Queue</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body px-4 py-3">
-        <p class="text-secondary mb-0" id="queueBoundaryModalText" style="font-size: 0.95rem; line-height: 1.5;"></p>
+        <p class="text-secondary mb-0" id="queueBoundaryModalText" style="font-size: 0.9rem; line-height: 1.5;"></p>
       </div>
       <div class="modal-footer border-0 pt-0 pb-3 px-4">
-        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill shadow-xs" data-bs-dismiss="modal">OK</button>
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill" data-bs-dismiss="modal">OK</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
+  function filterTimeline(type, btn) {
+    document.querySelectorAll('.timeline-pill-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    const remarks = document.querySelectorAll('.timeline-item-remark');
+    const updates = document.querySelectorAll('.timeline-item-update');
+    const systems = document.querySelectorAll('.timeline-item-system');
+
+    if (type === 'all') {
+      remarks.forEach(el => el.style.display = '');
+      updates.forEach(el => el.style.display = '');
+      systems.forEach(el => el.style.display = '');
+    } else if (type === 'remark') {
+      remarks.forEach(el => el.style.display = '');
+      updates.forEach(el => el.style.display = 'none');
+      systems.forEach(el => el.style.display = 'none');
+    } else if (type === 'update') {
+      remarks.forEach(el => el.style.display = 'none');
+      updates.forEach(el => el.style.display = '');
+      systems.forEach(el => el.style.display = 'none');
+    } else if (type === 'system') {
+      remarks.forEach(el => el.style.display = 'none');
+      updates.forEach(el => el.style.display = 'none');
+      systems.forEach(el => el.style.display = '');
+    }
+  }
+
   function showQueueModal(title, message) {
     const titleEl = document.getElementById('queueBoundaryModalLabel');
     const textEl = document.getElementById('queueBoundaryModalText');
@@ -685,26 +771,76 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', function() {
-    // Notify other open tabs (table list tabs) that a lead has been updated
-    try {
-      localStorage.setItem('crm_lead_updated', '{{ lead.pk }}_' + Date.now());
-    } catch(e) {}
+  (function() {
+    const dInput = document.getElementById('hosp_detail_fu_date');
+    const tInput = document.getElementById('hosp_detail_fu_time');
+    const errBox = document.getElementById('hosp_detail_time_error');
+    const errText = document.getElementById('hosp_detail_time_error_text');
+    const submitBtn = document.getElementById('hosp_detail_fu_submit');
 
-    const queueModalEl = document.getElementById('queueBoundaryModal');
-    if (queueModalEl) {
-      queueModalEl.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        if (button) {
-          const title = button.getAttribute('data-modal-title') || 'Notice';
-          const message = button.getAttribute('data-modal-message') || 'Queue boundary reached.';
-          const titleEl = document.getElementById('queueBoundaryModalLabel');
-          const textEl = document.getElementById('queueBoundaryModalText');
-          if (titleEl) titleEl.textContent = title;
-          if (textEl) textEl.textContent = message;
+    function syncMinTime() {
+      if (!dInput || !tInput) return;
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+      dInput.min = todayStr;
+
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const curTime = `${hours}:${minutes}`;
+
+      if (dInput.value === todayStr) {
+        tInput.min = curTime;
+        if (tInput.value && tInput.value < curTime) {
+          tInput.classList.add('is-invalid');
+          if (errBox) {
+            errBox.classList.remove('d-none');
+            if (errText) errText.textContent = `Invalid Time: Selected time (${tInput.value}) has already passed. Please select a time after ${curTime}.`;
+          }
+          if (submitBtn) submitBtn.disabled = true;
+          tInput.setCustomValidity(`Please select an upcoming time after ${curTime}`);
+        } else {
+          tInput.classList.remove('is-invalid');
+          if (errBox) errBox.classList.add('d-none');
+          if (submitBtn) submitBtn.disabled = false;
+          tInput.setCustomValidity('');
+        }
+      } else {
+        tInput.removeAttribute('min');
+        tInput.classList.remove('is-invalid');
+        if (errBox) errBox.classList.add('d-none');
+        if (submitBtn) submitBtn.disabled = false;
+        tInput.setCustomValidity('');
+      }
+    }
+
+    if (dInput && tInput) {
+      syncMinTime();
+      dInput.addEventListener('change', syncMinTime);
+      dInput.addEventListener('input', syncMinTime);
+      tInput.addEventListener('change', syncMinTime);
+      tInput.addEventListener('input', syncMinTime);
+    }
+
+    const fuForm = document.getElementById('addFollowupForm');
+    if (fuForm) {
+      fuForm.addEventListener('submit', function(e) {
+        syncMinTime();
+        if (tInput && tInput.classList.contains('is-invalid')) {
+          e.preventDefault();
+          tInput.focus();
         }
       });
     }
+  })();
+
+  document.addEventListener('DOMContentLoaded', function() {
+    try {
+      localStorage.setItem('crm_lead_updated', '{{ lead.pk }}_' + Date.now());
+    } catch(e) {}
   });
 </script>
 {% endblock %}
+

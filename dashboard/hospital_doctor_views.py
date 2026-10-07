@@ -60,7 +60,13 @@ def doctor_home(request):
             cd['appointment_confirmed_at'] = timezone.now().strftime('%Y-%m-%d %H:%M')
             lead.custom_data = cd
             lead.next_followup_date = None
-            lead.save(update_fields=['custom_data', 'next_followup_date'])
+            booking_stage = LeadStage.objects.filter(name__iexact='Booking Confirmed').first() or \
+                            LeadStage.objects.filter(name__iexact='Appointment Confirmed').first()
+            if booking_stage:
+                lead.stage = booking_stage
+                lead.save(update_fields=['custom_data', 'next_followup_date', 'stage'])
+            else:
+                lead.save(update_fields=['custom_data', 'next_followup_date'])
 
             # Notify Lead Attendant
             if lead.assigned_to:
@@ -203,7 +209,13 @@ def doctor_home(request):
                 cd['doctor_remark'] = doctor_notes
                 cd['last_doctor_remark'] = doctor_notes
             lead.custom_data = cd
-            lead.save(update_fields=['custom_data'])
+            completed_stage = LeadStage.objects.filter(name__iexact='Appointment Completed').first() or \
+                              LeadStage.objects.filter(name__iexact='Completed').first()
+            if completed_stage:
+                lead.stage = completed_stage
+                lead.save(update_fields=['custom_data', 'stage'])
+            else:
+                lead.save(update_fields=['custom_data'])
 
             # Log Activity
             from followups.models import Activity, ActivityType, FollowUp, FollowUpMode, FollowUpStatus
@@ -458,7 +470,13 @@ def doctor_appointments(request):
             cd['appointment_confirmed_at'] = timezone.now().strftime('%Y-%m-%d %H:%M')
             lead.custom_data = cd
             lead.next_followup_date = None
-            lead.save(update_fields=['custom_data', 'next_followup_date'])
+            booking_stage = LeadStage.objects.filter(name__iexact='Booking Confirmed').first() or \
+                            LeadStage.objects.filter(name__iexact='Appointment Confirmed').first()
+            if booking_stage:
+                lead.stage = booking_stage
+                lead.save(update_fields=['custom_data', 'next_followup_date', 'stage'])
+            else:
+                lead.save(update_fields=['custom_data', 'next_followup_date'])
 
             if lead.assigned_to:
                 Notification.objects.create(
