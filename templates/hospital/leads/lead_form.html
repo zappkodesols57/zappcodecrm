@@ -1963,9 +1963,13 @@
 
     // 1. Get Selected Appointment Status
     const appStatusVal = (appStatusSelect ? (appStatusSelect.tomselect ? appStatusSelect.tomselect.getValue() : (appStatusSelect.value || '')) : '').toUpperCase();
+    const dealStatusVal = (document.getElementById('id_deal_status') ? document.getElementById('id_deal_status').value : '').toUpperCase();
+    const totalInputVal = (document.getElementById('id_total') ? document.getElementById('id_total').value : '').trim();
+    const hasTotalVal = totalInputVal && !['0', '0.0', '0.00'].includes(totalInputVal);
     const isCancelling = appStatusVal.includes('CANCEL') || appStatusVal.includes('NOT INT') || appStatusVal.includes('NOT_INT') || appStatusVal.includes('REJECT') || appStatusVal.includes('DECLINE') || appStatusVal.includes('DROP') || appStatusVal.includes('LOST');
-    const isBooking = !isCancelling && (appStatusVal.includes('BOOK') || appStatusVal.includes('CONFIRM') || appStatusVal.includes('SLOT') || appStatusVal.includes('OPD') || appStatusVal.includes('CONSULT'));
-    const isFollowup = !isCancelling && !isBooking && (appStatusVal.includes('FOLLOW') || appStatusVal.includes('WAIT') || appStatusVal.includes('CALL') || appStatusVal.includes('LATER') || appStatusVal.includes('INTEREST') || appStatusVal.includes('NEED'));
+    const isBilling = !isCancelling && (appStatusVal.includes('PAYMENT') || appStatusVal.includes('BILLING') || dealStatusVal.includes('PAYMENT') || dealStatusVal.includes('WON') || hasTotalVal || (appStatusVal.includes('COMPLET') && hasTotalVal));
+    const isBooking = !isCancelling && !isBilling && (appStatusVal.includes('BOOK') || appStatusVal.includes('CONFIRM') || appStatusVal.includes('SLOT') || appStatusVal.includes('OPD') || appStatusVal.includes('CONSULT'));
+    const isFollowup = !isCancelling && !isBilling && !isBooking && (appStatusVal.includes('FOLLOW') || appStatusVal.includes('WAIT') || appStatusVal.includes('CALL') || appStatusVal.includes('LATER') || appStatusVal.includes('INTEREST') || appStatusVal.includes('NEED') || appStatusVal === '' || appStatusVal.includes('NEW') || appStatusVal.includes('ASSIGN'));
 
     // Dynamic field requirements based on status
     const canReasonInput = document.querySelector('textarea[name="cancellation_reason"], input[name="cancellation_reason"]');
@@ -2068,6 +2072,28 @@
     const modalWaText = document.getElementById('modalWhatsAppPreviewText');
     const btnSaveWhatsApp = document.getElementById('btnModalSaveWhatsApp');
 
+    const customBookingTpl = "{{ custom_booking_tpl|default:''|escapejs }}";
+    const customFollowupTpl = "{{ custom_followup_tpl|default:''|escapejs }}";
+    const customBillingTpl = "{{ custom_billing_tpl|default:''|escapejs }}";
+
+    function replaceTags(templateStr) {
+      const replacements = {
+        "{patient_name}": pName,
+        "{hospital_name}": hospName,
+        "{branch_name}": branchVal,
+        "{hospital_address}": `{{ user.hospital.address|default:''|escapejs }}` || `${branchVal}, ${hospName}`,
+        "{doctor_name}": docDisplay,
+        "{appointment_date}": apptDateVal || "Scheduled Date",
+        "{appointment_time}": apptTimeVal || "Scheduled Slot",
+        "{user_name}": agentName
+      };
+      let out = templateStr;
+      for (const [k, v] of Object.entries(replacements)) {
+        out = out.replaceAll(k, v);
+      }
+      return out;
+    }
+
     if (isCancelling) {
       // Cancelled or Not Interested: Save only
       if (modalIcon) {
@@ -2078,6 +2104,25 @@
       if (modalSubtitle) modalSubtitle.textContent = 'Are you sure you want to save this lead as Cancelled / Not Interested?';
       if (modalWaBox) modalWaBox.style.display = 'none';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'none';
+    } else if (isBilling) {
+      // Billing / Payment Completed: Save & Send WhatsApp Thank You Message
+      if (modalIcon) {
+        modalIcon.className = 'avatar-sm bg-success bg-opacity-10 text-success rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-receipt fs-4"></i>';
+      }
+      if (modalTitle) modalTitle.textContent = 'Save Billing & Payment';
+      if (modalSubtitle) modalSubtitle.textContent = 'Patient consultation is completed. Choose whether to save or save and send thank you WhatsApp message.';
+      if (modalWaBox) modalWaBox.style.display = 'block';
+      if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
+
+      if (modalWaText) {
+        if (customBillingTpl) {
+          modalWaText.textContent = replaceTags(customBillingTpl);
+        } else {
+          const apptDatePart = apptDateVal ? ` on ${apptDateVal}` : '';
+          modalWaText.textContent = `Hello ${pName},\n\nThank you for visiting ${hospName} (${branchVal})!\n\nYour consultation with ${docDisplay}${apptDatePart} has been completed successfully.\n\nWe truly appreciate having the opportunity to care for your health and well-being. If you have any follow-up questions, prescription queries, or require further medical assistance, please feel free to reach out to us.\n\nHospital Address: ${branchVal}, ${hospName}\n\nWishing you great health and a speedy recovery!\n\nWarm Regards,\n${agentName}\nPatient Care Team - ${hospName}`;
+        }
+      }
     } else if (isBooking) {
       // Booking: Save & Send WhatsApp with Doctor, Date, Slot
       if (modalIcon) {
@@ -2089,7 +2134,15 @@
       if (modalWaBox) modalWaBox.style.display = 'block';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
 
-      if (modalWaText) modalWaText.innerHTML = `Dear <strong>${pName}</strong>,\n\nYour appointment at <strong>${hospName}</strong> (${branchVal}) has been successfully booked.\n\n<strong>Doctor:</strong> ${docDisplay}\n<strong>Date:</strong> ${apptDateVal}\n<strong>Slot:</strong> ${apptTimeVal}\n\nThank you for choosing ${hospName}.\nRegards,\n${agentName}`;
+      if (modalWaText) {
+        if (customBookingTpl) {
+          modalWaText.textContent = replaceTags(customBookingTpl);
+        } else {
+          const apptDatePart = apptDateVal ? ` on ${apptDateVal}` : '';
+          const apptTimePart = apptTimeVal ? ` at ${apptTimeVal}` : '';
+          modalWaText.textContent = `Hello ${pName},\n\nWelcome to ${hospName} (${branchVal})!\n\nYour consultation appointment with ${docDisplay} is confirmed${apptDatePart}${apptTimePart}.\n\nHospital Address: ${branchVal}, ${hospName}\n\nPlease arrive 15 minutes prior to your scheduled slot. We look forward to assisting you.\n\nFor any queries or assistance, feel free to contact us.\n\nWarm Regards,\n${agentName}\n${hospName}`;
+        }
+      }
     } else if (isFollowup) {
       // Follow-up: Save & Send WhatsApp with Thank you for enquiry
       if (modalIcon) {
@@ -2101,7 +2154,13 @@
       if (modalWaBox) modalWaBox.style.display = 'block';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
 
-      if (modalWaText) modalWaText.innerHTML = `Dear <strong>${pName}</strong>,\n\nThank you for reaching out and inquiring at <strong>${hospName}</strong> (${branchVal}).\n\nOur healthcare consultant has scheduled your consultation follow-up. Feel free to reply to this message if you have any questions.\n\nWarm regards,\n${agentName}\n${hospName}`;
+      if (modalWaText) {
+        if (customFollowupTpl) {
+          modalWaText.textContent = replaceTags(customFollowupTpl);
+        } else {
+          modalWaText.textContent = `Hello ${pName},\n\nThank you for your enquiry with ${hospName} (${branchVal})!\n\nWe are pleased to assist you with your healthcare and doctor consultation inquiry.\n\nHospital Address: ${branchVal}, ${hospName}\n\nPlease let us know your preferred date, time, or specialist requirement so we can schedule your appointment promptly.\n\nWarm Regards,\n${agentName}\nPatient Care Team - ${hospName}`;
+        }
+      }
     } else {
       // General Lead save
       if (modalIcon) {
@@ -2141,6 +2200,25 @@
     if (waInput) {
       waInput.value = sendWhatsApp ? '1' : '0';
     }
+
+    if (sendWhatsApp) {
+      try {
+        const pMobileEl = document.getElementById('id_mobile');
+        let rawPhone = (pMobileEl ? pMobileEl.value : '').replace(/\D/g, '');
+        if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
+        else if (rawPhone.length > 10 && !rawPhone.startsWith('91')) rawPhone = '91' + rawPhone.slice(-10);
+
+        const modalWaText = document.getElementById('modalWhatsAppPreviewText');
+        const textContent = modalWaText ? (modalWaText.innerText || modalWaText.textContent || '') : '';
+        if (rawPhone && textContent) {
+          const waUrl = 'https://wa.me/' + rawPhone + '?text=' + encodeURIComponent(textContent.trim());
+          window.open(waUrl, '_blank');
+        }
+      } catch (err) {
+        console.warn('Direct WhatsApp window.open fallback:', err);
+      }
+    }
+
     if (saveModalInstance) {
       try { saveModalInstance.hide(); } catch(e){}
     } else if (window.jQuery && saveModalEl) {

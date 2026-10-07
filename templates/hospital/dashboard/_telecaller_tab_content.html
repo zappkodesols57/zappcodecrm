@@ -70,6 +70,175 @@
         </tbody>
     </table>
 
+{% elif tab == "walkin_leads" %}
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Doctor / Dept</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Current Stage</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Status</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Remarks</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Date Time</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                        {{ lead.name }}
+                    </a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}
+                        <div class="small text-muted">{{ lead.email }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ lead.custom_source|default:'Walk-in' }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.custom_doctor|default:'General' }}</div>
+                    <div class="small text-muted">{{ lead.custom_dept|default:'—' }}</div>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">{{ lead.display_stage|default:lead.stage.name|default:'New' }}</span>
+                </td>
+                <td>
+                    <span class="badge {% if lead.custom_deal_status == 'Won' %}bg-success bg-opacity-10 text-success border border-success-subtle{% elif lead.custom_deal_status == 'Lost' %}bg-danger bg-opacity-10 text-danger border border-danger-subtle{% elif lead.custom_deal_status == 'Pending' %}bg-warning bg-opacity-10 text-warning border border-warning-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %}">
+                        {{ lead.custom_deal_status|default:'Open' }}
+                    </span>
+                </td>
+                <td style="max-width: 180px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td>
+                    <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No walk-in leads found</h6>
+                    <p class="text-muted small mb-0">Direct walk-in inquiries for your hospital will appear here.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% elif tab == "todays_all_leads" %}
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light sticky-top" style="z-index: 1;">
+            <tr>
+                <th class="border-0 px-4 py-3 text-muted small text-uppercase fw-bold">Patient Name</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Contact</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Source</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Campaign</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Assigned To</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Current Stage</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Status</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Remarks</th>
+                <th class="border-0 py-3 text-muted small text-uppercase fw-bold">Date Time</th>
+                <th class="border-0 px-4 py-3 text-end text-muted small text-uppercase fw-bold">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lead in leads %}
+            <tr>
+                <td class="px-4">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                        {{ lead.name }}
+                    </a>
+                    <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
+                    {% if lead.email and lead.email != '-' %}
+                        <div class="small text-muted">{{ lead.email }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-light text-secondary border">{{ lead.custom_source|default:'nan' }}</span>
+                </td>
+                <td>
+                    <span class="small text-dark">{{ lead.custom_camp|default:'nan' }}</span>
+                </td>
+                <td>
+                    {% if lead.assigned_to %}
+                        <span class="badge bg-light text-dark border">{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
+                    {% else %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Unassigned</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">{{ lead.display_stage|default:lead.stage.name|default:'New' }}</span>
+                </td>
+                <td>
+                    <span class="badge {% if lead.custom_deal_status == 'Won' %}bg-success bg-opacity-10 text-success border border-success-subtle{% elif lead.custom_deal_status == 'Lost' %}bg-danger bg-opacity-10 text-danger border border-danger-subtle{% elif lead.custom_deal_status == 'Pending' %}bg-warning bg-opacity-10 text-warning border border-warning-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %}">
+                        {{ lead.custom_deal_status|default:'Open' }}
+                    </span>
+                </td>
+                <td style="max-width: 180px;">
+                    <span class="small text-secondary text-truncate d-inline-block" style="max-width: 180px;" title="{{ lead.interaction_remark|default:lead.notes|default:'No remarks' }}">
+                        {{ lead.interaction_remark|default:lead.notes|default:'—' }}
+                    </span>
+                </td>
+                <td>
+                    <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
+                </td>
+                <td class="px-4 text-end text-nowrap">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                    {% if lead.clean_phone_number %}
+                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </a>
+                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                        <i class="fa-solid fa-phone"></i>
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center py-5">
+                    <h6 class="fw-bold text-dark mb-1">No leads received today</h6>
+                    <p class="text-muted small mb-0">All inquiries created or received today will appear here.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
 {% elif tab == "followups_todays" or tab == "followups_upcoming" or tab == "followups_overdue" or tab == "followups_completed" %}
     <table class="table table-hover align-middle mb-0">
         <thead class="bg-light sticky-top" style="z-index: 1;">

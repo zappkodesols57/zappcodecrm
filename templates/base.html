@@ -353,6 +353,57 @@
       box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
     }
 
+    /* Brand Header & Logo Containers */
+    .sidebar-brand-header {
+      padding: 0.9rem 0.6rem !important;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      min-height: 58px;
+    }
+    .sidebar-brand-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      width: 100%;
+    }
+    .sidebar-logo-wrap {
+      width: 44px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 3px 5px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    }
+    .sidebar-brand-logo {
+      max-height: 32px;
+      max-width: 36px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    .sidebar-minimize-btn {
+      border: none;
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      border-radius: 4px;
+      padding: 4px 7px;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+    }
+    .sidebar-minimize-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+    }
+
     .main-wrap {
       margin-left: var(--sidebar-collapsed-w);
       min-height: 100vh;
@@ -362,12 +413,47 @@
     }
 
     /* In Minimized state (when not hovered and not pinned) */
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .sidebar-brand-header {
+      padding: 0.9rem 0.35rem !important;
+      justify-content: center !important;
+    }
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .sidebar-brand-inner {
+      justify-content: center !important;
+      gap: 0 !important;
+    }
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .sidebar-logo-wrap {
+      margin: 0 auto !important;
+    }
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .brand-text,
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .section-title,
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .section-arrow,
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .sub-arrow,
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-text {
       display: none !important;
+    }
+
+    /* Expanded state for Brand Header */
+    .sidebar:hover .sidebar-brand-header,
+    body.sidebar-pinned-open .sidebar .sidebar-brand-header {
+      padding: 0.9rem 1.15rem !important;
+      justify-content: space-between !important;
+    }
+    .sidebar:hover .sidebar-brand-inner,
+    body.sidebar-pinned-open .sidebar .sidebar-brand-inner {
+      justify-content: flex-start !important;
+      gap: 10px !important;
+    }
+    .sidebar:hover .sidebar-logo-wrap,
+    body.sidebar-pinned-open .sidebar .sidebar-logo-wrap {
+      margin: 0 !important;
+      width: auto !important;
+      max-width: 90px !important;
+      padding: 3px 8px !important;
+    }
+    .sidebar:hover .sidebar-brand-logo,
+    body.sidebar-pinned-open .sidebar .sidebar-brand-logo {
+      max-width: 78px !important;
+      max-height: 32px !important;
     }
 
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-section-btn {
