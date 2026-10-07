@@ -338,27 +338,16 @@ def telecaller_home(request):
         new_leads_page = new_leads_paginator.page(1)
     new_leads_list = list(new_leads_page.object_list)
 
-    # Assigned Leads: Newly assigned / open leads assigned to user that haven't been scheduled for follow-up or appointment yet
-    assigned_leads_qs = hospital_leads.filter(
-        assigned_to=user
-    ).exclude(
-        deal_status=DealStatus.LOST
-    ).exclude(
-        custom_data__deal_status__icontains='Lost'
-    ).filter(
-        next_followup_date__isnull=True,
-        followup_count=0
-    ).exclude(
-        followups__isnull=False
-    ).exclude(
-        appointments__isnull=False
-    ).exclude(
-        Q(custom_data__appointment_status__icontains='Book') |
-        Q(custom_data__appointment_status__icontains='Confirm') |
-        Q(custom_data__appointment_status__icontains='Follow')
-    ).select_related('stage', 'campaign', 'lead_source').order_by('-updated_at')
+    # Assigned Leads (Call Not Done queue): Fresh assigned leads where NO calling remarks/followups have been logged yet
+    if user.role == User.Role.LEAD_ATTENDENT:
+        assigned_candidates = hospital_leads.filter(assigned_to=user)
+    else:
+        assigned_candidates = hospital_leads.filter(assigned_to__isnull=False)
 
-    assigned_leads_count = assigned_leads_qs.count()
+    assigned_cnd_ids = filter_uncontacted_leads_ids(assigned_candidates, today=today_date)
+    assigned_leads_qs = hospital_leads.filter(id__in=assigned_cnd_ids).select_related('stage', 'campaign', 'lead_source').order_by('-created_at')
+
+    assigned_leads_count = len(assigned_cnd_ids)
     assigned_leads_paginator = Paginator(assigned_leads_qs, 25)
     assigned_leads_page_num = request.GET.get('page') if (request.GET.get('tab') == 'myleads' and request.GET.get('subtab') == 'assigned') else 1
     try:
@@ -366,6 +355,39 @@ def telecaller_home(request):
     except (EmptyPage, PageNotAnInteger):
         assigned_leads_page = assigned_leads_paginator.page(1)
     assigned_leads_list = list(assigned_leads_page.object_list)
+
+    # Walk-in Leads: Leads originating from direct walk-in source for today (matches Today's Walk-in KPI)
+    walkin_leads_qs = hospital_leads.filter(
+        Q(lead_source__name__icontains='walk-in') |
+        Q(custom_data__lead_source__icontains='walk-in') |
+        Q(custom_data__source__icontains='walk-in') |
+        Q(lead_type__icontains='walk')
+    ).filter(
+        Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+    ).select_related('stage', 'campaign', 'lead_source').order_by('-created_at')
+
+    walkin_leads_count = walkin_leads_qs.count()
+    walkin_leads_paginator = Paginator(walkin_leads_qs, 25)
+    walkin_leads_page_num = request.GET.get('page') if (request.GET.get('tab') == 'myleads' and request.GET.get('subtab') == 'walkin') else 1
+    try:
+        walkin_leads_page = walkin_leads_paginator.page(walkin_leads_page_num)
+    except (EmptyPage, PageNotAnInteger):
+        walkin_leads_page = walkin_leads_paginator.page(1)
+    walkin_leads_list = list(walkin_leads_page.object_list)
+
+    # Today's All Leads: All leads received or created today with their current statuses & stages
+    todays_all_leads_qs = hospital_leads.filter(
+        Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+    ).select_related('stage', 'campaign', 'lead_source', 'assigned_to').prefetch_related('followups', 'appointments').order_by('-created_at')
+
+    todays_all_leads_count = todays_all_leads_qs.count()
+    todays_all_leads_paginator = Paginator(todays_all_leads_qs, 25)
+    todays_all_leads_page_num = request.GET.get('page') if (request.GET.get('tab') == 'myleads' and request.GET.get('subtab') == 'todays_all') else 1
+    try:
+        todays_all_leads_page = todays_all_leads_paginator.page(todays_all_leads_page_num)
+    except (EmptyPage, PageNotAnInteger):
+        todays_all_leads_page = todays_all_leads_paginator.page(1)
+    todays_all_leads_list = list(todays_all_leads_page.object_list)
 
     # Follow-ups -> Completed: Only leads that had calling follow-ups completed without converting to Booked/Paid/Lost
     completed_fu_qs = hospital_leads.filter(
@@ -681,6 +703,12 @@ def telecaller_home(request):
         'assigned_leads_list': assigned_leads_list,
         'assigned_leads_count': assigned_leads_count,
         'assigned_leads_page': assigned_leads_page,
+        'walkin_leads_list': walkin_leads_list,
+        'walkin_leads_count': walkin_leads_count,
+        'walkin_leads_page': walkin_leads_page,
+        'todays_all_leads_list': todays_all_leads_list,
+        'todays_all_leads_count': todays_all_leads_count,
+        'todays_all_leads_page': todays_all_leads_page,
         'todays_walkin_count': todays_walkin_count,
         'daily_target': daily_target,
         'calls_completed_today': calls_completed_today,
@@ -735,6 +763,8 @@ def telecaller_tab_data_api(request):
 
     user = request.user
     today_date = timezone.localdate()
+    start_of_today = timezone.make_aware(datetime.combine(today_date, datetime.min.time()))
+    end_of_today = timezone.make_aware(datetime.combine(today_date, datetime.max.time()))
     tab = request.GET.get('tab', '').strip()
     hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False)
 
@@ -752,13 +782,30 @@ def telecaller_tab_data_api(request):
     leads = []
 
     if tab == 'assigned_leads':
+        if user.role == User.Role.LEAD_ATTENDENT:
+            assigned_candidates = hospital_leads.filter(assigned_to=user)
+        else:
+            assigned_candidates = hospital_leads.filter(assigned_to__isnull=False)
+
+        assigned_cnd_ids = filter_uncontacted_leads_ids(assigned_candidates, today=today_date)
+        qs = hospital_leads.filter(id__in=assigned_cnd_ids).select_related('stage', 'campaign', 'lead_source').order_by('-created_at')
+        leads = list(qs[:100])
+
+    elif tab == 'walkin_leads':
         qs = hospital_leads.filter(
-            assigned_to=user
-        ).exclude(
-            deal_status=DealStatus.LOST
-        ).exclude(
-            custom_data__deal_status__icontains='Lost'
-        ).select_related('stage', 'campaign', 'lead_source').order_by('-updated_at')
+            Q(lead_source__name__icontains='walk-in') |
+            Q(custom_data__lead_source__icontains='walk-in') |
+            Q(custom_data__source__icontains='walk-in') |
+            Q(lead_type__icontains='walk')
+        ).filter(
+            Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+        ).select_related('stage', 'campaign', 'lead_source').order_by('-created_at')
+        leads = list(qs[:100])
+
+    elif tab == 'todays_all_leads':
+        qs = hospital_leads.filter(
+            Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+        ).select_related('stage', 'campaign', 'lead_source', 'assigned_to').prefetch_related('followups', 'appointments').order_by('-created_at')
         leads = list(qs[:100])
 
     elif tab in ['followups_todays', 'followups_upcoming', 'followups_overdue']:
@@ -1251,7 +1298,7 @@ def telecaller_search(request):
     hospital_statuses = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
     employees = User.objects.filter(hospital=request.user.hospital, is_active=True, is_approved=True)
 
-    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
+    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Approval from Doctor", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
     filter_priorities = ["Hot", "Warm", "Cold"]
     filter_locations = sorted(list(set(Lead.objects.filter(hospital=request.user.hospital).exclude(location="").values_list("location", flat=True))))
 
@@ -1540,7 +1587,7 @@ def telecaller_my_leads(request):
     hospital_sources = MasterGroup.get_active_choices("Lead Sources").filter(hospital=request.user.hospital)
     hospital_statuses = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=request.user.hospital)
 
-    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Doctor Approval", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
+    filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Approval from Doctor", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
     filter_priorities = ["Hot", "Warm", "Cold"]
     filter_locations = sorted(list(set(Lead.objects.filter(hospital=request.user.hospital).exclude(location="").values_list("location", flat=True))))
 

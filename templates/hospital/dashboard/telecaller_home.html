@@ -276,8 +276,8 @@
     <!-- 6 REDESIGNED KPI CARDS -->
     <div class="stats-kpi-grid">
         
-        <!-- CARD 1: Today's New Leads (Switches to My Leads -> New Leads) -->
-        <div class="stat-card c-leads" onclick="switchDashboardTab('myleads-main-tab', 'myleads-new-tab')" title="Click to view New Leads">
+        <!-- CARD 1: Today's New Leads (Switches to My Leads -> Today's All Leads) -->
+        <div class="stat-card c-leads" onclick="switchDashboardTab('myleads-main-tab', 'myleads-todaysall-tab')" title="Click to view Today's All Leads">
             <div class="stat-header">
                 <span class="stat-title">Today's New Leads</span>
             </div>
@@ -324,8 +324,8 @@
             </div>
         </div>
 
-        <!-- CARD 5: Today's Walk-in (Non-clickable) -->
-        <div class="stat-card c-walkin" style="cursor: default;" title="Today's Walk-in Leads">
+        <!-- CARD 5: Today's Walk-in (Switches to My Leads -> Walk-in Leads) -->
+        <div class="stat-card c-walkin" onclick="switchDashboardTab('myleads-main-tab', 'myleads-walkin-tab')" title="Click to view Walk-in Leads">
             <div class="stat-header">
                 <span class="stat-title">Today's Walk-in</span>
             </div>
@@ -393,7 +393,7 @@
                 <!-- ========================================== -->
                 <div class="tab-pane fade show active p-4" id="myleads-main-pane" role="tabpanel" aria-labelledby="myleads-main-tab" tabindex="0">
                     
-                    <!-- My Leads Sub-tabs -->
+                    <!-- My Leads Sub-tabs: 4 Subtabs -->
                     <ul class="nav nav-tabs border-bottom gap-2 mb-3" id="myLeadsSubTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="myleads-new-tab" data-bs-toggle="tab" data-bs-target="#myleads-new-pane" type="button" role="tab" aria-controls="myleads-new-pane" aria-selected="true">
@@ -403,6 +403,16 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-assigned-tab" data-bs-toggle="tab" data-bs-target="#myleads-assigned-pane" type="button" role="tab" aria-controls="myleads-assigned-pane" aria-selected="false">
                                 Assigned Leads <span class="badge bg-secondary text-white rounded-pill ms-2">{{ assigned_leads_count|default:0 }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-walkin-tab" data-bs-toggle="tab" data-bs-target="#myleads-walkin-pane" type="button" role="tab" aria-controls="myleads-walkin-pane" aria-selected="false">
+                                Walk-in Leads <span class="badge bg-success text-white rounded-pill ms-2">{{ walkin_leads_count|default:0 }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-todaysall-tab" data-bs-toggle="tab" data-bs-target="#myleads-todaysall-pane" type="button" role="tab" aria-controls="myleads-todaysall-pane" aria-selected="false">
+                                Today's All Leads <span class="badge bg-dark text-white rounded-pill ms-2">{{ todays_all_leads_count|default:0 }}</span>
                             </button>
                         </li>
                     </ul>
@@ -602,6 +612,112 @@
                                         {% if assigned_leads_page.has_next %}
                                         <li class="page-item">
                                             <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=assigned&page={{ assigned_leads_page.next_page_number }}">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </span>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 1.3: Walk-in Leads -->
+                        <div class="tab-pane fade" id="myleads-walkin-pane" role="tabpanel" aria-labelledby="myleads-walkin-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="walkin_leads" leads=walkin_leads_list %}
+                            </div>
+
+                            <!-- Pagination for Walk-in Leads Table -->
+                            {% if walkin_leads_page and walkin_leads_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">
+                                    Showing <span class="fw-semibold text-dark">{{ walkin_leads_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ walkin_leads_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ walkin_leads_count }}</span> leads
+                                </div>
+                                <nav aria-label="Walk-in Leads Pagination">
+                                    <ul class="pagination pagination-sm mb-0 gap-1">
+                                        {% if walkin_leads_page.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=walkin&page={{ walkin_leads_page.previous_page_number }}">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </span>
+                                        </li>
+                                        {% endif %}
+
+                                        <li class="page-item active">
+                                            <span class="page-link rounded-pill px-3 py-1 fw-bold">
+                                                Page {{ walkin_leads_page.number }} of {{ walkin_leads_page.paginator.num_pages }}
+                                            </span>
+                                        </li>
+
+                                        {% if walkin_leads_page.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=walkin&page={{ walkin_leads_page.next_page_number }}">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                Next <i class="fa-solid fa-angle-right ms-1"></i>
+                                            </span>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 1.4: Today's All Leads -->
+                        <div class="tab-pane fade" id="myleads-todaysall-pane" role="tabpanel" aria-labelledby="myleads-todaysall-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="todays_all_leads" leads=todays_all_leads_list %}
+                            </div>
+
+                            <!-- Pagination for Today's All Leads Table -->
+                            {% if todays_all_leads_page and todays_all_leads_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">
+                                    Showing <span class="fw-semibold text-dark">{{ todays_all_leads_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ todays_all_leads_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ todays_all_leads_count }}</span> leads
+                                </div>
+                                <nav aria-label="Today's All Leads Pagination">
+                                    <ul class="pagination pagination-sm mb-0 gap-1">
+                                        {% if todays_all_leads_page.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=todays_all&page={{ todays_all_leads_page.previous_page_number }}">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                                                <i class="fa-solid fa-angle-left me-1"></i> Prev
+                                            </span>
+                                        </li>
+                                        {% endif %}
+
+                                        <li class="page-item active">
+                                            <span class="page-link rounded-pill px-3 py-1 fw-bold">
+                                                Page {{ todays_all_leads_page.number }} of {{ todays_all_leads_page.paginator.num_pages }}
+                                            </span>
+                                        </li>
+
+                                        {% if todays_all_leads_page.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=myleads&subtab=todays_all&page={{ todays_all_leads_page.next_page_number }}">
                                                 Next <i class="fa-solid fa-angle-right ms-1"></i>
                                             </a>
                                         </li>
@@ -1131,31 +1247,6 @@
                     </div>
                 </div>
 
-                <!-- Modern In-Window Confirmation & Alert Modal for Drilldown & In-page Alerts -->
-                <div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px); z-index: 1080;">
-                  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-                    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
-                      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2">
-                          <div id="modalIconContainer" class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
-                            <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
-                          </div>
-                          <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel" style="font-size: 1.1rem;">Confirm Action</h5>
-                        </div>
-                        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
-                      </div>
-                      <div class="modal-body px-4 py-3">
-                        <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
-                        <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2" style="display: none;"></div>
-                      </div>
-                      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm" id="modalConfirmBtn">Confirm & Apply</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 <!-- Leads Table Section -->
                 <div class="card shadow-sm border-0 bg-white rounded-3">
                     <div class="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center border-bottom">
@@ -1214,6 +1305,31 @@
 
         </div>
     </div>
+</div>
+
+<!-- Modern In-Window Confirmation & Alert Modal for In-page Alerts -->
+<div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px); z-index: 1090;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div id="modalIconContainer" class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
+          </div>
+          <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel" style="font-size: 1.1rem;">Confirm Action</h5>
+        </div>
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
+        <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2" style="display: none;"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm" id="modalConfirmBtn">Confirm & Apply</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 {% endblock %}
@@ -1459,7 +1575,7 @@
 
     function showInWindowAlert(title, message, iconType = 'warning') {
         const modalEl = document.getElementById('inWindowActionModal');
-        if (!modalEl) {
+        if (!modalEl || typeof bootstrap === 'undefined') {
             alert(message.replace(/<[^>]*>?/gm, ''));
             return;
         }
@@ -1471,43 +1587,53 @@
         const cancelBtn = document.getElementById('modalCancelBtn');
         const confirmBtn = document.getElementById('modalConfirmBtn');
 
-        modalTitle.textContent = title;
-        modalText.innerHTML = message;
+        if (modalTitle) modalTitle.textContent = title;
+        if (modalText) modalText.innerHTML = message;
         if (modalDetails) {
             modalDetails.style.display = 'none';
             modalDetails.innerHTML = '';
         }
 
-        if (iconType === 'warning') {
-            modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
-            modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
-            confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
-            confirmBtn.textContent = 'OK';
-        } else if (iconType === 'error') {
-            modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
-            modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
-            confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
-            confirmBtn.textContent = 'OK';
-        } else {
-            modalIcon.className = 'fa-solid fa-circle-info fa-lg';
-            modalIconContainer.className = 'p-2 rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center';
-            confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
-            confirmBtn.textContent = 'OK';
+        if (modalIcon && modalIconContainer) {
+            if (iconType === 'warning') {
+                modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
+                modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
+                if (confirmBtn) {
+                    confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
+                    confirmBtn.textContent = 'OK';
+                }
+            } else if (iconType === 'error') {
+                modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
+                modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
+                if (confirmBtn) {
+                    confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
+                    confirmBtn.textContent = 'OK';
+                }
+            } else {
+                modalIcon.className = 'fa-solid fa-circle-info fa-lg';
+                modalIconContainer.className = 'p-2 rounded-circle bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center';
+                if (confirmBtn) {
+                    confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+                    confirmBtn.textContent = 'OK';
+                }
+            }
         }
 
         if (cancelBtn) cancelBtn.style.display = 'none';
-        confirmBtn.onclick = function() {
-            const bsModal = bootstrap.Modal.getInstance(modalEl);
-            if (bsModal) bsModal.hide();
-        };
+        if (confirmBtn) {
+            confirmBtn.onclick = function() {
+                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (bsModal) bsModal.hide();
+            };
+        }
 
-        const bsModal = new bootstrap.Modal(modalEl);
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         bsModal.show();
     }
 
     function showInWindowConfirm(options) {
         const modalEl = document.getElementById('inWindowActionModal');
-        if (!modalEl) {
+        if (!modalEl || typeof bootstrap === 'undefined') {
             if (confirm(options.message ? options.message.replace(/<[^>]*>?/gm, '') : 'Confirm action?')) {
                 if (typeof options.onConfirm === 'function') options.onConfirm();
             }
@@ -1521,8 +1647,8 @@
         const cancelBtn = document.getElementById('modalCancelBtn');
         const confirmBtn = document.getElementById('modalConfirmBtn');
 
-        modalTitle.textContent = options.title || 'Confirm Action';
-        modalText.innerHTML = options.message || 'Are you sure you want to proceed?';
+        if (modalTitle) modalTitle.textContent = options.title || 'Confirm Action';
+        if (modalText) modalText.innerHTML = options.message || 'Are you sure you want to proceed?';
 
         if (options.detailsHtml && modalDetails) {
             modalDetails.innerHTML = options.detailsHtml;
@@ -1532,25 +1658,27 @@
             modalDetails.innerHTML = '';
         }
 
-        modalIcon.className = options.icon || 'fa-solid fa-circle-question fa-lg';
-        modalIconContainer.className = 'p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center';
+        if (modalIcon) modalIcon.className = options.icon || 'fa-solid fa-circle-question fa-lg';
+        if (modalIconContainer) modalIconContainer.className = 'p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center';
 
         if (cancelBtn) {
             cancelBtn.style.display = 'inline-block';
             cancelBtn.textContent = 'Cancel';
         }
-        confirmBtn.className = options.confirmBtnClass || 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
-        confirmBtn.textContent = options.confirmText || 'Confirm & Apply';
+        if (confirmBtn) {
+            confirmBtn.className = options.confirmBtnClass || 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+            confirmBtn.textContent = options.confirmText || 'Confirm & Apply';
 
-        confirmBtn.onclick = function() {
-            const bsModal = bootstrap.Modal.getInstance(modalEl);
-            if (bsModal) bsModal.hide();
-            if (typeof options.onConfirm === 'function') {
-                options.onConfirm();
-            }
-        };
+            confirmBtn.onclick = function() {
+                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                if (bsModal) bsModal.hide();
+                if (typeof options.onConfirm === 'function') {
+                    options.onConfirm();
+                }
+            };
+        }
 
-        const bsModal = new bootstrap.Modal(modalEl);
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         bsModal.show();
     }
 
@@ -2472,6 +2600,9 @@
                                 updateNewLeadsSelection();
                             }, 350);
                         }
+                        setTimeout(() => {
+                            window.location.href = window.location.pathname + '?tab=myleads&subtab=assigned';
+                        }, 700);
                     } else {
                         showInWindowAlert("Capture Failed", data.message || "Could not capture this lead.", "error");
                     }
@@ -2569,8 +2700,8 @@
                             }
                         });
                         setTimeout(() => {
-                            window.location.reload();
-                        }, 1200);
+                            window.location.href = window.location.pathname + '?tab=myleads&subtab=assigned';
+                        }, 700);
                     } else {
                         showInWindowAlert("Assignment Notice", data.message || "Failed to complete bulk self-assignment.", "error");
                     }
@@ -2618,6 +2749,13 @@
             const subtabBtnMap = {
                 'assigned': 'myleads-assigned-tab',
                 'new': 'myleads-new-tab',
+                'walkin': 'myleads-walkin-tab',
+                'walk_in': 'myleads-walkin-tab',
+                'walkin_leads': 'myleads-walkin-tab',
+                'todays_all': 'myleads-todaysall-tab',
+                'today_all': 'myleads-todaysall-tab',
+                'todaysall': 'myleads-todaysall-tab',
+                'today_leads': 'myleads-todaysall-tab',
                 'today_fu': 'todays-tab',
                 'today': 'todays-tab',
                 'todays': 'todays-tab',

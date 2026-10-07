@@ -5,7 +5,7 @@ from django import forms
 from django.db import models
 from django.db.models import Q
 from accounts.models import User, Hospital
-from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag
+from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, HospitalBranch, HospitalDepartment, HospitalDoctor, HospitalDisease, LeadCustomField
 
 
 class LeadForm(forms.ModelForm):
@@ -1132,6 +1132,18 @@ class HospitalLeadForm(forms.ModelForm):
                  self.data.get("dyn_hospital_branch") or 
                  self.data.get("dyn_branch") or "").strip()
         
+        # If branch is not explicitly provided in form, auto-default from user's branch or existing lead data
+        if not b_val:
+            if self.current_user and getattr(self.current_user, 'branch', None):
+                b_val = self.current_user.branch.name
+            elif self.instance and self.instance.pk:
+                cd_inst = self.instance.custom_data or {}
+                b_val = cd_inst.get('hospital_branch') or cd_inst.get('branch') or cd_inst.get('dyn_hospital_branch') or ""
+            if not b_val and self.current_user and getattr(self.current_user, 'hospital', None):
+                first_b = HospitalBranch.objects.filter(hospital=self.current_user.hospital, is_active=True).first()
+                if first_b:
+                    b_val = first_b.name
+
         if b_val:
             cleaned_data["hospital_branch"] = b_val
             if "dyn_hospital_branch" in self.fields:
@@ -1150,6 +1162,12 @@ class HospitalLeadForm(forms.ModelForm):
         appo_st_raw = str(cleaned_data.get("appointment_status") or self.data.get("appointment_status") or "").strip().upper()
         appo_dt_raw = cleaned_data.get("appo_booked_date") or self.data.get("appo_booked_date")
         is_booking_active = ("BOOK" in appo_st_raw) or bool(appo_dt_raw)
+
+        # If booking is NOT active, hospital_branch, department, doctor, disease should never raise required field errors
+        if not is_booking_active:
+            for b_field in ["hospital_branch", "dyn_hospital_branch", "dyn_branch", "department", "dyn_department", "doctor", "dyn_doctor", "disease", "dyn_disease"]:
+                if b_field in self.errors:
+                    del self.errors[b_field]
 
         fu_date = cleaned_data.get("followup_date")
         fu_time = cleaned_data.get("followup_time")
@@ -1333,8 +1351,8 @@ class HospitalLeadForm(forms.ModelForm):
             if appo_date and not instance.next_followup_date:
                 instance.next_followup_date = appo_date
             from leads.models import LeadStage
-            booking_stage = LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
-                            LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
+            booking_stage = LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
+                            LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
                             LeadStage.objects.filter(name__iexact='Appointment Confirmed').first()
             if booking_stage:
                 instance.stage = booking_stage

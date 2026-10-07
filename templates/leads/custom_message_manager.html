@@ -1,6 +1,56 @@
 {% extends "base.html" %}
 {% block title %}WhatsApp Templates · {{ hosp.name|default:"CRM" }}{% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Dashboard Matching Navigation Tabs Styling */
+  #msgTabs {
+    border-bottom: 2px solid #e2e8f0;
+    gap: 8px;
+  }
+  #msgTabs .nav-item {
+    margin-bottom: -2px;
+  }
+  #msgTabs .nav-link {
+    color: #475569 !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 10px 20px !important;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+  }
+  #msgTabs .nav-link:hover {
+    background: #f8fafc !important;
+    color: var(--brand, #0f2744) !important;
+    border-color: #cbd5e1 !important;
+  }
+  #msgTabs .nav-link.active {
+    background: var(--brand, #0f2744) !important;
+    color: #ffffff !important;
+    border-color: var(--brand, #0f2744) !important;
+    box-shadow: 0 4px 12px rgba(15, 39, 68, 0.22) !important;
+    border-bottom-color: var(--brand, #0f2744) !important;
+  }
+  #msgTabs .nav-link.active i {
+    color: #ffffff !important;
+  }
+  #msgTabs .nav-link.active .tab-badge-default {
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  }
+  #msgTabs .nav-link.active .tab-badge-active {
+    background: #22c55e !important;
+    color: #ffffff !important;
+    border: 1px solid #16a34a !important;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-3 py-3" style="max-width: 1200px; margin: 0 auto;">
 
@@ -35,25 +85,35 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs -->
-  <ul class="nav nav-tabs border-bottom mb-3" id="msgTabs" role="tablist">
+  <!-- Navigation Tabs (Dashboard Styled Active Navy & Crisp Pill Badges) -->
+  <ul class="nav nav-tabs mb-3" id="msgTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link fw-semibold px-4 py-2 {% if active_tab == 'booking' or not active_tab %}active{% endif %}" id="booking-tab" data-bs-toggle="tab" data-bs-target="#tab-booking" type="button" role="tab" style="color: {% if active_tab == 'booking' or not active_tab %}var(--brand, #052042){% else %}#64748b{% endif %};">
+      <button class="nav-link {% if active_tab == 'booking' or not active_tab %}active{% endif %}" id="booking-tab" data-bs-toggle="tab" data-bs-target="#tab-booking" type="button" role="tab">
         <i class="fa-solid fa-calendar-check me-2"></i>Booking Template
         {% if booking_msg.is_confirmed %}
-        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
-        <span class="badge bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        <span class="badge tab-badge-default bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
         {% endif %}
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link fw-semibold px-4 py-2 {% if active_tab == 'followup' %}active{% endif %}" id="followup-tab" data-bs-toggle="tab" data-bs-target="#tab-followup" type="button" role="tab" style="color: {% if active_tab == 'followup' %}var(--brand, #052042){% else %}#64748b{% endif %};">
+      <button class="nav-link {% if active_tab == 'followup' %}active{% endif %}" id="followup-tab" data-bs-toggle="tab" data-bs-target="#tab-followup" type="button" role="tab">
         <i class="fa-solid fa-clock-rotate-left me-2"></i>Follow-up Template
         {% if followup_msg.is_confirmed %}
-        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
-        <span class="badge bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        <span class="badge tab-badge-default bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        {% endif %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'billing' %}active{% endif %}" id="billing-tab" data-bs-toggle="tab" data-bs-target="#tab-billing" type="button" role="tab">
+        <i class="fa-solid fa-receipt me-2"></i>Billing / Thank You Template
+        {% if billing_msg.is_confirmed %}
+        <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        {% else %}
+        <span class="badge tab-badge-default bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
         {% endif %}
       </button>
     </li>
@@ -162,7 +222,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
               <div>
                 <h6 class="fw-bold mb-0 text-dark">Follow-up Greeting Template</h6>
-                <small class="text-muted">Sent when patient enquiry follow-up is scheduled</small>
+                <small class="text-muted">Sent when patient enquiry follow-up is scheduled (New, Assigned, Follow-up, Lost stages)</small>
               </div>
               <div>
                 {% if followup_msg.is_confirmed %}
@@ -230,6 +290,96 @@
             <!-- WhatsApp Chat Bubble Simulation -->
             <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
               <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="followupPreviewText">
+                <!-- Live text populated by JavaScript -->
+              </div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
+                <i class="fa-solid fa-check-double text-primary"></i> Delivered
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Billing / Thank You Message -->
+    <div class="tab-pane fade {% if active_tab == 'billing' %}show active{% endif %}" id="tab-billing" role="tabpanel">
+      <div class="row g-3">
+        <!-- Editor Column -->
+        <div class="col-lg-7">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold mb-0 text-dark">Billing / Thank You for Visiting Template</h6>
+                <small class="text-muted">Sent when patient consultation is completed &amp; billing/payment is recorded</small>
+              </div>
+              <div>
+                {% if billing_msg.is_confirmed %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">
+                  Custom Active
+                </span>
+                {% else %}
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">
+                  System Default
+                </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="POST" id="billingMsgForm">
+              {% csrf_token %}
+              <input type="hidden" name="message_type" value="BILLING">
+              <input type="hidden" name="action" id="billingAction" value="save">
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark small mb-1">Message Content</label>
+                <textarea name="custom_text" id="billingCustomText" class="form-control" rows="10" style="font-size: 0.9rem; line-height: 1.55;" placeholder="Enter template text...">{{ billing_msg.custom_text|default:default_billing_text }}</textarea>
+                
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                  <span class="text-muted small">Insert tags:</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{patient_name}')">{patient_name}</button>
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_name}')">{hospital_name}</button>
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{branch_name}')">{branch_name}</button>
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_address}')">{hospital_address}</button>
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{doctor_name}')">{doctor_name}</button>
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{appointment_date}')">{appointment_date}</button>
+                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{user_name}')">{user_name}</button>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
+                <div>
+                  {% if billing_msg.is_confirmed %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-2 px-3" onclick="submitResetDefault('billingMsgForm', 'billingAction')">
+                    Reset to Default
+                  </button>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-light border rounded-2 px-3 fw-semibold text-secondary" onclick="saveDraft('billingMsgForm', 'billingAction')">
+                    Save Draft
+                  </button>
+                  <button type="button" class="btn btn-sm btn-primary rounded-2 px-3 fw-bold" onclick="openConfirmModal('BILLING', 'billingCustomText')">
+                    Confirm Custom Message
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Live Preview Column -->
+        <div class="col-lg-5">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <h6 class="fw-bold text-dark mb-0"><i class="fa-brands fa-whatsapp text-success me-1"></i>Message Preview</h6>
+              <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
+            </div>
+            
+            <!-- WhatsApp Chat Bubble Simulation -->
+            <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="billingPreviewText">
                 <!-- Live text populated by JavaScript -->
               </div>
               <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
@@ -317,6 +467,17 @@
       }
       fPreviewEl.textContent = raw;
     }
+
+    // 3. Billing Preview
+    const billTextEl = document.getElementById('billingCustomText');
+    const billPreviewEl = document.getElementById('billingPreviewText');
+    if (billTextEl && billPreviewEl) {
+      let raw = billTextEl.value;
+      for (const [k, v] of Object.entries(demoContext)) {
+        raw = raw.replaceAll(k, v);
+      }
+      billPreviewEl.textContent = raw;
+    }
   }
 
   function saveDraft(formId, actionId) {
@@ -352,14 +513,19 @@
     } else if (pendingConfirmType === 'FOLLOWUP') {
       document.getElementById('followupAction').value = 'confirm';
       document.getElementById('followupMsgForm').submit();
+    } else if (pendingConfirmType === 'BILLING') {
+      document.getElementById('billingAction').value = 'confirm';
+      document.getElementById('billingMsgForm').submit();
     }
   });
 
   document.addEventListener('DOMContentLoaded', function () {
     const bText = document.getElementById('bookingCustomText');
     const fText = document.getElementById('followupCustomText');
+    const billText = document.getElementById('billingCustomText');
     if (bText) bText.addEventListener('input', updatePreviews);
     if (fText) fText.addEventListener('input', updatePreviews);
+    if (billText) billText.addEventListener('input', updatePreviews);
     updatePreviews();
   });
 </script>

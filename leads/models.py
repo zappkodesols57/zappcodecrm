@@ -697,28 +697,101 @@ class Lead(models.Model):
         return "nan"
 
     @property
+    def display_stage(self):
+        """
+        Dynamically calculates human-readable pipeline Stage for the lead:
+        1. If Payment Done / Total > 0 -> 'Payment Done'
+        2. If Consultation Done / OPD Completed -> 'Consultation Completed'
+        3. If Appointment Confirmed -> 'Booking Confirmed'
+        4. If Approval Pending -> 'Doctor Approval Pending'
+        5. If Lost / Cancelled -> 'Lost' / 'Cancelled'
+        6. If Follow-ups exist or follow-up status -> 'Follow up'
+        7. If Assigned -> 'Assigned'
+        8. Default -> 'New'
+        """
+        cd = self.custom_data or {}
+        tot = self.total_billed_amount
+        st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
+        st_up = st_name.upper()
+        adm_st = str(self.admission_status or "").strip().upper()
+        appt_st = str(cd.get("appointment_status") or "").strip().upper()
+        raw_ds = str(cd.get("deal_status") or "").strip().upper()
+
+        if adm_st in ("LOST", "CANCELLED") or "CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up or "CANCEL" in appt_st or "LOST" in appt_st:
+            return "Cancelled" if ("CANCEL" in st_up or "CANCEL" in appt_st or adm_st == "CANCELLED") else "Lost"
+
+        if tot > 0 or "PAYMENT" in raw_ds or "PAYMENT" in appt_st or "PAYMENT" in st_up or (st_up == "PAYMENT" and cd.get("payment_status") == "Done"):
+            return "Payment Done"
+
+        if "COMPLET" in appt_st or "CONSULTATION COMPLETED" in appt_st or "COMPLET" in st_up or "WON" in raw_ds or adm_st == "WON":
+            return "Appointment Completed"
+
+        if "CONFIRM" in appt_st or "BOOKING CONFIRMED" in appt_st or "APPROVED" in appt_st:
+            return "Booking Confirmed"
+
+        if "AWAIT" in appt_st or "APPROVAL" in appt_st or "PENDING_APPROVAL" in appt_st or "AWAIT" in st_up:
+            return "Awaiting Approval from Doctor"
+
+        has_active_pending_fu = bool(self.next_followup_date)
+        if self.pk and hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
+            has_active_pending_fu = bool(self.followups.all())
+        elif self.pk:
+            from followups.models import FollowUp
+            has_active_pending_fu = FollowUp.objects.filter(lead=self).exists()
+
+        if has_active_pending_fu or "FOLLOW" in st_up:
+            return "Follow up"
+
+        if self.assigned_to_id or cd.get("lead_attendant"):
+            return "Assigned"
+
+        return st_name or "New"
+
+    @property
     def custom_temperature(self):
         """
         Calculates dynamic lead temperature based on remarks and status:
-        - If stage is Cancelled -> 'Freeze'
-        - Default / Newly Created / Fetched from Meta: 'Hot'
-        - Positive remarks / comments: Increase temperature (Freeze -> Cold -> Warm -> Hot)
-        - Negative remarks / comments: Decrease temperature by 1 step (Hot -> Warm -> Cold -> Freeze)
-        - Max temperature: Hot, Min temperature: Freeze
+        - Lost / Cancelled leads -> Always 'Freeze'
+        - Active for temperature: ONLY early stages ('New', 'Assigned', 'Follow up', 'Doctor Approval Pending')
+        - Once an appointment is Confirmed, Completed, or Payment is Done -> Temperature is not needed (returns None)
+        - Sequential temperature scale: Freeze -> Cold -> Warm -> Hot
         """
         st_name = (self.stage.name if self.stage_id and self.stage else "").strip().lower()
         adm_st = str(self.admission_status or "").strip().upper()
-        if st_name in ("cancelled", "lost") or adm_st in ("LOST", "CANCELLED") or self.deal_status == DealStatus.LOST:
+        cd = self.custom_data or {}
+        appt_st = str(cd.get("appointment_status") or "").strip().upper()
+        raw_ds = str(cd.get("deal_status") or "").strip().upper()
+        tot = self.total_billed_amount
+
+        # 1. Lost / Cancelled leads are ALWAYS Freeze
+        if (
+            st_name in ("cancelled", "lost", "not interested") 
+            or adm_st in ("LOST", "CANCELLED") 
+            or self.deal_status == DealStatus.LOST
+            or "CANCEL" in appt_st
+            or "LOST" in appt_st
+            or "NOT INT" in appt_st
+        ):
             return "Freeze"
 
-        if adm_st == "WON" or self.deal_status == DealStatus.WON or st_name in ("admission done", "payment done"):
-            return "Hot"
+        # 2. Beyond early stages (Confirmed Booking, Completed Consultation, Payment Done) -> Hide temperature (returns None)
+        if (
+            tot > 0 
+            or "PAYMENT" in raw_ds 
+            or "PAYMENT" in appt_st 
+            or "PAYMENT" in st_name.upper()
+            or "COMPLET" in appt_st 
+            or "CONFIRM" in appt_st
+            or "APPROVED" in appt_st
+            or adm_st == "WON"
+            or self.deal_status == DealStatus.WON
+        ):
+            return None
 
-        # Sequential temperature scale: FREEZE (0) -> COLD (1) -> WARM (2) -> HOT (3)
+        # 3. Early stages: New, Assigned, Follow-up, Doctor Approval Pending
         TEMP_LEVELS = ["Freeze", "Cold", "Warm", "Hot"]
 
-        # Base starting temperature level based on Admission Status:
-        # HOLD -> Cold (1), OPEN -> Warm (2), Default Fresh -> Hot (3)
+        # Base starting temperature:
         if adm_st == "HOLD" or self.deal_status == DealStatus.HOLD:
             base_level = 1  # Cold
         elif adm_st == "OPEN":
@@ -727,7 +800,7 @@ class Lead(models.Model):
             base_level = 3  # Hot
 
         pos_keywords = [
-            "INTERESTED", "CALLBACK", "POSITIVE", "WILL VISIT", "ASKED FOR DETAILS",
+            "INTERESTED", "INTRESTED", "INTREST", "CALLBACK", "POSITIVE", "WILL VISIT", "ASKED FOR DETAILS",
             "READY TO BOOK", "OPD VISIT", "ADMISSION PLANNED", "GOOD RESPONSE", "APPOINTMENT SCHEDULED",
             "VISIT PLANNED", "VISITED", "ADMISSION DONE", "PAYMENT DONE", "READY TO JOIN", "JOINING"
         ]
@@ -735,7 +808,9 @@ class Lead(models.Model):
             "CALL NOT REC", "NOT REC", "CALL CUT", "RINGING", "NOT PICK",
             "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE", "UNANSWERED",
             "WRONG NUMBER", "INVALID NUMBER", "OUT OF SERVICE", "NOT ANSWERING", "DNP",
-            "NOT INTERESTED", "NO RESPONSE", "CALL BACK LATER", "CALL DISCONNECTED", "REJECTED"
+            "NOT INTERESTED", "NOT INTRESTED", "NOT INTREST", "NO INTREST", "NO INTEREST",
+            "NOT REQUIRED", "NO REQUIREMENT", "DON'T WANT", "DONT WANT",
+            "NO RESPONSE", "CALL BACK LATER", "CALL DISCONNECTED", "REJECTED"
         ]
 
         def is_clean_val(v):
@@ -749,39 +824,60 @@ class Lead(models.Model):
 
         # Collect all interactions chronologically
         interactions = []
-        cd = self.custom_data or {}
         for r in [cd.get("remark_1"), cd.get("remark_2"), cd.get("remark_3"), cd.get("followup_remark"), cd.get("comments")]:
             if is_clean_val(r):
                 interactions.append(str(r).strip())
 
-        if self.pk and hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
-            for fu in self.followups.all():
-                if is_clean_val(fu.comment):
-                    interactions.append(str(fu.comment).strip())
-                if fu.followup_status in ["DNP", "NOT_INTERESTED", "NOT_CONNECTED", "CANCELLED"]:
-                    interactions.append(fu.get_followup_status_display())
-                elif fu.followup_status in ["INTERESTED", "COMPLETED", "DONE"]:
-                    interactions.append(fu.get_followup_status_display())
+        if self.pk:
+            if hasattr(self, '_prefetched_objects_cache') and 'lead_notes' in self._prefetched_objects_cache:
+                for n in self.lead_notes.all():
+                    if is_clean_val(n.note):
+                        interactions.append(str(n.note).strip())
+            else:
+                try:
+                    for n in self.lead_notes.all():
+                        if is_clean_val(n.note):
+                            interactions.append(str(n.note).strip())
+                except Exception:
+                    pass
+
+            if hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
+                for fu in self.followups.all():
+                    if is_clean_val(fu.comment):
+                        interactions.append(str(fu.comment).strip())
+                    if fu.followup_status in ["DNP", "NOT_INTERESTED", "NOT_CONNECTED", "CANCELLED"]:
+                        interactions.append(fu.get_followup_status_display())
+                    elif fu.followup_status in ["INTERESTED", "COMPLETED", "DONE"]:
+                        interactions.append(fu.get_followup_status_display())
+            else:
+                try:
+                    for fu in self.followups.all():
+                        if is_clean_val(fu.comment):
+                            interactions.append(str(fu.comment).strip())
+                        if fu.followup_status in ["DNP", "NOT_INTERESTED", "NOT_CONNECTED", "CANCELLED"]:
+                            interactions.append(fu.get_followup_status_display())
+                        elif fu.followup_status in ["INTERESTED", "COMPLETED", "DONE"]:
+                            interactions.append(fu.get_followup_status_display())
+                except Exception:
+                    pass
 
         # Start from base_level according to status
         current_level = base_level
-
-        # Active leads (OPEN, HOLD, WON) should not freeze below COLD solely due to calling remarks
-        min_level = 0 if (adm_st in ("LOST", "CANCELLED") or st_name in ("cancelled", "lost")) else 1
+        min_level = 0
 
         for text in interactions:
             is_pos = matches_any(text, pos_keywords)
             is_neg = matches_any(text, neg_keywords)
 
             if is_pos and not is_neg:
-                # Increase temperature 1 step (max Hot: 3)
                 current_level = min(3, current_level + 1)
             elif is_neg and not is_pos:
-                # Decrease temperature 1 step (respect min_level)
                 current_level = max(min_level, current_level - 1)
             elif is_pos and is_neg:
-                # If mixed, positive takes slight edge or stays stable
-                current_level = min(3, current_level + 1)
+                if "NOT" in str(text).upper() or "NO " in str(text).upper():
+                    current_level = max(min_level, current_level - 1)
+                else:
+                    current_level = min(3, current_level + 1)
 
         return TEMP_LEVELS[current_level]
 
@@ -869,7 +965,7 @@ class Lead(models.Model):
             from followups.models import FollowUp, FollowUpStatus
             has_active_pending_fu = FollowUp.objects.filter(lead=self, followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]).exists()
 
-        has_booking_pending = "PENDING" in appt_st_up or "AWAIT" in appt_st_up or "RESCHEDULE" in appt_st_up
+        has_booking_pending = "PENDING" in appt_st_up or "AWAIT" in appt_st_up or "RESCHEDULE" in appt_st_up or "AWAIT" in st_name.upper()
         is_payment_pending = (st_name == "payment" and cd.get("payment_status") != "Done") or "PAYMENT PENDING" in appt_st_up
 
         if has_active_pending_fu or has_booking_pending or is_payment_pending or ("FOLLOW" in st_name and has_active_pending_fu):
@@ -927,7 +1023,7 @@ class Lead(models.Model):
             return bool(s and s.lower() not in ('nan', 'none', '—', '-', '', 'null', 'nil', 'na', 'n/a'))
 
         # 1. Check custom_data calling remarks in reverse order (most recent first)
-        for k in ['remark_3', 'remark_2', 'remark_1', 'followup_remark', 'cancellation_reason', 'comments']:
+        for k in ['remark_3', 'remark_2', 'remark_1', 'followup_remark', 'cancellation_reason', 'calling_remark']:
             val = cd.get(k)
             if is_clean_text(val):
                 return str(val).strip()
@@ -944,11 +1040,63 @@ class Lead(models.Model):
             if latest_fu and is_clean_text(latest_fu.comment):
                 return str(latest_fu.comment).strip()
 
-        # 3. Check Lead.notes
+        # 3. Check custom_data comments or Lead.notes (Inquiry / Questions)
+        comm = cd.get('comments')
+        if is_clean_text(comm):
+            return str(comm).strip()
+
         if is_clean_text(self.notes):
             return str(self.notes).strip()
 
         return "—"
+
+    @property
+    def user_calling_remark(self):
+        """
+        Returns remarks entered ONLY by CRM users during calling / followups.
+        Returns empty string if no user has made a call interaction yet.
+        """
+        cd = self.custom_data or {}
+        def is_clean_text(v):
+            if not v:
+                return False
+            s = str(v).strip()
+            return bool(s and s.lower() not in ('nan', 'none', '—', '-', '', 'null', 'nil', 'na', 'n/a'))
+
+        for k in ['remark_3', 'remark_2', 'remark_1', 'followup_remark', 'cancellation_reason', 'calling_remark']:
+            val = cd.get(k)
+            if is_clean_text(val):
+                return str(val).strip()
+
+        if hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
+            for fu in self.followups.all():
+                if is_clean_text(fu.comment):
+                    return str(fu.comment).strip()
+        else:
+            latest_fu = self.followups.exclude(comment__in=['', None]).order_by('-id').first()
+            if latest_fu and is_clean_text(latest_fu.comment):
+                return str(latest_fu.comment).strip()
+
+        return ""
+
+    @property
+    def inquiry_notes(self):
+        """
+        Returns initial lead form questions, symptoms, or survey responses entered at lead creation time.
+        """
+        cd = self.custom_data or {}
+        def is_clean_text(v):
+            if not v:
+                return False
+            s = str(v).strip()
+            return bool(s and s.lower() not in ('nan', 'none', '—', '-', '', 'null', 'nil', 'na', 'n/a'))
+
+        comm = cd.get('comments') or cd.get('survey_notes') or cd.get('issue')
+        if is_clean_text(comm):
+            return str(comm).strip()
+        if is_clean_text(self.notes):
+            return str(self.notes).strip()
+        return ""
 
     @property
     def remark_detail(self):
@@ -1116,6 +1264,23 @@ class Lead(models.Model):
         super().save(*args, **kwargs)
 
     @property
+    def is_billing_done(self):
+        """Check if billing / payment is completed for this lead."""
+        cd = self.custom_data or {}
+        st = str(self.display_status or "").strip().lower()
+        if "payment done" in st or "billing done" in st or "won" in st:
+            return True
+        deal_st = str(cd.get("deal_status") or "").strip().lower()
+        if "payment" in deal_st or "admission" in deal_st or "won" in deal_st:
+            return True
+        apt_st = str(cd.get("appointment_status") or "").strip().lower()
+        if "payment" in apt_st:
+            return True
+        if cd.get("total") and str(cd.get("total")).strip() not in ["0", "0.0", "0.00", ""]:
+            return True
+        return False
+
+    @property
     def is_booked(self):
         """Check if lead has a confirmed booked appointment or status."""
         cd = self.custom_data or {}
@@ -1127,15 +1292,15 @@ class Lead(models.Model):
         apt_st = str(cd.get("appointment_status") or "").strip().lower()
         if "awaiting" in apt_st:
             return False
-        if "confirm" in apt_st or "complete" in apt_st or "done" in apt_st:
+        if "confirm" in apt_st or "complete" in apt_st or "done" in apt_st or "booked" in apt_st:
             return True
         return False
 
-    def get_dynamic_whatsapp_message(self, user=None, msg_type="BOOKING"):
+    def get_dynamic_whatsapp_message(self, user=None, msg_type=None):
         """
         Dynamically generates WhatsApp message text considering UserCustomMessage (if confirmed by user).
         Falls back to standard system generated message if not customized or not confirmed.
-        msg_type: 'BOOKING' or 'FOLLOWUP'
+        msg_type: 'BOOKING', 'FOLLOWUP', or 'BILLING' (auto-detected if None)
         """
         import urllib.parse
         from leads.models import UserCustomMessage
@@ -1153,6 +1318,15 @@ class Lead(models.Model):
         appt_time = str(cd.get("appointment_time") or "").strip()
         agent_user = user or self.assigned_to or self.created_by
         agent_name = (agent_user.get_full_name() or agent_user.username if agent_user else "Patient Care Team").strip()
+
+        # Determine effective message type if not passed
+        if not msg_type:
+            if self.is_billing_done:
+                msg_type = "BILLING"
+            elif self.is_booked:
+                msg_type = "BOOKING"
+            else:
+                msg_type = "FOLLOWUP"
 
         # Check for confirmed UserCustomMessage for this user
         custom_obj = None
@@ -1178,7 +1352,18 @@ class Lead(models.Model):
                 text = text.replace(k, str(v))
         else:
             # Default System Generated Templates
-            if msg_type == "BOOKING" or self.is_booked:
+            if msg_type == "BILLING":
+                date_part = f" on {appt_date}" if appt_date else ""
+                text = (
+                    f"Hello {patient_name},\n\n"
+                    f"Thank you for visiting {hosp_name} ({branch_name})!\n\n"
+                    f"Your consultation with {doc_name}{date_part} has been completed successfully.\n\n"
+                    f"We truly appreciate having the opportunity to care for your health and well-being. If you have any follow-up questions, prescription queries, or require further medical assistance, please feel free to reach out to us.\n\n"
+                    f"Hospital Address: {hosp_address}\n\n"
+                    f"Wishing you great health and a speedy recovery!\n\n"
+                    f"Warm Regards,\n{agent_name}\nPatient Care Team - {hosp_name}"
+                )
+            elif msg_type == "BOOKING":
                 date_part = f" on {appt_date}" if appt_date else ""
                 time_part = f" at {appt_time}" if appt_time else ""
                 text = (
@@ -1191,6 +1376,7 @@ class Lead(models.Model):
                     f"Warm Regards,\n{agent_name}\n{hosp_name}"
                 )
             else:
+                # FOLLOWUP template for new, assigned, follow up, lost, enquiry leads
                 text = (
                     f"Hello {patient_name},\n\n"
                     f"Thank you for your enquiry with {hosp_name} ({branch_name})!\n\n"
@@ -1208,7 +1394,12 @@ class Lead(models.Model):
         Dynamically returns URL-encoded WhatsApp message.
         """
         import urllib.parse
-        msg_type = "BOOKING" if self.is_booked else "FOLLOWUP"
+        if self.is_billing_done:
+            msg_type = "BILLING"
+        elif self.is_booked:
+            msg_type = "BOOKING"
+        else:
+            msg_type = "FOLLOWUP"
         text = self.get_dynamic_whatsapp_message(msg_type=msg_type)
         return urllib.parse.quote(text)
 
@@ -1378,13 +1569,22 @@ class DoctorLeave(models.Model):
 class UserCustomMessage(models.Model):
     """
     Custom WhatsApp message templates defined by User or Hospital.
-    Supports 2 message types:
+    Supports 3 message types:
     - 'BOOKING': Appointment Confirmation Message
     - 'FOLLOWUP': Thank you for Enquiry & Follow-up Message
+    - 'BILLING': Thank you for Visiting & Payment/Billing Completed Message
     """
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="custom_messages")
     hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="custom_messages")
-    message_type = models.CharField(max_length=20, choices=[("BOOKING", "Booking Message"), ("FOLLOWUP", "Follow-up Message")], db_index=True)
+    message_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("BOOKING", "Booking Message"),
+            ("FOLLOWUP", "Follow-up Message"),
+            ("BILLING", "Billing / Thank You Message"),
+        ],
+        db_index=True,
+    )
     custom_text = models.TextField(blank=True, help_text="Custom template text with placeholders like {patient_name}, {hospital_name}, {branch_name}, {hospital_address}, {doctor_name}, {appointment_date}, {appointment_time}, {user_name}")
     is_confirmed = models.BooleanField(default=False, help_text="True if user has confirmed using this custom template over system default")
     created_at = models.DateTimeField(auto_now_add=True)

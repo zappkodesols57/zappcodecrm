@@ -1,24 +1,28 @@
 {% if user.is_authenticated %}
 <nav class="sidebar" id="sidebar">
-  <div class="brand"
-    style="padding: 1.1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06);">
-    <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+  <div class="brand sidebar-brand-header">
+    <div class="sidebar-brand-inner">
       {% if user.hospital and user.hospital.logo %}
-      <img src="{{ user.hospital.logo.url }}" alt="{{ user.hospital.name }}"
-        style="max-height: 28px; max-width: 90px; object-fit: contain;">
+      <div class="sidebar-logo-wrap">
+        <img src="{{ user.hospital.logo.url }}" alt="{{ user.hospital.name }}" class="sidebar-brand-logo">
+      </div>
       <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">CRM</span>
       {% elif user.industry == 'HOSPITAL' %}
-      <i class="fa-solid fa-hospital section-icon" style="color: #ffffff; font-size: 1.2rem;"></i>
+      <div class="sidebar-logo-wrap">
+        <i class="fa-solid fa-hospital section-icon" style="color: #ffffff; font-size: 1.25rem;"></i>
+      </div>
       <span class="brand-text" style="font-weight: 700; color: #ffffff; font-size: 1rem; white-space: nowrap;">{{ user.hospital.name|truncatechars:14 }}</span>
       {% else %}
+      <div class="sidebar-logo-wrap">
+        <i class="fa-solid fa-bolt" style="color: #60a5fa; font-size: 1.25rem;"></i>
+      </div>
       <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">
         ZAPPCODE <span style="font-weight: 400; opacity: 0.85;">CRM</span>
       </span>
       {% endif %}
     </div>
     <button type="button" class="sidebar-minimize-btn brand-text d-none d-lg-flex" id="sidebarInnerToggleBtn"
-      title="Minimize / Expand Sidebar"
-      style="border: none; background: rgba(255,255,255,0.08); color: #cbd5e1; border-radius: 4px; padding: 4px 7px;">
+      title="Minimize / Expand Sidebar">
       <i class="fa-solid fa-chevron-left" id="sidebarInnerToggleIcon" style="font-size: 0.75rem;"></i>
     </button>
   </div>
