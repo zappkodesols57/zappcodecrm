@@ -2218,6 +2218,21 @@ def lead_add(request):
     FormClass = HospitalLeadForm if is_hospital else LeadForm
     template = "hospital/leads/lead_form.html" if is_hospital else "academy/leads/lead_form.html"
     
+    # Available hospital branches for transfer
+    available_branches = []
+    if is_hospital:
+        from leads.models import HospitalBranch
+        b_qs = HospitalBranch.objects.filter(is_active=True)
+        if request.user.hospital:
+            b_qs = b_qs.filter(hospital=request.user.hospital)
+        available_branches = list(b_qs.order_by("name"))
+        
+    # Custom WhatsApp message templates for user
+    from leads.models import UserCustomMessage
+    custom_booking_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BOOKING", is_confirmed=True).first()
+    custom_followup_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="FOLLOWUP", is_confirmed=True).first()
+    custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
+    
     if request.method == "POST":
         form = FormClass(request.POST, user=request.user)
         force = request.POST.get("force_create") == "1"
@@ -2227,7 +2242,11 @@ def lead_add(request):
                 duplicates = Lead.objects.filter(mobile=mobile, is_archived=False)
                 if duplicates.exists():
                     return render(request, template, {
-                        "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates
+                        "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
+                        "available_branches": available_branches,
+                        "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
+                        "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
+                        "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
                     })
             lead = form.save(commit=False)
             lead.created_by = request.user
@@ -2361,16 +2380,7 @@ def lead_add(request):
     else:
         from django.utils import timezone
         form = FormClass(initial={"inquiry_date": timezone.localdate()}, user=request.user)
-    
-    # Custom WhatsApp message templates for user
-    from leads.models import UserCustomMessage
-    custom_booking_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BOOKING", is_confirmed=True).first()
-    custom_followup_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="FOLLOWUP", is_confirmed=True).first()
-    custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
-    # Available hospital branches for transfer
-    from accounts.models import HospitalBranch
-    available_branches = list(HospitalBranch.objects.filter(hospital=request.user.hospital, is_active=True).values_list("name", flat=True)) if request.user.hospital else []
-
+        
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
         "available_branches": available_branches,
@@ -2772,6 +2782,7 @@ def lead_edit(request, pk):
         "form": form,
         "mode": "Edit",
         "obj": lead,
+        "lead": lead,
         "cancel_url": cancel_url,
         "is_view_only": is_view_only,
         "is_doctor": is_doctor,

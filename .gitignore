@@ -88,5 +88,6 @@ sync_hospital_masters.py
 inspect_*.py
 scratch/
 *.xml
+celerybeat-schedule*
 
 HOSPITAL_LEAD_LIFECYCLE_FLOWCHART.md

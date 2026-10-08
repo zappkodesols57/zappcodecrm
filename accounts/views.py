@@ -502,15 +502,19 @@ def user_add(request):
             user = form.save(commit=False)
             user.is_active = True
             user.is_approved = True
-            user.save()
-            log_action("Employee Created by Admin", user, user=request.user)
+            try:
+                from django.db import IntegrityError
+                user.save()
+                log_action("Employee Created by Admin", user, user=request.user)
 
-            # Auto-sync DOCTOR role users to HospitalDoctor and MasterItem
-            if user.role == User.Role.DOCTOR:
-                sync_doctor_profile(user)
+                # Auto-sync DOCTOR role users to HospitalDoctor and MasterItem
+                if user.role == User.Role.DOCTOR:
+                    sync_doctor_profile(user)
 
-            messages.success(request, f"Employee user '{user.username}' created successfully.")
-            return redirect("accounts:user_list")
+                messages.success(request, f"Employee user '{user.username}' created successfully.")
+                return redirect("accounts:user_list")
+            except IntegrityError:
+                messages.error(request, f"A user with username '{user.username}' already exists. Please choose another one.")
     else:
         form = CRMUserCreateForm(user=request.user)
         

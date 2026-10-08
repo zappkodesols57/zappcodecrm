@@ -22,6 +22,7 @@ from imports.models import ImportJob
 from followups.models import FollowUp
 from dashboard.helpers import filter_uncontacted_leads_ids, extract_lead_followup_date, _get_effective_hospital
 
+@login_required
 def telecaller_home(request):
     from accounts.models import User
     from leads.models import Lead, LeadTemperature, DealStatus, Appointment, AppointmentStatus
