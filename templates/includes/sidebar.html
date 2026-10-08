@@ -390,7 +390,7 @@
       <div
         class="collapse {% if active in 'settings course_master hospital-profile hospital_profile hospital_config universal_masters' %}show{% endif %} nav-sub-items"
         id="sec_master_mgmt">
-        {% if user.industry == 'HOSPITAL' or active_business and active_business.industry == 'HOSPITAL' %}
+        {% if user.industry == 'HOSPITAL' or active_business and active_business.industry == 'HOSPITAL' or user.role == 'SUPER_ADMIN' or user.is_superuser %}
         <a class="nav-link {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if active == 'hospital-profile' or active == 'hospital_profile' or active_tab == 'profile' %}active{% endif %}"
           href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
           <i class="fa-solid fa-id-card"></i> <span class="nav-text">Hospital Profile</span>
@@ -399,7 +399,8 @@
           href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration">
           <i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span>
         </a>
-        {% else %}
+        {% endif %}
+        {% if user.industry != 'HOSPITAL' or user.role == 'SUPER_ADMIN' or user.is_superuser %}
         <a class="nav-link {% if active == 'settings' %}active{% endif %}" href="{% url 'leads:masters' %}"
           title="Master Data"><i class="fa-solid fa-database"></i> <span class="nav-text">Master Data</span></a>
         <a class="nav-link {% if active == 'course_master' %}active{% endif %}" href="{% url 'leads:course_master' %}"

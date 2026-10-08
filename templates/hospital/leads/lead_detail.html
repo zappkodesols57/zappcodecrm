@@ -316,8 +316,10 @@
                 <div class="crm-val">
                   {% if latest_appointment.status == 'COMPLETED' or lead.custom_data.appointment_status == 'Completed' or lead.display_status == 'Completed' or lead.display_status == 'Won' %}
                     <span class="crm-badge-lightblue">Completed</span>
-                  {% elif latest_appointment.status == 'CANCELLED' or 'DOCTOR CANCELLED' in lead.custom_data.appointment_status.upper or 'DOCTOR REJECT' in lead.custom_data.appointment_status.upper or lead.display_stage == 'Appointment Cancelled' %}
+                  {% elif 'DOCTOR CANCELLED' in lead.custom_data.appointment_status.upper or 'DOCTOR REJECT' in lead.custom_data.appointment_status.upper or lead.display_stage == 'Appointment Cancelled' %}
                     <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.74rem; font-weight: 600;">Cancelled by Doctor</span>
+                  {% elif latest_appointment.status == 'CANCELLED' or lead.custom_data.appointment_status == 'Cancelled' or lead.display_stage == 'Cancelled' or lead.display_status == 'Lost' %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.74rem; font-weight: 600;">Cancelled / Lost</span>
                   {% elif latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Confirmed' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
                     <span class="crm-badge-lightblue">Confirmed</span>
                   {% elif latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Approval Pending' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper or 'ASSIGNED' in lead.custom_data.appointment_status.upper %}

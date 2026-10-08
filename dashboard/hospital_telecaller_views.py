@@ -289,10 +289,9 @@ def telecaller_home(request):
         is_doctor_rejected = (
             'doctor cancel' in p_st_lower or
             'doctor reject' in p_st_lower or
-            'cancel' in p_st_lower or
             (l.stage and 'appointment cancelled' in l.stage.name.lower()) or
             bool(cd_l.get('doctor_rejection_reason')) or
-            (hasattr(l, '_prefetched_objects_cache') and any(a.status == AppointmentStatus.CANCELLED for a in l.appointments.all()))
+            (hasattr(l, '_prefetched_objects_cache') and any(a.status == AppointmentStatus.CANCELLED and bool(a.doctor_notes or a.doctor_user) for a in l.appointments.all()))
         )
 
         if is_doctor_rejected and not is_completed:
@@ -956,10 +955,9 @@ def telecaller_tab_data_api(request):
             is_doctor_rejected = (
                 'doctor cancel' in p_st_lower or
                 'doctor reject' in p_st_lower or
-                'cancel' in p_st_lower or
                 (l.stage and 'appointment cancelled' in l.stage.name.lower()) or
                 bool(cd_l.get('doctor_rejection_reason')) or
-                (hasattr(l, '_prefetched_objects_cache') and any(a.status == AppointmentStatus.CANCELLED for a in l.appointments.all()))
+                (hasattr(l, '_prefetched_objects_cache') and any(a.status == AppointmentStatus.CANCELLED and bool(a.doctor_notes or a.doctor_user) for a in l.appointments.all()))
             )
 
             if tab == 'appointments_rejected':
