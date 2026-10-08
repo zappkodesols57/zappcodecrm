@@ -1411,14 +1411,14 @@ class HospitalLeadForm(forms.ModelForm):
             if not remark_text:
                 remark_text = f"Updated lead status to {appo_status or instance.get_deal_status_display()}"
 
-            # If Cancelled or Not Interested: complete any existing pending followups
-            if is_cancelled_or_not_interested:
+            # If Cancelled, Not Interested, or Payment Done (Won): complete existing pending followups
+            if is_cancelled_or_not_interested or has_payment or is_already_completed:
                 instance.followups.filter(
                     followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]
                 ).update(followup_status=FollowUpStatus.COMPLETED)
 
-            # If a new follow-up date is scheduled
-            elif fu_date:
+            # If a new follow-up date is scheduled (only if not payment done, or if explicitly given for future)
+            if fu_date and not (has_payment or is_already_completed):
                 # Mark previous pending follow-ups as COMPLETED since a new date is scheduled
                 instance.followups.filter(
                     followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]

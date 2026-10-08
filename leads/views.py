@@ -738,6 +738,14 @@ def lead_list(request):
             active_leads = active_leads.filter(
                 Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
             )
+        elif request.user.role == User.Role.DOCTOR:
+            doc_name = (request.user.get_full_name() or request.user.username).strip()
+            active_leads = active_leads.filter(
+                Q(assigned_to=request.user) |
+                Q(appointments__doctor_user=request.user) |
+                Q(appointments__doctor_name__icontains=doc_name) |
+                Q(custom_data__doctor__icontains=doc_name)
+            ).distinct()
     elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
         active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
     
@@ -2613,9 +2621,9 @@ def lead_edit(request, pk):
                             time_same = (str(existing_apt.appointment_time)[:5] == str(raw_appo_time)[:5])
                         slot_is_same = (date_same and time_same)
 
-                    # Check if telecaller is confirming slot set by doctor
-                    if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes', 'schedul']):
-                        if slot_is_same and existing_apt:
+                    # Check if telecaller is confirming slot set by doctor (only if appointment is in SCHEDULED/PENDING state, NOT if CANCELLED by doctor)
+                    if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes']) and not is_won:
+                        if slot_is_same and existing_apt and existing_apt.status == AppointmentStatus.SCHEDULED:
                             # Slot kept exactly as doctor setup -> auto-approve without asking doctor for re-approval
                             existing_apt.status = AppointmentStatus.APPROVED
                             existing_apt.save(update_fields=['status'])

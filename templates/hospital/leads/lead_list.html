@@ -195,7 +195,7 @@
 {% block content %}
 
 <!-- 1. CAMPAIGNS BREAKDOWN SECTION (Distinct, Modern Cards Without Icons) -->
-{% if campaign_breakdown %}
+{% if campaign_breakdown and request.user.role != 'DOCTOR' %}
 <div class="mb-3">
   <div class="campaign-cards-container">
     <!-- All Campaigns Card -->
