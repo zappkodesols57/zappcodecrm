@@ -4,13 +4,14 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h4 class="mb-0 fw-bold text-dark">{{ mode }} Business</h4>
+    <p class="text-muted small mb-0">Configure business entity details, industry workflows, and multiple branches.</p>
   </div>
   <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
 </div>
 
 <div class="card shadow-sm border-0 rounded-3 w-100">
   <div class="card-body p-4">
-    <form method="post">
+    <form method="post" id="businessForm">
       {% csrf_token %}
       
       <div class="row g-3">
@@ -50,9 +51,88 @@
 
         <!-- Address -->
         <div class="col-md-12">
-          <label class="form-label small fw-semibold text-dark">Address / Location</label>
+          <label class="form-label small fw-semibold text-dark">Headquarters / Main Address</label>
           {{ form.address }}
           {% if form.address.errors %}<div class="text-danger small mt-1">{{ form.address.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <!-- MULTIPLE BRANCHES CREATION SECTION -->
+        <div class="col-md-12 mt-3">
+          <div class="card border rounded-3 p-3 bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <label class="form-label fw-bold text-dark mb-0">
+                  <i class="fa-solid fa-code-branch text-primary me-1"></i> Create Branches under this Business
+                </label>
+                <div class="text-muted small" style="font-size: 0.78rem;">
+                  Add multiple branches (e.g. Main Clinic, City Branch, West Hub). Users and leads can be assigned per branch.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-sm" onclick="addBranchRow()">
+                <i class="fa-solid fa-plus me-1"></i> Add Branch
+              </button>
+            </div>
+
+            <div class="table-responsive bg-white rounded border mt-2">
+              <table class="table table-hover table-bordered align-middle mb-0" id="branchesTable">
+                <thead class="table-light">
+                  <tr class="small text-secondary">
+                    <th style="width: 35%;">Branch Name <span class="text-danger">*</span></th>
+                    <th style="width: 25%;">City / Area</th>
+                    <th style="width: 20%;">Branch Code</th>
+                    <th style="width: 12%; text-align: center;">Main Branch</th>
+                    <th style="width: 8%; text-align: center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="branchRowsContainer">
+                  {% if branches %}
+                    {% for b in branches %}
+                    <tr class="branch-row">
+                      <td>
+                        <input type="text" name="branch_names[]" class="form-control form-control-sm" value="{{ b.name }}" placeholder="e.g. Dhantoli Center" required>
+                      </td>
+                      <td>
+                        <input type="text" name="branch_cities[]" class="form-control form-control-sm" value="{{ b.city }}" placeholder="e.g. Nagpur">
+                      </td>
+                      <td>
+                        <input type="text" name="branch_codes[]" class="form-control form-control-sm" value="{{ b.code }}" placeholder="e.g. DHAN-01">
+                      </td>
+                      <td class="text-center">
+                        <input class="form-check-input" type="radio" name="main_branch_index" value="{{ forloop.counter0 }}" {% if b.is_main_branch or forloop.first %}checked{% endif %}>
+                      </td>
+                      <td class="text-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm p-1 rounded-circle remove-branch-btn" onclick="removeBranchRow(this)" title="Remove Branch">
+                          <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                    <!-- Default Initial Branch Row -->
+                    <tr class="branch-row">
+                      <td>
+                        <input type="text" name="branch_names[]" class="form-control form-control-sm" value="Main Branch" placeholder="e.g. Main Branch" required>
+                      </td>
+                      <td>
+                        <input type="text" name="branch_cities[]" class="form-control form-control-sm" placeholder="e.g. City / Locality">
+                      </td>
+                      <td>
+                        <input type="text" name="branch_codes[]" class="form-control form-control-sm" placeholder="e.g. BR-01">
+                      </td>
+                      <td class="text-center">
+                        <input class="form-check-input" type="radio" name="main_branch_index" value="0" checked>
+                      </td>
+                      <td class="text-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm p-1 rounded-circle remove-branch-btn" onclick="removeBranchRow(this)" title="Remove Branch">
+                          <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- Allowed Roles for this Business -->
@@ -89,10 +169,67 @@
       </div>
 
       <div class="d-flex gap-2 mt-4 pt-3 border-top">
-        <button type="submit" class="btn btn-brand text-white fw-bold px-4 rounded-pill shadow-sm"><i class="fa-solid fa-check me-1"></i> Save Business</button>
+        <button type="submit" class="btn btn-brand text-white fw-bold px-4 rounded-pill shadow-sm"><i class="fa-solid fa-check me-1"></i> Save Business & Branches</button>
         <a href="{% url 'accounts:business_list' %}" class="btn btn-outline-secondary px-3 rounded-pill">Cancel</a>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  function updateBranchRadioValues() {
+    const rows = document.querySelectorAll("#branchRowsContainer .branch-row");
+    rows.forEach((row, idx) => {
+      const radio = row.querySelector("input[type='radio'][name='main_branch_index']");
+      if (radio) {
+        radio.value = idx;
+      }
+    });
+  }
+
+  function addBranchRow() {
+    const container = document.getElementById("branchRowsContainer");
+    const count = container.querySelectorAll(".branch-row").length;
+    const tr = document.createElement("tr");
+    tr.className = "branch-row";
+    tr.innerHTML = `
+      <td>
+        <input type="text" name="branch_names[]" class="form-control form-control-sm" placeholder="e.g. Branch ${count + 1}" required>
+      </td>
+      <td>
+        <input type="text" name="branch_cities[]" class="form-control form-control-sm" placeholder="e.g. City / Locality">
+      </td>
+      <td>
+        <input type="text" name="branch_codes[]" class="form-control form-control-sm" placeholder="e.g. BR-0${count + 1}">
+      </td>
+      <td class="text-center">
+        <input class="form-check-input" type="radio" name="main_branch_index" value="${count}">
+      </td>
+      <td class="text-center">
+        <button type="button" class="btn btn-outline-danger btn-sm p-1 rounded-circle remove-branch-btn" onclick="removeBranchRow(this)" title="Remove Branch">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </td>
+    `;
+    container.appendChild(tr);
+    updateBranchRadioValues();
+  }
+
+  function removeBranchRow(btn) {
+    const container = document.getElementById("branchRowsContainer");
+    const rows = container.querySelectorAll(".branch-row");
+    if (rows.length <= 1) {
+      alert("At least one branch is recommended for a business.");
+      return;
+    }
+    const row = btn.closest(".branch-row");
+    const wasChecked = row.querySelector("input[type='radio']").checked;
+    row.remove();
+    updateBranchRadioValues();
+    if (wasChecked) {
+      const firstRadio = container.querySelector("input[type='radio'][name='main_branch_index']");
+      if (firstRadio) firstRadio.checked = true;
+    }
+  }
+</script>
 {% endblock %}

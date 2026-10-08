@@ -22,6 +22,7 @@ from imports.models import ImportJob
 from followups.models import FollowUp
 from dashboard.helpers import filter_uncontacted_leads_ids, extract_lead_followup_date, _get_effective_hospital
 
+@login_required
 def superadmin_home(request):
     """
     Dedicated interactive analytics dashboard for SuperAdmins, Admins, and Managers.
@@ -38,8 +39,13 @@ def superadmin_home(request):
     from datetime import datetime, date
     from collections import defaultdict
 
-    if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
+    if not request.user.is_authenticated or not hasattr(request.user, 'role') or request.user.role not in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
         return redirect("dashboard:home")
+
+    # If this is a Hospital Admin/Manager accessing /dashboard/superadmin/, route cleanly to /dashboard/hospital/admin/
+    if request.user.hospital and request.path.rstrip('/') == '/dashboard/superadmin':
+        query = request.GET.urlencode()
+        return redirect(f"{reverse('dashboard:hospital_admin_home')}?{query}" if query else "dashboard:hospital_admin_home")
 
     today = timezone.localdate()
     user = request.user
@@ -51,7 +57,8 @@ def superadmin_home(request):
     session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
 
     if user.hospital:
-        # Tenant Admin / Manager: restricted to their assigned business
+        # Tenant Admin / Manager: strictly restricted to their assigned business
+        effective_hospital = user.hospital
         selected_hospital_id = str(user.hospital.id)
         base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
         if user.role == User.Role.MANAGER and user.branch:
@@ -66,10 +73,13 @@ def superadmin_home(request):
     else:
         selected_hospital_id = raw_biz or raw_hosp or session_biz
         if selected_hospital_id and selected_hospital_id.isdigit():
+            effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
             base_leads = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
         elif selected_hospital_id in ("none", "zappcode"):
+            effective_hospital = None
             base_leads = Lead.objects.filter(is_archived=False, hospital__isnull=True)
         else:
+            effective_hospital = None
             selected_hospital_id = ""
             base_leads = Lead.objects.filter(is_archived=False)
 
@@ -77,10 +87,26 @@ def superadmin_home(request):
         if industry_filter:
             base_leads = base_leads.filter(hospital__industry=industry_filter)
 
-    # Master lists for dropdowns
+    # Master lists for dropdowns - strictly scoped to business/industry
     all_businesses = Hospital.objects.filter(is_active=True).order_by("name")
     industry_choices = Hospital.Industry.choices
+    
+    # Telecallers strictly for this hospital/business
+    if effective_hospital:
+        telecaller_users = User.objects.filter(
+            hospital=effective_hospital,
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            is_active=True
+        ).order_by('first_name', 'username')
+    else:
+        telecaller_users = User.objects.filter(
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            is_active=True
+        ).order_by('first_name', 'username')
+
+    # Stages choices
     stage_choices = list(LeadStage.objects.filter(is_active=True).values_list('name', flat=True).distinct().order_by('order', 'name'))
+    
     deal_status_choices = [
         ("NEW", "New"),
         ("OPEN", "Open"),
@@ -95,10 +121,10 @@ def superadmin_home(request):
         ("FREEZE", "Freeze"),
     ]
 
-    # Dynamic filter caches
+    # Dynamic filter caches strictly for this business
     from django.core.cache import cache
     cache_scope = f"{selected_hospital_id or 'all'}_{industry_filter or 'all'}"
-    cache_key = f"dash_filters_v4_{cache_scope}"
+    cache_key = f"dash_filters_v5_{cache_scope}"
     filter_cache_data = cache.get(cache_key)
 
     if not filter_cache_data:
@@ -109,16 +135,19 @@ def superadmin_home(request):
         raw_loc_set = set()
         db_years_set = set()
 
+        # Gather choices from Lead database
         for row in base_leads.order_by().values('location', 'campaign__name', 'lead_source__name', 'custom_data', 'inquiry_date', 'created_at'):
             c_rel = row.get('campaign__name')
-            if c_rel and c_rel != 'nan':
-                raw_campaign_set.add(c_rel)
+            if c_rel and str(c_rel).strip().lower() not in ['nan', 'none', '']:
+                raw_campaign_set.add(str(c_rel).strip())
             s_rel = row.get('lead_source__name')
-            if s_rel and s_rel != 'nan':
-                raw_source_set.add(s_rel)
+            if s_rel and str(s_rel).strip().lower() not in ['nan', 'none', '']:
+                raw_source_set.add(str(s_rel).strip())
             loc_col = row.get('location')
-            if loc_col and loc_col not in ['nan', 'Not Mentioned', '']:
-                raw_loc_set.add(loc_col)
+            if loc_col:
+                loc_s = str(loc_col).strip()
+                if loc_s.lower() not in ['nan', 'none', 'not mentioned', ''] and not any(u in loc_s.lower() for u in ['http:', 'https:', 'www.', 'facebook.com', 'fb.com', 'instagram.com', 'youtube.com']):
+                    raw_loc_set.add(loc_s.title())
 
             inq_d = row.get('inquiry_date')
             if inq_d:
@@ -129,23 +158,35 @@ def superadmin_home(request):
             cd = row.get('custom_data') or {}
             if isinstance(cd, dict):
                 c_custom = cd.get('campaign')
-                if c_custom and c_custom != 'nan':
-                    raw_campaign_set.add(c_custom)
+                if c_custom and str(c_custom).strip().lower() not in ['nan', 'none', '']:
+                    raw_campaign_set.add(str(c_custom).strip())
                 s_custom = cd.get('lead_source')
-                if s_custom and s_custom != 'nan':
-                    raw_source_set.add(s_custom)
+                if s_custom and str(s_custom).strip().lower() not in ['nan', 'none', '']:
+                    raw_source_set.add(str(s_custom).strip())
                 d_custom = cd.get('department')
-                if d_custom and d_custom != 'nan':
-                    raw_dept_set.add(d_custom)
+                if d_custom and str(d_custom).strip().lower() not in ['nan', 'none', '']:
+                    raw_dept_set.add(str(d_custom).strip().upper())
                 loc_custom = cd.get('location')
-                if loc_custom and loc_custom not in ['nan', 'Not Mentioned', '']:
-                    raw_loc_set.add(loc_custom)
+                if loc_custom:
+                    loc_cs = str(loc_custom).strip()
+                    if loc_cs.lower() not in ['nan', 'none', 'not mentioned', ''] and not any(u in loc_cs.lower() for u in ['http:', 'https:', 'www.', 'facebook.com', 'fb.com', 'instagram.com', 'youtube.com']):
+                        raw_loc_set.add(loc_cs.title())
                 d_entry = cd.get('doctor')
-                if d_entry and str(d_entry).strip() not in ['nan', 'Not Mentioned', '']:
+                if d_entry and str(d_entry).strip().lower() not in ['nan', 'none', 'not mentioned', 'docotor', 'doctor', '']:
                     for single_d in str(d_entry).split(','):
-                        d_clean = single_d.strip()
-                        if d_clean and d_clean not in ['Not Mentioned', 'DOCOTOR', 'DOCTOR']:
+                        d_clean = single_d.strip().title()
+                        if d_clean and d_clean.lower() not in ['not mentioned', 'docotor', 'doctor', 'nan', 'none']:
                             raw_doc_set.add(d_clean)
+
+        # Include official HospitalDepartment and HospitalDoctor records if applicable
+        from leads.models import HospitalDepartment, HospitalDoctor
+        if effective_hospital:
+            for dept_obj in HospitalDepartment.objects.filter(hospital=effective_hospital, is_active=True):
+                if dept_obj.name:
+                    raw_dept_set.add(dept_obj.name.strip().upper())
+            for doc_obj in HospitalDoctor.objects.filter(hospital=effective_hospital, is_active=True):
+                if doc_obj.name:
+                    raw_doc_set.add(doc_obj.name.strip().title())
 
         raw_campaigns = sorted(list(raw_campaign_set))
         raw_sources = sorted(list(raw_source_set))
@@ -169,7 +210,7 @@ def superadmin_home(request):
             "raw_months": raw_months,
             "available_years": available_years,
         }
-        cache.set(cache_key, filter_cache_data, 1800)
+        cache.set(cache_key, filter_cache_data, 600)
     else:
         raw_campaigns = filter_cache_data["raw_campaigns"]
         raw_sources = filter_cache_data["raw_sources"]
@@ -181,11 +222,13 @@ def superadmin_home(request):
         available_years = filter_cache_data["available_years"]
 
     # 2. Extract GET Filter Parameters
+    search_query = request.GET.get('q', '').strip()
     time_filter = request.GET.get('time_filter', '').strip()
     custom_start = request.GET.get('start_date', '').strip()
     custom_end = request.GET.get('end_date', '').strip()
     stage_filter = request.GET.get('stage', '').strip()
     deal_status_filter = request.GET.get('deal_status', '').strip()
+    telecaller_filter = request.GET.get('telecaller', '').strip()
     temperature_filter = request.GET.get('temperature', '').strip()
     campaign_filter = request.GET.get('campaign', '').strip()
     source_filter = request.GET.get('source', '').strip()
@@ -194,29 +237,29 @@ def superadmin_home(request):
     location_filter = request.GET.get('location', '').strip()
     final_status_filter = request.GET.get('final_lead_status', '').strip()
 
-    # 3. Apply Filters:
-    has_specific_dropdown = any([
-        industry_filter, selected_hospital_id, stage_filter, deal_status_filter,
-        temperature_filter, campaign_filter, source_filter, department_filter,
-        doctor_filter, location_filter, final_status_filter
-    ])
+    # Search Query
+    if search_query:
+        base_leads = base_leads.filter(
+            Q(name__icontains=search_query) |
+            Q(mobile__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(lead_code__icontains=search_query) |
+            Q(custom_data__icontains=search_query)
+        )
 
-    if custom_start or custom_end:
-        time_filter = 'custom'
-    elif has_specific_dropdown:
-        time_filter = 'all_time'
-    elif not time_filter:
-        time_filter = 'today'
-
-    start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
-    end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
-    today_str = today.isoformat()
-
-    start_of_month = timezone.make_aware(datetime(today.year, today.month, 1, 0, 0, 0))
-    _, last_day = calendar.monthrange(today.year, today.month)
-    end_of_month = timezone.make_aware(datetime(today.year, today.month, last_day, 23, 59, 59))
-    start_date_month = date(today.year, today.month, 1)
-    end_date_month = date(today.year, today.month, last_day)
+    # 3. Apply Multi-Dimension Filters:
+    # Telecaller / Staff filter
+    if telecaller_filter:
+        if telecaller_filter.isdigit():
+            base_leads = base_leads.filter(assigned_to_id=int(telecaller_filter))
+        elif telecaller_filter.lower() == 'unassigned':
+            base_leads = base_leads.filter(assigned_to__isnull=True)
+        else:
+            base_leads = base_leads.filter(
+                Q(assigned_to__username__iexact=telecaller_filter) |
+                Q(assigned_to__first_name__icontains=telecaller_filter) |
+                Q(assigned_to__last_name__icontains=telecaller_filter)
+            )
 
     # Apply Stage Filter
     if stage_filter:
@@ -317,105 +360,156 @@ def superadmin_home(request):
                 Q(temperature__iexact=final_status_filter)
             )
 
-    fu_leads_base = base_leads
+    # 4. Quick Date Filter & Date Range Logic
+    if custom_start or custom_end:
+        time_filter = 'custom'
+    elif not time_filter:
+        time_filter = 'today'
 
+    start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+    end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
+    today_str = today.isoformat()
+
+    start_of_month = timezone.make_aware(datetime(today.year, today.month, 1, 0, 0, 0))
+    _, last_day = calendar.monthrange(today.year, today.month)
+    end_of_month = timezone.make_aware(datetime(today.year, today.month, last_day, 23, 59, 59))
+    start_date_month = date(today.year, today.month, 1)
+    end_date_month = date(today.year, today.month, last_day)
+
+    date_range_start_dt = None
+    date_range_end_dt = None
     filter_label = "Today"
-    period_title_prefix = "Today's"
+
     if time_filter == 'today':
         base_leads = base_leads.filter(
             Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today)
         )
+        date_range_start_dt = start_of_today
+        date_range_end_dt = end_of_today
         filter_label = f"Today ({today.strftime('%d %b %Y')})"
-        period_title_prefix = "Today's"
+    elif time_filter in ('last_7_days', '7days'):
+        d7 = today - timedelta(days=7)
+        d7_start = timezone.make_aware(datetime.combine(d7, datetime.min.time()))
+        base_leads = base_leads.filter(
+            Q(created_at__range=(d7_start, end_of_today)) | Q(inquiry_date__range=(d7, today))
+        )
+        date_range_start_dt = d7_start
+        date_range_end_dt = end_of_today
+        filter_label = f"Last 7 Days ({d7.strftime('%d %b')} - {today.strftime('%d %b')})"
+    elif time_filter in ('last_30_days', '30days'):
+        d30 = today - timedelta(days=30)
+        d30_start = timezone.make_aware(datetime.combine(d30, datetime.min.time()))
+        base_leads = base_leads.filter(
+            Q(created_at__range=(d30_start, end_of_today)) | Q(inquiry_date__range=(d30, today))
+        )
+        date_range_start_dt = d30_start
+        date_range_end_dt = end_of_today
+        filter_label = f"Last 30 Days ({d30.strftime('%d %b')} - {today.strftime('%d %b')})"
     elif time_filter == 'this_month':
         base_leads = base_leads.filter(
             Q(created_at__range=(start_of_month, end_of_month)) |
             Q(inquiry_date__range=(start_date_month, end_date_month))
         )
+        date_range_start_dt = start_of_month
+        date_range_end_dt = end_of_month
         filter_label = f"This Month ({today.strftime('%B %Y')})"
-        period_title_prefix = "This Month's"
-    elif time_filter == 'all_time':
+    elif time_filter in ('all_time', 'all'):
         filter_label = "All Time"
-        period_title_prefix = "All Time"
     elif time_filter == 'custom':
-        filter_label = "Custom Date Range"
-        period_title_prefix = "Period"
+        filter_label = "Custom Range"
         if custom_start:
             base_leads = base_leads.filter(Q(inquiry_date__gte=custom_start) | (Q(inquiry_date__isnull=True) & Q(created_at__date__gte=custom_start)))
+            try:
+                cs_d = datetime.strptime(custom_start, '%Y-%m-%d').date()
+                date_range_start_dt = timezone.make_aware(datetime.combine(cs_d, datetime.min.time()))
+            except ValueError:
+                pass
         if custom_end:
             base_leads = base_leads.filter(Q(inquiry_date__lte=custom_end) | (Q(inquiry_date__isnull=True) & Q(created_at__date__lte=custom_end)))
+            try:
+                ce_d = datetime.strptime(custom_end, '%Y-%m-%d').date()
+                date_range_end_dt = timezone.make_aware(datetime.combine(ce_d, datetime.max.time()))
+            except ValueError:
+                pass
         if custom_start and custom_end:
             filter_label = f"{custom_start} to {custom_end}"
 
     hospital_all_leads = base_leads
 
     # =========================================================================
-    # KPI 1: NEW LEADS (Unassigned Count as Primary + Total Leads as Secondary)
+    # 10 CORE REFINED KPIs (Calculated strictly on the filtered hospital dataset)
     # =========================================================================
-    total_leads_count = hospital_all_leads.count()
-    unassigned_new_leads_count = hospital_all_leads.filter(assigned_to__isnull=True).count()
-    assigned_leads_count = max(0, total_leads_count - unassigned_new_leads_count)
+    
+    # 1. New Leads: All leads count in filtered date range / filters
+    new_leads_count = hospital_all_leads.count()
+    unassigned_count = hospital_all_leads.filter(assigned_to__isnull=True).count()
+    assigned_leads_count = max(0, new_leads_count - unassigned_count)
 
-    # Card 1 Breakdown
-    card1_breakdown = defaultdict(lambda: {'total': 0, 'unassigned': 0, 'assigned': 0})
-    for r in hospital_all_leads.order_by().values('lead_source__name', 'campaign__name', 'custom_data', 'assigned_to_id'):
-        cd = r.get('custom_data') or {}
-        src_name = r.get('lead_source__name') or cd.get('lead_source') or 'Direct / General'
-        card1_breakdown[src_name]['total'] += 1
-        if not r.get('assigned_to_id'):
-            card1_breakdown[src_name]['unassigned'] += 1
-        else:
-            card1_breakdown[src_name]['assigned'] += 1
+    # 2. Call Not Done: Fresh or assigned leads untouched by users (exclude system remarks)
+    cnd_matched_ids = filter_uncontacted_leads_ids(hospital_all_leads, today=today)
+    call_not_done_count = len(cnd_matched_ids)
 
-    card1_breakdown_list = [
-        {
-            "category_name": cat,
-            "total": stats["total"],
-            "unassigned": stats["unassigned"],
-            "assigned": stats["assigned"],
-        }
-        for cat, stats in sorted(card1_breakdown.items(), key=lambda x: x[1]['total'], reverse=True)
-    ]
+    # 3. Appointment Booked: Leads where stage or appointment status is confirmed/booked in date range
+    appo_booked_qs = hospital_all_leads.filter(
+        Q(custom_data__appointment_status__icontains='confirm') |
+        Q(custom_data__appointment_status__icontains='book') |
+        Q(custom_data__appointment_confirmed_at__isnull=False) |
+        Q(stage__name__icontains='confirm') |
+        Q(stage__name__icontains='booked')
+    ).exclude(
+        deal_status=DealStatus.LOST
+    ).exclude(
+        custom_data__deal_status__icontains='lost'
+    ).exclude(
+        custom_data__appointment_status__icontains='cancel'
+    )
+    appointment_booked_count = appo_booked_qs.distinct().count()
 
-    # =========================================================================
-    # KPI 2: CALL NOT DONE (Assigned, but NO remarks, NO followups, NO stage updates)
-    # =========================================================================
-    cnd_all_matched_ids = set(filter_uncontacted_leads_ids(hospital_all_leads, today=today))
-    assigned_lead_ids = set(hospital_all_leads.filter(assigned_to__isnull=False).values_list('id', flat=True))
-    cnd_assigned_matched_ids = list(cnd_all_matched_ids.intersection(assigned_lead_ids))
-    call_not_done_count = len(cnd_assigned_matched_ids)
+    # 4. Walk-in Leads: Leads where source or lead type is Walk-in
+    walkin_qs = hospital_all_leads.filter(
+        Q(lead_source__name__icontains='walk') |
+        Q(custom_data__lead_source__icontains='walk') |
+        Q(lead_type__icontains='walk') |
+        Q(custom_data__lead_type__icontains='walk')
+    )
+    walkin_leads_count = walkin_qs.distinct().count()
 
-    card2_breakdown = defaultdict(lambda: {'total': 0, 'hot': 0, 'warm': 0, 'cold': 0})
-    if cnd_assigned_matched_ids:
-        cnd_sample_rows = hospital_all_leads.filter(id__in=cnd_assigned_matched_ids[:200]).order_by().values(
-            'campaign__name', 'custom_data', 'assigned_to__first_name', 'assigned_to__last_name', 'temperature'
-        )
-        for r in cnd_sample_rows:
-            cd = r.get('custom_data') or {}
-            c_name = r.get('campaign__name') or cd.get('campaign') or 'General'
-            card2_breakdown[c_name]['total'] += 1
-            temp = str(r.get('temperature') or 'HOT').upper()
-            if temp == 'HOT':
-                card2_breakdown[c_name]['hot'] += 1
-            elif temp == 'WARM':
-                card2_breakdown[c_name]['warm'] += 1
-            else:
-                card2_breakdown[c_name]['cold'] += 1
+    # 5. Appointments Scheduled: Count of appointments scheduled in the date range
+    if date_range_start_dt and date_range_end_dt:
+        appo_sched_qs = Appointment.objects.filter(
+            lead__in=hospital_all_leads,
+            appointment_date__range=(date_range_start_dt.date(), date_range_end_dt.date())
+        ).exclude(status=AppointmentStatus.CANCELLED)
+        appo_sched_count = appo_sched_qs.count()
+        # If no Appointment model rows, fall back to leads marked as scheduled
+        if appo_sched_count == 0:
+            appo_sched_count = hospital_all_leads.filter(
+                Q(custom_data__appo_booked_date__isnull=False) |
+                Q(custom_data__appointment_date__isnull=False) |
+                Q(custom_data__appointment_status__icontains='schedul')
+            ).count()
+    else:
+        appo_sched_count = Appointment.objects.filter(
+            lead__in=hospital_all_leads
+        ).exclude(status=AppointmentStatus.CANCELLED).count()
+        if appo_sched_count == 0:
+            appo_sched_count = hospital_all_leads.filter(
+                Q(custom_data__appo_booked_date__isnull=False) |
+                Q(custom_data__appointment_date__isnull=False) |
+                Q(custom_data__appointment_status__icontains='schedul')
+            ).count()
 
-    card2_breakdown_list = [
-        {
-            "campaign_name": c,
-            "total": stats["total"],
-            "hot": stats["hot"],
-            "warm": stats["warm"],
-            "cold": stats["cold"],
-        }
-        for c, stats in sorted(card2_breakdown.items(), key=lambda x: x[1]['total'], reverse=True)
-    ]
+    # 6. Admitted Patients: Count of admitted patients in date range
+    admitted_qs = hospital_all_leads.filter(
+        Q(admission_status__in=['ADMISSION_DONE', 'ADMITTED', 'WON']) |
+        Q(custom_data__admission_status__icontains='admit') |
+        Q(custom_data__appointment_status__icontains='admit') |
+        Q(stage__name__icontains='admit') |
+        Q(admission__isnull=False)
+    )
+    admitted_patients_count = admitted_qs.distinct().count()
 
-    # =========================================================================
-    # KPI 3: WON LEADS
-    # =========================================================================
+    # 7. Won Leads: Payment completed / Won deals
     won_leads_qs = hospital_all_leads.filter(
         Q(deal_status=DealStatus.WON) |
         Q(custom_data__total_paid__gt='0') |
@@ -432,130 +526,28 @@ def superadmin_home(request):
     ).exclude(
         custom_data__deal_status__icontains='lost'
     ).distinct()
-
     won_leads_count = won_leads_qs.count()
 
-    card3_breakdown = defaultdict(lambda: {'total': 0, 'amount': 0.0})
-    for l in won_leads_qs.values('custom_data', 'assigned_to__first_name', 'assigned_to__last_name'):
-        cd = l.get('custom_data') or {}
-        doc_or_agent = cd.get('doctor') or f"{l.get('assigned_to__first_name', '')} {l.get('assigned_to__last_name', '')}".strip() or 'Direct'
-        card3_breakdown[doc_or_agent]['total'] += 1
-        try:
-            amt = float(cd.get('total_paid') or cd.get('total') or 0.0)
-            card3_breakdown[doc_or_agent]['amount'] += amt
-        except (ValueError, TypeError):
-            pass
-
-    card3_breakdown_list = [
-        {
-            "doctor_name": doc,
-            "total": stats["total"],
-            "amount": stats["amount"],
-        }
-        for doc, stats in sorted(card3_breakdown.items(), key=lambda x: x[1]['total'], reverse=True)
-    ]
-
-    # =========================================================================
-    # KPI 4: FOLLOW-UPS (Total + Status Breakdown)
-    # =========================================================================
-    all_fu_leads_qs = fu_leads_base.exclude(
+    # 8. Follow-ups Pending: Leads with pending follow-up status
+    fu_pending_qs = hospital_all_leads.exclude(
         deal_status__in=[DealStatus.WON, DealStatus.LOST]
     ).filter(
-        Q(next_followup_date__isnull=False) |
-        Q(followups__next_followup_date__isnull=False) |
+        Q(followups__followup_status__in=['PENDING', 'RESCHEDULED']) |
+        (Q(next_followup_date__isnull=False) & ~Q(stage__name__icontains='lost')) |
         Q(custom_data__appointment_status__icontains='follow')
-    ).order_by().distinct()
+    ).distinct()
+    followups_pending_count = fu_pending_qs.count()
 
-    fu_pending_count = 0
-    fu_completed_count = 0
-    fu_rescheduled_count = 0
-    fu_overdue_count = 0
-    fu_upcoming_count = 0
-    fu_today_count = 0
-
-    custom_s_d = None
-    custom_e_d = None
-    if custom_start:
-        try: custom_s_d = datetime.strptime(custom_start, '%Y-%m-%d').date()
-        except ValueError: pass
-    if custom_end:
-        try: custom_e_d = datetime.strptime(custom_end, '%Y-%m-%d').date()
-        except ValueError: pass
-
-    period_followups_list = []
-
-    for l in all_fu_leads_qs.select_related('assigned_to', 'stage', 'campaign', 'lead_source').prefetch_related('followups'):
-        sched_date = extract_lead_followup_date(l)
-        if not sched_date:
-            continue
-
-        cd = l.custom_data or {}
-        latest_fu = l.followups.order_by('-id').first()
-
-        # Followup Status Breakdown
-        st_fu = str(latest_fu.followup_status if latest_fu else 'PENDING').upper()
-        if 'RESCHEDULE' in st_fu or 'CALLBACK' in st_fu:
-            fu_rescheduled_count += 1
-        elif 'COMPLET' in st_fu or 'DONE' in st_fu or cd.get('lead_calling_time'):
-            fu_completed_count += 1
-        else:
-            fu_pending_count += 1
-
-        # Date categorization
-        if sched_date == today:
-            fu_today_count += 1
-        elif sched_date < today:
-            fu_overdue_count += 1
-        elif sched_date > today:
-            fu_upcoming_count += 1
-
-        # Period inclusion
-        if time_filter == 'today':
-            if sched_date == today:
-                period_followups_list.append(l)
-        elif time_filter == 'this_month':
-            if start_date_month <= sched_date <= end_date_month or sched_date < start_date_month:
-                period_followups_list.append(l)
-        elif time_filter == 'custom':
-            if custom_s_d and custom_e_d and custom_s_d <= sched_date <= custom_e_d:
-                period_followups_list.append(l)
-            elif not custom_s_d and not custom_e_d:
-                period_followups_list.append(l)
-        else:
-            period_followups_list.append(l)
-
-    total_followups_count = len(period_followups_list)
-
-    card4_breakdown = defaultdict(lambda: {'total': 0, 'pending': 0, 'rescheduled': 0, 'completed': 0})
-    for l in period_followups_list:
-        attendant = l.assigned_to.get_full_name() if l.assigned_to else "Unassigned Staff"
-        card4_breakdown[attendant]['total'] += 1
-        cd = l.custom_data or {}
-        latest_fu = l.followups.order_by('-id').first()
-        st_fu = str(latest_fu.followup_status if latest_fu else 'PENDING').upper()
-        if 'RESCHEDULE' in st_fu or 'CALLBACK' in st_fu:
-            card4_breakdown[attendant]['rescheduled'] += 1
-        elif 'COMPLET' in st_fu or 'DONE' in st_fu or cd.get('lead_calling_time'):
-            card4_breakdown[attendant]['completed'] += 1
-        else:
-            card4_breakdown[attendant]['pending'] += 1
-
-    card4_breakdown_list = [
-        {
-            "attendant_name": att,
-            "total": stats["total"],
-            "pending": stats["pending"],
-            "rescheduled": stats["rescheduled"],
-            "completed": stats["completed"],
-        }
-        for att, stats in sorted(card4_breakdown.items(), key=lambda x: x[1]['total'], reverse=True)
-    ]
-
-    # =========================================================================
-    # KPI 5: REVENUE (Total Billed / Revenue from Won Leads & Payments)
-    # =========================================================================
+    # 9. Total Revenue & 10. Lost Leads
     total_revenue = 0.0
-    rev_breakdown = defaultdict(float)
+    lost_leads_count = hospital_all_leads.filter(
+        Q(deal_status=DealStatus.LOST) |
+        Q(temperature=LeadTemperature.FREEZE) |
+        Q(stage__name__icontains='lost') |
+        Q(custom_data__deal_status__icontains='lost') |
+        Q(custom_data__appointment_status__icontains='lost') |
+        Q(custom_data__appointment_status__icontains='cancel')
+    ).distinct().count()
 
     # Dynamic Distributions & Revenue Calculation in single pass
     location_dist = {}
@@ -583,7 +575,6 @@ def superadmin_home(request):
         try:
             val = cd.get("total_paid") or cd.get("total") or 0.0
             tot = float(val)
-            # Guard against date timestamps incorrectly stored as numbers (e.g., 20260828000000)
             if tot > 10000000:
                 tot = 0.0
         except (ValueError, TypeError):
@@ -591,8 +582,12 @@ def superadmin_home(request):
         total_revenue += tot
 
         # 2. Location
-        loc = l.get('location') or cd.get('location') or 'Not Mentioned'
-        loc = loc.strip().title() if loc else 'Not Mentioned'
+        loc_raw = l.get('location') or cd.get('location') or 'Not Mentioned'
+        loc_str = str(loc_raw).strip()
+        if not loc_str or loc_str.lower() in ['nan', 'none', 'not mentioned', ''] or any(u in loc_str.lower() for u in ['http:', 'https:', 'www.', 'facebook.com', 'fb.com', 'instagram.com', 'youtube.com']):
+            loc = 'Not Mentioned'
+        else:
+            loc = loc_str.title()
         location_dist[loc] = location_dist.get(loc, 0) + 1
 
         # 3. Month
@@ -662,11 +657,6 @@ def superadmin_home(request):
         yr = str(cd.get('year') or (lead_date.year if lead_date else '2026')).strip()
         year_dist[yr] = year_dist.get(yr, 0) + 1
 
-    card5_breakdown_list = [
-        {"source": s, "revenue": amt}
-        for s, amt in sorted(rev_breakdown.items(), key=lambda x: x[1], reverse=True)
-    ]
-
     # Currency formatter for Indian system (Crores, Lakhs, Thousands)
     def format_indian_currency(amt):
         try:
@@ -692,21 +682,21 @@ def superadmin_home(request):
     formatted_revenue = format_indian_currency(total_revenue)
 
     insights = {
-        "total_leads": total_leads_count,
-        "unassigned_leads": unassigned_new_leads_count,
+        # 10 Requested KPIs
+        "new_leads": new_leads_count,
+        "total_leads": new_leads_count,
+        "unassigned_leads": unassigned_count,
         "assigned_leads": assigned_leads_count,
         "call_not_done": call_not_done_count,
+        "appointment_booked": appointment_booked_count,
+        "walkin_leads": walkin_leads_count,
+        "appointments_scheduled": appo_sched_count,
+        "admitted_patients": admitted_patients_count,
         "won_leads": won_leads_count,
-        "total_followups": total_followups_count,
-        "fu_pending": fu_pending_count,
-        "fu_completed": fu_completed_count,
-        "fu_rescheduled": fu_rescheduled_count,
-        "fu_overdue": fu_overdue_count,
-        "fu_upcoming": fu_upcoming_count,
-        "fu_today": fu_today_count,
+        "followups_pending": followups_pending_count,
         "total_revenue": total_revenue,
         "formatted_revenue": formatted_revenue,
-        "period_title_prefix": period_title_prefix,
+        "lost_leads": lost_leads_count,
 
         # Charts Data JSON Formatted
         "location_distribution": location_dist,
@@ -723,8 +713,8 @@ def superadmin_home(request):
     }
 
     has_active_filters = any([
-        time_filter not in ['today', ''], custom_start, custom_end,
-        industry_filter, selected_hospital_id, stage_filter, deal_status_filter,
+        time_filter not in ['today', ''], custom_start, custom_end, search_query,
+        industry_filter, selected_hospital_id, stage_filter, deal_status_filter, telecaller_filter,
         temperature_filter, campaign_filter, source_filter, department_filter,
         doctor_filter, location_filter, final_status_filter
     ])
@@ -735,17 +725,12 @@ def superadmin_home(request):
         "today_str": today.isoformat(),
         "insights": insights,
         "insights_json": json.dumps(insights),
-        "period_title_prefix": period_title_prefix,
-        "card1_breakdown": card1_breakdown_list,
-        "card2_breakdown": card2_breakdown_list,
-        "card3_breakdown": card3_breakdown_list,
-        "card4_breakdown": card4_breakdown_list,
-        "card5_breakdown": card5_breakdown_list,
         "filter_label": filter_label,
 
         # Master Dropdown options
         "businesses": all_businesses,
         "industries": industry_choices,
+        "telecaller_users": telecaller_users,
         "stages": stage_choices,
         "deal_statuses": deal_status_choices,
         "temperatures": temperature_choices,
@@ -758,10 +743,12 @@ def superadmin_home(request):
         "available_years": available_years,
 
         # Current Selected Filter Values
+        "search_query": search_query,
         "current_industry": industry_filter,
         "selected_hospital_id": selected_hospital_id,
         "current_stage": stage_filter,
         "current_deal_status": deal_status_filter,
+        "current_telecaller": telecaller_filter,
         "current_temperature": temperature_filter,
         "current_campaign": campaign_filter,
         "current_source": source_filter,
@@ -774,7 +761,14 @@ def superadmin_home(request):
         "custom_end": custom_end,
         "has_active_filters": has_active_filters,
     }
-    return render(request, "hospital/dashboard/admin_home.html", context)
+
+    # Separate template for Hospital Admin vs Global Super Admin
+    if user.hospital or (effective_hospital and user.role != User.Role.SUPER_ADMIN):
+        template_name = "hospital/dashboard/admin_home.html"
+    else:
+        template_name = "dashboard/superadmin_home.html"
+
+    return render(request, template_name, context)
 
 
 @login_required

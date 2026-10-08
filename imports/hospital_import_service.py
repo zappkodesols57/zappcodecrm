@@ -544,15 +544,25 @@ def check_duplicates_in_db(lead_rows, hospital=None):
 def generate_lead_code(hospital=None):
     """Generates unique lead code like NL-2026-000123 or LD-2026-000123."""
     year = timezone.now().year
-    prefix = "NL-" if (hospital and "nelson" in hospital.name.lower()) else "LD-"
+    prefix = "NL-" if (hospital and "nelson" in (getattr(hospital, "name", "") or "").lower()) else "LD-"
     full_prefix = f"{prefix}{year}-"
     
-    last = Lead.objects.filter(lead_code__startswith=full_prefix).order_by("-lead_code").first()
-    if last and last.lead_code:
-        try:
-            seq = int(last.lead_code.split("-")[-1]) + 1
-        except Exception:
-            seq = Lead.objects.count() + 1
-    else:
-        seq = 1
-    return f"{full_prefix}{seq:06d}"
+    existing_codes = Lead.objects.filter(lead_code__startswith=full_prefix).values_list("lead_code", flat=True)
+    max_seq = 0
+    for code in existing_codes:
+        if code and "-" in code:
+            parts = code.split("-")
+            if len(parts) >= 3 and parts[-1].isdigit():
+                try:
+                    num = int(parts[-1])
+                    if num > max_seq:
+                        max_seq = num
+                except ValueError:
+                    pass
+    
+    seq = max_seq + 1
+    new_code = f"{full_prefix}{seq:06d}"
+    while Lead.objects.filter(lead_code=new_code).exists():
+        seq += 1
+        new_code = f"{full_prefix}{seq:06d}"
+    return new_code

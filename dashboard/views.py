@@ -295,7 +295,7 @@ def home(request):
             query = request.GET.urlencode()
             return redirect(f"{reverse('dashboard:doctor_home')}?{query}" if query else "dashboard:doctor_home")
         elif request.user.role in (User.Role.ADMIN, User.Role.MANAGER):
-            return redirect("dashboard:superadmin_home")
+            return redirect("dashboard:hospital_admin_home")
 
     from django.db.models import Q
     from leads.models import SourceCategory, Course, LeadStage, LeadSource, Campaign

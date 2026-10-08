@@ -1,197 +1,503 @@
 {% extends "base.html" %}
 {% block title %}Patient Leads · Nelson Hospital{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* =========================================================
+     EXACT PERFORMANCE REPORT (IMAGE 3) DESIGN SYSTEM
+     ========================================================= */
+
+  /* 1. Campaign Cards Section (Separated Above, No Icons) */
+  .campaign-cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .campaign-card-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #1e293b;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .campaign-card-item:hover {
+    border-color: #CBD5E1;
+    background-color: #F8FAFC;
+    color: #052042;
+  }
+
+  .campaign-card-item.active {
+    border: 1.5px solid #052042 !important;
+    background-color: #FFFFFF !important;
+    color: #052042 !important;
+    font-weight: 600 !important;
+  }
+
+  .campaign-card-badge {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748B;
+    margin-left: 2px;
+  }
+
+  .campaign-card-item.active .campaign-card-badge {
+    color: #052042 !important;
+    font-weight: 700 !important;
+  }
+
+  /* 2. Unified Report Card & Inline Filter Bar (Exact Match with Image 3) */
+  .report-table-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+  }
+
+  .report-card-header {
+    padding: 1rem 1.25rem 0.5rem 1.25rem;
+  }
+
+  .report-filter-bar {
+    padding: 0 1.25rem 0.85rem 1.25rem;
+  }
+
+  /* Rectangular Filter Inputs matching clean theme and rectangular borders */
+  .report-filter-bar .form-control,
+  .report-filter-bar .form-select,
+  .report-filter-bar .btn-filter {
+    border: 1px solid #CBD5E1 !important;
+    background-color: #ffffff !important;
+    border-radius: 6px !important;
+    font-size: 0.80rem !important;
+    color: #1e293b !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0.25rem 0.75rem !important;
+    box-shadow: none !important;
+  }
+
+  .report-filter-bar .form-select {
+    padding-right: 1.75rem !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.65rem center !important;
+    background-size: 10px 8px !important;
+    cursor: pointer !important;
+  }
+
+  .report-filter-bar .form-control:focus,
+  .report-filter-bar .form-select:focus {
+    border-color: #052042 !important;
+    outline: none !important;
+  }
+
+  /* Date Range Container Rectangular (From dd-mm-yyyy -> To dd-mm-yyyy) */
+  .date-range-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    height: 32px;
+    padding: 0.2rem 0.65rem;
+  }
+
+  .date-range-pill input[type="date"] {
+    border: none !important;
+    background: transparent !important;
+    font-size: 0.76rem !important;
+    color: #1e293b !important;
+    padding: 0 !important;
+    width: 95px !important;
+    outline: none !important;
+  }
+
+  /* Action Buttons matching theme color */
+  .btn-filter-apply {
+    background-color: #052042 !important;
+    border-color: #052042 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    height: 32px !important;
+    padding: 0.25rem 1rem !important;
+    font-size: 0.80rem !important;
+  }
+
+  .btn-filter-apply:hover {
+    background-color: #0c2b54 !important;
+    border-color: #0c2b54 !important;
+  }
+
+  .btn-filter-reset {
+    background-color: #ffffff !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #334155 !important;
+    font-weight: 500 !important;
+    border-radius: 6px !important;
+    height: 32px !important;
+    padding: 0.25rem 0.85rem !important;
+    font-size: 0.80rem !important;
+    text-decoration: none !important;
+  }
+
+  .btn-filter-reset:hover {
+    background-color: #F8FAFC !important;
+    color: #0f172a !important;
+  }
+
+  .btn-header-export {
+    background: #ffffff !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 6px !important;
+    font-size: 0.80rem !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    height: 32px !important;
+    padding: 0.25rem 0.85rem !important;
+  }
+
+  /* Table Header exact height and clean typography */
+  .report-table thead th {
+    background-color: #F8FAFC !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    font-size: 0.74rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    padding: 0.55rem 0.65rem !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    border-top: none !important;
+  }
+
+  .report-table tbody td {
+    padding: 0.55rem 0.65rem !important;
+    font-size: 0.80rem !important;
+    vertical-align: middle !important;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- Zoho CRM Style Top Title Bar with View Filter Switcher & Action Tools -->
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-  <div class="d-flex align-items-center gap-3">
-    <!-- Title Heading -->
-    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.25rem;">
-      <span>All Patient Leads</span>
-    </h5>
 
-    <!-- Count Badge -->
-    <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">{{ total_count }} records</span>
-  </div>
-
-  <div class="d-flex align-items-center gap-2">
-    <!-- Inline Filter Toggle Button -->
-    <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill" type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Sidebar Filters">
-      <span>Filter</span>
-      {% if active_filters_count > 0 %}
-        <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ active_filters_count }}</span>
-      {% endif %}
+<!-- 1. CAMPAIGNS BREAKDOWN SECTION (Distinct, Modern Cards Without Icons) -->
+{% if campaign_breakdown %}
+<div class="mb-3">
+  <div class="campaign-cards-container">
+    <!-- All Campaigns Card -->
+    <button type="button" onclick="filterByCampaign('')"
+      class="campaign-card-item {% if not request.GET.campaign %}active{% endif %}">
+      <span>All Campaigns</span>
+      <span class="campaign-card-badge">{{ total_count }}</span>
     </button>
 
-    {% if request.user.can_self_assign and request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' and request.user.role != 'DOCTOR' %}
-    <!-- Bulk Self-Assign Button with Count Badge -->
-    <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
-      id="bulkSelfAssignBtn"
-      onclick="submitBulkSelfAssign()"
-      title="Bulk assign selected leads to yourself (Max limit: {{ request.user.bulk_self_assign_limit }})">
-      <span>Bulk Assign to Me</span>
-      <span class="badge bg-success rounded-pill px-2 py-1" id="bulkSelfAssignBadge" style="font-size: 0.7rem;">
-        <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
-      </span>
+    <!-- Individual Campaign Cards (No icons, clean text + counts) -->
+    {% for camp in campaign_breakdown %}
+    <button type="button" onclick="filterByCampaign('{{ camp.name|escapejs }}')"
+      class="campaign-card-item {% if request.GET.campaign == camp.name %}active{% endif %}"
+      title="{{ camp.name }}">
+      <span class="text-truncate" style="max-width: 220px;">{{ camp.name }}</span>
+      <span class="campaign-card-badge">{{ camp.count }}</span>
     </button>
-    {% endif %}
-
-    <!-- Sort Dropdown Trigger -->
-    <div class="dropdown">
-      <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 fw-semibold px-3 shadow-sm rounded-pill dropdown-toggle" type="button" id="titleSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
-        <span>Sort</span>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="titleSortDropdown" style="font-size: 0.82rem; min-width: 200px;">
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-created_at')">Newest First</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('created_at')">Oldest First</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_asc')">Patient Name (A → Z)</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('name_desc')">Patient Name (Z → A)</button></li>
-        <li><button type="button" class="dropdown-item py-1" onclick="applyDrawerSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
-      </ul>
-    </div>
-
-    {% if active_filters_count > 0 %}
-      <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-3" title="Clear all applied filters">
-        Clear
-      </a>
-    {% endif %}
-
-    <!-- Top Header Export Dropdown -->
-    <div class="dropdown">
-      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle shadow-sm" type="button" id="topHeaderExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        <span>Export</span>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderExportDropdown" style="font-size: 0.85rem; min-width: 170px;">
-        <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem;">Export {% if active_filters_count > 0 %}Filtered{% else %}All{% endif %} Leads</h6></li>
-        <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=excel">
-            <i class="fa-solid fa-file-excel text-success" style="font-size: 1rem;"></i>
-            <span>Excel (.xlsx)</span>
-          </a>
-        </li>
-        <li>
-          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="?{{ request.GET.urlencode }}&export=pdf" target="_blank">
-            <i class="fa-solid fa-file-pdf text-danger" style="font-size: 1rem;"></i>
-            <span>PDF / Print</span>
-          </a>
-        </li>
-      </ul>
-    </div>
+    {% endfor %}
   </div>
 </div>
+{% endif %}
 
-<!-- Split View Container: Left Filter Column + Right Main Table -->
-<div class="d-flex align-items-stretch gap-3 w-100">
+<!-- Active Applied Filters Chips Bar (if any applied) -->
+{% if active_filters_count > 0 or q or date_from_val or date_to_val or request.GET.filter or request.GET.campaign %}
+<div class="card border-0 shadow-xs rounded-3 mb-2.5 bg-white px-3 py-2" style="border: 1px solid #E2E8F0 !important;">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-1.5 flex-wrap">
+      <span class="fw-bold text-uppercase d-inline-block me-1" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+        APPLIED FILTERS:
+      </span>
+
+      {% if q %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Search:</strong> "{{ q }}"
+      </span>
+      {% endif %}
+
+      {% if request.GET.filter and request.GET.filter != 'all' %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Date:</strong> 
+        {% if request.GET.filter == 'today' %}Today
+        {% elif request.GET.filter == '7days' %}Last 7 Days
+        {% elif request.GET.filter == '30days' %}Last 30 Days
+        {% else %}{{ request.GET.filter }}{% endif %}
+      </span>
+      {% endif %}
+
+      {% if date_from_val or date_to_val %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Date Range:</strong> {{ date_from_val|default:'Start' }} to {{ date_to_val|default:'Today' }}
+      </span>
+      {% endif %}
+
+      {% for stg in selected_stages %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Stage:</strong> {{ stg }}
+      </span>
+      {% endfor %}
+
+      {% for ds in selected_deal_statuses %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Status:</strong> {{ ds }}
+      </span>
+      {% endfor %}
+
+      {% for doc in selected_doctors %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Doctor:</strong> {{ doc }}
+      </span>
+      {% endfor %}
+
+      {% for dept in selected_departments %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Dept:</strong> {{ dept }}
+      </span>
+      {% endfor %}
+
+      {% for src in selected_sources %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Source:</strong> {{ src }}
+      </span>
+      {% endfor %}
+
+      {% for camp in selected_campaigns %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Campaign:</strong> {{ camp }}
+      </span>
+      {% endfor %}
+
+      {% if request.GET.campaign and not selected_campaigns %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Campaign:</strong> {{ request.GET.campaign }}
+      </span>
+      {% endif %}
+
+      {% for loc in selected_locations %}
+      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+        <strong class="text-muted">Location:</strong> {{ loc }}
+      </span>
+      {% endfor %}
+    </div>
+
+    <a href="{% url 'leads:lead_list' %}" class="btn btn-link p-0 text-danger text-decoration-none small fw-bold d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+      <i class="fa-solid fa-arrow-rotate-left"></i> Reset All
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- 2. UNIFIED MAIN CARD: HEADING + INLINE FILTERS + TABLE (Exact Image 3 Layout) -->
+<div class="report-table-card mb-4">
   
-  <!-- Left Side Filter Panel (Inline) -->
-  {% include "includes/leads_side_filter.html" %}
+  <!-- Card Header Row: Title on Left, Export & Actions on Right -->
+  <div class="report-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <h5 class="fw-bold mb-0 text-dark" style="color: #0f172a !important; font-size: 1.05rem; letter-spacing: -0.2px;">
+        1. {% if active == 'pending_leads' %}Pending Leads Report{% elif request.GET.deal_status == 'PAYMENT DONE' %}Payment Done Leads Report{% elif active == 'lost_leads' %}Lost Leads Report{% elif active == 'archived_leads' %}Archived Leads Report{% else %}Overall Leads Report{% endif %}
+      </h5>
+      <span class="badge bg-light text-muted border px-2 py-0.5 rounded-pill fw-semibold" style="font-size: 0.72rem;">{{ total_count }} records</span>
+    </div>
 
-  <!-- Right Side Main Content & Table -->
-  <div class="flex-grow-1 overflow-hidden">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% if request.user.can_self_assign and request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' and request.user.role != 'DOCTOR' %}
+      <!-- Bulk Self-Assign Button with Count Badge -->
+      <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 fw-semibold px-3 rounded-pill"
+        id="bulkSelfAssignBtn"
+        onclick="submitBulkSelfAssign()"
+        title="Bulk assign selected leads to yourself (Max limit: {{ request.user.bulk_self_assign_limit }})"
+        style="height: 32px; font-size: 0.80rem;">
+        <i class="fa-solid fa-user-check"></i>
+        <span>Bulk Assign to Me</span>
+        <span class="badge bg-success rounded-pill px-2 py-0.5" id="bulkSelfAssignBadge" style="font-size: 0.68rem;">
+          <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
+        </span>
+      </button>
+      {% endif %}
 
-    <form method="post" action="{% url 'leads:bulk_action' %}" id="leadsBulkActionForm">
-      {% csrf_token %}
-      <input type="hidden" name="bulk_action" id="bulkActionInput" value="self_assign">
+      <!-- Export Button with Clean Dropdown (No icons in button) -->
+      <div class="dropdown">
+        <button class="btn btn-header-export dropdown-toggle shadow-none" type="button" id="inlineExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="inlineExportDropdown" style="font-size: 0.82rem; min-width: 170px;">
+          <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Export Options</h6></li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-1.5" href="?{{ request.GET.urlencode }}&export=excel">
+              <span>Excel (.xlsx)</span>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 py-1.5" href="?{{ request.GET.urlencode }}&export=pdf" target="_blank">
+              <span>PDF / Print</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline Filter Ribbon (Inside the Card directly above table) -->
+  <div class="report-filter-bar">
+    <form method="GET" action="{% url 'leads:lead_list' %}" id="leadsInteractiveFilterForm" class="d-flex flex-wrap align-items-center gap-1.5">
+      {% if selected_hospital_id %}
+      <input type="hidden" name="business" value="{{ selected_hospital_id }}">
+      {% endif %}
+      <input type="hidden" name="sort" id="formSortInput" value="{{ current_sort|default:'-created_at' }}">
+
+      <!-- 1. Search Bar (Patient Name, Mobile) -->
+      <div style="min-width: 170px; flex: 1 1 170px;">
+        <input type="text" name="q" class="form-control" placeholder="Patient Name, Mobile..." value="{{ q }}">
+      </div>
+
+      <!-- 2. Stages Dropdown -->
+      <div style="min-width: 120px; flex: 1 1 120px;">
+        <select name="stage" class="form-select">
+          <option value="">Select Stage</option>
+          {% for stg in stages %}
+          <option value="{{ stg.name }}" {% if stg.name in selected_stages or stg.id|stringformat:"s" in selected_stages %}selected{% endif %}>{{ stg.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 3. Status Dropdown -->
+      <div style="min-width: 120px; flex: 1 1 120px;">
+        <select name="deal_status" class="form-select">
+          <option value="">Select Status</option>
+          {% for code, label in deal_status_choices %}
+          <option value="{{ code }}" {% if code in selected_deal_statuses %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+          <option value="WON" {% if 'WON' in selected_deal_statuses %}selected{% endif %}>Payment Done / Won</option>
+          <option value="LOST" {% if 'LOST' in selected_deal_statuses %}selected{% endif %}>Lost / Cancelled</option>
+          <option value="PENDING" {% if 'PENDING' in selected_deal_statuses %}selected{% endif %}>Pending Follow-up</option>
+          <option value="OPEN" {% if 'OPEN' in selected_deal_statuses %}selected{% endif %}>Open / Unattended</option>
+        </select>
+      </div>
+
+      <!-- 4. Telecaller Dropdown -->
+      <div style="min-width: 125px; flex: 1 1 125px;">
+        <select name="assigned_to" class="form-select">
+          <option value="">Select Telecaller</option>
+          <option value="unassigned" {% if 'unassigned' in selected_assigned %}selected{% endif %}>Unassigned</option>
+          {% for staff in employees %}
+          <option value="{{ staff.id }}" {% if staff.id|stringformat:"s" in selected_assigned %}selected{% endif %}>
+            {{ staff.get_full_name|default:staff.username }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 5. Campaign Dropdown -->
+      <div style="min-width: 125px; flex: 1 1 125px;">
+        <select name="campaign" class="form-select">
+          <option value="">Select Campaign</option>
+          {% for camp in campaigns %}
+          <option value="{{ camp.name }}" {% if camp.name in selected_campaigns or camp.id|stringformat:"s" in selected_campaigns %}selected{% endif %}>{{ camp.name }}</option>
+          {% endfor %}
+          {% for hc in hospital_campaigns %}
+          <option value="{{ hc.name }}" {% if hc.name in selected_campaigns %}selected{% endif %}>{{ hc.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 6. Date Range Inputs: Exact Reference Style (From dd-mm-yyyy -> To dd-mm-yyyy) -->
+      <div class="date-range-pill">
+        <span class="text-muted" style="font-size: 0.74rem;">From</span>
+        <input type="date" name="date_from" id="filterFromDateInput" value="{{ date_from_val }}" placeholder="dd-mm-yyyy">
+        <span class="text-muted" style="font-size: 0.74rem;">&rarr; To</span>
+        <input type="date" name="date_to" id="filterToDateInput" value="{{ date_to_val }}" placeholder="dd-mm-yyyy">
+      </div>
+
+      <!-- 7. Action Buttons (Apply & Reset) -->
+      <div class="d-inline-flex align-items-center gap-1">
+        <button type="submit" class="btn btn-filter-apply shadow-none">
+          Apply
+        </button>
+        <a href="{% url 'leads:lead_list' %}" class="btn btn-filter-reset shadow-none" title="Reset all filters">
+          Reset
+        </a>
+      </div>
+
+      <!-- 8. Sort Dropdown (No icon, clean text) -->
+      <div class="dropdown ms-auto">
+        <button class="btn btn-header-export dropdown-toggle shadow-none" type="button" id="inlineSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
+          Sort
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="inlineSortDropdown" style="font-size: 0.82rem; min-width: 190px;">
+          <li><button type="button" class="dropdown-item py-1.5 {% if not current_sort or current_sort == '-created_at' %}active fw-bold{% endif %}" onclick="applyLeadsSort('-created_at')">Newest First</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'created_at' %}active fw-bold{% endif %}" onclick="applyLeadsSort('created_at')">Oldest First</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'name_asc' %}active fw-bold{% endif %}" onclick="applyLeadsSort('name_asc')">Patient Name (A → Z)</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'name_desc' %}active fw-bold{% endif %}" onclick="applyLeadsSort('name_desc')">Patient Name (Z → A)</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == '-inquiry_date' %}active fw-bold{% endif %}" onclick="applyLeadsSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
+        </ul>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Bulk Action Form Container -->
+  <form method="post" action="{% url 'leads:bulk_action' %}" id="leadsBulkActionForm">
+    {% csrf_token %}
+    <input type="hidden" name="bulk_action" id="bulkActionInput" value="self_assign">
 
 {% if request.user.role != 'LEAD_ATTENDENT' and request.user.can_edit_any_lead %}
-  <style>
-    .bulk-action-bar {
-      border: 1.5px solid #c7d2fe !important;
-      border-radius: 0.85rem !important;
-      background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
-      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08);
-    }
-    .bulk-field-label {
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: #6366f1;
-      margin-bottom: 4px;
-    }
-    .bulk-select {
-      font-size: 0.84rem !important;
-      font-weight: 500;
-      background-color: #ffffff !important;
-      border: 1px solid #cbd5e1 !important;
-      border-radius: 6px !important;
-      color: #1e293b !important;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-      padding: 5px 32px 5px 10px !important;
-      appearance: auto !important;
-      cursor: pointer;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .bulk-select:focus {
-      border-color: #6366f1 !important;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
-      outline: none !important;
-    }
-    .bulk-select:hover {
-      border-color: #94a3b8 !important;
-    }
-    .bulk-select-primary {
-      border: 1px solid #cbd5e1 !important;
-      background: #ffffff !important;
-    }
-    .bulk-apply-btn {
-      background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
-      border: none !important;
-      border-radius: 10px !important;
-      font-size: 0.85rem !important;
-      padding: 7px 20px !important;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35) !important;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .bulk-apply-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.45) !important;
-    }
-  </style>
-  <div class="card bulk-action-bar mb-3 px-4 py-3">
-    <div class="d-flex flex-wrap align-items-center gap-3">
+  <!-- Bulk Action Bar: Hidden by default (d-none), only visible when >= 1 leads are selected -->
+  <div id="leadsBulkActionBar" class="card border-0 shadow-sm rounded-0 px-3 py-2 bg-light border-top border-bottom d-none" style="border-color: #E2E8F0 !important;">
+    <div class="d-flex flex-wrap align-items-center gap-2.5">
 
       <!-- Label + Live Count -->
       <div class="d-flex align-items-center me-1">
         <div>
-          <div class="fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 0.88rem; letter-spacing: -0.2px;">
-            Bulk Action
-            <!-- Live selected count badge -->
-            <span id="bulkSelectedCountBadge"
-              style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; font-weight:700;
-                     padding:2px 10px 2px 7px; border-radius:20px;
-                     background:#f1f5f9; color:#94a3b8; border:1.5px solid #e2e8f0;
-                     transition:all 0.2s ease;">
+          <div class="fw-bold text-dark d-flex align-items-center gap-1.5" style="font-size: 0.82rem; letter-spacing: -0.2px;">
+            <span>Bulk Action</span>
+            <span id="bulkSelectedCountBadge" class="badge bg-light text-muted border rounded-pill px-2 py-0.5" style="font-size: 0.70rem; font-weight: 600;">
               <span id="bulkSelectedCountNum">0</span> selected
             </span>
           </div>
-          <div class="text-muted" style="font-size: 0.7rem;">Select leads below, then choose an action</div>
+          <div class="text-muted small" style="font-size: 0.70rem;">Choose an action to apply to selected leads</div>
         </div>
       </div>
 
       <!-- 1. Action Dropdown -->
-      <div style="min-width: 185px;">
-        <div class="bulk-field-label">
-          Action
-        </div>
+      <div style="min-width: 155px;">
+        <label class="form-label fw-bold text-uppercase mb-0 d-block" style="font-size: 0.62rem; letter-spacing: 0.5px; color: #052042;">Action</label>
         <select name="admin_bulk_action" id="adminBulkActionSelect"
-          class="form-select form-select-sm no-tom-select"
-          style="border: 1px solid #94a3b8 !important; border-radius: 6px !important; background-color: #ffffff !important; height: 34px !important; font-size: 0.84rem !important; color: #1e293b !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;"
+          class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
+          style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;"
           onchange="handleBulkActionChange()">
-          <option value="">&#9660; Select Action</option>
-          <option value="assign">&#128101; Assign to...</option>
-          <option value="stage">&#127919; Change Stage to...</option>
+          <option value="">Select Action</option>
+          <option value="assign">Assign to...</option>
+          <option value="stage">Change Stage to...</option>
           {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-          <option value="archive">&#128465; Archive</option>
+          <option value="archive">Archive</option>
           {% endif %}
         </select>
       </div>
 
       <!-- 2. From Field Container -->
-      <div id="fromFieldContainer" class="d-none" style="min-width: 185px;">
-        <div class="bulk-field-label"><span id="fromFieldLabel">From</span></div>
+      <div id="fromFieldContainer" class="d-none" style="min-width: 155px;">
+        <label class="form-label fw-bold text-uppercase mb-0 d-block" style="font-size: 0.62rem; letter-spacing: 0.5px; color: #052042;"><span id="fromFieldLabel">From</span></label>
         <div id="fromUserWrapper" class="d-none">
-          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm no-tom-select"
-            style="border: 1px solid #94a3b8 !important; border-radius: 6px !important; background-color: #ffffff !important; height: 34px !important; font-size: 0.84rem !important; color: #1e293b !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;">
+          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
+            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
             <option value="">All / Any User</option>
             <option value="unassigned">Unassigned / Open</option>
             {% for e in employees %}
@@ -200,8 +506,8 @@
           </select>
         </div>
         <div id="fromStageWrapper" class="d-none">
-          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm no-tom-select"
-            style="border: 1px solid #94a3b8 !important; border-radius: 6px !important; background-color: #ffffff !important; height: 34px !important; font-size: 0.84rem !important; color: #1e293b !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;">
+          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
+            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
             <option value="">All / Any Stage</option>
             {% for s in bulk_stages %}
             <option value="{{ s.id }}">{{ s.name }}</option>
@@ -211,21 +517,21 @@
       </div>
 
       <!-- 3. To Field Container -->
-      <div id="toFieldContainer" class="d-none" style="min-width: 185px;">
-        <div class="bulk-field-label"><span id="toFieldLabel">To</span></div>
+      <div id="toFieldContainer" class="d-none" style="min-width: 155px;">
+        <label class="form-label fw-bold text-uppercase mb-0 d-block" style="font-size: 0.62rem; letter-spacing: 0.5px; color: #052042;"><span id="toFieldLabel">To</span></label>
         <div id="toUserWrapper" class="d-none">
-          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm no-tom-select"
-            style="border: 1px solid #94a3b8 !important; border-radius: 6px !important; background-color: #ffffff !important; height: 34px !important; font-size: 0.84rem !important; color: #1e293b !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;">
-            <option value="">&#8212; Select Assignee &#8212;</option>
+          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
+            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
+            <option value="">Select Assignee</option>
             {% for e in employees %}
             <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
             {% endfor %}
           </select>
         </div>
         <div id="toStageWrapper" class="d-none">
-          <select name="stage" id="toStageSelect" class="form-select form-select-sm no-tom-select"
-            style="border: 1px solid #94a3b8 !important; border-radius: 6px !important; background-color: #ffffff !important; height: 34px !important; font-size: 0.84rem !important; color: #1e293b !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;">
-            <option value="">&#8212; Select Target Stage &#8212;</option>
+          <select name="stage" id="toStageSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
+            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
+            <option value="">Select Target Stage</option>
             {% for s in bulk_stages %}
             <option value="{{ s.id }}">{{ s.name }}</option>
             {% endfor %}
@@ -234,8 +540,9 @@
       </div>
 
       <!-- Apply Button -->
-      <div class="ms-auto pt-3 pt-md-0">
-        <button type="button" class="btn btn-primary bulk-apply-btn d-flex align-items-center gap-2 fw-semibold"
+      <div class="ms-auto pt-1 pt-md-0">
+        <button type="button" id="submitAdminBulkActionBtn" class="btn btn-primary rounded-pill px-3 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1.5"
+          style="font-size: 0.80rem; height: 32px; background-color: #052042 !important; border-color: #052042 !important;"
           onclick="submitAdminBulkAction()">
           <i class="fa-solid fa-check-double"></i>
           <span>Apply to Selected</span>
@@ -246,99 +553,164 @@
   </div>
 {% endif %}
 
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive custom-table-scrollbar pb-2">
-      <table class="table align-middle mb-0" style="min-width: 1100px;">
-        <thead class="bg-light border-bottom">
-          <tr>
-            <th style="width: 40px;"><input type="checkbox" id="masterLeadCheckbox" onclick="toggleAllCheckboxes(this)"></th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase">Date</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Patient Name</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Phone</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Doctor / Dept</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Source</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Status</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Remark</th>
-            <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Attendant</th>
-            <th class="py-2 px-3 text-uppercase small text-muted" style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for lead in page_obj %}
-          <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
-            <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-            <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
-            <td><strong class="text-dark">{{ lead.name }}</strong></td>
-            <td>{{ lead.mobile }}</td>
-            <td>
-              {% if lead.custom_data.doctor %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-user-doctor me-1"></i>{{ lead.custom_data.doctor }}</span>
-              {% endif %}
-              {% if lead.custom_data.department %}<div class="small text-muted">{{ lead.custom_data.department }}</div>{% endif %}
+  <!-- Table Container inside Report Card -->
+  <div class="table-responsive custom-table-scrollbar">
+    <table class="table report-table table-hover align-middle mb-0" style="width: 100%;">
+      <thead class="bg-light border-bottom">
+        <tr>
+          <th style="width: 32px;" class="ps-3 pe-1"><input type="checkbox" id="masterLeadCheckbox" onclick="toggleAllCheckboxes(this)"></th>
+          <th class="ps-2" style="min-width: 140px;">PATIENT NAME</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 130px;">CONTACT / LOCATION</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 130px;">SOURCE / CAMPAIGN</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 115px;">STAGE</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 95px;">DEAL STATUS</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 110px;">INQUIRY DATE / TIME</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 140px;">LAST UPDATE / REMARK</th>
+          <th style="border-left: 1px solid #e2e8f0 !important; min-width: 110px;">TELECALLER</th>
+          <th class="text-end pe-3" style="border-left: 1px solid #e2e8f0 !important; min-width: 105px;">ACTION</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in page_obj %}
+          <tr class="lead-row {% if lead.is_hot %}table-warning bg-opacity-25{% endif %}" data-lead-id="{{ lead.pk }}">
+            <td class="ps-3 pe-1" onclick="event.stopPropagation();">
+              <input type="checkbox" name="selected_leads" value="{{ lead.pk }}" class="lead-checkbox" onchange="updateSelectedCount()">
             </td>
-            <td><span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span></td>
-            <td>
-              {% if lead.display_status == 'Payment Done' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
-              {% elif lead.display_status == 'Booking Confirmed' %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Booking Confirmed</span>
-              {% elif lead.display_status == 'Awaiting Approval from Doctor' or lead.display_status == 'Booking Approval Pending' or lead.display_status == 'Awaiting Approval' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Awaiting Approval from Doctor</span>
-              {% elif lead.display_status == 'Booked' %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle"><i class="fa-solid fa-calendar-check me-1"></i>Booked</span>
-              {% elif lead.display_status == 'Follow-up Needed' %}
-                <span class="badge bg-purple bg-opacity-10 text-purple border border-purple-subtle" style="background:#faf5ff; color:#7e22ce; border-color:#e9d5ff;"><i class="fa-solid fa-clock me-1"></i>Follow-up Needed</span>
-              {% elif lead.display_status == 'Payment Pending' %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
-              {% elif lead.display_status == 'New' %}
-                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-sparkles me-1"></i>New</span>
-              {% elif lead.display_status == 'Open' %}
-                <span class="badge bg-light text-dark border"><i class="fa-solid fa-envelope-open me-1 text-primary"></i>Open</span>
-              {% elif lead.display_status == 'Assigned' %}
-                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle"><i class="fa-solid fa-user-check me-1"></i>Assigned</span>
-              {% elif lead.display_status == 'Lost' or lead.display_status == 'Cancelled' or lead.display_status == 'Not Interested' %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-ban me-1"></i>{{ lead.display_status }}</span>
-              {% else %}
-                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">{{ lead.display_status }}</span>
+
+            <!-- 1. Patient Name -->
+            <td class="px-2">
+              <strong class="text-dark d-block" style="font-size: 0.83rem;">{{ lead.name }}</strong>
+              {% if lead.gender or lead.age %}
+                <span class="text-muted small" style="font-size: 0.70rem;">{% if lead.gender %}{{ lead.gender }}{% endif %}{% if lead.gender and lead.age %}, {% endif %}{% if lead.age %}{{ lead.age }} yrs{% endif %}</span>
               {% endif %}
             </td>
-            <td>
-              {% with rem=lead.interaction_remark %}
-                {% if rem and rem != '—' %}
-                  <span class="small text-secondary text-truncate d-inline-block" style="max-width: 200px;" title="{{ rem }}">{{ rem }}</span>
-                {% elif lead.custom_temperature == 'Hot' %}
-                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-bold"><i class="fa-solid fa-fire me-1"></i>Hot</span>
-                {% elif lead.custom_temperature == 'Warm' %}
-                  <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle fw-bold"><i class="fa-solid fa-sun me-1"></i>Warm</span>
-                {% elif lead.custom_temperature == 'Cold' %}
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle fw-bold"><i class="fa-solid fa-snowflake me-1"></i>Cold</span>
-                {% elif lead.custom_temperature == 'Freeze' %}
-                  <span class="badge bg-dark bg-opacity-10 text-dark border border-secondary fw-bold"><i class="fa-solid fa-icicles me-1 text-info"></i>Freeze</span>
-                {% else %}
-                  <span class="text-muted small">—</span>
+
+            <!-- 2. Contact / Location -->
+            <td class="px-2">
+              <div class="fw-semibold text-dark" style="font-size: 0.80rem;"><i class="fa-solid fa-phone text-muted me-1 small"></i>{{ lead.mobile|default:"—" }}</div>
+              {% with loc=lead.location|default:lead.city|default:lead.custom_data.location %}
+                {% if loc and loc != '—' %}
+                <div class="text-muted small text-truncate" style="max-width: 140px; font-size: 0.70rem;" title="{{ loc }}">
+                  <i class="fa-solid fa-location-dot me-1 text-secondary"></i>{{ loc }}
+                </div>
                 {% endif %}
               {% endwith %}
             </td>
-            <td>
-              {% if not lead.assigned_to %}
+
+            <!-- 3. Source / Campaign -->
+            <td class="px-2">
+              <div class="fw-medium text-dark" style="font-size: 0.80rem;">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"Direct" }}</div>
+              {% with camp=lead.campaign|default:lead.custom_data.campaign %}
+                {% if camp and camp != '—' %}
+                <div class="text-muted small text-truncate" style="max-width: 140px; font-size: 0.70rem;" title="{{ camp }}">
+                  <i class="fa-solid fa-bullhorn text-secondary me-1"></i>{{ camp }}
+                </div>
+                {% endif %}
+              {% endwith %}
+            </td>
+
+            <!-- 4. Stage -->
+            <td class="px-2">
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-0.5 fw-semibold rounded-pill font-monospace" style="font-size: 0.70rem;">
+                {{ lead.stage|default:"Appointment" }}
+              </span>
+            </td>
+
+            <!-- 5. Deal Status -->
+            <td class="px-2">
+              {% if lead.display_deal_status == 'Won' or lead.display_deal_status == 'Payment Done' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2 py-0.5 fw-semibold" style="font-size: 0.70rem;">Won</span>
+              {% elif lead.display_deal_status == 'Lost' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill px-2 py-0.5 fw-semibold" style="font-size: 0.70rem;">Lost</span>
+              {% elif lead.display_deal_status == 'Pending' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle rounded-pill px-2 py-0.5 fw-semibold" style="font-size: 0.70rem;">Pending</span>
+              {% else %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle rounded-pill px-2 py-0.5 fw-semibold" style="font-size: 0.70rem;">{{ lead.display_deal_status|default:"Open" }}</span>
+              {% endif %}
+            </td>
+
+            <!-- 6. Inquiry Date / Time -->
+            <td class="px-2">
+              <span class="text-nowrap small text-dark d-block fw-medium" style="font-size: 0.78rem;">{{ lead.inquiry_date|date:"d-m-Y"|default:"—" }}</span>
+              {% if lead.created_at %}
+                <span class="text-muted small" style="font-size: 0.68rem;">{{ lead.created_at|date:"h:i A" }}</span>
+              {% endif %}
+            </td>
+
+            <!-- 7. Last Update Date / Last Remark -->
+            <td class="px-2">
+              {% with rem=lead.interaction_remark %}
+                {% if rem and rem != '—' %}
+                  <div class="small text-dark text-truncate fw-medium d-block" style="max-width: 150px; font-size: 0.76rem;" title="{{ rem }}">
+                    <i class="fa-regular fa-comment-dots text-secondary me-1"></i>{{ rem }}
+                  </div>
+                {% else %}
+                  <span class="text-muted small" style="font-size: 0.76rem;">—</span>
+                {% endif %}
+              {% endwith %}
+              <div class="text-muted small" style="font-size: 0.68rem;">
+                {{ lead.updated_at|date:"d-m-Y h:i A" }}
+              </div>
+            </td>
+
+            <!-- 8. Telecaller -->
+            <td class="px-2">
+              {% if lead.assigned_to %}
+                <span class="badge bg-light text-dark border px-2 py-0.5 rounded-pill" style="font-size: 0.72rem;">
+                  <i class="fa-solid fa-user me-1 text-secondary"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+                </span>
+              {% else %}
                 {% if request.user.role == 'LEAD_ATTENDENT' %}
                   <button type="button" 
                           onclick="captureSingleLead('{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}', '{{ lead.name|escapejs }}')" 
                           class="btn btn-xs btn-primary rounded-pill px-2 py-0.5 fw-bold shadow-xs d-inline-flex align-items-center gap-1"
-                          title="Capture & assign this patient to yourself">
+                          title="Capture & assign this patient to yourself" style="font-size: 0.70rem;">
                     <i class="fa-solid fa-hand-holding-hand"></i> Capture
                   </button>
                 {% else %}
-                  <span class="badge bg-secondary bg-opacity-10 text-secondary border">Unassigned</span>
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2 py-0.5" style="font-size: 0.70rem;">Unassigned</span>
                 {% endif %}
-              {% else %}
-                <span class="small">{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
               {% endif %}
             </td>
-            <td>{% if lead.display_next_followup_date %}<span class="small text-nowrap">{{ lead.display_next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
+
+            <!-- 9. Actions: View, Edit, Call, WhatsApp -->
+            <td class="px-2 text-end pe-2.5" onclick="event.stopPropagation();">
+              <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                <!-- View -->
+                <a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}"
+                  class="btn btn-sm btn-light border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  style="width: 28px; height: 28px;" title="View Details">
+                  <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
+                </a>
+
+                <!-- Edit -->
+                <a href="{% url 'leads:lead_edit' lead.pk %}"
+                  class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  style="width: 28px; height: 28px;" title="Edit Lead">
+                  <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
+                </a>
+
+                {% if lead.mobile %}
+                  <!-- Call -->
+                  <a href="tel:{{ lead.mobile }}"
+                    class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                    style="width: 30px; height: 30px;" title="Call Patient">
+                    <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+                  </a>
+
+                  <!-- WhatsApp -->
+                  <a href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}" target="_blank"
+                    class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                    style="width: 30px; height: 30px;" title="WhatsApp Patient">
+                    <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
+                  </a>
+                {% endif %}
+              </div>
+            </td>
+
           </tr>
           {% empty %}
-          <tr><td colspan="11"><div class="empty-state"><i class="fa-solid fa-inbox"></i>No patient leads found.</div></td></tr>
+          <tr><td colspan="11"><div class="empty-state py-5 text-center text-muted"><i class="fa-solid fa-inbox fs-2 mb-2 opacity-50"></i><p class="mb-0 fw-semibold">No patient leads found.</p></div></td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -374,10 +746,10 @@
 
       {% for num in page_obj.paginator.page_range %}
         {% if page_obj.number == num %}
-          <li class="page-item active"><span class="page-link fw-bold">{{ num }}</span></li>
+          <li class="page-item active"><span class="page-link fw-bold" style="background-color: #052042; border-color: #052042;">{{ num }}</span></li>
         {% elif num > page_obj.number|add:'-4' and num < page_obj.number|add:'4' %}
           <li class="page-item">
-            <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+            <a class="page-link text-dark" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
           </li>
         {% endif %}
       {% endfor %}
@@ -395,8 +767,7 @@
   </nav>
   {% endif %}
 </div>
-  </div> <!-- /Right Side Main Content -->
-</div> <!-- /Split View Container -->
+</div> <!-- /Main Content Area (w-100) -->
 
 <!-- Modern In-Window Confirmation & Alert Modal -->
 <div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px);">
@@ -424,6 +795,86 @@
 </div>
 
 <script>
+  // Filter Panel Toggle
+  function toggleLeadsFilterPanel() {
+    const panel = document.getElementById('leadsFilterPanelBody');
+    const chevron = document.getElementById('leadsFilterChevronIcon');
+    if (!panel) return;
+    if (panel.style.display === 'none' || panel.style.display === '') {
+      panel.style.display = 'block';
+      if (chevron) { chevron.classList.remove('fa-chevron-down'); chevron.classList.add('fa-chevron-up'); }
+    } else {
+      panel.style.display = 'none';
+      if (chevron) { chevron.classList.remove('fa-chevron-up'); chevron.classList.add('fa-chevron-down'); }
+    }
+  }
+
+  // Quick Date Preset Filter Handler
+  function applyQuickDatePreset(preset) {
+    const url = new URL(window.location.href);
+    const now = new Date();
+    
+    if (preset === 'today') {
+      const todayStr = now.toISOString().split('T')[0];
+      url.searchParams.set('date_from', todayStr);
+      url.searchParams.set('date_to', todayStr);
+      url.searchParams.set('filter', 'today');
+    } else if (preset === '7days') {
+      const past7 = new Date();
+      past7.setDate(now.getDate() - 7);
+      url.searchParams.set('date_from', past7.toISOString().split('T')[0]);
+      url.searchParams.set('date_to', now.toISOString().split('T')[0]);
+      url.searchParams.set('filter', '7days');
+    } else if (preset === '30days') {
+      const past30 = new Date();
+      past30.setDate(now.getDate() - 30);
+      url.searchParams.set('date_from', past30.toISOString().split('T')[0]);
+      url.searchParams.set('date_to', now.toISOString().split('T')[0]);
+      url.searchParams.set('filter', '30days');
+    } else if (preset === 'all') {
+      url.searchParams.delete('date_from');
+      url.searchParams.delete('date_to');
+      url.searchParams.delete('date');
+      url.searchParams.delete('filter');
+    }
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
+  function onLeadDatePresetChange(val) {
+    const fromInput = document.getElementById('filterFromDateInput');
+    const toInput = document.getElementById('filterToDateInput');
+    if (val !== 'custom') {
+      if (fromInput) fromInput.value = '';
+      if (toInput) toInput.value = '';
+    }
+  }
+
+  function onLeadCustomDateChange() {
+    const presetSelect = document.getElementById('filterPresetSelect');
+    if (presetSelect) presetSelect.value = 'custom';
+  }
+
+  // Filter by Campaign Click Handler
+  function filterByCampaign(campName) {
+    const url = new URL(window.location.href);
+    if (campName && campName.trim()) {
+      url.searchParams.set('campaign', campName.trim());
+    } else {
+      url.searchParams.delete('campaign');
+    }
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
+  // Sort Handler
+  function applyLeadsSort(sortVal) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sortVal);
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
   // Bulk Selection Counter & Self-Assign Limit Tracking
   const bulkSelfAssignLimit = {{ request.user.bulk_self_assign_limit|default:25 }};
 
@@ -470,7 +921,6 @@
   }
 
   function showInWindowConfirm(options) {
-    // options: { title, message, detailsHtml, confirmText, confirmBtnClass, onConfirm }
     const modalEl = document.getElementById('inWindowActionModal');
     const modalTitle = document.getElementById('inWindowActionModalLabel');
     const modalText = document.getElementById('modalMessageText');
@@ -572,29 +1022,66 @@
     if (bulkCountNum) bulkCountNum.textContent = count;
     if (bulkCountBadge) {
       if (count > 0) {
-        bulkCountBadge.style.background = 'linear-gradient(135deg,#6366f1,#4f46e5)';
+        bulkCountBadge.style.background = '#052042';
         bulkCountBadge.style.color = '#ffffff';
-        bulkCountBadge.style.borderColor = '#6366f1';
-        bulkCountBadge.style.transform = 'scale(1.05)';
+        bulkCountBadge.style.borderColor = '#052042';
       } else {
         bulkCountBadge.style.background = '#f1f5f9';
         bulkCountBadge.style.color = '#94a3b8';
         bulkCountBadge.style.borderColor = '#e2e8f0';
-        bulkCountBadge.style.transform = 'scale(1)';
       }
     }
 
     if (badge && btn) {
-      if (count > bulkSelfAssignLimit) {
-        badge.classList.remove('bg-success');
+      if (count === 0) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.pointerEvents = 'none';
+        badge.classList.remove('bg-danger');
+        badge.classList.add('bg-secondary');
+        btn.classList.remove('btn-outline-danger');
+        btn.classList.add('btn-outline-secondary');
+      } else if (count > bulkSelfAssignLimit) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        badge.classList.remove('bg-success', 'bg-secondary');
         badge.classList.add('bg-danger');
-        btn.classList.remove('btn-outline-success');
+        btn.classList.remove('btn-outline-success', 'btn-outline-secondary');
         btn.classList.add('btn-outline-danger');
       } else {
-        badge.classList.remove('bg-danger');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        badge.classList.remove('bg-danger', 'bg-secondary');
         badge.classList.add('bg-success');
-        btn.classList.remove('btn-outline-danger');
+        btn.classList.remove('btn-outline-danger', 'btn-outline-secondary');
         btn.classList.add('btn-outline-success');
+      }
+    }
+
+    const adminBulkBtn = document.getElementById('submitAdminBulkActionBtn');
+    if (adminBulkBtn) {
+      if (count === 0) {
+        adminBulkBtn.disabled = true;
+        adminBulkBtn.style.opacity = '0.5';
+        adminBulkBtn.style.cursor = 'not-allowed';
+      } else {
+        adminBulkBtn.disabled = false;
+        adminBulkBtn.style.opacity = '1';
+        adminBulkBtn.style.cursor = 'pointer';
+      }
+    }
+
+    // Toggle Admin Bulk Action Bar container visibility: ONLY show when leads are selected (> 0)
+    const bulkActionBar = document.getElementById('leadsBulkActionBar');
+    if (bulkActionBar) {
+      if (count > 0) {
+        bulkActionBar.classList.remove('d-none');
+        bulkActionBar.style.display = 'block';
+      } else {
+        bulkActionBar.classList.add('d-none');
+        bulkActionBar.style.display = 'none';
       }
     }
   }
@@ -648,7 +1135,7 @@
     const action = adminSelect ? adminSelect.value.trim() : '';
 
     if (!action) {
-      showInWindowAlert("Action Required", "select action first", "warning");
+      showInWindowAlert("Action Required", "Select an action first.", "warning");
       return;
     }
 

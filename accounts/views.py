@@ -30,7 +30,7 @@ def _role_redirect(user):
         return redirect("dashboard:superadmin_home")
     if user.hospital and user.industry == 'HOSPITAL':
         if user.role in (User.Role.ADMIN, User.Role.MANAGER):
-            return redirect("dashboard:superadmin_home")
+            return redirect("dashboard:hospital_admin_home")
         if user.role == User.Role.DOCTOR:
             return redirect("dashboard:doctor_home")
         if user.role == User.Role.LEAD_ATTENDENT:
@@ -185,7 +185,9 @@ def user_list(request):
     paginator = Paginator(users_qs, page_size)
     page_obj = paginator.get_page(page_number)
 
-    return render(request, "accounts/user_list.html", {
+    template_name = "hospital/team/users_list.html" if request.user.hospital or request.user.industry == "HOSPITAL" else "accounts/user_list.html"
+
+    return render(request, template_name, {
         "active": "users",
         "users": page_obj,
         "page_obj": page_obj,
@@ -1142,15 +1144,40 @@ def business_add(request):
     if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
+    from leads.models import HospitalBranch
     if request.method == "POST":
         form = BusinessForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Business created successfully.")
+            business = form.save()
+            
+            # Process dynamic branches submitted from form
+            branch_names = request.POST.getlist("branch_names[]")
+            branch_cities = request.POST.getlist("branch_cities[]")
+            branch_codes = request.POST.getlist("branch_codes[]")
+            main_branch_idx = request.POST.get("main_branch_index", "0")
+            
+            for idx, b_name in enumerate(branch_names):
+                b_name_clean = str(b_name).strip()
+                if b_name_clean:
+                    b_city = branch_cities[idx].strip() if idx < len(branch_cities) else ""
+                    b_code = branch_codes[idx].strip() if idx < len(branch_codes) else ""
+                    is_main = (str(idx) == str(main_branch_idx)) or (idx == 0)
+                    HospitalBranch.objects.get_or_create(
+                        hospital=business,
+                        name=b_name_clean,
+                        defaults={
+                            "city": b_city,
+                            "code": b_code,
+                            "is_main_branch": is_main,
+                            "order": idx
+                        }
+                    )
+            
+            messages.success(request, f"Business '{business.name}' created successfully with configured branches.")
             return redirect("accounts:business_list")
     else:
         form = BusinessForm()
-    return render(request, "accounts/business_form.html", {"form": form, "mode": "Add"})
+    return render(request, "accounts/business_form.html", {"form": form, "mode": "Add", "branches": []})
 
 @login_required
 def business_edit(request, pk):
@@ -1158,15 +1185,55 @@ def business_edit(request, pk):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
     business = get_object_or_404(Hospital, pk=pk)
+    from leads.models import HospitalBranch
     if request.method == "POST":
         form = BusinessForm(request.POST, instance=business)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Business '{business.name}' updated successfully.")
+            
+            # Process branches
+            branch_names = request.POST.getlist("branch_names[]")
+            branch_cities = request.POST.getlist("branch_cities[]")
+            branch_codes = request.POST.getlist("branch_codes[]")
+            main_branch_idx = request.POST.get("main_branch_index", "0")
+            
+            seen_branch_names = set()
+            for idx, b_name in enumerate(branch_names):
+                b_name_clean = str(b_name).strip()
+                if b_name_clean:
+                    seen_branch_names.add(b_name_clean.lower())
+                    b_city = branch_cities[idx].strip() if idx < len(branch_cities) else ""
+                    b_code = branch_codes[idx].strip() if idx < len(branch_codes) else ""
+                    is_main = (str(idx) == str(main_branch_idx))
+                    
+                    branch_obj, created = HospitalBranch.objects.get_or_create(
+                        hospital=business,
+                        name=b_name_clean,
+                        defaults={
+                            "city": b_city,
+                            "code": b_code,
+                            "is_main_branch": is_main,
+                            "order": idx
+                        }
+                    )
+                    if not created:
+                        branch_obj.city = b_city
+                        branch_obj.code = b_code
+                        branch_obj.is_main_branch = is_main
+                        branch_obj.order = idx
+                        branch_obj.save(update_fields=["city", "code", "is_main_branch", "order"])
+            
+            messages.success(request, f"Business '{business.name}' and branches updated successfully.")
             return redirect("accounts:business_list")
     else:
         form = BusinessForm(instance=business)
-    return render(request, "accounts/business_form.html", {"form": form, "mode": "Edit"})
+    existing_branches = HospitalBranch.objects.filter(hospital=business).order_by("order", "id")
+    return render(request, "accounts/business_form.html", {
+        "form": form, 
+        "mode": "Edit", 
+        "business": business,
+        "branches": existing_branches
+    })
 
 @login_required
 def business_toggle_active(request, pk):

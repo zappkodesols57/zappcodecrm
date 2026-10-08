@@ -175,7 +175,7 @@ def _load_excel_or_csv(file_path, filename=""):
 from django.core.cache import cache
 from accounts.models import User, Hospital
 from leads.models import Campaign as HospitalCampaign
-from .nel_hospital_import_service import (
+from .hospital_import_service import (
     parse_any_file_to_dataframe,
     extract_campaign_lead_data,
     check_duplicates_in_db,
@@ -2050,8 +2050,21 @@ def quick_import(request):
         year = timezone.now().year
         hosp_prefix = "NL-" if (user_hospital and "nelson" in (user_hospital.name or "").lower()) else "LD-"
         full_prefix = f"{hosp_prefix}{year}-"
-        last_lead = Lead.objects.filter(lead_code__startswith=full_prefix).order_by("-lead_code").first()
-        current_seq = (int(last_lead.lead_code.split("-")[-1]) if (last_lead and last_lead.lead_code and "-" in last_lead.lead_code) else 0)
+        
+        existing_codes_prefix = Lead.objects.filter(lead_code__startswith=full_prefix).values_list("lead_code", flat=True)
+        max_seq_found = 0
+        for code in existing_codes_prefix:
+            if code and "-" in code:
+                parts = code.split("-")
+                if len(parts) >= 3 and parts[-1].isdigit():
+                    try:
+                        n_val = int(parts[-1])
+                        if n_val > max_seq_found:
+                            max_seq_found = n_val
+                    except ValueError:
+                        pass
+        current_seq = max_seq_found
+        used_lead_codes = set(existing_codes_prefix)
 
         start_idx = 0
         if len(df) > 0 and col_name:
@@ -2333,6 +2346,10 @@ def quick_import(request):
             else:
                 current_seq += 1
                 gen_code = f"{full_prefix}{current_seq:06d}"
+                while gen_code in used_lead_codes:
+                    current_seq += 1
+                    gen_code = f"{full_prefix}{current_seq:06d}"
+                used_lead_codes.add(gen_code)
                 lead_obj = Lead.objects.create(
                     lead_code=gen_code,
                     name=name, mobile=mobile, alternate_mobile=alt_mobile,

@@ -1,107 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Appointments Done · Conversions{% endblock %}
+{% block title %}Appointments Done · Nelson Hospital CRM{% endblock %}
 {% block content %}
 
 <!-- Header Bar -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-  <div>
-    <h4 class="mb-0 fw-bold text-dark">Appointments Done</h4>
-    <p class="text-muted small mb-0">Healthcare & hospital appointments, visits, and patient conversion tracking.</p>
-  </div>
-  {% if target_hospital and not is_healthcare_scope %}
-  <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 rounded-pill">
-    Selected Business is not Healthcare (0 Records)
-  </span>
-  {% endif %}
-</div>
-
-<!-- Header Filters Card (Top) -->
-<div class="card shadow-sm border-0 mb-3 bg-white" style="border-radius: 12px;">
-  <div class="card-body p-3">
-    <form method="get" class="row g-2 align-items-end">
-      <!-- Search Input -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">Search Patient</label>
-        <input type="text" name="q" class="form-control form-control-sm" placeholder="Patient Name / Mobile..." value="{{ search_q }}">
-      </div>
-
-      <!-- Date From -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">From Date</label>
-        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
-      </div>
-
-      <!-- Date To -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">To Date</label>
-        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
-      </div>
-
-      <!-- Department -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">Department</label>
-        <select name="department" class="form-select form-select-sm">
-          <option value="">All Departments</option>
-          {% for d in departments_list %}
-          <option value="{{ d }}" {% if sel_dept == d %}selected{% endif %}>{{ d }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- Telecaller / Attendant -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">Telecaller / Attendant</label>
-        <select name="telecaller" class="form-select form-select-sm">
-          <option value="">All Telecallers</option>
-          {% for u in telecallers_qs %}
-          <option value="{{ u.id }}" {% if sel_telecaller == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- Doctor -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">Doctor</label>
-        <select name="doctor" class="form-select form-select-sm">
-          <option value="">All Doctors</option>
-          {% for doc in doctors_list %}
-          <option value="{{ doc }}" {% if sel_doctor == doc %}selected{% endif %}>{{ doc }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- Source -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">Source</label>
-        <select name="lead_source" class="form-select form-select-sm">
-          <option value="">All Sources</option>
-          {% for s in sources_list %}
-          <option value="{{ s }}" {% if sel_source == s %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- Campaign -->
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <label class="form-label text-muted small fw-semibold mb-1">Campaign</label>
-        <select name="campaign" class="form-select form-select-sm">
-          <option value="">All Campaigns</option>
-          {% for c in campaigns_list %}
-          <option value="{{ c }}" {% if sel_campaign == c %}selected{% endif %}>{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="col-lg-2 col-md-4 col-sm-12 d-flex gap-2 ms-auto">
-        <button type="submit" class="btn btn-sm btn-brand text-white w-50 shadow-sm"><i class="fa-solid fa-filter me-1"></i> Filter</button>
-        <a href="{% url 'leads:appointments_done' %}" class="btn btn-sm btn-outline-secondary w-50"><i class="fa-solid fa-rotate-left me-1"></i> Reset</a>
-      </div>
-    </form>
+  <div class="d-flex align-items-center gap-3">
+    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style="font-size: 1.25rem;">
+      <span>Appointments Done</span>
+    </h5>
+    <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">{{ appointment_done_count|default:total_leads_count }} records</span>
   </div>
 </div>
 
-<!-- Dynamic KPI Section (Below Filters) -->
+<!-- Campaign Breakdown & Date Filters Ribbon -->
+{% include "includes/campaign_date_header.html" %}
+
+<!-- Dynamic KPI Section (Below Campaign Breakdown) -->
 <div class="row g-3 mb-4">
   <!-- Total Leads -->
   <div class="col-md col-sm-6">
@@ -154,178 +68,164 @@
   </div>
 </div>
 
-<!-- Healthcare Industry Table -->
-<div class="card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
-  <div class="table-responsive">
-    <table class="table align-middle mb-0 table-hover text-nowrap">
+<!-- Healthcare Standard Lead Table Card -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" style="border: 1px solid #e2e8f0 !important;">
+  <div class="table-responsive custom-table-scrollbar pb-2">
+    <table class="table table-hover align-middle mb-0" style="min-width: 1250px; font-size: 0.86rem;">
       <thead class="bg-light border-bottom">
         <tr>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="width: 110px;">Date</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Patient Name</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Phone / Contact</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Source</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Campaign</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Doctor / Dept</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Stage</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Status</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Attendant</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Next Follow-up</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="border-left: 1px solid #e2e8f0 !important;">Remarks</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase text-end" style="border-left: 1px solid #e2e8f0 !important; min-width: 120px;">Actions</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">Patient Name</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Contact / Location</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Source / Campaign</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Stage</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Status</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Deal Status</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Inquiry Date/Time</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Last Update / Last Remark</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Telecaller</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; min-width: 150px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for lead in page_obj %}
         <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
-          <!-- Date -->
-          <td>
-            <span class="small text-muted">{{ lead.inquiry_date|date:"d-m-Y"|default:"—" }}</span>
-            {% if lead.custom_data.appo_booked_date %}
-            <div class="small text-primary" style="font-size: 0.72rem;">Appt: {{ lead.custom_data.appo_booked_date }}</div>
+          
+          <!-- 1. Patient Name -->
+          <td class="px-3">
+            <strong class="text-dark d-block">{{ lead.name }}</strong>
+            {% if lead.gender or lead.age %}
+              <span class="text-muted small" style="font-size: 0.72rem;">{% if lead.gender %}{{ lead.gender }}{% endif %}{% if lead.gender and lead.age %}, {% endif %}{% if lead.age %}{{ lead.age }} yrs{% endif %}</span>
             {% endif %}
           </td>
 
-          <!-- Patient Name -->
-          <td>
-            <strong class="text-dark">{{ lead.name }}</strong>
-            {% if lead.hospital %}
-            <div class="small text-muted" style="font-size: 0.72rem;">{{ lead.hospital.name }}</div>
-            {% endif %}
-          </td>
-
-          <!-- Phone / Contact -->
-          <td>
-            <span class="fw-semibold">{{ lead.mobile|default:"—" }}</span>
-          </td>
-
-          <!-- Source -->
-          <td>
-            <span class="small text-muted">{{ lead.lead_source|default:lead.custom_data.lead_source|default:"—" }}</span>
-          </td>
-
-          <!-- Campaign -->
-          <td>
-            {% with camp=lead.campaign|default:lead.custom_data.campaign %}
-              {% if camp and camp != '—' %}
-                <span class="small text-muted d-inline-block text-truncate" style="max-width: 140px; vertical-align: middle;" title="{{ camp }}">
-                  {{ camp }}
-                </span>
-              {% else %}
-                <span class="small text-muted">—</span>
+          <!-- 2. Contact / Location -->
+          <td class="px-3">
+            <div class="fw-semibold text-dark"><i class="fa-solid fa-phone text-muted me-1 small"></i>{{ lead.mobile|default:"—" }}</div>
+            {% with loc=lead.location|default:lead.city|default:lead.custom_data.location %}
+              {% if loc and loc != '—' %}
+              <div class="text-muted small text-truncate" style="max-width: 160px; font-size: 0.72rem;" title="{{ loc }}">
+                <i class="fa-solid fa-location-dot me-1 text-secondary"></i>{{ loc }}
+              </div>
               {% endif %}
             {% endwith %}
           </td>
 
-          <!-- Doctor / Dept -->
-          <td>
-            {% if lead.custom_data.doctor %}
-            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">
-              <i class="fa-solid fa-user-doctor me-1"></i>Dr. {{ lead.custom_data.doctor }}
-            </span>
-            {% endif %}
-            {% if lead.custom_data.department %}
-            <div class="small text-muted" style="font-size: 0.72rem;">{{ lead.custom_data.department }}</div>
-            {% endif %}
-            {% if not lead.custom_data.doctor and not lead.custom_data.department %}
-            <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-
-          <!-- Stage -->
-          <td>
-            <span class="badge badge-stage">{{ lead.stage|default:"Appointment" }}</span>
-          </td>
-
-          <!-- Status -->
-          <td>
-            {% if lead.display_status == 'Won' %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-              <i class="fa-solid fa-circle-check me-1"></i>Won
-            </span>
-            {% elif lead.display_status == 'Pending' %}
-            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
-              <i class="fa-solid fa-hourglass-half me-1"></i>Pending
-            </span>
-            {% elif lead.display_status == 'Open' %}
-            <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">
-              <i class="fa-solid fa-folder-open me-1"></i>Open
-            </span>
-            {% elif lead.display_status == 'New' %}
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
-              <i class="fa-solid fa-circle-plus me-1"></i>New
-            </span>
-            {% elif lead.display_status == 'Lost' %}
-            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
-              <i class="fa-solid fa-ban me-1"></i>Lost
-            </span>
-            {% else %}
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">
-              {{ lead.display_status|default:"Open" }}
-            </span>
-            {% endif %}
-          </td>
-
-          <!-- Attendant -->
-          <td>
-            {% if lead.assigned_to %}
-            <span class="small fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
-            {% else %}
-            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
-            {% endif %}
-          </td>
-
-          <!-- Next Follow-up -->
-          <td>
-            {% if lead.next_followup_date %}
-            <span class="small text-nowrap"><i class="fa-regular fa-calendar me-1 text-primary"></i>{{ lead.next_followup_date|date:"d-m-Y" }}</span>
-            {% elif lead.latest_followup_obj.followup_date %}
-            <span class="small text-nowrap"><i class="fa-regular fa-calendar me-1 text-primary"></i>{{ lead.latest_followup_obj.followup_date|date:"d-m-Y" }}</span>
-            {% else %}
-            <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-
-          <!-- Remarks -->
-          <td>
-            {% with rem=lead.interaction_remark %}
-            {% if rem and rem != '—' %}
-            <span class="small text-secondary text-truncate d-inline-block" style="max-width: 150px;" title="{{ rem }}">{{ rem }}</span>
-            {% elif lead.comments %}
-            <span class="small text-secondary text-truncate d-inline-block" style="max-width: 150px;" title="{{ lead.comments }}">{{ lead.comments }}</span>
-            {% else %}
-            <span class="text-muted small">—</span>
-            {% endif %}
+          <!-- 3. Source / Campaign -->
+          <td class="px-3">
+            <div class="fw-medium text-dark">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"Direct" }}</div>
+            {% with camp=lead.campaign|default:lead.custom_data.campaign %}
+              {% if camp and camp != '—' %}
+              <div class="text-muted small text-truncate" style="max-width: 150px; font-size: 0.72rem;" title="{{ camp }}">
+                <i class="fa-solid fa-bullhorn text-secondary me-1"></i>{{ camp }}
+              </div>
+              {% endif %}
             {% endwith %}
           </td>
 
-          <!-- Actions -->
-          <td class="text-end" onclick="event.stopPropagation();">
-            <div class="d-inline-flex align-items-center gap-1">
-              <!-- Direct Call -->
-              <a href="tel:{{ lead.mobile }}" class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Call Patient">
-                <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+          <!-- 4. Stage -->
+          <td class="px-3">
+            <span class="badge bg-light text-dark border px-2 py-1 font-monospace" style="font-size: 0.74rem;">
+              {{ lead.stage|default:"Appointment" }}
+            </span>
+          </td>
+
+          <!-- 5. Status -->
+          <td class="px-3">
+            {% if lead.display_status == 'Payment Done' %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
+            {% elif lead.display_status == 'Booking Confirmed' or lead.display_status == 'Booked' %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i>{{ lead.display_status }}</span>
+            {% elif 'Approval' in lead.display_status %}
+              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-hourglass-half me-1"></i>Approval Pending</span>
+            {% elif lead.display_status == 'Payment Pending' %}
+              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
+            {% else %}
+              <span class="badge bg-light text-secondary border px-2 py-1">{{ lead.display_status }}</span>
+            {% endif %}
+          </td>
+
+          <!-- 6. Deal Status -->
+          <td class="px-3">
+            <span class="small fw-semibold text-dark">{{ lead.get_deal_status_display|default:lead.deal_status|default:"OPEN" }}</span>
+          </td>
+
+          <!-- 7. Inquiry Date / Time -->
+          <td class="px-3">
+            <span class="text-nowrap small text-dark d-block fw-medium">{{ lead.inquiry_date|date:"d-m-Y"|default:"—" }}</span>
+            {% if lead.created_at %}
+              <span class="text-muted small" style="font-size: 0.70rem;">{{ lead.created_at|date:"h:i A" }}</span>
+            {% endif %}
+          </td>
+
+          <!-- 8. Last Update Date / Last Remark -->
+          <td class="px-3">
+            {% with rem=lead.interaction_remark %}
+              {% if rem and rem != '—' %}
+                <div class="small text-dark text-truncate fw-medium d-block" style="max-width: 180px;" title="{{ rem }}">
+                  <i class="fa-regular fa-comment-dots text-secondary me-1"></i>{{ rem }}
+                </div>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            {% endwith %}
+            <div class="text-muted small" style="font-size: 0.70rem;">
+              {{ lead.updated_at|date:"d-m-Y h:i A" }}
+            </div>
+          </td>
+
+          <!-- 9. Telecaller -->
+          <td class="px-3">
+            {% if lead.assigned_to %}
+              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">
+                <i class="fa-solid fa-user me-1 text-secondary"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+              </span>
+            {% else %}
+              <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1">Unassigned</span>
+            {% endif %}
+          </td>
+
+          <!-- 10. Actions: WhatsApp, Call, View, Edit -->
+          <td class="px-3 text-end" onclick="event.stopPropagation();">
+            <div class="d-inline-flex align-items-center justify-content-end gap-1">
+              {% if lead.mobile %}
+                <!-- WhatsApp -->
+                <a href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}" target="_blank"
+                  class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  style="width: 28px; height: 28px;" title="WhatsApp Patient">
+                  <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
+                </a>
+
+                <!-- Call -->
+                <a href="tel:{{ lead.mobile }}"
+                  class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  style="width: 28px; height: 28px;" title="Call Patient">
+                  <i class="fa-solid fa-phone" style="font-size: 0.75rem;"></i>
+                </a>
+              {% endif %}
+
+              <!-- View -->
+              <a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}"
+                class="btn btn-sm btn-light border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                style="width: 28px; height: 28px;" title="View Details">
+                <i class="fa-solid fa-eye" style="font-size: 0.75rem;"></i>
               </a>
-              <!-- WhatsApp -->
-              <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }}" target="_blank" class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="WhatsApp">
-                <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
-              </a>
+
               <!-- Edit -->
-              <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="Edit Lead">
-                <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
-              </a>
-              <!-- View Detail -->
-              <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs btn-outline-info rounded-circle d-inline-flex align-items-center justify-content-center p-0" style="width: 28px; height: 28px;" title="View Detail">
-                <i class="fa-solid fa-eye" style="font-size: 0.72rem;"></i>
+              <a href="{% url 'leads:lead_edit' lead.pk %}"
+                class="btn btn-sm btn-outline-primary rounded-pill px-2 py-0.5 fw-semibold shadow-xs"
+                style="font-size: 0.72rem;" title="Edit Lead">
+                Edit
               </a>
             </div>
           </td>
+
         </tr>
         {% empty %}
         <tr>
-          <td colspan="12">
+          <td colspan="10">
             <div class="py-5 text-center text-muted">
               <i class="fa-solid fa-calendar-xmark fa-2x mb-2 text-secondary opacity-50"></i>
-              <div>No appointment done records found.</div>
+              <div class="fw-semibold">No appointment done records found.</div>
             </div>
           </td>
         </tr>

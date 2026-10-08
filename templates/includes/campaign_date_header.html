@@ -1,0 +1,237 @@
+<!-- Top Unified Filter Card: Date Range, Campaigns, Search -->
+<div class="card border-0 shadow-sm rounded-4 mb-2.5 bg-white" style="border: 1px solid #e2e8f0 !important;">
+  <div class="card-body p-3">
+    <div class="row g-3 align-items-center">
+      
+      <!-- 1. Date Range Block -->
+      <div class="col-12 col-xl-5">
+        <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+          DATE RANGE
+        </label>
+        <div class="d-flex align-items-center gap-1.5 flex-wrap flex-sm-nowrap">
+          <!-- Quick Preset Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light border dropdown-toggle fw-semibold rounded-pill px-3 py-1.5 shadow-xs d-flex align-items-center gap-1.5 text-nowrap" type="button" id="topDatePresetDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.80rem; height: 36px;">
+              <span>
+                {% if request.GET.filter == 'today' %}Today
+                {% elif request.GET.filter == '7days' %}Last 7 Days
+                {% elif request.GET.filter == '30days' %}Last 30 Days
+                {% elif date_from_val or date_to_val %}Custom
+                {% else %}All Time{% endif %}
+              </span>
+            </button>
+            <ul class="dropdown-menu shadow-sm border-0 py-1" aria-labelledby="topDatePresetDropdown" style="font-size: 0.82rem; min-width: 150px;">
+              <li><button type="button" class="dropdown-item py-1.5" onclick="applyQuickDateFilter('today')"><i class="fa-solid fa-clock me-1.5 text-secondary"></i>Today</button></li>
+              <li><button type="button" class="dropdown-item py-1.5" onclick="applyQuickDateFilter('7days')"><i class="fa-solid fa-calendar-week me-1.5 text-secondary"></i>Last 7 Days</button></li>
+              <li><button type="button" class="dropdown-item py-1.5" onclick="applyQuickDateFilter('30days')"><i class="fa-solid fa-calendar-days me-1.5 text-secondary"></i>Last 30 Days</button></li>
+              <li><button type="button" class="dropdown-item py-1.5" onclick="applyQuickDateFilter('all')"><i class="fa-solid fa-infinity me-1.5 text-secondary"></i>All Time</button></li>
+            </ul>
+          </div>
+
+          <!-- Date Inputs -->
+          <div class="d-flex align-items-center gap-1">
+            <input type="date" id="topDateFromInput" class="form-control form-control-sm rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.78rem; width: 125px; height: 36px;"
+              value="{{ date_from_val|default:'' }}" placeholder="dd-mm-yyyy" onchange="applyCustomDateFilter()">
+            <span class="text-muted small">to</span>
+            <input type="date" id="topDateToInput" class="form-control form-control-sm rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.78rem; width: 125px; height: 36px;"
+              value="{{ date_to_val|default:'' }}" placeholder="dd-mm-yyyy" onchange="applyCustomDateFilter()">
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Campaigns Dropdown Block -->
+      <div class="col-12 col-md-6 col-xl-3">
+        <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+          CAMPAIGNS
+        </label>
+        <div class="dropdown w-100">
+          <button class="btn btn-sm btn-light border dropdown-toggle fw-semibold rounded-pill px-3 py-1.5 shadow-xs w-100 d-flex align-items-center justify-content-between text-nowrap" type="button" id="topCampaignDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.80rem; height: 36px;">
+            <span class="text-truncate" style="max-width: 170px;">
+              {{ request.GET.campaign|default:"All Campaigns" }}
+            </span>
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2 py-0.5" style="font-size: 0.70rem;">
+              {{ campaign_breakdown|length|default:total_count }}
+            </span>
+          </button>
+          <ul class="dropdown-menu shadow-sm border-0 py-1 w-100 custom-scrollbar" aria-labelledby="topCampaignDropdown" style="font-size: 0.82rem; max-height: 280px; overflow-y: auto;">
+            <li>
+              <button type="button" class="dropdown-item py-1.5 d-flex align-items-center justify-content-between {% if not request.GET.campaign %}active{% endif %}" onclick="filterByCampaign('')">
+                <span>All Campaigns</span>
+                <span class="badge {% if not request.GET.campaign %}bg-white text-dark{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-pill px-1.5 py-0.5" style="font-size: 0.68rem;">{{ total_count }}</span>
+              </button>
+            </li>
+            <li><hr class="dropdown-divider my-1"></li>
+            {% for camp in campaign_breakdown %}
+            <li>
+              <button type="button" class="dropdown-item py-1.5 d-flex align-items-center justify-content-between {% if request.GET.campaign == camp.name %}active{% endif %}" onclick="filterByCampaign('{{ camp.name|escapejs }}')">
+                <span class="text-truncate me-2" style="max-width: 190px;" title="{{ camp.name }}">{{ camp.name }}</span>
+                <span class="badge {% if request.GET.campaign == camp.name %}bg-white text-primary{% else %}bg-primary bg-opacity-10 text-primary{% endif %} rounded-pill px-1.5 py-0.5" style="font-size: 0.68rem;">{{ camp.count }}</span>
+              </button>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. Search Input Block -->
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label text-muted fw-bold text-uppercase mb-0 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+            SEARCH
+          </label>
+          {% if date_from_val or date_to_val or request.GET.filter or request.GET.campaign or q %}
+          <button type="button" class="btn btn-link p-0 text-primary text-decoration-none small fw-bold" onclick="clearTopDateAndCampaignFilters()" style="font-size: 0.74rem;">
+            Clear
+          </button>
+          {% endif %}
+        </div>
+        <form method="get" class="d-flex align-items-center gap-1" id="topInlineSearchForm">
+          {% for k, v in request.GET.items %}
+            {% if k != 'q' and k != 'page' %}
+              <input type="hidden" name="{{ k }}" value="{{ v }}">
+            {% endif %}
+          {% endfor %}
+          <div class="input-group input-group-sm w-100">
+            <input type="search" name="q" id="topSearchInput" class="form-control bg-light border rounded-pill px-3 py-1.5" style="font-size: 0.80rem; height: 36px;" placeholder="Search by name, mobile, email, lead ID..." value="{{ q|default:'' }}" autocomplete="off">
+          </div>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Active Applied Filters Chips Bar (Shows applied filter details) -->
+    {% if date_from_val or date_to_val or request.GET.filter or request.GET.campaign or q %}
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2.5 pt-2.5 border-top">
+      <div class="d-flex align-items-center gap-1.5 flex-wrap">
+        <span class="text-muted fw-bold text-uppercase d-inline-block me-1" style="font-size: 0.68rem; letter-spacing: 0.4px; color: #052042 !important;">
+          APPLIED FILTERS:
+        </span>
+
+        {% if q %}
+        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+          <strong class="text-muted">Search:</strong> "{{ q }}"
+        </span>
+        {% endif %}
+
+        {% if request.GET.filter and request.GET.filter != 'all' %}
+        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+          <strong class="text-muted">Date:</strong> 
+          {% if request.GET.filter == 'today' %}Today
+          {% elif request.GET.filter == '7days' %}Last 7 Days
+          {% elif request.GET.filter == '30days' %}Last 30 Days
+          {% else %}{{ request.GET.filter }}{% endif %}
+        </span>
+        {% endif %}
+
+        {% if date_from_val or date_to_val %}
+        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+          <strong class="text-muted">Date Range:</strong> {{ date_from_val|default:'Start' }} to {{ date_to_val|default:'Today' }}
+        </span>
+        {% endif %}
+
+        {% if request.GET.campaign %}
+        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
+          <strong class="text-muted">Campaign:</strong> {{ request.GET.campaign }}
+        </span>
+        {% endif %}
+      </div>
+
+      <button type="button" class="btn btn-link p-0 text-danger text-decoration-none small fw-bold d-flex align-items-center gap-1" onclick="clearTopDateAndCampaignFilters()" style="font-size: 0.72rem;">
+        <i class="fa-solid fa-arrow-rotate-left"></i> Reset All
+      </button>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+function applyQuickDateFilter(preset) {
+  const url = new URL(window.location.href);
+  const now = new Date();
+  
+  if (preset === 'today') {
+    const todayStr = now.toISOString().split('T')[0];
+    url.searchParams.set('date_from', todayStr);
+    url.searchParams.set('date_to', todayStr);
+    url.searchParams.set('filter', 'today');
+  } else if (preset === '7days') {
+    const past7 = new Date();
+    past7.setDate(now.getDate() - 7);
+    url.searchParams.set('date_from', past7.toISOString().split('T')[0]);
+    url.searchParams.set('date_to', now.toISOString().split('T')[0]);
+    url.searchParams.set('filter', '7days');
+  } else if (preset === '30days') {
+    const past30 = new Date();
+    past30.setDate(now.getDate() - 30);
+    url.searchParams.set('date_from', past30.toISOString().split('T')[0]);
+    url.searchParams.set('date_to', now.toISOString().split('T')[0]);
+    url.searchParams.set('filter', '30days');
+  } else if (preset === 'all') {
+    url.searchParams.delete('date_from');
+    url.searchParams.delete('date_to');
+    url.searchParams.delete('date');
+    url.searchParams.delete('filter');
+  }
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+}
+
+function applyCustomDateFilter() {
+  const fromVal = document.getElementById('topDateFromInput').value;
+  const toVal = document.getElementById('topDateToInput').value;
+  const url = new URL(window.location.href);
+  
+  if (fromVal) url.searchParams.set('date_from', fromVal);
+  else url.searchParams.delete('date_from');
+  
+  if (toVal) url.searchParams.set('date_to', toVal);
+  else url.searchParams.delete('date_to');
+  
+  url.searchParams.delete('date');
+  url.searchParams.delete('filter');
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+}
+
+function filterByCampaign(campaignName) {
+  const url = new URL(window.location.href);
+  if (campaignName) {
+    url.searchParams.set('campaign', campaignName);
+  } else {
+    url.searchParams.delete('campaign');
+  }
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+}
+
+function clearTopDateAndCampaignFilters() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('date_from');
+  url.searchParams.delete('date_to');
+  url.searchParams.delete('date');
+  url.searchParams.delete('filter');
+  url.searchParams.delete('campaign');
+  url.searchParams.delete('q');
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  const topSearch = document.getElementById("topSearchInput");
+  const topForm = document.getElementById("topInlineSearchForm");
+  if (!topSearch || !topForm) return;
+
+  let searchTimeout = null;
+  topSearch.addEventListener("input", function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() {
+      topForm.submit();
+    }, 500);
+  });
+  topSearch.addEventListener("search", function() {
+    clearTimeout(searchTimeout);
+    topForm.submit();
+  });
+});
+</script>

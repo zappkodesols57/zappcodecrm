@@ -33,6 +33,9 @@ urlpatterns = [
     path("daily-report/pdf/", views.download_eod_report_pdf, name="download_eod_report_pdf"),
     path("reports/daily/", views.management_daily_reports, name="management_daily_reports"),
 
+    path("hospital/admin/", views.superadmin_home, name="hospital_admin_home"),
+    path("hospital/manager/", views.superadmin_home, name="hospital_manager_home"),
+    path("hospital/doctor/", views.doctor_home, name="hospital_doctor_home"),
     path("doctor/", views.doctor_home, name="doctor_home"),
     path("doctor/appointments/", views.doctor_appointments, name="doctor_appointments"),
     path("doctor/patient/<int:lead_id>/review/", views.doctor_patient_review, name="doctor_patient_review"),
