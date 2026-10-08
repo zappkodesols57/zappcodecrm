@@ -17,4 +17,5 @@ dependencies = [
     "pillow>=12.3.0",
     "redis>=8.1.0",
     "django-anymail[brevo]",
+    "reportlab>=5.0.1",
 ]
