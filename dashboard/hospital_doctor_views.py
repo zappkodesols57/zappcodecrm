@@ -85,23 +85,69 @@ def doctor_home(request):
             apt.doctor_notes = reason
             apt.save(update_fields=['status', 'doctor_notes'])
 
+            # Step down temperature by 1 (Hot -> Warm, Warm -> Cold, Cold -> Freeze)
+            current_temp = (lead.temperature or LeadTemperature.HOT).upper()
+            temp_step_down = {
+                LeadTemperature.HOT: LeadTemperature.WARM,
+                LeadTemperature.WARM: LeadTemperature.COLD,
+                LeadTemperature.COLD: LeadTemperature.FREEZE,
+                LeadTemperature.FREEZE: LeadTemperature.FREEZE,
+            }
+            lead.temperature = temp_step_down.get(current_temp, LeadTemperature.WARM)
+
             # Update Lead custom data
             cd = lead.custom_data or {}
             cd['appointment_status'] = f"Doctor Cancelled: {reason}"
             cd['doctor_remark'] = reason
+            cd['doctor_rejection_reason'] = reason
+            cd['deal_status'] = 'Pending'
             lead.custom_data = cd
+            lead.deal_status = DealStatus.PENDING
             lead.next_followup_date = timezone.localdate()
-            lead.save(update_fields=['custom_data', 'next_followup_date'])
+
+            # Assign 'Appointment Cancelled' or 'Cancelled' stage if available
+            b_type = LeadStage.BusinessType.HOSPITAL if lead.hospital_id else LeadStage.BusinessType.ALL
+            apt_cancelled_stage = (
+                LeadStage.objects.filter(hospital=lead.hospital, name__iexact='Appointment Cancelled', is_active=True).first()
+                or LeadStage.objects.filter(hospital=lead.hospital, name__icontains='Cancelled', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='Appointment Cancelled', is_active=True).first()
+            )
+            if not apt_cancelled_stage:
+                try:
+                    apt_cancelled_stage, _ = LeadStage.objects.get_or_create(
+                        hospital=lead.hospital,
+                        name='Appointment Cancelled',
+                        defaults={'business_type': b_type, 'order': 4, 'is_active': True}
+                    )
+                except Exception:
+                    pass
+
+            if apt_cancelled_stage:
+                lead.stage = apt_cancelled_stage
+
+            lead.save(update_fields=['custom_data', 'next_followup_date', 'deal_status', 'temperature', 'stage'])
+
+            # Create lead note / activity record for timeline
+            try:
+                from leads.models import LeadNote
+                doc_disp = doctor.get_full_name() or doctor.username
+                LeadNote.objects.create(
+                    lead=lead,
+                    created_by=doctor,
+                    note=f"Doctor Cancellation: Dr. {doc_disp} rejected/cancelled appointment for {date_str} ({time_str}). Reason: {reason}"
+                )
+            except Exception:
+                pass
 
             if lead.assigned_to:
                 Notification.objects.create(
                     user=lead.assigned_to,
                     title="Appointment Cancelled by Doctor",
-                    message=f"Dr. {doctor.get_full_name() or doctor.username} cancelled appointment for {lead.name} ({date_str}). Reason: {reason}.",
+                    message=f"Dr. {doctor.get_full_name() or doctor.username} rejected/cancelled appointment for {lead.name} ({date_str}). Reason: {reason}. Please follow up with patient.",
                     link=f"/leads/{lead.pk}/",
                 )
 
-            messages.info(request, f"Appointment for {lead.name} marked cancelled. Lead attendant notified.")
+            messages.info(request, f"Appointment for {lead.name} cancelled. Lead assigned to attendant with rejection remarks for follow-up.")
 
         elif action == "change_slot" and apt and lead:
             new_date_str = request.POST.get('new_date', '').strip()

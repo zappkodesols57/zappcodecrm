@@ -866,7 +866,12 @@
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="pending-approval-apts-tab" data-bs-toggle="tab" data-bs-target="#pending-approval-apts-pane" type="button" role="tab" aria-controls="pending-approval-apts-pane" aria-selected="false">
-                                    Approval Pending <span class="badge bg-danger text-white rounded-pill ms-2">{{ approval_pending_appointments_count|default:0 }}</span>
+                                    Approval Pending <span class="badge bg-warning text-dark rounded-pill ms-2">{{ approval_pending_appointments_count|default:0 }}</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="rejected-apts-tab" data-bs-toggle="tab" data-bs-target="#rejected-apts-pane" type="button" role="tab" aria-controls="rejected-apts-pane" aria-selected="false">
+                                    Rejected / Cancelled <span class="badge bg-danger text-white rounded-pill ms-2">{{ rejected_appointments_count|default:0 }}</span>
                                 </button>
                             </li>
                         </ul>
@@ -937,6 +942,23 @@
                                     {% if approval_pending_apts_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=pending&page={{ approval_pending_apts_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
                                     <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ approval_pending_apts_page.number }} of {{ approval_pending_apts_page.paginator.num_pages }}</span></li>
                                     {% if approval_pending_apts_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=pending&page={{ approval_pending_apts_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
+                                </ul></nav>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- SUBTAB 3.5: Rejected / Cancelled Appointments -->
+                        <div class="tab-pane fade" id="rejected-apts-pane" role="tabpanel" aria-labelledby="rejected-apts-tab" tabindex="0">
+                            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="appointments_rejected" leads=rejected_appointments_list %}
+                            </div>
+                            {% if rejected_apts_page and rejected_apts_page.paginator.num_pages > 1 %}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-2 border-top mt-2">
+                                <div class="text-muted small">Showing <span class="fw-semibold text-dark">{{ rejected_apts_page.start_index }}</span> to <span class="fw-semibold text-dark">{{ rejected_apts_page.end_index }}</span> of <span class="fw-semibold text-dark">{{ rejected_appointments_count }}</span> appointments</div>
+                                <nav><ul class="pagination pagination-sm mb-0 gap-1">
+                                    {% if rejected_apts_page.has_previous %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=rejected&page={{ rejected_apts_page.previous_page_number }}"><i class="fa-solid fa-angle-left me-1"></i> Prev</a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted"><i class="fa-solid fa-angle-left me-1"></i> Prev</span></li>{% endif %}
+                                    <li class="page-item active"><span class="page-link rounded-pill px-3 py-1 fw-bold">Page {{ rejected_apts_page.number }} of {{ rejected_apts_page.paginator.num_pages }}</span></li>
+                                    {% if rejected_apts_page.has_next %}<li class="page-item"><a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab=appointments&subtab=rejected&page={{ rejected_apts_page.next_page_number }}">Next <i class="fa-solid fa-angle-right ms-1"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link rounded-pill px-3 py-1 border text-muted">Next <i class="fa-solid fa-angle-right ms-1"></i></span></li>{% endif %}
                                 </ul></nav>
                             </div>
                             {% endif %}

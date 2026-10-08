@@ -737,7 +737,11 @@ class Lead(models.Model):
         appt_st = str(cd.get("appointment_status") or "").strip().upper()
         raw_ds = str(cd.get("deal_status") or "").strip().upper()
 
-        if adm_st in ("LOST", "CANCELLED") or "CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up or "CANCEL" in appt_st or "LOST" in appt_st:
+        # Doctor Cancelled / Rejected appointment awaiting follow-up -> Stage is 'Appointment Cancelled'
+        if "DOCTOR CANCELLED" in appt_st or "DOCTOR REJECT" in appt_st or st_name == "appointment cancelled" or "APPOINTMENT CANCELLED" in st_up:
+            return "Appointment Cancelled"
+
+        if adm_st in ("LOST", "CANCELLED") or (("CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up) and st_name != "appointment cancelled") or "LOST" in appt_st or ("CANCEL" in appt_st and "DOCTOR" not in appt_st):
             return "Cancelled" if ("CANCEL" in st_up or "CANCEL" in appt_st or adm_st == "CANCELLED") else "Lost"
 
         if tot > 0 or "PAYMENT" in raw_ds or "PAYMENT" in appt_st or "PAYMENT" in st_up or (st_up == "PAYMENT" and cd.get("payment_status") == "Done"):
@@ -772,7 +776,8 @@ class Lead(models.Model):
         """
         Calculates dynamic lead temperature based on remarks and status:
         - Lost / Cancelled leads -> Always 'Freeze'
-        - Active for temperature: ONLY early stages ('New', 'Assigned', 'Follow up', 'Doctor Approval Pending')
+        - Doctor cancelled leads awaiting follow-up -> Calculated dynamically (stepped down), not forced to Freeze
+        - Active for temperature: ONLY early stages ('New', 'Assigned', 'Follow up', 'Doctor Approval Pending', 'Appointment Cancelled')
         - Once an appointment is Confirmed, Completed, or Payment is Done -> Temperature is not needed (returns None)
         - Sequential temperature scale: Freeze -> Cold -> Warm -> Hot
         """
@@ -783,8 +788,10 @@ class Lead(models.Model):
         raw_ds = str(cd.get("deal_status") or "").strip().upper()
         tot = self.total_billed_amount
 
-        # 1. Lost / Cancelled leads are ALWAYS Freeze
-        if (
+        is_doctor_cancelled = "DOCTOR CANCELLED" in appt_st or "DOCTOR REJECT" in appt_st or st_name == "appointment cancelled"
+
+        # 1. Lost / Cancelled leads are ALWAYS Freeze (unless it's a doctor-cancelled lead pending re-followup)
+        if not is_doctor_cancelled and (
             st_name in ("cancelled", "lost", "not interested") 
             or adm_st in ("LOST", "CANCELLED") 
             or self.deal_status == DealStatus.LOST
@@ -808,11 +815,21 @@ class Lead(models.Model):
         ):
             return None
 
-        # 3. Early stages: New, Assigned, Follow-up, Doctor Approval Pending
+        # 3. Early stages: New, Assigned, Follow-up, Doctor Approval Pending, Appointment Cancelled
         TEMP_LEVELS = ["Freeze", "Cold", "Warm", "Hot"]
 
         # Base starting temperature:
-        if adm_st == "HOLD" or self.deal_status == DealStatus.HOLD:
+        if is_doctor_cancelled:
+            # If explicit temperature was assigned (stepped down), use it as base
+            if self.temperature == LeadTemperature.FREEZE:
+                base_level = 0
+            elif self.temperature == LeadTemperature.COLD:
+                base_level = 1
+            elif self.temperature == LeadTemperature.WARM:
+                base_level = 2
+            else:
+                base_level = 2  # default Warm
+        elif adm_st == "HOLD" or self.deal_status == DealStatus.HOLD:
             base_level = 1  # Cold
         elif adm_st == "OPEN":
             base_level = 2  # Warm
@@ -952,8 +969,10 @@ class Lead(models.Model):
         temp = (self.custom_temperature or self.temperature or "").strip().upper()
         attendant = cd.get("lead_attendant") or (self.assigned_to.get_full_name() if self.assigned_to else "")
 
+        is_doctor_cancelled = "DOCTOR CANCELLED" in appt_st_up or "DOCTOR REJECT" in appt_st_up or st_name == "appointment cancelled"
+
         # 1. Check LOST (Temperature Freeze, Cancelled stage/status, or DealStatus LOST)
-        if (
+        if not is_doctor_cancelled and (
             temp == "FREEZE"
             or self.temperature == LeadTemperature.FREEZE
             or self.deal_status == DealStatus.LOST
@@ -968,6 +987,10 @@ class Lead(models.Model):
             or "LOST" in raw_ds
         ):
             return "Lost"
+
+        # Doctor Cancelled leads awaiting follow-up are strictly PENDING
+        if is_doctor_cancelled:
+            return "Pending"
 
         # 2. Check WON (OPD Complete, Consultation Done, Visited, Payment Done, Total Billed > 0)
         has_payment_done = tot > 0 or "PAYMENT DONE" in raw_ds or "PAYMENT DONE" in appt_st_up or "DONE" in raw_ds or (st_name == "payment" and cd.get("payment_status") == "Done")
@@ -1235,9 +1258,11 @@ class Lead(models.Model):
         except (ValueError, TypeError):
             tot = 0.0
 
+        is_doc_cancelled = "doctor cancel" in cd_apt or "doctor reject" in cd_apt or st_name == "appointment cancelled"
+
         # Condition 1: LOST
         # If stage is cancelled/lost or admission_status is LOST or appointment cancelled/not interested
-        if (
+        if not is_doc_cancelled and (
             adm_st in ("LOST", "CANCELLED", "DROPOUT")
             or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
             or "cancel" in cd_apt
