@@ -150,6 +150,51 @@
     outline: none !important;
   }
 
+  /* Checkbox & Radio exception - Do NOT stretch to 42px block input */
+  .crm-form-card input[type="checkbox"],
+  .crm-form-card input[type="radio"],
+  .crm-form-field input[type="checkbox"],
+  .crm-form-field input[type="radio"],
+  .form-check-input {
+    width: 1.15em !important;
+    height: 1.15em !important;
+    min-height: 1.15em !important;
+    max-height: 1.15em !important;
+    padding: 0 !important;
+    margin-top: 0.15em !important;
+    margin-right: 0.45em !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    box-shadow: none !important;
+    border: 1.5px solid #64748b !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+  }
+
+  .crm-form-card .form-switch .form-check-input,
+  .crm-form-field .form-switch .form-check-input {
+    width: 2em !important;
+    border-radius: 2em !important;
+  }
+
+  /* Branch Transfer Container Box */
+  .transfer-branch-box {
+    background-color: #f8fafc;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 0.85rem;
+    margin-top: 0.65rem;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .transfer-branch-box select.form-select,
+  .transfer-branch-box input.form-control {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 0.88rem !important;
+  }
+
   .crm-owner-badge {
     background-color: #f8fafc;
     border: 1px solid #cbd5e1;
@@ -458,23 +503,27 @@
               {% if user.can_transfer_branch %}
               <!-- Branch Transfer Option -->
               <div class="mt-2 pt-2 border-top">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_left" value="1" onchange="toggleBranchTransfer(this.checked)">
-                  <label class="form-check-label small fw-semibold text-dark" for="is_branch_transfer_left">
-                    Transfer to Another Branch
+                <div class="d-flex align-items-center">
+                  <input class="form-check-input m-0 me-2" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_left" value="1" onchange="toggleBranchTransfer(this.checked)">
+                  <label class="form-check-label small fw-semibold text-primary" for="is_branch_transfer_left" style="cursor: pointer;">
+                    <i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Transfer to Another Branch
                   </label>
                 </div>
-                <div id="transfer_branch_container" class="mt-2 p-2 bg-light rounded border border-primary-subtle" style="display: none;">
-                  <label class="form-label small text-muted mb-1 fw-semibold">Select Target Branch <span class="text-danger">*</span>:</label>
-                  <select name="transfer_target_branch" id="transfer_target_branch" class="form-select mb-2">
-                    <option value="">-- Select Target Branch --</option>
-                    {% for b in available_branches %}
-                    <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
-                    {% endfor %}
-                  </select>
-                  <label class="form-label small text-muted mb-1 fw-semibold">Transfer Reason <span class="text-danger">*</span>:</label>
-                  <input type="text" name="transfer_reason" id="transfer_reason_left" class="form-control form-control-sm" placeholder="Reason for transferring branch (Required)">
-                  <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
+                <div id="transfer_branch_container_left" class="transfer-branch-box" style="display: none;">
+                  <div class="mb-2">
+                    <label class="form-label small text-dark mb-1 fw-bold">Select Target Branch <span class="text-danger">*</span></label>
+                    <select name="transfer_target_branch" id="transfer_target_branch_left" class="form-select no-tom-select">
+                      <option value="">-- Select Target Branch --</option>
+                      {% for b in available_branches %}
+                      <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="mb-1">
+                    <label class="form-label small text-dark mb-1 fw-bold">Transfer Reason <span class="text-danger">*</span></label>
+                    <input type="text" name="transfer_reason" id="transfer_reason_left" class="form-control" placeholder="Reason for transferring branch (Required)">
+                  </div>
+                  <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info text-primary me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
                 </div>
               </div>
               {% endif %}
@@ -572,23 +621,27 @@
               {% if user.can_transfer_branch %}
               <!-- Branch Transfer Option -->
               <div class="mt-2 pt-2 border-top">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_right" value="1" onchange="toggleBranchTransfer(this.checked)">
-                  <label class="form-check-label small fw-semibold text-dark" for="is_branch_transfer_right">
-                    Transfer to Another Branch
+                <div class="d-flex align-items-center">
+                  <input class="form-check-input m-0 me-2" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_right" value="1" onchange="toggleBranchTransfer(this.checked)">
+                  <label class="form-check-label small fw-semibold text-primary" for="is_branch_transfer_right" style="cursor: pointer;">
+                    <i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Transfer to Another Branch
                   </label>
                 </div>
-                <div id="transfer_branch_container_right" class="mt-2 p-2 bg-light rounded border border-primary-subtle" style="display: none;">
-                  <label class="form-label small text-muted mb-1 fw-semibold">Select Target Branch <span class="text-danger">*</span>:</label>
-                  <select name="transfer_target_branch" id="transfer_target_branch_right" class="form-select mb-2">
-                    <option value="">-- Select Target Branch --</option>
-                    {% for b in available_branches %}
-                    <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
-                    {% endfor %}
-                  </select>
-                  <label class="form-label small text-muted mb-1 fw-semibold">Transfer Reason <span class="text-danger">*</span>:</label>
-                  <input type="text" name="transfer_reason" id="transfer_reason_right" class="form-control form-control-sm" placeholder="Reason for transferring branch (Required)">
-                  <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
+                <div id="transfer_branch_container_right" class="transfer-branch-box" style="display: none;">
+                  <div class="mb-2">
+                    <label class="form-label small text-dark mb-1 fw-bold">Select Target Branch <span class="text-danger">*</span></label>
+                    <select name="transfer_target_branch" id="transfer_target_branch_right" class="form-select no-tom-select">
+                      <option value="">-- Select Target Branch --</option>
+                      {% for b in available_branches %}
+                      <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="mb-1">
+                    <label class="form-label small text-dark mb-1 fw-bold">Transfer Reason <span class="text-danger">*</span></label>
+                    <input type="text" name="transfer_reason" id="transfer_reason_right" class="form-control" placeholder="Reason for transferring branch (Required)">
+                  </div>
+                  <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info text-primary me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
                 </div>
               </div>
               {% endif %}
@@ -755,23 +808,27 @@
                 {% if user.can_transfer_branch %}
                 <!-- Branch Transfer Option -->
                 <div class="mt-2 pt-2 border-top">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_booking" value="1" onchange="toggleBranchTransfer(this.checked)">
-                    <label class="form-check-label small fw-semibold text-dark" for="is_branch_transfer_booking">
-                      Transfer to Another Branch
+                  <div class="d-flex align-items-center">
+                    <input class="form-check-input m-0 me-2" type="checkbox" name="is_branch_transfer" id="is_branch_transfer_booking" value="1" onchange="toggleBranchTransfer(this.checked)">
+                    <label class="form-check-label small fw-semibold text-primary" for="is_branch_transfer_booking" style="cursor: pointer;">
+                      <i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Transfer to Another Branch
                     </label>
                   </div>
-                  <div id="transfer_branch_container" class="mt-2 p-2 bg-light rounded border border-primary-subtle" style="display: none;">
-                    <label class="form-label small text-muted mb-1 fw-semibold">Select Target Branch <span class="text-danger">*</span>:</label>
-                    <select name="transfer_target_branch" id="transfer_target_branch" class="form-select mb-2">
-                      <option value="">-- Select Target Branch --</option>
-                      {% for b in available_branches %}
-                      <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
-                      {% endfor %}
-                    </select>
-                    <label class="form-label small text-muted mb-1 fw-semibold">Transfer Reason <span class="text-danger">*</span>:</label>
-                    <input type="text" name="transfer_reason" id="transfer_reason_booking" class="form-control form-control-sm" placeholder="Reason for transferring branch (Required)">
-                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
+                  <div id="transfer_branch_container_booking" class="transfer-branch-box" style="display: none;">
+                    <div class="mb-2">
+                      <label class="form-label small text-dark mb-1 fw-bold">Select Target Branch <span class="text-danger">*</span></label>
+                      <select name="transfer_target_branch" id="transfer_target_branch_booking" class="form-select no-tom-select">
+                        <option value="">-- Select Target Branch --</option>
+                        {% for b in available_branches %}
+                        <option value="{{ b.name }}">{{ b.name }}{% if b.city %} ({{ b.city }}){% endif %}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="mb-1">
+                      <label class="form-label small text-dark mb-1 fw-bold">Transfer Reason <span class="text-danger">*</span></label>
+                      <input type="text" name="transfer_reason" id="transfer_reason_booking" class="form-control" placeholder="Reason for transferring branch (Required)">
+                    </div>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;"><i class="fa-solid fa-circle-info text-primary me-1"></i>Transferred lead will appear as a New Lead in the target branch pool.</small>
                   </div>
                 </div>
                 {% endif %}
@@ -1931,24 +1988,50 @@
 
   // Branch Transfer UI Handler
   window.toggleBranchTransfer = function(isChecked) {
-    const leftContainer = document.getElementById('transfer_branch_container');
-    const rightContainer = document.getElementById('transfer_branch_container_right');
-    const leftSelect = document.getElementById('transfer_target_branch');
-    const rightSelect = document.getElementById('transfer_target_branch_right');
-    const leftReason = document.getElementById('transfer_reason_booking') || document.getElementById('transfer_reason_left');
-    const rightReason = document.getElementById('transfer_reason_right');
-    const leftCb = document.getElementById('is_branch_transfer_booking') || document.getElementById('is_branch_transfer_left');
-    const rightCb = document.getElementById('is_branch_transfer_right');
+    const containers = [
+      document.getElementById('transfer_branch_container_left'),
+      document.getElementById('transfer_branch_container_right'),
+      document.getElementById('transfer_branch_container_booking'),
+      document.getElementById('transfer_branch_container')
+    ];
+    const checkboxes = [
+      document.getElementById('is_branch_transfer_left'),
+      document.getElementById('is_branch_transfer_right'),
+      document.getElementById('is_branch_transfer_booking')
+    ];
+    const selects = [
+      document.getElementById('transfer_target_branch_left'),
+      document.getElementById('transfer_target_branch_right'),
+      document.getElementById('transfer_target_branch_booking'),
+      document.getElementById('transfer_target_branch')
+    ];
+    const reasons = [
+      document.getElementById('transfer_reason_left'),
+      document.getElementById('transfer_reason_right'),
+      document.getElementById('transfer_reason_booking')
+    ];
 
-    if (leftContainer) leftContainer.style.display = isChecked ? 'block' : 'none';
-    if (rightContainer) rightContainer.style.display = isChecked ? 'block' : 'none';
-    if (leftCb) leftCb.checked = isChecked;
-    if (rightCb) rightCb.checked = isChecked;
+    containers.forEach(c => {
+      if (c) c.style.display = isChecked ? 'block' : 'none';
+    });
 
-    if (leftSelect) leftSelect.required = isChecked;
-    if (rightSelect) rightSelect.required = isChecked;
-    if (leftReason) leftReason.required = isChecked;
-    if (rightReason) rightReason.required = isChecked;
+    checkboxes.forEach(cb => {
+      if (cb) cb.checked = isChecked;
+    });
+
+    selects.forEach(s => {
+      if (s) {
+        s.required = isChecked;
+        if (!isChecked) s.value = '';
+      }
+    });
+
+    reasons.forEach(r => {
+      if (r) {
+        r.required = isChecked;
+        if (!isChecked) r.value = '';
+      }
+    });
   };
 
   // =========================================================================

@@ -295,21 +295,19 @@ def auto_generate_master_data_profiles(hospital=None):
                         doctors.add(d_clean)
 
     # 2. Pre-fetch existing Users into in-memory maps to avoid N+1 queries
-    # Note: If hospital is provided, scope user search to that hospital so users from other hospitals aren't reused
-    all_users_qs = User.objects.all().only(
+    # Check hospital/business: partition user mappings by hospital to keep tenant isolation
+    all_users = list(User.objects.all().only(
         'id', 'username', 'first_name', 'last_name', 'role', 'hospital_id', 
         'phone', 'email', 'speciality', 'department', 'is_active', 'is_active_employee'
-    )
-    if hospital:
-        hospital_users = list(all_users_qs.filter(hospital=hospital))
-    else:
-        hospital_users = list(all_users_qs)
+    ))
+    # Global username uniqueness set (usernames are unique globally across Django User model)
+    existing_unames = {u.username.lower() for u in all_users}
+    
+    # Hospital-specific user lookup dictionaries
+    user_by_uname_and_hosp = {(u.username.lower(), u.hospital_id): u for u in all_users}
+    user_by_name_and_hosp = {(u.first_name.strip().lower(), u.last_name.strip().lower(), u.hospital_id): u for u in all_users if u.first_name}
 
-    user_by_uname = {u.username.lower(): u for u in hospital_users}
-    user_by_name = {(u.first_name.strip().lower(), u.last_name.strip().lower()): u for u in hospital_users if u.first_name}
-    existing_unames = {u.lower() for u in User.objects.values_list('username', flat=True)}
-
-    # Pre-fetch existing HospitalDoctors & MasterItems
+    # Pre-fetch existing HospitalDoctors & MasterItems scoped to the current hospital/business
     hdoc_qs = HospitalDoctor.objects.all()
     if hospital:
         hdoc_qs = hdoc_qs.filter(hospital=hospital)
@@ -332,6 +330,7 @@ def auto_generate_master_data_profiles(hospital=None):
         existing_master_items = {m.lower() for m in mi_qs.values_list('name', flat=True)}
 
     created_users = []
+    hospital_id = hospital.id if hospital else None
 
     # 3. Auto-generate Temporary User Profiles for Lead Attendants
     for att_name in attendants:
@@ -343,8 +342,8 @@ def auto_generate_master_data_profiles(hospital=None):
         if not base_username:
             continue
 
-        name_key = (first_n.lower(), last_n.lower())
-        existing_user = user_by_uname.get(base_username) or user_by_name.get(name_key)
+        name_key = (first_n.lower(), last_n.lower(), hospital_id)
+        existing_user = user_by_uname_and_hosp.get((base_username, hospital_id)) or user_by_name_and_hosp.get(name_key)
 
         if not existing_user:
             uname = base_username
@@ -364,8 +363,8 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_approved=True,
             )
             created_users.append(new_user)
-            user_by_uname[uname.lower()] = new_user
-            user_by_name[name_key] = new_user
+            user_by_uname_and_hosp[(uname.lower(), hospital_id)] = new_user
+            user_by_name_and_hosp[name_key] = new_user
             existing_unames.add(uname.lower())
 
     # 4. Auto-generate Temporary User & HospitalDoctor Profiles for Doctors
@@ -379,8 +378,9 @@ def auto_generate_master_data_profiles(hospital=None):
         last_n = " ".join(doc_names[1:]) if len(doc_names) > 1 else ""
         raw_uname = f"dr_{re.sub(r'[^a-zA-Z0-9]', '', clean_doc_name).lower()}"
 
-        name_key = (first_n.lower(), last_n.lower())
-        existing_user = user_by_uname.get(raw_uname) or user_by_name.get(name_key)
+        # Match user specifically in this hospital/business context
+        name_key = (first_n.lower(), last_n.lower(), hospital_id)
+        existing_user = user_by_uname_and_hosp.get((raw_uname, hospital_id)) or user_by_name_and_hosp.get(name_key)
 
         if not existing_user:
             uname = raw_uname
@@ -400,45 +400,55 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_approved=True,
             )
             created_users.append(existing_user)
-            user_by_uname[uname.lower()] = existing_user
-            user_by_name[name_key] = existing_user
+            user_by_uname_and_hosp[(uname.lower(), hospital_id)] = existing_user
+            user_by_name_and_hosp[name_key] = existing_user
             existing_unames.add(uname.lower())
 
         # Ensure sync to HospitalDoctor model and MasterItem efficiently
         if hospital and existing_user and existing_user.role == User.Role.DOCTOR:
             clean_lower = clean_doc_name.lower()
-            hdoc = hdoc_by_user_id.get(existing_user.id) or hdoc_by_name.get(clean_lower)
+            # Find HospitalDoctor scoped strictly to this hospital and user
+            hdoc = HospitalDoctor.objects.filter(hospital=hospital, user=existing_user).first()
             if not hdoc:
-                # Only link user if this user is not already attached to another doctor profile globally
-                assign_user = existing_user if (existing_user.id not in existing_doctor_user_ids) else None
+                hdoc = HospitalDoctor.objects.filter(hospital=hospital, name__iexact=clean_doc_name).first()
+
+            if not hdoc:
+                # If existing_user is already attached to a doctor record elsewhere, clear user link first
+                if existing_user.id in existing_doctor_user_ids:
+                    HospitalDoctor.objects.filter(user=existing_user).update(user=None)
                 try:
                     hdoc = HospitalDoctor.objects.create(
                         hospital=hospital,
-                        user=assign_user,
+                        user=existing_user,
                         name=clean_doc_name,
                         contact_number=existing_user.phone or "",
                         email=existing_user.email or "",
                         specialization=existing_user.speciality or "",
                         is_active=existing_user.is_active and existing_user.is_active_employee,
                     )
-                    if assign_user:
-                        existing_doctor_user_ids.add(assign_user.id)
-                        hdoc_by_user_id[assign_user.id] = hdoc
+                    existing_doctor_user_ids.add(existing_user.id)
+                    hdoc_by_user_id[existing_user.id] = hdoc
                     hdoc_by_name[clean_lower] = hdoc
                 except IntegrityError:
                     hdoc = HospitalDoctor.objects.filter(hospital=hospital, name__iexact=clean_doc_name).first()
                     if hdoc:
                         hdoc_by_name[clean_lower] = hdoc
-            elif hdoc.user_id != existing_user.id:
-                # Only re-assign user if existing_user does not already have a doctor profile elsewhere
-                if existing_user.id not in existing_doctor_user_ids:
+            else:
+                # If hdoc exists in this hospital but belongs to another user or none, update user link safely
+                if hdoc.user_id != existing_user.id:
+                    HospitalDoctor.objects.filter(user=existing_user).exclude(pk=hdoc.pk).update(user=None)
                     try:
                         hdoc.user = existing_user
-                        hdoc.save(update_fields=['user'])
+                        hdoc.hospital = hospital
+                        hdoc.save(update_fields=['user', 'hospital'])
                         existing_doctor_user_ids.add(existing_user.id)
                         hdoc_by_user_id[existing_user.id] = hdoc
+                        hdoc_by_name[clean_lower] = hdoc
                     except IntegrityError:
                         pass
+                else:
+                    hdoc_by_user_id[existing_user.id] = hdoc
+                    hdoc_by_name[clean_lower] = hdoc
 
             if doc_grp and clean_lower not in existing_master_items:
                 MasterItem.objects.get_or_create(
@@ -466,37 +476,36 @@ def sync_doctor_profile(user):
     if not clean_name:
         clean_name = doc_name
 
-    doc = HospitalDoctor.objects.filter(hospital=user.hospital, user=user).first()
+    # 1. First search by OneToOne user constraint to avoid Duplicate entry for user_id
+    doc = HospitalDoctor.objects.filter(user=user).first()
+
+    # 2. If not found by user, check by matching name in the hospital
     if not doc:
         doc = HospitalDoctor.objects.filter(hospital=user.hospital, name__iexact=clean_name).first()
 
     if not doc:
-        # Check if user is already linked to another doctor record globally
-        user_doc = HospitalDoctor.objects.filter(user=user).first()
-        if user_doc:
-            doc = user_doc
-        else:
-            try:
-                from django.db import IntegrityError
-                doc = HospitalDoctor.objects.create(
-                    hospital=user.hospital,
-                    user=user,
-                    name=clean_name,
-                    contact_number=user.phone or "",
-                    email=user.email or "",
-                    specialization=user.speciality or "",
-                    is_active=user.is_active and user.is_active_employee,
-                )
-            except IntegrityError:
-                doc = HospitalDoctor.objects.filter(user=user).first() or HospitalDoctor.objects.filter(hospital=user.hospital, name__iexact=clean_name).first()
+        # Clear any prior stale doctor record linked to this user
+        HospitalDoctor.objects.filter(user=user).update(user=None)
+        try:
+            from django.db import IntegrityError
+            doc = HospitalDoctor.objects.create(
+                hospital=user.hospital,
+                user=user,
+                name=clean_name,
+                contact_number=user.phone or "",
+                email=user.email or "",
+                specialization=user.speciality or "",
+                is_active=user.is_active and user.is_active_employee,
+            )
+        except IntegrityError:
+            doc = HospitalDoctor.objects.filter(user=user).first() or HospitalDoctor.objects.filter(hospital=user.hospital, name__iexact=clean_name).first()
     else:
-        # Avoid duplicate user assignment error
+        # If another HospitalDoctor is already linked to this user, clear its user link first
         if doc.user_id != user.id:
-            # Check if user already has a HospitalDoctor profile
-            user_doc = HospitalDoctor.objects.filter(hospital=user.hospital, user=user).first()
-            if user_doc and user_doc.id != doc.id:
-                user_doc.delete()
-        doc.user = user
+            HospitalDoctor.objects.filter(user=user).exclude(pk=doc.pk).update(user=None)
+            doc.user = user
+
+        doc.hospital = user.hospital
         doc.name = clean_name
         if user.phone:
             doc.contact_number = user.phone
