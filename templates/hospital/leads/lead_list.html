@@ -195,7 +195,7 @@
 {% block content %}
 
 <!-- 1. CAMPAIGNS BREAKDOWN SECTION (Distinct, Modern Cards Without Icons) -->
-{% if campaign_breakdown %}
+{% if campaign_breakdown and request.user.role != 'DOCTOR' %}
 <div class="mb-3">
   <div class="campaign-cards-container">
     <!-- All Campaigns Card -->
@@ -463,7 +463,7 @@
   <div id="leadsBulkActionBar" class="card border-0 shadow-sm rounded-0 px-3 py-2 bg-light border-top border-bottom d-none" style="border-color: #E2E8F0 !important;">
     <div class="d-flex flex-wrap align-items-center gap-2.5">
 
-      <!-- Label + Live Count -->
+      <!-- Label + Live Count + Clear Selection -->
       <div class="d-flex align-items-center me-1">
         <div>
           <div class="fw-bold text-dark d-flex align-items-center gap-1.5" style="font-size: 0.82rem; letter-spacing: -0.2px;">
@@ -471,6 +471,9 @@
             <span id="bulkSelectedCountBadge" class="badge bg-light text-muted border rounded-pill px-2 py-0.5" style="font-size: 0.70rem; font-weight: 600;">
               <span id="bulkSelectedCountNum">0</span> selected
             </span>
+            <button type="button" class="btn btn-link text-danger p-0 ms-1 text-decoration-none small" style="font-size: 0.72rem;" onclick="clearAllSelectedLeads()" title="Deselect all selected leads across all pages">
+              <i class="fa-solid fa-xmark me-0.5"></i> Clear
+            </button>
           </div>
           <div class="text-muted small" style="font-size: 0.70rem;">Choose an action to apply to selected leads</div>
         </div>
@@ -574,7 +577,7 @@
         {% for lead in page_obj %}
           <tr class="lead-row {% if lead.is_hot %}table-warning bg-opacity-25{% endif %}" data-lead-id="{{ lead.pk }}">
             <td class="ps-3 pe-1" onclick="event.stopPropagation();">
-              <input type="checkbox" name="selected_leads" value="{{ lead.pk }}" class="lead-checkbox" onchange="updateSelectedCount()">
+              <input type="checkbox" name="selected" value="{{ lead.pk }}" class="row-check lead-checkbox">
             </td>
 
             <!-- 1. Patient Name -->
@@ -1007,9 +1010,66 @@
     }
   }
 
+  // =========================================================================
+  // CROSS-PAGE SELECTION PERSISTENCE (sessionStorage)
+  // =========================================================================
+  const SELECTED_STORAGE_KEY = 'hospital_leads_selected_ids';
+
+  function getStoredSelectedIds() {
+    try {
+      const stored = sessionStorage.getItem(SELECTED_STORAGE_KEY);
+      if (!stored) return new Set();
+      const arr = JSON.parse(stored);
+      return new Set(Array.isArray(arr) ? arr.map(String) : []);
+    } catch (e) {
+      console.warn("Could not read selected leads from storage:", e);
+      return new Set();
+    }
+  }
+
+  function saveStoredSelectedIds(idSet) {
+    try {
+      sessionStorage.setItem(SELECTED_STORAGE_KEY, JSON.stringify(Array.from(idSet)));
+    } catch (e) {
+      console.warn("Could not save selected leads to storage:", e);
+    }
+  }
+
+  function clearAllSelectedLeads() {
+    saveStoredSelectedIds(new Set());
+    document.querySelectorAll('.row-check').forEach(c => {
+      c.checked = false;
+    });
+    const master = document.getElementById('masterLeadCheckbox');
+    if (master) master.checked = false;
+    updateSelectedCount();
+  }
+
+  function syncCheckboxesFromStorage() {
+    const selectedIds = getStoredSelectedIds();
+    const checkboxes = document.querySelectorAll('.row-check');
+    let allOnPageChecked = checkboxes.length > 0;
+
+    checkboxes.forEach(c => {
+      if (selectedIds.has(String(c.value))) {
+        c.checked = true;
+      } else {
+        c.checked = false;
+        allOnPageChecked = false;
+      }
+    });
+
+    const master = document.getElementById('masterLeadCheckbox');
+    if (master) {
+      master.checked = checkboxes.length > 0 && allOnPageChecked;
+    }
+
+    updateSelectedCount();
+  }
+
   function updateSelectedCount() {
-    const checkboxes = document.querySelectorAll('.row-check:checked');
-    const count = checkboxes.length;
+    const selectedIds = getStoredSelectedIds();
+    const count = selectedIds.size;
     const countSpan = document.getElementById('selectedLeadCount');
     const badge = document.getElementById('bulkSelfAssignBadge');
     const btn = document.getElementById('bulkSelfAssignBtn');
@@ -1086,16 +1146,64 @@
     }
   }
 
-  function toggleAllCheckboxes(masterCheckbox) {
-    document.querySelectorAll('.row-check').forEach(c => {
-      c.checked = masterCheckbox.checked;
+  function onRowCheckboxChange(checkbox) {
+    const selectedIds = getStoredSelectedIds();
+    const val = String(checkbox.value);
+    if (checkbox.checked) {
+      selectedIds.add(val);
+    } else {
+      selectedIds.delete(val);
+    }
+    saveStoredSelectedIds(selectedIds);
+
+    // Sync master checkbox state on current page
+    const checkboxes = document.querySelectorAll('.row-check');
+    let allOnPageChecked = checkboxes.length > 0;
+    checkboxes.forEach(c => {
+      if (!c.checked) allOnPageChecked = false;
     });
+    const master = document.getElementById('masterLeadCheckbox');
+    if (master) master.checked = (checkboxes.length > 0 && allOnPageChecked);
+
     updateSelectedCount();
   }
 
+  function toggleAllCheckboxes(masterCheckbox) {
+    const selectedIds = getStoredSelectedIds();
+    const checkboxes = document.querySelectorAll('.row-check');
+
+    checkboxes.forEach(c => {
+      c.checked = masterCheckbox.checked;
+      const val = String(c.value);
+      if (masterCheckbox.checked) {
+        selectedIds.add(val);
+      } else {
+        selectedIds.delete(val);
+      }
+    });
+
+    saveStoredSelectedIds(selectedIds);
+    updateSelectedCount();
+  }
+
+  function populateHiddenInputsForSubmit(formElement) {
+    // Remove existing dynamic hidden inputs
+    formElement.querySelectorAll('input[name="selected"]').forEach(el => el.remove());
+    formElement.querySelectorAll('input[name="selected_leads"]').forEach(el => el.remove());
+
+    const selectedIds = getStoredSelectedIds();
+    selectedIds.forEach(id => {
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'selected';
+      hidden.value = id;
+      formElement.appendChild(hidden);
+    });
+  }
+
   function submitBulkSelfAssign() {
-    const checkboxes = document.querySelectorAll('.row-check:checked');
-    const count = checkboxes.length;
+    const selectedIds = getStoredSelectedIds();
+    const count = selectedIds.size;
     if (count === 0) {
       showInWindowAlert("Selection Required", "Please select at least 1 lead to assign to yourself.", "warning");
       return;
@@ -1116,16 +1224,20 @@
       confirmBtnClass: "btn btn-sm btn-success px-4 rounded-pill fw-bold shadow-sm",
       icon: "fa-solid fa-user-check fa-lg",
       onConfirm: function() {
+        const form = document.getElementById('leadsBulkActionForm');
+        populateHiddenInputsForSubmit(form);
         const actionInput = document.getElementById('bulkActionInput');
         if (actionInput) actionInput.value = 'self_assign';
-        document.getElementById('leadsBulkActionForm').submit();
+        // Clear stored selected leads on submit
+        sessionStorage.removeItem(SELECTED_STORAGE_KEY);
+        form.submit();
       }
     });
   }
 
   function submitAdminBulkAction() {
-    const checkboxes = document.querySelectorAll('.row-check:checked');
-    const count = checkboxes.length;
+    const selectedIds = getStoredSelectedIds();
+    const count = selectedIds.size;
     if (count === 0) {
       showInWindowAlert("Selection Required", "Please select at least 1 lead to apply bulk action.", "warning");
       return;
@@ -1185,18 +1297,24 @@
       confirmBtnClass: "btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm",
       icon: "fa-solid fa-layer-group fa-lg",
       onConfirm: function() {
+        const form = document.getElementById('leadsBulkActionForm');
+        populateHiddenInputsForSubmit(form);
         const actionInput = document.getElementById('bulkActionInput');
         if (actionInput) actionInput.value = action;
-        document.getElementById('leadsBulkActionForm').submit();
+        // Clear stored selected leads on submit
+        sessionStorage.removeItem(SELECTED_STORAGE_KEY);
+        form.submit();
       }
     });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.row-check').forEach(c => {
-      c.addEventListener('change', updateSelectedCount);
+      c.addEventListener('change', function() {
+        onRowCheckboxChange(this);
+      });
     });
-    updateSelectedCount();
+    syncCheckboxesFromStorage();
     handleBulkActionChange();
   });
 

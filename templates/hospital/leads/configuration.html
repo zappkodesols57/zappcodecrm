@@ -325,14 +325,17 @@
                       <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 170px;">
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 210px;">
                     <div class="d-inline-flex align-items-center justify-content-end gap-1">
-                      <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-3 py-1 text-nowrap" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}">
+                      <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-1 text-nowrap" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}">
                         {% if b.is_active %}Deactivate{% else %}Activate{% endif %}
                       </a>
-                      <button class="btn btn-sm btn-light border rounded-3 px-3 py-1 text-nowrap" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})">
+                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})">
                         Edit
                       </button>
+                      <a href="{% url 'leads:hospital_branch_delete' b.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 text-nowrap" onclick="return confirm('Are you sure you want to delete branch \'{{ b.name|escapejs }}\'? If it has active records it will be deactivated.');" title="Delete Branch">
+                        <i class="fa-solid fa-trash-can"></i> Delete
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -409,14 +412,17 @@
                       <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 170px;">
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 210px;">
                     <div class="d-inline-flex align-items-center justify-content-end gap-1">
-                      <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="btn btn-sm {% if d.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-3 py-1 text-nowrap" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}">
+                      <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="btn btn-sm {% if d.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-1 text-nowrap" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}">
                         {% if d.is_active %}Deactivate{% else %}Activate{% endif %}
                       </a>
-                      <button class="btn btn-sm btn-light border rounded-3 px-3 py-1 text-nowrap" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
+                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
                         Edit
                       </button>
+                      <a href="{% url 'leads:hospital_department_delete' d.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 text-nowrap" onclick="return confirm('Are you sure you want to delete department \'{{ d.name|escapejs }}\'?');" title="Delete Department">
+                        <i class="fa-solid fa-trash-can"></i> Delete
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -503,7 +509,7 @@
                   </td>
                   <td>
                     <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2 py-1 rounded-2">
-                      {{ doc.associated_diseases.count }} Conditions
+                       {{ doc.associated_diseases.count }} Conditions
                     </span>
                   </td>
                   <td>
@@ -513,17 +519,17 @@
                       <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 220px;">
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 250px;">
                     <div class="d-inline-flex align-items-center justify-content-end gap-1">
                       {% if doc.user %}
                       <a href="{% url 'accounts:doctor_schedule_manage' doc.user.id %}" class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" title="Manage Schedule / Leave Calendar">
                         Schedule
                       </a>
                       {% endif %}
-                      <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-3 py-1 text-nowrap" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
+                      <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-1 text-nowrap" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
                         {% if doc.is_active %}Deactivate{% else %}Activate{% endif %}
                       </a>
-                      <button class="btn btn-sm btn-light border rounded-3 px-3 py-1 text-nowrap btn-edit-doctor" 
+                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap btn-edit-doctor" 
                               data-id="{{ doc.id }}"
                               data-name="{{ doc.name }}"
                               data-departments="[{% for d in doc.departments.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% empty %}{% if doc.department %}{{ doc.department.id }}{% endif %}{% endfor %}]"
@@ -538,6 +544,9 @@
                               onclick="openEditDoctorModal(this)">
                         Edit
                       </button>
+                      <a href="{% url 'leads:hospital_doctor_delete' doc.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 text-nowrap" onclick="return confirm('Are you sure you want to delete Dr. {{ doc.name|escapejs }}?');" title="Delete Doctor">
+                        <i class="fa-solid fa-trash-can"></i> Delete
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -612,20 +621,24 @@
                               <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle py-0 rounded-2" style="font-size: 0.65rem;">Inactive</span>
                             {% endif %}
                           </td>
-                          <td class="px-3 py-2 text-end">
-                            <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="btn btn-sm {% if dis.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-0 me-1" style="font-size: 0.72rem;" title="{% if dis.is_active %}Deactivate Disease{% else %}Activate Disease{% endif %}">
+                          <td class="px-3 py-2 text-end text-nowrap">
+                            <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="btn btn-sm {% if dis.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-0 me-1" style="font-size: 0.72rem;" title="{% if dis.is_active %}Deactivate Disease{% else %}Activate Disease{% endif %}">
                               {% if dis.is_active %}Deactivate{% else %}Activate{% endif %}
                             </a>
-                            <button class="btn btn-sm btn-light border rounded-3 px-2 py-0" 
+                            <button class="btn btn-sm btn-light border rounded-3 px-2 py-0 me-1" 
                                     data-id="{{ dis.id }}"
                                     data-name="{{ dis.name }}"
                                     data-code="{{ dis.code|default:'' }}"
                                     data-dept="{{ dis.department_id }}"
                                     data-deptname="{{ dis.department.name }}"
                                     data-desc="{{ dis.description|default:'' }}"
-                                    onclick="openEditDiseaseModal(this)">
+                                    onclick="openEditDiseaseModal(this)"
+                                    style="font-size: 0.72rem;">
                               Edit
                             </button>
+                            <a href="{% url 'leads:hospital_disease_delete' dis.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-0" onclick="return confirm('Are you sure you want to delete {{ dis.name|escapejs }}?');" style="font-size: 0.72rem;" title="Delete Disease">
+                              <i class="fa-solid fa-trash-can"></i>
+                            </a>
                           </td>
                         </tr>
                         {% empty %}

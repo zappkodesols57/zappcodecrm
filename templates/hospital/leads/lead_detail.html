@@ -316,6 +316,10 @@
                 <div class="crm-val">
                   {% if latest_appointment.status == 'COMPLETED' or lead.custom_data.appointment_status == 'Completed' or lead.display_status == 'Completed' or lead.display_status == 'Won' %}
                     <span class="crm-badge-lightblue">Completed</span>
+                  {% elif 'DOCTOR CANCELLED' in lead.custom_data.appointment_status.upper or 'DOCTOR REJECT' in lead.custom_data.appointment_status.upper or lead.display_stage == 'Appointment Cancelled' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.74rem; font-weight: 600;">Cancelled by Doctor</span>
+                  {% elif latest_appointment.status == 'CANCELLED' or lead.custom_data.appointment_status == 'Cancelled' or lead.display_stage == 'Cancelled' or lead.display_status == 'Lost' %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.74rem; font-weight: 600;">Cancelled / Lost</span>
                   {% elif latest_appointment.status == 'APPROVED' or lead.custom_data.appointment_status == 'Confirmed' or lead.custom_data.appointment_status == 'Booking Confirmed' or 'CONFIRM' in lead.custom_data.appointment_status.upper %}
                     <span class="crm-badge-lightblue">Confirmed</span>
                   {% elif latest_appointment.status == 'PENDING_APPROVAL' or lead.custom_data.appointment_status == 'Approval Pending' or lead.custom_data.appointment_status == 'Awaiting Approval from Doctor' or 'AWAIT' in lead.custom_data.appointment_status.upper or 'APPROVAL' in lead.custom_data.appointment_status.upper or 'ASSIGNED' in lead.custom_data.appointment_status.upper %}
@@ -356,13 +360,19 @@
       {% endif %}
 
       <!-- Investigation & Billing Summary (Shown ONLY if billing / investigation details exist) -->
-      {% if lead.custom_data.pharmacy_bill or lead.custom_data.opd_bill or lead.custom_data.investigation or lead.custom_data.total or lead.total_billed_amount > 0 %}
+      {% if lead.custom_data.pharmacy_bill or lead.custom_data.opd_bill or lead.custom_data.investigation or lead.custom_data.total or lead.total_billed_amount > 0 or lead.custom_data.billing_history %}
       <div class="card mb-3">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
           <span class="fw-bold" style="font-size: 0.88rem;">Investigation &amp; Billing Summary</span>
+          {% if lead.custom_data.total_paid or lead.custom_data.total or lead.total_billed_amount %}
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2.5 py-1" style="font-size: 0.75rem; font-weight: 700;">
+            Total Paid: ₹{{ lead.custom_data.total_paid|default:lead.custom_data.total|default:lead.total_billed_amount|default:"0.00" }}
+          </span>
+          {% endif %}
         </div>
         <div class="card-body py-2">
-          <div class="row g-2 text-center">
+          <!-- Latest Bill Breakdown -->
+          <div class="row g-2 text-center mb-2">
             <div class="col-3">
               <div class="crm-info-box py-2">
                 <span class="crm-label">Pharmacy Bill</span>
@@ -388,6 +398,50 @@
               </div>
             </div>
           </div>
+
+          <!-- Multi-Bill & Payment History Table (Shown if multiple or recorded bills exist) -->
+          {% if lead.custom_data.billing_history %}
+          <div class="mt-2 pt-2 border-top">
+            <div class="d-flex justify-content-between align-items-center mb-1.5">
+              <span class="small fw-bold text-dark" style="font-size: 0.78rem;">
+                <i class="fa-solid fa-clock-rotate-left text-primary me-1"></i> Payment &amp; Bills History:
+              </span>
+              <span class="text-muted small" style="font-size: 0.70rem;">{{ lead.custom_data.billing_history|length }} record(s)</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered bg-white mb-0" style="font-size: 0.75rem;">
+                <thead class="table-light text-muted">
+                  <tr>
+                    <th class="py-1 px-2" style="width: 30px;">#</th>
+                    <th class="py-1 px-2">Date &amp; Time</th>
+                    <th class="py-1 px-2">UHID / IPD</th>
+                    <th class="py-1 px-2">OPD</th>
+                    <th class="py-1 px-2">Pharmacy</th>
+                    <th class="py-1 px-2 text-success fw-bold">Total</th>
+                    <th class="py-1 px-2">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for b in lead.custom_data.billing_history %}
+                  <tr>
+                    <td class="py-1 px-2 fw-semibold text-muted">{{ forloop.counter }}</td>
+                    <td class="py-1 px-2 text-nowrap">{{ b.date|default:"Past Record" }}</td>
+                    <td class="py-1 px-2 text-nowrap">
+                      {% if b.uhid_id_no %}<span class="badge bg-light text-dark border">{{ b.uhid_id_no }}</span>{% endif %}
+                      {% if b.ipd_no %}<span class="badge bg-light text-secondary border ms-1">{{ b.ipd_no }}</span>{% endif %}
+                      {% if not b.uhid_id_no and not b.ipd_no %}&mdash;{% endif %}
+                    </td>
+                    <td class="py-1 px-2 text-nowrap">₹{{ b.opd_bill|default:"0" }}</td>
+                    <td class="py-1 px-2 text-nowrap">₹{{ b.pharmacy_bill|default:"0" }}</td>
+                    <td class="py-1 px-2 text-nowrap fw-bold text-success">₹{{ b.total|default:"0" }}</td>
+                    <td class="py-1 px-2 text-break text-muted" style="max-width: 180px;">{{ b.remark|default:"—" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
       {% endif %}

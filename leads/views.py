@@ -738,6 +738,14 @@ def lead_list(request):
             active_leads = active_leads.filter(
                 Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
             )
+        elif request.user.role == User.Role.DOCTOR:
+            doc_name = (request.user.get_full_name() or request.user.username).strip()
+            active_leads = active_leads.filter(
+                Q(assigned_to=request.user) |
+                Q(appointments__doctor_user=request.user) |
+                Q(appointments__doctor_name__icontains=doc_name) |
+                Q(custom_data__doctor__icontains=doc_name)
+            ).distinct()
     elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
         active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
     
@@ -2613,9 +2621,9 @@ def lead_edit(request, pk):
                             time_same = (str(existing_apt.appointment_time)[:5] == str(raw_appo_time)[:5])
                         slot_is_same = (date_same and time_same)
 
-                    # Check if telecaller is confirming slot set by doctor
-                    if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes', 'schedul']):
-                        if slot_is_same and existing_apt:
+                    # Check if telecaller is confirming slot set by doctor (only if appointment is in SCHEDULED/PENDING state, NOT if CANCELLED by doctor)
+                    if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes']) and not is_won:
+                        if slot_is_same and existing_apt and existing_apt.status == AppointmentStatus.SCHEDULED:
                             # Slot kept exactly as doctor setup -> auto-approve without asking doctor for re-approval
                             existing_apt.status = AppointmentStatus.APPROVED
                             existing_apt.save(update_fields=['status'])
@@ -5909,54 +5917,188 @@ def hospital_doctor_save(request, pk=None):
 
 
 @login_required
+@login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_branch_toggle(request, pk):
-    hospital = _get_target_hospital_for_config(request)
-    branch = get_object_or_404(HospitalBranch, pk=pk, hospital=hospital)
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        branch = get_object_or_404(HospitalBranch, pk=pk)
+        hospital = branch.hospital
+    else:
+        hospital = request.user.hospital
+        branch = get_object_or_404(HospitalBranch, pk=pk, hospital=hospital)
+
     branch.is_active = not branch.is_active
     branch.save(update_fields=["is_active"])
     status_str = "activated" if branch.is_active else "deactivated"
     messages.success(request, f"Hospital Branch '{branch.name}' has been {status_str}.")
-    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_branch_delete(request, pk):
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        branch = get_object_or_404(HospitalBranch, pk=pk)
+        hospital = branch.hospital
+    else:
+        hospital = request.user.hospital
+        branch = get_object_or_404(HospitalBranch, pk=pk, hospital=hospital)
+
+    branch_name = branch.name
+    try:
+        branch.delete()
+        messages.success(request, f"Hospital Branch '{branch_name}' has been permanently deleted.")
+    except Exception as e:
+        # Fallback to deactivation if protected by foreign keys
+        branch.is_active = False
+        branch.save(update_fields=["is_active"])
+        messages.warning(request, f"Branch '{branch_name}' could not be permanently deleted due to associated records, but has been deactivated and hidden.")
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_department_toggle(request, pk):
-    hospital = _get_target_hospital_for_config(request)
-    dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        dept = get_object_or_404(HospitalDepartment, pk=pk)
+        hospital = dept.hospital
+    else:
+        hospital = request.user.hospital
+        dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
+
     dept.is_active = not dept.is_active
     dept.save(update_fields=["is_active"])
     status_str = "activated" if dept.is_active else "deactivated"
     messages.success(request, f"Department '{dept.name}' has been {status_str}.")
-    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_department_delete(request, pk):
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        dept = get_object_or_404(HospitalDepartment, pk=pk)
+        hospital = dept.hospital
+    else:
+        hospital = request.user.hospital
+        dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
+
+    dept_name = dept.name
+    try:
+        dept.delete()
+        messages.success(request, f"Department '{dept_name}' has been permanently deleted.")
+    except Exception as e:
+        dept.is_active = False
+        dept.save(update_fields=["is_active"])
+        messages.warning(request, f"Department '{dept_name}' could not be deleted due to associated records, but has been deactivated.")
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_disease_toggle(request, pk):
-    hospital = _get_target_hospital_for_config(request)
-    dis = get_object_or_404(HospitalDisease, pk=pk, hospital=hospital)
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        dis = get_object_or_404(HospitalDisease, pk=pk)
+        hospital = dis.hospital
+    else:
+        hospital = request.user.hospital
+        dis = get_object_or_404(HospitalDisease, pk=pk, hospital=hospital)
+
     dis.is_active = not dis.is_active
     dis.save(update_fields=["is_active"])
     status_str = "activated" if dis.is_active else "deactivated"
     messages.success(request, f"Disease / Condition '{dis.name}' has been {status_str}.")
-    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_disease_delete(request, pk):
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        dis = get_object_or_404(HospitalDisease, pk=pk)
+        hospital = dis.hospital
+    else:
+        hospital = request.user.hospital
+        dis = get_object_or_404(HospitalDisease, pk=pk, hospital=hospital)
+
+    dis_name = dis.name
+    try:
+        dis.delete()
+        messages.success(request, f"Disease '{dis_name}' has been permanently deleted.")
+    except Exception as e:
+        dis.is_active = False
+        dis.save(update_fields=["is_active"])
+        messages.warning(request, f"Disease '{dis_name}' could not be deleted due to associated records, but has been deactivated.")
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_doctor_toggle(request, pk):
-    hospital = _get_target_hospital_for_config(request)
-    doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        doc = get_object_or_404(HospitalDoctor, pk=pk)
+        hospital = doc.hospital
+    else:
+        hospital = request.user.hospital
+        doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
+
     doc.is_active = not doc.is_active
     doc.save(update_fields=["is_active"])
     status_str = "activated" if doc.is_active else "deactivated"
     messages.success(request, f"Doctor 'Dr. {doc.name}' has been {status_str}.")
-    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def hospital_doctor_delete(request, pk):
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        doc = get_object_or_404(HospitalDoctor, pk=pk)
+        hospital = doc.hospital
+    else:
+        hospital = request.user.hospital
+        doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
+
+    doc_name = doc.name
+    try:
+        doc.delete()
+        messages.success(request, f"Doctor 'Dr. {doc_name}' has been permanently deleted.")
+    except Exception as e:
+        doc.is_active = False
+        doc.save(update_fields=["is_active"])
+        messages.warning(request, f"Doctor 'Dr. {doc_name}' could not be deleted due to associated records, but has been deactivated.")
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
 

@@ -241,8 +241,6 @@ def telecaller_home(request):
     ).exclude(
         custom_data__appointment_status__icontains='Lost'
     ).exclude(
-        custom_data__appointment_status__icontains='Cancel'
-    ).exclude(
         custom_data__appointment_status__icontains='Not Int'
     ).exclude(
         stage__name__icontains='Payment Done'
@@ -261,10 +259,11 @@ def telecaller_home(request):
     upcoming_appointments_list = []
     admitted_appointments_list = []
     approval_pending_appointments_list = []
+    rejected_appointments_list = []
 
-    for l in list(appointment_candidate_leads[:100]):
+    for l in list(appointment_candidate_leads[:200]):
         p_dt, p_time, p_st, p_type = get_lead_appointment_info(l)
-        if not p_dt and not (hasattr(l, '_prefetched_objects_cache') and l.appointments.all()) and not any(k in p_st.lower() for k in ['book', 'confirm', 'approv', 'await', 'sched']):
+        if not p_dt and not (hasattr(l, '_prefetched_objects_cache') and l.appointments.all()) and not any(k in p_st.lower() for k in ['book', 'confirm', 'approv', 'await', 'sched', 'reject', 'cancel']):
             continue
 
         l.appointment_scheduled_date = p_dt
@@ -285,6 +284,18 @@ def telecaller_home(request):
         
         # If payment is already done, it belongs in the Billings -> Payment Done tab, not Appointments tab
         if is_paid:
+            continue
+
+        is_doctor_rejected = (
+            'doctor cancel' in p_st_lower or
+            'doctor reject' in p_st_lower or
+            (l.stage and 'appointment cancelled' in l.stage.name.lower()) or
+            bool(cd_l.get('doctor_rejection_reason')) or
+            (hasattr(l, '_prefetched_objects_cache') and any(a.status == AppointmentStatus.CANCELLED and bool(a.doctor_notes or a.doctor_user) for a in l.appointments.all()))
+        )
+
+        if is_doctor_rejected and not is_completed:
+            rejected_appointments_list.append(l)
             continue
 
         is_pending_approval = 'await' in p_st_lower or 'pending' in p_st_lower or 'pending approval' in p_st_lower
@@ -308,7 +319,12 @@ def telecaller_home(request):
     upcoming_appointments_count = len(upcoming_appointments_list)
     admitted_appointments_count = len(admitted_appointments_list)
     approval_pending_appointments_count = len(approval_pending_appointments_list)
-    total_appointments_count = todays_appointments_count + upcoming_appointments_count + admitted_appointments_count + approval_pending_appointments_count
+    rejected_appointments_count = len(rejected_appointments_list)
+    total_appointments_count = (
+        todays_appointments_count + upcoming_appointments_count + 
+        admitted_appointments_count + approval_pending_appointments_count + 
+        rejected_appointments_count
+    )
 
     todays_opd_booked_count = sum(1 for l in todays_appointments_list if getattr(l, 'appointment_type_label', 'Consultation') == 'OPD')
     todays_consult_booked_count = sum(1 for l in todays_appointments_list if getattr(l, 'appointment_type_label', 'Consultation') != 'OPD')
@@ -659,6 +675,13 @@ def telecaller_home(request):
         approval_pending_apts_page = approval_pending_apts_paginator.page(1)
     approval_pending_appointments_list = list(approval_pending_apts_page.object_list)
 
+    rejected_apts_paginator = Paginator(rejected_appointments_list, 25)
+    try:
+        rejected_apts_page = rejected_apts_paginator.page(req_page if (cur_tab == 'appointments' and cur_subtab in ('rejected', 'cancelled')) else 1)
+    except (EmptyPage, PageNotAnInteger):
+        rejected_apts_page = rejected_apts_paginator.page(1)
+    rejected_appointments_list = list(rejected_apts_page.object_list)
+
     # Billings pagination
     payment_pending_paginator = Paginator(payment_pending_list, 25)
     try:
@@ -730,6 +753,9 @@ def telecaller_home(request):
         'approval_pending_appointments_list': approval_pending_appointments_list,
         'approval_pending_apts_page': approval_pending_apts_page,
         'approval_pending_appointments_count': approval_pending_appointments_count,
+        'rejected_appointments_list': rejected_appointments_list,
+        'rejected_apts_page': rejected_apts_page,
+        'rejected_appointments_count': rejected_appointments_count,
         'total_appointments_count': total_appointments_count,
         'payment_done_list': payment_done_list,
         'payment_done_page': payment_done_page,
@@ -859,7 +885,7 @@ def telecaller_tab_data_api(request):
         ).distinct().select_related('stage', 'campaign', 'lead_source').order_by('-updated_at')
         leads = list(completed_fu_qs[:100])
 
-    elif tab in ['appointments_todays', 'appointments_upcoming', 'appointments_admitted', 'appointments_pending']:
+    elif tab in ['appointments_todays', 'appointments_upcoming', 'appointments_admitted', 'appointments_pending', 'appointments_rejected']:
         def get_lead_appointment_info(l):
             cd = l.custom_data or {}
             apt_date_str = cd.get('appo_booked_date') or cd.get('appointment_date') or cd.get('booking_date')
@@ -902,8 +928,6 @@ def telecaller_tab_data_api(request):
         ).exclude(
             custom_data__appointment_status__icontains='Lost'
         ).exclude(
-            custom_data__appointment_status__icontains='Cancel'
-        ).exclude(
             custom_data__appointment_status__icontains='Not Int'
         ).filter(
             Q(appointments__isnull=False) |
@@ -916,7 +940,7 @@ def telecaller_tab_data_api(request):
 
         for l in appointment_candidate_leads[:200]:
             p_dt, p_time, p_st, p_type = get_lead_appointment_info(l)
-            if not p_dt and not (hasattr(l, '_prefetched_objects_cache') and l.appointments.all()) and not any(k in p_st.lower() for k in ['book', 'confirm', 'approv', 'await', 'sched']):
+            if not p_dt and not (hasattr(l, '_prefetched_objects_cache') and l.appointments.all()) and not any(k in p_st.lower() for k in ['book', 'confirm', 'approv', 'await', 'sched', 'cancel', 'reject']):
                 continue
 
             l.appointment_scheduled_date = p_dt
@@ -925,7 +949,25 @@ def telecaller_tab_data_api(request):
             l.appointment_type_label = p_type
 
             p_st_lower = p_st.lower()
+            cd_l = l.custom_data or {}
             is_completed = 'complet' in p_st_lower or 'done' in p_st_lower or l.deal_status == DealStatus.WON
+            
+            is_doctor_rejected = (
+                'doctor cancel' in p_st_lower or
+                'doctor reject' in p_st_lower or
+                (l.stage and 'appointment cancelled' in l.stage.name.lower()) or
+                bool(cd_l.get('doctor_rejection_reason')) or
+                (hasattr(l, '_prefetched_objects_cache') and any(a.status == AppointmentStatus.CANCELLED and bool(a.doctor_notes or a.doctor_user) for a in l.appointments.all()))
+            )
+
+            if tab == 'appointments_rejected':
+                if is_doctor_rejected and not is_completed:
+                    leads.append(l)
+                continue
+
+            if is_doctor_rejected:
+                continue
+
             is_pending_approval = 'await' in p_st_lower or 'pending' in p_st_lower or 'pending approval' in p_st_lower
             is_confirmed_or_booked = any(k in p_st_lower for k in ['confirm', 'book', 'sched', 'approved', 'yes'])
 
