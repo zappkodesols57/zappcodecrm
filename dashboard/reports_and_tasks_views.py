@@ -1039,11 +1039,16 @@ def download_eod_report_pdf(request):
     Download EOD Report as a clean, professionally formatted PDF.
     """
     import io
-    from reportlab.lib.pagesizes import letter, A4
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    except ImportError:
+        messages.error(request, "PDF generator is temporarily unavailable. Please try again or contact administrator.")
+        return redirect("dashboard:submit_daily_report")
+
     from dashboard.models import DailyReport
     from datetime import datetime
 
