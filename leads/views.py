@@ -5478,20 +5478,53 @@ def doctor_slots_api(request):
 # Hospital Master Configuration Views & Cascading Relationships
 # ---------------------------------------------------------------------------
 
+def _get_target_hospital_for_config(request):
+    """
+    Resolve active Hospital for Hospital Master Configuration module.
+    For Hospital-scoped users, returns request.user.hospital.
+    For Global Super Admin, resolves from GET/POST parameter 'business', session, or first active hospital.
+    """
+    if request.user.hospital:
+        return request.user.hospital
+    
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    if is_global_admin:
+        biz_val = (
+            request.GET.get("business", "").strip()
+            or request.POST.get("business", "").strip()
+            or str(request.session.get("active_business_id", "")).strip()
+        )
+        if biz_val and biz_val.isdigit():
+            target = Hospital.objects.filter(id=int(biz_val), is_active=True).first()
+            if target:
+                return target
+        # Fallback to first active hospital or any hospital
+        return Hospital.objects.filter(is_active=True).order_by("id").first() or Hospital.objects.first()
+    return None
+
+
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_configuration_view(request):
     """
-    Dedicated Hospital Configuration Master Settings module for Hospital Admin & Permitted Managers.
+    Dedicated Hospital Configuration Master Settings module for Hospital Admin, Permitted Managers & Super Admins.
     Manages:
+    - Hospital Profile
     - Hospital Branches
     - Hospital Departments (Linked to Branches)
     - Doctors (Linked to Department, Diseases & Branches with availability)
     - Diseases & Medical Conditions (Linked to Department)
     """
-    hospital = request.user.hospital
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    available_businesses = list(Hospital.objects.filter(is_active=True).order_by("id")) if is_global_admin else []
+
+    hospital = _get_target_hospital_for_config(request)
     if not hospital:
-        messages.error(request, "No hospital context found.")
+        messages.error(request, "No active hospital found. Please create a Hospital organization first.")
         return redirect("dashboard:home")
 
     branches = HospitalBranch.objects.filter(hospital=hospital).prefetch_related("departments", "doctors")
@@ -5517,6 +5550,8 @@ def hospital_configuration_view(request):
         "diseases": diseases,
         "active_tab": active_tab,
         "doctor_users": doctor_users,
+        "is_global_admin": is_global_admin,
+        "available_businesses": available_businesses,
     }
     return render(request, "hospital/leads/configuration.html", context)
 
@@ -5525,10 +5560,12 @@ def hospital_configuration_view(request):
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_profile_save(request):
     """Update Hospital / Organization Core Profile details."""
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
     if not hospital:
         messages.error(request, "No hospital context found.")
         return redirect("dashboard:home")
+
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital else ""
 
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
@@ -5539,7 +5576,7 @@ def hospital_profile_save(request):
 
         if not name:
             messages.error(request, "Hospital / Organization name is required.")
-            return redirect("/leads/hospital-configuration/?tab=profile")
+            return redirect(f"/leads/hospital-configuration/?tab=profile{biz_param}")
 
         if phone:
             import re
@@ -5552,7 +5589,7 @@ def hospital_profile_save(request):
 
             if len(raw_digits) < 10 or len(raw_digits) > 11:
                 messages.error(request, "Please enter a valid contact phone number (10 digits for mobile or 10-11 digits with STD code).")
-                return redirect("/leads/hospital-configuration/?tab=profile")
+                return redirect(f"/leads/hospital-configuration/?tab=profile{biz_param}")
             phone = raw_digits
 
         hospital.name = name
@@ -5567,13 +5604,19 @@ def hospital_profile_save(request):
         hospital.save()
         messages.success(request, f"Hospital profile '{name}' updated successfully.")
 
-    return redirect("/leads/hospital-configuration/?tab=profile")
+    return redirect(f"/leads/hospital-configuration/?tab=profile{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_branch_save(request, pk=None):
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital else ""
+
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
@@ -5585,7 +5628,7 @@ def hospital_branch_save(request, pk=None):
 
         if not name:
             messages.error(request, "Branch name is required.")
-            return redirect(f"/leads/hospital-configuration/?tab=branches")
+            return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
 
         if contact_number:
             import re
@@ -5596,7 +5639,7 @@ def hospital_branch_save(request, pk=None):
                 digits = digits[1:]
             if len(digits) != 10 or digits[0] not in '6789':
                 messages.error(request, "Branch contact number must be a valid 10-digit number starting with 6, 7, 8, or 9.")
-                return redirect("/leads/hospital-configuration/?tab=branches")
+                return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
             contact_number = digits
 
         if is_main:
@@ -5628,13 +5671,19 @@ def hospital_branch_save(request, pk=None):
             )
             messages.success(request, f"Branch '{name}' created successfully.")
 
-    return redirect("/leads/hospital-configuration/?tab=branches")
+    return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_department_save(request, pk=None):
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital else ""
+
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
@@ -5644,7 +5693,7 @@ def hospital_department_save(request, pk=None):
 
         if not name:
             messages.error(request, "Department name is required.")
-            return redirect("/leads/hospital-configuration/?tab=departments")
+            return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
 
         if pk:
             dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
@@ -5667,13 +5716,19 @@ def hospital_department_save(request, pk=None):
             dept.branches.set(HospitalBranch.objects.filter(id__in=branch_ids, hospital=hospital))
             messages.success(request, f"Department '{name}' created successfully.")
 
-    return redirect("/leads/hospital-configuration/?tab=departments")
+    return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_disease_save(request, pk=None):
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital else ""
+
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         code = request.POST.get("code", "").strip()
@@ -5683,7 +5738,7 @@ def hospital_disease_save(request, pk=None):
 
         if not name or not department_id:
             messages.error(request, "Disease name and Department are required.")
-            return redirect("/leads/hospital-configuration/?tab=diseases")
+            return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
 
         dept = get_object_or_404(HospitalDepartment, pk=department_id, hospital=hospital)
 
@@ -5708,13 +5763,19 @@ def hospital_disease_save(request, pk=None):
             )
             messages.success(request, f"Disease '{name}' added successfully.")
 
-    return redirect("/leads/hospital-configuration/?tab=diseases")
+    return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_doctor_save(request, pk=None):
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
+    if not hospital:
+        messages.error(request, "No hospital context found.")
+        return redirect("dashboard:home")
+
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital else ""
+
     if request.method == "POST":
         user_id = request.POST.get("user", "").strip()
         name = request.POST.get("name", "").strip()
@@ -5737,12 +5798,12 @@ def hospital_doctor_save(request, pk=None):
 
         if not user_id:
             messages.error(request, "Link to a registered Doctor user login profile is mandatory. Unregistered doctors cannot be created.")
-            return redirect("/leads/hospital-configuration/?tab=doctors")
+            return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
         doc_user = User.objects.filter(pk=user_id, hospital=hospital, role=User.Role.DOCTOR, is_active=True).first()
         if not doc_user:
             messages.error(request, "Selected user is not a valid active Doctor account in this hospital.")
-            return redirect("/leads/hospital-configuration/?tab=doctors")
+            return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
         # Ensure no other HospitalDoctor profile is linked to this user
         existing_doc = HospitalDoctor.objects.filter(hospital=hospital, user=doc_user)
@@ -5750,7 +5811,7 @@ def hospital_doctor_save(request, pk=None):
             existing_doc = existing_doc.exclude(pk=pk)
         if existing_doc.exists():
             messages.error(request, f"Doctor user '{doc_user.get_full_name() or doc_user.username}' is already linked to another doctor profile.")
-            return redirect("/leads/hospital-configuration/?tab=doctors")
+            return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
         if not name:
             name = doc_user.get_full_name().strip() or doc_user.username
@@ -5764,7 +5825,7 @@ def hospital_doctor_save(request, pk=None):
             email = email.strip()
             if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
                 messages.error(request, "Please enter a valid Doctor email address containing '@' (e.g. doctor@hospital.com).")
-                return redirect("/leads/hospital-configuration/?tab=doctors")
+                return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
         if not contact_number and doc_user.phone:
             contact_number = doc_user.phone
@@ -5773,7 +5834,7 @@ def hospital_doctor_save(request, pk=None):
 
         if not department_ids:
             messages.error(request, "Please assign at least one Clinical Department to the doctor.")
-            return redirect("/leads/hospital-configuration/?tab=doctors")
+            return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
         selected_depts = HospitalDepartment.objects.filter(id__in=department_ids, hospital=hospital)
         primary_dept = selected_depts.first()
@@ -5844,51 +5905,59 @@ def hospital_doctor_save(request, pk=None):
                 defaults={"is_active": True}
             )
 
-    return redirect("/leads/hospital-configuration/?tab=doctors")
+    return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_branch_toggle(request, pk):
-    branch = get_object_or_404(HospitalBranch, pk=pk, hospital=request.user.hospital)
+    hospital = _get_target_hospital_for_config(request)
+    branch = get_object_or_404(HospitalBranch, pk=pk, hospital=hospital)
     branch.is_active = not branch.is_active
     branch.save(update_fields=["is_active"])
     status_str = "activated" if branch.is_active else "deactivated"
     messages.success(request, f"Hospital Branch '{branch.name}' has been {status_str}.")
-    return redirect("/leads/hospital-configuration/?tab=branches")
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_department_toggle(request, pk):
-    dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=request.user.hospital)
+    hospital = _get_target_hospital_for_config(request)
+    dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
     dept.is_active = not dept.is_active
     dept.save(update_fields=["is_active"])
     status_str = "activated" if dept.is_active else "deactivated"
     messages.success(request, f"Department '{dept.name}' has been {status_str}.")
-    return redirect("/leads/hospital-configuration/?tab=departments")
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_disease_toggle(request, pk):
-    dis = get_object_or_404(HospitalDisease, pk=pk, hospital=request.user.hospital)
+    hospital = _get_target_hospital_for_config(request)
+    dis = get_object_or_404(HospitalDisease, pk=pk, hospital=hospital)
     dis.is_active = not dis.is_active
     dis.save(update_fields=["is_active"])
     status_str = "activated" if dis.is_active else "deactivated"
     messages.success(request, f"Disease / Condition '{dis.name}' has been {status_str}.")
-    return redirect("/leads/hospital-configuration/?tab=diseases")
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
 
 
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def hospital_doctor_toggle(request, pk):
-    doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=request.user.hospital)
+    hospital = _get_target_hospital_for_config(request)
+    doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
     doc.is_active = not doc.is_active
     doc.save(update_fields=["is_active"])
     status_str = "activated" if doc.is_active else "deactivated"
     messages.success(request, f"Doctor 'Dr. {doc.name}' has been {status_str}.")
-    return redirect("/leads/hospital-configuration/?tab=doctors")
+    biz_param = f"&business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital and hospital else ""
+    return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
 
 @login_required
@@ -5898,10 +5967,12 @@ def hospital_master_excel_import(request):
     Bulk import Hospital Master data from Excel/CSV containing:
     Hospital Branch | Department | Doctor | Disease
     """
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
     if not hospital:
         messages.error(request, "No hospital context found.")
         return redirect("dashboard:home")
+
+    biz_param = f"?business={hospital.id}" if request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital else ""
 
     if request.method == "POST" and request.FILES.get("excel_file"):
         uploaded_file = request.FILES["excel_file"]
@@ -6073,7 +6144,7 @@ def hospital_master_excel_import(request):
         except Exception as ex:
             messages.error(request, f"Failed to import Excel/CSV file: {str(ex)}")
 
-    return redirect("/leads/hospital-configuration/")
+    return redirect(f"/leads/hospital-configuration/{biz_param}")
 
 
 @login_required
@@ -6157,7 +6228,7 @@ def export_hospital_config_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
     h_filter = {"hospital": hospital} if hospital else {}
     hospital_name = hospital.name if hospital else "All Hospitals"
 
@@ -6361,7 +6432,7 @@ def export_hospital_config_pdf(request):
     Renders high-quality printable PDF view of all Hospital Configurations
     (Branches, Departments, Doctors, and Disease Mappings).
     """
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
     h_filter = {"hospital": hospital} if hospital else {}
     hospital_name = hospital.name if hospital else "All Hospitals"
 
@@ -6420,7 +6491,7 @@ def cascading_hospital_data_api(request):
     High-Performance JSON API for dynamic cascading dependent dropdowns:
     Branch -> Department -> Doctor / Disease
     """
-    hospital = request.user.hospital
+    hospital = _get_target_hospital_for_config(request)
     if not hospital:
         return JsonResponse({"error": "No hospital context"}, status=400)
 
