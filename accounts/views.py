@@ -392,7 +392,10 @@ def auto_generate_master_data_profiles(hospital=None):
         # Ensure sync to HospitalDoctor model and MasterItem efficiently
         if hospital and existing_user and existing_user.role == User.Role.DOCTOR:
             clean_lower = clean_doc_name.lower()
-            hdoc = hdoc_by_user_id.get(existing_user.id) or hdoc_by_name.get(clean_lower)
+            hdoc = HospitalDoctor.objects.filter(user=existing_user).first()
+            if not hdoc:
+                hdoc = HospitalDoctor.objects.filter(hospital=hospital, name__iexact=clean_doc_name).first()
+
             if not hdoc:
                 hdoc = HospitalDoctor.objects.create(
                     hospital=hospital,
@@ -405,10 +408,15 @@ def auto_generate_master_data_profiles(hospital=None):
                 )
                 hdoc_by_user_id[existing_user.id] = hdoc
                 hdoc_by_name[clean_lower] = hdoc
-            elif hdoc.user_id != existing_user.id:
-                hdoc.user = existing_user
-                hdoc.save(update_fields=['user'])
+            else:
+                # If hdoc exists by name but belongs to none or another user, unlink any previous record with user first
+                if hdoc.user_id != existing_user.id:
+                    HospitalDoctor.objects.filter(user=existing_user).exclude(pk=hdoc.pk).update(user=None)
+                    hdoc.user = existing_user
+                    hdoc.hospital = hospital
+                    hdoc.save(update_fields=['user', 'hospital'])
                 hdoc_by_user_id[existing_user.id] = hdoc
+                hdoc_by_name[clean_lower] = hdoc
 
             if doc_grp and clean_lower not in existing_master_items:
                 MasterItem.objects.get_or_create(
@@ -436,12 +444,15 @@ def sync_doctor_profile(user):
     if not clean_name:
         clean_name = doc_name
 
-    doc = HospitalDoctor.objects.filter(hospital=user.hospital, user=user).first()
+    # 1. First search by OneToOne user constraint to avoid Duplicate entry for user_id
+    doc = HospitalDoctor.objects.filter(user=user).first()
+
+    # 2. If not found by user, check by matching name in the hospital
     if not doc:
         doc = HospitalDoctor.objects.filter(hospital=user.hospital, name__iexact=clean_name).first()
 
     if not doc:
-        # Check if another doctor record with user_id exists
+        # Create brand new HospitalDoctor profile
         doc = HospitalDoctor.objects.create(
             hospital=user.hospital,
             user=user,
@@ -452,13 +463,12 @@ def sync_doctor_profile(user):
             is_active=user.is_active and user.is_active_employee,
         )
     else:
-        # Avoid duplicate user assignment error
+        # If another HospitalDoctor is already linked to this user, clear its user link first
         if doc.user_id != user.id:
-            # Check if user already has a HospitalDoctor profile
-            user_doc = HospitalDoctor.objects.filter(hospital=user.hospital, user=user).first()
-            if user_doc and user_doc.id != doc.id:
-                user_doc.delete()
-        doc.user = user
+            HospitalDoctor.objects.filter(user=user).exclude(pk=doc.pk).update(user=None)
+            doc.user = user
+
+        doc.hospital = user.hospital
         doc.name = clean_name
         if user.phone:
             doc.contact_number = user.phone
