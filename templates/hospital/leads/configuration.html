@@ -52,7 +52,7 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
           <li>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_excel' %}">
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_excel' %}{% if is_global_admin and hospital %}?business={{ hospital.id }}{% endif %}">
               <i class="fa-solid fa-file-excel text-success fs-6"></i>
               <div>
                 <div class="fw-semibold">Export as Excel (.xlsx)</div>
@@ -61,7 +61,7 @@
             </a>
           </li>
           <li>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_pdf' %}" target="_blank">
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_pdf' %}{% if is_global_admin and hospital %}?business={{ hospital.id }}{% endif %}" target="_blank">
               <i class="fa-solid fa-file-pdf text-danger fs-6"></i>
               <div>
                 <div class="fw-semibold">Export as PDF / Print</div>
@@ -80,6 +80,29 @@
       </button>
     </div>
   </div>
+
+  <!-- Business Tabs for Super Admin / Multi-business Access -->
+  {% if is_global_admin and available_businesses %}
+  <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-2" style="border: 1px solid #e2e8f0 !important;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-2 py-1">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge bg-light text-secondary border px-2.5 py-1.5 rounded-2 small fw-bold text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+          Hospital / Business Scope:
+        </span>
+        <div class="nav nav-pills gap-2 flex-wrap">
+          {% for b in available_businesses %}
+          <a href="?tab={{ active_tab }}&business={{ b.id }}" class="nav-link rounded-2 px-3 py-1.5 fw-semibold small transition-all {% if hospital.id == b.id %}active bg-primary text-white shadow-sm{% else %}bg-light text-secondary border hover-bg-light{% endif %}" style="font-size: 0.82rem;">
+            {{ b.name }}
+            {% if hospital.id == b.id %}
+              <span class="badge bg-white text-primary ms-1.5 px-1.5 py-0.5 rounded-2" style="font-size: 0.68rem;">Active</span>
+            {% endif %}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
 <style>
   .custom-tab-container {
@@ -169,6 +192,9 @@
             <div class="col-lg-8">
               <form method="post" action="{% url 'leads:hospital_profile_save' %}" enctype="multipart/form-data" class="bg-light p-4 rounded-4 border">
                 {% csrf_token %}
+                {% if is_global_admin and hospital %}
+                <input type="hidden" name="business" value="{{ hospital.id }}">
+                {% endif %}
                 <div class="row g-3">
                   <!-- Hospital Name -->
                   <div class="col-md-12">
@@ -636,6 +662,9 @@
     <div class="modal-content rounded-4 border-0 shadow">
       <form method="post" id="formBranch" action="{% url 'leads:hospital_branch_create' %}">
         {% csrf_token %}
+        {% if is_global_admin and hospital %}
+        <input type="hidden" name="business" value="{{ hospital.id }}">
+        {% endif %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-bold" id="modalBranchTitle">Add Hospital Branch</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -685,6 +714,9 @@
     <div class="modal-content rounded-4 border-0 shadow">
       <form method="post" id="formDept" action="{% url 'leads:hospital_department_create' %}">
         {% csrf_token %}
+        {% if is_global_admin and hospital %}
+        <input type="hidden" name="business" value="{{ hospital.id }}">
+        {% endif %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-bold" id="modalDeptTitle">Add Clinical Department</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -736,6 +768,9 @@
     <div class="modal-content rounded-4 border-0 shadow">
       <form method="post" id="formDoctor" action="{% url 'leads:hospital_doctor_create' %}">
         {% csrf_token %}
+        {% if is_global_admin and hospital %}
+        <input type="hidden" name="business" value="{{ hospital.id }}">
+        {% endif %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-bold" id="modalDoctorTitle">Register Doctor / Consultant</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -897,6 +932,9 @@
     <div class="modal-content rounded-4 border-0 shadow">
       <form method="post" id="formDisease" action="{% url 'leads:hospital_disease_create' %}">
         {% csrf_token %}
+        {% if is_global_admin and hospital %}
+        <input type="hidden" name="business" value="{{ hospital.id }}">
+        {% endif %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-bold" id="modalDiseaseTitle">Add Disease / Condition</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -954,6 +992,9 @@
     <div class="modal-content rounded-4 border-0 shadow">
       <form method="post" action="{% url 'leads:hospital_master_excel_import' %}" enctype="multipart/form-data">
         {% csrf_token %}
+        {% if is_global_admin and hospital %}
+        <input type="hidden" name="business" value="{{ hospital.id }}">
+        {% endif %}
         <div class="modal-header border-0 pb-0">
           <div>
             <h5 class="modal-title fw-bold text-dark mb-1">
