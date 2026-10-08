@@ -205,7 +205,7 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
 
     # Known column mapping heuristics
     name_cols = [
-        "your_name", "full_name", "patient_name", "lead_name", "customer_name", 
+        "your_name", "full_name", "patient_name", "paitent_name", "patient", "lead_name", "customer_name", 
         "client_name", "name", "first_name", "user_name", "contact_name", "naam"
     ]
     phone_cols = [
@@ -240,10 +240,12 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
     final_status_cols = ["final_status", "deal_status", "status", "stage"]
 
     # Follow up columns
-    fu1_date_cols = ["first_follow_up_date", "first_followup_date", "1st_follow_up_date", "follow_up_1_date"]
-    fu1_remark_cols = ["first_follow_up_remark", "first_followup_remark", "1st_follow_up_remark", "remark_1", "follow_up_1_remark"]
-    fu2_date_cols = ["second_follow_up_date", "second_followup_date", "2nd_follow_up_date", "follow_up_2_date"]
-    fu2_remark_cols = ["second_follow_up_remark", "second_followup_remark", "2nd_follow_up_remark", "remark_2", "follow_up_2_remark"]
+    fu1_date_cols = ["first_follow_up_date", "first_followup_date", "1st_follow_up_date", "follow_up_1_date", "calling_date_remark_1", "calling_date_1"]
+    fu1_remark_cols = ["first_follow_up_remark", "first_followup_remark", "1st_follow_up_remark", "remark_1", "follow_up_1_remark", "remarks_1", "calling_remark_1"]
+    fu2_date_cols = ["second_follow_up_date", "second_followup_date", "2nd_follow_up_date", "follow_up_2_date", "calling_date_remark_2", "calling_date_2"]
+    fu2_remark_cols = ["second_follow_up_remark", "second_followup_remark", "2nd_follow_up_remark", "remark_2", "follow_up_2_remark", "remarks_2", "calling_remark_2"]
+    fu3_date_cols = ["third_follow_up_date", "third_followup_date", "3rd_follow_up_date", "follow_up_3_date", "calling_date_remark_3", "calling_date_3"]
+    fu3_remark_cols = ["third_follow_up_remark", "third_followup_remark", "3rd_follow_up_remark", "remark_3", "follow_up_3_remark", "remarks_3", "calling_remark_3"]
 
     # Excluded from survey/generic notes because they are recognized structured columns
     structured_col_keys = set(
@@ -251,7 +253,7 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         attendant_cols + doctor_cols + gender_cols + address_cols + due_date_cols +
         uhid_cols + opd_done_date_cols + pharmacy_bill_cols + opd_bill_cols + ipd_bill_cols +
         investigation_bill_cols + total_bill_cols + final_status_cols +
-        fu1_date_cols + fu1_remark_cols + fu2_date_cols + fu2_remark_cols +
+        fu1_date_cols + fu1_remark_cols + fu2_date_cols + fu2_remark_cols + fu3_date_cols + fu3_remark_cols +
         ["sr_no", "sr_no.", "campaign_name", "campaign", "patient_update"]
     )
 
@@ -360,11 +362,13 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         gender_raw = get_col_val(gender_cols)
         due_date_raw = get_col_val(due_date_cols)
 
-        # 9. Follow-up 1 & 2 details
+        # 9. Follow-up 1, 2 & 3 details
         fu1_date_raw = get_col_val(fu1_date_cols)
         fu1_remark_raw = get_col_val(fu1_remark_cols)
         fu2_date_raw = get_col_val(fu2_date_cols)
         fu2_remark_raw = get_col_val(fu2_remark_cols)
+        fu3_date_raw = get_col_val(fu3_date_cols)
+        fu3_remark_raw = get_col_val(fu3_remark_cols)
 
         # 10. Financial / Billing fields
         uhid_raw = get_col_val(uhid_cols)
@@ -432,6 +436,10 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             custom_data_survey["calling_date_remark_2"] = str(parse_flexible_date(fu2_date_raw))
         if fu2_remark_raw:
             custom_data_survey["remark_2"] = fu2_remark_raw
+        if fu3_date_raw:
+            custom_data_survey["calling_date_remark_3"] = str(parse_flexible_date(fu3_date_raw))
+        if fu3_remark_raw:
+            custom_data_survey["remark_3"] = fu3_remark_raw
 
         if not custom_data_survey.get("priority"):
             custom_data_survey["priority"] = "Hot"
@@ -486,6 +494,8 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             "fu1_remark": fu1_remark_raw,
             "fu2_date": str(parse_flexible_date(fu2_date_raw)) if fu2_date_raw else None,
             "fu2_remark": fu2_remark_raw,
+            "fu3_date": str(parse_flexible_date(fu3_date_raw)) if fu3_date_raw else None,
+            "fu3_remark": fu3_remark_raw,
         })
 
     return processed_rows

@@ -796,6 +796,8 @@ def lead_list(request):
     # Scope stages to the business type
     if is_viewing_hospital:
         stages_qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL]).order_by("order", "name")
+    else:
+        stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
     # Calculate campaign breakdown for interactive top campaign quick-filter cards
     date_scoped_leads = active_leads
     date_from_val = request.GET.get("date_from") or request.GET.get("date")

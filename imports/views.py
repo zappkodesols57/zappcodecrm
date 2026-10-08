@@ -876,15 +876,18 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 imported_count += 1
                 lead_record = new_lead
 
-            # Queue follow-ups if present in row
+            # Queue follow-ups & timeline activities if present in row
             fu1_d = r.get("fu1_date")
             fu1_rem = r.get("fu1_remark")
             fu2_d = r.get("fu2_date")
             fu2_rem = r.get("fu2_remark")
+            fu3_d = r.get("fu3_date")
+            fu3_rem = r.get("fu3_remark")
 
             fu_items = [
                 (fu1_d, fu1_rem),
                 (fu2_d, fu2_rem),
+                (fu3_d, fu3_rem),
             ]
             for f_date_str, f_rem in fu_items:
                 if f_date_str or f_rem:
@@ -896,9 +899,19 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                         followup_mode=FollowUpMode.CALL,
                         followup_status=st_choice,
                         comment=f_rem or "Follow-up logged via leads import",
-                        created_by=request.user,
+                        created_by=assigned_user or request.user,
                         imported_from_excel=True,
                     ))
+
+            # Initial activity log for lead timeline
+            if lead_record:
+                from followups.models import Activity, ActivityType
+                Activity.objects.create(
+                    lead=lead_record,
+                    activity_type=ActivityType.LEAD_CREATED,
+                    description=f"Lead imported from file '{original_filename}'" + (f" and assigned to {assigned_user.get_full_name() or assigned_user.username}" if assigned_user else ""),
+                    created_by=request.user,
+                )
 
         # Bulk insert follow-ups
         if followups_to_create:

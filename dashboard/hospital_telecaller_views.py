@@ -67,11 +67,12 @@ def telecaller_home(request):
 
     # CARD 4: Today's Follow-ups for User (Strictly assigned to this user)
     booked_exclude_tele = (
-        Q(custom_data__appointment_status__icontains='Book') |
-        Q(custom_data__appointment_status__icontains='Confirm') |
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
         Q(admission_status='ADMISSION_DONE') |
-        (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=['0', '0.00', '', '0.0', 0, 0.0]))
+        Q(stage__name__icontains='Payment Done') |
+        Q(stage__name__icontains='Booked') |
+        Q(stage__name__icontains='Lost') |
+        Q(appointments__status__in=['APPROVED', 'SCHEDULED', 'COMPLETED'])
     )
 
     user_fu_qs = hospital_leads.filter(
@@ -81,7 +82,7 @@ def telecaller_home(request):
     ).filter(
         Q(next_followup_date__isnull=False) |
         Q(followups__next_followup_date__isnull=False) |
-        Q(custom_data__appointment_status__icontains='follow')
+        Q(followups__followup_date=today_date)
     ).distinct().select_related('stage', 'campaign', 'lead_source')
 
     todays_tele_followups_list = []
@@ -399,19 +400,13 @@ def telecaller_home(request):
     completed_fu_qs = hospital_leads.filter(
         assigned_to=user
     ).exclude(
-        booked_exclude_tele
-    ).exclude(
         deal_status__in=[DealStatus.WON, DealStatus.LOST]
     ).exclude(
-        custom_data__deal_status__icontains='Won'
+        admission_status__in=['ADMISSION_DONE', 'WON', 'LOST', 'CANCELLED']
     ).exclude(
-        custom_data__deal_status__icontains='Payment'
+        stage__name__icontains='Payment Done'
     ).exclude(
-        custom_data__deal_status__icontains='Lost'
-    ).exclude(
-        stage__name__icontains='Payment'
-    ).exclude(
-        custom_data__total__isnull=False
+        stage__name__icontains='Lost'
     ).filter(
         followups__followup_status__in=['COMPLETED', 'DONE']
     ).distinct().select_related('stage', 'campaign', 'lead_source').order_by('-updated_at')
