@@ -292,15 +292,19 @@ def auto_generate_master_data_profiles(hospital=None):
                         doctors.add(d_clean)
 
     # 2. Pre-fetch existing Users into in-memory maps to avoid N+1 queries
+    # Check hospital/business: partition user mappings by hospital to keep tenant isolation
     all_users = list(User.objects.all().only(
         'id', 'username', 'first_name', 'last_name', 'role', 'hospital_id', 
         'phone', 'email', 'speciality', 'department', 'is_active', 'is_active_employee'
     ))
-    user_by_uname = {u.username.lower(): u for u in all_users}
-    user_by_name = {(u.first_name.strip().lower(), u.last_name.strip().lower()): u for u in all_users if u.first_name}
-    existing_unames = set(user_by_uname.keys())
+    # Global username uniqueness set (usernames are unique globally across Django User model)
+    existing_unames = {u.username.lower() for u in all_users}
+    
+    # Hospital-specific user lookup dictionaries
+    user_by_uname_and_hosp = {(u.username.lower(), u.hospital_id): u for u in all_users}
+    user_by_name_and_hosp = {(u.first_name.strip().lower(), u.last_name.strip().lower(), u.hospital_id): u for u in all_users if u.first_name}
 
-    # Pre-fetch existing HospitalDoctors & MasterItems
+    # Pre-fetch existing HospitalDoctors & MasterItems scoped to the current hospital/business
     hdoc_qs = HospitalDoctor.objects.all()
     if hospital:
         hdoc_qs = hdoc_qs.filter(hospital=hospital)
@@ -317,6 +321,7 @@ def auto_generate_master_data_profiles(hospital=None):
         existing_master_items = {m.lower() for m in mi_qs.values_list('name', flat=True)}
 
     created_users = []
+    hospital_id = hospital.id if hospital else None
 
     # 3. Auto-generate Temporary User Profiles for Lead Attendants
     for att_name in attendants:
@@ -328,8 +333,8 @@ def auto_generate_master_data_profiles(hospital=None):
         if not base_username:
             continue
 
-        name_key = (first_n.lower(), last_n.lower())
-        existing_user = user_by_uname.get(base_username) or user_by_name.get(name_key)
+        name_key = (first_n.lower(), last_n.lower(), hospital_id)
+        existing_user = user_by_uname_and_hosp.get((base_username, hospital_id)) or user_by_name_and_hosp.get(name_key)
 
         if not existing_user:
             uname = base_username
@@ -349,8 +354,8 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_approved=True,
             )
             created_users.append(new_user)
-            user_by_uname[uname.lower()] = new_user
-            user_by_name[name_key] = new_user
+            user_by_uname_and_hosp[(uname.lower(), hospital_id)] = new_user
+            user_by_name_and_hosp[name_key] = new_user
             existing_unames.add(uname.lower())
 
     # 4. Auto-generate Temporary User & HospitalDoctor Profiles for Doctors
@@ -364,8 +369,9 @@ def auto_generate_master_data_profiles(hospital=None):
         last_n = " ".join(doc_names[1:]) if len(doc_names) > 1 else ""
         raw_uname = f"dr_{re.sub(r'[^a-zA-Z0-9]', '', clean_doc_name).lower()}"
 
-        name_key = (first_n.lower(), last_n.lower())
-        existing_user = user_by_uname.get(raw_uname) or user_by_name.get(name_key)
+        # Match user specifically in this hospital/business context
+        name_key = (first_n.lower(), last_n.lower(), hospital_id)
+        existing_user = user_by_uname_and_hosp.get((raw_uname, hospital_id)) or user_by_name_and_hosp.get(name_key)
 
         if not existing_user:
             uname = raw_uname
@@ -385,14 +391,15 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_approved=True,
             )
             created_users.append(existing_user)
-            user_by_uname[uname.lower()] = existing_user
-            user_by_name[name_key] = existing_user
+            user_by_uname_and_hosp[(uname.lower(), hospital_id)] = existing_user
+            user_by_name_and_hosp[name_key] = existing_user
             existing_unames.add(uname.lower())
 
         # Ensure sync to HospitalDoctor model and MasterItem efficiently
         if hospital and existing_user and existing_user.role == User.Role.DOCTOR:
             clean_lower = clean_doc_name.lower()
-            hdoc = HospitalDoctor.objects.filter(user=existing_user).first()
+            # Find HospitalDoctor scoped strictly to this hospital and user
+            hdoc = HospitalDoctor.objects.filter(hospital=hospital, user=existing_user).first()
             if not hdoc:
                 hdoc = HospitalDoctor.objects.filter(hospital=hospital, name__iexact=clean_doc_name).first()
 
@@ -409,7 +416,7 @@ def auto_generate_master_data_profiles(hospital=None):
                 hdoc_by_user_id[existing_user.id] = hdoc
                 hdoc_by_name[clean_lower] = hdoc
             else:
-                # If hdoc exists by name but belongs to none or another user, unlink any previous record with user first
+                # If hdoc exists in this hospital but belongs to another user or none, update user link safely
                 if hdoc.user_id != existing_user.id:
                     HospitalDoctor.objects.filter(user=existing_user).exclude(pk=hdoc.pk).update(user=None)
                     hdoc.user = existing_user
