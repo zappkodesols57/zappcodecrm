@@ -69,7 +69,10 @@ def _can_access_lead(user, lead):
     - Global Super Admin (no hospital): can access any lead.
     - Tenant user: can view leads in their own business (hospital).
     - Within-business:
-        - All Counsellors, HRs, Managers, Admins can VIEW team leads within their business tenant.
+        - Admin: Full business access.
+        - Manager with branch: Only leads belonging to their assigned branch.
+        - Doctor: Only leads / appointments assigned to them.
+        - Lead Attendant / Counsellor / HR: Can view tenant leads / assigned leads.
     """
     is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
 
@@ -84,22 +87,39 @@ def _can_access_lead(user, lead):
         if lead.hospital is not None:
             return False
 
-    # Doctor within same business can view patient leads
+    # Doctor within business: can only view leads assigned to them or with appointments booked under them
     if user.role == User.Role.DOCTOR:
+        doctor_full_name = (user.get_full_name() or user.username).strip()
+        cd = lead.custom_data or {}
+        lead_doc = str(cd.get("doctor") or cd.get("dyn_doctor") or "").strip()
+        if lead.assigned_to == user or lead.appointments.filter(Q(doctor_user=user) | Q(doctor_name__icontains=doctor_full_name)).exists():
+            return True
+        if doctor_full_name and (doctor_full_name.lower() in lead_doc.lower() or lead_doc.lower() in doctor_full_name.lower()):
+            return True
+        return False
+
+    # Branch Manager isolation
+    if user.role == User.Role.MANAGER and user.branch:
+        b_name = user.branch.name
+        branch_team = User.objects.filter(hospital=user.hospital, branch=user.branch)
+        cd = lead.custom_data or {}
+        l_branch = str(cd.get("hospital_branch") or cd.get("branch") or cd.get("dyn_hospital_branch") or cd.get("dyn_branch") or "").strip()
+        if l_branch.lower() == b_name.lower() or lead.assigned_to in branch_team or lead.created_by in branch_team:
+            return True
+        return False
+
+    # In Academy/CRM, Admins and managers have VIEW permission
+    if user.role in (User.Role.ADMIN, User.Role.SUPER_ADMIN, User.Role.MANAGER):
         return True
 
-    # In Academy/CRM, Counsellors, HRs, Managers, Admins within the tenant have VIEW permission
-    if user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER, User.Role.ADMIN, User.Role.SUPER_ADMIN):
-        return True
-
-    # Within-Business Access Permission Check
+    # Within-Business Access Permission Check for Telecaller / Counsellor
     if user.can_view_all_leads or user.can_view_team_leads:
         return True
     if user.can_view_assigned_leads and lead.assigned_to == user:
         return True
     if lead.assigned_to is None:
         return True
-    return False
+    return True
 
 
 FK_FILTER_FIELDS = [
@@ -108,6 +128,58 @@ FK_FILTER_FIELDS = [
 CHAR_FILTER_FIELDS = [
     "temperature", "deal_status", "admission_status",
 ]
+
+
+def get_campaign_breakdown_stats(scoped_leads_qs, date_filtered_leads_qs):
+    """
+    Computes distinct campaigns and their lead counts for the current tab / date filter.
+    Returns:
+    - campaign_breakdown: list of dicts [{'name': '...', 'count': 12, 'is_selected': True/False}, ...]
+    - total_date_filtered_count: total leads count for the applied date filter
+    """
+    from collections import defaultdict
+    camp_map = defaultdict(int)
+
+    # 1. DB aggregation on foreign key campaign
+    fk_counts = (
+        date_filtered_leads_qs.filter(campaign__isnull=False)
+        .values("campaign__name")
+        .annotate(cnt=models.Count("id"))
+        .order_by("-cnt")
+    )
+    for row in fk_counts:
+        c_name = (row.get("campaign__name") or "").strip()
+        if c_name and c_name.lower() not in ("nan", "none", "null", "—", "-"):
+            camp_map[c_name] += row["cnt"]
+
+    # 2. Aggregation on custom_data JSON campaign if any
+    custom_rows = (
+        date_filtered_leads_qs.filter(campaign__isnull=True)
+        .exclude(custom_data__isnull=True)
+        .values_list("custom_data", flat=True)
+    )
+    for cd in custom_rows:
+        if isinstance(cd, dict):
+            c_name = str(cd.get("campaign") or cd.get("lead_source") or "").strip()
+            if c_name and c_name.lower() not in ("nan", "none", "null", "—", "-"):
+                camp_map[c_name] += 1
+
+    # Fallback to general campaign master list if current date range has 0 leads
+    if not camp_map:
+        base_fk_counts = (
+            scoped_leads_qs.filter(campaign__isnull=False)
+            .values("campaign__name")
+            .annotate(cnt=models.Count("id"))
+            .order_by("-cnt")[:8]
+        )
+        for row in base_fk_counts:
+            c_name = (row.get("campaign__name") or "").strip()
+            if c_name and c_name.lower() not in ("nan", "none", "null", "—", "-"):
+                camp_map[c_name] = 0
+
+    sorted_campaigns = sorted(camp_map.items(), key=lambda x: x[1], reverse=True)
+    return [{"name": name, "count": count} for name, count in sorted_campaigns[:10]]
+
 
 
 def get_filtered_leads(request, base_qs=None):
@@ -160,6 +232,15 @@ def get_filtered_leads(request, base_qs=None):
                 Q(assigned_to__in=branch_team) |
                 Q(created_by__in=branch_team)
             )
+        elif request.user.role == User.Role.DOCTOR:
+            # Doctors strictly see leads assigned to them or with appointments under them
+            doc_name = (request.user.get_full_name() or request.user.username).strip()
+            leads = leads.filter(
+                Q(assigned_to=request.user) |
+                Q(appointments__doctor_user=request.user) |
+                Q(appointments__doctor_name__icontains=doc_name) |
+                Q(custom_data__doctor__icontains=doc_name)
+            ).distinct()
         elif not request.user.can_view_all_leads:
             if request.user.can_view_team_leads:
                 team = User.objects.filter(reports_to=request.user)
@@ -195,11 +276,11 @@ def get_filtered_leads(request, base_qs=None):
 
     # Multi-select & single-value filter extraction
     selected_campaigns = request.GET.getlist("campaign")
-    selected_sources = request.GET.getlist("lead_source")
+    selected_sources = request.GET.getlist("lead_source") or request.GET.getlist("source")
     selected_courses = request.GET.getlist("course")
     selected_departments = request.GET.getlist("department")
     selected_doctors = request.GET.getlist("doctor")
-    selected_assigned = request.GET.getlist("assigned_to")
+    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("telecaller")
     selected_deal_statuses = request.GET.getlist("deal_status")
     selected_admission_statuses = request.GET.getlist("admission_status")
     selected_appointment_statuses = request.GET.getlist("appointment_status")
@@ -548,11 +629,11 @@ def lead_list(request):
     )
     q = request.GET.get("q", "").strip()
     selected_campaigns = request.GET.getlist("campaign")
-    selected_sources = request.GET.getlist("lead_source")
+    selected_sources = request.GET.getlist("lead_source") or request.GET.getlist("source")
     selected_courses = request.GET.getlist("course")
     selected_departments = request.GET.getlist("department")
     selected_doctors = request.GET.getlist("doctor")
-    selected_assigned = request.GET.getlist("assigned_to")
+    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("telecaller")
     selected_deal_statuses = request.GET.getlist("deal_status")
     selected_admission_statuses = request.GET.getlist("admission_status")
     selected_appointment_statuses = request.GET.getlist("appointment_status")
@@ -716,13 +797,23 @@ def lead_list(request):
     if is_viewing_hospital:
         stages_qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL]).order_by("order", "name")
     else:
-        stages_qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]).order_by("order", "name")
+        stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    # Calculate campaign breakdown for interactive top campaign quick-filter cards
+    date_scoped_leads = active_leads
+    date_from_val = request.GET.get("date_from") or request.GET.get("date")
+    date_to_val = request.GET.get("date_to")
+    if date_from_val:
+        date_scoped_leads = date_scoped_leads.filter(inquiry_date__gte=date_from_val)
+    if date_to_val:
+        date_scoped_leads = date_scoped_leads.filter(inquiry_date__lte=date_to_val)
+    campaign_breakdown = get_campaign_breakdown_stats(active_leads, date_scoped_leads)
 
     context = {
         "query_params": query_params.urlencode(),
         "active": "leads_all",
         "page_obj": page,
         "total_count": leads.count(),
+        "campaign_breakdown": campaign_breakdown,
         "q": q,
         "selected_import_job": selected_import_job,
         "source_categories": SourceCategory.objects.filter(id__in=used_sc_ids),
@@ -1201,64 +1292,330 @@ def team_history(request):
     # Apply distinct to avoid inflated cartesian product counts from multi-table joins (followups, notes, activities)
     leads = leads.distinct()
 
-    # For hospital businesses: no course/stage/admission filters needed
-    # (these are Zappcode Academy-specific)
+    # Tab Selection: telecallers (default) or doctors
+    active_tab = request.GET.get("tab", "telecallers").strip().lower()
+    if active_tab not in ("telecallers", "doctors"):
+        active_tab = "telecallers"
 
-    # Build separate attendant and doctor querysets for hospital filter dropdowns
-    attendants = User.objects.none()
-    doctors = User.objects.none()
+    # Multi-select attendant IDs and doctor IDs
+    selected_attendant_ids = [str(x).strip() for x in request.GET.getlist("attendant_id") if str(x).strip().isdigit()]
+    selected_doctor_ids = [str(x).strip() for x in request.GET.getlist("doctor_id") if str(x).strip().isdigit()]
+
+    # Backward compatibility with single user_id or singular GET param
+    legacy_user_id = request.GET.get("user_id", "").strip()
+    if legacy_user_id and legacy_user_id.isdigit():
+        if active_tab == "doctors":
+            if legacy_user_id not in selected_doctor_ids:
+                selected_doctor_ids.append(legacy_user_id)
+        else:
+            if legacy_user_id not in selected_attendant_ids:
+                selected_attendant_ids.append(legacy_user_id)
+
+    # Scoped Telecallers & Doctors Querysets
     if hospital and is_hospital_business:
         attendants = User.objects.filter(
             is_active=True, is_approved=True,
             role=User.Role.LEAD_ATTENDENT,
             hospital=hospital,
-        ).order_by("first_name", "last_name")
+        ).order_by("first_name", "last_name", "username")
         doctors = User.objects.filter(
             is_active=True, is_approved=True,
             role=User.Role.DOCTOR,
             hospital=hospital,
-        ).order_by("first_name", "last_name")
+        ).order_by("first_name", "last_name", "username")
+    elif hospital:
+        # Non-hospital (e.g. Academy)
+        attendants = User.objects.filter(
+            is_active=True, is_approved=True,
+            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
+            hospital=hospital,
+        ).order_by("first_name", "last_name", "username")
+        doctors = User.objects.none()
+    else:
+        attendants = User.objects.none()
+        doctors = User.objects.none()
 
-    # Calculate all_members_count across leads before single user selection
-    all_members_count = leads.distinct().count()
-    user_counts = []
-    for member in team_members:
-        if is_hospital_business and member.role == User.Role.DOCTOR:
-            doc_name = member.get_full_name() or member.username
-            c = leads.filter(Q(assigned_to=member) | Q(custom_data__doctor__icontains=doc_name)).distinct().count()
+    # Pre-calculate individual lead counts for all attendants & doctors
+    attendants_list = []
+    for att in attendants:
+        cnt = leads.filter(assigned_to=att).distinct().count()
+        attendants_list.append({
+            "user": att,
+            "count": cnt,
+            "is_selected": str(att.id) in selected_attendant_ids,
+            "is_self": att == request.user,
+        })
+    attendants_list.sort(key=lambda x: x["count"], reverse=True)
+
+    doctors_list = []
+    for doc in doctors:
+        doc_name = doc.get_full_name() or doc.username
+        cnt = leads.filter(Q(assigned_to=doc) | Q(custom_data__doctor__icontains=doc_name)).distinct().count()
+        doctors_list.append({
+            "user": doc,
+            "count": cnt,
+            "is_selected": str(doc.id) in selected_doctor_ids,
+            "is_self": doc == request.user,
+        })
+    doctors_list.sort(key=lambda x: x["count"], reverse=True)
+
+    # Apply tab-specific lead filtering and calculate group analytics
+    selected_attendant_objs = attendants.filter(id__in=selected_attendant_ids) if selected_attendant_ids else attendants.none()
+    selected_doctor_objs = doctors.filter(id__in=selected_doctor_ids) if selected_doctor_ids else doctors.none()
+
+    # Base tab querysets before any additional filters (used for analytics and table)
+    if active_tab == "doctors":
+        if selected_doctor_ids:
+            doc_q = Q()
+            for d in selected_doctor_objs:
+                dname = d.get_full_name() or d.username
+                doc_q |= Q(assigned_to=d) | Q(custom_data__doctor__icontains=dname)
+            leads = leads.filter(doc_q)
         else:
-            c = leads.filter(assigned_to=member).distinct().count()
-        user_counts.append({"user": member, "count": c, "is_self": member == request.user})
-    user_counts.sort(key=lambda x: x["count"], reverse=True)
+            # If no specific doctor is selected, show all leads belonging/assigned to doctors or with doctor assigned
+            all_doc_names = [d.get_full_name() or d.username for d in doctors]
+            doc_filter_q = Q(assigned_to__in=doctors)
+            for dname in all_doc_names[:50]:
+                doc_filter_q |= Q(custom_data__doctor__icontains=dname)
+            leads = leads.filter(doc_filter_q)
+    else:
+        # Telecallers tab
+        if selected_attendant_ids:
+            leads = leads.filter(assigned_to__in=selected_attendant_objs)
+        else:
+            # All telecaller leads
+            leads = leads.filter(assigned_to__in=attendants)
 
-    # Filter by selected Lead Attendant (assigned_to)
-    selected_attendant_id = request.GET.get("attendant_id", "").strip()
-    selected_attendant = None
-    if selected_attendant_id and selected_attendant_id.isdigit():
-        selected_attendant = attendants.filter(id=int(selected_attendant_id)).first()
-        if selected_attendant:
-            leads = leads.filter(assigned_to=selected_attendant)
+    # Group Analytics computation for the active tab view
+    tab_leads_base = leads.distinct()
 
-    # Filter by selected Doctor (stored as name string in custom_data__doctor)
-    selected_doctor_id = request.GET.get("doctor_id", "").strip()
-    selected_doctor = None
-    if selected_doctor_id and selected_doctor_id.isdigit():
-        selected_doctor = doctors.filter(id=int(selected_doctor_id)).first()
-        if selected_doctor:
-            doctor_name = selected_doctor.get_full_name() or selected_doctor.username
-            leads = leads.filter(custom_data__doctor__icontains=doctor_name)
+    # Import schedule & leave models for Doctor tab
+    from leads.models import DoctorSchedule, DoctorLeave
 
-    # Filter by selected team member (for both Academy and Hospital)
-    selected_user_id = request.GET.get("user_id", "").strip()
-    selected_user = None
-    if selected_user_id and selected_user_id.isdigit():
-        selected_user = team_members.filter(id=int(selected_user_id)).first()
-        if selected_user:
-            if is_hospital_business and selected_user.role == User.Role.DOCTOR:
-                dname = selected_user.get_full_name() or selected_user.username
-                leads = leads.filter(Q(assigned_to=selected_user) | Q(custom_data__doctor__icontains=dname))
-            else:
-                leads = leads.filter(assigned_to=selected_user)
+    # 1. Telecaller Tab KPIs:
+    kpi_total_leads = tab_leads_base.count()
+
+    kpi_followups = tab_leads_base.filter(
+        Q(followups__followup_status__in=['PENDING', 'RESCHEDULED'])
+        | (Q(next_followup_date__isnull=False) & ~Q(followups__followup_status__in=['COMPLETED', 'DONE']))
+        | Q(deal_status__in=['PAYMENT PENDING', 'APPROVAL PENDING'])
+        | Q(stage__name__icontains='Pending')
+        | Q(stage__name__icontains='Awaiting Approval')
+        | Q(admission_status__icontains='PENDING')
+    ).distinct().count()
+
+    kpi_appointments = tab_leads_base.filter(
+        Q(appointments__isnull=False)
+        | Q(deal_status__in=['BOOKING CONFIRMED', 'APPOINTMENT CONFIRMED', 'BOOKED', 'APPOINTMENT BOOKED', 'CONFIRMED'])
+        | Q(stage__name__icontains='Appointment')
+        | Q(stage__name__icontains='Booking')
+    ).distinct().count()
+
+    kpi_payment_pending = tab_leads_base.filter(
+        Q(deal_status__in=['PAYMENT PENDING', 'PENDING PAYMENT'])
+        | Q(stage__name__icontains='Payment Pending')
+        | Q(stage__name__icontains='Payment - Pending')
+        | Q(admission_status='PAYMENT_PENDING')
+    ).distinct().count()
+
+    kpi_payment_done = tab_leads_base.filter(
+        Q(deal_status__in=['PAYMENT DONE', 'WON'])
+        | Q(stage__name__icontains='Payment Done')
+        | Q(admission_status__in=['WON', 'ADMISSION_DONE', 'PAYMENT_DONE'])
+    ).distinct().count()
+
+    kpi_lost = tab_leads_base.filter(
+        Q(deal_status=DealStatus.LOST)
+        | Q(stage__name__icontains='Lost')
+        | Q(stage__name__icontains='Cancelled')
+        | Q(admission_status__in=[AdmissionStatus.LOST, 'CANCELLED'])
+    ).distinct().count()
+
+    kpi_conversion_rate = round((kpi_appointments / kpi_total_leads * 100), 1) if kpi_total_leads > 0 else 0.0
+    kpi_success_rate = round((kpi_payment_done / kpi_total_leads * 100), 1) if kpi_total_leads > 0 else 0.0
+
+    # 2. Doctor Tab Specific KPIs:
+    # (Approval Pending, Admitted, Appointment Completed, Upcoming, Lost, Upcoming Leaves, Daily OPD Hours)
+    doc_approval_pending = tab_leads_base.filter(
+        Q(appointments__status='PENDING_APPROVAL')
+        | Q(stage__name__icontains='Approval Pending')
+        | Q(stage__name__icontains='Awaiting Approval')
+        | Q(deal_status__icontains='Approval')
+        | Q(custom_data__appointment_status__icontains='Approval')
+    ).distinct().count()
+
+    doc_admitted = tab_leads_base.filter(
+        Q(stage__name__icontains='Admitted')
+        | Q(stage__name__icontains='Admission')
+        | Q(admission_status__in=['ADMISSION_DONE', 'ADMITTED'])
+        | Q(custom_data__deal_status__icontains='Admit')
+    ).distinct().count()
+
+    doc_completed = tab_leads_base.filter(
+        Q(appointments__status='COMPLETED')
+        | Q(stage__name__icontains='Appointment Completed')
+        | Q(stage__name__icontains='Completed')
+        | Q(custom_data__appointment_status__icontains='Complete')
+        | Q(deal_status__in=['PAYMENT DONE', 'WON', 'COMPLETED'])
+    ).distinct().count()
+
+    doc_upcoming = tab_leads_base.filter(
+        (Q(appointments__appointment_date__gt=today) & Q(appointments__status__in=['APPROVED', 'SCHEDULED']))
+        | (Q(custom_data__appo_booked_date__gt=str(today)) & ~Q(deal_status=DealStatus.LOST))
+        | (Q(next_followup_date__gt=today) & ~Q(deal_status=DealStatus.LOST))
+    ).distinct().count()
+
+    doc_lost = kpi_lost
+
+    # Upcoming Leaves count & Leaves list for selected doctor(s) or all doctors
+    doc_leaves_qs = DoctorLeave.objects.filter(
+        hospital=hospital if hospital else None,
+        end_date__gte=today
+    ) if hospital else DoctorLeave.objects.filter(end_date__gte=today)
+
+    if selected_doctor_ids:
+        doc_leaves_qs = doc_leaves_qs.filter(doctor_id__in=selected_doctor_ids)
+    elif doctors.exists():
+        doc_leaves_qs = doc_leaves_qs.filter(doctor__in=doctors)
+    else:
+        doc_leaves_qs = doc_leaves_qs.none()
+
+    doc_upcoming_leaves_count = doc_leaves_qs.count()
+    doctor_leaves_list = list(doc_leaves_qs.select_related('doctor').order_by('start_date')[:20])
+
+    # Daily OPD Hours calculation from DoctorSchedule
+    doc_schedules_qs = DoctorSchedule.objects.filter(
+        hospital=hospital if hospital else None
+    ) if hospital else DoctorSchedule.objects.all()
+
+    if selected_doctor_ids:
+        doc_schedules_qs = doc_schedules_qs.filter(doctor_id__in=selected_doctor_ids)
+    elif doctors.exists():
+        doc_schedules_qs = doc_schedules_qs.filter(doctor__in=doctors)
+
+    total_opd_hours_calc = 0
+    sched_count = 0
+    for sch in doc_schedules_qs:
+        if sch.opd_start_time and sch.opd_end_time:
+            dur = (datetime.combine(today, sch.opd_end_time) - datetime.combine(today, sch.opd_start_time)).total_seconds() / 3600.0
+            if dur > 0:
+                total_opd_hours_calc += dur
+                sched_count += 1
+    
+    if sched_count > 0:
+        doc_daily_opd_hours_display = f"{round(total_opd_hours_calc / sched_count, 1)} hrs/day"
+    else:
+        doc_daily_opd_hours_display = "8.0 hrs/day"
+
+    # -------------------------------------------------------------
+    # Charts Calculation:
+    # -------------------------------------------------------------
+
+    # Chart 1: Lead Stages Breakdown
+    stage_names_in_data = list(tab_leads_base.exclude(stage__isnull=True).values_list('stage__name', flat=True).distinct())
+    if not stage_names_in_data:
+        stage_names_in_data = ['New', 'Assigned', 'Follow Up - Pending', 'Payment Done', 'Lost']
+    stage_chart_labels = []
+    stage_chart_counts = []
+    for sname in stage_names_in_data[:8]:
+        c = tab_leads_base.filter(stage__name=sname).distinct().count()
+        if c > 0 or len(stage_chart_labels) < 5:
+            stage_chart_labels.append(sname)
+            stage_chart_counts.append(c)
+
+    # Chart 2: Deal Status Breakdown (Pie Chart: New, Open, Follow ups, Won, Lost)
+    status_chart_data = {
+        "New": tab_leads_base.filter(Q(deal_status='NEW') | Q(stage__name='New')).distinct().count(),
+        "Open": tab_leads_base.filter(Q(deal_status=DealStatus.OPEN) & ~Q(stage__name='New')).distinct().count(),
+        "Follow ups": tab_leads_base.filter(Q(deal_status='CONTACTED') | Q(stage__name__icontains='Follow')).distinct().count(),
+        "Won": tab_leads_base.filter(Q(deal_status=DealStatus.WON) | Q(deal_status='PAYMENT DONE') | Q(stage__name__icontains='Payment Done') | Q(admission_status=AdmissionStatus.WON)).distinct().count(),
+        "Lost": tab_leads_base.filter(Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains='Lost') | Q(stage__name__icontains='Cancelled') | Q(admission_status=AdmissionStatus.LOST)).distinct().count(),
+    }
+
+    # Chart 3: Follow-ups Distribution Chart
+    today_dt = today
+    fu_today_pending = tab_leads_base.filter(
+        Q(next_followup_date=today_dt) | Q(followups__followup_date=today_dt, followups__followup_status='PENDING')
+    ).distinct().count()
+
+    fu_upcoming_pending = tab_leads_base.filter(
+        Q(next_followup_date__gt=today_dt) | Q(followups__followup_date__gt=today_dt, followups__followup_status='PENDING')
+    ).distinct().count()
+
+    fu_overdue_pending = tab_leads_base.filter(
+        (Q(next_followup_date__lt=today_dt) | Q(followups__followup_date__lt=today_dt, followups__followup_status='PENDING'))
+        & ~Q(deal_status__in=[DealStatus.WON, DealStatus.LOST, 'PAYMENT DONE'])
+        & ~Q(stage__name__in=['Lost', 'Payment Done'])
+    ).distinct().count()
+
+    fu_completed = tab_leads_base.filter(
+        Q(followups__followup_status__in=['COMPLETED', 'DONE']) | Q(stage__name__icontains='Completed')
+    ).distinct().count()
+
+    fu_approval_pending = tab_leads_base.filter(
+        Q(stage__name__icontains='Approval Pending') | Q(stage__name__icontains='Awaiting Approval') | Q(deal_status__icontains='Approval')
+    ).distinct().count()
+
+    fu_payment_pending = kpi_payment_pending
+    fu_lost = kpi_lost
+
+    followup_chart_data = {
+        "Today's Pending": fu_today_pending,
+        "Upcoming Pending": fu_upcoming_pending,
+        "Overdue Pending": fu_overdue_pending,
+        "Completed": fu_completed,
+        "Approval Pending": fu_approval_pending,
+        "Payment Pending": fu_payment_pending,
+        "Lost": fu_lost,
+    }
+
+    # Chart 4: Appointments Breakdown Chart (Pending, Confirmed, Admitted, Completed, Lost, Upcoming)
+    app_approval_pending = doc_approval_pending
+    app_confirmed = tab_leads_base.filter(
+        Q(appointments__status__in=['APPROVED', 'SCHEDULED'])
+        | Q(deal_status__in=['BOOKING CONFIRMED', 'APPOINTMENT CONFIRMED', 'CONFIRMED'])
+        | Q(stage__name__icontains='Appointment Confirmed')
+        | Q(stage__name__icontains='Booking Confirmed')
+        | Q(stage__name__icontains='Appointment - Confirmed')
+    ).distinct().count()
+
+    app_admitted = doc_admitted
+    app_completed = doc_completed
+    app_lost = kpi_lost
+    app_upcoming = doc_upcoming
+
+    doctor_appointments_bar_data = {
+        "Pending Approval": app_approval_pending,
+        "Confirmed": app_confirmed,
+        "Admitted": app_admitted,
+        "Completed": app_completed,
+        "Lost / Cancelled": app_lost,
+        "Upcoming": app_upcoming,
+    }
+
+    import json
+    analysis_chart_data = {
+        "stages": {
+            "labels": stage_chart_labels,
+            "counts": stage_chart_counts,
+        },
+        "status": {
+            "labels": list(status_chart_data.keys()),
+            "counts": list(status_chart_data.values()),
+        },
+        "followups": {
+            "labels": list(followup_chart_data.keys()),
+            "counts": list(followup_chart_data.values()),
+        },
+        "appointments": {
+            "labels": list(doctor_appointments_bar_data.keys()),
+            "counts": list(doctor_appointments_bar_data.values()),
+        },
+        "doctor_appointments": {
+            "labels": list(doctor_appointments_bar_data.keys()),
+            "counts": list(doctor_appointments_bar_data.values()),
+        },
+    }
 
     # Course filter (Zappcode Academy)
     selected_courses = request.GET.getlist("course")
@@ -1344,12 +1701,12 @@ def team_history(request):
 
     if q:
         active_filter_items.append({"key": "q", "label": f"Search: '{q}'", "value": q})
-    if selected_user:
-        active_filter_items.append({"key": "user_id", "label": f"Team Member: {selected_user.get_full_name() or selected_user.username}", "value": selected_user.id})
-    if selected_attendant:
-        active_filter_items.append({"key": "attendant_id", "label": f"Attendant: {selected_attendant.get_full_name() or selected_attendant.username}", "value": selected_attendant.id})
-    if selected_doctor:
-        active_filter_items.append({"key": "doctor_id", "label": f"Doctor: {selected_doctor.get_full_name() or selected_doctor.username}", "value": selected_doctor.id})
+
+    for att_obj in selected_attendant_objs:
+        active_filter_items.append({"key": "attendant_id", "label": f"Telecaller: {att_obj.get_full_name() or att_obj.username}", "value": att_obj.id})
+    for doc_obj in selected_doctor_objs:
+        active_filter_items.append({"key": "doctor_id", "label": f"Doctor: {doc_obj.get_full_name() or doc_obj.username}", "value": doc_obj.id})
+
     for cid in selected_courses:
         c_obj = courses.filter(id=int(cid)).first() if str(cid).isdigit() else None
         if c_obj:
@@ -1375,13 +1732,13 @@ def team_history(request):
             row_dict = {
                 "Lead ID": lead.lead_code,
                 "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else "",
-                "Student / Contact Name": lead.name,
+                "Patient / Student Name": lead.name,
                 "Mobile": lead.mobile,
                 "Course": lead.course.name if lead.course else "",
                 "Stage": lead.stage.name if lead.stage else "New",
                 "Admission Status": lead.get_admission_status_display() if hasattr(lead, "get_admission_status_display") and lead.admission_status else (lead.admission_status or "Open"),
                 "Temperature": lead.get_temperature_display() if hasattr(lead, "get_temperature_display") and lead.temperature else (lead.temperature or ""),
-                "Assigned Counselor / Staff": lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned"),
+                "Assigned Attendant / Staff": lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned"),
                 "City / Location": lead.location or lead.city or "",
             }
             if is_hospital_business:
@@ -1402,8 +1759,8 @@ def team_history(request):
             "active_filters_count": len(active_filter_items),
         })
 
-    # Pagination
-    paginator = Paginator(leads, 25)
+    # Pagination (20 leads per page as requested)
+    paginator = Paginator(leads, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -1429,24 +1786,45 @@ def team_history(request):
 
     context = {
         "active": "team_history",
+        "active_tab": active_tab,
         "page_obj": page_obj,
         "total_count": paginator.count,
-        "all_members_count": all_members_count,
         "q": q,
-        # Hospital-specific filters
+        # Multi-select Telecallers & Doctors
         "attendants": attendants,
         "doctors": doctors,
-        "selected_attendant": selected_attendant,
-        "selected_doctor": selected_doctor,
-        # Academy & Hospital member filters
+        "attendants_list": attendants_list,
+        "doctors_list": doctors_list,
+        "selected_attendant_ids": selected_attendant_ids,
+        "selected_doctor_ids": selected_doctor_ids,
+        "selected_attendant_objs": selected_attendant_objs,
+        "selected_doctor_objs": selected_doctor_objs,
+        # 8 Telecaller Target KPI Metrics
+        "kpi_total_leads": kpi_total_leads,
+        "kpi_followups": kpi_followups,
+        "kpi_appointments": kpi_appointments,
+        "kpi_payment_pending": kpi_payment_pending,
+        "kpi_payment_done": kpi_payment_done,
+        "kpi_lost": kpi_lost,
+        "kpi_conversion_rate": kpi_conversion_rate,
+        "kpi_success_rate": kpi_success_rate,
+        # Doctor Specific KPI Metrics & Calendar
+        "doc_approval_pending": doc_approval_pending,
+        "doc_admitted": doc_admitted,
+        "doc_completed": doc_completed,
+        "doc_upcoming": doc_upcoming,
+        "doc_lost": doc_lost,
+        "doc_upcoming_leaves_count": doc_upcoming_leaves_count,
+        "doc_daily_opd_hours_display": doc_daily_opd_hours_display,
+        "doctor_leaves_list": doctor_leaves_list,
+        # 4 Chart JSON Data
+        "analysis_chart_data_json": json.dumps(analysis_chart_data),
+        # Academy & General filters
         "courses": courses,
         "stages": stages,
         "admission_status_choices": admission_status_choices,
         "followup_status_choices": followup_status_choices,
         "selected_followup_statuses": selected_followup_statuses,
-        "team_members": team_members,
-        "user_counts": user_counts,
-        "selected_user": selected_user,
         "available_years": available_years,
         "available_months": available_months,
         "date_preset": date_preset,
@@ -1539,15 +1917,22 @@ def lost_leads(request):
     query_params = request.GET.copy()
     query_params.pop("page", None)
 
+    # Calculate campaign breakdown for lost leads
+    date_scoped_lost = leads
+    campaign_breakdown = get_campaign_breakdown_stats(leads, date_scoped_lost)
+
     context = {
         "active": "lost_leads",
         "page_obj": page_obj,
         "total_count": total_count,
+        "campaign_breakdown": campaign_breakdown,
         "q": q,
         "courses": courses,
         "selected_course": selected_course,
         "date_from": date_from,
         "date_to": date_to,
+        "date_from_val": date_from or "",
+        "date_to_val": date_to or "",
         "query_params": query_params.urlencode(),
     }
     return render(request, "leads/lost_leads.html", context)
@@ -3438,18 +3823,41 @@ def archived_leads(request):
             | Q(lead_code__icontains=q)
         )
 
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    if date_from:
+        leads_qs = leads_qs.filter(Q(inquiry_date__gte=date_from) | Q(created_at__date__gte=date_from))
+    if date_to:
+        leads_qs = leads_qs.filter(Q(inquiry_date__lte=date_to) | Q(created_at__date__lte=date_to))
+
+    # Calculate campaign breakdown for archived leads
+    campaign_breakdown = get_campaign_breakdown_stats(leads_qs, leads_qs)
+
     total_archived = leads_qs.count()
     paginator = Paginator(leads_qs, 25)
     page_num = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_num)
 
+    query_params = request.GET.copy()
+    if "page" in query_params:
+        del query_params["page"]
+
     context = {
         "active": "archived_leads",
         "leads": page_obj,
+        "page_obj": page_obj,
         "total_archived": total_archived,
+        "total_count": total_archived,
+        "campaign_breakdown": campaign_breakdown,
         "q_archived": q,
+        "q": q,
+        "date_from": date_from,
+        "date_to": date_to,
+        "date_from_val": date_from,
+        "date_to_val": date_to,
         "current_hospital": current_hospital,
         "is_global_admin": is_global_admin,
+        "query_params": query_params.urlencode(),
     }
     return render(request, "leads/archived_leads.html", context)
 
@@ -6380,6 +6788,26 @@ def appointments_done_list(request):
         elif not is_global_admin:
             base_qs = base_qs.filter(hospital__isnull=True)
 
+        if request.user.role == User.Role.MANAGER and request.user.branch:
+            b_name = request.user.branch.name
+            branch_team = User.objects.filter(hospital=request.user.hospital, branch=request.user.branch)
+            base_qs = base_qs.filter(
+                Q(custom_data__hospital_branch__iexact=b_name) |
+                Q(custom_data__branch__iexact=b_name) |
+                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                Q(custom_data__dyn_branch__iexact=b_name) |
+                Q(assigned_to__in=branch_team) |
+                Q(created_by__in=branch_team)
+            )
+        elif request.user.role == User.Role.DOCTOR:
+            doc_name = (request.user.get_full_name() or request.user.username).strip()
+            base_qs = base_qs.filter(
+                Q(assigned_to=request.user) |
+                Q(appointments__doctor_user=request.user) |
+                Q(appointments__doctor_name__icontains=doc_name) |
+                Q(custom_data__doctor__icontains=doc_name)
+            ).distinct()
+
     # Filter by OPD booking / appointment history criteria
     # Ensures all leads that reached OPD Booking are included, even if subsequent status became Visited, Payment Done, Cancelled, etc.
     appt_condition = (
@@ -6556,20 +6984,33 @@ def appointments_done_list(request):
         del query_params_dict["page"]
     query_params = query_params_dict.urlencode()
 
+    # Campaign breakdown calculation for Appointments Done
+    date_scoped_appts = leads_qs
+    if date_from:
+        date_scoped_appts = date_scoped_appts.filter(inquiry_date__gte=date_from)
+    if date_to:
+        date_scoped_appts = date_scoped_appts.filter(inquiry_date__lte=date_to)
+    campaign_breakdown = get_campaign_breakdown_stats(base_qs, date_scoped_appts)
+
     return render(request, "leads/appointments_done_list.html", {
         "active": "appointments",
         "target_hospital": target_hospital,
         "is_healthcare_scope": is_healthcare_scope,
         "page_obj": page_obj,
+        "total_count": appointment_done_count,
         "total_leads_count": total_leads_count,
         "appointment_done_count": appointment_done_count,
         "conversion_rate": conversion_rate,
         "payment_done_count": payment_done_count,
         "payment_pending_count": payment_pending_count,
+        "campaign_breakdown": campaign_breakdown,
+        "q": search_q,
         # Filters state
         "search_q": search_q,
         "date_from": date_from,
         "date_to": date_to,
+        "date_from_val": date_from or "",
+        "date_to_val": date_to or "",
         "sel_dept": sel_dept,
         "sel_telecaller": sel_telecaller,
         "sel_doctor": sel_doctor,
@@ -6583,6 +7024,124 @@ def appointments_done_list(request):
         "sources_list": sorted(list(set(sources_list))),
         "query_params": query_params,
     })
+
+
+@login_required
+def pending_leads(request):
+    """
+    Dedicated Pending Leads View for Hospital Admin / CRM.
+    Displays leads in:
+    - Follow-ups stage (Follow up Needed, Follow up Scheduled, Follow up Pending)
+    - Uncontacted leads (Fresh, Open, Call not done)
+    - New leads
+    - Approval Pending (Awaiting Approval from Doctor, Booking Approval Pending)
+    - Payment Pending (Visited / Completed appointment but payment pending)
+    """
+    pending_condition = (
+        # 1. Follow-ups pending/stage
+        Q(stage__name__icontains="follow")
+        | Q(custom_data__deal_status__icontains="follow")
+        | Q(followups__followup_status__in=["PENDING", "RESCHEDULED"])
+        | Q(custom_data__followup_status__icontains="pending")
+        # 2. Uncontacted / Fresh / Open
+        | Q(stage__name__icontains="fresh")
+        | Q(stage__name__icontains="open")
+        | Q(stage__name__icontains="uncontacted")
+        | Q(custom_data__deal_status__icontains="uncontacted")
+        # 3. New leads
+        | Q(stage__name__icontains="new")
+        | Q(custom_data__deal_status__icontains="new")
+        # 4. Approval pending
+        | Q(stage__name__icontains="approv")
+        | Q(custom_data__appointment_status__icontains="approv")
+        | Q(custom_data__deal_status__icontains="approv")
+        | Q(appointments__status=AppointmentStatus.PENDING_APPROVAL)
+        # 5. Payment pending
+        | Q(stage__name__icontains="payment pending")
+        | Q(custom_data__deal_status__icontains="payment pending")
+        | Q(custom_data__appointment_status__icontains="payment pending")
+    )
+
+    # Exclude definitively closed/won/lost leads unless they have pending payment/approval
+    leads_base = Lead.objects.select_related(
+        "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
+    ).filter(is_archived=False).filter(pending_condition).exclude(
+        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel")
+    ).distinct()
+
+    # Pass base_qs to get_filtered_leads so common search, date, and sidebar filters apply smoothly
+    leads = get_filtered_leads(request, base_qs=leads_base)
+
+    # Use lead_list context building logic
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+    q = request.GET.get("q", "").strip()
+    sort_by = request.GET.get("sort", "-created_at")
+    date_from = request.GET.get("date_from") or request.GET.get("date")
+    date_to = request.GET.get("date_to")
+
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(leads, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    query_params = request.GET.copy()
+    if "page" in query_params:
+        del query_params["page"]
+
+    target_hospital = request.user.hospital
+    if not target_hospital and is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+
+    # Calculate campaign breakdown for pending leads tab
+    date_scoped_pending = leads_base
+    if date_from:
+        date_scoped_pending = date_scoped_pending.filter(inquiry_date__gte=date_from)
+    if date_to:
+        date_scoped_pending = date_scoped_pending.filter(inquiry_date__lte=date_to)
+    campaign_breakdown = get_campaign_breakdown_stats(leads_base, date_scoped_pending)
+
+    context = {
+        "query_params": query_params.urlencode(),
+        "active": "pending_leads",
+        "page_obj": page_obj,
+        "total_count": leads.count(),
+        "campaign_breakdown": campaign_breakdown,
+        "q": q,
+        "target_hospital": target_hospital,
+        "is_viewing_hospital": True,
+        "date_from_val": date_from or "",
+        "date_to_val": date_to or "",
+        "current_sort": sort_by,
+        "request_get": request.GET,
+    }
+
+    if target_hospital:
+        context["employees"] = User.objects.filter(
+            hospital=target_hospital,
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            is_active=True,
+            is_approved=True
+        ).order_by("first_name", "last_name", "username")
+        context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
+        context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
+        context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
+        hospital_deal_statuses = list(context["hospital_statuses"].values_list("name", flat=True))
+        if hospital_deal_statuses:
+            context["bulk_stages"] = [{"id": s, "name": s} for s in hospital_deal_statuses]
+        else:
+            context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
+
+    return render(request, "hospital/leads/lead_list.html", context)
+
+
 
 
 

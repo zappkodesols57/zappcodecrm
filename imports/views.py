@@ -175,7 +175,7 @@ def _load_excel_or_csv(file_path, filename=""):
 from django.core.cache import cache
 from accounts.models import User, Hospital
 from leads.models import Campaign as HospitalCampaign
-from .nel_hospital_import_service import (
+from .hospital_import_service import (
     parse_any_file_to_dataframe,
     extract_campaign_lead_data,
     check_duplicates_in_db,
@@ -876,15 +876,18 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 imported_count += 1
                 lead_record = new_lead
 
-            # Queue follow-ups if present in row
+            # Queue follow-ups & timeline activities if present in row
             fu1_d = r.get("fu1_date")
             fu1_rem = r.get("fu1_remark")
             fu2_d = r.get("fu2_date")
             fu2_rem = r.get("fu2_remark")
+            fu3_d = r.get("fu3_date")
+            fu3_rem = r.get("fu3_remark")
 
             fu_items = [
                 (fu1_d, fu1_rem),
                 (fu2_d, fu2_rem),
+                (fu3_d, fu3_rem),
             ]
             for f_date_str, f_rem in fu_items:
                 if f_date_str or f_rem:
@@ -896,9 +899,19 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                         followup_mode=FollowUpMode.CALL,
                         followup_status=st_choice,
                         comment=f_rem or "Follow-up logged via leads import",
-                        created_by=request.user,
+                        created_by=assigned_user or request.user,
                         imported_from_excel=True,
                     ))
+
+            # Initial activity log for lead timeline
+            if lead_record:
+                from followups.models import Activity, ActivityType
+                Activity.objects.create(
+                    lead=lead_record,
+                    activity_type=ActivityType.LEAD_CREATED,
+                    description=f"Lead imported from file '{original_filename}'" + (f" and assigned to {assigned_user.get_full_name() or assigned_user.username}" if assigned_user else ""),
+                    created_by=request.user,
+                )
 
         # Bulk insert follow-ups
         if followups_to_create:
@@ -2050,8 +2063,21 @@ def quick_import(request):
         year = timezone.now().year
         hosp_prefix = "NL-" if (user_hospital and "nelson" in (user_hospital.name or "").lower()) else "LD-"
         full_prefix = f"{hosp_prefix}{year}-"
-        last_lead = Lead.objects.filter(lead_code__startswith=full_prefix).order_by("-lead_code").first()
-        current_seq = (int(last_lead.lead_code.split("-")[-1]) if (last_lead and last_lead.lead_code and "-" in last_lead.lead_code) else 0)
+        
+        existing_codes_prefix = Lead.objects.filter(lead_code__startswith=full_prefix).values_list("lead_code", flat=True)
+        max_seq_found = 0
+        for code in existing_codes_prefix:
+            if code and "-" in code:
+                parts = code.split("-")
+                if len(parts) >= 3 and parts[-1].isdigit():
+                    try:
+                        n_val = int(parts[-1])
+                        if n_val > max_seq_found:
+                            max_seq_found = n_val
+                    except ValueError:
+                        pass
+        current_seq = max_seq_found
+        used_lead_codes = set(existing_codes_prefix)
 
         start_idx = 0
         if len(df) > 0 and col_name:
@@ -2333,6 +2359,10 @@ def quick_import(request):
             else:
                 current_seq += 1
                 gen_code = f"{full_prefix}{current_seq:06d}"
+                while gen_code in used_lead_codes:
+                    current_seq += 1
+                    gen_code = f"{full_prefix}{current_seq:06d}"
+                used_lead_codes.add(gen_code)
                 lead_obj = Lead.objects.create(
                     lead_code=gen_code,
                     name=name, mobile=mobile, alternate_mobile=alt_mobile,

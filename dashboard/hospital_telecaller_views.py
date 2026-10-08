@@ -65,23 +65,24 @@ def telecaller_home(request):
     todays_consult_booked_count = 0
     todays_total_booked_count = 0
 
-    # CARD 4: Today's Follow-ups for User (Assigned to user or created by user)
+    # CARD 4: Today's Follow-ups for User (Strictly assigned to this user)
     booked_exclude_tele = (
-        Q(custom_data__appointment_status__icontains='Book') |
-        Q(custom_data__appointment_status__icontains='Confirm') |
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
         Q(admission_status='ADMISSION_DONE') |
-        (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=['0', '0.00', '', '0.0', 0, 0.0]))
+        Q(stage__name__icontains='Payment Done') |
+        Q(stage__name__icontains='Booked') |
+        Q(stage__name__icontains='Lost') |
+        Q(appointments__status__in=['APPROVED', 'SCHEDULED', 'COMPLETED'])
     )
 
     user_fu_qs = hospital_leads.filter(
-        Q(assigned_to=user) | Q(created_by=user)
+        assigned_to=user
     ).exclude(
         booked_exclude_tele
     ).filter(
         Q(next_followup_date__isnull=False) |
         Q(followups__next_followup_date__isnull=False) |
-        Q(custom_data__appointment_status__icontains='follow')
+        Q(followups__followup_date=today_date)
     ).distinct().select_related('stage', 'campaign', 'lead_source')
 
     todays_tele_followups_list = []
@@ -127,11 +128,14 @@ def telecaller_home(request):
     pending_and_upcoming_followups = (overdue_tele_followups_list + todays_tele_followups_list + upcoming_tele_followups_list)[:10]
     pending_and_upcoming_followups_count = (overdue_followups_count + todays_followups_count + upcoming_followups_count)
 
-    # CARD 5: Today's Walk-in Leads
+    # CARD 5: Today's Walk-in Leads (Assigned to user)
     todays_walkin_count = hospital_leads.filter(
+        assigned_to=user
+    ).filter(
         Q(lead_source__name__icontains='walk-in') |
         Q(custom_data__lead_source__icontains='walk-in') |
-        Q(custom_data__source__icontains='walk-in')
+        Q(custom_data__source__icontains='walk-in') |
+        Q(lead_type__icontains='walk')
     ).filter(
         Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
     ).distinct().count()
@@ -223,9 +227,9 @@ def telecaller_home(request):
 
         return parsed_dt, apt_time_str, apt_status_str, apt_type
 
-    # Base queryset for appointments belonging to this telecaller / branch (Excludes already Billed / Payment Done / Won leads)
+    # Base queryset for appointments belonging strictly to this telecaller
     appointment_candidate_leads = hospital_leads.filter(
-        Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
+        assigned_to=user
     ).exclude(
         deal_status__in=[DealStatus.LOST, DealStatus.WON]
     ).exclude(
@@ -357,8 +361,10 @@ def telecaller_home(request):
         assigned_leads_page = assigned_leads_paginator.page(1)
     assigned_leads_list = list(assigned_leads_page.object_list)
 
-    # Walk-in Leads: Leads originating from direct walk-in source for today (matches Today's Walk-in KPI)
+    # Walk-in Leads: Leads originating from direct walk-in source for today assigned to user
     walkin_leads_qs = hospital_leads.filter(
+        assigned_to=user
+    ).filter(
         Q(lead_source__name__icontains='walk-in') |
         Q(custom_data__lead_source__icontains='walk-in') |
         Q(custom_data__source__icontains='walk-in') |
@@ -376,7 +382,7 @@ def telecaller_home(request):
         walkin_leads_page = walkin_leads_paginator.page(1)
     walkin_leads_list = list(walkin_leads_page.object_list)
 
-    # Today's All Leads: All leads received or created today with their current statuses & stages
+    # Today's All Leads: All leads received or created today with their current statuses & stages across hospital
     todays_all_leads_qs = hospital_leads.filter(
         Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
     ).select_related('stage', 'campaign', 'lead_source', 'assigned_to').prefetch_related('followups', 'appointments').order_by('-created_at')
@@ -392,21 +398,15 @@ def telecaller_home(request):
 
     # Follow-ups -> Completed: Only leads that had calling follow-ups completed without converting to Booked/Paid/Lost
     completed_fu_qs = hospital_leads.filter(
-        Q(assigned_to=user) | Q(created_by=user)
-    ).exclude(
-        booked_exclude_tele
+        assigned_to=user
     ).exclude(
         deal_status__in=[DealStatus.WON, DealStatus.LOST]
     ).exclude(
-        custom_data__deal_status__icontains='Won'
+        admission_status__in=['ADMISSION_DONE', 'WON', 'LOST', 'CANCELLED']
     ).exclude(
-        custom_data__deal_status__icontains='Payment'
+        stage__name__icontains='Payment Done'
     ).exclude(
-        custom_data__deal_status__icontains='Lost'
-    ).exclude(
-        stage__name__icontains='Payment'
-    ).exclude(
-        custom_data__total__isnull=False
+        stage__name__icontains='Lost'
     ).filter(
         followups__followup_status__in=['COMPLETED', 'DONE']
     ).distinct().select_related('stage', 'campaign', 'lead_source').order_by('-updated_at')
@@ -425,9 +425,9 @@ def telecaller_home(request):
             return dt.strftime('%d %b %Y')
         return str(dt)
 
-    # 5. SECTION: BILLINGS (2 SUB-TABS: Payment Done vs Payment Pending)
+    # 5. SECTION: BILLINGS (2 SUB-TABS: Payment Done vs Payment Pending for assigned leads)
     billing_candidate_leads = hospital_leads.filter(
-        Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
+        assigned_to=user
     ).exclude(
         deal_status=DealStatus.LOST
     ).exclude(
@@ -515,7 +515,7 @@ def telecaller_home(request):
         if not done_dt:
             done_date_raw = cd.get('appointment_done_date') or cd.get('opd_done_date') or cd.get('visit_date')
             if done_date_raw:
-                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%d-%m-%Y'):
+                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%d-%m-%Y %H:%M:%S', '%d-%m-%Y'):
                     try:
                         done_dt = datetime.strptime(str(done_date_raw).strip(), fmt)
                         break
@@ -561,9 +561,9 @@ def telecaller_home(request):
     ).distinct().count() or len(payment_done_list)
     total_billings_count = payment_pending_count + payment_done_count
 
-    # 6. Lost / Cancelled Leads
+    # 6. Lost / Cancelled Leads (Strictly assigned to user)
     lost_qs = hospital_leads.filter(
-        Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
+        assigned_to=user
     ).filter(
         Q(deal_status=DealStatus.LOST) |
         Q(admission_status__in=['LOST', 'CANCELLED', 'DROPOUT']) |
@@ -818,7 +818,7 @@ def telecaller_tab_data_api(request):
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=['0', '0.00', '', '0.0', 0, 0.0]))
         )
         user_fu_qs = hospital_leads.filter(
-            Q(assigned_to=user) | Q(created_by=user)
+            assigned_to=user
         ).exclude(
             booked_exclude_tele
         ).filter(
@@ -850,7 +850,7 @@ def telecaller_tab_data_api(request):
 
     elif tab == 'followups_completed':
         completed_fu_qs = hospital_leads.filter(
-            Q(assigned_to=user) | Q(created_by=user)
+            assigned_to=user
         ).filter(
             Q(followups__followup_status__in=['COMPLETED', 'DONE', 'INTERESTED']) |
             Q(stage__name__iexact='Payment Done') |
@@ -894,7 +894,7 @@ def telecaller_tab_data_api(request):
             return parsed_dt, apt_time_str, apt_status_str, apt_type
 
         appointment_candidate_leads = hospital_leads.filter(
-            Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
+            assigned_to=user
         ).exclude(
             deal_status=DealStatus.LOST
         ).exclude(
@@ -943,7 +943,7 @@ def telecaller_tab_data_api(request):
 
     elif tab in ['billings_pending', 'billings_done']:
         billing_candidate_leads = hospital_leads.filter(
-            Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
+            assigned_to=user
         ).exclude(
             deal_status=DealStatus.LOST
         ).exclude(
@@ -1036,7 +1036,7 @@ def telecaller_tab_data_api(request):
 
     elif tab == 'lost':
         lost_qs = hospital_leads.filter(
-            Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True)
+            assigned_to=user
         ).filter(
             Q(deal_status=DealStatus.LOST) |
             Q(admission_status__in=['LOST', 'CANCELLED', 'DROPOUT']) |

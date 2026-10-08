@@ -16,56 +16,132 @@ def get_unread_notifications(request):
         start_today = timezone.make_aware(datetime.combine(today, time.min), tz)
         end_today = timezone.make_aware(datetime.combine(today, time.max), tz)
         
-        from leads.models import Lead
+        from leads.models import Lead, Appointment, AppointmentStatus
         from followups.models import FollowUp, FollowUpStatus
         from dashboard.models import TaskReminder
         
-        # 1. Check pending followups for this user scheduled for today (alert once per lead per day)
-        pending_fu = FollowUp.objects.filter(
-            lead__assigned_to=request.user,
+        user = request.user
+        is_admin_or_mgr = bool(user.is_superuser or user.role in ('SUPER_ADMIN', 'ADMIN', 'MANAGER'))
+        is_doctor = (user.role == 'DOCTOR')
+        user_hosp = user.hospital
+
+        # 1. NEW UNCAPTURED LEADS ALERT (For Telecallers & Managers/Admins in Hospital)
+        if not is_doctor and user_hosp:
+            fresh_uncaptured = Lead.objects.filter(
+                hospital=user_hosp,
+                assigned_to__isnull=True,
+                is_archived=False,
+                created_at__range=(start_today, end_today)
+            ).order_by('-created_at')[:3]
+            for f_lead in fresh_uncaptured:
+                notif_t = f"🆕 New Unassigned Lead: {f_lead.name}"
+                fu_link = f"/leads/{f_lead.pk}/"
+                exists = Notification.objects.filter(
+                    user=user,
+                    created_at__range=(start_today, end_today),
+                    title=notif_t
+                ).exists()
+                if not exists:
+                    Notification.objects.create(
+                        user=user,
+                        title=notif_t,
+                        message=f"A new inquiry for {f_lead.name} (#{f_lead.lead_code or f_lead.pk}) is waiting to be captured.",
+                        link=fu_link
+                    )
+
+        # 2. FOLLOW-UP REMINDERS (30m before & 5m before alerts)
+        fu_qs = FollowUp.objects.filter(
             followup_date=today,
             followup_status=FollowUpStatus.PENDING
         ).select_related('lead')
+        if not is_admin_or_mgr:
+            fu_qs = fu_qs.filter(lead__assigned_to=user)
+        elif user_hosp:
+            fu_qs = fu_qs.filter(lead__hospital=user_hosp)
 
-        for fu in pending_fu:
+        for fu in fu_qs:
             if not fu.lead:
                 continue
             time_msg = ""
-            should_alert = False
+            alert_types = []  # ('30m', '5m', 'due')
+            
             if fu.followup_time:
                 fu_dt = timezone.datetime.combine(today, fu.followup_time)
                 fu_dt = timezone.make_aware(fu_dt, tz)
                 diff_minutes = (fu_dt - now).total_seconds() / 60.0
                 time_msg = f" at {fu.followup_time.strftime('%I:%M %p')}"
-                # Alert only when within 5 mins before scheduled time up to 60 mins after
-                if -60 <= diff_minutes <= 5:
-                    should_alert = True
-            else:
-                # No time specified: alert once during the day
-                should_alert = True
-
-            if should_alert:
-                notif_title = f"⏰ Follow-up Due: {fu.lead.name}"
-                fu_link = f"/leads/{fu.lead.pk}/"
-                # Check if an alert was already generated today for this lead or exact title using explicit datetime range
-                exists = Notification.objects.filter(
-                    user=request.user,
-                    created_at__range=(start_today, end_today)
-                ).filter(
-                    Q(title__icontains=fu.lead.name) | Q(link=fu_link)
-                ).exists()
                 
+                # 30-min window alert (25 to 35 mins before)
+                if 25 <= diff_minutes <= 35:
+                    alert_types.append(('30m', f"⏳ Follow-up in 30 Mins: {fu.lead.name}", f"Upcoming call with patient {fu.lead.name}{time_msg} in 30 minutes."))
+                # 5-min window alert (-10 to 5 mins before)
+                if -10 <= diff_minutes <= 6:
+                    alert_types.append(('5m', f"⏰ Follow-up Due Now: {fu.lead.name}", f"Scheduled follow-up with patient {fu.lead.name}{time_msg} is due. Mobile: {fu.lead.mobile}"))
+            else:
+                alert_types.append(('daily', f"⏰ Follow-up Due Today: {fu.lead.name}", f"Follow-up with patient {fu.lead.name} is scheduled for today."))
+
+            for a_key, notif_title, notif_msg in alert_types:
+                fu_link = f"/leads/{fu.lead.pk}/"
+                exists = Notification.objects.filter(
+                    user=user,
+                    created_at__range=(start_today, end_today),
+                    title=notif_title
+                ).exists()
                 if not exists:
                     Notification.objects.create(
-                        user=request.user,
+                        user=user,
                         title=notif_title,
-                        message=f"Scheduled follow-up for patient {fu.lead.name}{time_msg} is now due. Contact: {fu.lead.mobile}",
+                        message=notif_msg,
                         link=fu_link
                     )
 
-        # 2. Check pending task reminders for this user scheduled for today (alert once per task per day)
+        # 3. APPOINTMENT REMINDERS (30m before & 5m before for Doctor and Telecaller)
+        apt_qs = Appointment.objects.filter(
+            appointment_date=today,
+            status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.PENDING_APPROVAL]
+        ).select_related('lead', 'doctor_user')
+        if is_doctor:
+            apt_qs = apt_qs.filter(Q(doctor_user=user) | Q(doctor_name__icontains=user.get_full_name() or user.username))
+        elif not is_admin_or_mgr:
+            apt_qs = apt_qs.filter(lead__assigned_to=user)
+        elif user_hosp:
+            apt_qs = apt_qs.filter(hospital=user_hosp)
+
+        for apt in apt_qs:
+            if not apt.lead:
+                continue
+            time_msg = ""
+            apt_alerts = []
+            if apt.appointment_time:
+                apt_dt = timezone.datetime.combine(today, apt.appointment_time)
+                apt_dt = timezone.make_aware(apt_dt, tz)
+                diff_minutes = (apt_dt - now).total_seconds() / 60.0
+                time_msg = f" at {apt.appointment_time.strftime('%I:%M %p')}"
+                if 25 <= diff_minutes <= 35:
+                    apt_alerts.append(('30m', f"📅 Appointment in 30 Mins: {apt.lead.name}", f"Appointment with Dr. {apt.doctor_name} for patient {apt.lead.name}{time_msg} starts in 30 minutes."))
+                if -10 <= diff_minutes <= 6:
+                    apt_alerts.append(('5m', f"🩺 Appointment Due: {apt.lead.name}", f"Appointment with Dr. {apt.doctor_name} for patient {apt.lead.name}{time_msg} is starting now."))
+            else:
+                apt_alerts.append(('daily', f"📅 Appointment Today: {apt.lead.name}", f"Patient {apt.lead.name} has an appointment scheduled with Dr. {apt.doctor_name} today."))
+
+            for a_key, apt_title, apt_msg in apt_alerts:
+                apt_link = f"/leads/{apt.lead.pk}/"
+                exists = Notification.objects.filter(
+                    user=user,
+                    created_at__range=(start_today, end_today),
+                    title=apt_title
+                ).exists()
+                if not exists:
+                    Notification.objects.create(
+                        user=user,
+                        title=apt_title,
+                        message=apt_msg,
+                        link=apt_link
+                    )
+
+        # 4. Check pending task reminders for this user scheduled for today
         pending_tasks = TaskReminder.objects.filter(
-            user=request.user,
+            user=user,
             due_date=today,
             status__in=[TaskReminder.Status.PENDING, TaskReminder.Status.IN_PROGRESS]
         ).select_related('lead')
@@ -78,7 +154,7 @@ def get_unread_notifications(request):
                 task_dt = timezone.make_aware(task_dt, tz)
                 diff_minutes = (task_dt - now).total_seconds() / 60.0
                 time_msg = f" at {task.due_time.strftime('%I:%M %p')}"
-                if -60 <= diff_minutes <= 5:
+                if -60 <= diff_minutes <= 30:
                     should_alert = True
             else:
                 should_alert = True
@@ -89,7 +165,7 @@ def get_unread_notifications(request):
                 task_desc = f" ({task.description[:80]}...)" if task.description else ""
                 
                 exists = Notification.objects.filter(
-                    user=request.user,
+                    user=user,
                     created_at__range=(start_today, end_today)
                 ).filter(
                     Q(title=task_title) | (Q(link=task_link) & Q(title__icontains=task.title))
@@ -97,7 +173,7 @@ def get_unread_notifications(request):
 
                 if not exists:
                     Notification.objects.create(
-                        user=request.user,
+                        user=user,
                         title=task_title,
                         message=f"Task '{task.title}'{time_msg} is due today.{task_desc}",
                         link=task_link

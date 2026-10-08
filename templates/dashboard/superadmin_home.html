@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}{{ active_business.name|default:request.user.hospital.name|default:'All Businesses' }} Analytics
-Dashboard{% endblock %}
+{% block title %}{% if active_business %}{{ active_business.name }}{% elif request.user.hospital %}{{ request.user.hospital.name }}{% else %}All Businesses{% endif %} Analytics Dashboard{% endblock %}
 
 {% block extra_head %}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -88,15 +87,55 @@ Dashboard{% endblock %}
         }
     }
 
-    .revenue-kpi-grid {
-        display: grid;
-        0 width: 34px;
-        height: 34px;
+    .stat-card {
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        background: #ffffff;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 110px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card.c-leads { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+    .stat-card.c-appo { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+    .stat-card.c-conv { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+    .stat-card.c-won { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); }
+    .stat-card.c-total-rev { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .stat-title {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #475569;
+        margin-bottom: 0.35rem;
+    }
+
+    .stat-icon {
+        width: 38px;
+        height: 38px;
         border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.15rem;
+        font-size: 1.25rem;
         color: white;
     }
 
@@ -846,11 +885,8 @@ Dashboard{% endblock %}
         // --- 1. Persistent Filter Panel Open / Collapse with localStorage ---
         const filterBody = document.getElementById('filterCollapseBody');
         const filterToggleBtn = document.getElementById('filterToggleBtn');
-        const filterChevron = document.getElementById('filterChevronIcon');
-
-        const hasActiveFilters = {{ has_active_filters| yesno: "true,false"
-    }};
-    const savedState = localStorage.getItem('nelson_dashboard_filter_open');
+        const hasActiveFilters = {{ has_active_filters|yesno:"true,false" }};
+        const savedState = localStorage.getItem('nelson_dashboard_filter_open');
 
     // If user manually opened it or has active filters, keep open
     const shouldBeOpen = hasActiveFilters || savedState === 'true';

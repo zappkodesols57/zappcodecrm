@@ -147,50 +147,50 @@ Analytics Dashboard{% endif %}{% endblock %}
 
     .stats-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.25rem;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 1200px) {
+        .stats-kpi-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.65rem;
+        }
     }
 
     @media (max-width: 768px) {
         .stats-kpi-grid {
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 0.75rem;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
         }
     }
 
     @media (max-width: 480px) {
         .stats-kpi-grid {
             grid-template-columns: 1fr;
-            gap: 0.75rem;
+            gap: 0.5rem;
         }
     }
 
-    .revenue-kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
     .stat-card {
-        border-radius: var(--radius-lg);
-        padding: 1.25rem;
+        border-radius: var(--radius-md);
+        padding: 0.75rem 0.9rem;
         position: relative;
         overflow: hidden;
-        box-shadow: var(--shadow-sm);
-        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        border: 1px solid #E5E7EB;
         background: #ffffff;
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        min-height: 110px;
+        min-height: 82px;
     }
 
     .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(15, 39, 68, 0.06);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(5, 32, 66, 0.08);
     }
 
     .stat-card.c-leads,
@@ -204,6 +204,7 @@ Analytics Dashboard{% endif %}{% endblock %}
     .stat-card.c-opd,
     .stat-card.c-pharm,
     .stat-card.c-ipd,
+    .stat-card.c-lost,
     .stat-card.c-inv {
         background: #ffffff !important;
         border: 1px solid #E5E7EB !important;
@@ -213,32 +214,36 @@ Analytics Dashboard{% endif %}{% endblock %}
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
+        margin-bottom: 0.2rem;
     }
 
     .stat-title {
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         color: #052042;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.15rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .stat-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.15rem;
+        font-size: 0.95rem;
         background: #f8fafc !important;
         color: #052042 !important;
         border: 1px solid #E5E7EB;
     }
 
     .stat-value {
-        font-size: 1.65rem;
+        font-size: 1.35rem;
         font-weight: 800;
         color: #052042;
         margin: 0;
@@ -246,10 +251,11 @@ Analytics Dashboard{% endif %}{% endblock %}
     }
 
     .stat-sub {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         font-weight: 600;
-        color: #253247;
-        margin-top: 0.25rem;
+        color: #64748b;
+        margin-top: 0.35rem;
+        padding-top: 0.35rem;
     }
 
     .charts-grid {
@@ -489,11 +495,10 @@ Analytics Dashboard{% endif %}{% endblock %}
     <!-- Header & Top Actions -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
         <div>
-            <h4 class="fw-bold mb-0 text-dark">Analytics Dashboard</h4>
-            <span class="text-muted small">Real-time Lead Insights & Operational Metrics</span>
+            <h4 class="fw-bold mb-0 text-dark" style="color: #052042 !important; letter-spacing: -0.3px;">Dashboard</h4>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            <!-- 1. Single Filter Toggle Button -->
+            <!-- Filter Toggle Button -->
             <button type="button"
                 class="btn {% if has_active_filters %}btn-primary text-white shadow-sm{% else %}btn-white bg-white text-dark border{% endif %} btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2"
                 id="filterToggleBtn" style="font-size: 0.82rem;">
@@ -505,7 +510,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                 <i class="ph ph-caret-down ms-1" id="filterChevronIcon"></i>
             </button>
 
-            <!-- 2. Single Reset Button (Visible only when filters are active) -->
+            <!-- Reset Button -->
             {% if has_active_filters %}
             <a href="{% url 'dashboard:superadmin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
                 class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 fw-bold text-decoration-none d-flex align-items-center gap-1"
@@ -514,72 +519,142 @@ Analytics Dashboard{% endif %}{% endblock %}
             </a>
             {% endif %}
 
-            <!-- 3. Time Filter Toggle: Today vs This Month vs All Time -->
-            <div class="btn-group shadow-sm rounded-pill p-1 bg-white border" role="group">
-                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"
-                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'today' or not time_filter %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
-                    style="font-size: 0.8rem;">
-                    <i class="ph-bold ph-sun me-1"></i> Today
-                </a>
-                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=this_month{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"
-                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'this_month' %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
-                    style="font-size: 0.8rem;">
-                    <i class="ph-bold ph-calendar-blank me-1"></i> This Month
-                </a>
-                <a href="{% url 'dashboard:superadmin_home' %}?time_filter=all_time{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"
-                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold {% if time_filter == 'all_time' %}btn-primary text-white shadow-sm{% else %}btn-white text-dark border-0{% endif %}"
-                    style="font-size: 0.8rem;">
-                    <i class="ph-bold ph-database me-1"></i> All Time
-                </a>
+            <!-- Top Date Dropdown Card -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-white bg-white text-dark border dropdown-toggle fw-semibold rounded-pill px-3 py-1 shadow-sm d-flex align-items-center gap-1.5"
+                    type="button" id="topHeaderDateDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.82rem; height: 34px;">
+                    <i class="ph ph-calendar-blank text-primary"></i>
+                    <span>
+                        {% if custom_start and custom_end %}{{ custom_start }} to {{ custom_end }}
+                        {% elif custom_start %}From {{ custom_start }}
+                        {% elif time_filter == 'today' or not time_filter %}Today
+                        {% elif time_filter == 'last_7_days' %}Last 7 Days
+                        {% elif time_filter == 'last_30_days' %}Last 30 Days
+                        {% elif time_filter == 'all_time' %}All
+                        {% else %}{{ filter_label|default:"Date" }}{% endif %}
+                    </span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderDateDropdown" style="font-size: 0.82rem; min-width: 170px;">
+                    <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Quick Date Range</h6></li>
+                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'today' or not time_filter and not custom_start %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-clock me-1.5 text-secondary"></i>Today</a></li>
+                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_7_days' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_7_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 7 Days</a></li>
+                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_30_days' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_30_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 30 Days</a></li>
+                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'all_time' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=all_time{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-infinity me-1.5 text-secondary"></i>All</a></li>
+                </ul>
             </div>
-
-            <!-- 4. Active Date Range / Today Date Badge -->
-            {% if custom_start and custom_end %}
-            <div class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm d-flex align-items-center gap-1"
-                style="font-size: 0.8rem; font-weight: 600;">
-                <i class="ph ph-calendar-blank"></i> {{ custom_start }} to {{ custom_end }}
-            </div>
-            {% else %}
-            <div class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm"
-                style="font-size: 0.8rem; font-weight: 600;">
-                <i class="ph ph-calendar-blank text-primary me-1"></i> {{ today|date:"d M Y" }}
-            </div>
-            {% endif %}
         </div>
     </div>
 
-    <!-- Interactive Top Filter Panel (Positioned Above KPIs) -->
-    <div class="filter-panel mb-4" id="filterCollapseBody"
-        style="{% if has_active_filters %}display: block;{% else %}display: none;{% endif %}">
-        <form method="GET" action="{% url 'dashboard:superadmin_home' %}" id="interactiveFilterForm">
-            <div class="row g-3">
-                <!-- 1. Industry Filter -->
-                {% if not request.user.hospital %}
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">INDUSTRY</label>
-                    <select name="industry" class="form-select custom-filter-select">
-                        <option value="">All Industries</option>
-                        {% for code, name in industries %}
-                        <option value="{{ code }}" {% if current_industry == code %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+    <!-- Active Applied Filters Chips Bar (Shows exactly which filters are applied) -->
+    {% if has_active_filters %}
+    <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white px-3 py-2" style="border: 1px solid #E5E7EB !important;">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                <span class="text-muted fw-bold text-uppercase d-flex align-items-center gap-1 me-1" style="font-size: 0.70rem; letter-spacing: 0.5px; color: #052042 !important;">
+                    <i class="fa-solid fa-filter text-primary"></i> APPLIED FILTERS:
+                </span>
 
-                <!-- 2. Business / Tenant Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">BUSINESS</label>
-                    <select name="business" class="form-select custom-filter-select">
-                        <option value="">All Businesses</option>
-                        {% for biz in businesses %}
-                        <option value="{{ biz.id }}" {% if selected_hospital_id == biz.id|stringformat:"s" %}selected{% endif %}>{{ biz.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                {% if search_query %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Search:</strong> "{{ search_query }}"
+                </span>
                 {% endif %}
 
-                <!-- 3. Stage Filter -->
+                {% if time_filter and time_filter != 'today' and time_filter != '' %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Date:</strong> 
+                    {% if time_filter == 'last_7_days' %}Last 7 Days
+                    {% elif time_filter == 'last_30_days' %}Last 30 Days
+                    {% elif time_filter == 'all_time' %}All Time
+                    {% else %}{{ time_filter }}{% endif %}
+                </span>
+                {% endif %}
+
+                {% if custom_start or custom_end %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Date Range:</strong> {{ custom_start|default:'Start' }} to {{ custom_end|default:'Today' }}
+                </span>
+                {% endif %}
+
+                {% if current_stage %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Stage:</strong> {{ current_stage }}
+                </span>
+                {% endif %}
+
+                {% if current_deal_status %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Status:</strong> {{ current_deal_status }}
+                </span>
+                {% endif %}
+
+                {% if current_telecaller %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Telecaller:</strong> 
+                    {% if current_telecaller == 'unassigned' %}Unassigned{% else %}Staff ID: {{ current_telecaller }}{% endif %}
+                </span>
+                {% endif %}
+
+                {% if current_doctor %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Doctor:</strong> {{ current_doctor }}
+                </span>
+                {% endif %}
+
+                {% if current_department %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Department:</strong> {{ current_department }}
+                </span>
+                {% endif %}
+
+                {% if current_source %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Source:</strong> {{ current_source }}
+                </span>
+                {% endif %}
+
+                {% if current_campaign %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Campaign:</strong> {{ current_campaign }}
+                </span>
+                {% endif %}
+
+                {% if current_location %}
+                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
+                    <strong class="text-muted">Location:</strong> {{ current_location }}
+                </span>
+                {% endif %}
+            </div>
+
+            <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
+                class="btn btn-link p-0 text-danger text-decoration-none small fw-bold d-flex align-items-center gap-1"
+                style="font-size: 0.74rem;">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Reset All
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Interactive Top Filter Panel -->
+    <div class="filter-panel mb-4" id="filterCollapseBody"
+        style="{% if has_active_filters %}display: block;{% else %}display: none;{% endif %}">
+        <form method="GET" action="{% url 'dashboard:hospital_admin_home' %}" id="interactiveFilterForm">
+            <!-- Hidden inputs to maintain tenant context -->
+            {% if selected_hospital_id %}
+            <input type="hidden" name="business" value="{{ selected_hospital_id }}">
+            {% endif %}
+
+            <div class="row g-3">
+                <!-- Search Bar -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">SEARCH</label>
+                    <input type="text" name="q" class="form-control form-control-sm custom-filter-input"
+                        placeholder="Search patient name, mobile, code..." value="{{ search_query }}">
+                </div>
+
+                <!-- Stages Filter -->
                 <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">STAGE</label>
+                    <label class="filter-label">STAGES</label>
                     <select name="stage" class="form-select custom-filter-select">
                         <option value="">All Stages</option>
                         {% for stg in stages %}
@@ -588,51 +663,43 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- 4. Deal Status Filter -->
+                <!-- Status / Deal Status Filter -->
                 <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">DEAL STATUS</label>
+                    <label class="filter-label">STATUS</label>
                     <select name="deal_status" class="form-select custom-filter-select">
-                        <option value="">All Deal Statuses</option>
+                        <option value="">All Statuses</option>
                         {% for code, label in deal_statuses %}
                         <option value="{{ code }}" {% if current_deal_status == code %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 5. Temperature Filter -->
+                <!-- Telecaller / Staff Filter -->
                 <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">TEMPERATURE</label>
-                    <select name="temperature" class="form-select custom-filter-select">
-                        <option value="">All Temperatures</option>
-                        {% for code, label in temperatures %}
-                        <option value="{{ code }}" {% if current_temperature == code %}selected{% endif %}>{{ label }}</option>
+                    <label class="filter-label">TELECALLER</label>
+                    <select name="telecaller" class="form-select custom-filter-select">
+                        <option value="">All Telecallers</option>
+                        <option value="unassigned" {% if current_telecaller == 'unassigned' %}selected{% endif %}>Unassigned Staff</option>
+                        {% for staff in telecaller_users %}
+                        <option value="{{ staff.id }}" {% if current_telecaller == staff.id|stringformat:"s" %}selected{% endif %}>
+                            {% if staff.get_full_name %}{{ staff.get_full_name }}{% else %}{{ staff.username }}{% endif %}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 6. Campaign Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">CAMPAIGN</label>
-                    <select name="campaign" class="form-select custom-filter-select">
-                        <option value="">All Campaigns</option>
-                        {% for camp in campaigns %}
-                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
+                <!-- Doctors Filter -->
+                <div class="col-md-3 col-sm-6">
+                    <label class="filter-label">DOCTORS</label>
+                    <select name="doctor" class="form-select custom-filter-select">
+                        <option value="">All Doctors</option>
+                        {% for doc in doctors %}
+                        <option value="{{ doc }}" {% if current_doctor == doc %}selected{% endif %}>{{ doc }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 7. Lead Source Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">LEAD SOURCE</label>
-                    <select name="source" class="form-select custom-filter-select">
-                        <option value="">All Lead Sources</option>
-                        {% for src in lead_sources %}
-                        <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- 8. Department Filter -->
+                <!-- Department Filter -->
                 <div class="col-md-2 col-sm-6">
                     <label class="filter-label">DEPARTMENT</label>
                     <select name="department" class="form-select custom-filter-select">
@@ -643,18 +710,29 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- 9. Doctor Filter -->
+                <!-- Source Filter -->
                 <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">DOCTOR</label>
-                    <select name="doctor" class="form-select custom-filter-select">
-                        <option value="">All Doctors</option>
-                        {% for doc in doctors %}
-                        <option value="{{ doc }}" {% if current_doctor == doc %}selected{% endif %}>{{ doc }}</option>
+                    <label class="filter-label">SOURCE</label>
+                    <select name="source" class="form-select custom-filter-select">
+                        <option value="">All Sources</option>
+                        {% for src in lead_sources %}
+                        <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 10. Location Filter -->
+                <!-- Campaign Filter -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">CAMPAIGN</label>
+                    <select name="campaign" class="form-select custom-filter-select">
+                        <option value="">All Campaigns</option>
+                        {% for camp in campaigns %}
+                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Location Filter -->
                 <div class="col-md-2 col-sm-6">
                     <label class="filter-label">LOCATION</label>
                     <select name="location" class="form-select custom-filter-select">
@@ -665,142 +743,199 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- 11. Custom Date Range Inputs -->
+                <!-- Date Range Dropdown -->
+                <div class="col-md-2 col-sm-6">
+                    <label class="filter-label">DATE RANGE</label>
+                    <select name="time_filter" id="formTimeFilterSelect" class="form-select custom-filter-select" onchange="onTimeFilterSelectChange(this.value)">
+                        <option value="today" {% if time_filter == 'today' or not time_filter and not custom_start %}selected{% endif %}>Today</option>
+                        <option value="last_7_days" {% if time_filter == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="all_time" {% if time_filter == 'all_time' %}selected{% endif %}>All</option>
+                        <option value="custom" {% if custom_start or custom_end or time_filter == 'custom' %}selected{% endif %}>Custom Date Range</option>
+                    </select>
+                </div>
+
+                <!-- Date Range Inputs -->
                 <div class="col-md-2 col-sm-6">
                     <label class="filter-label">FROM DATE</label>
                     <input type="date" name="start_date" id="filterStartDate"
                         class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}"
-                        max="{{ today_str }}" onchange="onFilterStartDateChange(this.value)">
+                        max="{{ today_str }}" onchange="onCustomDateRangeInput()">
                 </div>
 
                 <div class="col-md-2 col-sm-6">
                     <label class="filter-label">TO DATE</label>
                     <input type="date" name="end_date" id="filterEndDate"
                         class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}"
-                        max="{{ today_str }}" onchange="onFilterEndDateChange(this.value)">
+                        max="{{ today_str }}" onchange="onCustomDateRangeInput()">
                 </div>
-
-                {% if current_final_status %}
-                <input type="hidden" name="final_lead_status" value="{{ current_final_status }}">
-                {% endif %}
             </div>
 
-            <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-2 border-top">
-                <a href="{% url 'dashboard:superadmin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
+            <!-- Filter Panel Action Buttons (Apply & Reset) -->
+            <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-3 border-top">
+                <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
                     class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-medium">
-                    <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset Filters
+                    <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset
                 </a>
                 <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
-                    <i class="ph ph-check me-1"></i> Apply Filters
+                    <i class="ph ph-check me-1"></i> Apply
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Main KPIs Cards Grid (5 Core Interactive Cards) -->
-<div class="stats-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+<!-- 10 Core Hospital KPIs Grid (Strictly 5 per row, 2 rows) -->
+<div class="stats-kpi-grid">
 
-    <!-- KPI 1: New Leads (Unassigned + Total Leads count) -->
-    <div class="stat-card c-leads cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('new_leads', 'New Unassigned Leads', 'primary')"
-        title="Click to view breakdown">
+    <!-- KPI 1: New Leads -->
+    <div class="stat-card c-leads shadow-sm position-relative">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
-                    <span>{{ period_title_prefix }} New Leads</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
+                    <span>New Leads</span>
                 </div>
-                <div class="stat-value text-primary mt-1" data-live-metric="unassigned_leads">{{ insights.unassigned_leads|default:0|intcomma }}</div>
+                <div class="stat-value text-primary mt-1" data-live-metric="new_leads">{{ insights.new_leads|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(79, 70, 229, 0.2);">
-            <span class="text-dark fw-bold">Total Leads: {{ insights.total_leads|default:0|intcomma }}</span>
-            <span class="text-muted">Assigned: {{ insights.assigned_leads|default:0|intcomma }}</span>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Unassigned: {{ insights.unassigned_leads|default:0 }} &bull; Assigned: {{ insights.assigned_leads|default:0 }}</span>
         </div>
     </div>
 
-    <!-- KPI 2: Call Not Done (Assigned leads with NO remarks, NO followups, NO stage updates) -->
-    <div class="stat-card c-callnotdone cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('call_not_done', 'Call Not Done (Assigned Untouched)', 'danger')"
-        title="Click to view breakdown">
+    <!-- KPI 2: Call Not Done -->
+    <div class="stat-card c-callnotdone shadow-sm position-relative">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
                     <span class="text-dark">Call Not Done</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-danger small" style="font-size: 0.72rem; opacity: 0.75;"></i>
                 </div>
                 <div class="stat-value text-dark mt-1" data-live-metric="call_not_done">{{ insights.call_not_done|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(15, 23, 42, 0.2);">
-            <span>Assigned & Untouched</span>
-            <span class="text-primary fw-semibold">No Remarks Added</span>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Untouched Leads</span>
         </div>
     </div>
 
-    <!-- KPI 3: Won Leads -->
-    <div class="stat-card c-won cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('won_leads', 'Won Leads', 'primary')"
-        title="Click to view Won Leads breakdown">
+    <!-- KPI 3: Appointment Booked -->
+    <div class="stat-card c-appo shadow-sm position-relative">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
-                    <span>Won Leads</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
+                    <span>Appointment Booked</span>
+                </div>
+                <div class="stat-value text-primary mt-1" data-live-metric="appointment_booked">{{ insights.appointment_booked|default:0|intcomma }}</div>
+            </div>
+        </div>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Confirmed Bookings</span>
+        </div>
+    </div>
+
+    <!-- KPI 4: Walk-in Leads -->
+    <div class="stat-card c-walkin shadow-sm position-relative">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Walk-in Leads</span>
+                </div>
+                <div class="stat-value text-dark mt-1" data-live-metric="walkin_leads">{{ insights.walkin_leads|default:0|intcomma }}</div>
+            </div>
+        </div>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Direct Hospital Visits</span>
+        </div>
+    </div>
+
+    <!-- KPI 5: Appointments Scheduled -->
+    <div class="stat-card c-appo shadow-sm position-relative">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Appointments Scheduled</span>
+                </div>
+                <div class="stat-value text-primary mt-1" data-live-metric="appointments_scheduled">{{ insights.appointments_scheduled|default:0|intcomma }}</div>
+            </div>
+        </div>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Planned Visits in Range</span>
+        </div>
+    </div>
+
+    <!-- KPI 6: Admitted Patients -->
+    <div class="stat-card c-won shadow-sm position-relative">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Admitted Patients</span>
+                </div>
+                <div class="stat-value text-primary mt-1" data-live-metric="admitted_patients">{{ insights.admitted_patients|default:0|intcomma }}</div>
+            </div>
+        </div>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>IPD Admissions</span>
+        </div>
+    </div>
+
+    <!-- KPI 7: Won Leads -->
+    <div class="stat-card c-won shadow-sm position-relative">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span>Won</span>
                 </div>
                 <div class="stat-value text-primary mt-1" data-live-metric="won_leads">{{ insights.won_leads|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
-            style="font-size: 0.76rem; font-weight: 500; border-top: 1px dashed rgba(79, 70, 229, 0.2);">
-            <span class="text-dark fw-semibold">Completed / Billed</span>
-            <span class="text-primary fw-semibold">Converted</span>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Payment Completed</span>
         </div>
     </div>
 
-    <!-- KPI 4: Follow-ups (with Status Breakdown) -->
-    <div class="stat-card c-followup cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('followups', 'Follow-ups Queue', 'primary')"
-        title="Click to view breakdown">
+    <!-- KPI 8: Follow-ups Pending -->
+    <div class="stat-card c-followup shadow-sm position-relative">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
-                    <span>Follow-ups</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
+                    <span>Follow ups Pending</span>
                 </div>
-                <div class="stat-value text-dark mt-1" data-live-metric="total_followups">{{ insights.total_followups|default:0|intcomma }}</div>
+                <div class="stat-value text-dark mt-1" data-live-metric="followups_pending">{{ insights.followups_pending|default:0|intcomma }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-2 text-muted d-flex align-items-center gap-1 flex-wrap"
-            style="font-size: 0.74rem; font-weight: 500; border-top: 1px dashed rgba(15, 23, 42, 0.2);">
-            <span class="text-primary fw-semibold">Pending: {{ insights.fu_pending|default:0 }}</span>
-            &nbsp;•&nbsp;
-            <span class="text-dark fw-semibold">Rescheduled: {{ insights.fu_rescheduled|default:0 }}</span>
-            &nbsp;•&nbsp;
-            <span class="text-muted fw-semibold">Overdue: {{ insights.fu_overdue|default:0 }}</span>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Pending Next Action</span>
         </div>
     </div>
 
-    <!-- KPI 5: Total Revenue -->
-    <div class="stat-card c-revenue cursor-pointer shadow-sm position-relative" style="cursor: pointer;"
-        onclick="openUniversalCardDrilldown('won_leads', 'Revenue Breakdown', 'primary')"
-        title="Exact Revenue: ₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }} (Click to view breakdown)">
+    <!-- KPI 9: Total Revenue -->
+    <div class="stat-card c-revenue shadow-sm position-relative"
+        title="Exact Revenue: ₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }}">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
                     <span>Revenue</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square text-primary small" style="font-size: 0.72rem; opacity: 0.75;"></i>
                 </div>
-                <div class="stat-value text-primary mt-1" data-live-metric="total_revenue" style="letter-spacing: -0.5px; font-size: 1.55rem; white-space: nowrap;">{{ insights.formatted_revenue|default:"₹0" }}</div>
+                <div class="stat-value text-primary mt-1" data-live-metric="total_revenue" style="letter-spacing: -0.5px; font-size: 1.35rem; white-space: nowrap;">{{ insights.formatted_revenue|default:"₹0" }}</div>
             </div>
         </div>
-        <div class="stat-sub pt-2 text-muted d-flex justify-content-between align-items-center"
-            style="font-size: 0.74rem; font-weight: 500; border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span class="text-dark fw-semibold" title="₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }}">₹{{ insights.total_revenue|default:0|floatformat:0|intcomma }}</span>
-            <span class="text-primary fw-semibold">Realized</span>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Total Realized Revenue</span>
+        </div>
+    </div>
+
+    <!-- KPI 10: Lost Leads -->
+    <div class="stat-card c-lost shadow-sm position-relative">
+        <div class="stat-header mb-1">
+            <div class="w-100">
+                <div class="stat-title d-flex align-items-center justify-content-between">
+                    <span class="text-dark">Lost</span>
+                </div>
+                <div class="stat-value text-dark mt-1" data-live-metric="lost_leads">{{ insights.lost_leads|default:0|intcomma }}</div>
+            </div>
+        </div>
+        <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            <span>Cancelled / Lost Leads</span>
         </div>
     </div>
 
@@ -1359,14 +1494,19 @@ Analytics Dashboard{% endif %}{% endblock %}
         });
     }
 
-    function applyFilterParam(param, val) {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get(param) === val) {
-            urlParams.delete(param); // Toggle off if clicked again
-        } else {
-            urlParams.set(param, val);
+    // Date Range Dropdown and Custom Range handlers
+    function onTimeFilterSelectChange(val) {
+        const startInput = document.getElementById('filterStartDate');
+        const endInput = document.getElementById('filterEndDate');
+        if (val !== 'custom') {
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
         }
-        window.location.search = urlParams.toString();
+    }
+
+    function onCustomDateRangeInput() {
+        const timeFilterSelect = document.getElementById('formTimeFilterSelect');
+        if (timeFilterSelect) timeFilterSelect.value = 'custom';
     }
 
     // Top N Updaters

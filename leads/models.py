@@ -448,12 +448,32 @@ class ReferralType(models.TextChoices):
     OTHER = "OTHER", "Other"
 
 
-def next_lead_code():
+def next_lead_code(hospital=None):
     year = timezone.now().year
-    prefix = f"LD-{year}-"
-    last = Lead.objects.filter(lead_code__startswith=prefix).order_by("-lead_code").first()
-    seq = int(last.lead_code.split("-")[-1]) + 1 if last else 1
-    return f"{prefix}{seq:06d}"
+    prefix = "NL-" if (hospital and "nelson" in (getattr(hospital, "name", "") or "").lower()) else "LD-"
+    full_prefix = f"{prefix}{year}-"
+    
+    # Extract maximum integer sequence accurately instead of string alphabetical ordering
+    existing_codes = Lead.objects.filter(lead_code__startswith=full_prefix).values_list("lead_code", flat=True)
+    max_seq = 0
+    for code in existing_codes:
+        if code and "-" in code:
+            parts = code.split("-")
+            if len(parts) >= 3 and parts[-1].isdigit():
+                try:
+                    num = int(parts[-1])
+                    if num > max_seq:
+                        max_seq = num
+                except ValueError:
+                    pass
+    
+    seq = max_seq + 1
+    new_code = f"{full_prefix}{seq:06d}"
+    # Safety check in case of collision
+    while Lead.objects.filter(lead_code=new_code).exists():
+        seq += 1
+        new_code = f"{full_prefix}{seq:06d}"
+    return new_code
 
 
 class SafeCustomDict(dict):
@@ -1006,6 +1026,29 @@ class Lead(models.Model):
         return self.custom_deal_status
 
     @property
+    def display_deal_status(self):
+        """
+        Calculates human-readable, consistent Deal Status for the lead.
+        If lead is Lost / Cancelled -> 'Lost'
+        If lead is Won / Payment Done -> 'Won'
+        If lead is Pending / Follow-up -> 'Pending'
+        If lead is Open -> 'Open'
+        If lead is New -> 'New'
+        """
+        st = self.custom_deal_status
+        if st in ("Lost", "Cancelled"):
+            return "Lost"
+        if st in ("Won", "Payment Done"):
+            return "Won"
+        if st in ("Pending", "Follow-up"):
+            return "Pending"
+        if st == "Open":
+            return "Open"
+        if st == "New":
+            return "New"
+        return self.get_deal_status_display() or self.deal_status or "Open"
+
+    @property
     def interaction_remark(self):
         """
         Returns the actual text remark / note logged for patient interaction:
@@ -1134,7 +1177,7 @@ class Lead(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.lead_code:
-            self.lead_code = next_lead_code()
+            self.lead_code = next_lead_code(self.hospital)
         if not self.temperature or self.temperature.strip() not in LeadTemperature.values:
             self.temperature = LeadTemperature.WARM
         if not self.stage_id:
