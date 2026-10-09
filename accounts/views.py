@@ -390,6 +390,59 @@ def auto_generate_master_data_profiles(hospital=None):
                 )
                 existing_master_items.add(clean_lower)
 
+    # 5. Link imported leads to their matching Lead Attendants / Telecallers
+    all_telecallers = list(User.objects.filter(role=User.Role.LEAD_ATTENDENT, hospital=hospital)) if hospital else list(User.objects.filter(role=User.Role.LEAD_ATTENDENT))
+    if all_telecallers:
+        attendant_lookup = {}
+        for u in all_telecallers:
+            uname = (u.username or "").strip().lower()
+            fname = (u.first_name or "").strip().lower()
+            lname = (u.last_name or "").strip().lower()
+            fullname = (u.get_full_name() or "").strip().lower()
+            if uname:
+                attendant_lookup[uname] = u
+            if fname:
+                attendant_lookup[fname] = u
+            if fullname:
+                attendant_lookup[fullname] = u
+
+        leads_to_assign = Lead.objects.all()
+        if hospital:
+            leads_to_assign = leads_to_assign.filter(hospital=hospital)
+
+        # Batch update leads where assigned_to is null or where attendant is in raw/custom metadata
+        leads_for_update = []
+        for l in leads_to_assign.iterator(chunk_size=1000):
+            raw = l.raw_source_metadata if isinstance(l.raw_source_metadata, dict) else {}
+            cd = l.custom_data if isinstance(l.custom_data, dict) else {}
+            
+            att_val = ""
+            for k in ['lead_attendant', 'lead_attendent', 'telecaller', 'caller', 'attendant', 'attendent', 'assigned_to']:
+                v = raw.get(k) or cd.get(k)
+                if v and str(v).strip().lower() not in ('none', 'nan', '', '-', 'unassigned', 'null'):
+                    att_val = str(v).strip()
+                    break
+
+            if att_val:
+                att_low = att_val.lower()
+                matched_user = attendant_lookup.get(att_low)
+                if not matched_user:
+                    for k_name, u_obj in attendant_lookup.items():
+                        if k_name in att_low or att_low in k_name:
+                            matched_user = u_obj
+                            break
+
+                if matched_user and l.assigned_to_id != matched_user.id:
+                    l.assigned_to = matched_user
+                    # Also ensure custom_data has clean lead_attendant
+                    if not isinstance(l.custom_data, dict):
+                        l.custom_data = {}
+                    l.custom_data['lead_attendant'] = matched_user.get_full_name() or matched_user.username
+                    leads_for_update.append(l)
+
+        if leads_for_update:
+            Lead.objects.bulk_update(leads_for_update, ['assigned_to', 'custom_data'], batch_size=500)
+
     return created_users
 
 
