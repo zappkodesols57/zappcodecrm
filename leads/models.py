@@ -516,7 +516,18 @@ class SafeCustomDict(dict):
         return ""
 
     def __getattr__(self, key):
-        return self.get(key, "")
+        if key.startswith("_") or key in (
+            "resolve_expression",
+            "prepare_database_save",
+            "as_sql",
+            "target",
+            "get_source_expressions",
+            "set_source_expressions",
+        ):
+            raise AttributeError(f"'SafeCustomDict' object has no attribute '{key}'")
+        if key in self:
+            return self[key]
+        raise AttributeError(f"'SafeCustomDict' object has no attribute '{key}'")
 
 
 def wrap_safe_custom_data(data):
