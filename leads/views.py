@@ -1512,15 +1512,13 @@ def team_history(request):
     kpi_conversion_rate = round((kpi_appointments / kpi_total_leads * 100), 1) if kpi_total_leads > 0 else 0.0
     kpi_success_rate = round((kpi_payment_done / kpi_total_leads * 100), 1) if kpi_total_leads > 0 else 0.0
 
-    # 2. Doctor Tab Specific KPIs:
-    # (Approval Pending, Admitted, Appointment Completed, Upcoming, Lost, Upcoming Leaves, Daily OPD Hours)
+    # -------------------------------------------------------------
+    # Accurate Doctor Tab KPIs:
+    # -------------------------------------------------------------
     doc_approval_pending = tab_leads_base.filter(
         Q(appointments__status='PENDING_APPROVAL')
-        | Q(stage__name__icontains='Approval Pending')
-        | Q(stage__name__icontains='Awaiting Approval')
-        | Q(deal_status__icontains='Approval')
-        | Q(custom_data__appointment_status__icontains='Approval')
-    ).distinct().count()
+        | (Q(custom_data__appointment_status__icontains='Approval') & ~Q(custom_data__appointment_status__icontains='Completed'))
+    ).exclude(deal_status__in=[DealStatus.WON, DealStatus.LOST]).distinct().count()
 
     doc_admitted = tab_leads_base.filter(
         Q(stage__name__icontains='Admitted')
@@ -1532,15 +1530,15 @@ def team_history(request):
     doc_completed = tab_leads_base.filter(
         Q(appointments__status='COMPLETED')
         | Q(stage__name__icontains='Appointment Completed')
-        | Q(stage__name__icontains='Completed')
         | Q(custom_data__appointment_status__icontains='Complete')
-        | Q(deal_status__in=['PAYMENT DONE', 'WON', 'COMPLETED'])
+        | Q(deal_status__in=['PAYMENT DONE', 'WON'])
+        | Q(stage__name__icontains='Payment Done')
     ).distinct().count()
 
     doc_upcoming = tab_leads_base.filter(
         (Q(appointments__appointment_date__gt=today) & Q(appointments__status__in=['APPROVED', 'SCHEDULED']))
-        | (Q(custom_data__appo_booked_date__gt=str(today)) & ~Q(deal_status=DealStatus.LOST))
-        | (Q(next_followup_date__gt=today) & ~Q(deal_status=DealStatus.LOST))
+        | (Q(custom_data__appo_booked_date__gt=str(today)) & ~Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]))
+        | (Q(next_followup_date__gt=today) & ~Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]))
     ).distinct().count()
 
     doc_lost = kpi_lost
@@ -1589,51 +1587,53 @@ def team_history(request):
     # Charts Calculation:
     # -------------------------------------------------------------
 
-    # Chart 1: Lead Stages Breakdown
-    stage_names_in_data = list(tab_leads_base.exclude(stage__isnull=True).values_list('stage__name', flat=True).distinct())
-    if not stage_names_in_data:
-        stage_names_in_data = ['New', 'Assigned', 'Follow Up - Pending', 'Payment Done', 'Lost']
-    stage_chart_labels = []
-    stage_chart_counts = []
-    for sname in stage_names_in_data[:8]:
-        c = tab_leads_base.filter(stage__name=sname).distinct().count()
-        if c > 0 or len(stage_chart_labels) < 5:
-            stage_chart_labels.append(sname)
-            stage_chart_counts.append(c)
+    # Chart 1: Lead Stages Breakdown (Group unique stage names without duplicate bars)
+    stage_counts_dict = {}
+    for lead_stg_name in tab_leads_base.exclude(stage__isnull=True).values_list('stage__name', flat=True):
+        clean_stg = lead_stg_name.strip()
+        stage_counts_dict[clean_stg] = stage_counts_dict.get(clean_stg, 0) + 1
+
+    if not stage_counts_dict:
+        stage_counts_dict = {'New': 0, 'Assigned': 0, 'Follow Up': 0, 'Payment Done': 0}
+
+    stage_chart_labels = list(stage_counts_dict.keys())[:8]
+    stage_chart_counts = [stage_counts_dict[k] for k in stage_chart_labels]
 
     # Chart 2: Deal Status Breakdown (Pie Chart: New, Open, Follow ups, Won, Lost)
+    won_leads_qs = tab_leads_base.filter(Q(deal_status=DealStatus.WON) | Q(deal_status='PAYMENT DONE') | Q(stage__name__icontains='Payment Done') | Q(admission_status=AdmissionStatus.WON))
+    lost_leads_qs = tab_leads_base.filter(Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains='Lost') | Q(stage__name__icontains='Cancelled') | Q(admission_status=AdmissionStatus.LOST))
+    
+    non_terminal_leads = tab_leads_base.exclude(id__in=won_leads_qs.values('id')).exclude(id__in=lost_leads_qs.values('id'))
+
     status_chart_data = {
-        "New": tab_leads_base.filter(Q(deal_status='NEW') | Q(stage__name='New')).distinct().count(),
-        "Open": tab_leads_base.filter(Q(deal_status=DealStatus.OPEN) & ~Q(stage__name='New')).distinct().count(),
-        "Follow ups": tab_leads_base.filter(Q(deal_status='CONTACTED') | Q(stage__name__icontains='Follow')).distinct().count(),
-        "Won": tab_leads_base.filter(Q(deal_status=DealStatus.WON) | Q(deal_status='PAYMENT DONE') | Q(stage__name__icontains='Payment Done') | Q(admission_status=AdmissionStatus.WON)).distinct().count(),
-        "Lost": tab_leads_base.filter(Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains='Lost') | Q(stage__name__icontains='Cancelled') | Q(admission_status=AdmissionStatus.LOST)).distinct().count(),
+        "New": non_terminal_leads.filter(assigned_to__isnull=True).distinct().count(),
+        "Open": non_terminal_leads.filter(assigned_to__isnull=False, followup_count=0, next_followup_date__isnull=True).distinct().count(),
+        "Follow ups": non_terminal_leads.filter(Q(followup_count__gt=0) | Q(next_followup_date__isnull=False) | Q(stage__name__icontains='Follow')).distinct().count(),
+        "Won": won_leads_qs.distinct().count(),
+        "Lost": lost_leads_qs.distinct().count(),
     }
 
     # Chart 3: Follow-ups Distribution Chart
     today_dt = today
-    fu_today_pending = tab_leads_base.filter(
+    active_followup_leads = non_terminal_leads
+
+    fu_today_pending = active_followup_leads.filter(
         Q(next_followup_date=today_dt) | Q(followups__followup_date=today_dt, followups__followup_status='PENDING')
     ).distinct().count()
 
-    fu_upcoming_pending = tab_leads_base.filter(
+    fu_upcoming_pending = active_followup_leads.filter(
         Q(next_followup_date__gt=today_dt) | Q(followups__followup_date__gt=today_dt, followups__followup_status='PENDING')
     ).distinct().count()
 
-    fu_overdue_pending = tab_leads_base.filter(
-        (Q(next_followup_date__lt=today_dt) | Q(followups__followup_date__lt=today_dt, followups__followup_status='PENDING'))
-        & ~Q(deal_status__in=[DealStatus.WON, DealStatus.LOST, 'PAYMENT DONE'])
-        & ~Q(stage__name__in=['Lost', 'Payment Done'])
+    fu_overdue_pending = active_followup_leads.filter(
+        Q(next_followup_date__lt=today_dt) | Q(followups__followup_date__lt=today_dt, followups__followup_status='PENDING')
     ).distinct().count()
 
     fu_completed = tab_leads_base.filter(
-        Q(followups__followup_status__in=['COMPLETED', 'DONE']) | Q(stage__name__icontains='Completed')
+        Q(followups__followup_status__in=['COMPLETED', 'DONE'])
     ).distinct().count()
 
-    fu_approval_pending = tab_leads_base.filter(
-        Q(stage__name__icontains='Approval Pending') | Q(stage__name__icontains='Awaiting Approval') | Q(deal_status__icontains='Approval')
-    ).distinct().count()
-
+    fu_approval_pending = doc_approval_pending
     fu_payment_pending = kpi_payment_pending
     fu_lost = kpi_lost
 
@@ -1650,12 +1650,11 @@ def team_history(request):
     # Chart 4: Appointments Breakdown Chart (Pending, Confirmed, Admitted, Completed, Lost, Upcoming)
     app_approval_pending = doc_approval_pending
     app_confirmed = tab_leads_base.filter(
-        Q(appointments__status__in=['APPROVED', 'SCHEDULED'])
+        Q(appointments__status='APPROVED')
         | Q(deal_status__in=['BOOKING CONFIRMED', 'APPOINTMENT CONFIRMED', 'CONFIRMED'])
         | Q(stage__name__icontains='Appointment Confirmed')
         | Q(stage__name__icontains='Booking Confirmed')
-        | Q(stage__name__icontains='Appointment - Confirmed')
-    ).distinct().count()
+    ).exclude(deal_status__in=[DealStatus.WON, DealStatus.LOST]).distinct().count()
 
     app_admitted = doc_admitted
     app_completed = doc_completed
@@ -1756,6 +1755,7 @@ def team_history(request):
         Prefetch("followups", queryset=FollowUp.objects.select_related("created_by").order_by("-followup_date", "-id"), to_attr="prefetched_followups"),
         Prefetch("activities", queryset=Activity.objects.select_related("created_by").order_by("-created_at", "-id"), to_attr="prefetched_activities"),
         Prefetch("lead_notes", queryset=Note.objects.select_related("created_by").order_by("-created_at", "-id"), to_attr="prefetched_notes"),
+        Prefetch("appointments", queryset=Appointment.objects.order_by("-appointment_date", "-id")),
     ).order_by(sort_by)
 
     # Scoped courses and stages

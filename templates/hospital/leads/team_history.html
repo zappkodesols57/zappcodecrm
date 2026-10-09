@@ -834,7 +834,15 @@
         {% for lead in page_obj %}
         <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
           <td class="px-3 text-nowrap small text-muted">
-            {{ lead.inquiry_date|date:"d-m-Y"|default:lead.created_at|date:"d-m-Y" }}
+            {% if lead.inquiry_date %}
+              {{ lead.inquiry_date|date:"d-m-Y" }}
+            {% elif lead.effective_created_date %}
+              {{ lead.effective_created_date|date:"d-m-Y" }}
+            {% elif lead.created_at %}
+              {{ lead.created_at|date:"d-m-Y" }}
+            {% else %}
+              {{ lead.effective_created_display|default:"—" }}
+            {% endif %}
           </td>
           <td class="px-3">
             <strong class="text-dark">{{ lead.name }}</strong>
@@ -846,15 +854,15 @@
             <span class="fw-semibold">{{ lead.mobile }}</span>
           </td>
           <td class="px-3">
-            {% if lead.custom_data.doctor %}
+            {% if lead.custom_doctor %}
             <span class="badge bg-light text-dark border" style="border-color: #cbd5e1 !important; font-size: 0.72rem;">
-              {{ lead.custom_data.doctor }}
+              {{ lead.custom_doctor }}
             </span>
             {% endif %}
-            {% if lead.custom_data.department %}
-            <div class="small text-muted mt-0.5" style="font-size: 0.7rem;">{{ lead.custom_data.department }}</div>
+            {% if lead.custom_dept %}
+            <div class="small text-muted mt-0.5" style="font-size: 0.7rem;">{{ lead.custom_dept }}</div>
             {% endif %}
-            {% if not lead.custom_data.doctor and not lead.custom_data.department %}<span class="text-muted">—</span>{% endif %}
+            {% if not lead.custom_doctor and not lead.custom_dept %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td class="px-3">
             <span class="small text-muted">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"—" }}</span>

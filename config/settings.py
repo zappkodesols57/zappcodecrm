@@ -322,3 +322,11 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Bulk Data Upload & Form Parameters Limits
+# ---------------------------------------------------------------------------
+DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get("DATA_UPLOAD_MAX_NUMBER_FIELDS", 50000))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", 52428800))  # 50 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", 52428800))  # 50 MB
+
+
