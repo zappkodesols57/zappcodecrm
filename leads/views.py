@@ -152,17 +152,19 @@ def get_campaign_breakdown_stats(scoped_leads_qs, date_filtered_leads_qs):
         if c_name and c_name.lower() not in ("nan", "none", "null", "—", "-"):
             camp_map[c_name] += row["cnt"]
 
-    # 2. Aggregation on custom_data JSON campaign if any
-    custom_rows = (
-        date_filtered_leads_qs.filter(campaign__isnull=True)
-        .exclude(custom_data__isnull=True)
-        .values_list("custom_data", flat=True)
-    )
-    for cd in custom_rows:
-        if isinstance(cd, dict):
-            c_name = str(cd.get("campaign") or cd.get("lead_source") or "").strip()
-            if c_name and c_name.lower() not in ("nan", "none", "null", "—", "-"):
-                camp_map[c_name] += 1
+    # 2. Aggregation on custom_data JSON or raw_source_metadata campaign if FK is null
+    non_fk_leads = date_filtered_leads_qs.filter(campaign__isnull=True).values("custom_data", "raw_source_metadata")
+    for row in non_fk_leads:
+        cd = row.get("custom_data") or {}
+        meta = row.get("raw_source_metadata") or {}
+        c_name = str(cd.get("campaign") or cd.get("campaign_name") or "").strip()
+        if not c_name and meta and isinstance(meta, dict):
+            for k, v in meta.items():
+                if "campaign" in k.lower() and v:
+                    c_name = str(v).strip()
+                    break
+        if c_name and c_name.lower() not in ("nan", "none", "null", "—", "-", "direct"):
+            camp_map[c_name] += 1
 
     # Fallback to general campaign master list if current date range has 0 leads
     if not camp_map:
@@ -170,7 +172,7 @@ def get_campaign_breakdown_stats(scoped_leads_qs, date_filtered_leads_qs):
             scoped_leads_qs.filter(campaign__isnull=False)
             .values("campaign__name")
             .annotate(cnt=models.Count("id"))
-            .order_by("-cnt")[:8]
+            .order_by("-cnt")[:15]
         )
         for row in base_fk_counts:
             c_name = (row.get("campaign__name") or "").strip()
@@ -178,7 +180,7 @@ def get_campaign_breakdown_stats(scoped_leads_qs, date_filtered_leads_qs):
                 camp_map[c_name] = 0
 
     sorted_campaigns = sorted(camp_map.items(), key=lambda x: x[1], reverse=True)
-    return [{"name": name, "count": count} for name, count in sorted_campaigns[:10]]
+    return [{"name": name, "count": count} for name, count in sorted_campaigns[:20]]
 
 
 
@@ -295,7 +297,13 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
         camp_q = Q()
         for c_val in selected_campaigns:
             if c_val:
-                camp_q |= Q(custom_data__campaign__iexact=c_val) | Q(campaign__name__iexact=c_val)
+                camp_q |= (
+                    Q(custom_data__campaign__iexact=c_val)
+                    | Q(campaign__name__iexact=c_val)
+                    | Q(raw_source_metadata__campaign_name__iexact=c_val)
+                    | Q(raw_source_metadata__CAMPAIGN_NAME__iexact=c_val)
+                    | Q(raw_source_metadata__Campaign__iexact=c_val)
+                )
                 if c_val.isdigit():
                     camp_q |= Q(campaign_id=int(c_val))
         leads = leads.filter(camp_q)
@@ -305,7 +313,13 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
         src_q = Q()
         for s_val in selected_sources:
             if s_val:
-                src_q |= Q(custom_data__lead_source__iexact=s_val) | Q(lead_source__name__iexact=s_val)
+                src_q |= (
+                    Q(custom_data__lead_source__iexact=s_val)
+                    | Q(lead_source__name__iexact=s_val)
+                    | Q(raw_source_metadata__lead_source__iexact=s_val)
+                    | Q(raw_source_metadata__LEAD_SOURCE__iexact=s_val)
+                    | Q(raw_source_metadata__Source__iexact=s_val)
+                )
                 if s_val.isdigit():
                     src_q |= Q(lead_source_id=int(s_val))
         leads = leads.filter(src_q)
@@ -1406,7 +1420,22 @@ def team_history(request):
     # Pre-calculate individual lead counts for all attendants & doctors
     attendants_list = []
     for att in attendants:
-        cnt = leads.filter(assigned_to=att).distinct().count()
+        att_name = att.get_full_name() or att.username
+        att_fname = att.first_name.strip() if att.first_name else ""
+        att_lname = att.last_name.strip() if att.last_name else ""
+        att_uname = att.username.strip() if att.username else ""
+
+        att_match = Q(assigned_to=att)
+        if att_name:
+            att_match |= Q(custom_data__lead_attendant__icontains=att_name) | Q(custom_data__telecaller__icontains=att_name)
+        if att_fname and len(att_fname) >= 3:
+            att_match |= Q(custom_data__lead_attendant__icontains=att_fname) | Q(custom_data__telecaller__icontains=att_fname)
+        if att_lname and len(att_lname) >= 3:
+            att_match |= Q(custom_data__lead_attendant__icontains=att_lname) | Q(custom_data__telecaller__icontains=att_lname)
+        if att_uname:
+            att_match |= Q(custom_data__lead_attendant__icontains=att_uname) | Q(custom_data__telecaller__icontains=att_uname)
+
+        cnt = leads.filter(att_match).distinct().count()
         attendants_list.append({
             "user": att,
             "count": cnt,
@@ -1480,10 +1509,32 @@ def team_history(request):
     else:
         # Telecallers tab
         if selected_attendant_ids:
-            leads = leads.filter(assigned_to__in=selected_attendant_objs)
+            att_q = Q()
+            for a in selected_attendant_objs:
+                aname = a.get_full_name() or a.username
+                afname = a.first_name.strip() if a.first_name else ""
+                alname = a.last_name.strip() if a.last_name else ""
+                auname = a.username.strip() if a.username else ""
+
+                a_match = Q(assigned_to=a)
+                if aname:
+                    a_match |= Q(custom_data__lead_attendant__icontains=aname) | Q(custom_data__telecaller__icontains=aname)
+                if afname and len(afname) >= 3:
+                    a_match |= Q(custom_data__lead_attendant__icontains=afname) | Q(custom_data__telecaller__icontains=afname)
+                if alname and len(alname) >= 3:
+                    a_match |= Q(custom_data__lead_attendant__icontains=alname) | Q(custom_data__telecaller__icontains=alname)
+                if auname:
+                    a_match |= Q(custom_data__lead_attendant__icontains=auname) | Q(custom_data__telecaller__icontains=auname)
+                att_q |= a_match
+            leads = leads.filter(att_q)
         else:
-            # All telecaller leads
-            leads = leads.filter(assigned_to__in=attendants)
+            # All telecaller leads: if assigned leads exist, filter to them; otherwise show all team leads
+            has_assigned = leads.filter(assigned_to__in=attendants).exists()
+            if has_assigned:
+                leads = leads.filter(assigned_to__in=attendants)
+            else:
+                # When leads are untouched/unassigned, display the whole business pool so metrics don't collapse to 0
+                pass
 
     # Group Analytics computation for the active tab view
     tab_leads_base = leads.distinct()
@@ -7327,17 +7378,29 @@ def appointments_done_list(request):
         )
     if sel_source:
         filtered_all_leads_qs = filtered_all_leads_qs.filter(
-            Q(lead_source__name__iexact=sel_source) | Q(custom_data__lead_source__iexact=sel_source)
+            Q(lead_source__name__iexact=sel_source)
+            | Q(custom_data__lead_source__iexact=sel_source)
+            | Q(raw_source_metadata__lead_source__iexact=sel_source)
+            | Q(raw_source_metadata__LEAD_SOURCE__iexact=sel_source)
         )
         leads_qs = leads_qs.filter(
-            Q(lead_source__name__iexact=sel_source) | Q(custom_data__lead_source__iexact=sel_source)
+            Q(lead_source__name__iexact=sel_source)
+            | Q(custom_data__lead_source__iexact=sel_source)
+            | Q(raw_source_metadata__lead_source__iexact=sel_source)
+            | Q(raw_source_metadata__LEAD_SOURCE__iexact=sel_source)
         )
     if sel_campaign:
         filtered_all_leads_qs = filtered_all_leads_qs.filter(
-            Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
+            Q(campaign__name__iexact=sel_campaign)
+            | Q(custom_data__campaign__iexact=sel_campaign)
+            | Q(raw_source_metadata__campaign_name__iexact=sel_campaign)
+            | Q(raw_source_metadata__CAMPAIGN_NAME__iexact=sel_campaign)
         )
         leads_qs = leads_qs.filter(
-            Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
+            Q(campaign__name__iexact=sel_campaign)
+            | Q(custom_data__campaign__iexact=sel_campaign)
+            | Q(raw_source_metadata__campaign_name__iexact=sel_campaign)
+            | Q(raw_source_metadata__CAMPAIGN_NAME__iexact=sel_campaign)
         )
 
     # Dynamic KPI Stats calculation:

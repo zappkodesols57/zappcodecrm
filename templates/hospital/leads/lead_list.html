@@ -616,8 +616,8 @@
 
             <!-- 3. Source / Campaign -->
             <td class="px-2">
-              <div class="fw-medium text-dark" style="font-size: 0.80rem;">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"Direct" }}</div>
-              {% with camp=lead.campaign|default:lead.custom_data.campaign %}
+              <div class="fw-medium text-dark" style="font-size: 0.80rem;">{{ lead.custom_source|default:"Direct" }}</div>
+              {% with camp=lead.custom_campaign %}
                 {% if camp and camp != '—' %}
                 <div class="text-muted small text-truncate" style="max-width: 140px; font-size: 0.70rem;" title="{{ camp }}">
                   <i class="fa-solid fa-bullhorn text-secondary me-1"></i>{{ camp }}

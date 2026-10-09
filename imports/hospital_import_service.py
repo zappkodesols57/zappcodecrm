@@ -220,7 +220,8 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         "inquiry_date", "inquiry_time", "inquiry_date_time",
         "date", "lead_date", "lead_created_date", "time", "timestamp"
     ]
-    platform_cols = ["platform", "source", "publisher_platform", "lead_source", "channel"]
+    platform_cols = ["source", "lead_source", "publisher_platform", "platform", "channel"]
+    campaign_cols = ["campaign_name", "campaign", "form_name", "ad_name", "adset_name", "campaign_id"]
     attendant_cols = [
         "lead_attendent", "lead_attendant", "attendent", "attendant", 
         "assigned_to", "assigned", "telecaller", "caller", "counsellor", "agent", "executive"
@@ -534,8 +535,12 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
 
         external_id = raw_meta.get('id') or raw_meta.get('ad_id') or raw_meta.get('lead_id') or raw_meta.get('Lead ID') or ""
 
-        if not phone_val and name_val == "Unknown Patient":
-            continue
+        # Campaign Name resolution from sheet columns or target campaign
+        campaign_name_val = get_col_val(campaign_cols)
+        if not campaign_name_val:
+            campaign_name_val = target_campaign.name if target_campaign else raw_meta.get("campaign_name", raw_meta.get("Form Name", raw_meta.get("CAMPAIGN NAME", "")))
+        if campaign_name_val:
+            custom_data_survey["campaign"] = campaign_name_val
 
         processed_rows.append({
             "row_index": idx + 1,
@@ -551,7 +556,7 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             "custom_data": custom_data_survey,
             "raw_metadata": raw_meta,
             "external_lead_id": external_id,
-            "campaign_name": target_campaign.name if target_campaign else raw_meta.get('campaign_name', raw_meta.get('Form Name', '')),
+            "campaign_name": campaign_name_val,
             "attendant_raw": attendant_raw,
             "doctor_raw": doctor_raw,
             "gender_raw": gender_raw,

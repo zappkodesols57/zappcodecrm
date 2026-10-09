@@ -797,9 +797,26 @@ class Lead(models.Model):
         src = self.get_custom("lead_source") or self.get_custom("source")
         if not src and self.lead_source_id and self.lead_source:
             return self.lead_source.name
+        if not src and self.raw_source_metadata and isinstance(self.raw_source_metadata, dict):
+            for k, v in self.raw_source_metadata.items():
+                if "source" in k.lower() and v and str(v).strip().lower() not in ("none", "nan", "", "-", "null"):
+                    return str(v).strip()
         if src and str(src).strip().lower() not in ('none', 'nan', '', '-', '—', 'null'):
             return str(src).strip()
-        return "nan"
+        return "Direct"
+
+    @property
+    def custom_campaign(self):
+        camp = self.get_custom("campaign") or self.get_custom("campaign_name")
+        if not camp and self.campaign_id and self.campaign:
+            return self.campaign.name
+        if not camp and self.raw_source_metadata and isinstance(self.raw_source_metadata, dict):
+            for k, v in self.raw_source_metadata.items():
+                if "campaign" in k.lower() and v and str(v).strip().lower() not in ("none", "nan", "", "-", "null"):
+                    return str(v).strip()
+        if camp and str(camp).strip().lower() not in ('none', 'nan', '', '-', '—', 'null'):
+            return str(camp).strip()
+        return ""
 
     @property
     def display_stage(self):
