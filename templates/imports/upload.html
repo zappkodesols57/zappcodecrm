@@ -39,10 +39,15 @@
     transition: all 0.2s ease-in-out;
     cursor: pointer;
   }
-  .upload-dropzone:hover {
-    border-color: var(--theme-navy);
-    background-color: #f1f5f9;
-    box-shadow: 0 2px 8px rgba(15, 39, 68, 0.06);
+  .upload-dropzone * {
+    pointer-events: none;
+  }
+  .upload-dropzone:hover,
+  .upload-dropzone.drag-active {
+    border-color: var(--theme-navy) !important;
+    background-color: #e2e8f0 !important;
+    box-shadow: 0 4px 12px rgba(15, 39, 68, 0.12) !important;
+    transform: scale(1.005);
   }
   .form-select-bordered,
   .form-control-bordered {
@@ -359,13 +364,13 @@
             <div class="mb-4">
               <label class="form-label fw-semibold text-dark small mb-1">Upload Leads File <span class="text-danger">*</span></label>
               
-              <div class="upload-dropzone" onclick="document.getElementById('campaignFileInput').click()">
+              <div class="upload-dropzone" id="campaignDropzone" onclick="document.getElementById('campaignFileInput').click()">
                 <div class="fw-semibold text-dark mb-1" id="campaignFileNameDisplay" style="font-size: 0.94rem;">
                   <i class="fa-solid fa-cloud-arrow-up text-primary me-2"></i>Click or Drag & Drop Leads File
                 </div>
                 <div class="text-muted small">Supports XML, Excel (.xlsx, .xls), CSV, Meta Lead Export</div>
               </div>
-              <input type="file" name="lead_file" id="campaignFileInput" accept=".xml,.xlsx,.xls,.csv,.tsv" class="d-none" required onchange="handleFileSelected(this, 'campaignFileNameDisplay')">
+              <input type="file" name="lead_file" id="campaignFileInput" accept=".xml,.xlsx,.xls,.csv,.tsv" class="d-none" required onchange="handleFileSelected(this, 'campaignFileNameDisplay', 'campaignFileInput')">
             </div>
 
             <div class="d-flex justify-content-end">
@@ -424,8 +429,8 @@
                   <label class="form-label fw-semibold text-dark small mb-0">Duplicate Strategy</label>
                 </div>
                 <select name="on_duplicate" class="form-select form-select-sm no-tom-select">
-                  <option value="preview">Review & Resolve (Keep / Discard / Update)</option>
-                  <option value="skip" selected>Skip Duplicates (Recommended)</option>
+                  <option value="preview" selected>Review & Resolve (Keep / Discard / Update)</option>
+                  <option value="skip">Skip Duplicates (Recommended)</option>
                   <option value="update">Update Existing Leads</option>
                   <option value="create">Allow All (Duplicate Allowed)</option>
                 </select>
@@ -435,13 +440,13 @@
             <!-- Upload File Dropzone -->
             <div class="mb-4">
               <label class="form-label fw-semibold text-dark small mb-1">Upload Master File <span class="text-danger">*</span></label>
-              <div class="upload-dropzone" onclick="document.getElementById('masterFileInput').click()">
+              <div class="upload-dropzone" id="masterDropzone" onclick="document.getElementById('masterFileInput').click()">
                 <div class="fw-semibold text-dark mb-1" id="masterFileNameDisplay" style="font-size: 0.94rem;">
                   <i class="fa-solid fa-file-excel text-success me-2"></i>Click or Drag & Drop Master Leads File
                 </div>
                 <div class="text-muted small">Supports Excel (.xlsx, .xls), CSV format</div>
               </div>
-              <input type="file" name="excel_file" id="masterFileInput" accept=".xlsx,.xls,.csv" class="d-none" required onchange="handleFileSelected(this, 'masterFileNameDisplay')">
+              <input type="file" name="excel_file" id="masterFileInput" accept=".xlsx,.xls,.csv" class="d-none" required onchange="handleFileSelected(this, 'masterFileNameDisplay', 'masterFileInput')">
             </div>
 
             <div class="d-flex justify-content-end">
@@ -781,11 +786,44 @@
     senderName: "{{ request.user.get_full_name|default:request.user.username|escapejs }}",
   };
 
-  function handleFileSelected(input, displayId) {
+  function handleFileSelected(input, displayId, inputId) {
     if (input.files && input.files[0]) {
       const file = input.files[0];
       const displayElem = document.getElementById(displayId);
-      displayElem.innerHTML = `<span class="text-dark fw-bold">${file.name}</span> <span class="text-muted fw-normal">(${(file.size / 1024).toFixed(1)} KB)</span>`;
+      const isMaster = displayId.includes('master');
+      const iconClass = isMaster ? 'fa-solid fa-file-excel text-success' : 'fa-solid fa-file-lines text-primary';
+      const inputRefId = inputId || input.id;
+      
+      displayElem.innerHTML = `
+        <div class="d-inline-flex align-items-center gap-2 bg-white border border-secondary border-opacity-25 px-3 py-1.5 rounded-3 shadow-sm" style="max-width: 100%;">
+          <i class="${iconClass} fs-5"></i>
+          <span class="text-dark fw-bold text-truncate" style="max-width: 260px;" title="${file.name}">${file.name}</span>
+          <span class="badge bg-light text-secondary border fw-semibold">${(file.size / 1024).toFixed(1)} KB</span>
+          <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-2 ms-2 fw-semibold" style="font-size: 0.75rem;" onclick="clearSelectedFile(event, '${inputRefId}', '${displayId}')" title="Remove selected file">
+            <i class="fa-solid fa-xmark me-1"></i>Clear
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  function clearSelectedFile(event, inputId, displayId) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const input = document.getElementById(inputId);
+    if (input) {
+      input.value = '';
+    }
+    const displayElem = document.getElementById(displayId);
+    if (displayElem) {
+      const isMaster = displayId.includes('master');
+      if (isMaster) {
+        displayElem.innerHTML = `<i class="fa-solid fa-file-excel text-success me-2"></i>Click or Drag & Drop Master Leads File`;
+      } else {
+        displayElem.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-primary me-2"></i>Click or Drag & Drop Leads File`;
+      }
     }
   }
 
@@ -1159,6 +1197,60 @@
         updateUploadPageWhatsAppPreview();
       });
     }
+
+    // Prevent default drag and drop behavior across window so browser doesn't open the file
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      window.addEventListener(eventName, function(e) {
+        e.preventDefault();
+      }, false);
+    });
+
+    function setupDropzone(dropzoneId, inputId, displayId) {
+      const dropzone = document.getElementById(dropzoneId);
+      const input = document.getElementById(inputId);
+      if (!dropzone || !input) return;
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('drag-active');
+        }, false);
+      });
+
+      ['dragleave', 'dragend'].forEach(eventName => {
+        dropzone.addEventListener(eventName, function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('drag-active');
+        }, false);
+      });
+
+      dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('drag-active');
+
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          try {
+            input.files = dt.files;
+          } catch (err) {
+            // Fallback for older browsers
+            const dataTransfer = new DataTransfer();
+            for (let i = 0; i < dt.files.length; i++) {
+              dataTransfer.items.add(dt.files[i]);
+            }
+            input.files = dataTransfer.files;
+          }
+          handleFileSelected(input, displayId);
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, false);
+    }
+
+    setupDropzone('campaignDropzone', 'campaignFileInput', 'campaignFileNameDisplay');
+    setupDropzone('masterDropzone', 'masterFileInput', 'masterFileNameDisplay');
 
     const initBizSelect = document.getElementById('targetHospitalSelect') || document.getElementById('masterManageBusinessSelect') || document.getElementById('masterHospitalSelect');
     if (initBizSelect && initBizSelect.value) {

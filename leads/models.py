@@ -448,9 +448,38 @@ class ReferralType(models.TextChoices):
     OTHER = "OTHER", "Other"
 
 
+def get_business_lead_prefix(hospital=None):
+    """
+    Generates generic 2-4 uppercase letter business prefix for lead codes.
+    If hospital/business has code (e.g. BIZ-HOSP-001 -> 'HP-', or initials 'NL-') or defaults to 'LD-'.
+    """
+    if not hospital:
+        return "LD-"
+    
+    # If hospital has explicit custom business code prefix
+    b_code = getattr(hospital, "business_code", "") or ""
+    if b_code:
+        # e.g., 'BIZ-ACAD-001' -> 'AC-', 'BIZ-HOSP-001' -> 'HP-'
+        parts = b_code.split("-")
+        if len(parts) >= 2 and parts[1]:
+            return f"{parts[1][:3].upper()}-"
+
+    # Derive from business name initials (e.g., 'Nelson Mother & Child Care Hospital' -> 'NL-')
+    name = (getattr(hospital, "name", "") or "").strip()
+    if name:
+        words = [w for w in name.replace("&", " ").replace("-", " ").split() if w]
+        if len(words) >= 2:
+            initials = f"{words[0][0]}{words[1][0]}".upper()
+            return f"{initials}-"
+        elif len(words) == 1:
+            return f"{words[0][:2].upper()}-"
+
+    return "LD-"
+
+
 def next_lead_code(hospital=None):
     year = timezone.now().year
-    prefix = "NL-" if (hospital and "nelson" in (getattr(hospital, "name", "") or "").lower()) else "LD-"
+    prefix = get_business_lead_prefix(hospital)
     full_prefix = f"{prefix}{year}-"
     
     # Extract maximum integer sequence accurately instead of string alphabetical ordering
@@ -726,6 +755,27 @@ class Lead(models.Model):
             or self.get_custom("doctor_reschedule_remark")
             or ""
         )
+    @property
+    def is_hospital_industry(self):
+        """Returns True if the lead belongs to a Healthcare/Hospital/Clinic business."""
+        if not self.hospital_id or not self.hospital:
+            return True  # default fallback if tenant not set
+        ind = getattr(self.hospital, 'industry', None)
+        if ind == 'HOSPITAL':
+            return True
+        name = (getattr(self.hospital, 'name', '') or '').lower()
+        return 'hospital' in name or 'clinic' in name or 'healthcare' in name
+
+    @property
+    def is_academy_industry(self):
+        """Returns True if the lead belongs to an Education/Academy/Coaching business."""
+        if not self.hospital_id or not self.hospital:
+            return False
+        ind = getattr(self.hospital, 'industry', None)
+        if ind == 'ACADEMY':
+            return True
+        name = (getattr(self.hospital, 'name', '') or '').lower()
+        return 'academy' in name or 'institute' in name or 'school' in name or 'college' in name
 
     @property
     def custom_reschedule_remark(self):
@@ -743,19 +793,16 @@ class Lead(models.Model):
     @property
     def display_stage(self):
         """
-        Dynamically calculates human-readable pipeline Stage for the lead:
-        1. If Payment Done / Total > 0 -> 'Payment Done'
-        2. If Consultation Done / OPD Completed -> 'Consultation Completed'
-        3. If Appointment Confirmed -> 'Booking Confirmed'
-        4. If Approval Pending -> 'Doctor Approval Pending'
-        5. If Lost / Cancelled -> 'Lost' / 'Cancelled'
-        6. If Follow-ups exist or follow-up status -> 'Follow up'
-        7. If Assigned -> 'Assigned'
-        8. Default -> 'New'
+        Dynamically calculates pipeline Stage:
+        - For Academy/Other: uses the configured stage name, or 'New'.
+        - For Hospital: dynamic clinical pipeline (Awaiting Doctor Approval, Booking Confirmed, Completed, Payment Done, etc.)
         """
+        st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
+        if not self.is_hospital_industry:
+            return st_name or "New"
+
         cd = self.custom_data or {}
         tot = self.total_billed_amount
-        st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
         st_up = st_name.upper()
         adm_st = str(self.admission_status or "").strip().upper()
         appt_st = str(cd.get("appointment_status") or "").strip().upper()
@@ -798,13 +845,13 @@ class Lead(models.Model):
     @property
     def custom_temperature(self):
         """
-        Calculates dynamic lead temperature based on remarks and status:
-        - Lost / Cancelled leads -> Always 'Freeze'
-        - Doctor cancelled leads awaiting follow-up -> Calculated dynamically (stepped down), not forced to Freeze
-        - Active for temperature: ONLY early stages ('New', 'Assigned', 'Follow up', 'Doctor Approval Pending', 'Appointment Cancelled')
-        - Once an appointment is Confirmed, Completed, or Payment is Done -> Temperature is not needed (returns None)
-        - Sequential temperature scale: Freeze -> Cold -> Warm -> Hot
+        Calculates lead temperature:
+        - For Academy/Other: Returns stored self.get_temperature_display() or self.temperature ('Hot', 'Warm', 'Cold', 'Freeze').
+        - For Hospital: Dynamic recalculation based on doctor appointments and interaction remarks.
         """
+        if not self.is_hospital_industry:
+            return self.get_temperature_display() if hasattr(self, 'get_temperature_display') else (self.temperature or "Warm")
+
         st_name = (self.stage.name if self.stage_id and self.stage else "").strip().lower()
         adm_st = str(self.admission_status or "").strip().upper()
         cd = self.custom_data or {}
@@ -975,14 +1022,17 @@ class Lead(models.Model):
     @property
     def custom_deal_status(self):
         """
-        Calculates automated Lead Status:
-        For Hospital industry, strictly returns one of: 'New', 'Open', 'Pending', 'Won', 'Lost'
-        - Lost: Cancelled / Not Interested / Freeze temperature
-        - Won: OPD completed / Consultation completed / Visited / Payment Done / Total > 0
-        - Pending: In follow-up stage with pending followups or scheduled booking
-        - Open: Assigned leads with no interaction / remarks / followups done yet
-        - New: Newly created (API/Import/Web) and unassigned
+        Calculates Lead / Deal Status:
+        - For Academy/Other: returns mapped standard admission_status / deal_status (e.g. 'Open', 'Contacted', 'Won', 'Lost', 'Hold').
+        - For Hospital: returns Hospital flow ('New', 'Open', 'Pending', 'Won', 'Lost', 'Completed').
         """
+        if not self.is_hospital_industry:
+            if self.admission_status:
+                return self.get_admission_status_display() or self.admission_status
+            if self.deal_status:
+                return self.get_deal_status_display() or self.deal_status
+            return "Open"
+
         cd = self.custom_data or {}
         tot = self.total_billed_amount
         st_name = (self.stage.name if self.stage_id and self.stage else "").strip().lower()
@@ -1069,7 +1119,7 @@ class Lead(models.Model):
         if has_completed_fu and not has_active_pending_fu and not has_future_or_pending_apt:
             return "Completed"
 
-        # 4. Check OPEN (Assigned leads with no remarks / follow-up done yet)
+        # 5. Check OPEN (Assigned leads with no remarks / follow-up done yet)
         is_assigned = bool(self.assigned_to_id or (attendant and str(attendant).strip().lower() not in ("unassigned", "none", "nan", "", "-")))
         has_interactions = bool(
             self.followup_count > 0
@@ -1085,7 +1135,7 @@ class Lead(models.Model):
                 return "Open"
             return "Open"
 
-        # 5. Check NEW (Unassigned newly created/imported leads)
+        # 6. Check NEW (Unassigned newly created/imported leads)
         return "New"
 
     @property
@@ -1096,12 +1146,12 @@ class Lead(models.Model):
     def display_deal_status(self):
         """
         Calculates human-readable, consistent Deal Status for the lead.
-        If lead is Lost / Cancelled -> 'Lost'
-        If lead is Won / Payment Done -> 'Won'
-        If lead is Pending / Follow-up -> 'Pending'
-        If lead is Open -> 'Open'
-        If lead is New -> 'New'
+        - For Academy/Other: uses admission_status or deal_status text.
+        - For Hospital: returns Hospital standardized deal status.
         """
+        if not self.is_hospital_industry:
+            return self.get_admission_status_display() or self.get_deal_status_display() or self.admission_status or self.deal_status or "Open"
+
         st = self.custom_deal_status
         if st in ("Lost", "Cancelled"):
             return "Lost"

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 import re
 import pandas as pd
 from django.contrib import messages
@@ -743,6 +743,25 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 return u
         return None
 
+    # Pre-calculate lead code sequence in a single quick query
+    from leads.models import get_business_lead_prefix
+    year = timezone.now().year
+    prefix = get_business_lead_prefix(target_hospital)
+    full_prefix = f"{prefix}{year}-"
+    existing_codes = Lead.objects.filter(lead_code__startswith=full_prefix).values_list("lead_code", flat=True)
+    max_seq = 0
+    for code in existing_codes:
+        if code and "-" in code:
+            parts = code.split("-")
+            if len(parts) >= 3 and parts[-1].isdigit():
+                try:
+                    num = int(parts[-1])
+                    if num > max_seq:
+                        max_seq = num
+                except ValueError:
+                    pass
+    current_seq = max_seq
+
     job = ImportJob.objects.create(
         original_filename=original_filename,
         total_rows=len(rows),
@@ -755,184 +774,223 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
     skipped_count = 0
 
     source_cache = {}
+    course_cache = {}
     extracted_dates = []
-    followups_to_create = []
 
-    with transaction.atomic():
-        for r in rows:
-            action = r.get("duplicate_action") or default_strategy or "create"
-            mobile = r.get("mobile", "")
-            name = r.get("name", "Unknown Patient")
-            email = r.get("email", "")
-            inquiry_date = parse_flexible_date(r.get("inquiry_date"))
-            if inquiry_date:
-                extracted_dates.append(inquiry_date)
-            source_name = r.get("source_name", "Instagram")
-            notes = r.get("notes", "")
-            custom_data = r.get("custom_data", {})
-            raw_meta = r.get("raw_metadata", {})
-            external_id = r.get("external_lead_id", "")
+    # Pre-cache existing courses
+    for c in Course.objects.filter(Q(hospital=target_hospital) | Q(hospital__isnull=True)):
+        c_name_key = (c.name or "").strip().lower()
+        if c_name_key:
+            course_cache[c_name_key] = c
 
-            # Resolve Assigned Attendant
-            attendant_raw = r.get("attendant_raw", "")
-            assigned_user = fast_resolve_user(attendant_raw)
+    # Process rows in small batches (e.g. 100 rows per transaction batch) to prevent DB lock timeouts
+    BATCH_SIZE = 100
+    from followups.models import Activity, ActivityType
 
-            # Resolve Stage & Deal Status
-            final_status_raw = str(r.get("final_status_raw") or "").strip().lower()
-            lead_stage = stage_new
-            lead_deal_status = "OPEN"
+    for batch_idx in range(0, len(rows), BATCH_SIZE):
+        batch_rows = rows[batch_idx:batch_idx + BATCH_SIZE]
+        leads_to_create = []
+        lead_meta_list = [] # Store tuple of (lead_index, row_dict, assigned_user, inquiry_date)
+        
+        with transaction.atomic():
+            for r in batch_rows:
+                action = r.get("duplicate_action") or default_strategy or "create"
+                mobile = r.get("mobile", "")
+                name = r.get("name", "Unknown Patient")
+                email = r.get("email", "")
+                inquiry_date = parse_flexible_date(r.get("inquiry_date"))
+                if inquiry_date:
+                    extracted_dates.append(inquiry_date)
+                source_name = r.get("source_name", "Instagram")
+                notes = r.get("notes", "")
+                custom_data = r.get("custom_data", {})
+                raw_meta = r.get("raw_metadata", {})
+                external_id = r.get("external_lead_id", "")
 
-            if "lost" in final_status_raw:
-                lead_deal_status = "LOST"
-                if "lost" in stage_cache:
-                    lead_stage = stage_cache["lost"]
-            elif "hold" in final_status_raw:
-                lead_deal_status = "HOLD"
-                if "hold" in stage_cache:
-                    lead_stage = stage_cache["hold"]
-            elif "won" in final_status_raw or "admission" in final_status_raw:
-                lead_deal_status = "WON"
-                if "complete" in stage_cache:
-                    lead_stage = stage_cache["complete"]
-                elif "admission" in stage_cache:
-                    lead_stage = stage_cache["admission"]
-            elif final_status_raw in stage_cache:
-                lead_stage = stage_cache[final_status_raw]
+                # Resolve Assigned Attendant
+                attendant_raw = r.get("attendant_raw", "")
+                assigned_user = fast_resolve_user(attendant_raw)
 
-            # If duplicate and user chose to discard
-            if r.get("is_duplicate") and action == "discard":
-                skipped_count += 1
-                continue
+                # Resolve Stage & Deal Status
+                final_status_raw = str(r.get("final_status_raw") or "").strip().lower()
+                lead_stage = stage_new
+                lead_deal_status = "OPEN"
 
-            # Lead Source resolution
-            if source_name not in source_cache:
-                src_obj, _ = LeadSource.objects.get_or_create(
-                    name=source_name,
-                    category=default_cat,
-                    defaults={"is_active": True}
-                )
-                source_cache[source_name] = src_obj
-            lead_source_obj = source_cache[source_name]
+                if "lost" in final_status_raw:
+                    lead_deal_status = "LOST"
+                    if "lost" in stage_cache:
+                        lead_stage = stage_cache["lost"]
+                elif "hold" in final_status_raw:
+                    lead_deal_status = "HOLD"
+                    if "hold" in stage_cache:
+                        lead_stage = stage_cache["hold"]
+                elif "won" in final_status_raw or "admission" in final_status_raw:
+                    lead_deal_status = "WON"
+                    if "complete" in stage_cache:
+                        lead_stage = stage_cache["complete"]
+                    elif "admission" in stage_cache:
+                        lead_stage = stage_cache["admission"]
+                elif final_status_raw in stage_cache:
+                    lead_stage = stage_cache[final_status_raw]
 
-            # Course resolution
-            course_obj = None
-            course_name = r.get("course_name", "")
-            if course_name:
-                course_obj = Course.objects.filter(
-                    Q(name__iexact=course_name) | Q(name__icontains=course_name)
-                ).first()
-                if not course_obj:
-                    course_obj = Course.objects.create(
-                        name=course_name,
-                        hospital=target_hospital,
-                        is_active=True
+                # If duplicate and user chose to discard
+                if r.get("is_duplicate") and action == "discard":
+                    skipped_count += 1
+                    continue
+
+                # Lead Source resolution
+                if source_name not in source_cache:
+                    src_obj, _ = LeadSource.objects.get_or_create(
+                        name=source_name,
+                        category=default_cat,
+                        defaults={"is_active": True}
                     )
+                    source_cache[source_name] = src_obj
+                lead_source_obj = source_cache[source_name]
 
-            # If duplicate and user chose update
-            if r.get("is_duplicate") and action == "update" and r.get("existing_lead_id"):
-                existing = Lead.objects.filter(pk=r["existing_lead_id"]).first()
-                if existing:
-                    if email and not existing.email:
-                        existing.email = email
-                    if r.get("city") and not existing.city:
-                        existing.city = r.get("city")
-                    if course_obj and not existing.course:
-                        existing.course = course_obj
-                    if assigned_user:
-                        existing.assigned_to = assigned_user
-                    if campaign:
-                        existing.campaign = campaign
-                    if notes:
-                        existing.notes = (existing.notes + "\n" + notes).strip()
-                    if custom_data:
-                        existing.custom_data.update(custom_data)
-                    existing.import_job = job
-                    existing.save()
-                    updated_count += 1
-                    lead_record = existing
-            else:
-                # Create New Lead
-                lead_code = generate_lead_code(hospital=target_hospital)
-                
-                new_lead = Lead.objects.create(
-                    lead_code=lead_code,
-                    name=name,
-                    mobile=mobile,
-                    email=email,
-                    city=r.get("city", ""),
-                    location=r.get("city", ""),
-                    course=course_obj,
-                    hospital=target_hospital,
-                    campaign=campaign,
-                    assigned_to=assigned_user,
-                    source_category=default_cat,
-                    lead_source=lead_source_obj,
-                    stage=lead_stage,
-                    temperature="HOT",
-                    deal_status=lead_deal_status,
-                    admission_status="NOT_APPLIED",
-                    inquiry_date=inquiry_date,
-                    notes=notes,
-                    custom_data=custom_data,
-                    raw_source_metadata=raw_meta,
-                    external_lead_id=external_id,
-                    import_source_file=original_filename,
-                    import_job=job,
-                    created_by=request.user,
-                )
-                imported_count += 1
-                lead_record = new_lead
+                # Course resolution
+                course_obj = None
+                course_name = (r.get("course_name") or "").strip()
+                if course_name:
+                    c_key = course_name.lower()
+                    if c_key in course_cache:
+                        course_obj = course_cache[c_key]
+                    else:
+                        course_obj = Course.objects.create(
+                            name=course_name,
+                            hospital=target_hospital,
+                            is_active=True
+                        )
+                        course_cache[c_key] = course_obj
 
-            # Queue follow-ups & timeline activities if present in row
-            fu1_d = r.get("fu1_date")
-            fu1_rem = r.get("fu1_remark")
-            fu2_d = r.get("fu2_date")
-            fu2_rem = r.get("fu2_remark")
-            fu3_d = r.get("fu3_date")
-            fu3_rem = r.get("fu3_remark")
+                # If duplicate and user chose update
+                if r.get("is_duplicate") and action == "update" and r.get("existing_lead_id"):
+                    existing = Lead.objects.filter(pk=r["existing_lead_id"]).first()
+                    if existing:
+                        if email and not existing.email:
+                            existing.email = email
+                        if r.get("city") and not existing.city:
+                            existing.city = r.get("city")
+                        if course_obj and not existing.course:
+                            existing.course = course_obj
+                        if assigned_user:
+                            existing.assigned_to = assigned_user
+                        if campaign:
+                            existing.campaign = campaign
+                        if notes:
+                            existing.notes = (existing.notes + "\n" + notes).strip()
+                        if custom_data:
+                            existing.custom_data.update(custom_data)
+                        existing.import_job = job
+                        existing.save()
+                        updated_count += 1
+                        
+                        # Process follow-ups & activities for updated existing lead
+                        lead_meta_list.append((existing, r, assigned_user, inquiry_date))
+                else:
+                    # Create New Lead in batch
+                    current_seq += 1
+                    lead_code = f"{full_prefix}{current_seq:06d}"
+                    
+                    new_lead = Lead(
+                        lead_code=lead_code,
+                        name=name,
+                        mobile=mobile,
+                        email=email,
+                        city=r.get("city", ""),
+                        location=r.get("city", ""),
+                        course=course_obj,
+                        hospital=target_hospital,
+                        campaign=campaign,
+                        assigned_to=assigned_user,
+                        source_category=default_cat,
+                        lead_source=lead_source_obj,
+                        stage=lead_stage,
+                        temperature="HOT",
+                        deal_status=lead_deal_status,
+                        admission_status="OPEN",
+                        inquiry_date=inquiry_date or timezone.localdate(),
+                        notes=notes,
+                        custom_data=custom_data or {},
+                        raw_source_metadata=raw_meta or {},
+                        external_lead_id=external_id,
+                        import_source_file=original_filename,
+                        import_job=job,
+                        created_by=request.user,
+                    )
+                    leads_to_create.append((new_lead, r, assigned_user, inquiry_date))
 
-            fu_items = [
-                (fu1_d, fu1_rem),
-                (fu2_d, fu2_rem),
-                (fu3_d, fu3_rem),
-            ]
-            for f_date_str, f_rem in fu_items:
-                if f_date_str or f_rem:
-                    parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else inquiry_date
-                    st_choice = FollowUpStatus.COMPLETED if parsed_fu_date <= timezone.localdate() else FollowUpStatus.PENDING
-                    followups_to_create.append(FollowUp(
-                        lead=lead_record,
-                        followup_date=parsed_fu_date,
-                        followup_mode=FollowUpMode.CALL,
-                        followup_status=st_choice,
-                        comment=f_rem or "Follow-up logged via leads import",
-                        created_by=assigned_user or request.user,
-                        imported_from_excel=True,
-                    ))
+            # Bulk create new leads in this batch
+            if leads_to_create:
+                lead_objs = [item[0] for item in leads_to_create]
+                created_leads = Lead.objects.bulk_create(lead_objs, batch_size=100)
+                imported_count += len(created_leads)
+                for idx, created_l in enumerate(created_leads):
+                    _, r, assigned_user, inq_d = leads_to_create[idx]
+                    lead_meta_list.append((created_l, r, assigned_user, inq_d))
 
-            # Initial activity log for lead timeline
-            if lead_record:
-                from followups.models import Activity, ActivityType
-                Activity.objects.create(
+            # Bulk create FollowUps & Activities for this batch
+            batch_followups = []
+            batch_activities = []
+            for lead_record, r, assigned_user, inquiry_date in lead_meta_list:
+                fu1_d = r.get("fu1_date")
+                fu1_rem = r.get("fu1_remark")
+                fu2_d = r.get("fu2_date")
+                fu2_rem = r.get("fu2_remark")
+                fu3_d = r.get("fu3_date")
+                fu3_rem = r.get("fu3_remark")
+
+                fu_items = [
+                    (fu1_d, fu1_rem),
+                    (fu2_d, fu2_rem),
+                    (fu3_d, fu3_rem),
+                ]
+                for f_date_str, f_rem in fu_items:
+                    if f_date_str or f_rem:
+                        parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else inquiry_date
+                        st_choice = FollowUpStatus.COMPLETED if (parsed_fu_date and parsed_fu_date <= timezone.localdate()) else FollowUpStatus.PENDING
+                        batch_followups.append(FollowUp(
+                            lead=lead_record,
+                            followup_date=parsed_fu_date,
+                            followup_mode=FollowUpMode.CALL,
+                            followup_status=st_choice,
+                            comment=f_rem or "Follow-up logged via leads import",
+                            created_by=assigned_user or request.user,
+                            imported_from_excel=True,
+                        ))
+
+                batch_activities.append(Activity(
                     lead=lead_record,
                     activity_type=ActivityType.LEAD_CREATED,
                     description=f"Lead imported from file '{original_filename}'" + (f" and assigned to {assigned_user.get_full_name() or assigned_user.username}" if assigned_user else ""),
                     created_by=request.user,
-                )
+                ))
 
-        # Bulk insert follow-ups
-        if followups_to_create:
-            FollowUp.objects.bulk_create(followups_to_create, batch_size=500)
+            if batch_followups:
+                FollowUp.objects.bulk_create(batch_followups, batch_size=200)
+            if batch_activities:
+                Activity.objects.bulk_create(batch_activities, batch_size=200)
 
-        # Automatically update Campaign start_date (earliest date) and end_date (latest date)
-        if campaign and extracted_dates:
-            min_d = min(extracted_dates)
-            max_d = max(extracted_dates)
+    # Automatically update Campaign start_date (earliest date) and end_date (latest date)
+    if campaign and extracted_dates:
+        valid_dates = [d for d in extracted_dates if isinstance(d, (date, datetime))]
+        if valid_dates:
+            min_d = min(valid_dates)
+            max_d = max(valid_dates)
+            if isinstance(min_d, datetime):
+                min_d = min_d.date()
+            if isinstance(max_d, datetime):
+                max_d = max_d.date()
+            
+            update_cols = []
             if not campaign.start_date or min_d < campaign.start_date:
                 campaign.start_date = min_d
+                update_cols.append("start_date")
             if not campaign.end_date or max_d > campaign.end_date:
                 campaign.end_date = max_d
-            campaign.save(update_fields=["start_date", "end_date"])
+                update_cols.append("end_date")
+            if update_cols:
+                campaign.save(update_fields=update_cols)
 
     job.imported_count = imported_count + updated_count
     job.updated_count = updated_count
