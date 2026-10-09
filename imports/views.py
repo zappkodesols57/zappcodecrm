@@ -1010,9 +1010,10 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
     job.completed_at = timezone.now()
     job.save()
 
+    campaign_label = f" with Campaign '{campaign.name}'" if campaign else ""
     messages.success(
         request,
-        f"✅ Leads Import Successful! {imported_count} new leads created with Campaign '{campaign.name}', "
+        f"✅ Leads Import Successful! {imported_count} new leads created{campaign_label}, "
         f"{updated_count} existing records updated, {skipped_count} duplicates skipped."
     )
 
