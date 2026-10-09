@@ -474,54 +474,52 @@ class HospitalLeadForm(forms.ModelForm):
     # Billing & ID
     uhid_id_no = forms.CharField(max_length=100, required=False, label="UHID ID NO")
     ipd_no = forms.CharField(max_length=100, required=False, label="IPD NO")
-    pharmacy_bill = forms.DecimalField(
-        max_digits=10, decimal_places=2, required=False, min_value=0,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control",
-            "min": "0",
-            "step": "0.01",
-            "placeholder": "0.00",
-            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+    pharmacy_bill = forms.IntegerField(
+        required=False, min_value=0,
+        widget=forms.TextInput(attrs={
+            "class": "form-control integer-only-input",
+            "placeholder": "0",
+            "inputmode": "numeric",
+            "pattern": "[0-9]*",
+            "oninput": "this.value = this.value.replace(/[^0-9]/g, '');",
         })
     )
-    opd_bill = forms.DecimalField(
-        max_digits=10, decimal_places=2, required=False, min_value=0,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control",
-            "min": "0",
-            "step": "0.01",
-            "placeholder": "0.00",
-            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+    opd_bill = forms.IntegerField(
+        required=False, min_value=0,
+        widget=forms.TextInput(attrs={
+            "class": "form-control integer-only-input",
+            "placeholder": "0",
+            "inputmode": "numeric",
+            "pattern": "[0-9]*",
+            "oninput": "this.value = this.value.replace(/[^0-9]/g, '');",
         })
     )
-    ipd_bill = forms.DecimalField(
-        max_digits=10, decimal_places=2, required=False, min_value=0,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control",
-            "min": "0",
-            "step": "0.01",
-            "placeholder": "0.00",
-            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+    ipd_bill = forms.IntegerField(
+        required=False, min_value=0,
+        widget=forms.TextInput(attrs={
+            "class": "form-control integer-only-input",
+            "placeholder": "0",
+            "inputmode": "numeric",
+            "pattern": "[0-9]*",
+            "oninput": "this.value = this.value.replace(/[^0-9]/g, '');",
         })
     )
-    investigation_bill = forms.DecimalField(
-        max_digits=10, decimal_places=2, required=False, min_value=0,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control",
-            "min": "0",
-            "step": "0.01",
-            "placeholder": "0.00",
-            "oninput": "if(this.value < 0) this.value = Math.abs(this.value);",
+    investigation_bill = forms.IntegerField(
+        required=False, min_value=0,
+        widget=forms.TextInput(attrs={
+            "class": "form-control integer-only-input",
+            "placeholder": "0",
+            "inputmode": "numeric",
+            "pattern": "[0-9]*",
+            "oninput": "this.value = this.value.replace(/[^0-9]/g, '');",
         })
     )
     investigation = forms.CharField(max_length=255, required=False)
-    total = forms.DecimalField(
-        max_digits=12, decimal_places=2, required=False, min_value=0,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control fw-bold text-success",
-            "min": "0",
-            "step": "0.01",
-            "placeholder": "0.00",
+    total = forms.IntegerField(
+        required=False, min_value=0,
+        widget=forms.TextInput(attrs={
+            "class": "form-control fw-bold text-success integer-only-input",
+            "placeholder": "0",
             "readonly": "readonly",
         })
     )
@@ -713,7 +711,7 @@ class HospitalLeadForm(forms.ModelForm):
             
             # 2. Doctors from HospitalDoctor model filtered by Department
             init_dept = self.fields.get("department") and self.fields["department"].initial
-            hdoc_qs = HospitalDoctor.objects.filter(is_active=True)
+            hdoc_qs = HospitalDoctor.objects.filter(is_active=True).filter(Q(user__isnull=True) | Q(user__is_active=True))
             if user and user.hospital:
                 hdoc_qs = hdoc_qs.filter(hospital=user.hospital)
             if init_dept:
@@ -1483,7 +1481,20 @@ class HospitalLeadForm(forms.ModelForm):
                         
                     # Transfer / create appointment in PENDING_APPROVAL status until doctor confirms
                     existing_apt = Appointment.objects.filter(lead=instance).order_by('-id').first()
+                    prev_date = existing_apt.appointment_date if existing_apt else None
+                    prev_time = existing_apt.appointment_time if existing_apt else None
+                    was_rescheduled = False
+                    
                     if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
+                        slot_is_same = (existing_apt.appointment_date == appo_date_val)
+                        if appo_time_val and existing_apt.appointment_time:
+                            slot_is_same = slot_is_same and (str(existing_apt.appointment_time)[:5] == str(appo_time_val)[:5])
+                        if not slot_is_same:
+                            was_rescheduled = True
+                            existing_apt.is_rescheduled = True
+                            existing_apt.rescheduled_from_date = prev_date
+                            existing_apt.rescheduled_from_time = prev_time
+
                         existing_apt.hospital = getattr(instance, 'hospital', None)
                         existing_apt.doctor_name = doc_name_val
                         existing_apt.doctor_user = doc_user
@@ -1491,9 +1502,9 @@ class HospitalLeadForm(forms.ModelForm):
                         existing_apt.appointment_time = appo_time_val
                         existing_apt.status = AppointmentStatus.PENDING_APPROVAL
                         existing_apt.notes = self.cleaned_data.get('remark_1') or existing_apt.notes
-                        existing_apt.save(update_fields=['hospital', 'doctor_name', 'doctor_user', 'appointment_date', 'appointment_time', 'status', 'notes'])
+                        existing_apt.save(update_fields=['hospital', 'doctor_name', 'doctor_user', 'appointment_date', 'appointment_time', 'status', 'notes', 'is_rescheduled', 'rescheduled_from_date', 'rescheduled_from_time'])
                     else:
-                        Appointment.objects.create(
+                        existing_apt = Appointment.objects.create(
                             lead=instance,
                             hospital=getattr(instance, 'hospital', None),
                             doctor_name=doc_name_val,
@@ -1503,6 +1514,42 @@ class HospitalLeadForm(forms.ModelForm):
                             status=AppointmentStatus.PENDING_APPROVAL,
                             notes=self.cleaned_data.get('remark_1') or '',
                             created_by=getattr(self, 'current_user', None)
+                        )
+
+                    from followups.models import Activity, ActivityType
+                    doc_display = doc_name_val if doc_name_val.lower().startswith('dr') else f"Dr. {doc_name_val}" if doc_name_val else "Doctor"
+                    time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
+                    creator = getattr(self, 'current_user', None)
+
+                    if was_rescheduled and prev_date:
+                        prev_time_str = prev_time.strftime('%I:%M %p') if prev_time else 'Slot not fixed'
+                        Activity.objects.create(
+                            lead=instance,
+                            created_by=creator,
+                            activity_type=ActivityType.NOTE,
+                            description=f"Appointment Rescheduled for {instance.name} with {doc_display} from {prev_date.strftime('%d %b %Y')} ({prev_time_str}) to {appo_date_val.strftime('%d %b %Y')} at {time_str}."
+                        )
+                    else:
+                        Activity.objects.create(
+                            lead=instance,
+                            created_by=creator,
+                            activity_type=ActivityType.NOTE,
+                            description=f"Appointment Booked with {doc_display} for {appo_date_val.strftime('%d %b %Y')} at {time_str}."
+                        )
+
+                    # Notify Doctor about the new booking / approval request
+                    if doc_user and (not creator or doc_user != creator):
+                        notif_title = "Appointment Rescheduled / Slot Changed" if was_rescheduled else "New Appointment Approval Request"
+                        notif_msg = (
+                            f"Appointment for patient {instance.name} rescheduled with {doc_display} from {prev_date.strftime('%d %b %Y')} to {appo_date_val.strftime('%d %b %Y')} at {time_str}."
+                            if was_rescheduled and prev_date else
+                            f"New appointment booking request received for patient {instance.name} on {appo_date_val.strftime('%d %b %Y')} at {time_str}. Please review and approve."
+                        )
+                        Notification.objects.create(
+                            user=doc_user,
+                            title=notif_title,
+                            message=notif_msg,
+                            link="/dashboard/doctor/",
                         )
 
         old_save_m2m = getattr(self, 'save_m2m', None)

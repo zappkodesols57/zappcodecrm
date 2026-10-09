@@ -82,7 +82,7 @@
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
           <h6 class="mb-0 fw-bold">Notifications</h6>
           <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-link p-0 text-decoration-none small text-dark fw-semibold" id="markAllReadBtn" style="font-size: 0.75rem;">Mark all read</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none small text-dark fw-semibold" id="markAllReadBtn" onclick="markAllNotificationsAsRead()" style="font-size: 0.75rem;">Mark all read</button>
             <span class="text-muted small">·</span>
             <a href="{% url 'notifications:list' %}" class="small text-decoration-none text-secondary" style="font-size: 0.75rem;">View All</a>
           </div>
@@ -304,6 +304,11 @@
       document.removeEventListener('click', reqPerm);
     }, { once: true });
 
+    function getCsrfToken() {
+      const match = document.cookie.match(/csrftoken=([^;]+)/);
+      return match ? match[1] : '{{ csrf_token }}';
+    }
+
     function fetchNotifications() {
       fetch('{% url "notifications:api_unread" %}')
         .then(response => response.json())
@@ -323,10 +328,17 @@
                 }
               }
 
+              const isUnread = !n.is_read;
+              const bgStyle = isUnread ? 'background: #f8fafc; border-left: 3.5px solid #3b82f6;' : 'background: #ffffff; opacity: 0.85;';
+              const badgeNew = isUnread ? '<span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-1.5 py-0 ms-1" style="font-size: 0.65rem;">New</span>' : '';
+
               html += `
-                <a href="${n.link || '#'}" onclick="markNotificationRead(${n.id}, event)" class="dropdown-item p-3 border-bottom text-wrap notif-row-item" data-id="${n.id}" style="white-space: normal;">
+                <a href="${n.link || '#'}" onclick="markNotificationRead(${n.id}, event)" class="dropdown-item p-3 border-bottom text-wrap notif-row-item" data-id="${n.id}" style="white-space: normal; ${bgStyle}">
                   <div class="d-flex justify-content-between align-items-start">
-                    <strong class="text-dark small">${n.title}</strong>
+                    <div class="d-flex align-items-center">
+                      <strong class="text-dark small">${n.title}</strong>
+                      ${badgeNew}
+                    </div>
                     <span class="text-muted" style="font-size: 0.72rem; white-space: nowrap;" title="${n.full_time || n.created_at}">${n.created_at}</span>
                   </div>
                   <div class="text-muted mt-1" style="font-size: 0.8rem;">${n.message}</div>
@@ -340,11 +352,18 @@
         .catch(err => console.error("Error fetching notifications:", err));
     }
 
-    function markAllNotificationsAsRead() {
+    // Expose markAllNotificationsAsRead globally and bind event listener
+    window.markAllNotificationsAsRead = function() {
+      // Instantly clear UI for snappy feedback
+      updateBadge(0);
+      if (notifItems) {
+        notifItems.innerHTML = '<div class="p-4 text-center text-muted small">No new notifications</div>';
+      }
+
       fetch('{% url "notifications:api_mark_all_read" %}', {
         method: 'POST',
         headers: {
-          'X-CSRFToken': '{{ csrf_token }}',
+          'X-CSRFToken': getCsrfToken(),
           'Content-Type': 'application/json'
         }
       })
@@ -352,29 +371,21 @@
       .then(data => {
         if (data.status === 'ok') {
           updateBadge(0);
+          fetchNotifications();
         }
       })
       .catch(err => console.error("Error marking all read:", err));
-    }
-
-    // Auto mark as read and clear badge when dropdown is opened
-    if (notifDropdownBtn) {
-      notifDropdownBtn.addEventListener('show.bs.dropdown', function () {
-        if (notifBadge && notifBadge.style.display !== 'none' && parseInt(notifBadge.textContent) > 0) {
-          updateBadge(0);
-          markAllNotificationsAsRead();
-        }
-      });
-    }
+    };
 
     if (markAllReadBtn) {
       markAllReadBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        updateBadge(0);
-        markAllNotificationsAsRead();
+        window.markAllNotificationsAsRead();
       });
     }
+
+    window.fetchNotifications = fetchNotifications;
 
     // Initial fetch & polling every 30 seconds
     fetchNotifications();
@@ -382,11 +393,18 @@
   });
 
   function markNotificationRead(id, event) {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    const token = match ? match[1] : '{{ csrf_token }}';
     fetch(`/notifications/api/mark-read/${id}/`, {
       method: 'POST',
       headers: {
-        'X-CSRFToken': '{{ csrf_token }}',
+        'X-CSRFToken': token,
         'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      // Re-fetch in background to refresh unread counts & status
+      if (typeof window.fetchNotifications === 'function') {
+        window.fetchNotifications();
       }
     }).catch(err => console.error("Error marking notification as read:", err));
   }

@@ -48,6 +48,7 @@
   }
   .doc-stat-card.kpi-today::before { background: linear-gradient(90deg, #0f2744, #2563eb); }
   .doc-stat-card.kpi-pending::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+  .doc-stat-card.kpi-upcoming::before { background: linear-gradient(90deg, #0284c7, #06b6d4); }
   .doc-stat-card.kpi-hours::before { background: linear-gradient(90deg, #10b981, #059669); }
   .doc-stat-card.kpi-total::before { background: linear-gradient(90deg, #6366f1, #0f2744); }
 
@@ -73,62 +74,90 @@
     margin-top: 0.35rem;
   }
 
-  /* Main Nav Tabs Styling (Navy & Clean White) */
+  /* Main Nav Tabs Styling (Square, Connected with no space) */
+  #doctorMainTabs {
+    display: inline-flex;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f8fafc;
+    padding: 0;
+    gap: 0 !important;
+  }
+  #doctorMainTabs .nav-item {
+    margin: 0;
+  }
   #doctorMainTabs .nav-link {
     color: #475569 !important;
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 50rem !important;
-    padding: 0.6rem 1.4rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    padding: 0.65rem 1.4rem !important;
     font-size: 0.88rem !important;
     font-weight: 700 !important;
-    transition: all 0.2s ease !important;
+    transition: all 0.15s ease !important;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.45rem;
+  }
+  #doctorMainTabs .nav-item:last-child .nav-link {
+    border-right: none !important;
   }
   #doctorMainTabs .nav-link:hover {
-    background: #f8fafc !important;
+    background: #e2e8f0 !important;
     color: #0f2744 !important;
-    border-color: #cbd5e1 !important;
   }
   #doctorMainTabs .nav-link.active {
     background: #0f2744 !important;
     color: #ffffff !important;
-    border-color: #0f2744 !important;
-    box-shadow: 0 4px 14px rgba(15, 39, 68, 0.25) !important;
+    box-shadow: none !important;
   }
   #doctorMainTabs .nav-link.active .badge {
-    background: rgba(255, 255, 255, 0.22) !important;
+    background: rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.35) !important;
   }
 
-  /* Sub Tabs inside Panes */
+  /* Sub Tabs inside Panes (Square, Connected with no space) */
+  .doc-subtabs-wrap {
+    display: inline-flex;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f1f5f9;
+    padding: 0;
+    gap: 0 !important;
+  }
+  .doc-subtabs {
+    gap: 0 !important;
+    border-bottom: none !important;
+  }
+  .doc-subtabs .nav-item {
+    margin: 0;
+  }
   .doc-subtabs .nav-link {
     color: #64748b !important;
-    background: #f8fafc !important;
-    border: 1px solid #e2e8f0 !important;
-    border-bottom: none !important;
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid #cbd5e1 !important;
     font-weight: 700 !important;
     font-size: 0.84rem !important;
-    padding: 0.6rem 1.25rem !important;
-    border-top-left-radius: 10px !important;
-    border-top-right-radius: 10px !important;
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    transition: all 0.2s ease;
-    margin-bottom: -1px;
+    padding: 0.55rem 1.25rem !important;
+    border-radius: 0 !important;
+    transition: all 0.15s ease;
+    margin-bottom: 0 !important;
+  }
+  .doc-subtabs .nav-item:last-child .nav-link {
+    border-right: none !important;
   }
   .doc-subtabs .nav-link:hover {
     color: #0f2744 !important;
-    background: #ffffff !important;
-    border-color: #cbd5e1 !important;
+    background: #e2e8f0 !important;
   }
   .doc-subtabs .nav-link.active {
     background: #0f2744 !important;
     color: #ffffff !important;
-    border-color: #0f2744 !important;
   }
   .doc-subtabs .nav-link.active .badge {
     background: rgba(255, 255, 255, 0.25) !important;
@@ -187,6 +216,19 @@
   .dropdown-menu {
     z-index: 1060 !important;
   }
+
+  /* Consistent Input & Select Borders */
+  .doctor-dashboard-wrap .form-control,
+  .doctor-dashboard-wrap .form-select {
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-size: 0.88rem !important;
+  }
+  .doctor-dashboard-wrap .form-control:focus,
+  .doctor-dashboard-wrap .form-select:focus {
+    border-color: #0f2744 !important;
+    box-shadow: 0 0 0 3px rgba(15, 39, 68, 0.1) !important;
+  }
 </style>
 {% endblock %}
 
@@ -206,7 +248,7 @@
 
   <!-- Stats KPI Cards -->
   <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
       <div class="doc-stat-card kpi-today" onclick="switchMainTab('appointments', 'today')">
         <div>
           <div class="doc-stat-title">Today's Appointments</div>
@@ -216,7 +258,17 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
+      <div class="doc-stat-card kpi-upcoming" onclick="switchMainTab('appointments', 'upcoming')">
+        <div>
+          <div class="doc-stat-title">Upcoming Appointments</div>
+          <div class="doc-stat-val text-info">{{ upcoming_count }}</div>
+        </div>
+        <div class="doc-stat-sub">Future scheduled consultations</div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-lg">
       <div class="doc-stat-card kpi-pending" onclick="switchMainTab('appointments', 'pending')">
         <div>
           <div class="doc-stat-title">Pending Approval</div>
@@ -226,11 +278,11 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
       <div class="doc-stat-card kpi-hours" onclick="switchMainTab('calendar', 'hours')">
         <div>
           <div class="doc-stat-title">OPD Working Hours</div>
-          <div class="doc-stat-val text-success text-nowrap" style="font-size: 1.35rem; margin-top: 0.2rem;">
+          <div class="doc-stat-val text-success text-nowrap" style="font-size: 1.25rem; margin-top: 0.2rem;">
             {{ schedule.opd_start_time|time:"h:i A" }} - {{ schedule.opd_end_time|time:"h:i A" }}
           </div>
         </div>
@@ -238,7 +290,7 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
       <div class="doc-stat-card kpi-total" onclick="switchMainTab('completed')">
         <div>
           <div class="doc-stat-title">Total Bookings</div>
@@ -249,13 +301,12 @@
     </div>
   </div>
 
-  <!-- Primary 4 Navigation Tabs -->
-  <div class="mb-4">
-    <ul class="nav nav-pills gap-2 flex-wrap" id="doctorMainTabs" role="tablist">
+  <!-- Primary 4 Navigation Tabs (Square & Connected) -->
+  <div class="mb-4 d-flex">
+    <ul class="nav nav-pills" id="doctorMainTabs" role="tablist">
       <!-- 1. Appointments Tab -->
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="tab-appointments-btn" data-bs-toggle="pill" data-bs-target="#pane-appointments" type="button" role="tab" aria-selected="true">
-          <i class="fa-solid fa-calendar-check"></i>
           <span>Appointments</span>
           <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill ms-1">{{ today_count|add:pending_count|add:upcoming_count|add:admitted_count }}</span>
         </button>
@@ -264,7 +315,6 @@
       <!-- 2. Calendar Tab -->
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-calendar-btn" data-bs-toggle="pill" data-bs-target="#pane-calendar" type="button" role="tab" aria-selected="false">
-          <i class="fa-solid fa-calendar-days"></i>
           <span>Calendar</span>
           <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-1">{{ leaves|length }} Leaves</span>
         </button>
@@ -273,7 +323,6 @@
       <!-- 3. Completed Tab -->
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-completed-btn" data-bs-toggle="pill" data-bs-target="#pane-completed" type="button" role="tab" aria-selected="false">
-          <i class="fa-solid fa-circle-check"></i>
           <span>Completed</span>
           <span class="badge bg-success bg-opacity-10 text-success rounded-pill ms-1">{{ completed_count }}</span>
         </button>
@@ -282,7 +331,6 @@
       <!-- 4. Cancelled Tab -->
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-cancelled-btn" data-bs-toggle="pill" data-bs-target="#pane-cancelled" type="button" role="tab" aria-selected="false">
-          <i class="fa-solid fa-circle-xmark"></i>
           <span>Cancelled</span>
           <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill ms-1">{{ cancelled_count }}</span>
         </button>
@@ -299,33 +347,35 @@
     <div class="tab-pane fade show active" id="pane-appointments" role="tabpanel">
       <div class="doc-table-card">
         <!-- Subtabs Header -->
-        <div class="px-4 pt-3 border-bottom bg-white">
-          <ul class="nav nav-tabs doc-subtabs border-0 gap-2 mb-0" id="appointmentsSubTabs" role="tablist">
-            <!-- Subtab 1: Pending Requests -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="sub-pending-btn" data-bs-toggle="tab" data-bs-target="#sub-pending-pane" type="button" role="tab">
-                Pending Requests <span class="badge bg-warning text-dark rounded-pill ms-1">{{ pending_count }}</span>
-              </button>
-            </li>
-            <!-- Subtab 2: Today's Appointments -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="sub-today-btn" data-bs-toggle="tab" data-bs-target="#sub-today-pane" type="button" role="tab">
-                Today's Appointments <span class="badge bg-primary text-white rounded-pill ms-1">{{ today_count }}</span>
-              </button>
-            </li>
-            <!-- Subtab 3: Upcoming Appointments -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="sub-upcoming-btn" data-bs-toggle="tab" data-bs-target="#sub-upcoming-pane" type="button" role="tab">
-                Upcoming Appointments <span class="badge bg-info text-dark rounded-pill ms-1">{{ upcoming_count }}</span>
-              </button>
-            </li>
-            <!-- Subtab 4: Admitted -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="sub-admitted-btn" data-bs-toggle="tab" data-bs-target="#sub-admitted-pane" type="button" role="tab">
-                Admitted <span class="badge bg-success text-white rounded-pill ms-1">{{ admitted_count }}</span>
-              </button>
-            </li>
-          </ul>
+        <div class="px-4 pt-3 pb-3 border-bottom bg-white d-flex">
+          <div class="doc-subtabs-wrap">
+            <ul class="nav nav-tabs doc-subtabs" id="appointmentsSubTabs" role="tablist">
+              <!-- Subtab 1: Pending Requests -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="sub-pending-btn" data-bs-toggle="tab" data-bs-target="#sub-pending-pane" type="button" role="tab">
+                  Pending Requests <span class="badge bg-warning text-dark rounded-pill ms-1">{{ pending_count }}</span>
+                </button>
+              </li>
+              <!-- Subtab 2: Today's Appointments -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sub-today-btn" data-bs-toggle="tab" data-bs-target="#sub-today-pane" type="button" role="tab">
+                  Today's Appointments <span class="badge bg-primary text-white rounded-pill ms-1">{{ today_count }}</span>
+                </button>
+              </li>
+              <!-- Subtab 3: Upcoming Appointments -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sub-upcoming-btn" data-bs-toggle="tab" data-bs-target="#sub-upcoming-pane" type="button" role="tab">
+                  Upcoming Appointments <span class="badge bg-info text-dark rounded-pill ms-1">{{ upcoming_count }}</span>
+                </button>
+              </li>
+              <!-- Subtab 4: Admitted -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sub-admitted-btn" data-bs-toggle="tab" data-bs-target="#sub-admitted-pane" type="button" role="tab">
+                  Admitted <span class="badge bg-success text-white rounded-pill ms-1">{{ admitted_count }}</span>
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- Subtabs Content -->
@@ -383,10 +433,10 @@
 
                       <!-- Change Status Dropdown -->
                       <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-primary dropdown-toggle status-select-btn shadow-sm" style="background: #0f2744; border-color: #0f2744;" data-bs-toggle="dropdown" aria-expanded="false">
-                          Change Status
+                        <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                          Status
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
                           <li>
                             <form method="POST">
                               {% csrf_token %}
@@ -394,25 +444,25 @@
                               <input type="hidden" name="action" value="approve">
                               <input type="hidden" name="ref_tab" value="appointments">
                               <input type="hidden" name="ref_subtab" value="pending">
-                              <button type="submit" class="dropdown-item text-success fw-bold">
-                                <i class="fa-solid fa-circle-check me-2"></i> Confirm (Approve)
+                              <button type="submit" class="dropdown-item">
+                                Confirm (Approve)
                               </button>
                             </form>
                           </li>
                           <li>
-                            <button type="button" class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              <i class="fa-solid fa-calendar-days me-2"></i> Reschedule Slot
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
+                              Reschedule Slot
                             </button>
                           </li>
                           <li>
-                            <button type="button" class="dropdown-item text-success" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
-                              <i class="fa-solid fa-check-double me-2"></i> Complete
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
+                              Complete
                             </button>
                           </li>
                           <li><hr class="dropdown-divider"></li>
                           <li>
-                            <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              <i class="fa-solid fa-ban me-2"></i> Cancel Request
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
+                              Cancel Request
                             </button>
                           </li>
                         </ul>
@@ -494,10 +544,10 @@
                         <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
                           Status
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
                           <li>
-                            <button type="button" class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              <i class="fa-solid fa-calendar-days me-2"></i> Reschedule Slot
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
+                              Reschedule Slot
                             </button>
                           </li>
                           <li>
@@ -508,15 +558,15 @@
                               <input type="hidden" name="new_status" value="PENDING_APPROVAL">
                               <input type="hidden" name="ref_tab" value="appointments">
                               <input type="hidden" name="ref_subtab" value="today">
-                              <button type="submit" class="dropdown-item text-warning">
-                                <i class="fa-solid fa-hourglass-half me-2"></i> Set Pending
+                              <button type="submit" class="dropdown-item">
+                                Set Pending
                               </button>
                             </form>
                           </li>
                           <li><hr class="dropdown-divider"></li>
                           <li>
-                            <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              <i class="fa-solid fa-ban me-2"></i> Cancel Appointment
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
+                              Cancel Appointment
                             </button>
                           </li>
                         </ul>
@@ -593,15 +643,15 @@
                         <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
                           Status
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
                           <li>
-                            <button type="button" class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              <i class="fa-solid fa-calendar-days me-2"></i> Reschedule Slot
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
+                              Reschedule Slot
                             </button>
                           </li>
                           <li>
-                            <button type="button" class="dropdown-item text-success" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
-                              <i class="fa-solid fa-check-double me-2"></i> Complete
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
+                              Complete
                             </button>
                           </li>
                           <li>
@@ -612,15 +662,15 @@
                               <input type="hidden" name="new_status" value="PENDING_APPROVAL">
                               <input type="hidden" name="ref_tab" value="appointments">
                               <input type="hidden" name="ref_subtab" value="upcoming">
-                              <button type="submit" class="dropdown-item text-warning">
-                                <i class="fa-solid fa-hourglass-half me-2"></i> Set Pending
+                              <button type="submit" class="dropdown-item">
+                                Set Pending
                               </button>
                             </form>
                           </li>
                           <li><hr class="dropdown-divider"></li>
                           <li>
-                            <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              <i class="fa-solid fa-ban me-2"></i> Cancel Appointment
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
+                              Cancel Appointment
                             </button>
                           </li>
                         </ul>
@@ -702,16 +752,16 @@
                         <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
                           Status
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
                           <li>
-                            <button type="button" class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              <i class="fa-solid fa-calendar-days me-2"></i> Reschedule Slot
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
+                              Reschedule Slot
                             </button>
                           </li>
                           <li><hr class="dropdown-divider"></li>
                           <li>
-                            <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              <i class="fa-solid fa-ban me-2"></i> Cancel
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
+                              Cancel
                             </button>
                           </li>
                         </ul>
@@ -743,27 +793,29 @@
     <div class="tab-pane fade" id="pane-calendar" role="tabpanel">
       <div class="doc-table-card">
         <!-- Calendar Subtabs Header -->
-        <div class="px-4 pt-3 border-bottom bg-white">
-          <ul class="nav nav-tabs doc-subtabs border-0 gap-2 mb-0" id="calendarSubTabs" role="tablist">
-            <!-- Subtab 2.1: Regular Hours -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="sub-hours-btn" data-bs-toggle="tab" data-bs-target="#sub-hours-pane" type="button" role="tab">
-                <i class="fa-solid fa-clock me-1"></i> Regular OPD Working Hours
-              </button>
-            </li>
-            <!-- Subtab 2.2: Add Leaves -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="sub-addleave-btn" data-bs-toggle="tab" data-bs-target="#sub-addleave-pane" type="button" role="tab">
-                <i class="fa-solid fa-calendar-plus me-1"></i> Add Leaves Calendar
-              </button>
-            </li>
-            <!-- Subtab 2.3: Recorded Leaves -->
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="sub-recorded-btn" data-bs-toggle="tab" data-bs-target="#sub-recorded-pane" type="button" role="tab">
-                <i class="fa-solid fa-list-check me-1"></i> Recorded Leaves Table <span class="badge bg-secondary text-white rounded-pill ms-1">{{ leaves|length }}</span>
-              </button>
-            </li>
-          </ul>
+        <div class="px-4 pt-3 pb-3 border-bottom bg-white d-flex">
+          <div class="doc-subtabs-wrap">
+            <ul class="nav nav-tabs doc-subtabs" id="calendarSubTabs" role="tablist">
+              <!-- Subtab 2.1: Regular Hours -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="sub-hours-btn" data-bs-toggle="tab" data-bs-target="#sub-hours-pane" type="button" role="tab">
+                  Regular OPD Working Hours
+                </button>
+              </li>
+              <!-- Subtab 2.2: Add Leaves -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sub-addleave-btn" data-bs-toggle="tab" data-bs-target="#sub-addleave-pane" type="button" role="tab">
+                  Add Leaves Calendar
+                </button>
+              </li>
+              <!-- Subtab 2.3: Recorded Leaves -->
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sub-recorded-btn" data-bs-toggle="tab" data-bs-target="#sub-recorded-pane" type="button" role="tab">
+                  Recorded Leaves Table <span class="badge bg-secondary text-white rounded-pill ms-1">{{ leaves|length }}</span>
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- Calendar Subtabs Content -->
@@ -774,14 +826,9 @@
             <div class="row justify-content-center">
               <div class="col-lg-8">
                 <div class="card border border-light-subtle rounded-4 p-4 shadow-sm bg-white">
-                  <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
-                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary">
-                      <i class="fa-solid fa-business-time fs-4"></i>
-                    </div>
-                    <div>
-                      <h5 class="fw-bold text-dark mb-0">Regular OPD Working Schedule</h5>
-                      <small class="text-muted">Configure your standard clinic timing, consultation slot intervals, and weekly off days.</small>
-                    </div>
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h5 class="fw-bold text-dark mb-1">Regular OPD Working Schedule</h5>
+                    <small class="text-muted">Configure your standard clinic timing, consultation slot intervals, and weekly off days.</small>
                   </div>
 
                   <form method="POST">
@@ -825,7 +872,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4 py-2 shadow-sm" style="background: #0f2744; border-color: #0f2744;">
-                      <i class="fa-solid fa-floppy-disk me-1"></i> Save Working Hours
+                      Save Working Hours
                     </button>
                   </form>
                 </div>
@@ -838,14 +885,9 @@
             <div class="row justify-content-center">
               <div class="col-lg-8">
                 <div class="card border border-light-subtle rounded-4 p-4 shadow-sm bg-white">
-                  <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
-                    <div class="bg-danger bg-opacity-10 p-3 rounded-circle text-danger">
-                      <i class="fa-solid fa-calendar-xmark fs-4"></i>
-                    </div>
-                    <div>
-                      <h5 class="fw-bold text-dark mb-0">Apply & Block Doctor Leaves</h5>
-                      <small class="text-muted">Selected leave dates will be locked so Telecallers cannot book conflicting slots.</small>
-                    </div>
+                  <div class="mb-4 pb-3 border-bottom">
+                    <h5 class="fw-bold text-dark mb-1">Apply & Block Doctor Leaves</h5>
+                    <small class="text-muted">Selected leave dates will be locked so Telecallers cannot book conflicting slots.</small>
                   </div>
 
                   <form method="POST">
@@ -885,7 +927,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-danger fw-bold rounded-pill px-4 py-2 shadow-sm">
-                      <i class="fa-solid fa-lock me-1"></i> Block Leave Dates
+                      Block Leave Dates
                     </button>
                   </form>
                 </div>
@@ -1034,10 +1076,10 @@
                     <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
                       Status
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
                       <li>
-                        <button type="button" class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                          <i class="fa-solid fa-calendar-days me-2"></i> Reschedule Slot
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
+                          Reschedule Slot
                         </button>
                       </li>
                       <li>
@@ -1047,15 +1089,15 @@
                           <input type="hidden" name="action" value="update_status">
                           <input type="hidden" name="new_status" value="APPROVED">
                           <input type="hidden" name="ref_tab" value="completed">
-                          <button type="submit" class="dropdown-item text-success">
-                            <i class="fa-solid fa-circle-check me-2"></i> Reopen (Confirmed)
+                          <button type="submit" class="dropdown-item">
+                            Reopen (Confirmed)
                           </button>
                         </form>
                       </li>
                       <li><hr class="dropdown-divider"></li>
                       <li>
-                        <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                          <i class="fa-solid fa-ban me-2"></i> Mark Cancelled
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
+                          Mark Cancelled
                         </button>
                       </li>
                     </ul>
@@ -1145,10 +1187,10 @@
                     <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
                       Status
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
                       <li>
-                        <button type="button" class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                          <i class="fa-solid fa-calendar-days me-2"></i> Reschedule Slot
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
+                          Reschedule Slot
                         </button>
                       </li>
                       <li>
@@ -1157,8 +1199,8 @@
                           <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
                           <input type="hidden" name="action" value="approve">
                           <input type="hidden" name="ref_tab" value="cancelled">
-                          <button type="submit" class="dropdown-item text-success">
-                            <i class="fa-solid fa-circle-check me-2"></i> Confirm (Approve)
+                          <button type="submit" class="dropdown-item">
+                            Confirm (Approve)
                           </button>
                         </form>
                       </li>
@@ -1234,6 +1276,120 @@
     const container = document.getElementById('doctorMainTabs');
     if (container) {
       container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Dynamic Doctor Slot Loader for Next Appointment Booking in Complete Consultation Modal
+  const currentDoctorName = "{{ user.get_full_name|default:user.username|escapejs }}";
+
+  function fetchNextDocSlots(aptPk) {
+    const dateInput = document.getElementById('nextAptDate' + aptPk);
+    const timeInput = document.getElementById('nextAptTime' + aptPk);
+    const badge = document.getElementById('nextSlotBadge' + aptPk);
+    const container = document.getElementById('nextSlotsContainer' + aptPk);
+    const selectedText = document.getElementById('nextSelectedSlotText' + aptPk);
+
+    if (!dateInput || !container) return;
+    const dateVal = dateInput.value;
+
+    if (!dateVal) {
+      if (badge) {
+        badge.className = 'badge bg-light text-dark border';
+        badge.innerText = 'Select Date';
+      }
+      container.innerHTML = '<span class="text-muted small">Choose date to load doctor OPD slots.</span>';
+      return;
+    }
+
+    if (badge) {
+      badge.className = 'badge bg-info bg-opacity-10 text-primary border';
+      badge.innerText = 'Checking Slots...';
+    }
+
+    fetch(`/leads/api/doctor-slots/?doctor=${encodeURIComponent(currentDoctorName)}&date=${encodeURIComponent(dateVal)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_on_leave) {
+          if (badge) {
+            badge.className = 'badge bg-danger text-white';
+            badge.innerText = `On Leave: ${data.leave_reason || 'Personal Leave'}`;
+          }
+          container.innerHTML = '<span class="text-danger small fw-semibold">Doctor is marked on leave on this date.</span>';
+          return;
+        }
+
+        if (data.is_off) {
+          if (badge) {
+            badge.className = 'badge bg-warning text-dark border';
+            badge.innerText = `Weekly Off (${data.off_day_name || 'Off'})`;
+          }
+          container.innerHTML = `<span class="text-warning text-dark small fw-semibold">Doctor is weekly off on ${data.off_day_name || 'this day'}.</span>`;
+          return;
+        }
+
+        if (data.slots && data.slots.length > 0) {
+          const availCount = data.slots.filter(s => s.status === 'available').length;
+          if (badge) {
+            badge.className = 'badge bg-success bg-opacity-10 text-success border border-success-subtle';
+            badge.innerText = `${availCount} Slots Available`;
+          }
+
+          let html = '';
+          data.slots.forEach(slot => {
+            const isAvail = (slot.status === 'available');
+            const isSel = (timeInput && timeInput.value && timeInput.value.substring(0, 5) === slot.time_24.substring(0, 5));
+            let btnClass = 'btn-outline-secondary opacity-50';
+            if (isAvail) btnClass = isSel ? 'btn-primary text-white' : 'btn-outline-success';
+            else if (slot.status === 'booked') btnClass = 'btn-light text-muted border text-decoration-line-through';
+
+            html += `
+              <button type="button" class="btn btn-xs rounded-pill px-2.5 py-1 ${btnClass} next-slot-btn-${aptPk}" 
+                style="font-size: 0.74rem;" 
+                data-time="${slot.time_24}"
+                onclick="selectNextDocSlot('${aptPk}', '${slot.time_24}', '${slot.time_12}')"
+                ${!isAvail ? 'disabled' : ''}
+                title="${slot.status_text}">
+                ${slot.time_12} ${isSel ? '✓' : ''}
+              </button>
+            `;
+          });
+          container.innerHTML = html;
+        } else {
+          if (badge) {
+            badge.className = 'badge bg-secondary text-white';
+            badge.innerText = 'No OPD Slots';
+          }
+          container.innerHTML = '<span class="text-muted small">No regular OPD slots configured for this date.</span>';
+        }
+      })
+      .catch(err => {
+        if (badge) {
+          badge.className = 'badge bg-light text-dark border';
+          badge.innerText = 'Calendar Ready';
+        }
+      });
+  }
+
+  function selectNextDocSlot(aptPk, time24, time12) {
+    const timeInput = document.getElementById('nextAptTime' + aptPk);
+    const selectedText = document.getElementById('nextSelectedSlotText' + aptPk);
+    if (timeInput) {
+      timeInput.value = time24;
+    }
+    if (selectedText) {
+      selectedText.innerText = `Selected: ${time12}`;
+    }
+    const container = document.getElementById('nextSlotsContainer' + aptPk);
+    if (container) {
+      const btns = container.querySelectorAll(`.next-slot-btn-${aptPk}`);
+      btns.forEach(b => {
+        const bTime = b.getAttribute('data-time');
+        if (bTime && bTime.substring(0, 5) === time24.substring(0, 5)) {
+          b.className = `btn btn-xs rounded-pill px-2.5 py-1 btn-primary text-white next-slot-btn-${aptPk}`;
+        } else if (!b.disabled) {
+          b.className = `btn btn-xs rounded-pill px-2.5 py-1 btn-outline-success next-slot-btn-${aptPk}`;
+        }
+      });
     }
   }
 

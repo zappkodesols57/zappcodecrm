@@ -1,86 +1,148 @@
 {% extends "base.html" %}
-{% block title %}Daily Task Reports Log{% endblock %}
+{% block title %}EOD & Task Reports Log{% endblock %}
 
 {% block extra_head %}
 <style>
   .reports-table {
-    font-size: 0.88rem;
-    border: 1px solid #000000;
+    font-size: 0.86rem;
+    border: 1px solid #cbd5e1;
   }
   .reports-table th {
     background-color: #f8fafc;
-    color: #000000;
+    color: #1e293b;
     font-weight: 600;
-    border-bottom: 1px solid #000000 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
     vertical-align: middle;
+    font-size: 0.76rem;
+    text-transform: uppercase;
   }
   .reports-table td {
     border-bottom: 1px solid #e2e8f0;
     vertical-align: middle;
   }
-  .filter-bar-box {
-    border: 1px solid #000000;
+  .report-tab-pill {
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 0.45rem 1.15rem;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
+    color: #475569;
     background: #ffffff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
   }
-  .filter-bar-box .form-control,
-  .filter-bar-box .form-select {
-    border: 1px solid #000000 !important;
+  .report-tab-pill:hover {
+    color: #0f2744;
+    border-color: #94a3b8;
+    background: #f8fafc;
+  }
+  .report-tab-pill.active {
+    color: #ffffff;
+    background: #0f2744;
+    border-color: #0f2744;
+  }
+  .report-tab-pill.active .badge {
+    background: #ffffff !important;
+    color: #0f2744 !important;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
-    <h4 class="fw-bold text-dark mb-1">Daily Task Reports Log</h4>
-    <p class="text-muted small mb-0">Review end-of-day task reports submitted by employees</p>
+    <h4 class="fw-bold text-dark mb-1">EOD &amp; Task Reports</h4>
+    <p class="text-muted small mb-0">Daily activity summaries and assigned task completion submissions</p>
   </div>
-  <div>
-    <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-file-excel me-1"></i> Export to Excel</a>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-sm btn-brand text-white px-3 shadow-sm rounded-2 d-flex align-items-center" style="height: 36px; font-size: 0.82rem;" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+      Create Task / Reminder
+    </button>
+    <a href="?{{ request.GET.urlencode }}&export=1" class="btn btn-sm btn-light border d-flex align-items-center px-3" style="height: 36px; border-color: #cbd5e1 !important; color: #1e293b; font-size: 0.82rem;">
+      Export Excel
+    </a>
   </div>
 </div>
 
-<form method="get" class="filter-bar-box p-3 mb-4">
-  <div class="row g-2 align-items-center">
-    <div class="col-md-3">
-      <select name="employee" class="form-select form-select-sm">
-        <option value="">All Employees</option>
-        {% for e in employees %}
-          <option value="{{ e.id }}" {% if request_get.employee == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }} ({{ e.get_role_display }})</option>
-        {% endfor %}
-      </select>
+<!-- Tabs Navigation with Clean Borders -->
+<div class="d-flex gap-2 mb-3">
+  <a href="?tab=eod{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'eod' %}active{% endif %}">
+    <span>EOD Reports</span>
+    <span class="badge {% if active_tab == 'eod' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ eod_reports_count }}</span>
+  </a>
+  <a href="?tab=tasks{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'tasks' %}active{% endif %}">
+    <span>Task Reports</span>
+    <span class="badge {% if active_tab == 'tasks' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ task_reports_count }}</span>
+  </a>
+</div>
+
+<!-- Clean Inline Filter Row (No Outer Card Box) -->
+<form method="get" class="row g-2 align-items-center mb-3">
+  <input type="hidden" name="tab" value="{{ active_tab }}">
+  {% if current_hospital %}
+    <input type="hidden" name="business" value="{{ current_hospital.id }}">
+  {% endif %}
+
+  <!-- 1. Role Filter -->
+  <div class="col-lg-2 col-md-3 col-sm-6">
+    <select name="role" id="filterRoleSelect" class="form-select no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;" onchange="filterUserDropdownByRole()">
+      <option value="">All Roles</option>
+      {% for r_val, r_lbl in role_choices %}
+        <option value="{{ r_val }}" {% if selected_role == r_val %}selected{% endif %}>{{ r_lbl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- 2. Role-wise Employee / User Filter -->
+  <div class="col-lg-3 col-md-3 col-sm-6">
+    <select name="employee" id="filterEmployeeSelect" class="form-select no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+      <option value="">All Employees</option>
+      {% for e in employees %}
+        <option value="{{ e.id }}" data-role="{{ e.role }}" {% if selected_employee == e.id|stringformat:'s' %}selected{% endif %}>
+          {{ e.get_full_name|default:e.username }} ({{ e.get_role_display }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- 3. Date From -->
+  <div class="col-lg-2 col-md-3 col-sm-6">
+    <div class="input-group" style="height: 36px;">
+      <span class="input-group-text bg-white text-muted" style="border-right: 0 !important; border-color: #cbd5e1 !important; font-size: 0.8rem;">From</span>
+      <input type="date" name="date_from" id="reportDateFrom" class="form-control" style="height: 36px; border-left: 0 !important; border-color: #cbd5e1 !important; font-size: 0.82rem;" value="{{ request_get.date_from }}">
     </div>
-    <div class="col-md-3">
-      <div class="input-group input-group-sm">
-        <span class="input-group-text bg-light border-dark small">From</span>
-        <input type="date" name="date_from" id="reportDateFrom" class="form-control border-dark" value="{{ request_get.date_from }}">
-      </div>
+  </div>
+
+  <!-- 4. Date To -->
+  <div class="col-lg-2 col-md-3 col-sm-6">
+    <div class="input-group" style="height: 36px;">
+      <span class="input-group-text bg-white text-muted" style="border-right: 0 !important; border-color: #cbd5e1 !important; font-size: 0.8rem;">To</span>
+      <input type="date" name="date_to" id="reportDateTo" class="form-control" style="height: 36px; border-left: 0 !important; border-color: #cbd5e1 !important; font-size: 0.82rem;" value="{{ request_get.date_to }}">
     </div>
-    <div class="col-md-3">
-      <div class="input-group input-group-sm">
-        <span class="input-group-text bg-light border-dark small">To</span>
-        <input type="date" name="date_to" id="reportDateTo" class="form-control border-dark" value="{{ request_get.date_to }}">
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="d-flex gap-2">
-        {% if current_hospital %}
-          <input type="hidden" name="business" value="{{ current_hospital.id }}">
-        {% endif %}
-        <button class="btn btn-sm btn-dark flex-grow-1" type="submit">Filter</button>
-        <a href="{% url 'dashboard:management_daily_reports' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-outline-dark px-3">Reset</a>
-      </div>
-    </div>
+  </div>
+
+  <!-- 5. Action Buttons -->
+  <div class="col-lg-3 col-md-12 col-12 d-flex gap-1">
+    <button class="btn btn-brand text-white flex-fill d-flex align-items-center justify-content-center shadow-sm" style="height: 36px; font-size: 0.82rem;" type="submit">
+      Filter
+    </button>
+    <a href="{% url 'dashboard:management_daily_reports' %}?tab={{ active_tab }}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="btn btn-light border flex-fill d-flex align-items-center justify-content-center" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+      Clear
+    </a>
   </div>
 </form>
 
-<div class="card border-0 shadow-sm rounded-0">
+{% if active_tab == 'eod' %}
+<!-- Tab 1: EOD Reports Table -->
+<div class="card border rounded-2 shadow-none bg-white">
   <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle reports-table">
       <thead>
         <tr>
-          <th class="px-3 py-2">Date & Employee</th>
+          <th class="px-3 py-2">Date &amp; Employee</th>
           <th class="text-center py-2">Assigned</th>
           <th class="text-center py-2">Completed</th>
           <th class="text-center py-2">Pending</th>
@@ -114,30 +176,28 @@
             {{ report.tomorrow_followups }}
           </td>
           <td class="text-center text-nowrap">
-            {% if report.first_login_at %}
-              <span class="small fw-semibold text-success">{{ report.first_login_at|time:"h:i A" }}</span>
-            {% elif report.created_at %}
-              <span class="small fw-semibold text-success">{{ report.created_at|time:"h:i A" }}</span>
+            {% if report.display_login and report.display_login != "—" %}
+              <span class="small fw-semibold text-success">{{ report.display_login }}</span>
             {% else %}
               <span class="text-muted small">—</span>
             {% endif %}
           </td>
           <td class="text-center text-nowrap">
-            {% if report.last_logout_at %}
-              <span class="small fw-semibold text-secondary">{{ report.last_logout_at|time:"h:i A" }}</span>
+            {% if report.display_logout and report.display_logout != "—" %}
+              <span class="small fw-semibold text-secondary">{{ report.display_logout }}</span>
             {% else %}
               <span class="text-muted small">—</span>
             {% endif %}
           </td>
           <td class="text-center">
-            <span class="small text-dark">{{ report.mood_display|default:"—" }}</span>
+            <span class="small text-dark">{{ report.mood|default:"Good" }}</span>
           </td>
         </tr>
         {% empty %}
         <tr>
           <td colspan="9">
             <div class="empty-state text-center py-5 text-muted">
-              <div>No daily reports found matching the selected filters.</div>
+              <div class="fw-semibold">No daily EOD reports found matching the selected filters.</div>
             </div>
           </td>
         </tr>
@@ -147,8 +207,471 @@
   </div>
 </div>
 
+{% else %}
+<!-- Tab 2: Task Reports Table -->
+<div class="card border rounded-2 shadow-none bg-white">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle reports-table">
+      <thead>
+        <tr>
+          <th class="px-3 py-2">Reported Date &amp; Time</th>
+          <th class="py-2">Task Title &amp; Details</th>
+          <th class="py-2">Assigned Employee</th>
+          <th class="py-2">Assigned By</th>
+          <th class="py-2">Linked Patient</th>
+          <th class="py-2">Status</th>
+          <th class="px-3 py-2">Report Summary / Outcome Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tr in task_reports %}
+        <tr>
+          <td class="px-3 text-nowrap">
+            {% if tr.reported_at %}
+              <div class="fw-semibold text-dark">{{ tr.reported_at|date:"d M Y" }}</div>
+              <div class="text-muted small" style="font-size: 0.72rem;">{{ tr.reported_at|time:"h:i A" }}</div>
+            {% elif tr.updated_at %}
+              <div class="fw-semibold text-dark">{{ tr.updated_at|date:"d M Y" }}</div>
+              <div class="text-muted small" style="font-size: 0.72rem;">{{ tr.updated_at|time:"h:i A" }}</div>
+            {% else %}
+              <div class="fw-semibold text-dark">{{ tr.due_date|date:"d M Y" }}</div>
+              <div class="text-muted small" style="font-size: 0.72rem;">—</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">{{ tr.title }}</div>
+            {% if tr.description %}
+              <div class="text-muted small text-truncate" style="max-width: 220px; font-size: 0.76rem;">{{ tr.description }}</div>
+            {% endif %}
+            <div class="text-muted small mt-0.5" style="font-size: 0.7rem;">
+              Due: {{ tr.due_date|date:"d M Y" }}
+            </div>
+          </td>
+          <td>
+            <div class="fw-semibold text-dark">{{ tr.user.get_full_name|default:tr.user.username }}</div>
+            <div class="text-muted small" style="font-size: 0.72rem;">{{ tr.user.get_role_display }}</div>
+          </td>
+          <td>
+            {% if tr.assigned_by %}
+              <div class="fw-semibold text-dark">{{ tr.assigned_by.get_full_name|default:tr.assigned_by.username }}</div>
+              <div class="text-muted small" style="font-size: 0.72rem;">{{ tr.assigned_by.get_role_display }}</div>
+            {% else %}
+              <span class="text-muted small">Admin / Self</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if tr.lead %}
+              <div><a href="{% url 'leads:lead_detail' tr.lead.pk %}" class="fw-semibold text-primary text-decoration-none">{{ tr.lead.name }}</a></div>
+              <div class="badge bg-light text-secondary border mt-0.5" style="font-size: 0.68rem;">#{{ tr.lead.lead_code|default:tr.lead.pk }}</div>
+            {% else %}
+              <span class="text-muted small">General Task</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if tr.status == 'COMPLETED' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem;">Completed</span>
+            {% elif tr.status == 'IN_PROGRESS' %}
+              <span class="badge bg-info-subtle text-primary border border-info-subtle px-2 py-1" style="font-size: 0.72rem;">In Progress</span>
+            {% elif tr.status == 'CANCELLED' %}
+              <span class="badge bg-light text-muted border px-2 py-1" style="font-size: 0.72rem;">Cancelled</span>
+            {% else %}
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style="font-size: 0.72rem;">Pending</span>
+            {% endif %}
+          </td>
+          <td class="px-3">
+            {% if tr.admin_report_notes %}
+              <div class="p-2 rounded-2 bg-light border text-dark" style="font-size: 0.8rem; white-space: pre-line; max-width: 380px;">{{ tr.admin_report_notes }}</div>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            <div class="empty-state text-center py-5 text-muted">
+              <div class="fw-semibold">No task reports submitted yet matching the selected filters.</div>
+              <p class="small text-muted mb-0">Employees can submit task reports from the Tasks &amp; Reminders page.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: Create New Task / Reminder -->
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border">
+            <div class="modal-header py-2 px-3">
+                <h6 class="modal-title fw-bold text-dark mb-0" id="createTaskModalLabel">
+                    {% if user.role == 'LEAD_ATTENDENT' or user.role == 'COUNSELLOR' or user.role == 'DOCTOR' %}
+                        Create Task
+                    {% else %}
+                        Create &amp; Assign Task
+                    {% endif %}
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'dashboard:task_create' %}" id="createTaskForm">
+                {% csrf_token %}
+                <div class="modal-body p-3">
+                    <!-- Task Title -->
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-muted mb-1">Task Title *</label>
+                        <input type="text" name="title" class="form-control form-control-sm" placeholder="Enter task title" required>
+                    </div>
+
+                    <!-- Role & Multiple User Assignment (Dropdowns with Checkboxes) -->
+                    {% if user.role == 'SUPER_ADMIN' or user.role == 'MANAGER' or user.role == 'ADMIN' %}
+                    <div class="row g-2 mb-2">
+                        <!-- 1. Role Dropdown with Checkboxes -->
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Select Role *</label>
+                            <div class="dropdown">
+                                <button class="form-select form-select-sm text-start d-flex justify-content-between align-items-center bg-white" type="button" id="roleDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    <span id="roleDropdownLabel" class="text-truncate">All Roles</span>
+                                </button>
+                                <ul class="dropdown-menu w-100 p-2 shadow-sm border mt-1" aria-labelledby="roleDropdownBtn" style="max-height: 180px; overflow-y: auto;">
+                                    <li class="px-1 pb-1 border-bottom mb-1 d-flex justify-content-between align-items-center">
+                                        <span class="small text-muted fw-semibold" style="font-size: 0.7rem;">Filter Roles</span>
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark fw-semibold" style="font-size: 0.72rem;" onclick="selectAllRoles(true)">All</button>
+                                    </li>
+                                    {% for role_val, role_label in role_choices %}
+                                    <li class="py-1 px-1">
+                                        <div class="form-check m-0">
+                                            <input class="form-check-input role-filter-cb" type="checkbox" id="role_{{ role_val }}" value="{{ role_val }}" onchange="handleRoleFilterChange()">
+                                            <label class="form-check-label small text-dark ms-1 w-100" for="role_{{ role_val }}" style="cursor: pointer;">
+                                                {{ role_label }}
+                                            </label>
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2. Users Dropdown with Checkboxes -->
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-muted mb-1 d-flex justify-content-between align-items-center">
+                                <span>Assign Users *</span>
+                                <span class="small text-muted" id="selectedUsersCount" style="font-size: 0.7rem;">0 Selected</span>
+                            </label>
+                            <div class="dropdown">
+                                <button class="form-select form-select-sm text-start d-flex justify-content-between align-items-center bg-white" type="button" id="userDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    <span id="userDropdownLabel" class="text-truncate">Select User(s)...</span>
+                                </button>
+                                <ul class="dropdown-menu w-100 p-2 shadow-sm border mt-1" aria-labelledby="userDropdownBtn" style="max-height: 180px; overflow-y: auto;" id="userDropdownMenu">
+                                    <li class="px-1 pb-1 border-bottom mb-1 d-flex justify-content-between align-items-center">
+                                        <span class="small text-muted fw-semibold" style="font-size: 0.7rem;">Users</span>
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-dark fw-semibold" style="font-size: 0.72rem;" onclick="selectAllVisibleUsers(true)">All</button>
+                                            <span class="text-muted" style="font-size: 0.72rem;">|</span>
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted fw-semibold" style="font-size: 0.72rem;" onclick="selectAllVisibleUsers(false)">None</button>
+                                        </div>
+                                    </li>
+                                    {% for u in assignable_users %}
+                                    <li class="user-item-row py-1 px-1" data-role="{{ u.role }}">
+                                        <div class="form-check m-0">
+                                            <input class="form-check-input user-assign-cb" type="checkbox" name="assigned_users" value="{{ u.id }}" id="user_{{ u.id }}" onchange="updateSelectedCount()">
+                                            <label class="form-check-label small text-dark ms-1" for="user_{{ u.id }}" style="cursor: pointer;">
+                                                {{ u.get_full_name|default:u.username }}
+                                            </label>
+                                        </div>
+                                    </li>
+                                    {% empty %}
+                                    <li class="text-muted small text-center py-1">No users found.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Description / Action Notes -->
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-muted mb-1">Description / Notes</label>
+                        <textarea name="description" rows="2" class="form-control form-control-sm" placeholder="Enter task details..."></textarea>
+                    </div>
+
+                    <!-- Timeline Options -->
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-muted mb-1 d-block">Timeline *</label>
+                        <div class="d-flex gap-3 py-1">
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="timeline_option" id="timeline_today" value="today_eod" checked onchange="toggleTimelineInput()">
+                                <label class="form-check-label small text-dark" for="timeline_today" style="cursor: pointer;">Today EOD</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="timeline_option" id="timeline_tomorrow" value="tomorrow_eod" onchange="toggleTimelineInput()">
+                                <label class="form-check-label small text-dark" for="timeline_tomorrow" style="cursor: pointer;">Tomorrow EOD</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="timeline_option" id="timeline_custom" value="custom" onchange="toggleTimelineInput()">
+                                <label class="form-check-label small text-dark" for="timeline_custom" style="cursor: pointer;">Custom Date/Time</label>
+                            </div>
+                        </div>
+
+                        <!-- Custom Date & Time Picker -->
+                        <div id="customTimelineFields" class="row g-2 mt-1 p-2 border bg-light d-none">
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-0" style="font-size: 0.75rem;">Due Date</label>
+                                <input type="date" name="custom_due_date" id="customDueDate" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-0" style="font-size: 0.75rem;">Due Time</label>
+                                <input type="time" name="custom_due_time" id="customDueTime" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Priority Selector -->
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-muted mb-1 d-block">Priority Level *</label>
+                        <div class="d-flex gap-3 py-1">
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="priority" id="prio_low" value="LOW">
+                                <label class="form-check-label small text-dark" for="prio_low" style="cursor: pointer;">Low</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="priority" id="prio_medium" value="MEDIUM" checked>
+                                <label class="form-check-label small text-dark" for="prio_medium" style="cursor: pointer;">Medium</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="priority" id="prio_high" value="HIGH">
+                                <label class="form-check-label small text-dark" for="prio_high" style="cursor: pointer;">High</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="radio" name="priority" id="prio_urgent" value="URGENT">
+                                <label class="form-check-label small text-dark" for="prio_urgent" style="cursor: pointer;">Urgent</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Link to Patient / Lead -->
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-muted mb-1 d-block">Link to Lead / Patient (Optional)</label>
+                        <select name="lead_id" id="task_lead_select" class="form-select form-select-sm bg-white" style="border: 1px solid #cbd5e1 !important;">
+                            <option value="">-- None (General Task) --</option>
+                            {% for lead in user_leads %}
+                                <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.mobile }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Sync Followup Checkbox -->
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="sync_to_followup" id="syncFollowup" checked>
+                        <label class="form-check-label small text-dark" for="syncFollowup" style="cursor: pointer;">
+                            Sync as next follow-up on linked lead
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer py-2 px-3 border-top">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-brand text-white px-3 shadow-sm">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+function initCustomDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const currentTimeStr = `${hours}:${minutes}`;
+
+    const customDateInput = document.getElementById('customDueDate');
+    const customTimeInput = document.getElementById('customDueTime');
+
+    if (customDateInput) {
+        customDateInput.min = todayStr;
+        if (!customDateInput.value) {
+            customDateInput.value = todayStr;
+        }
+
+        customDateInput.addEventListener('change', function() {
+            if (customTimeInput) {
+                if (this.value === todayStr) {
+                    customTimeInput.min = currentTimeStr;
+                    if (customTimeInput.value && customTimeInput.value < currentTimeStr) {
+                        customTimeInput.value = currentTimeStr;
+                    }
+                } else {
+                    customTimeInput.removeAttribute('min');
+                }
+            }
+        });
+    }
+
+    if (customTimeInput) {
+        customTimeInput.min = currentTimeStr;
+        if (!customTimeInput.value) {
+            customTimeInput.value = currentTimeStr;
+        }
+    }
+}
+
+function resetCreateTaskForm() {
+    const form = document.getElementById('createTaskForm');
+    if (form) {
+        form.reset();
+    }
+    const customFields = document.getElementById('customTimelineFields');
+    if (customFields) {
+        customFields.classList.add('d-none');
+    }
+    const todayRadio = document.getElementById('timeline_today');
+    if (todayRadio) {
+        todayRadio.checked = true;
+    }
+    const medRadio = document.getElementById('prio_medium');
+    if (medRadio) {
+        medRadio.checked = true;
+    }
+    document.querySelectorAll('.role-filter-cb').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.user-assign-cb').forEach(cb => cb.checked = false);
+    handleRoleFilterChange();
+    initCustomDateTime();
+}
+
+function toggleTimelineInput() {
+    const isCustom = document.getElementById('timeline_custom').checked;
+    const customFields = document.getElementById('customTimelineFields');
+    if (isCustom) {
+        customFields.classList.remove('d-none');
+        initCustomDateTime();
+    } else {
+        customFields.classList.add('d-none');
+    }
+}
+
+function selectAllRoles(check) {
+    document.querySelectorAll('.role-filter-cb').forEach(cb => cb.checked = check);
+    handleRoleFilterChange();
+}
+
+function handleRoleFilterChange() {
+    const checkedRoleCbs = Array.from(document.querySelectorAll('.role-filter-cb:checked'));
+    const selectedRoles = checkedRoleCbs.map(cb => cb.value);
+    const userRows = document.querySelectorAll('.user-item-row');
+    const roleLabel = document.getElementById('roleDropdownLabel');
+
+    if (roleLabel) {
+        if (selectedRoles.length === 0) {
+            roleLabel.innerText = 'All Roles';
+        } else if (selectedRoles.length === 1) {
+            const labelText = checkedRoleCbs[0].nextElementSibling.innerText.trim();
+            roleLabel.innerText = labelText;
+        } else {
+            roleLabel.innerText = `${selectedRoles.length} Roles Selected`;
+        }
+    }
+
+    userRows.forEach(row => {
+        const userRole = row.getAttribute('data-role');
+        const userCb = row.querySelector('.user-assign-cb');
+        
+        if (selectedRoles.length === 0) {
+            row.style.display = 'block';
+        } else if (selectedRoles.includes(userRole)) {
+            row.style.display = 'block';
+        } else {
+            row.style.display = 'none';
+            if (userCb) userCb.checked = false;
+        }
+    });
+
+    updateSelectedCount();
+}
+
+function selectAllVisibleUsers(check) {
+    const userRows = document.querySelectorAll('.user-item-row');
+    userRows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const userCb = row.querySelector('.user-assign-cb');
+            if (userCb) userCb.checked = check;
+        }
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const checkedUsers = document.querySelectorAll('.user-assign-cb:checked');
+    const countBadge = document.getElementById('selectedUsersCount');
+    const userDropdownLabel = document.getElementById('userDropdownLabel');
+
+    if (countBadge) {
+        countBadge.innerText = checkedUsers.length + ' Selected';
+    }
+
+    if (userDropdownLabel) {
+        if (checkedUsers.length === 0) {
+            userDropdownLabel.innerText = 'Select User(s)...';
+        } else if (checkedUsers.length === 1) {
+            const name = checkedUsers[0].nextElementSibling.innerText.trim();
+            userDropdownLabel.innerText = name;
+        } else {
+            userDropdownLabel.innerText = `${checkedUsers.length} Users Selected`;
+        }
+    }
+}
+
+function filterUserDropdownByRole() {
+    const roleSelect = document.getElementById('filterRoleSelect');
+    const empSelect = document.getElementById('filterEmployeeSelect');
+    if (!roleSelect || !empSelect) return;
+    
+    const selectedRole = roleSelect.value;
+    const options = empSelect.querySelectorAll('option');
+    let hasSelected = false;
+
+    options.forEach(opt => {
+        if (!opt.value) {
+            opt.style.display = 'block';
+            return;
+        }
+        const optRole = opt.getAttribute('data-role');
+        if (!selectedRole || optRole === selectedRole) {
+            opt.style.display = 'block';
+            opt.disabled = false;
+        } else {
+            opt.style.display = 'none';
+            opt.disabled = true;
+            if (opt.selected) {
+                opt.selected = false;
+                hasSelected = true;
+            }
+        }
+    });
+
+    if (hasSelected) {
+        empSelect.value = '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  initCustomDateTime();
+  handleRoleFilterChange();
+  filterUserDropdownByRole();
+
+  const taskModalEl = document.getElementById('createTaskModal');
+  if (taskModalEl) {
+      taskModalEl.addEventListener('hidden.bs.modal', function () {
+          resetCreateTaskForm();
+      });
+  }
+
   const dateFrom = document.getElementById('reportDateFrom');
   const dateTo = document.getElementById('reportDateTo');
   const todayStr = new Date().toISOString().split('T')[0];

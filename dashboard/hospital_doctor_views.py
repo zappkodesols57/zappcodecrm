@@ -127,14 +127,21 @@ def doctor_home(request):
 
             lead.save(update_fields=['custom_data', 'next_followup_date', 'deal_status', 'temperature', 'stage'])
 
-            # Create lead note / activity record for timeline
+            # Create lead note & activity record for timeline
             try:
-                from leads.models import LeadNote
+                from followups.models import Note, Activity, ActivityType
                 doc_disp = doctor.get_full_name() or doctor.username
-                LeadNote.objects.create(
+                cancel_desc = f"Appointment Cancelled by Dr. {doc_disp} for {date_str} ({time_str}). Reason / Remarks: {reason}"
+                Note.objects.create(
                     lead=lead,
                     created_by=doctor,
-                    note=f"Doctor Cancellation: Dr. {doc_disp} rejected/cancelled appointment for {date_str} ({time_str}). Reason: {reason}"
+                    note=cancel_desc
+                )
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=doctor,
+                    activity_type=ActivityType.NOTE,
+                    description=cancel_desc
                 )
             except Exception:
                 pass
@@ -154,6 +161,9 @@ def doctor_home(request):
             new_time_str = request.POST.get('new_time', '').strip()
             remark = request.POST.get('doctor_remark', '').strip() or request.POST.get('doctor_notes', '').strip() or 'Rescheduled by doctor.'
             
+            prev_date = apt.appointment_date
+            prev_time = apt.appointment_time
+            
             if new_date_str:
                 new_date_obj = datetime.strptime(new_date_str, "%Y-%m-%d").date()
                 
@@ -172,9 +182,12 @@ def doctor_home(request):
             if new_time_str:
                 apt.appointment_time = new_time_str
             
+            apt.is_rescheduled = True
+            apt.rescheduled_from_date = prev_date
+            apt.rescheduled_from_time = prev_time
             apt.status = AppointmentStatus.APPROVED
             apt.doctor_notes = remark
-            apt.save(update_fields=['appointment_date', 'appointment_time', 'status', 'doctor_notes'])
+            apt.save(update_fields=['appointment_date', 'appointment_time', 'status', 'doctor_notes', 'is_rescheduled', 'rescheduled_from_date', 'rescheduled_from_time'])
             
             cd = lead.custom_data or {}
             if new_date_str:
@@ -186,14 +199,35 @@ def doctor_home(request):
             lead.custom_data = cd
             lead.next_followup_date = timezone.localdate()
             lead.save(update_fields=['custom_data', 'next_followup_date'])
+
+            # Log to Lead Activity Timeline
+            from followups.models import Activity, ActivityType
+            doc_name_title = f"Dr. {doctor.get_full_name() or doctor.username}"
+            time_display = apt.appointment_time.strftime('%I:%M %p') if hasattr(apt.appointment_time, 'strftime') and apt.appointment_time else str(apt.appointment_time or '')
+            date_display = apt.appointment_date.strftime('%d %b %Y') if apt.appointment_date else ''
+            prev_time_disp = prev_time.strftime('%I:%M %p') if hasattr(prev_time, 'strftime') and prev_time else str(prev_time or '')
+            prev_date_disp = prev_date.strftime('%d %b %Y') if prev_date else ''
+
+            if prev_date:
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=request.user,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Appointment Rescheduled by {doc_name_title} from {prev_date_disp} ({prev_time_disp}) to {date_display} at {time_display}. Reason/Remark: {remark}"
+                )
+            else:
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=request.user,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Appointment Slot Changed by {doc_name_title} to {date_display} at {time_display}. Remark: {remark}"
+                )
             
             if lead.assigned_to:
-                time_display = apt.appointment_time.strftime('%I:%M %p') if hasattr(apt.appointment_time, 'strftime') else str(apt.appointment_time)
-                date_display = apt.appointment_date.strftime('%d %b %Y')
                 Notification.objects.create(
                     user=lead.assigned_to,
                     title="Doctor Rescheduled Appointment Slot",
-                    message=f"Dr. {doctor.get_full_name() or doctor.username} rescheduled slot for {lead.name}: {date_display} at {time_display}. Remark: '{remark}'.",
+                    message=f"{doc_name_title} rescheduled slot for {lead.name}: {date_display} at {time_display}. Remark: '{remark}'.",
                     link=f"/leads/{lead.pk}/",
                 )
             
@@ -227,7 +261,15 @@ def doctor_home(request):
             lead.custom_data = cd
             lead.save(update_fields=['custom_data'])
             
-            if lead.assigned_to:
+            if new_status == "COMPLETED":
+                if lead.assigned_to:
+                    Notification.objects.create(
+                        user=lead.assigned_to,
+                        title=f"Appointment Completed - Payment Pending: {lead.name}",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} completed consultation for patient {lead.name}. Payment is pending, please complete billing/payment.",
+                        link=f"/leads/{lead.pk}/edit/",
+                    )
+            elif lead.assigned_to:
                 Notification.objects.create(
                     user=lead.assigned_to,
                     title=f"Appointment Status Updated: {apt.get_status_display()}",
@@ -296,10 +338,26 @@ def doctor_home(request):
                 cd['appo_booked_date'] = next_date_str
                 if next_time_str:
                     cd['appointment_time'] = next_time_str
-                cd['appointment_status'] = 'Doctor Scheduled Next Appointment (Pending Patient Confirmation)'
+                cd['appointment_status'] = 'Follow up Appointment'
                 cd['doctor_reschedule_remark'] = next_notes
                 lead.custom_data = cd
-                lead.save(update_fields=['next_followup_date', 'custom_data'])
+
+                # If new follow-up appointment is scheduled, update lead stage to 'Appointment Confirmed' / 'Booking Confirmed'
+                confirmed_stage = None
+                if doctor.hospital:
+                    confirmed_stage = LeadStage.objects.filter(hospital=doctor.hospital, is_active=True, name__iexact='Appointment Confirmed').first() or \
+                                      LeadStage.objects.filter(hospital=doctor.hospital, is_active=True, name__iexact='Booking Confirmed').first() or \
+                                      LeadStage.objects.filter(hospital=doctor.hospital, is_active=True, name__iexact='Appointment - Confirmed').first()
+                if not confirmed_stage:
+                    confirmed_stage = LeadStage.objects.filter(is_active=True, name__iexact='Appointment Confirmed').first() or \
+                                      LeadStage.objects.filter(is_active=True, name__iexact='Booking Confirmed').first() or \
+                                      LeadStage.objects.filter(is_active=True, name__iexact='Appointment - Confirmed').first()
+                
+                if confirmed_stage:
+                    lead.stage = confirmed_stage
+                    lead.save(update_fields=['next_followup_date', 'custom_data', 'stage'])
+                else:
+                    lead.save(update_fields=['next_followup_date', 'custom_data'])
 
                 FollowUp.objects.create(
                     lead=lead,
@@ -323,8 +381,8 @@ def doctor_home(request):
                 if lead.assigned_to:
                     Notification.objects.create(
                         user=lead.assigned_to,
-                        title="Appointment Completed - Enter Billing Details",
-                        message=f"Dr. {doctor.get_full_name() or doctor.username} completed the appointment for patient {lead.name}. Remarks: '{doctor_notes or 'Completed'}'.",
+                        title=f"Appointment Completed - Payment Pending: {lead.name}",
+                        message=f"Dr. {doctor.get_full_name() or doctor.username} completed the appointment for patient {lead.name}. Payment is pending, please complete billing/payment.",
                         link=f"/leads/{lead.pk}/edit/",
                     )
                 messages.success(request, f"Appointment for {lead.name} marked completed.")
@@ -558,15 +616,21 @@ def doctor_appointments(request):
             new_time_str = request.POST.get('new_time', '').strip()
             remark = request.POST.get('doctor_remark', '').strip() or request.POST.get('doctor_notes', '').strip() or 'Doctor requested to reschedule to this new slot.'
             
+            prev_date = apt.appointment_date
+            prev_time = apt.appointment_time
+
             if new_date_str:
                 from datetime import datetime
                 apt.appointment_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
             if new_time_str:
                 apt.appointment_time = new_time_str
             
+            apt.is_rescheduled = True
+            apt.rescheduled_from_date = prev_date
+            apt.rescheduled_from_time = prev_time
             apt.status = AppointmentStatus.SCHEDULED
             apt.doctor_notes = remark
-            apt.save(update_fields=['appointment_date', 'appointment_time', 'status', 'doctor_notes'])
+            apt.save(update_fields=['appointment_date', 'appointment_time', 'status', 'doctor_notes', 'is_rescheduled', 'rescheduled_from_date', 'rescheduled_from_time'])
             
             cd = lead.custom_data or {}
             if new_date_str:
@@ -578,14 +642,35 @@ def doctor_appointments(request):
             lead.custom_data = cd
             lead.next_followup_date = timezone.localdate()
             lead.save(update_fields=['custom_data', 'next_followup_date'])
+
+            # Log to Lead Activity Timeline
+            from followups.models import Activity, ActivityType
+            doc_name_title = f"Dr. {doctor.get_full_name() or doctor.username}"
+            time_display = apt.appointment_time.strftime('%I:%M %p') if hasattr(apt.appointment_time, 'strftime') and apt.appointment_time else str(apt.appointment_time or '')
+            date_display = apt.appointment_date.strftime('%d %b %Y') if apt.appointment_date else ''
+            prev_time_disp = prev_time.strftime('%I:%M %p') if hasattr(prev_time, 'strftime') and prev_time else str(prev_time or '')
+            prev_date_disp = prev_date.strftime('%d %b %Y') if prev_date else ''
+
+            if prev_date:
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=request.user,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Appointment Rescheduled by {doc_name_title} from {prev_date_disp} ({prev_time_disp}) to {date_display} at {time_display}. Reason/Remark: {remark}"
+                )
+            else:
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=request.user,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Appointment Slot Changed by {doc_name_title} to {date_display} at {time_display}. Remark: {remark}"
+                )
             
             if lead.assigned_to:
-                time_display = apt.appointment_time.strftime('%I:%M %p') if hasattr(apt.appointment_time, 'strftime') else str(apt.appointment_time)
-                date_display = apt.appointment_date.strftime('%d %b %Y')
                 Notification.objects.create(
                     user=lead.assigned_to,
                     title="Doctor Changed Slot - Please Confirm by Patient",
-                    message=f"Dr. {doctor.get_full_name() or doctor.username} assigned a new slot for {lead.name}: {date_display} at {time_display}. Remark: '{remark}'. Please call patient to confirm.",
+                    message=f"{doc_name_title} assigned a new slot for {lead.name}: {date_display} at {time_display}. Remark: '{remark}'. Please call patient to confirm.",
                     link=f"/leads/{lead.pk}/",
                 )
             messages.success(request, f"Appointment slot updated for {lead.name}. Telecaller notified.")
@@ -993,12 +1078,18 @@ def doctor_patient_review(request, lead_id):
             new_time = new_time_str if new_time_str else (appointment.appointment_time if appointment else None)
             reschedule_note = doctor_remark or doctor_notes or "Doctor rescheduled appointment slot."
 
+            prev_date = appointment.appointment_date if appointment else None
+            prev_time = appointment.appointment_time if appointment else None
+
             if appointment:
                 appointment.appointment_date = new_date
                 appointment.appointment_time = new_time
+                appointment.is_rescheduled = True
+                appointment.rescheduled_from_date = prev_date
+                appointment.rescheduled_from_time = prev_time
                 appointment.status = AppointmentStatus.SCHEDULED
                 appointment.doctor_notes = reschedule_note
-                appointment.save(update_fields=["appointment_date", "appointment_time", "status", "doctor_notes"])
+                appointment.save(update_fields=["appointment_date", "appointment_time", "status", "doctor_notes", "is_rescheduled", "rescheduled_from_date", "rescheduled_from_time"])
             else:
                 appointment = Appointment.objects.create(
                     lead=lead,
@@ -1009,6 +1100,9 @@ def doctor_patient_review(request, lead_id):
                     appointment_time=new_time,
                     status=AppointmentStatus.SCHEDULED,
                     doctor_notes=reschedule_note,
+                    is_rescheduled=True,
+                    rescheduled_from_date=prev_date,
+                    rescheduled_from_time=prev_time,
                 )
 
             cd = lead.custom_data or {}
@@ -1021,12 +1115,34 @@ def doctor_patient_review(request, lead_id):
             lead.next_followup_date = timezone.localdate()
             lead.save(update_fields=["custom_data", "next_followup_date"])
 
+            # Add activity timeline log
+            from followups.models import Activity, ActivityType
+            doc_name_title = f"Dr. {doctor.get_full_name() or doctor.username}"
+            time_disp = appointment.appointment_time.strftime("%I:%M %p") if hasattr(appointment.appointment_time, "strftime") and appointment.appointment_time else str(appointment.appointment_time or "Slot Not Set")
+            date_disp = new_date.strftime("%d %b %Y")
+            prev_time_disp = prev_time.strftime("%I:%M %p") if hasattr(prev_time, "strftime") and prev_time else str(prev_time or "")
+            prev_date_disp = prev_date.strftime("%d %b %Y") if prev_date else ""
+
+            if prev_date:
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=request.user,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Appointment Rescheduled by {doc_name_title} from {prev_date_disp} ({prev_time_disp}) to {date_disp} at {time_disp}. Reason/Remark: {reschedule_note}"
+                )
+            else:
+                Activity.objects.create(
+                    lead=lead,
+                    created_by=request.user,
+                    activity_type=ActivityType.NOTE,
+                    description=f"Appointment Slot Changed by {doc_name_title} to {date_disp} at {time_disp}. Remark: {reschedule_note}"
+                )
+
             if lead.assigned_to:
-                time_disp = appointment.appointment_time.strftime("%I:%M %p") if hasattr(appointment.appointment_time, "strftime") else str(appointment.appointment_time or "Slot Not Set")
                 Notification.objects.create(
                     user=lead.assigned_to,
                     title="Doctor Changed Slot - Please Confirm with Patient",
-                    message=f"Dr. {doctor.get_full_name() or doctor.username} updated slot for {lead.name}: {new_date.strftime('%d %b %Y')} at {time_disp}. Remark: '{reschedule_note}'. Please call patient to confirm.",
+                    message=f"{doc_name_title} updated slot for {lead.name}: {date_disp} at {time_disp}. Remark: '{reschedule_note}'. Please call patient to confirm.",
                     link=f"/leads/{lead.pk}/",
                 )
             messages.success(request, f"Appointment slot changed and confirmed for {lead.name}! Telecaller notified.")

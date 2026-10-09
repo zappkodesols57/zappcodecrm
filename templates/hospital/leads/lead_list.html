@@ -11,19 +11,19 @@
   .campaign-cards-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
   }
 
   .campaign-card-item {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     background: #ffffff;
     border: 1px solid #E2E8F0;
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-size: 0.82rem;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.74rem;
     font-weight: 500;
     color: #1e293b;
     text-decoration: none;
@@ -46,7 +46,7 @@
   }
 
   .campaign-card-badge {
-    font-size: 0.78rem;
+    font-size: 0.70rem;
     font-weight: 600;
     color: #64748B;
     margin-left: 2px;
@@ -81,21 +81,24 @@
     border: 1px solid #CBD5E1 !important;
     background-color: #ffffff !important;
     border-radius: 6px !important;
-    font-size: 0.80rem !important;
+    font-size: 0.76rem !important;
     color: #1e293b !important;
     height: 32px !important;
     min-height: 32px !important;
-    padding: 0.25rem 0.75rem !important;
+    padding: 0.25rem 0.65rem !important;
     box-shadow: none !important;
   }
 
   .report-filter-bar .form-select {
-    padding-right: 1.75rem !important;
+    padding-right: 1.6rem !important;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
     background-repeat: no-repeat !important;
-    background-position: right 0.65rem center !important;
-    background-size: 10px 8px !important;
+    background-position: right 0.55rem center !important;
+    background-size: 9px 7px !important;
     cursor: pointer !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .report-filter-bar .form-control:focus,
@@ -104,25 +107,38 @@
     outline: none !important;
   }
 
+  .filter-item-search {
+    flex: 1 1 160px;
+    min-width: 130px;
+    max-width: 220px;
+  }
+
+  .filter-item-dropdown {
+    flex: 1 1 130px;
+    min-width: 120px;
+    max-width: 175px;
+  }
+
   /* Date Range Container Rectangular (From dd-mm-yyyy -> To dd-mm-yyyy) */
   .date-range-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     border: 1px solid #CBD5E1 !important;
     border-radius: 6px !important;
     background: #ffffff !important;
     height: 32px;
-    padding: 0.2rem 0.65rem;
+    padding: 0.2rem 0.55rem;
+    flex-shrink: 0;
   }
 
   .date-range-pill input[type="date"] {
     border: none !important;
     background: transparent !important;
-    font-size: 0.76rem !important;
+    font-size: 0.74rem !important;
     color: #1e293b !important;
     padding: 0 !important;
-    width: 95px !important;
+    width: 90px !important;
     outline: none !important;
   }
 
@@ -134,8 +150,8 @@
     font-weight: 600 !important;
     border-radius: 6px !important;
     height: 32px !important;
-    padding: 0.25rem 1rem !important;
-    font-size: 0.80rem !important;
+    padding: 0.25rem 0.85rem !important;
+    font-size: 0.78rem !important;
   }
 
   .btn-filter-apply:hover {
@@ -151,7 +167,7 @@
     border-radius: 6px !important;
     height: 32px !important;
     padding: 0.25rem 0.85rem !important;
-    font-size: 0.80rem !important;
+    font-size: 0.78rem !important;
     text-decoration: none !important;
   }
 
@@ -308,7 +324,7 @@
 <!-- 2. UNIFIED MAIN CARD: HEADING + INLINE FILTERS + TABLE (Exact Image 3 Layout) -->
 <div class="report-table-card mb-4">
   
-  <!-- Card Header Row: Title on Left, Export & Actions on Right -->
+  <!-- Card Header Row: Title on Left, Actions (Bulk Assign, Export, Sort) on Right -->
   <div class="report-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
       <h5 class="fw-bold mb-0 text-dark" style="color: #0f172a !important; font-size: 1.05rem; letter-spacing: -0.2px;">
@@ -319,13 +335,12 @@
 
     <div class="d-flex align-items-center gap-2 flex-wrap">
       {% if request.user.can_self_assign and request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' and request.user.role != 'DOCTOR' %}
-      <!-- Bulk Self-Assign Button with Count Badge -->
-      <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 fw-semibold px-3 rounded-pill"
+      <!-- Bulk Self-Assign Button without icon (Matching exact rectangular button shape) -->
+      <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 fw-semibold px-3"
         id="bulkSelfAssignBtn"
         onclick="submitBulkSelfAssign()"
         title="Bulk assign selected leads to yourself (Max limit: {{ request.user.bulk_self_assign_limit }})"
-        style="height: 32px; font-size: 0.80rem;">
-        <i class="fa-solid fa-user-check"></i>
+        style="height: 32px; font-size: 0.80rem; border-radius: 6px !important;">
         <span>Bulk Assign to Me</span>
         <span class="badge bg-success rounded-pill px-2 py-0.5" id="bulkSelfAssignBadge" style="font-size: 0.68rem;">
           <span id="selectedLeadCount">0</span> / {{ request.user.bulk_self_assign_limit }}
@@ -333,7 +348,7 @@
       </button>
       {% endif %}
 
-      <!-- Export Button with Clean Dropdown (No icons in button) -->
+      <!-- Export Button with Clean Dropdown -->
       <div class="dropdown">
         <button class="btn btn-header-export dropdown-toggle shadow-none" type="button" id="inlineExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
           Export
@@ -352,24 +367,38 @@
           </li>
         </ul>
       </div>
+
+      <!-- Sort Dropdown (Moved next to Bulk Assign and Export) -->
+      <div class="dropdown">
+        <button class="btn btn-header-export dropdown-toggle shadow-none" type="button" id="inlineSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
+          Sort
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="inlineSortDropdown" style="font-size: 0.82rem; min-width: 190px;">
+          <li><button type="button" class="dropdown-item py-1.5 {% if not current_sort or current_sort == '-created_at' %}active fw-bold{% endif %}" onclick="applyLeadsSort('-created_at')">Newest First</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'created_at' %}active fw-bold{% endif %}" onclick="applyLeadsSort('created_at')">Oldest First</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'name_asc' %}active fw-bold{% endif %}" onclick="applyLeadsSort('name_asc')">Patient Name (A → Z)</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'name_desc' %}active fw-bold{% endif %}" onclick="applyLeadsSort('name_desc')">Patient Name (Z → A)</button></li>
+          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == '-inquiry_date' %}active fw-bold{% endif %}" onclick="applyLeadsSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
+        </ul>
+      </div>
     </div>
   </div>
 
   <!-- Inline Filter Ribbon (Inside the Card directly above table) -->
   <div class="report-filter-bar">
-    <form method="GET" action="{% url 'leads:lead_list' %}" id="leadsInteractiveFilterForm" class="d-flex flex-wrap align-items-center gap-1.5">
+    <form method="GET" action="{% url 'leads:lead_list' %}" id="leadsInteractiveFilterForm" class="d-flex flex-wrap align-items-center gap-2">
       {% if selected_hospital_id %}
       <input type="hidden" name="business" value="{{ selected_hospital_id }}">
       {% endif %}
       <input type="hidden" name="sort" id="formSortInput" value="{{ current_sort|default:'-created_at' }}">
 
       <!-- 1. Search Bar (Patient Name, Mobile) -->
-      <div style="min-width: 170px; flex: 1 1 170px;">
+      <div class="filter-item-search">
         <input type="text" name="q" class="form-control" placeholder="Patient Name, Mobile..." value="{{ q }}">
       </div>
 
       <!-- 2. Stages Dropdown -->
-      <div style="min-width: 120px; flex: 1 1 120px;">
+      <div class="filter-item-dropdown">
         <select name="stage" class="form-select">
           <option value="">Select Stage</option>
           {% for stg in stages %}
@@ -379,7 +408,7 @@
       </div>
 
       <!-- 3. Status Dropdown -->
-      <div style="min-width: 120px; flex: 1 1 120px;">
+      <div class="filter-item-dropdown">
         <select name="deal_status" class="form-select">
           <option value="">Select Status</option>
           {% for code, label in deal_status_choices %}
@@ -393,7 +422,7 @@
       </div>
 
       <!-- 4. Telecaller Dropdown -->
-      <div style="min-width: 125px; flex: 1 1 125px;">
+      <div class="filter-item-dropdown">
         <select name="assigned_to" class="form-select">
           <option value="">Select Telecaller</option>
           <option value="unassigned" {% if 'unassigned' in selected_assigned %}selected{% endif %}>Unassigned</option>
@@ -406,7 +435,7 @@
       </div>
 
       <!-- 5. Campaign Dropdown -->
-      <div style="min-width: 125px; flex: 1 1 125px;">
+      <div class="filter-item-dropdown">
         <select name="campaign" class="form-select">
           <option value="">Select Campaign</option>
           {% for camp in campaigns %}
@@ -426,28 +455,14 @@
         <input type="date" name="date_to" id="filterToDateInput" value="{{ date_to_val }}" placeholder="dd-mm-yyyy">
       </div>
 
-      <!-- 7. Action Buttons (Apply & Reset) -->
-      <div class="d-inline-flex align-items-center gap-1">
+      <!-- 7. Action Buttons (Apply & Reset with equal gap spacing) -->
+      <div class="d-inline-flex align-items-center gap-2 flex-nowrap">
         <button type="submit" class="btn btn-filter-apply shadow-none">
           Apply
         </button>
         <a href="{% url 'leads:lead_list' %}" class="btn btn-filter-reset shadow-none" title="Reset all filters">
           Reset
         </a>
-      </div>
-
-      <!-- 8. Sort Dropdown (No icon, clean text) -->
-      <div class="dropdown ms-auto">
-        <button class="btn btn-header-export dropdown-toggle shadow-none" type="button" id="inlineSortDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Sort List">
-          Sort
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="inlineSortDropdown" style="font-size: 0.82rem; min-width: 190px;">
-          <li><button type="button" class="dropdown-item py-1.5 {% if not current_sort or current_sort == '-created_at' %}active fw-bold{% endif %}" onclick="applyLeadsSort('-created_at')">Newest First</button></li>
-          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'created_at' %}active fw-bold{% endif %}" onclick="applyLeadsSort('created_at')">Oldest First</button></li>
-          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'name_asc' %}active fw-bold{% endif %}" onclick="applyLeadsSort('name_asc')">Patient Name (A → Z)</button></li>
-          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == 'name_desc' %}active fw-bold{% endif %}" onclick="applyLeadsSort('name_desc')">Patient Name (Z → A)</button></li>
-          <li><button type="button" class="dropdown-item py-1.5 {% if current_sort == '-inquiry_date' %}active fw-bold{% endif %}" onclick="applyLeadsSort('-inquiry_date')">Inquiry Date (Latest)</button></li>
-        </ul>
       </div>
 
     </form>

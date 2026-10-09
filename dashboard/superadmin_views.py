@@ -382,7 +382,7 @@ def superadmin_home(request):
 
     if time_filter == 'today':
         base_leads = base_leads.filter(
-            Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today)
+            Q(inquiry_date=today) | (Q(inquiry_date__isnull=True) & Q(created_at__date=today))
         )
         date_range_start_dt = start_of_today
         date_range_end_dt = end_of_today
@@ -391,7 +391,7 @@ def superadmin_home(request):
         d7 = today - timedelta(days=7)
         d7_start = timezone.make_aware(datetime.combine(d7, datetime.min.time()))
         base_leads = base_leads.filter(
-            Q(created_at__range=(d7_start, end_of_today)) | Q(inquiry_date__range=(d7, today))
+            Q(inquiry_date__range=(d7, today)) | (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(d7, today)))
         )
         date_range_start_dt = d7_start
         date_range_end_dt = end_of_today
@@ -400,15 +400,15 @@ def superadmin_home(request):
         d30 = today - timedelta(days=30)
         d30_start = timezone.make_aware(datetime.combine(d30, datetime.min.time()))
         base_leads = base_leads.filter(
-            Q(created_at__range=(d30_start, end_of_today)) | Q(inquiry_date__range=(d30, today))
+            Q(inquiry_date__range=(d30, today)) | (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(d30, today)))
         )
         date_range_start_dt = d30_start
         date_range_end_dt = end_of_today
         filter_label = f"Last 30 Days ({d30.strftime('%d %b')} - {today.strftime('%d %b')})"
     elif time_filter == 'this_month':
         base_leads = base_leads.filter(
-            Q(created_at__range=(start_of_month, end_of_month)) |
-            Q(inquiry_date__range=(start_date_month, end_date_month))
+            Q(inquiry_date__range=(start_date_month, end_date_month)) |
+            (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(start_date_month, end_date_month)))
         )
         date_range_start_dt = start_of_month
         date_range_end_dt = end_of_month
@@ -591,7 +591,7 @@ def superadmin_home(request):
         location_dist[loc] = location_dist.get(loc, 0) + 1
 
         # 3. Month
-        lead_date = l.get('created_at').date() if l.get('created_at') else (l.get('inquiry_date') or today)
+        lead_date = l.get('inquiry_date') or (l.get('created_at').date() if l.get('created_at') else today)
         m_name = cd.get('month') or lead_date.strftime('%B')
         m_name = m_name.strip().title()
         month_dist[m_name] = month_dist.get(m_name, 0) + 1
@@ -712,11 +712,25 @@ def superadmin_home(request):
         "year_distribution": year_dist,
     }
 
+    # Active filters check: only actual user-applied search/filter parameters count
+    # (Default business assignment for tenant admins does not count as an active lead filter)
     has_active_filters = any([
-        time_filter not in ['today', ''], custom_start, custom_end, search_query,
-        industry_filter, selected_hospital_id, stage_filter, deal_status_filter, telecaller_filter,
-        temperature_filter, campaign_filter, source_filter, department_filter,
-        doctor_filter, location_filter, final_status_filter
+        time_filter not in ['today', ''],
+        bool(custom_start),
+        bool(custom_end),
+        bool(search_query),
+        bool(industry_filter),
+        bool(raw_biz or raw_hosp),  # only explicit business switch query param
+        bool(stage_filter),
+        bool(deal_status_filter),
+        bool(telecaller_filter),
+        bool(temperature_filter),
+        bool(campaign_filter),
+        bool(source_filter),
+        bool(department_filter),
+        bool(doctor_filter),
+        bool(location_filter),
+        bool(final_status_filter)
     ])
 
     context = {
@@ -1145,15 +1159,15 @@ def nel_card_drilldown_api(request):
     if mode == 'date_range' and range_start_date and range_end_date:
         if card_type in ('new_leads', 'call_not_done', 'walkin'):
             leads_qs = base_card_qs.filter(
-                Q(created_at__range=(r_start_dt, r_end_dt)) |
-                Q(inquiry_date__range=(range_start_date, range_end_date))
+                Q(inquiry_date__range=(range_start_date, range_end_date)) |
+                (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(range_start_date, range_end_date)))
             )
         elif card_type == 'opd_booked':
             leads_qs = base_card_qs.filter(
-                Q(created_at__range=(r_start_dt, r_end_dt)) |
                 Q(inquiry_date__range=(range_start_date, range_end_date)) |
+                (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(range_start_date, range_end_date))) |
                 Q(admission__admission_date__range=(range_start_date, range_end_date)) |
-                Q(admission__created_at__range=(r_start_dt, r_end_dt))
+                Q(admission__created_at__date__range=(range_start_date, range_end_date))
             )
         elif card_type == 'followups':
             leads_qs = base_card_qs.filter(
@@ -1163,18 +1177,18 @@ def nel_card_drilldown_api(request):
             )
         else:
             leads_qs = base_card_qs.filter(
-                Q(created_at__range=(r_start_dt, r_end_dt)) |
-                Q(inquiry_date__range=(range_start_date, range_end_date))
+                Q(inquiry_date__range=(range_start_date, range_end_date)) |
+                (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(range_start_date, range_end_date)))
             )
     elif card_type in ('new_leads', 'call_not_done', 'walkin'):
         if selected_date:
             leads_qs = base_card_qs.filter(
-                Q(created_at__range=(start_dt, end_dt)) | Q(inquiry_date=selected_date)
+                Q(inquiry_date=selected_date) | (Q(inquiry_date__isnull=True) & Q(created_at__date=selected_date))
             )
         elif month_range_start and month_range_end:
             leads_qs = base_card_qs.filter(
-                Q(created_at__range=(month_range_start, month_range_end)) |
-                Q(inquiry_date__range=(m_start_date, m_end_date))
+                Q(inquiry_date__range=(m_start_date, m_end_date)) |
+                (Q(inquiry_date__isnull=True) & Q(created_at__date__range=(m_start_date, m_end_date)))
             )
         else:
             leads_qs = base_card_qs

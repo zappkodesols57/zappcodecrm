@@ -823,7 +823,35 @@ def user_delete(request, pk):
 
     if request.method == "POST":
         username = target_user.username
+        user_role = target_user.role
+        user_hospital = target_user.hospital
+        full_name = target_user.get_full_name().strip()
+        first_name = target_user.first_name.strip()
+
         log_action("Employee Deleted", target_user, user=request.user)
+
+        # If a doctor user is deleted, also delete or deactivate their HospitalDoctor profile and MasterItem
+        if user_role == User.Role.DOCTOR:
+            from leads.models import HospitalDoctor, MasterGroup, MasterItem
+            # 1. Delete linked HospitalDoctor profile(s)
+            hdoc_qs = HospitalDoctor.objects.filter(Q(user=target_user) | (Q(hospital=user_hospital) & (Q(name__iexact=full_name) | Q(name__iexact=username) | Q(name__iexact=first_name)))) if user_hospital else HospitalDoctor.objects.filter(user=target_user)
+            for hdoc in hdoc_qs:
+                try:
+                    hdoc.delete()
+                except Exception:
+                    hdoc.is_active = False
+                    hdoc.user = None
+                    hdoc.save(update_fields=["is_active", "user"])
+
+            # 2. Clean MasterItem 'Doctors'
+            doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+            if doc_grp:
+                m_items = MasterItem.objects.filter(group=doc_grp)
+                if user_hospital:
+                    m_items = m_items.filter(hospital=user_hospital)
+                m_items = m_items.filter(Q(name__iexact=full_name) | Q(name__iexact=username) | Q(name__iexact=first_name))
+                m_items.delete()
+
         target_user.delete()
         messages.success(request, f"Employee user '{username}' deleted successfully.")
     return redirect("accounts:user_list")

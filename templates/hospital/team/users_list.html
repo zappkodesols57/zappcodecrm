@@ -1,50 +1,117 @@
 {% extends "base.html" %}
 {% block title %}Team & Users · Zappcode CRM{% endblock %}
 {% block content %}
+<style>
+  .team-mgmt-header-btn {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+  }
+  .team-filter-control {
+    height: 38px;
+    border-radius: 6px !important;
+    border: 1px solid #cbd5e1 !important;
+    font-size: 0.82rem;
+    color: #1e293b;
+    background-color: #ffffff;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  .team-filter-control:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+    outline: 0;
+  }
+  .team-action-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: #475569;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+  }
+  .team-action-btn:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+  .team-action-btn.btn-action-calendar:hover {
+    color: #16a34a;
+    border-color: #86efac;
+    background-color: #f0fdf4;
+  }
+  .team-action-btn.btn-action-edit:hover {
+    color: #2563eb;
+    border-color: #93c5fd;
+    background-color: #eff6ff;
+  }
+  .team-action-btn.btn-action-key:hover {
+    color: #d97706;
+    border-color: #fde68a;
+    background-color: #fffbeb;
+  }
+  .team-action-btn.btn-action-delete:hover {
+    color: #dc2626;
+    border-color: #fca5a5;
+    background-color: #fef2f2;
+  }
+</style>
+
 <div class="container-fluid px-0">
 
-<!-- Page Header with compact spacing -->
-<div class="d-flex justify-content-between align-items-center mb-2.5 flex-wrap gap-2">
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
     <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 1.18rem; letter-spacing: -0.2px;">
       <span>Team & Employee Management</span>
-      <span class="badge bg-light text-muted border px-2 py-0.5 rounded-pill fw-semibold" style="font-size: 0.72rem;">{{ total_count }} Active</span>
+      <span class="badge bg-light text-secondary border px-2.5 py-1 fw-semibold" style="font-size: 0.72rem; border-radius: 6px;">{{ total_count }} Active</span>
     </h5>
-    <p class="text-muted small mb-0" style="font-size: 0.76rem;">Manage staff members, roles, doctor profiles, permissions, and approvals.</p>
+    <p class="text-muted small mb-0 mt-0.5" style="font-size: 0.76rem;">Manage staff members, roles, doctor profiles, permissions, and approvals.</p>
   </div>
   <div class="d-flex gap-2 align-items-center">
     <form method="post" action="{% url 'accounts:user_list' %}" class="d-inline" id="autoGenForm" onsubmit="if(!confirm('Scan master data & auto-create temporary profiles (Password: Nelson@123) for missing Doctors & Lead Attendants?')) { return false; } const btn = document.getElementById('autoGenBtn'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm me-1\' role=\'status\' aria-hidden=\'true\'></span> Generating...'; return true;">
       {% csrf_token %}
       <input type="hidden" name="action" value="generate_temp_profiles">
-      <button type="submit" id="autoGenBtn" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 fw-semibold shadow-xs" style="font-size: 0.8rem;" title="Scan master data and auto-create temporary profiles">
-        <i class="fa-solid fa-wand-magic-sparkles text-primary me-1"></i> Auto-Generate Missing Profiles
+      <button type="submit" id="autoGenBtn" class="btn btn-outline-secondary team-mgmt-header-btn" title="Scan master data and auto-create temporary profiles">
+        Auto-Generate Missing Profiles
       </button>
     </form>
-    <a href="{% url 'accounts:user_add' %}" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fw-semibold shadow-xs d-inline-flex align-items-center gap-1.5" style="font-size: 0.8rem;">
-      <i class="fa-solid fa-user-plus"></i>
-      <span>Add New Employee</span>
+    <a href="{% url 'accounts:user_add' %}" class="btn btn-primary team-mgmt-header-btn">
+      Add New Employee
     </a>
   </div>
 </div>
 
 {% if pending_users %}
 <!-- Pending Registrations Alert Card -->
-<div class="card border-0 shadow-sm rounded-3 mb-2.5 bg-white" style="border: 1px solid #f59e0b !important;">
-  <div class="card-header bg-warning bg-opacity-10 py-1.5 px-3 d-flex justify-content-between align-items-center">
-    <span class="fw-bold text-dark small d-flex align-items-center gap-1.5" style="font-size: 0.78rem;">
-      <i class="fa-solid fa-user-clock text-warning"></i> Pending Registrations ({{ pending_users|length }})
+<div class="card border-0 shadow-sm rounded-2 mb-3 bg-white" style="border: 1px solid #cbd5e1 !important;">
+  <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center border-bottom">
+    <span class="fw-bold text-dark small" style="font-size: 0.8rem;">
+      Pending Registrations ({{ pending_users|length }})
     </span>
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
       <thead class="bg-light">
         <tr>
-          <th class="ps-3 py-1.5 text-uppercase small fw-bold text-muted">Name</th>
-          <th class="py-1.5 text-uppercase small fw-bold text-muted">Username</th>
-          <th class="py-1.5 text-uppercase small fw-bold text-muted">Requested Role</th>
-          <th class="py-1.5 text-uppercase small fw-bold text-muted">Phone</th>
-          <th class="py-1.5 text-uppercase small fw-bold text-muted">Date Joined</th>
-          <th class="py-1.5 text-end pe-3 text-uppercase small fw-bold text-muted">Actions</th>
+          <th class="ps-3 py-2 text-uppercase small fw-bold text-muted">Name</th>
+          <th class="py-2 text-uppercase small fw-bold text-muted">Username</th>
+          <th class="py-2 text-uppercase small fw-bold text-muted">Requested Role</th>
+          <th class="py-2 text-uppercase small fw-bold text-muted">Phone</th>
+          <th class="py-2 text-uppercase small fw-bold text-muted">Date Joined</th>
+          <th class="py-2 text-end pe-3 text-uppercase small fw-bold text-muted">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -52,26 +119,26 @@
         <tr>
           <td class="ps-3 py-2"><strong class="text-dark">{{ u.get_full_name|default:"—" }}</strong></td>
           <td class="py-2"><code class="text-secondary small">{{ u.username }}</code></td>
-          <td class="py-2"><span class="badge bg-info bg-opacity-10 text-info border border-info-subtle fw-semibold rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">{{ u.custom_role_display }}</span></td>
+          <td class="py-2"><span class="badge bg-light text-dark border fw-medium px-2 py-1" style="font-size: 0.72rem; border-radius: 4px;">{{ u.custom_role_display }}</span></td>
           <td class="py-2">{{ u.phone|default:"—" }}</td>
           <td class="py-2 text-muted small">{{ u.date_joined|date:"d M Y, H:i" }}</td>
           <td class="text-end pe-3 py-2">
             {% if request.user.role == 'MANAGER' and request.user.hospital and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
-            <span class="badge bg-light border text-muted py-1 px-2 rounded-pill" title="Restricted: Managers can only approve Doctors and Attendants">
-              <i class="fa-solid fa-lock me-1"></i> Locked
+            <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only approve Doctors and Attendants">
+              Locked
             </span>
             {% else %}
             <div class="d-inline-flex gap-1.5">
               <form method="post" action="{% url 'accounts:approve_user' u.pk %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-xs btn-success rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.72rem;">
-                  <i class="fa-solid fa-check me-1"></i> Approve
+                <button type="submit" class="btn btn-sm btn-success px-2.5 py-1 fw-medium" style="font-size: 0.74rem; border-radius: 4px;">
+                  Approve
                 </button>
               </form>
               <form method="post" action="{% url 'accounts:reject_user' u.pk %}" onsubmit="return confirm('Reject and delete this registration request?');">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-xs btn-outline-danger rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.72rem;">
-                  <i class="fa-solid fa-trash me-1"></i> Reject
+                <button type="submit" class="btn btn-sm btn-outline-danger px-2.5 py-1 fw-medium" style="font-size: 0.74rem; border-radius: 4px;">
+                  Reject
                 </button>
               </form>
             </div>
@@ -85,23 +152,20 @@
 </div>
 {% endif %}
 
-<!-- Compact Filter Ribbon -->
-<div class="card border-0 shadow-sm rounded-3 mb-2.5 bg-white" style="border: 1px solid #e2e8f0 !important;">
-  <div class="card-body p-2 px-3">
+<!-- Unified Filter Ribbon -->
+<div class="card border-0 shadow-sm rounded-2 mb-3 bg-white" style="border: 1px solid #cbd5e1 !important;">
+  <div class="card-body p-2.5 px-3">
     <form method="get" class="row g-2 align-items-center" id="userFilterForm">
       <input type="hidden" name="page" id="userFilterPage" value="1">
       
       <!-- Search Input -->
       <div class="col-12 col-md-5">
-        <div class="input-group input-group-sm">
-          <span class="input-group-text bg-light border-end-0 text-muted rounded-start-pill ps-3"><i class="fa-solid fa-magnifying-glass text-secondary" style="font-size: 0.75rem;"></i></span>
-          <input type="search" name="q" id="userSearchInput" class="form-control bg-light border-start-0 rounded-end-pill py-1" style="font-size: 0.8rem;" placeholder="Search name, username, phone, email, department..." value="{{ q }}" autocomplete="off">
-        </div>
+        <input type="search" name="q" id="userSearchInput" class="form-control team-filter-control px-3" placeholder="Search name, username, phone, email, department..." value="{{ q }}" autocomplete="off">
       </div>
       
       <!-- Role Filter -->
       <div class="col-6 col-md-3">
-        <select name="role" class="form-select form-select-sm rounded-pill no-tom-select py-1" style="font-size: 0.8rem;" onchange="document.getElementById('userFilterForm').submit()">
+        <select name="role" class="form-select team-filter-control px-3 no-tom-select" onchange="document.getElementById('userFilterForm').submit()">
           <option value="">-- All Roles --</option>
           {% for r_val, r_label in available_roles %}
             <option value="{{ r_val }}" {% if role_filter == r_val %}selected{% endif %}>{{ r_label }}</option>
@@ -111,24 +175,24 @@
 
       <!-- Status Filter -->
       <div class="col-6 col-md-2">
-        <select name="status" class="form-select form-select-sm rounded-pill no-tom-select py-1" style="font-size: 0.8rem;" onchange="document.getElementById('userFilterForm').submit()">
+        <select name="status" class="form-select team-filter-control px-3 no-tom-select" onchange="document.getElementById('userFilterForm').submit()">
           <option value="">-- All Status --</option>
           <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
           <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
         </select>
       </div>
 
-      <!-- Per Page & Reset -->
-      <div class="col-12 col-md-2 d-flex align-items-center gap-1.5">
-        <select name="page_size" class="form-select form-select-sm rounded-pill no-tom-select py-1" style="font-size: 0.8rem; width: 75px;" onchange="document.getElementById('userFilterForm').submit()" title="Records per page">
+      <!-- Per Page & Action -->
+      <div class="col-12 col-md-2 d-flex align-items-center gap-2">
+        <select name="page_size" class="form-select team-filter-control px-2 no-tom-select text-center" style="width: 70px;" onchange="document.getElementById('userFilterForm').submit()" title="Records per page">
           <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
           <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
           <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
           <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
         </select>
-        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold flex-grow-1" style="font-size: 0.8rem;">Filter</button>
+        <button type="submit" class="btn btn-primary team-filter-control fw-semibold flex-grow-1" style="background-color: #0f172a; border-color: #0f172a !important;">Filter</button>
         {% if q or role_filter or status_filter %}
-        <a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-light border text-danger rounded-pill px-2.5 py-1" title="Reset Filters"><i class="fa-solid fa-rotate-left" style="font-size: 0.72rem;"></i></a>
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-light team-filter-control d-flex align-items-center justify-content-center px-3 text-secondary" title="Reset Filters">Clear</a>
         {% endif %}
       </div>
     </form>
@@ -136,140 +200,140 @@
 </div>
 
 <!-- Team Members Table Card -->
-<div class="card border-0 shadow-sm rounded-3 bg-white" style="border: 1px solid #e2e8f0 !important;">
+<div class="card border-0 shadow-sm rounded-2 bg-white" style="border: 1px solid #cbd5e1 !important;">
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0" id="usersMasterTable" style="min-width: 1050px; font-size: 0.84rem;">
+    <table class="table table-hover align-middle mb-0" id="usersMasterTable" style="min-width: 1050px; font-size: 0.83rem;">
       <thead class="bg-light border-bottom">
         <tr>
-          <th class="ps-3 py-2 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 140px;">Username</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 220px;">Role</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Department / Speciality</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Reports To</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase text-center" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 90px;">Status</th>
-          <th class="py-2 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 150px;">Actions</th>
+          <th class="ps-3 py-2.5 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 140px;">Username</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 220px;">Role</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Department / Speciality</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Reports To</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-center" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 90px;">Status</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 150px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for u in users %}
         <tr class="user-row">
           <!-- 1. Employee / Contact -->
-          <td class="ps-3 py-2">
+          <td class="ps-3 py-2.5">
             <strong class="text-dark d-block" style="font-size: 0.86rem;">{{ u.get_full_name|default:u.username }}</strong>
-            <div class="d-flex flex-column gap-0.5 mt-0.5">
+            <div class="d-flex flex-column gap-0.5 mt-1">
               {% if u.email %}
-                <span class="text-muted small text-truncate d-block" style="max-width: 200px; font-size: 0.72rem;" title="{{ u.email }}">
-                  <i class="fa-regular fa-envelope me-1 text-secondary"></i>{{ u.email }}
+                <span class="text-muted small text-truncate d-block" style="max-width: 200px; font-size: 0.74rem;" title="{{ u.email }}">
+                  {{ u.email }}
                 </span>
               {% endif %}
               {% if u.phone %}
-                <span class="text-muted small" style="font-size: 0.72rem;">
-                  <i class="fa-solid fa-phone me-1 text-secondary"></i>{{ u.phone }}
+                <span class="text-muted small" style="font-size: 0.74rem;">
+                  {{ u.phone }}
                 </span>
               {% endif %}
             </div>
             {% if u.hospital and not request.user.hospital %}
-              <span class="badge bg-light text-primary border rounded-pill mt-1" style="font-size: 0.65rem;">
-                <i class="fa-solid fa-hospital me-1"></i>{{ u.hospital.name }}
-              </span>
+              <div class="text-muted small mt-1" style="font-size: 0.7rem;">
+                {{ u.hospital.name }}
+              </div>
             {% endif %}
           </td>
 
           <!-- 2. Username -->
-          <td class="px-3 py-2">
-            <code class="text-primary fw-semibold px-2 py-0.5 bg-light rounded" style="font-size: 0.78rem;">{{ u.username }}</code>
+          <td class="px-3 py-2.5">
+            <code class="text-dark fw-medium px-2 py-0.5 bg-light border rounded" style="font-size: 0.76rem;">{{ u.username }}</code>
           </td>
 
           <!-- 3. Role & Limits -->
-          <td class="px-3 py-2">
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold rounded-pill px-2.5 py-1" style="font-size: 0.73rem;">
+          <td class="px-3 py-2.5">
+            <span class="badge bg-light text-dark border fw-medium px-2.5 py-1" style="font-size: 0.74rem; border-radius: 4px;">
               {{ u.custom_role_display }}
             </span>
             {% if u.role == 'ADMIN' and u.can_delete_master_data %}
               <div class="mt-1">
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill px-2 py-0.5" style="font-size: 0.65rem;" title="Permission to Delete Master Leads">
-                  <i class="fa-solid fa-trash-can me-1"></i>Master Delete
+                <span class="badge bg-light text-secondary border px-2 py-0.5" style="font-size: 0.67rem; border-radius: 4px;" title="Permission to Delete Master Leads">
+                  Master Delete
                 </span>
               </div>
             {% endif %}
             {% if u.role == 'COUNSELLOR' or u.role == 'HR' or u.role == 'LEAD_ATTENDENT' %}
               <div class="mt-1">
-                <span class="badge bg-light text-secondary border rounded-pill px-2 py-0.5 fw-normal" style="font-size: 0.67rem;" title="Bulk Self-Assign Limit">
-                  <i class="fa-solid fa-layer-group me-1 text-primary"></i>Limit: <strong>{{ u.bulk_self_assign_limit }}</strong>
+                <span class="text-muted small" style="font-size: 0.72rem;" title="Bulk Self-Assign Limit">
+                  Limit: <strong class="text-dark">{{ u.bulk_self_assign_limit }}</strong>
                 </span>
               </div>
             {% endif %}
           </td>
 
           <!-- 4. Department / Speciality -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2.5">
             {% if u.role == 'DOCTOR' and u.doctor_departments_list %}
               <div class="d-flex flex-wrap gap-1 align-items-center">
                 {% for dept in u.doctor_departments_list %}
                   {% if dept.is_primary %}
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold rounded-pill px-2 py-0.5" style="font-size: 0.7rem;" title="Primary Department">
-                      <i class="fa-solid fa-star me-1" style="font-size: 0.6rem;"></i>{{ dept.name }}
+                    <span class="badge bg-light text-dark border border-secondary-subtle fw-semibold px-2 py-0.5" style="font-size: 0.72rem; border-radius: 4px;" title="Primary Department">
+                      {{ dept.name }}
                     </span>
                   {% else %}
-                    <span class="badge bg-light text-dark border rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                    <span class="badge bg-light text-muted border px-2 py-0.5" style="font-size: 0.72rem; border-radius: 4px;">
                       {{ dept.name }}
                     </span>
                   {% endif %}
                 {% endfor %}
               </div>
             {% elif u.department %}
-              <span class="badge bg-light text-dark border rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">{{ u.department }}</span>
+              <span class="badge bg-light text-dark border px-2 py-0.5" style="font-size: 0.72rem; border-radius: 4px;">{{ u.department }}</span>
             {% endif %}
             {% if u.speciality %}
-              <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">{{ u.speciality }}</div>
+              <div class="text-muted small mt-1" style="font-size: 0.72rem;">{{ u.speciality }}</div>
             {% elif not u.department and not u.doctor_departments_list %}
               <span class="text-muted small">—</span>
             {% endif %}
           </td>
 
           <!-- 5. Reports To -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2.5">
             {% if u.reports_to %}
               <div class="text-dark fw-medium small" style="font-size: 0.78rem;">{{ u.reports_to.get_full_name|default:u.reports_to.username }}</div>
-              <span class="text-muted small" style="font-size: 0.68rem;">({{ u.reports_to.get_role_display }})</span>
+              <span class="text-muted small" style="font-size: 0.7rem;">({{ u.reports_to.get_role_display }})</span>
             {% else %}
               <span class="text-muted small">—</span>
             {% endif %}
           </td>
 
           <!-- 6. Status -->
-          <td class="px-3 py-2 text-center">
+          <td class="px-3 py-2.5 text-center">
             {% if u.is_active %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.7rem;">Active</span>
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 fw-medium" style="font-size: 0.72rem; border-radius: 4px;">Active</span>
             {% else %}
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.7rem;">Inactive</span>
+            <span class="badge bg-light text-muted border px-2.5 py-1 fw-medium" style="font-size: 0.72rem; border-radius: 4px;">Inactive</span>
             {% endif %}
           </td>
 
           <!-- 7. Actions -->
-          <td class="text-end pe-3 py-2">
+          <td class="text-end pe-3 py-2.5">
             {% if request.user.role == 'MANAGER' and request.user.hospital and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
-            <span class="badge bg-light border text-muted py-1 px-2 rounded-pill" title="Restricted: Managers can only manage Doctors, Attendants and their own profile">
-              <i class="fa-solid fa-lock me-1"></i> Locked
+            <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only manage Doctors, Attendants and their own profile">
+              Locked
             </span>
             {% else %}
-            <div class="d-inline-flex gap-1">
+            <div class="d-inline-flex gap-1.5 align-items-center">
               {% if u.role == 'DOCTOR' %}
-              <a href="{% url 'accounts:doctor_schedule_manage' u.pk %}" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1" title="Doctor Calendar & Leaves">
-                <i class="fa-solid fa-calendar-days" style="font-size: 0.75rem;"></i>
+              <a href="{% url 'accounts:doctor_schedule_manage' u.pk %}" class="team-action-btn btn-action-calendar" title="Doctor Calendar & Leaves">
+                <i class="fa-solid fa-calendar-days"></i>
               </a>
               {% endif %}
-              <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit Employee Details">
-                <i class="fa-solid fa-pen-to-square" style="font-size: 0.75rem;"></i>
+              <a href="{% url 'accounts:user_edit' u.pk %}" class="team-action-btn btn-action-edit" title="Edit Employee Details">
+                <i class="fa-solid fa-pen"></i>
               </a>
-              <a href="{% url 'accounts:user_reset_password' u.pk %}" class="btn btn-xs btn-outline-warning rounded-pill px-2 py-1" title="Reset Password">
-                <i class="fa-solid fa-key" style="font-size: 0.75rem;"></i>
+              <a href="{% url 'accounts:user_reset_password' u.pk %}" class="team-action-btn btn-action-key" title="Reset Password">
+                <i class="fa-solid fa-key"></i>
               </a>
               {% if user.pk != u.pk %}
-              <form method="post" action="{% url 'accounts:user_delete' u.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to PERMANENTLY DELETE employee user \'{{ u.username }}\'?');">
+              <form method="post" action="{% url 'accounts:user_delete' u.pk %}" class="d-inline mb-0" onsubmit="return confirm('Are you sure you want to PERMANENTLY DELETE employee user \'{{ u.username }}\'?');">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-1" title="Delete User">
-                  <i class="fa-solid fa-trash" style="font-size: 0.75rem;"></i>
+                <button type="submit" class="team-action-btn btn-action-delete" title="Delete User">
+                  <i class="fa-solid fa-trash"></i>
                 </button>
               </form>
               {% endif %}
@@ -280,7 +344,6 @@
         {% empty %}
         <tr>
           <td colspan="7" class="text-center py-4 text-muted">
-            <i class="fa-solid fa-users-slash fs-4 d-block mb-1.5 text-secondary"></i>
             No active team members matching your search criteria.
           </td>
         </tr>
@@ -299,46 +362,46 @@
       <ul class="pagination pagination-sm mb-0">
         {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link rounded-pill me-1 px-2 py-0.5" href="?page=1&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="First">
-            <i class="fa-solid fa-angles-left" style="font-size: 0.65rem;"></i>
+          <a class="page-link rounded me-1 px-2.5 py-1" href="?page=1&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="First">
+            First
           </a>
         </li>
         <li class="page-item">
-          <a class="page-link rounded-pill me-1 px-2 py-0.5" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="Previous">
-            <i class="fa-solid fa-angle-left" style="font-size: 0.65rem;"></i>
+          <a class="page-link rounded me-1 px-2.5 py-1" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="Previous">
+            Prev
           </a>
         </li>
         {% else %}
-        <li class="page-item disabled"><span class="page-link rounded-pill me-1 px-2 py-0.5"><i class="fa-solid fa-angle-left" style="font-size: 0.65rem;"></i></span></li>
+        <li class="page-item disabled"><span class="page-link rounded me-1 px-2.5 py-1">Prev</span></li>
         {% endif %}
 
         {% for p in paginator.page_range %}
           {% if p >= page_obj.number|add:"-2" and p <= page_obj.number|add:"2" %}
             <li class="page-item {% if page_obj.number == p %}active{% endif %}">
-              <a class="page-link rounded-pill mx-0.5 px-2.5 py-0.5" href="?page={{ p }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}">{{ p }}</a>
+              <a class="page-link rounded mx-0.5 px-3 py-1" href="?page={{ p }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}">{{ p }}</a>
             </li>
           {% endif %}
         {% endfor %}
 
         {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link rounded-pill ms-1 px-2 py-0.5" href="?page={{ page_obj.next_page_number }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="Next">
-            <i class="fa-solid fa-angle-right" style="font-size: 0.65rem;"></i>
+          <a class="page-link rounded ms-1 px-2.5 py-1" href="?page={{ page_obj.next_page_number }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="Next">
+            Next
           </a>
         </li>
         <li class="page-item">
-          <a class="page-link rounded-pill ms-1 px-2 py-0.5" href="?page={{ paginator.num_pages }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="Last">
-            <i class="fa-solid fa-angles-right" style="font-size: 0.65rem;"></i>
+          <a class="page-link rounded ms-1 px-2.5 py-1" href="?page={{ paginator.num_pages }}&q={{ q }}&role={{ role_filter }}&status={{ status_filter }}&page_size={{ page_size }}" aria-label="Last">
+            Last
           </a>
         </li>
         {% else %}
-        <li class="page-item disabled"><span class="page-link rounded-pill ms-1 px-2 py-0.5"><i class="fa-solid fa-angle-right" style="font-size: 0.65rem;"></i></span></li>
+        <li class="page-item disabled"><span class="page-link rounded ms-1 px-2.5 py-1">Next</span></li>
         {% endif %}
       </ul>
     </nav>
   </div>
   {% elif total_count > 0 %}
-  <div class="card-footer bg-white py-1.5 px-3 border-top text-muted small" style="font-size: 0.74rem;">
+  <div class="card-footer bg-white py-2 px-3 border-top text-muted small" style="font-size: 0.74rem;">
     Showing all {{ total_count }} active employees
   </div>
   {% endif %}

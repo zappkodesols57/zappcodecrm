@@ -1,42 +1,43 @@
 {% extends "base.html" %}
 {% block title %}WhatsApp Templates · {{ hosp.name|default:"CRM" }}{% endblock %}
 
-{% block extra_css %}
+{% block content %}
 <style>
-  /* Dashboard Matching Navigation Tabs Styling */
+  /* Navigation Tabs Styling: contiguous, distinct borders, no gap */
   #msgTabs {
-    border-bottom: 2px solid #e2e8f0;
-    gap: 8px;
+    border-bottom: 2px solid var(--brand, #0f2744) !important;
+    gap: 0 !important;
+    display: flex !important;
   }
   #msgTabs .nav-item {
-    margin-bottom: -2px;
+    margin-bottom: -1px !important;
   }
   #msgTabs .nav-link {
     color: #475569 !important;
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px 8px 0 0 !important;
-    font-weight: 600;
-    font-size: 0.88rem;
-    padding: 10px 20px !important;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
+    background: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    border-radius: 6px 6px 0 0 !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    padding: 9px 20px !important;
+    transition: all 0.2s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    margin-right: -1.5px !important;
   }
   #msgTabs .nav-link:hover {
-    background: #f8fafc !important;
+    background: #ffffff !important;
     color: var(--brand, #0f2744) !important;
-    border-color: #cbd5e1 !important;
+    border-color: #94a3b8 !important;
+    z-index: 2 !important;
   }
   #msgTabs .nav-link.active {
     background: var(--brand, #0f2744) !important;
     color: #ffffff !important;
     border-color: var(--brand, #0f2744) !important;
-    box-shadow: 0 4px 12px rgba(15, 39, 68, 0.22) !important;
-    border-bottom-color: var(--brand, #0f2744) !important;
-  }
-  #msgTabs .nav-link.active i {
-    color: #ffffff !important;
+    border-bottom: 2px solid var(--brand, #0f2744) !important;
+    z-index: 3 !important;
   }
   #msgTabs .nav-link.active .tab-badge-default {
     background: rgba(255, 255, 255, 0.22) !important;
@@ -48,23 +49,110 @@
     color: #ffffff !important;
     border: 1px solid #16a34a !important;
   }
-</style>
-{% endblock %}
 
-{% block content %}
+  /* Button styles: Distinct visible borders, premium hover transitions and shadows */
+  .crm-btn-reset {
+    background: #ffffff !important;
+    color: #475569 !important;
+    border: 1.5px solid #94a3b8 !important;
+    font-weight: 600 !important;
+    padding: 7px 16px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    display: inline-block !important;
+    cursor: pointer !important;
+  }
+  .crm-btn-reset:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #475569 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1) !important;
+  }
+  .crm-btn-draft {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1.5px solid #94a3b8 !important;
+    font-weight: 600 !important;
+    padding: 7px 18px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    display: inline-block !important;
+    cursor: pointer !important;
+  }
+  .crm-btn-draft:hover {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    border-color: #334155 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1) !important;
+  }
+  .crm-btn-confirm {
+    background: #0f2744 !important;
+    color: #ffffff !important;
+    border: 1.5px solid #0f2744 !important;
+    font-weight: 600 !important;
+    padding: 7px 18px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 2px 4px rgba(15, 39, 68, 0.2) !important;
+    display: inline-block !important;
+    cursor: pointer !important;
+  }
+  .crm-btn-confirm:hover {
+    background: #1b3d68 !important;
+    color: #ffffff !important;
+    border-color: #1b3d68 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(15, 39, 68, 0.3) !important;
+  }
+  .crm-btn-cancel {
+    background: #ffffff !important;
+    color: #475569 !important;
+    border: 1.5px solid #94a3b8 !important;
+    font-weight: 600 !important;
+    padding: 7px 18px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    display: inline-block !important;
+    cursor: pointer !important;
+  }
+  .crm-btn-cancel:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #475569 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1) !important;
+  }
+  .crm-tag-btn {
+    background: #f8fafc !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+  }
+  .crm-tag-btn:hover {
+    background: #e2e8f0 !important;
+    border-color: #64748b !important;
+    color: #0f172a !important;
+  }
+</style>
 <div class="container-fluid px-3 py-3" style="max-width: 1200px; margin: 0 auto;">
 
   <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h5 class="fw-bold mb-1" style="color: var(--brand, #052042);">
-        <i class="fa-brands fa-whatsapp me-2 text-success"></i>WhatsApp Templates
+        WhatsApp Templates
       </h5>
       <p class="text-muted small mb-0">Customize automated WhatsApp message templates with dynamic patient tags.</p>
     </div>
     <div>
       <span class="badge bg-white border text-secondary px-3 py-2 rounded-2 small shadow-none">
-        <i class="fa-solid fa-user me-1 text-primary"></i> {{ request.user.get_full_name|default:request.user.username }}
+        {{ request.user.get_full_name|default:request.user.username }}
       </span>
     </div>
   </div>
@@ -72,8 +160,7 @@
   <!-- Quick Info Banner -->
   <div class="card border rounded-3 mb-3 bg-white shadow-none">
     <div class="card-body p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2 small text-muted">
-        <i class="fa-solid fa-circle-info text-primary fs-6"></i>
+      <div class="small text-muted">
         <span>Templates use standard system defaults until customized and confirmed. Placeholders are auto-replaced during sending.</span>
       </div>
       <div class="d-flex gap-1">
@@ -85,11 +172,11 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs (Dashboard Styled Active Navy & Crisp Pill Badges) -->
+  <!-- Navigation Tabs (Contiguous tabs with distinct borders and no gap) -->
   <ul class="nav nav-tabs mb-3" id="msgTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'booking' or not active_tab %}active{% endif %}" id="booking-tab" data-bs-toggle="tab" data-bs-target="#tab-booking" type="button" role="tab">
-        <i class="fa-solid fa-calendar-check me-2"></i>Booking Template
+        Booking Template
         {% if booking_msg.is_confirmed %}
         <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
@@ -99,7 +186,7 @@
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'followup' %}active{% endif %}" id="followup-tab" data-bs-toggle="tab" data-bs-target="#tab-followup" type="button" role="tab">
-        <i class="fa-solid fa-clock-rotate-left me-2"></i>Follow-up Template
+        Follow-up Template
         {% if followup_msg.is_confirmed %}
         <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
@@ -109,7 +196,7 @@
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'billing' %}active{% endif %}" id="billing-tab" data-bs-toggle="tab" data-bs-target="#tab-billing" type="button" role="tab">
-        <i class="fa-solid fa-receipt me-2"></i>Billing / Thank You Template
+        Billing / Thank You Template
         {% if billing_msg.is_confirmed %}
         <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
@@ -159,30 +246,30 @@
                   <span class="text-muted small">Insert tags:</span>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{patient_name}')">{patient_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{hospital_name}')">{hospital_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{branch_name}')">{branch_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{hospital_address}')">{hospital_address}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{doctor_name}')">{doctor_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{appointment_date}')">{appointment_date}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{appointment_time}')">{appointment_time}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{user_name}')">{user_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{patient_name}')">{patient_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{hospital_name}')">{hospital_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{branch_name}')">{branch_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{hospital_address}')">{hospital_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{doctor_name}')">{doctor_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{appointment_date}')">{appointment_date}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{appointment_time}')">{appointment_time}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{user_name}')">{user_name}</button>
                 </div>
               </div>
 
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
                 <div>
                   {% if booking_msg.is_confirmed %}
-                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-2 px-3" onclick="submitResetDefault('bookingMsgForm', 'bookingAction')">
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2 px-3" onclick="submitResetDefault('bookingMsgForm', 'bookingAction')">
                     Reset to Default
                   </button>
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-light border rounded-2 px-3 fw-semibold text-secondary" onclick="saveDraft('bookingMsgForm', 'bookingAction')">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2 px-3" onclick="saveDraft('bookingMsgForm', 'bookingAction')">
                     Save Draft
                   </button>
-                  <button type="button" class="btn btn-sm btn-primary rounded-2 px-3 fw-bold" onclick="openConfirmModal('BOOKING', 'bookingCustomText')">
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('BOOKING', 'bookingCustomText')">
                     Confirm Custom Message
                   </button>
                 </div>
@@ -195,7 +282,7 @@
         <div class="col-lg-5">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-              <h6 class="fw-bold text-dark mb-0"><i class="fa-brands fa-whatsapp text-success me-1"></i>Message Preview</h6>
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
               <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
             </div>
             
@@ -205,7 +292,7 @@
                 <!-- Live text populated by JavaScript -->
               </div>
               <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
-                <i class="fa-solid fa-check-double text-primary"></i> Delivered
+                Delivered
               </div>
             </div>
           </div>
@@ -250,27 +337,27 @@
                   <span class="text-muted small">Insert tags:</span>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{patient_name}')">{patient_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{hospital_name}')">{hospital_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{branch_name}')">{branch_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{hospital_address}')">{hospital_address}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{user_name}')">{user_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{patient_name}')">{patient_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{hospital_name}')">{hospital_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{branch_name}')">{branch_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{hospital_address}')">{hospital_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{user_name}')">{user_name}</button>
                 </div>
               </div>
 
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
                 <div>
                   {% if followup_msg.is_confirmed %}
-                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-2 px-3" onclick="submitResetDefault('followupMsgForm', 'followupAction')">
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2 px-3" onclick="submitResetDefault('followupMsgForm', 'followupAction')">
                     Reset to Default
                   </button>
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-light border rounded-2 px-3 fw-semibold text-secondary" onclick="saveDraft('followupMsgForm', 'followupAction')">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2 px-3" onclick="saveDraft('followupMsgForm', 'followupAction')">
                     Save Draft
                   </button>
-                  <button type="button" class="btn btn-sm btn-primary rounded-2 px-3 fw-bold" onclick="openConfirmModal('FOLLOWUP', 'followupCustomText')">
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('FOLLOWUP', 'followupCustomText')">
                     Confirm Custom Message
                   </button>
                 </div>
@@ -283,7 +370,7 @@
         <div class="col-lg-5">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-              <h6 class="fw-bold text-dark mb-0"><i class="fa-brands fa-whatsapp text-success me-1"></i>Message Preview</h6>
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
               <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
             </div>
             
@@ -293,7 +380,7 @@
                 <!-- Live text populated by JavaScript -->
               </div>
               <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
-                <i class="fa-solid fa-check-double text-primary"></i> Delivered
+                Delivered
               </div>
             </div>
           </div>
@@ -338,29 +425,29 @@
                   <span class="text-muted small">Insert tags:</span>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{patient_name}')">{patient_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_name}')">{hospital_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{branch_name}')">{branch_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_address}')">{hospital_address}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{doctor_name}')">{doctor_name}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{appointment_date}')">{appointment_date}</button>
-                  <button type="button" class="btn btn-sm btn-light border py-0.5 px-2 text-dark small" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{user_name}')">{user_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{patient_name}')">{patient_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_name}')">{hospital_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{branch_name}')">{branch_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_address}')">{hospital_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{doctor_name}')">{doctor_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{appointment_date}')">{appointment_date}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{user_name}')">{user_name}</button>
                 </div>
               </div>
 
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
                 <div>
                   {% if billing_msg.is_confirmed %}
-                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-2 px-3" onclick="submitResetDefault('billingMsgForm', 'billingAction')">
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2 px-3" onclick="submitResetDefault('billingMsgForm', 'billingAction')">
                     Reset to Default
                   </button>
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-light border rounded-2 px-3 fw-semibold text-secondary" onclick="saveDraft('billingMsgForm', 'billingAction')">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2 px-3" onclick="saveDraft('billingMsgForm', 'billingAction')">
                     Save Draft
                   </button>
-                  <button type="button" class="btn btn-sm btn-primary rounded-2 px-3 fw-bold" onclick="openConfirmModal('BILLING', 'billingCustomText')">
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('BILLING', 'billingCustomText')">
                     Confirm Custom Message
                   </button>
                 </div>
@@ -373,7 +460,7 @@
         <div class="col-lg-5">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-              <h6 class="fw-bold text-dark mb-0"><i class="fa-brands fa-whatsapp text-success me-1"></i>Message Preview</h6>
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
               <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
             </div>
             
@@ -383,7 +470,7 @@
                 <!-- Live text populated by JavaScript -->
               </div>
               <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
-                <i class="fa-solid fa-check-double text-primary"></i> Delivered
+                Delivered
               </div>
             </div>
           </div>
@@ -402,7 +489,6 @@
         <h6 class="modal-title fw-bold text-dark mb-0">
           Confirm Template Activation
         </h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-3">
         <p class="text-dark small mb-2">
@@ -412,9 +498,33 @@
         </div>
       </div>
       <div class="modal-footer border-top py-2 px-3 d-flex justify-content-end gap-2 bg-light">
-        <button type="button" class="btn btn-sm btn-light border rounded-2 px-3" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-sm btn-primary rounded-2 px-3 fw-bold" id="btnExecuteConfirmCustom">
+        <button type="button" class="btn btn-sm crm-btn-cancel rounded-2 px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" id="btnExecuteConfirmCustom">
           Yes, Activate Template
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirm Reset to Default -->
+<div class="modal fade" id="confirmResetDefaultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-3 border-0 shadow">
+      <div class="modal-header border-bottom py-2.5 px-3 bg-light">
+        <h6 class="modal-title fw-bold text-dark mb-0">
+          Reset Template to Default
+        </h6>
+      </div>
+      <div class="modal-body p-3">
+        <p class="text-dark small mb-0">
+          Are you sure you want to revert back to the system default template? Any custom message modifications will be replaced with standard default content.
+        </p>
+      </div>
+      <div class="modal-footer border-top py-2 px-3 d-flex justify-content-end gap-2 bg-light">
+        <button type="button" class="btn btn-sm crm-btn-cancel rounded-2 px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" id="btnExecuteResetDefault">
+          Yes, Reset to Default
         </button>
       </div>
     </div>
@@ -486,13 +596,25 @@
     document.getElementById(formId).submit();
   }
 
+  let pendingResetFormId = '';
+  let pendingResetActionId = '';
+  let resetModalInstance = null;
+
   function submitResetDefault(formId, actionId) {
-    if (confirm('Revert back to system default template?')) {
-      const act = document.getElementById(actionId);
-      if (act) act.value = 'reset_default';
-      document.getElementById(formId).submit();
-    }
+    pendingResetFormId = formId;
+    pendingResetActionId = actionId;
+    const modalEl = document.getElementById('confirmResetDefaultModal');
+    resetModalInstance = new bootstrap.Modal(modalEl);
+    resetModalInstance.show();
   }
+
+  document.getElementById('btnExecuteResetDefault').addEventListener('click', function () {
+    if (pendingResetFormId && pendingResetActionId) {
+      const act = document.getElementById(pendingResetActionId);
+      if (act) act.value = 'reset_default';
+      document.getElementById(pendingResetFormId).submit();
+    }
+  });
 
   let pendingConfirmType = '';
   let confirmModalInstance = null;

@@ -91,6 +91,7 @@ class TaskReminder(models.Model):
         CANCELLED = "CANCELLED", "Cancelled"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tasks_created")
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks_assigned_by_me", verbose_name="Assigned By")
     lead = models.ForeignKey("leads.Lead", on_delete=models.SET_NULL, null=True, blank=True, related_name="linked_tasks")
     title = models.CharField(max_length=255, verbose_name="Task Title")
     description = models.TextField(blank=True, verbose_name="Task Details")

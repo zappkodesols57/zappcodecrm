@@ -118,7 +118,7 @@
               <i class="fa-regular fa-eye text-secondary"></i>
             </button>
           </div>
-          {% if form.password1.errors %}<div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ form.password1.errors|striptags }}</div>{% endif %}
+          {% if form.password1.errors %}<div id="password1_server_error" class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password1.errors|striptags }}</div>{% endif %}
           {% if form.password1.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password1.help_text|striptags }}</div>{% endif %}
         </div>
         {% endif %}
@@ -134,7 +134,7 @@
             </button>
           </div>
           <div id="password_match_feedback" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;"></div>
-          {% if form.password2.errors %}<div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ form.password2.errors|striptags }}</div>{% endif %}
+          {% if form.password2.errors %}<div id="password2_server_error" class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password2.errors|striptags }}</div>{% endif %}
           {% if form.password2.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password2.help_text|striptags }}</div>{% endif %}
         </div>
         {% endif %}
@@ -406,12 +406,19 @@
       });
     }
 
-    // Real-time Password Confirmation Matching
+    // Real-time Password Confirmation Matching & Error Clearing
     const p1 = document.getElementById("id_password1");
     const p2 = document.getElementById("id_password2");
     const matchFeedback = document.getElementById("password_match_feedback");
 
+    function clearOldServerPasswordErrors() {
+      document.querySelectorAll(".password-server-error").forEach(el => {
+        el.style.display = "none";
+      });
+    }
+
     function checkPasswordMatch() {
+      clearOldServerPasswordErrors();
       if (!p1 || !p2 || !matchFeedback) return;
       const v1 = p1.value;
       const v2 = p2.value;
