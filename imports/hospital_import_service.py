@@ -44,7 +44,7 @@ def clean_phone_number(raw):
 
 
 def parse_flexible_date(raw):
-    """Parses date/datetime from ISO strings, Excel timestamps, or strings."""
+    """Parses date/datetime from ISO strings, Excel timestamps, or strings (e.g. 11-06-2026 -> 11 June 2026). Always returns a datetime.date object."""
     if raw is None or (isinstance(raw, float) and np.isnan(raw)):
         return timezone.localdate()
     if isinstance(raw, (datetime, pd.Timestamp)):
@@ -52,10 +52,10 @@ def parse_flexible_date(raw):
     if isinstance(raw, date):
         return raw
     s = str(raw).strip()
-    if not s or s.lower() in ("nan", "none", "nat", "-"):
+    if not s or s.lower() in ("nan", "none", "nat", "-", "null", "undefined"):
         return timezone.localdate()
     
-    # ISO 8601 e.g. 2026-08-23T07:16:47.000
+    # ISO 8601 e.g. 2026-08-23T07:16:47.000 or 2026-08-23 07:16:47
     if "t" in s.lower():
         try:
             clean_s = s.split(".")[0].replace("Z", "").replace("z", "")
@@ -68,8 +68,9 @@ def parse_flexible_date(raw):
         "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
         "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
         "%d.%m.%Y %H:%M:%S", "%d.%m.%Y %H:%M",
-        "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y",
-        "%m/%d/%Y", "%Y/%m/%d", "%d-%b-%Y", "%d %b %Y",
+        "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y",
+        "%Y-%m-%d", "%m/%d/%Y", "%Y/%m/%d",
+        "%d-%b-%Y", "%d %b %Y", "%d-%B-%Y", "%d %B %Y",
     ]
     for fmt in formats:
         try:
@@ -231,7 +232,7 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
     
     # Financial & clinical bills
     uhid_cols = ["uhid_no", "uhid_id_no", "uhid", "patient_id"]
-    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date", "appo_booked_date"]
+    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date"]
     pharmacy_bill_cols = ["pharmacy_bill", "pharmacy"]
     opd_bill_cols = ["opd_bill", "opd"]
     ipd_bill_cols = ["ipd_bill", "ipd_no", "ipd"]
