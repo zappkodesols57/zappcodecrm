@@ -842,7 +842,7 @@ def lead_list(request):
     if target_hospital:
         employees_qs = User.objects.filter(
             hospital=target_hospital,
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.TELECALLER],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
             is_active=True,
             is_approved=True
         ).order_by("first_name", "last_name", "username")
@@ -857,7 +857,7 @@ def lead_list(request):
         hospital_statuses_qs = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
     else:
         employees_qs = User.objects.filter(
-            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT, User.Role.TELECALLER],
+            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT],
             is_active=True,
             is_approved=True
         ).order_by("first_name", "last_name", "username")
@@ -1397,7 +1397,21 @@ def team_history(request):
     doctors_list = []
     for doc in doctors:
         doc_name = doc.get_full_name() or doc.username
-        cnt = leads.filter(Q(assigned_to=doc) | Q(custom_data__doctor__icontains=doc_name)).distinct().count()
+        doc_fname = doc.first_name.strip() if doc.first_name else ""
+        doc_lname = doc.last_name.strip() if doc.last_name else ""
+        doc_uname = doc.username.strip() if doc.username else ""
+        
+        doc_match = Q(assigned_to=doc) | Q(appointments__doctor_user=doc)
+        if doc_name:
+            doc_match |= Q(appointments__doctor_name__icontains=doc_name) | Q(custom_data__doctor__icontains=doc_name)
+        if doc_fname and len(doc_fname) >= 3:
+            doc_match |= Q(appointments__doctor_name__icontains=doc_fname) | Q(custom_data__doctor__icontains=doc_fname)
+        if doc_lname and len(doc_lname) >= 3:
+            doc_match |= Q(appointments__doctor_name__icontains=doc_lname) | Q(custom_data__doctor__icontains=doc_lname)
+        if doc_uname:
+            doc_match |= Q(appointments__doctor_name__icontains=doc_uname) | Q(custom_data__doctor__icontains=doc_uname)
+
+        cnt = leads.filter(doc_match).distinct().count()
         doctors_list.append({
             "user": doc,
             "count": cnt,
@@ -1416,14 +1430,31 @@ def team_history(request):
             doc_q = Q()
             for d in selected_doctor_objs:
                 dname = d.get_full_name() or d.username
-                doc_q |= Q(assigned_to=d) | Q(custom_data__doctor__icontains=dname)
+                dfname = d.first_name.strip() if d.first_name else ""
+                dlname = d.last_name.strip() if d.last_name else ""
+                duname = d.username.strip() if d.username else ""
+
+                d_match = Q(assigned_to=d) | Q(appointments__doctor_user=d)
+                if dname:
+                    d_match |= Q(appointments__doctor_name__icontains=dname) | Q(custom_data__doctor__icontains=dname)
+                if dfname and len(dfname) >= 3:
+                    d_match |= Q(appointments__doctor_name__icontains=dfname) | Q(custom_data__doctor__icontains=dfname)
+                if dlname and len(dlname) >= 3:
+                    d_match |= Q(appointments__doctor_name__icontains=dlname) | Q(custom_data__doctor__icontains=dlname)
+                if duname:
+                    d_match |= Q(appointments__doctor_name__icontains=duname) | Q(custom_data__doctor__icontains=duname)
+                doc_q |= d_match
             leads = leads.filter(doc_q)
         else:
             # If no specific doctor is selected, show all leads belonging/assigned to doctors or with doctor assigned
-            all_doc_names = [d.get_full_name() or d.username for d in doctors]
-            doc_filter_q = Q(assigned_to__in=doctors)
-            for dname in all_doc_names[:50]:
-                doc_filter_q |= Q(custom_data__doctor__icontains=dname)
+            doc_filter_q = Q(assigned_to__in=doctors) | Q(appointments__doctor_user__in=doctors)
+            for d in doctors:
+                dname = d.get_full_name() or d.username
+                dfname = d.first_name.strip() if d.first_name else ""
+                if dname:
+                    doc_filter_q |= Q(custom_data__doctor__icontains=dname) | Q(appointments__doctor_name__icontains=dname)
+                if dfname and len(dfname) >= 3:
+                    doc_filter_q |= Q(custom_data__doctor__icontains=dfname) | Q(appointments__doctor_name__icontains=dfname)
             leads = leads.filter(doc_filter_q)
     else:
         # Telecallers tab
