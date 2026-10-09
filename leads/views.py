@@ -831,14 +831,21 @@ def lead_list(request):
     else:
         campaigns_qs = Campaign.objects.filter(is_active=True).order_by("name")
 
-    # Scope stages
-    stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    # Deduplicated unique stages
+    seen_stg = set()
+    stages_clean = []
+    for stg in LeadStage.objects.filter(is_active=True).order_by("order", "id"):
+        s_name = (stg.name or "").strip()
+        if s_name and s_name.lower() not in seen_stg:
+            seen_stg.add(s_name.lower())
+            stages_clean.append(stg)
+    stages_qs = stages_clean
     
     # Calculate campaign breakdown for interactive top campaign quick-filter cards
     status_scoped_leads = get_filtered_leads(request, exclude_campaign_filter=True)
     campaign_breakdown = get_campaign_breakdown_stats(active_leads, status_scoped_leads)
 
-    # Telecaller / Employees Query
+    # Telecaller / Employees Query (scoped to target hospital or global)
     if target_hospital:
         employees_qs = User.objects.filter(
             hospital=target_hospital,
@@ -867,6 +874,20 @@ def lead_list(request):
         hospital_sources_qs = MasterGroup.get_active_choices("Lead Sources")
         hospital_statuses_qs = MasterGroup.get_active_choices("Deal Statuses")
 
+    # Combine & deduplicate campaigns
+    seen_camps = set()
+    clean_campaigns = []
+    for c in campaigns_qs:
+        c_n = (c.name or "").strip()
+        if c_n and c_n.lower() not in seen_camps:
+            seen_camps.add(c_n.lower())
+            clean_campaigns.append({"id": c.id, "name": c_n})
+    for hc in hospital_campaigns_qs:
+        hc_n = (hc.name or "").strip()
+        if hc_n and hc_n.lower() not in seen_camps:
+            seen_camps.add(hc_n.lower())
+            clean_campaigns.append({"id": hc.id, "name": hc_n})
+
     hospital_deal_statuses = list(hospital_statuses_qs.values_list("name", flat=True)) if hospital_statuses_qs else []
     if hospital_deal_statuses:
         bulk_stages_list = [{"id": s, "name": s} for s in hospital_deal_statuses]
@@ -883,7 +904,7 @@ def lead_list(request):
         "selected_import_job": selected_import_job,
         "source_categories": SourceCategory.objects.filter(id__in=used_sc_ids),
         "lead_sources": LeadSource.objects.filter(id__in=used_ls_ids),
-        "campaigns": campaigns_qs,
+        "campaigns": clean_campaigns,
         "courses": courses_qs,
         "stages": stages_qs,
         "cities": distinct_cities,
