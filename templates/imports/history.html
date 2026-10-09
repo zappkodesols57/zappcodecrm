@@ -254,30 +254,33 @@
 
 <!-- Modal: Delete Import Confirmation -->
 <div class="modal fade" id="deleteImportModal" tabindex="-1" aria-labelledby="deleteImportModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border-subtle);">
-      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border-subtle);">
-        <h6 class="modal-title fw-bold text-dark" id="deleteImportModalLabel">Delete Import File</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
+    <div class="modal-content border-0 rounded-3 shadow" style="border-color: var(--theme-border-subtle);">
+      <div class="modal-header py-3 px-4 border-bottom bg-light">
+        <h6 class="modal-title fw-bold text-dark mb-0" id="deleteImportModalLabel" style="font-size: 1.05rem;">
+          <i class="fa-solid fa-trash-can text-danger me-2"></i>Delete Import File
+        </h6>
       </div>
-      <div class="modal-body px-3 py-3">
-        <p class="text-secondary mb-3" style="font-size: 0.88rem; line-height: 1.5;">
-          Are you sure you want to delete this import? This will delete the batch record and all leads created by this file.
+      <div class="modal-body px-4 py-3.5">
+        <p class="text-secondary mb-3" style="font-size: 0.92rem; line-height: 1.55;">
+          Are you sure you want to delete this import? This will permanently delete the batch record and all leads created by this file.
         </p>
-        <div class="p-2.5 bg-light rounded-2 border small" style="border-color: var(--theme-border-subtle);">
-          <div class="d-flex justify-content-between mb-1.5">
-            <span class="text-muted">File:</span>
-            <span class="fw-bold text-dark text-truncate ms-2" style="max-width: 220px;" id="delModalFileName">-</span>
+        <div class="p-3 bg-light rounded-2 border" style="border-color: var(--theme-border-subtle); background: #f8fafc;">
+          <div class="row g-2 mb-2 align-items-start">
+            <div class="col-sm-3 text-muted small fw-semibold">File Name:</div>
+            <div class="col-sm-9 fw-bold text-dark text-break" style="font-size: 0.88rem; word-break: break-word;" id="delModalFileName">-</div>
           </div>
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="text-muted">Imported Leads:</span>
-            <span class="fw-bold text-dark" id="delModalLeadsCount">0</span>
+          <div class="row g-2 align-items-center">
+            <div class="col-sm-3 text-muted small fw-semibold">Imported Leads:</div>
+            <div class="col-sm-9 fw-bold text-danger" style="font-size: 0.95rem;" id="delModalLeadsCount">0</div>
           </div>
         </div>
       </div>
-      <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border-subtle);">
-        <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-sm btn-danger px-3 fw-semibold" id="confirmDeleteSubmitBtn">
+      <div class="modal-footer py-2.5 px-4 bg-light border-top d-flex justify-content-end gap-2" style="border-color: var(--theme-border-subtle);">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-4 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.85rem; border-color: #94a3b8; color: #334155; background: #ffffff;">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-sm btn-danger px-4 fw-semibold" id="confirmDeleteSubmitBtn" style="font-size: 0.85rem;">
           Yes, Delete
         </button>
       </div>

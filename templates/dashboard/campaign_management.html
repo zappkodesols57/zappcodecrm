@@ -195,6 +195,18 @@
     background: #38bdf8 !important;
     color: #0f172a !important;
   }
+  .modal .form-control,
+  .modal .form-select {
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 6px !important;
+    font-size: 0.82rem !important;
+    color: #1e293b !important;
+  }
+  .modal .form-control:focus,
+  .modal .form-select:focus {
+    border-color: #052042 !important;
+    box-shadow: 0 0 0 2px rgba(5, 32, 66, 0.1) !important;
+  }
 </style>
 {% endblock %}
 
@@ -491,10 +503,9 @@
               <!-- Edit Modal -->
               <div class="modal fade" id="editModal{{ c.obj.pk }}" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
-                  <div class="modal-content border-0 shadow rounded-4 text-start">
-                    <div class="modal-header border-0 pb-0">
-                      <h5 class="modal-title fw-bold text-dark">Edit Campaign</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  <div class="modal-content border shadow-sm rounded-3 text-start" style="border-color: #CBD5E1 !important;">
+                    <div class="modal-header border-bottom py-3 px-4" style="border-color: #E2E8F0 !important;">
+                      <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Edit Campaign</h5>
                     </div>
                     <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}">
                       {% csrf_token %}
@@ -564,9 +575,9 @@
                           <label class="form-check-label small fw-bold" for="activeCheck{{ c.obj.pk }}">Campaign Active</label>
                         </div>
                       </div>
-                      <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Save Changes</button>
+                      <div class="modal-footer border-top py-2.5 px-4 bg-light" style="border-color: #E2E8F0 !important;">
+                        <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal" style="border-radius: 6px; border-color: #CBD5E1 !important;">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 shadow-sm" style="background-color: #052042 !important; border-color: #052042 !important; border-radius: 6px; font-weight: 600;">Save Changes</button>
                       </div>
                     </form>
                   </div>
@@ -645,10 +656,9 @@
 <!-- Create Campaign Modal -->
 <div class="modal fade" id="createCampaignModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold text-dark">Add New Campaign</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-content border shadow-sm rounded-3" style="border-color: #CBD5E1 !important;">
+      <div class="modal-header border-bottom py-3 px-4" style="border-color: #E2E8F0 !important;">
+        <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Add New Campaign</h5>
       </div>
       <form method="post" action="{% url 'dashboard:nelson_module' 'campaign-management' %}" onsubmit="return validateCampaignForm(this)">
         {% csrf_token %}
@@ -713,9 +723,9 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Create Campaign</button>
+        <div class="modal-footer border-top py-2.5 px-4 bg-light" style="border-color: #E2E8F0 !important;">
+          <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal" style="border-radius: 6px; border-color: #CBD5E1 !important;">Cancel</button>
+          <button type="submit" class="btn btn-primary px-4 shadow-sm" style="background-color: #052042 !important; border-color: #052042 !important; border-radius: 6px; font-weight: 600;">Create Campaign</button>
         </div>
       </form>
     </div>

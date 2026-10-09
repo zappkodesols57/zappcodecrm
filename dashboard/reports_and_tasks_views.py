@@ -1258,6 +1258,18 @@ def management_daily_reports(request):
     if user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER, User.Role.ADMIN) and not user.is_superuser:
         raise PermissionDenied("You do not have permission to view this report log.")
         
+    # Tab handling: 'eod' (default) vs 'tasks'
+    active_tab = request.GET.get("tab", "eod").strip().lower()
+    if active_tab not in ["eod", "tasks"]:
+        active_tab = "eod"
+
+    # Role and Employee Filters
+    role_filter = request.GET.get("role", "").strip()
+    emp_id = request.GET.get("employee", "").strip()
+    date_from_str = request.GET.get("date_from", "").strip()
+    date_to_str = request.GET.get("date_to", "").strip()
+    
+    # 1. Daily EOD Reports Query
     reports = DailyReport.objects.select_related("user").all()
     
     effective_hospital = _get_effective_hospital(request)
@@ -1269,18 +1281,15 @@ def management_daily_reports(request):
         team_members = User.objects.filter(Q(reports_to=user) | Q(pk=user.pk))
         reports = reports.filter(user__in=team_members)
     
-    # Apply Filters
-    emp_id = request.GET.get("employee")
+    if role_filter:
+        reports = reports.filter(user__role=role_filter)
     if emp_id:
         reports = reports.filter(user_id=emp_id)
         
-    date_from_str = request.GET.get("date_from")
-    date_to_str = request.GET.get("date_to")
-    
     has_date_filter = False
     if date_from_str:
         try:
-            date_from = datetime.strptime(date_from_str.strip(), "%Y-%m-%d").date()
+            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
             reports = reports.filter(report_date__gte=date_from)
             has_date_filter = True
         except ValueError:
@@ -1288,14 +1297,14 @@ def management_daily_reports(request):
             
     if date_to_str:
         try:
-            date_to = datetime.strptime(date_to_str.strip(), "%Y-%m-%d").date()
+            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
             reports = reports.filter(report_date__lte=date_to)
             has_date_filter = True
         except ValueError:
             pass
 
     # Option 3: By default (when no specific date filter is applied), show only the latest 1 entry per user
-    if not has_date_filter and not emp_id:
+    if not has_date_filter and not emp_id and not role_filter:
         from django.db.models import Max
         latest_report_ids = DailyReport.objects.filter(
             id__in=reports.values_list('id', flat=True)
@@ -1304,36 +1313,153 @@ def management_daily_reports(request):
     else:
         reports = reports.order_by('-report_date', '-id')
 
+    # 2. Task Reports Query (TaskReminder reported to admin)
+    task_reports = TaskReminder.objects.filter(is_reported_to_admin=True).select_related('user', 'assigned_by', 'lead')
+    if effective_hospital:
+        task_reports = task_reports.filter(user__hospital=effective_hospital)
+    if user.role == User.Role.MANAGER and not user.is_superuser:
+        team_members = User.objects.filter(Q(reports_to=user) | Q(pk=user.pk))
+        task_reports = task_reports.filter(user__in=team_members)
+
+    if role_filter:
+        task_reports = task_reports.filter(user__role=role_filter)
+    if emp_id:
+        task_reports = task_reports.filter(user_id=emp_id)
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            task_reports = task_reports.filter(Q(reported_at__date__gte=date_from) | Q(reported_at__isnull=True, updated_at__date__gte=date_from))
+        except ValueError:
+            pass
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            task_reports = task_reports.filter(Q(reported_at__date__lte=date_to) | Q(reported_at__isnull=True, updated_at__date__lte=date_to))
+        except ValueError:
+            pass
+
+    # Process reports to accurately attach first login time and last logout time (with 11:59 PM EOD fallback)
+    from audit.models import AuditLog
+    from datetime import time
+
+    processed_reports = []
+    today = timezone.localdate()
+
+    for r in reports:
+        r_date = r.report_date
+        # 1. Earliest Login on report_date
+        first_login_time = r.first_login_at
+        if not first_login_time:
+            first_log = AuditLog.objects.filter(
+                user=r.user,
+                created_at__date=r_date,
+                action='USER_LOGIN'
+            ).order_by('created_at').first()
+            if first_log:
+                first_login_time = first_log.created_at
+            elif r.created_at and r.created_at.date() == r_date:
+                first_login_time = r.created_at
+            else:
+                earliest_audit = AuditLog.objects.filter(
+                    user=r.user,
+                    created_at__date=r_date
+                ).order_by('created_at').first()
+                if earliest_audit:
+                    first_login_time = earliest_audit.created_at
+
+        # 2. Latest Logout on report_date
+        last_logout_time = r.last_logout_at
+        if not last_logout_time:
+            last_log = AuditLog.objects.filter(
+                user=r.user,
+                created_at__date=r_date,
+                action='USER_LOGOUT'
+            ).order_by('-created_at').first()
+            if last_log:
+                last_logout_time = last_log.created_at
+
+        # Logout Display string logic:
+        # If user explicitly logged out, show formatted time (e.g. 06:30 PM).
+        # If not logged out by end of day (past date or current date after shift/EOD), show 11:59 PM.
+        if last_logout_time:
+            display_logout = timezone.localtime(last_logout_time).strftime("%I:%M %p")
+        else:
+            if r_date < today:
+                display_logout = "11:59 PM"
+            else:
+                # For today: if EOD report is already submitted, day's reporting is done -> 11:59 PM EOD
+                display_logout = "11:59 PM"
+
+        display_login = timezone.localtime(first_login_time).strftime("%I:%M %p") if first_login_time else "—"
+
+        processed_reports.append({
+            'report': r,
+            'user': r.user,
+            'report_date': r.report_date,
+            'leads_assigned': r.leads_assigned,
+            'calls_attended': r.calls_attended,
+            'pending_leads': r.pending_leads,
+            'follow_ups_taken': r.follow_ups_taken,
+            'tomorrow_followups': r.tomorrow_followups,
+            'mood': r.mood,
+            'display_login': display_login,
+            'display_logout': display_logout,
+            'first_login_time': first_login_time,
+            'last_logout_time': last_logout_time,
+        })
+
     if "export" in request.GET:
-        rows = []
-        for r in reports:
-            rows.append({
-                "Date": r.report_date.strftime("%d-%m-%Y"),
-                "Employee": r.user.get_full_name() or r.user.username,
-                "Role": r.user.get_role_display(),
-                "Reports To": (r.user.reports_to.get_full_name() or r.user.reports_to.username) if r.user.reports_to else "Admin",
-                "First Login": r.first_login_at.strftime("%I:%M %p") if r.first_login_at else "—",
-                "Last Logout": r.last_logout_at.strftime("%I:%M %p") if r.last_logout_at else "—",
-                "Leads Assigned": r.leads_assigned,
-                "Calls / Touches": r.calls_attended,
-                "Admissions Done": r.admissions_done,
-                "Payments Done": r.payments_done,
-                "Fees Collected (₹)": float(r.fees_collected),
-                "Pending Leads": r.pending_leads,
-                "Tomorrow Follow-ups": r.tomorrow_followups,
-                "Follow-ups Taken": r.follow_ups_taken,
-                "Appointments Booked": r.appointments_booked,
-                "Freeze Leads": r.freeze_leads,
-                "Key Highlight": r.key_highlight,
-                "Challenges Faced": r.challenges_faced,
-                "Tomorrow Priority": r.tomorrow_priority,
-                "Mood": r.mood_display,
-            })
-        df = pd.DataFrame(rows)
-        response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        response["Content-Disposition"] = f'attachment; filename="daily_reports_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
-        df.to_excel(response, index=False, sheet_name="Daily Reports")
-        return response
+        if active_tab == "tasks":
+            task_rows = []
+            for tr in task_reports:
+                r_date = tr.reported_at or tr.updated_at
+                task_rows.append({
+                    "Reported Date/Time": r_date.strftime("%d-%m-%Y %I:%M %p") if r_date else "—",
+                    "Task Title": tr.title,
+                    "Assigned Employee": tr.user.get_full_name() or tr.user.username,
+                    "Role": tr.user.get_role_display(),
+                    "Assigned By": (tr.assigned_by.get_full_name() or tr.assigned_by.username) if tr.assigned_by else "Admin / Self",
+                    "Status": tr.get_status_display(),
+                    "Priority": tr.get_priority_display(),
+                    "Linked Patient": tr.lead.name if tr.lead else "General Task",
+                    "Task Report Notes": tr.admin_report_notes or "—",
+                })
+            df = pd.DataFrame(task_rows)
+            response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            response["Content-Disposition"] = f'attachment; filename="task_reports_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+            df.to_excel(response, index=False, sheet_name="Task Reports")
+            return response
+        else:
+            rows = []
+            for item in processed_reports:
+                r = item['report']
+                rows.append({
+                    "Date": r.report_date.strftime("%d-%m-%Y"),
+                    "Employee": r.user.get_full_name() or r.user.username,
+                    "Role": r.user.get_role_display(),
+                    "Reports To": (r.user.reports_to.get_full_name() or r.user.reports_to.username) if r.user.reports_to else "Admin",
+                    "First Login": item['display_login'],
+                    "Last Logout": item['display_logout'],
+                    "Leads Assigned": r.leads_assigned,
+                    "Calls / Touches": r.calls_attended,
+                    "Admissions Done": r.admissions_done,
+                    "Payments Done": r.payments_done,
+                    "Fees Collected (₹)": float(r.fees_collected),
+                    "Pending Leads": r.pending_leads,
+                    "Tomorrow Follow-ups": r.tomorrow_followups,
+                    "Follow-ups Taken": r.follow_ups_taken,
+                    "Appointments Booked": r.appointments_booked,
+                    "Freeze Leads": r.freeze_leads,
+                    "Key Highlight": r.key_highlight,
+                    "Challenges Faced": r.challenges_faced,
+                    "Tomorrow Priority": r.tomorrow_priority,
+                    "Mood": r.mood or "Good",
+                })
+            df = pd.DataFrame(rows)
+            response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            response["Content-Disposition"] = f'attachment; filename="daily_reports_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+            df.to_excel(response, index=False, sheet_name="Daily Reports")
+            return response
         
     # Get active/approved employees for filter dropdown
     employees = User.objects.filter(is_active=True, is_approved=True)
@@ -1341,11 +1467,46 @@ def management_daily_reports(request):
         employees = employees.filter(hospital=effective_hospital)
     if user.role == User.Role.MANAGER and not user.is_superuser:
         employees = employees.filter(Q(reports_to=user) | Q(pk=user.pk))
-    
+    employees = employees.order_by('first_name', 'username')
+
+    # Allowed assignment & filter roles strictly scoped to the active business/hospital
+    if effective_hospital and hasattr(effective_hospital, 'get_allowed_roles'):
+        allowed_keys = effective_hospital.get_allowed_roles()
+        role_choices = [(c[0], c[1]) for c in User.Role.choices if c[0] in allowed_keys]
+    else:
+        # Fallback: only roles actually present among current business employees
+        active_role_keys = set(employees.values_list('role', flat=True).distinct())
+        role_choices = [(c[0], c[1]) for c in User.Role.choices if c[0] in active_role_keys]
+
+    allowed_roles = [r[0] for r in role_choices]
+
+    # Eligible assignable users for Admin/Manager strictly within this business
+    assignable_users = User.objects.filter(is_active=True, is_approved=True, role__in=allowed_roles)
+    if effective_hospital:
+        assignable_users = assignable_users.filter(hospital=effective_hospital)
+    assignable_users = assignable_users.order_by('role', 'first_name', 'username')
+
+    # Leads for dropdown search/selection in modal
+    user_leads = Lead.objects.filter(is_archived=False)
+    if effective_hospital:
+        user_leads = user_leads.filter(hospital=effective_hospital)
+    if user.role == 'LEAD_ATTENDENT':
+        user_leads = user_leads.filter(assigned_to=user)
+    user_leads = user_leads.order_by('-updated_at')[:50]
+
     return render(request, "dashboard/daily_reports_list.html", {
         "active": "reports_daily",
-        "reports": reports,
+        "active_tab": active_tab,
+        "reports": processed_reports,
+        "task_reports": task_reports,
+        "task_reports_count": task_reports.count(),
+        "eod_reports_count": len(processed_reports),
         "employees": employees,
+        "assignable_users": assignable_users,
+        "role_choices": role_choices,
+        "user_leads": user_leads,
+        "selected_role": role_filter,
+        "selected_employee": emp_id,
         "request_get": request.GET,
         "current_hospital": effective_hospital,
     })
@@ -1519,6 +1680,7 @@ def task_create_view(request):
         for target_user in target_users:
             TaskReminder.objects.create(
                 user=target_user,
+                assigned_by=request.user,
                 title=title,
                 description=description,
                 due_date=due_date,
@@ -1535,11 +1697,10 @@ def task_create_view(request):
                 try:
                     from notifications.models import Notification
                     Notification.objects.create(
-                        recipient=target_user,
-                        title="New Task Assigned",
+                        user=target_user,
+                        title="📋 New Task Assigned",
                         message=f"{request.user.get_full_name() or request.user.username} assigned you task: '{title}'",
-                        notification_type="SYSTEM",
-                        link_url="/dashboard/tasks/"
+                        link="/dashboard/tasks/"
                     )
                 except Exception:
                     pass
@@ -1581,35 +1742,52 @@ def task_update_status(request, pk):
 def task_send_report_to_admin(request):
     if request.method == "POST":
         report_notes = request.POST.get('report_notes', '').strip()
+        task_id = request.POST.get('task_id')
         selected_task_ids = request.POST.getlist('task_ids')
+        mark_completed = request.POST.get('mark_completed', '1') == '1'
         
         user = request.user
         tasks_to_report = TaskReminder.objects.filter(user=user)
-        if selected_task_ids:
+        if task_id:
+            tasks_to_report = tasks_to_report.filter(id=task_id)
+        elif selected_task_ids:
             tasks_to_report = tasks_to_report.filter(id__in=selected_task_ids)
             
         tasks_count = tasks_to_report.count()
-        tasks_to_report.update(
-            is_reported_to_admin=True,
-            admin_report_notes=report_notes,
-            reported_at=timezone.now()
-        )
+        if tasks_count == 0:
+            messages.error(request, "No task selected or task not found.")
+            return redirect("dashboard:tasks")
+
+        update_dict = {
+            'is_reported_to_admin': True,
+            'admin_report_notes': report_notes,
+            'reported_at': timezone.now()
+        }
+        if mark_completed:
+            update_dict['status'] = TaskReminder.Status.COMPLETED
+
+        tasks_to_report.update(**update_dict)
         
-        # Send Notification to Admin / SuperAdmin
+        # Send Notification to Admin / SuperAdmin / Assigned By
         from notifications.models import Notification
         admins = User.objects.filter(role__in=['SUPER_ADMIN', 'ADMIN', 'MANAGER'])
         if user.hospital:
             admins = admins.filter(hospital=user.hospital)
             
-        for admin_user in admins:
+        notif_recipients = set(admins)
+        for t in tasks_to_report:
+            if t.assigned_by and t.assigned_by != user:
+                notif_recipients.add(t.assigned_by)
+
+        for admin_user in notif_recipients:
             Notification.objects.create(
                 user=admin_user,
                 title=f"Task Report from {user.get_full_name() or user.username}",
-                message=f"{user.get_full_name() or user.username} submitted a Task & Reminder summary report ({tasks_count} tasks). Notes: {report_notes[:200]}",
-                link="/dashboard/reports/admin/",
+                message=f"{user.get_full_name() or user.username} submitted report for task(s). Notes: {report_notes[:200]}",
+                link="/dashboard/reports/daily/?tab=tasks",
             )
             
-        messages.success(request, f"Successfully submitted task report ({tasks_count} tasks) to Administration!")
+        messages.success(request, f"Task report successfully submitted to Admin / Manager!")
     return redirect("dashboard:tasks")
 
 @login_required

@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Appointments Done · Nelson Hospital CRM{% endblock %}
+{% block title %}Payment Done · Nelson Hospital CRM{% endblock %}
 {% block content %}
 
-<!-- Top Header & Filter Bar (Direct / Sectionless) -->
+<!-- Top Header & Filter Bar (Direct / Sectionless Layout) -->
 <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-2 mb-3 pt-1">
   
-  <!-- 1. Left: Page Heading & Count (Icon removed) -->
+  <!-- 1. Left: Page Heading & Count (Short, clean heading without icons) -->
   <div class="d-flex align-items-center gap-2 text-nowrap">
     <h5 class="fw-bold text-dark mb-0" style="font-size: 1.15rem; letter-spacing: -0.2px;">
-      Appointments Done
+      Payment Done
     </h5>
-    <span class="badge bg-light text-muted border px-2 py-0.5 rounded" style="font-size: 0.72rem;">{{ appointment_done_count|default:total_leads_count }} records</span>
+    <span class="badge bg-light text-muted border px-2 py-0.5 rounded" style="font-size: 0.72rem;">{{ payment_done_count|default:total_leads_count }} records</span>
   </div>
 
   <!-- 2. Right: Search Bar, Campaigns Dropdown, Date Filters (Compact Rectangular Inputs) -->
@@ -113,9 +113,9 @@
 
 </div>
 
-<!-- Dynamic KPI Section (Total Leads, Appointments Done, Conversion Rate, Approval Pending, Upcoming Appointment) -->
+<!-- Dynamic KPI Section (Total, Payment Done, Conversion Rate, Payment Pending, Revenue) -->
 <div class="row g-2.5 mb-4">
-  <!-- Total Leads -->
+  <!-- 1. Total Leads -->
   <div class="col-6 col-md">
     <div class="card shadow-none border rounded-3 bg-white" style="border-color: #e2e8f0 !important;">
       <div class="card-body py-2.5 px-3">
@@ -125,42 +125,42 @@
     </div>
   </div>
 
-  <!-- Appointments Done -->
+  <!-- 2. Payment Done -->
   <div class="col-6 col-md">
     <div class="card shadow-none border rounded-3 bg-white" style="border-color: #e2e8f0 !important;">
       <div class="card-body py-2.5 px-3">
-        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Appointments Done</div>
-        <div class="fs-4 fw-bold text-primary mt-0.5">{{ appointment_done_count }}</div>
+        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Payment Done</div>
+        <div class="fs-4 fw-bold text-primary mt-0.5">{{ payment_done_count }}</div>
       </div>
     </div>
   </div>
 
-  <!-- Conversion Rate (Total Leads by Appointment Done) -->
+  <!-- 3. Conversion Rate (%) -->
   <div class="col-6 col-md">
     <div class="card shadow-none border rounded-3 bg-white" style="border-color: #e2e8f0 !important;">
       <div class="card-body py-2.5 px-3">
         <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Conversion Rate</div>
-        <div class="fs-4 fw-bold text-success mt-0.5">{{ conversion_rate }}%</div>
+        <div class="fs-4 fw-bold text-primary mt-0.5">{{ conversion_rate }}%</div>
       </div>
     </div>
   </div>
 
-  <!-- Approval Pending -->
+  <!-- 4. Payment Pending -->
   <div class="col-6 col-md">
     <div class="card shadow-none border rounded-3 bg-white" style="border-color: #e2e8f0 !important;">
       <div class="card-body py-2.5 px-3">
-        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Approval Pending</div>
-        <div class="fs-4 fw-bold text-warning mt-0.5">{{ approval_pending_count }}</div>
+        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Payment Pending</div>
+        <div class="fs-4 fw-bold text-dark mt-0.5">{{ payment_pending_count }}</div>
       </div>
     </div>
   </div>
 
-  <!-- Upcoming Appointment -->
+  <!-- 5. Revenue -->
   <div class="col-12 col-md">
     <div class="card shadow-none border rounded-3 bg-white" style="border-color: #e2e8f0 !important;">
       <div class="card-body py-2.5 px-3">
-        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Upcoming Appointment</div>
-        <div class="fs-4 fw-bold text-info mt-0.5">{{ upcoming_appointments_count }}</div>
+        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.70rem; letter-spacing: 0.4px;">Revenue</div>
+        <div class="fs-4 fw-bold text-primary mt-0.5">{{ formatted_revenue }}</div>
       </div>
     </div>
   </div>
@@ -292,19 +292,18 @@ document.addEventListener("DOMContentLoaded", function() {
 <!-- Healthcare Standard Lead Table Card -->
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" style="border: 1px solid #e2e8f0 !important;">
   <div class="table-responsive custom-table-scrollbar pb-2">
-    <table class="table table-hover align-middle mb-0" style="min-width: 1250px; font-size: 0.86rem;">
+    <table class="table table-hover align-middle mb-0" style="min-width: 1200px; font-size: 0.86rem;">
       <thead class="bg-light border-bottom">
         <tr>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">Patient Name</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Contact / Location</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Source / Campaign</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Stage</th>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Status</th>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Deal Status</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; min-width: 120px;">Total Amount</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Inquiry Date/Time</th>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Last Update / Last Remark</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Last Update / Remark</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Telecaller</th>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; min-width: 150px;">Actions</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; min-width: 140px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -346,31 +345,26 @@ document.addEventListener("DOMContentLoaded", function() {
           <!-- 4. Stage -->
           <td class="px-3">
             <span class="badge bg-light text-dark border px-2 py-1 font-monospace" style="font-size: 0.74rem;">
-              {{ lead.stage|default:"Appointment" }}
+              {{ lead.stage|default:"Payment Done" }}
             </span>
           </td>
 
-          <!-- 5. Status -->
-          <td class="px-3">
-            {% if lead.display_status == 'Payment Done' %}
-              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check me-1"></i>Payment Done</span>
-            {% elif lead.display_status == 'Booking Confirmed' or lead.display_status == 'Booked' %}
-              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i>{{ lead.display_status }}</span>
-            {% elif 'Approval' in lead.display_status %}
-              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-hourglass-half me-1"></i>Approval Pending</span>
-            {% elif lead.display_status == 'Payment Pending' %}
-              <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-clock-rotate-left me-1"></i>Payment Pending</span>
+          <!-- 5. Total Amount (Replacing Status & Deal Status columns) -->
+          <td class="px-3 text-end">
+            {% if lead.computed_total_amount > 0 %}
+              <span class="fw-bold text-primary" style="font-size: 0.90rem;">
+                ₹ {{ lead.computed_total_amount|floatformat:0 }}
+              </span>
+            {% elif lead.custom_data.total or lead.custom_data.total_paid or lead.custom_data.opd_bill %}
+              <span class="fw-bold text-primary" style="font-size: 0.90rem;">
+                ₹ {{ lead.custom_data.total|default:lead.custom_data.total_paid|default:lead.custom_data.opd_bill }}
+              </span>
             {% else %}
-              <span class="badge bg-light text-secondary border px-2 py-1">{{ lead.display_status }}</span>
+              <span class="text-muted small">—</span>
             {% endif %}
           </td>
 
-          <!-- 6. Deal Status -->
-          <td class="px-3">
-            <span class="small fw-semibold text-dark">{{ lead.get_deal_status_display|default:lead.deal_status|default:"OPEN" }}</span>
-          </td>
-
-          <!-- 7. Inquiry Date / Time -->
+          <!-- 6. Inquiry Date / Time -->
           <td class="px-3">
             <span class="text-nowrap small text-dark d-block fw-medium">{{ lead.inquiry_date|date:"d-m-Y"|default:"—" }}</span>
             {% if lead.created_at %}
@@ -378,7 +372,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {% endif %}
           </td>
 
-          <!-- 8. Last Update Date / Last Remark -->
+          <!-- 7. Last Update Date / Remark -->
           <td class="px-3">
             {% with rem=lead.interaction_remark %}
               {% if rem and rem != '—' %}
@@ -394,7 +388,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
           </td>
 
-          <!-- 9. Telecaller -->
+          <!-- 8. Telecaller -->
           <td class="px-3">
             {% if lead.assigned_to %}
               <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">
@@ -405,7 +399,7 @@ document.addEventListener("DOMContentLoaded", function() {
             {% endif %}
           </td>
 
-          <!-- 10. Actions: WhatsApp, Call, View, Edit -->
+          <!-- 9. Actions -->
           <td class="px-3 text-end" onclick="event.stopPropagation();">
             <div class="d-inline-flex align-items-center justify-content-end gap-1">
               {% if lead.mobile %}
@@ -443,10 +437,10 @@ document.addEventListener("DOMContentLoaded", function() {
         </tr>
         {% empty %}
         <tr>
-          <td colspan="10">
+          <td colspan="9">
             <div class="py-5 text-center text-muted">
-              <i class="fa-solid fa-calendar-xmark fa-2x mb-2 text-secondary opacity-50"></i>
-              <div class="fw-semibold">No appointment done records found.</div>
+              <i class="fa-solid fa-receipt fa-2x mb-2 text-secondary opacity-50"></i>
+              <div class="fw-semibold">No payment done records found.</div>
             </div>
           </td>
         </tr>
@@ -463,7 +457,7 @@ document.addEventListener("DOMContentLoaded", function() {
   </div>
 
   {% if page_obj.paginator.num_pages > 1 %}
-  <nav aria-label="Appointments Pagination">
+  <nav aria-label="Payments Pagination">
     <ul class="pagination pagination-sm mb-0 shadow-xs">
       {% if page_obj.has_previous %}
       <li class="page-item">

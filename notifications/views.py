@@ -38,7 +38,6 @@ def get_unread_notifications(request):
                 fu_link = f"/leads/{f_lead.pk}/"
                 exists = Notification.objects.filter(
                     user=user,
-                    created_at__range=(start_today, end_today),
                     title=notif_t
                 ).exists()
                 if not exists:
@@ -84,7 +83,6 @@ def get_unread_notifications(request):
                 fu_link = f"/leads/{fu.lead.pk}/"
                 exists = Notification.objects.filter(
                     user=user,
-                    created_at__range=(start_today, end_today),
                     title=notif_title
                 ).exists()
                 if not exists:
@@ -128,7 +126,6 @@ def get_unread_notifications(request):
                 apt_link = f"/leads/{apt.lead.pk}/"
                 exists = Notification.objects.filter(
                     user=user,
-                    created_at__range=(start_today, end_today),
                     title=apt_title
                 ).exists()
                 if not exists:
@@ -139,48 +136,71 @@ def get_unread_notifications(request):
                         link=apt_link
                     )
 
-        # 4. Check pending task reminders for this user scheduled for today
-        pending_tasks = TaskReminder.objects.filter(
-            user=user,
+        # 4. Task Reminders (30m before & 5m before for both Assignee and Assigner)
+        # Note: ONLY active/pending tasks are queried. If a task is COMPLETED/CANCELLED, no notification is generated.
+        relevant_tasks = TaskReminder.objects.filter(
             due_date=today,
             status__in=[TaskReminder.Status.PENDING, TaskReminder.Status.IN_PROGRESS]
-        ).select_related('lead')
+        ).filter(
+            Q(user=user) | Q(assigned_by=user)
+        ).select_related('lead', 'user', 'assigned_by').distinct()
 
-        for task in pending_tasks:
+        for task in relevant_tasks:
+            is_assignee = (task.user == user)
+            is_creator = (task.assigned_by == user and task.assigned_by != task.user)
+            assignee_name = task.user.get_full_name() or task.user.username
+            creator_name = (task.assigned_by.get_full_name() or task.assigned_by.username) if task.assigned_by else "Admin"
+            
+            task_alerts = [] # list of (alert_type, title, message)
             time_msg = ""
-            should_alert = False
+            task_link = f"/leads/{task.lead.pk}/" if task.lead else "/dashboard/tasks/"
+            task_desc = f" - {task.description[:60]}..." if task.description else ""
+
             if task.due_time:
                 task_dt = timezone.datetime.combine(today, task.due_time)
                 task_dt = timezone.make_aware(task_dt, tz)
                 diff_minutes = (task_dt - now).total_seconds() / 60.0
                 time_msg = f" at {task.due_time.strftime('%I:%M %p')}"
-                if -60 <= diff_minutes <= 30:
-                    should_alert = True
-            else:
-                should_alert = True
 
-            if should_alert:
-                task_title = f"📋 Task Reminder: {task.title}"
-                task_link = f"/leads/{task.lead.pk}/" if task.lead else "/dashboard/tasks/"
-                task_desc = f" ({task.description[:80]}...)" if task.description else ""
-                
+                # 30 minutes before alert window (25 to 35 mins before)
+                if 25 <= diff_minutes <= 35:
+                    if is_assignee:
+                        task_alerts.append(('30m', f"⏳ Task Due in 30 Mins: {task.title}", f"Reminder: Your task '{task.title}'{time_msg} is due in 30 minutes.{task_desc}"))
+                    elif is_creator:
+                        task_alerts.append(('30m', f"⏳ Task Due in 30 Mins ({assignee_name}): {task.title}", f"Task '{task.title}' assigned to {assignee_name}{time_msg} is due in 30 minutes."))
+
+                # 5 minutes before / due now alert window (-10 to 6 mins before)
+                if -10 <= diff_minutes <= 6:
+                    if is_assignee:
+                        task_alerts.append(('5m', f"⏰ Task Due Now (5 Mins): {task.title}", f"Urgent: Task '{task.title}'{time_msg} is due now. Please complete and submit.{task_desc}"))
+                    elif is_creator:
+                        task_alerts.append(('5m', f"⏰ Task Due Now ({assignee_name}): {task.title}", f"Task '{task.title}' assigned to {assignee_name}{time_msg} is due now."))
+            else:
+                # Daily reminder if no specific time is set
+                if is_assignee:
+                    task_alerts.append(('daily', f"📋 Task Due Today: {task.title}", f"Task '{task.title}' is scheduled for today.{task_desc}"))
+                elif is_creator:
+                    task_alerts.append(('daily', f"📋 Task Due Today ({assignee_name}): {task.title}", f"Task '{task.title}' assigned to {assignee_name} is due today."))
+
+            for alert_key, notif_title, notif_msg in task_alerts:
                 exists = Notification.objects.filter(
                     user=user,
-                    created_at__range=(start_today, end_today)
-                ).filter(
-                    Q(title=task_title) | (Q(link=task_link) & Q(title__icontains=task.title))
+                    title=notif_title
                 ).exists()
 
                 if not exists:
                     Notification.objects.create(
                         user=user,
-                        title=task_title,
-                        message=f"Task '{task.title}'{time_msg} is due today.{task_desc}",
+                        title=notif_title,
+                        message=notif_msg,
                         link=task_link
                     )
 
-        # 2. Return unread notifications formatted in accurate local time
-        notifications = request.user.notifications.filter(is_read=False).order_by('-created_at')[:10]
+        # 2. Return unread count and active unread notifications
+        unread_notifications = request.user.notifications.filter(is_read=False).order_by('-created_at')
+        unread_count = unread_notifications.count()
+        # Display top 15 unread notifications in the dropdown list
+        notifications = unread_notifications[:15]
         data = []
         for n in notifications:
             local_created = timezone.localtime(n.created_at, tz)
@@ -189,11 +209,11 @@ def get_unread_notifications(request):
                 'title': n.title,
                 'message': n.message,
                 'link': n.link,
+                'is_read': n.is_read,
                 'created_at': local_created.strftime("%I:%M %p"),
                 'full_time': local_created.strftime("%d %b %Y, %I:%M %p"),
             })
-        count = request.user.notifications.filter(is_read=False).count()
-        return JsonResponse({'count': count, 'notifications': data})
+        return JsonResponse({'count': unread_count, 'notifications': data})
     except Exception as e:
         # Gracefully handle temporary network drop / DB reconnect without crashing client
         return JsonResponse({'count': 0, 'notifications': [], 'status': 'retry'})
@@ -207,10 +227,8 @@ def mark_notification_read(request, pk):
 
 @login_required
 def mark_all_read(request):
-    if request.method == "POST":
-        request.user.notifications.filter(is_read=False).update(is_read=True)
-        return JsonResponse({'status': 'ok'})
-    return JsonResponse({'status': 'invalid method'}, status=400)
+    request.user.notifications.filter(is_read=False).update(is_read=True)
+    return JsonResponse({'status': 'ok'})
 
 from django.core.paginator import Paginator
 

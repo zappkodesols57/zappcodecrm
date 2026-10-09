@@ -701,7 +701,15 @@ class Lead(models.Model):
 
     @property
     def custom_doctor_remark(self):
-        return self.get_custom("doctor_remark") or self.get_custom("last_doctor_remark") or self.get_custom("doctor_reschedule_remark") or ""
+        return (
+            self.get_custom("doctor_remark")
+            or self.get_custom("doctor_rejection_reason")
+            or self.get_custom("reject_reason")
+            or self.get_custom("doctor_cancel_reason")
+            or self.get_custom("last_doctor_remark")
+            or self.get_custom("doctor_reschedule_remark")
+            or ""
+        )
 
     @property
     def custom_reschedule_remark(self):
@@ -747,11 +755,11 @@ class Lead(models.Model):
         if tot > 0 or "PAYMENT" in raw_ds or "PAYMENT" in appt_st or "PAYMENT" in st_up or (st_up == "PAYMENT" and cd.get("payment_status") == "Done"):
             return "Payment Done"
 
+        if "CONFIRM" in st_up or "CONFIRM" in appt_st or "BOOKING CONFIRMED" in appt_st or "APPROVED" in appt_st:
+            return "Appointment Confirmed"
+
         if "COMPLET" in appt_st or "CONSULTATION COMPLETED" in appt_st or "COMPLET" in st_up or "WON" in raw_ds or adm_st == "WON":
             return "Appointment Completed"
-
-        if "CONFIRM" in appt_st or "BOOKING CONFIRMED" in appt_st or "APPROVED" in appt_st:
-            return "Booking Confirmed"
 
         if "AWAIT" in appt_st or "APPROVAL" in appt_st or "PENDING_APPROVAL" in appt_st or "AWAIT" in st_up:
             return "Awaiting Approval from Doctor"
@@ -763,7 +771,7 @@ class Lead(models.Model):
             from followups.models import FollowUp
             has_active_pending_fu = FollowUp.objects.filter(lead=self).exists()
 
-        if has_active_pending_fu or "FOLLOW" in st_up:
+        if has_active_pending_fu or "FOLLOW" in st_up or "FOLLOW" in appt_st:
             return "Follow up"
 
         if self.assigned_to_id or cd.get("lead_attendant"):
@@ -988,19 +996,25 @@ class Lead(models.Model):
         ):
             return "Lost"
 
+        # 2. Check WON (Payment Done, Total Billed > 0, Won deal status, or Stage is Payment Done)
+        has_payment_done = (
+            tot > 0
+            or "PAYMENT DONE" in raw_ds
+            or "PAYMENT DONE" in appt_st_up
+            or "PAYMENT DONE" in st_name.upper()
+            or st_name == "payment done"
+            or (st_name == "payment" and cd.get("payment_status") == "Done")
+            or self.deal_status == DealStatus.WON
+            or adm_st in ("WON", "ADMISSION_DONE")
+        )
+        if has_payment_done:
+            return "Won"
+
         # Doctor Cancelled leads awaiting follow-up are strictly PENDING
         if is_doctor_cancelled:
             return "Pending"
 
-        # 2. Check WON (OPD Complete, Consultation Done, Visited, Payment Done, Total Billed > 0)
-        has_payment_done = tot > 0 or "PAYMENT DONE" in raw_ds or "PAYMENT DONE" in appt_st_up or "DONE" in raw_ds or (st_name == "payment" and cd.get("payment_status") == "Done")
-        has_consultation_done = any(k in appt_st_up for k in ["COMPLET", "DONE", "VISIT", "CONSULTATION COMPLETE"]) or any(k in raw_ds for k in ["COMPLET", "DONE", "VISIT"])
-        is_won_deal = self.deal_status == DealStatus.WON or adm_st in ("WON", "ADMISSION_DONE")
-
-        if has_payment_done or has_consultation_done or is_won_deal:
-            return "Won"
-
-        # 3. Check PENDING (In follow up stage with active scheduled/pending followups, or booking approval pending)
+        # Check if there is an active future or scheduled appointment / follow-up
         has_active_pending_fu = bool(self.next_followup_date)
         if self.pk and hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
             has_active_pending_fu = any(fu.followup_status in ('PENDING', 'RESCHEDULED') for fu in self.followups.all())
@@ -1008,11 +1022,25 @@ class Lead(models.Model):
             from followups.models import FollowUp, FollowUpStatus
             has_active_pending_fu = FollowUp.objects.filter(lead=self, followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]).exists()
 
-        has_booking_pending = "PENDING" in appt_st_up or "AWAIT" in appt_st_up or "RESCHEDULE" in appt_st_up or "AWAIT" in st_name.upper()
-        is_payment_pending = (st_name == "payment" and cd.get("payment_status") != "Done") or "PAYMENT PENDING" in appt_st_up
+        has_booking_pending = any(k in appt_st_up for k in ["PENDING", "AWAIT", "RESCHEDULE", "SCHEDULE", "NEXT FOLLOW"]) or "AWAIT" in st_name.upper()
+        if self.pk and hasattr(self, '_prefetched_objects_cache') and 'appointments' in self._prefetched_objects_cache:
+            has_future_or_pending_apt = any(a.status in ('PENDING_APPROVAL', 'SCHEDULED', 'APPROVED') for a in self.appointments.all())
+        elif self.pk:
+            from leads.models import Appointment, AppointmentStatus
+            has_future_or_pending_apt = Appointment.objects.filter(lead=self, status__in=[AppointmentStatus.PENDING_APPROVAL, AppointmentStatus.SCHEDULED, AppointmentStatus.APPROVED]).exists()
+        else:
+            has_future_or_pending_apt = False
 
-        if has_active_pending_fu or has_booking_pending or is_payment_pending or ("FOLLOW" in st_name and has_active_pending_fu):
+        is_payment_pending = (st_name == "payment" and cd.get("payment_status") != "Done") or "PAYMENT PENDING" in appt_st_up or "PAYMENT PENDING" in raw_ds
+
+        # 3. Check PENDING if there is an active follow-up / pending / scheduled appointment
+        if has_active_pending_fu or has_booking_pending or has_future_or_pending_apt or is_payment_pending or ("FOLLOW" in st_name and has_active_pending_fu):
             return "Pending"
+
+        # 4. Check Completed (OPD Consultation completed / visit completed)
+        has_consultation_done = any(k in appt_st_up for k in ["COMPLET", "DONE", "VISIT", "CONSULTATION COMPLETE"]) or any(k in raw_ds for k in ["COMPLET", "DONE", "VISIT"])
+        if has_consultation_done and not has_future_or_pending_apt and not has_active_pending_fu:
+            return "Completed"
 
         # Check if all follow-ups are completed
         has_completed_fu = False
@@ -1022,7 +1050,7 @@ class Lead(models.Model):
             from followups.models import FollowUp, FollowUpStatus
             has_completed_fu = FollowUp.objects.filter(lead=self, followup_status=FollowUpStatus.COMPLETED).exists()
 
-        if has_completed_fu and not has_active_pending_fu:
+        if has_completed_fu and not has_active_pending_fu and not has_future_or_pending_apt:
             return "Completed"
 
         # 4. Check OPEN (Assigned leads with no remarks / follow-up done yet)
@@ -1566,6 +1594,9 @@ class Appointment(models.Model):
     status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.PENDING_APPROVAL, db_index=True)
     doctor_notes = models.TextField(blank=True)
     notes = models.TextField(blank=True)
+    is_rescheduled = models.BooleanField(default=False)
+    rescheduled_from_date = models.DateField(null=True, blank=True)
+    rescheduled_from_time = models.TimeField(null=True, blank=True)
     
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

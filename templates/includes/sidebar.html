@@ -62,8 +62,8 @@
         </a>
 
         <!-- Subtab 3: Payment Done -->
-        <a class="nav-link {% if active == 'payments' or request.GET.deal_status == 'PAYMENT DONE' %}active{% endif %}"
-          href="{% url 'leads:lead_list' %}?deal_status=PAYMENT+DONE" title="Payment Done">
+        <a class="nav-link {% if active == 'payments' %}active{% endif %}"
+          href="{% url 'leads:payment_done' %}" title="Payment Done">
           <i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payment Done</span>
         </a>
 
@@ -110,10 +110,10 @@
           <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Team Performance</span>
         </a>
 
-        <!-- Subtab 3: EOD / Task Reports -->
-        <a class="nav-link {% if active == 'reports' or active == 'eod_reports' %}active{% endif %}"
-          href="{% url 'dashboard:admin_reports' %}#task-reports" title="EOD / Task Reports">
-          <i class="fa-solid fa-file-signature"></i> <span class="nav-text">EOD / Task Reports</span>
+        <!-- Subtab 3: EOD & Task Reports -->
+        <a class="nav-link {% if active == 'reports_daily' or active == 'reports' or active == 'eod_reports' or active == 'tasks' %}active{% endif %}"
+          href="{% url 'dashboard:management_daily_reports' %}" title="EOD & Task Reports">
+          <i class="fa-solid fa-file-signature"></i> <span class="nav-text">EOD &amp; Task Reports</span>
         </a>
 
         <!-- Subtab 4: User Logs -->
@@ -319,8 +319,8 @@
         {% endif %}
 
         <!-- Tab: Payments (Payments Done Leads Business-Wise) -->
-        <a class="nav-link {% if active == 'payments' or request.GET.filter == 'billing_today' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.has_revenue == '1' %}active{% endif %}"
-          href="{% url 'leads:lead_list' %}?deal_status=PAYMENT+DONE" title="Payments Done">
+        <a class="nav-link {% if active == 'payments' %}active{% endif %}"
+          href="{% url 'leads:payment_done' %}" title="Payments Done">
           <i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments Done</span>
         </a>
 
@@ -357,6 +357,12 @@
         {% endif %}
         {% endif %}
 
+        <!-- Tasks & Reminders -->
+        <a class="nav-link {% if active == 'tasks' %}active{% endif %}"
+          href="{% url 'dashboard:tasks' %}" title="Tasks & Reminders">
+          <i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks & Reminders</span>
+        </a>
+
         <!-- EOD Reports -->
         <a class="nav-link {% if active == 'reports' or active == 'eod_reports' or active == 'reports_daily' %}active{% endif %}"
           href="{% if user.industry == 'HOSPITAL' %}{% url 'dashboard:admin_reports' %}#eod-reports{% else %}{% url 'dashboard:management_daily_reports' %}{% endif %}" title="EOD Reports">
@@ -367,9 +373,9 @@
         <a class="nav-link" href="{% url 'dashboard:admin_reports' %}#user-logs" title="User Logs">
           <i class="fa-solid fa-user-clock"></i> <span class="nav-text">User Logs</span>
         </a>
-        <a class="nav-link {% if active == 'tasks' %}active{% endif %}"
+        <a class="nav-link {% if active == 'task_reports' %}active{% endif %}"
           href="{% url 'dashboard:admin_reports' %}#task-reports" title="Tasks Reports">
-          <i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks Reports</span>
+          <i class="fa-solid fa-file-lines"></i> <span class="nav-text">Tasks Reports</span>
         </a>
         {% endif %}
       </div>
@@ -512,13 +518,19 @@
       </div>
     </div>
 
-    <!-- 4. Submit EOD Report -->
+    <!-- 4. Tasks & Reminders -->
+    <a class="nav-link {% if active == 'tasks' %}active{% endif %}"
+      href="{% url 'dashboard:tasks' %}" title="Tasks & Reminders">
+      <i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks & Reminders</span>
+    </a>
+
+    <!-- 5. Submit EOD Report -->
     <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
       href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
       <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>
     </a>
 
-    <!-- 5. Notifications -->
+    <!-- 6. Notifications -->
     <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
       title="Notifications">
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
@@ -640,8 +652,14 @@
     </div>
     {% endif %}
 
+    <!-- 5. Tasks & Reminders -->
+    <a class="nav-link {% if active == 'tasks' %}active{% endif %}"
+      href="{% url 'dashboard:tasks' %}" title="Tasks & Reminders">
+      <i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks & Reminders</span>
+    </a>
+
     {% if user.role != 'DOCTOR' %}
-    <!-- 5. Temperature Manager Tab for Counsellors / HR / Lead Attendants -->
+    <!-- 6. Temperature Manager Tab for Counsellors / HR / Lead Attendants -->
     <a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
       href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
       <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
@@ -654,7 +672,7 @@
     {% endif %}
     {% endif %}
 
-    <!-- 6. Submit EOD Report -->
+    <!-- 7. Submit EOD Report -->
     <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
       href="{% url 'dashboard:submit_daily_report' %}" title="Submit Daily Report">
       <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Submit EOD Report</span>

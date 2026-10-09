@@ -164,7 +164,15 @@
     const p2 = document.getElementById("id_password2") || document.querySelector('input[name="password2"]') || document.querySelector('input[name="confirm_password"]');
     const matchFeedback = document.getElementById("password_match_feedback");
 
+    function clearOldServerPasswordErrors() {
+      const errBox = document.querySelector(".error-box");
+      if (errBox) {
+        errBox.style.display = "none";
+      }
+    }
+
     function checkPasswordMatch() {
+      clearOldServerPasswordErrors();
       if (!p1 || !p2 || !matchFeedback) return;
       const v1 = p1.value;
       const v2 = p2.value;

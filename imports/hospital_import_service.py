@@ -203,10 +203,10 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         c_clean = str(col).strip().lower().replace(" ", "_").replace("-", "_")
         col_map[col] = c_clean
 
-    # Known column mapping heuristics
+    # Known column mapping heuristics with prioritized order
     name_cols = [
-        "your_name", "full_name", "patient_name", "paitent_name", "patient", "lead_name", "customer_name", 
-        "client_name", "name", "first_name", "user_name", "contact_name", "naam"
+        "patient_name", "paitent_name", "your_name", "full_name", "patient", "lead_name", 
+        "customer_name", "client_name", "user_name", "contact_name", "naam", "name", "first_name"
     ]
     phone_cols = [
         "phone_number", "phone", "mobile", "mobile_no", "contact", 
@@ -254,8 +254,16 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         uhid_cols + opd_done_date_cols + pharmacy_bill_cols + opd_bill_cols + ipd_bill_cols +
         investigation_bill_cols + total_bill_cols + final_status_cols +
         fu1_date_cols + fu1_remark_cols + fu2_date_cols + fu2_remark_cols + fu3_date_cols + fu3_remark_cols +
-        ["sr_no", "sr_no.", "campaign_name", "campaign", "patient_update"]
+        ["sr_no", "sr_no.", "campaign_name", "campaign", "form_name", "ad_name", "adset_name", "patient_update"]
     )
+
+    # Explicit list of columns that should NEVER be treated as a person's name
+    non_name_col_keys = {
+        "campaign", "campaign_name", "form_name", "ad_name", "adset_name", "ad_id", "lead_id", 
+        "source", "lead_source", "platform", "publisher_platform", "channel", "department", 
+        "speciality", "doctor", "dr_name", "hospital_branch", "branch", "status", "stage", 
+        "remark", "remarks", "notes", "sr_no", "sr_no."
+    }
 
     # Find survey / remark questions
     survey_cols = []
@@ -298,14 +306,30 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                     email_val = raw_email.lower()
                     break
 
-        # 3. Name (Direct Column -> or Fallback to Email -> or Sequenced Unknown Patient)
+        # 3. Name (Prioritized Match: Explicit Patient/Your Name -> Full Name -> Lead Name -> User/Name -> Fallback to Email)
         name_val = ""
-        for orig_col, clean_c in col_map.items():
-            if (clean_c in name_cols or any(nk in clean_c for nk in ["your_name", "full_name", "patient_name", "lead_name", "customer_name"])) and pd.notna(row.get(orig_col)):
-                raw_n = str(row.get(orig_col)).strip()
-                if raw_n and raw_n.lower() not in ("nan", "none", "null", "-", "na", "nat"):
-                    name_val = raw_n
-                    break
+        for target_nk in name_cols:
+            for orig_col, clean_c in col_map.items():
+                if clean_c in non_name_col_keys:
+                    continue
+                if clean_c == target_nk and pd.notna(row.get(orig_col)):
+                    raw_n = str(row.get(orig_col)).strip()
+                    if raw_n and raw_n.lower() not in ("nan", "none", "null", "-", "na", "nat"):
+                        name_val = raw_n
+                        break
+            if name_val:
+                break
+
+        # If not matched by exact candidate name, try secondary substring matching on uncontaminated columns
+        if not name_val:
+            for orig_col, clean_c in col_map.items():
+                if clean_c in non_name_col_keys:
+                    continue
+                if any(nk in clean_c for nk in ["your_name", "patient_name", "full_name", "lead_name", "customer_name"]) and pd.notna(row.get(orig_col)):
+                    raw_n = str(row.get(orig_col)).strip()
+                    if raw_n and raw_n.lower() not in ("nan", "none", "null", "-", "na", "nat"):
+                        name_val = raw_n
+                        break
 
         # If name not found in name column, extract from email
         if not name_val and email_val:

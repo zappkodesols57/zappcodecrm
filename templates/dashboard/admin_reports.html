@@ -8,6 +8,11 @@
         <h4 class="fw-bold text-dark mb-1">Operations &amp; Task Reports</h4>
         <p class="text-muted small mb-0">Review telecaller daily activity summaries, submitted task reports, and calling milestones for {{ request.user.hospital.name|default:'Hospital Management' }}.</p>
     </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-brand text-white px-3 shadow-sm rounded-2">
+            <i class="fa-solid fa-list-check me-1"></i> Manage &amp; Assign Tasks
+        </a>
+    </div>
 </div>
 
 <!-- Quick Metric Stats (Clickable Cards with Smooth Navigation) -->

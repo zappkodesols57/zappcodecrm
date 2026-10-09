@@ -168,7 +168,7 @@ def welcome_view(request):
     role_metrics = {}
 
     all_active_leads_today = Lead.objects.filter(is_archived=False).filter(
-        Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
+        Q(inquiry_date=today_date) | (Q(inquiry_date__isnull=True) & Q(created_at__date=today_date))
     ).distinct()
 
     if is_super_admin:
@@ -397,9 +397,9 @@ def home(request):
 
     total_leads = leads.count()
     
-    # 1. Today's New Leads: Leads created or inquired today
+    # 1. Today's New Leads: Leads received / inquired today
     todays_new_leads = leads.filter(
-        Q(created_at__range=(today_start, today_end)) | Q(inquiry_date=today)
+        Q(inquiry_date=today) | (Q(inquiry_date__isnull=True) & Q(created_at__date=today))
     ).count()
 
     # 2. Call Not Done: Leads pending initial call / 0 follow-ups / uncontacted

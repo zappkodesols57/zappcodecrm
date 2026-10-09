@@ -237,9 +237,19 @@
             {% for apt in all_appointments %}
             <tr {% if apt.pk == appointment.pk %}class="table-active bg-primary bg-opacity-10"{% endif %}>
               <td class="ps-4 fw-semibold text-dark">
-                <i class="fa-regular fa-calendar text-primary me-1"></i> {{ apt.appointment_date|date:"d M Y" }}
-                {% if apt.appointment_time %}<span class="text-muted ms-1">at {{ apt.appointment_time|time:"h:i A" }}</span>{% endif %}
-                {% if apt.pk == appointment.pk %}<span class="badge bg-primary text-white ms-1" style="font-size: 0.7rem;">Current</span>{% endif %}
+                <div class="d-flex align-items-center flex-wrap gap-1">
+                  <span><i class="fa-regular fa-calendar text-primary me-1"></i> {{ apt.appointment_date|date:"d M Y" }}</span>
+                  {% if apt.appointment_time %}<span class="text-dark fw-semibold ms-1">({{ apt.appointment_time|time:"h:i A" }})</span>{% endif %}
+                  {% if apt.pk == appointment.pk %}<span class="badge bg-primary text-white ms-1" style="font-size: 0.7rem;">Current</span>{% endif %}
+                  {% if apt.is_rescheduled %}
+                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill ms-1" style="font-size: 0.68rem;">Rescheduled</span>
+                  {% endif %}
+                </div>
+                {% if apt.is_rescheduled and apt.rescheduled_from_date %}
+                <div class="small text-muted mt-0.5" style="font-size: 0.73rem;">
+                  <i class="fa-solid fa-arrow-right-arrow-left me-1 text-warning"></i>Rescheduled from: <span class="text-decoration-line-through text-muted">{{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}</span>
+                </div>
+                {% endif %}
               </td>
               <td>Dr. {{ apt.doctor_name|default:doctor_name_str|default:"Consultant" }}</td>
               <td>
@@ -255,7 +265,12 @@
                   <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1">{{ apt.get_status_display }}</span>
                 {% endif %}
               </td>
-              <td class="pe-4 text-muted text-break">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</td>
+              <td class="pe-4 text-muted text-break">
+                {% if apt.is_rescheduled and apt.rescheduled_from_date %}
+                  <div class="text-dark small fw-medium mb-0.5" style="font-size: 0.76rem;">Rescheduled to {{ apt.appointment_date|date:"d M Y" }}{% if apt.appointment_time %} at {{ apt.appointment_time|time:"h:i A" }}{% endif %}</div>
+                {% endif %}
+                <span style="font-size: 0.8rem;">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</span>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -314,19 +329,18 @@
           <input type="hidden" name="action" value="complete">
           <div class="modal-header border-0 pb-0 pt-4 px-4">
             <div>
-              <h5 class="modal-title fw-bold text-success mb-0">
-                <i class="fa-solid fa-circle-check text-success me-2"></i>Complete Consultation - {{ lead.name }}
+              <h5 class="modal-title fw-bold text-dark mb-0">
+                Complete Consultation - {{ lead.name }}
               </h5>
               <small class="text-muted">Slot: {{ appointment.appointment_date|date:"d M Y" }} at {{ appointment.appointment_time|time:"h:i A"|default:"Anytime" }}</small>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body px-4 pt-3">
             
             <!-- Doctor Clinical Remarks for Current Consultation -->
             <div class="mb-3">
               <label class="form-label small fw-bold text-dark mb-1">
-                <i class="fa-solid fa-user-doctor text-primary me-1"></i> Doctor Clinical Remarks / Diagnosis Notes <span class="text-muted fw-normal">(Saved to patient history)</span>
+                Doctor Clinical Remarks / Diagnosis Notes
               </label>
               <textarea name="doctor_notes" class="form-control" rows="3" placeholder="e.g. Patient examined. Prescribed medications for 5 days. Advised follow-up review.">{{ appointment.doctor_notes }}</textarea>
             </div>
@@ -334,24 +348,31 @@
             <!-- Next Appointment Toggle Box -->
             <div class="p-3 border rounded-3 bg-light bg-opacity-50">
               <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptReviewCheck" onchange="document.getElementById('nextAptReviewWrap').style.display = this.checked ? 'block' : 'none';">
-                <label class="form-check-label fw-bold text-primary small cursor-pointer" for="addNextAptReviewCheck">
-                  <i class="fa-solid fa-calendar-plus me-1"></i> Schedule Next Follow-up Appointment for Patient
+                <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptReviewCheck" onchange="document.getElementById('nextAptReviewWrap').style.display = this.checked ? 'block' : 'none'; if (this.checked) fetchNextDocSlotsReview();">
+                <label class="form-check-label fw-bold text-dark small cursor-pointer" for="addNextAptReviewCheck">
+                  Schedule Next Follow-up Appointment for Patient
                 </label>
               </div>
 
-              <div id="nextAptReviewWrap" style="display: none;" class="pt-2 mt-2 border-top">
-                <div class="row g-2 mb-2">
+              <div id="nextAptReviewWrap" style="display: none;" class="pt-3 mt-2 border-top">
+                <div class="row g-3 mb-2">
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-dark mb-1">Next Appointment Date <span class="text-danger">*</span></label>
-                    <input type="date" name="next_appointment_date" class="form-control form-control-sm" min="{{ today_ymd }}">
+                    <input type="date" id="reviewNextAptDate" name="next_appointment_date" class="form-control form-control-sm" min="{{ today_ymd }}" onchange="fetchNextDocSlotsReview()">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-dark mb-1">Next Time Slot</label>
-                    <input type="time" name="next_appointment_time" class="form-control form-control-sm">
+                    <input type="hidden" id="reviewNextAptTime" name="next_appointment_time">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                      <span id="reviewNextSlotBadge" class="badge bg-light text-dark border" style="font-size: 0.72rem;">Select Date</span>
+                      <span id="reviewNextSelectedSlotText" class="small fw-semibold text-primary"></span>
+                    </div>
+                    <div id="reviewNextSlotsContainer" class="d-flex flex-wrap gap-1 p-2 border rounded bg-white" style="max-height: 110px; overflow-y: auto;">
+                      <span class="text-muted small">Choose date to load doctor OPD slots.</span>
+                    </div>
                   </div>
                 </div>
-                <div>
+                <div class="mt-2">
                   <label class="form-label small fw-bold text-dark mb-1">Instructions for Telecaller / Patient</label>
                   <input type="text" name="next_appointment_notes" class="form-control form-control-sm" placeholder="e.g. Review after blood tests / ultrasound report.">
                   <small class="text-muted" style="font-size: 0.72rem;">Assigned Telecaller will receive notification to call patient and confirm this slot.</small>
@@ -361,9 +382,9 @@
 
           </div>
           <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
-            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-              <i class="fa-solid fa-check me-1"></i> Save &amp; Mark Completed
+              Mark Consultation Completed
             </button>
           </div>
         </form>
@@ -381,21 +402,27 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="schedule_next">
           <div class="modal-header border-0 pb-0 pt-4 px-4">
-            <h5 class="modal-title fw-bold text-primary">
-              <i class="fa-solid fa-calendar-plus me-2"></i>Schedule Next Follow-up Consultation
+            <h5 class="modal-title fw-bold text-dark mb-0">
+              Schedule Next Follow-up Consultation
             </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body px-4 pt-3">
             <p class="small text-muted mb-3">Schedule a new follow-up appointment date for patient <strong>{{ lead.name }}</strong>. Assigned telecaller will be notified to confirm with patient.</p>
             <div class="row g-2 mb-3">
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-dark mb-1">Appointment Date <span class="text-danger">*</span></label>
-                <input type="date" name="next_appointment_date" class="form-control" min="{{ today_ymd }}" required>
+                <input type="date" id="completedNextAptDate" name="next_appointment_date" class="form-control" min="{{ today_ymd }}" required onchange="fetchCompletedDocSlots()">
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold text-dark mb-1">Time Slot (Optional)</label>
-                <input type="time" name="next_appointment_time" class="form-control">
+                <label class="form-label small fw-bold text-dark mb-1">Next Time Slot</label>
+                <input type="hidden" id="completedNextAptTime" name="next_appointment_time">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span id="completedNextSlotBadge" class="badge bg-light text-dark border" style="font-size: 0.72rem;">Select Date</span>
+                  <span id="completedNextSelectedSlotText" class="small fw-semibold text-primary"></span>
+                </div>
+                <div id="completedNextSlotsContainer" class="d-flex flex-wrap gap-1 p-2 border rounded bg-white" style="max-height: 110px; overflow-y: auto;">
+                  <span class="text-muted small">Choose date to view OPD slots.</span>
+                </div>
               </div>
             </div>
             <div class="mb-2">
@@ -404,9 +431,9 @@
             </div>
           </div>
           <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
-            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
-              <i class="fa-solid fa-paper-plane me-1"></i> Schedule Next Appointment
+              Schedule Next Appointment
             </button>
           </div>
         </form>
@@ -424,8 +451,7 @@
           <input type="hidden" name="appointment_id" value="{{ appointment.pk|default:'' }}">
           <input type="hidden" name="action" value="reject">
           <div class="modal-header border-0 pb-0 pt-4 px-4">
-            <h5 class="modal-title fw-bold text-danger">Reject Appointment Request</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <h5 class="modal-title fw-bold text-danger mb-0">Reject Appointment Request</h5>
           </div>
           <div class="modal-body px-4 pt-3">
             <p class="small text-muted mb-2">Please state the reason for rejecting this consultation request. Telecaller will be notified immediately.</p>
@@ -433,7 +459,7 @@
             <textarea name="reject_reason" class="form-control" rows="3" placeholder="e.g. Doctor on emergency rounds / unavailable" required></textarea>
           </div>
           <div class="modal-footer border-0 pt-0 pb-4 px-4">
-            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
             <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Rejection</button>
           </div>
         </form>
@@ -595,6 +621,220 @@
         btn.className = "btn btn-xs rounded-pill px-2.5 py-1 btn-outline-success slot-btn";
       }
     });
+  }
+
+  function fetchNextDocSlotsReview() {
+    const dateInput = document.getElementById('reviewNextAptDate');
+    const timeInput = document.getElementById('reviewNextAptTime');
+    const badge = document.getElementById('reviewNextSlotBadge');
+    const container = document.getElementById('reviewNextSlotsContainer');
+    const selectedText = document.getElementById('reviewNextSelectedSlotText');
+
+    if (!dateInput || !container) return;
+    const dateVal = dateInput.value;
+
+    if (!dateVal) {
+      if (badge) {
+        badge.className = 'badge bg-light text-dark border';
+        badge.innerText = 'Select Date';
+      }
+      container.innerHTML = '<span class="text-muted small">Choose date to load doctor OPD slots.</span>';
+      return;
+    }
+
+    if (badge) {
+      badge.className = 'badge bg-info bg-opacity-10 text-primary border';
+      badge.innerText = 'Checking Slots...';
+    }
+
+    fetch(`/leads/api/doctor-slots/?doctor=${encodeURIComponent(doctorNameStr)}&date=${encodeURIComponent(dateVal)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_on_leave) {
+          if (badge) {
+            badge.className = 'badge bg-danger text-white';
+            badge.innerText = `On Leave: ${data.leave_reason || 'Personal Leave'}`;
+          }
+          container.innerHTML = '<span class="text-danger small fw-semibold">Doctor is marked on leave on this date.</span>';
+          return;
+        }
+
+        if (data.is_off) {
+          if (badge) {
+            badge.className = 'badge bg-warning text-dark border';
+            badge.innerText = `Weekly Off (${data.off_day_name || 'Off'})`;
+          }
+          container.innerHTML = `<span class="text-warning text-dark small fw-semibold">Doctor is weekly off on ${data.off_day_name || 'this day'}.</span>`;
+          return;
+        }
+
+        if (data.slots && data.slots.length > 0) {
+          const availCount = data.slots.filter(s => s.status === 'available').length;
+          if (badge) {
+            badge.className = 'badge bg-success bg-opacity-10 text-success border border-success-subtle';
+            badge.innerText = `${availCount} Slots Available`;
+          }
+
+          let html = '';
+          data.slots.forEach(slot => {
+            const isAvail = (slot.status === 'available');
+            const isSel = (timeInput && timeInput.value && timeInput.value.substring(0, 5) === slot.time_24.substring(0, 5));
+            let btnClass = 'btn-outline-secondary opacity-50';
+            if (isAvail) btnClass = isSel ? 'btn-primary text-white' : 'btn-outline-success';
+            else if (slot.status === 'booked') btnClass = 'btn-light text-muted border text-decoration-line-through';
+
+            html += `
+              <button type="button" class="btn btn-xs rounded-pill px-2.5 py-1 ${btnClass} review-next-slot-btn" 
+                style="font-size: 0.74rem;" 
+                data-time="${slot.time_24}"
+                onclick="selectReviewNextSlot('${slot.time_24}', '${slot.time_12}')"
+                ${!isAvail ? 'disabled' : ''}
+                title="${slot.status_text}">
+                ${slot.time_12} ${isSel ? '✓' : ''}
+              </button>
+            `;
+          });
+          container.innerHTML = html;
+        } else {
+          if (badge) {
+            badge.className = 'badge bg-secondary text-white';
+            badge.innerText = 'No OPD Slots';
+          }
+          container.innerHTML = '<span class="text-muted small">No regular OPD slots configured for this date.</span>';
+        }
+      })
+      .catch(err => {
+        if (badge) {
+          badge.className = 'badge bg-light text-dark border';
+          badge.innerText = 'Calendar Ready';
+        }
+      });
+  }
+
+  function selectReviewNextSlot(time24, time12) {
+    const timeInput = document.getElementById('reviewNextAptTime');
+    const selectedText = document.getElementById('reviewNextSelectedSlotText');
+    if (timeInput) timeInput.value = time24;
+    if (selectedText) selectedText.innerText = `Selected: ${time12}`;
+    const container = document.getElementById('reviewNextSlotsContainer');
+    if (container) {
+      const btns = container.querySelectorAll('.review-next-slot-btn');
+      btns.forEach(b => {
+        const bTime = b.getAttribute('data-time');
+        if (bTime && bTime.substring(0, 5) === time24.substring(0, 5)) {
+          b.className = 'btn btn-xs rounded-pill px-2.5 py-1 btn-primary text-white review-next-slot-btn';
+        } else if (!b.disabled) {
+          b.className = 'btn btn-xs rounded-pill px-2.5 py-1 btn-outline-success review-next-slot-btn';
+        }
+      });
+    }
+  }
+
+  function fetchCompletedDocSlots() {
+    const dateInput = document.getElementById('completedNextAptDate');
+    const timeInput = document.getElementById('completedNextAptTime');
+    const badge = document.getElementById('completedNextSlotBadge');
+    const container = document.getElementById('completedNextSlotsContainer');
+    const selectedText = document.getElementById('completedNextSelectedSlotText');
+
+    if (!dateInput || !container) return;
+    const dateVal = dateInput.value;
+
+    if (!dateVal) {
+      if (badge) {
+        badge.className = 'badge bg-light text-dark border';
+        badge.innerText = 'Select Date';
+      }
+      container.innerHTML = '<span class="text-muted small">Choose date to view OPD slots.</span>';
+      return;
+    }
+
+    if (badge) {
+      badge.className = 'badge bg-info bg-opacity-10 text-primary border';
+      badge.innerText = 'Checking Slots...';
+    }
+
+    fetch(`/leads/api/doctor-slots/?doctor=${encodeURIComponent(doctorNameStr)}&date=${encodeURIComponent(dateVal)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_on_leave) {
+          if (badge) {
+            badge.className = 'badge bg-danger text-white';
+            badge.innerText = `On Leave: ${data.leave_reason || 'Personal Leave'}`;
+          }
+          container.innerHTML = '<span class="text-danger small fw-semibold">Doctor is marked on leave on this date.</span>';
+          return;
+        }
+
+        if (data.is_off) {
+          if (badge) {
+            badge.className = 'badge bg-warning text-dark border';
+            badge.innerText = `Weekly Off (${data.off_day_name || 'Off'})`;
+          }
+          container.innerHTML = `<span class="text-warning text-dark small fw-semibold">Doctor is weekly off on ${data.off_day_name || 'this day'}.</span>`;
+          return;
+        }
+
+        if (data.slots && data.slots.length > 0) {
+          const availCount = data.slots.filter(s => s.status === 'available').length;
+          if (badge) {
+            badge.className = 'badge bg-success bg-opacity-10 text-success border border-success-subtle';
+            badge.innerText = `${availCount} Slots Available`;
+          }
+
+          let html = '';
+          data.slots.forEach(slot => {
+            const isAvail = (slot.status === 'available');
+            const isSel = (timeInput && timeInput.value && timeInput.value.substring(0, 5) === slot.time_24.substring(0, 5));
+            let btnClass = 'btn-outline-secondary opacity-50';
+            if (isAvail) btnClass = isSel ? 'btn-primary text-white' : 'btn-outline-success';
+            else if (slot.status === 'booked') btnClass = 'btn-light text-muted border text-decoration-line-through';
+
+            html += `
+              <button type="button" class="btn btn-xs rounded-pill px-2.5 py-1 ${btnClass} completed-next-slot-btn" 
+                style="font-size: 0.74rem;" 
+                data-time="${slot.time_24}"
+                onclick="selectCompletedNextSlot('${slot.time_24}', '${slot.time_12}')"
+                ${!isAvail ? 'disabled' : ''}
+                title="${slot.status_text}">
+                ${slot.time_12} ${isSel ? '✓' : ''}
+              </button>
+            `;
+          });
+          container.innerHTML = html;
+        } else {
+          if (badge) {
+            badge.className = 'badge bg-secondary text-white';
+            badge.innerText = 'No OPD Slots';
+          }
+          container.innerHTML = '<span class="text-muted small">No regular OPD slots configured for this date.</span>';
+        }
+      })
+      .catch(err => {
+        if (badge) {
+          badge.className = 'badge bg-light text-dark border';
+          badge.innerText = 'Calendar Ready';
+        }
+      });
+  }
+
+  function selectCompletedNextSlot(time24, time12) {
+    const timeInput = document.getElementById('completedNextAptTime');
+    const selectedText = document.getElementById('completedNextSelectedSlotText');
+    if (timeInput) timeInput.value = time24;
+    if (selectedText) selectedText.innerText = `Selected: ${time12}`;
+    const container = document.getElementById('completedNextSlotsContainer');
+    if (container) {
+      const btns = container.querySelectorAll('.completed-next-slot-btn');
+      btns.forEach(b => {
+        const bTime = b.getAttribute('data-time');
+        if (bTime && bTime.substring(0, 5) === time24.substring(0, 5)) {
+          b.className = 'btn btn-xs rounded-pill px-2.5 py-1 btn-primary text-white completed-next-slot-btn';
+        } else if (!b.disabled) {
+          b.className = 'btn btn-xs rounded-pill px-2.5 py-1 btn-outline-success completed-next-slot-btn';
+        }
+      });
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function() {

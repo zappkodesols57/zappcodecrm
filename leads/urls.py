@@ -6,6 +6,7 @@ app_name = "leads"
 urlpatterns = [
     path("", views.lead_list, name="lead_list"),
     path("appointments-done/", views.appointments_done_list, name="appointments_done"),
+    path("payment-done/", views.payment_done_list, name="payment_done"),
     path("pending-leads/", views.pending_leads, name="pending_leads"),
     path("my-leads/", views.my_leads, name="my_leads"),
     path("lost-leads/", views.lost_leads, name="lost_leads"),

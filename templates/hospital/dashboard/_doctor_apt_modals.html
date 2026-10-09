@@ -12,9 +12,8 @@
         
         <div class="modal-header border-0 pb-0 pt-4 px-4">
           <h5 class="modal-title fw-bold text-dark">
-            <i class="fa-solid fa-calendar-days text-primary me-2"></i>Reschedule Slot for {{ apt.lead.name }}
+            Reschedule Slot for {{ apt.lead.name }}
           </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body px-4 pt-3">
           <div class="alert alert-primary bg-primary bg-opacity-10 border-0 text-dark small mb-3">
@@ -39,7 +38,7 @@
           </div>
         </div>
         <div class="modal-footer border-0 pt-0 pb-4 px-4">
-          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold" style="background: #0f2744; border-color: #0f2744;">
             Save &amp; Reschedule
           </button>
@@ -61,12 +60,11 @@
         
         <div class="modal-header border-0 pb-0 pt-4 px-4">
           <div>
-            <h5 class="modal-title fw-bold text-dark">
-              <i class="fa-solid fa-circle-check text-success me-2"></i>Complete Consultation - {{ apt.lead.name }}
+            <h5 class="modal-title fw-bold text-dark mb-0">
+              Complete Consultation - {{ apt.lead.name }}
             </h5>
             <small class="text-muted">Slot: {{ apt.appointment_date|date:"d M Y" }} at {{ apt.appointment_time|time:"h:i A"|default:"Anytime" }}</small>
           </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body px-4 pt-3">
           
@@ -74,7 +72,7 @@
           {% if apt.lead.notes or apt.doctor_notes or apt.lead.custom_doctor_remark %}
           <div class="p-3 mb-3 bg-light rounded-3 border">
             <div class="small fw-bold text-secondary mb-1">
-              <i class="fa-solid fa-clock-rotate-left me-1"></i> Patient History / Previous Notes:
+              Patient History / Previous Notes:
             </div>
             <div class="small text-dark text-break" style="white-space: pre-wrap;">{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.lead.notes }}</div>
           </div>
@@ -83,7 +81,7 @@
           <!-- Doctor Clinical Remarks for Current Consultation -->
           <div class="mb-3">
             <label class="form-label small fw-bold text-dark mb-1">
-              <i class="fa-solid fa-user-doctor text-primary me-1"></i> Doctor Clinical Remarks / Diagnosis Notes
+              Doctor Clinical Remarks / Diagnosis Notes
             </label>
             <textarea name="doctor_notes" class="form-control" rows="3" placeholder="e.g. Patient diagnosed. Prescribed medications. Advised 1 week follow-up.">{{ apt.doctor_notes }}</textarea>
           </div>
@@ -91,24 +89,31 @@
           <!-- Next Follow-up Consultation Toggle Box -->
           <div class="p-3 border rounded-3 bg-light bg-opacity-50">
             <div class="form-check form-switch mb-2">
-              <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptCheckDoc{{ apt.pk }}" onchange="document.getElementById('nextAptDetailsWrapDoc{{ apt.pk }}').style.display = this.checked ? 'block' : 'none';">
-              <label class="form-check-label fw-bold text-primary small cursor-pointer" for="addNextAptCheckDoc{{ apt.pk }}">
-                <i class="fa-solid fa-calendar-plus me-1"></i> Schedule Next Follow-up Appointment for Patient
+              <input class="form-check-input" type="checkbox" role="switch" name="add_next_appointment" value="1" id="addNextAptCheckDoc{{ apt.pk }}" onchange="document.getElementById('nextAptDetailsWrapDoc{{ apt.pk }}').style.display = this.checked ? 'block' : 'none'; if (this.checked) fetchNextDocSlots('{{ apt.pk }}');">
+              <label class="form-check-label fw-bold text-dark small cursor-pointer" for="addNextAptCheckDoc{{ apt.pk }}">
+                Schedule Next Follow-up Appointment for Patient
               </label>
             </div>
 
-            <div id="nextAptDetailsWrapDoc{{ apt.pk }}" style="display: none;" class="pt-2 mt-2 border-top">
-              <div class="row g-2 mb-2">
+            <div id="nextAptDetailsWrapDoc{{ apt.pk }}" style="display: none;" class="pt-3 mt-2 border-top">
+              <div class="row g-3 mb-2">
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-dark mb-1">Next Appointment Date <span class="text-danger">*</span></label>
-                  <input type="date" name="next_appointment_date" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
+                  <input type="date" id="nextAptDate{{ apt.pk }}" name="next_appointment_date" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}" onchange="fetchNextDocSlots('{{ apt.pk }}')">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-dark mb-1">Next Time Slot</label>
-                  <input type="time" name="next_appointment_time" class="form-control form-control-sm">
+                  <input type="hidden" id="nextAptTime{{ apt.pk }}" name="next_appointment_time">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span id="nextSlotBadge{{ apt.pk }}" class="badge bg-light text-dark border" style="font-size: 0.72rem;">Select Date</span>
+                    <span id="nextSelectedSlotText{{ apt.pk }}" class="small fw-semibold text-primary"></span>
+                  </div>
+                  <div id="nextSlotsContainer{{ apt.pk }}" class="d-flex flex-wrap gap-1 p-2 border rounded bg-white" style="max-height: 110px; overflow-y: auto;">
+                    <span class="text-muted small">Choose date to load doctor OPD slots.</span>
+                  </div>
                 </div>
               </div>
-              <div>
+              <div class="mt-2">
                 <label class="form-label small fw-bold text-dark mb-1">Instructions for Telecaller / Patient</label>
                 <input type="text" name="next_appointment_notes" class="form-control form-control-sm" placeholder="e.g. Review blood reports on next visit.">
                 <small class="text-muted" style="font-size: 0.72rem;">Telecaller will receive an alert to confirm this appointment with the patient.</small>
@@ -118,9 +123,9 @@
 
         </div>
         <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
-          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-            <i class="fa-solid fa-check me-1"></i> Mark Consultation Completed
+            Mark Consultation Completed
           </button>
         </div>
       </form>
@@ -139,10 +144,9 @@
         <input type="hidden" name="ref_tab" value="cancelled">
         
         <div class="modal-header border-0 pb-0 pt-4 px-4">
-          <h5 class="modal-title fw-bold text-danger">
-            <i class="fa-solid fa-ban me-2"></i>Cancel Appointment - {{ apt.lead.name }}
+          <h5 class="modal-title fw-bold text-danger mb-0">
+            Cancel Appointment - {{ apt.lead.name }}
           </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body px-4 pt-3">
           <p class="small text-muted mb-2">
@@ -152,7 +156,7 @@
           <textarea name="reject_reason" class="form-control" rows="3" placeholder="Enter reason for cancellation..." required></textarea>
         </div>
         <div class="modal-footer border-0 pt-0 pb-4 px-4">
-          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
           <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Cancellation</button>
         </div>
       </form>

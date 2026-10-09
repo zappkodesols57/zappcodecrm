@@ -182,7 +182,7 @@ def get_campaign_breakdown_stats(scoped_leads_qs, date_filtered_leads_qs):
 
 
 
-def get_filtered_leads(request, base_qs=None):
+def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
     """
     Applies all tenant scoping, search, sidebar filters, date filters, quick filters,
     and sorting to a leads queryset based on request GET parameters.
@@ -291,7 +291,7 @@ def get_filtered_leads(request, base_qs=None):
     selected_followup_statuses = request.GET.getlist("followup_status")
 
     # 1. Campaigns filter
-    if selected_campaigns:
+    if selected_campaigns and not exclude_campaign_filter:
         camp_q = Q()
         for c_val in selected_campaigns:
             if c_val:
@@ -369,18 +369,24 @@ def get_filtered_leads(request, base_qs=None):
                     Q(custom_data__appointment_status__icontains='Cancel') |
                     Q(custom_data__appointment_status__icontains='Not Int')
                 )
-            elif v_up == 'WON':
+            elif v_up in ('WON', 'PAYMENT DONE', 'PAYMENT_DONE', 'COMPLETED'):
                 sub_q = (
                     Q(deal_status=DealStatus.WON) |
-                    Q(admission_status__in=['WON', 'ADMISSION_DONE']) |
-                    Q(custom_data__total_paid__gt='0') |
-                    Q(custom_data__total__gt='0') |
+                    Q(deal_status__in=[DealStatus.WON, 'WON', 'Payment Done', 'PAYMENT DONE', 'PAYMENT_DONE']) |
+                    Q(admission_status__in=['WON', 'ADMISSION_DONE', 'PAYMENT_DONE']) |
+                    (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=['0', '0.00', '', '0.0', 0, 0.0])) |
+                    (Q(custom_data__total_paid__isnull=False) & ~Q(custom_data__total_paid__in=['0', '0.00', '', '0.0', 0, 0.0])) |
+                    (Q(custom_data__opd_bill__isnull=False) & ~Q(custom_data__opd_bill__in=['0', '0.00', '', '0.0', 0, 0.0])) |
+                    (Q(custom_data__pharmacy_bill__isnull=False) & ~Q(custom_data__pharmacy_bill__in=['0', '0.00', '', '0.0', 0, 0.0])) |
+                    (Q(custom_data__ipd_bill__isnull=False) & ~Q(custom_data__ipd_bill__in=['0', '0.00', '', '0.0', 0, 0.0])) |
+                    Q(admission__payments__payment_status='SUCCESS', admission__payments__amount__gt=0) |
                     Q(custom_data__deal_status__icontains='Won') |
-                    Q(custom_data__deal_status__icontains='Payment Done') |
+                    Q(custom_data__deal_status__icontains='Payment') |
+                    Q(custom_data__appointment_status__icontains='Payment Done') |
                     Q(custom_data__appointment_status__icontains='Complete') |
                     Q(custom_data__appointment_status__icontains='Done') |
-                    Q(custom_data__appointment_status__icontains='Visit') |
-                    Q(stage__name__icontains='Payment Done') |
+                    Q(stage__name__icontains='Payment') |
+                    Q(stage__name__icontains='Won') |
                     Q(stage__name__icontains='Completed')
                 )
             elif v_up == 'PENDING':
@@ -523,7 +529,7 @@ def get_filtered_leads(request, base_qs=None):
     
     if quick_filter == "todays_new":
         leads = leads.filter(
-            Q(created_at__date=today) | Q(inquiry_date=today)
+            Q(inquiry_date=today) | (Q(inquiry_date__isnull=True) & Q(created_at__date=today))
         )
     elif quick_filter in ("call_not_done", "uncontacted"):
         uncontacted_filter = (
@@ -763,19 +769,25 @@ def lead_list(request):
     target_hospital = None
     if request.user.hospital:
         target_hospital = request.user.hospital
-    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+    elif selected_hospital_id and selected_hospital_id.isdigit():
         target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+    elif not is_global_admin and request.user.hospital:
+        target_hospital = request.user.hospital
+    else:
+        # Fallback to session active_business_id or first hospital
+        sess_biz_id = request.session.get("active_business_id")
+        if sess_biz_id and str(sess_biz_id).isdigit():
+            target_hospital = Hospital.objects.filter(id=int(sess_biz_id)).first()
 
     is_viewing_hospital = False
     if request.user.hospital:
-        is_viewing_hospital = request.user.industry == 'HOSPITAL'
+        is_viewing_hospital = request.user.industry == 'HOSPITAL' or (getattr(request.user.hospital, 'settings', None) or {}).get("business_type") == "hospital"
     elif target_hospital:
-        is_viewing_hospital = "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
+        is_viewing_hospital = (getattr(target_hospital, 'settings', None) or {}).get("business_type") == "hospital" or "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
     else:
-        is_viewing_hospital = False
+        is_viewing_hospital = True
 
-    # Extract departments, doctors, and appointment statuses only for hospital views
-    # And courses / admission statuses only for academy views
+    # Extract departments, doctors, and appointment statuses
     if is_viewing_hospital:
         courses_qs = Course.objects.none()
         adm_status_choices = []
@@ -788,6 +800,19 @@ def lead_list(request):
                 filter_doctors = list(MasterGroup.get_active_choices("Doctors").filter(hospital=target_hospital).values_list("name", flat=True))
             if not filter_doctors:
                 filter_doctors = list(User.objects.filter(hospital=target_hospital, role=User.Role.DOCTOR, is_active=True).values_list("first_name", flat=True))
+            
+            # Also merge distinct doctors from active leads custom_data and appointments so historical leads remain trackable
+            lead_doctors = list(active_leads.exclude(custom_data__doctor="").values_list("custom_data__doctor", flat=True).distinct())
+            appt_doctors = list(active_leads.exclude(appointments__doctor_name="").values_list("appointments__doctor_name", flat=True).distinct())
+            seen_filter_docs = set(d.lower() for d in filter_doctors if d)
+            for d in (lead_doctors + appt_doctors):
+                if d and str(d).strip() and str(d).strip().lower() not in seen_filter_docs:
+                    seen_filter_docs.add(str(d).strip().lower())
+                    filter_doctors.append(str(d).strip())
+        else:
+            filter_departments = list(HospitalDepartment.objects.filter(is_active=True).values_list("name", flat=True))
+            filter_doctors = list(HospitalDoctor.objects.filter(is_active=True).values_list("name", flat=True))
+
         filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Approval from Doctor", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
     else:
         courses_qs = Course.objects.filter(id__in=used_course_ids)
@@ -801,20 +826,52 @@ def lead_list(request):
     # Businesses dropdown is ONLY for global superadmin (no user.hospital)
     available_businesses = Hospital.objects.filter(is_active=True).order_by("name") if (is_global_admin and not request.user.hospital) else Hospital.objects.none()
 
-    # Scope stages to the business type
-    if is_viewing_hospital:
-        stages_qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL]).order_by("order", "name")
+    if target_hospital:
+        campaigns_qs = Campaign.objects.filter(Q(hospital=target_hospital) | Q(hospital__isnull=True), is_active=True).order_by("name")
     else:
-        stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+        campaigns_qs = Campaign.objects.filter(is_active=True).order_by("name")
+
+    # Scope stages
+    stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    
     # Calculate campaign breakdown for interactive top campaign quick-filter cards
-    date_scoped_leads = active_leads
-    date_from_val = request.GET.get("date_from") or request.GET.get("date")
-    date_to_val = request.GET.get("date_to")
-    if date_from_val:
-        date_scoped_leads = date_scoped_leads.filter(inquiry_date__gte=date_from_val)
-    if date_to_val:
-        date_scoped_leads = date_scoped_leads.filter(inquiry_date__lte=date_to_val)
-    campaign_breakdown = get_campaign_breakdown_stats(active_leads, date_scoped_leads)
+    status_scoped_leads = get_filtered_leads(request, exclude_campaign_filter=True)
+    campaign_breakdown = get_campaign_breakdown_stats(active_leads, status_scoped_leads)
+
+    # Telecaller / Employees Query
+    if target_hospital:
+        employees_qs = User.objects.filter(
+            hospital=target_hospital,
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.TELECALLER],
+            is_active=True,
+            is_approved=True
+        ).order_by("first_name", "last_name", "username")
+        if not employees_qs.exists():
+            employees_qs = User.objects.filter(
+                hospital=target_hospital,
+                is_active=True,
+                is_approved=True
+            ).exclude(role=User.Role.DOCTOR).order_by("first_name", "last_name", "username")
+        hospital_campaigns_qs = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
+        hospital_sources_qs = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
+        hospital_statuses_qs = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
+    else:
+        employees_qs = User.objects.filter(
+            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT, User.Role.TELECALLER],
+            is_active=True,
+            is_approved=True
+        ).order_by("first_name", "last_name", "username")
+        if not employees_qs.exists():
+            employees_qs = User.objects.filter(is_active=True, is_approved=True).exclude(role=User.Role.DOCTOR).order_by("first_name", "last_name", "username")
+        hospital_campaigns_qs = MasterGroup.get_active_choices("Campaigns")
+        hospital_sources_qs = MasterGroup.get_active_choices("Lead Sources")
+        hospital_statuses_qs = MasterGroup.get_active_choices("Deal Statuses")
+
+    hospital_deal_statuses = list(hospital_statuses_qs.values_list("name", flat=True)) if hospital_statuses_qs else []
+    if hospital_deal_statuses:
+        bulk_stages_list = [{"id": s, "name": s} for s in hospital_deal_statuses]
+    else:
+        bulk_stages_list = [{"id": s.id, "name": s.name} for s in stages_qs]
 
     context = {
         "query_params": query_params.urlencode(),
@@ -826,7 +883,7 @@ def lead_list(request):
         "selected_import_job": selected_import_job,
         "source_categories": SourceCategory.objects.filter(id__in=used_sc_ids),
         "lead_sources": LeadSource.objects.filter(id__in=used_ls_ids),
-        "campaigns": Campaign.objects.filter(id__in=used_camp_ids),
+        "campaigns": campaigns_qs,
         "courses": courses_qs,
         "stages": stages_qs,
         "cities": distinct_cities,
@@ -864,33 +921,15 @@ def lead_list(request):
         "current_sort": sort_by,
         "active_filters_count": active_filters_count,
         "request_get": request.GET,
+        "employees": employees_qs,
+        "hospital_campaigns": hospital_campaigns_qs,
+        "hospital_sources": hospital_sources_qs,
+        "hospital_statuses": hospital_statuses_qs,
+        "bulk_stages": bulk_stages_list,
     }
 
-    if target_hospital:
-        # For hospitals, leads are assigned to Lead Attendants (or Counsellors/HR if configured), never to Doctors or Admins
-        context["employees"] = User.objects.filter(
-            hospital=target_hospital,
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
-            is_active=True,
-            is_approved=True
-        ).order_by("first_name", "last_name", "username")
-        context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
-        context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
-        context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
-        hospital_deal_statuses = list(context["hospital_statuses"].values_list("name", flat=True))
-        if hospital_deal_statuses:
-            context["bulk_stages"] = [{"id": s, "name": s} for s in hospital_deal_statuses]
-        else:
-            context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
-    else:
-        # For Academy / generic, assign to Counsellors and HR (and Lead Attendants if present)
-        context["employees"] = User.objects.filter(
-            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT],
-            is_active=True,
-            is_approved=True
-        ).order_by("first_name", "last_name", "username")
     # Determine template
-    if not selected_hospital_id and is_global_admin:
+    if not selected_hospital_id and is_global_admin and not is_viewing_hospital:
         template_name = "leads/lead_list.html"
     elif is_viewing_hospital:
         template_name = "hospital/leads/lead_list.html"
@@ -2621,8 +2660,16 @@ def lead_edit(request, pk):
                             time_same = (str(existing_apt.appointment_time)[:5] == str(raw_appo_time)[:5])
                         slot_is_same = (date_same and time_same)
 
+                    # Track previous slot for rescheduling detection
+                    prev_date = existing_apt.appointment_date if existing_apt else None
+                    prev_time = existing_apt.appointment_time if existing_apt else None
+                    was_rescheduled = False
+
                     # Check if telecaller is confirming slot set by doctor (only if appointment is in SCHEDULED/PENDING state, NOT if CANCELLED by doctor)
                     if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes']) and not is_won:
+                        from followups.models import Activity, ActivityType
+                        doc_display_name = doctor_name if doctor_name.lower().startswith('dr') else f"Dr. {doctor_name}" if doctor_name else "Consulting Doctor"
+
                         if slot_is_same and existing_apt and existing_apt.status == AppointmentStatus.SCHEDULED:
                             # Slot kept exactly as doctor setup -> auto-approve without asking doctor for re-approval
                             existing_apt.status = AppointmentStatus.APPROVED
@@ -2632,8 +2679,15 @@ def lead_edit(request, pk):
                             saved_lead.custom_data = cd
                             saved_lead.save(update_fields=['custom_data'])
 
+                            time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
+                            Activity.objects.create(
+                                lead=saved_lead,
+                                created_by=request.user,
+                                activity_type=ActivityType.NOTE,
+                                description=f"Appointment Confirmed with {doc_display_name} for {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
+                            )
+
                             if doc_user and doc_user != request.user:
-                                time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
                                 Notification.objects.create(
                                     user=doc_user,
                                     title="Next Appointment Confirmed from Patient",
@@ -2643,6 +2697,12 @@ def lead_edit(request, pk):
                         else:
                             # Slot was changed or is new -> needs Doctor Approval confirmation
                             if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
+                                if not slot_is_same:
+                                    was_rescheduled = True
+                                    existing_apt.is_rescheduled = True
+                                    existing_apt.rescheduled_from_date = prev_date
+                                    existing_apt.rescheduled_from_time = prev_time
+
                                 existing_apt.appointment_date = parsed_apt_date
                                 if raw_appo_time:
                                     existing_apt.appointment_time = raw_appo_time
@@ -2651,7 +2711,7 @@ def lead_edit(request, pk):
                                 if doctor_name:
                                     existing_apt.doctor_name = doctor_name
                                 existing_apt.status = AppointmentStatus.PENDING_APPROVAL
-                                existing_apt.save(update_fields=['appointment_date', 'appointment_time', 'doctor_user', 'doctor_name', 'status'])
+                                existing_apt.save(update_fields=['appointment_date', 'appointment_time', 'doctor_user', 'doctor_name', 'status', 'is_rescheduled', 'rescheduled_from_date', 'rescheduled_from_time'])
                             else:
                                 existing_apt = Appointment.objects.create(
                                     lead=saved_lead,
@@ -2664,12 +2724,34 @@ def lead_edit(request, pk):
                                     created_by=request.user
                                 )
 
+                            time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
+                            if was_rescheduled and prev_date:
+                                prev_time_str = prev_time.strftime('%I:%M %p') if prev_time else 'Slot not fixed'
+                                Activity.objects.create(
+                                    lead=saved_lead,
+                                    created_by=request.user,
+                                    activity_type=ActivityType.NOTE,
+                                    description=f"Appointment Rescheduled for {saved_lead.name} with {doc_display_name} from {prev_date.strftime('%d %b %Y')} ({prev_time_str}) to {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
+                                )
+                            else:
+                                Activity.objects.create(
+                                    lead=saved_lead,
+                                    created_by=request.user,
+                                    activity_type=ActivityType.NOTE,
+                                    description=f"Appointment Booked with {doc_display_name} for {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
+                                )
+
                             if doc_user and doc_user != request.user:
-                                time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
+                                notif_title = "Appointment Rescheduled / Slot Changed" if was_rescheduled else "New Appointment Request"
+                                notif_msg = (
+                                    f"Appointment for patient {saved_lead.name} rescheduled with {doc_display_name} from {prev_date.strftime('%d %b %Y')} to {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
+                                    if was_rescheduled and prev_date else
+                                    f"Telecaller booked appointment for patient {saved_lead.name} on {parsed_apt_date.strftime('%d %b %Y')} at {time_str}. Please review and approve."
+                                )
                                 Notification.objects.create(
                                     user=doc_user,
-                                    title="New Appointment Request / Slot Changed",
-                                    message=f"Telecaller updated/requested appointment for patient {saved_lead.name} on {parsed_apt_date.strftime('%d %b %Y')} at {time_str}. Please review and approve.",
+                                    title=notif_title,
+                                    message=notif_msg,
                                     link="/dashboard/doctor/",
                                 )
             else:
@@ -2681,6 +2763,26 @@ def lead_edit(request, pk):
                         title="Appointment Update",
                         message=f"Patient {saved_lead.name} appointment details updated.",
                         link="/dashboard/doctor/",
+                    )
+
+            # If lead status became won/payment done, notify Admin/Superadmin
+            if is_won:
+                from notifications.models import Notification
+                admin_qs = User.objects.filter(is_active=True).filter(
+                    Q(is_superuser=True) |
+                    Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN])
+                )
+                if saved_lead.hospital:
+                    admin_qs = admin_qs.filter(Q(hospital=saved_lead.hospital) | Q(hospital__isnull=True))
+                for adm in admin_qs.distinct():
+                    # Only notify if not already notified
+                    tot_amount = cd.get('total') or cd.get('total_paid') or ''
+                    tot_str = f" (₹{tot_amount})" if tot_amount else ""
+                    Notification.objects.create(
+                        user=adm,
+                        title=f"💰 Payment Completed: {saved_lead.name}",
+                        message=f"Payment{tot_str} has been successfully completed for patient {saved_lead.name} by {request.user.get_full_name() or request.user.username}.",
+                        link=f"/leads/{saved_lead.pk}/",
                     )
 
             messages.success(request, f"Lead #{saved_lead.lead_code or saved_lead.pk} ({saved_lead.name}) updated and assigned successfully! ✅")
@@ -6658,7 +6760,20 @@ def cascading_hospital_data_api(request):
 
         if branch:
             dept_qs = branch.departments.filter(is_active=True).order_by("order", "name")
-            res["departments"] = [{"id": d.id, "name": d.name} for d in dept_qs]
+            depts = [{"id": d.id, "name": d.name} for d in dept_qs]
+            # Ensure 'Other' department is always present
+            if not any(d["name"].lower() == "other" for d in depts):
+                other_dept, _ = HospitalDepartment.objects.get_or_create(hospital=hospital, name="Other", defaults={"order": 9999, "is_active": True})
+                branch.departments.add(other_dept)
+                depts.append({"id": other_dept.id, "name": other_dept.name})
+            res["departments"] = depts
+    else:
+        dept_qs = HospitalDepartment.objects.filter(hospital=hospital, is_active=True).order_by("order", "name")
+        depts = [{"id": d.id, "name": d.name} for d in dept_qs]
+        if not any(d["name"].lower() == "other" for d in depts):
+            other_dept, _ = HospitalDepartment.objects.get_or_create(hospital=hospital, name="Other", defaults={"order": 9999, "is_active": True})
+            depts.append({"id": other_dept.id, "name": other_dept.name})
+        res["departments"] = depts
 
     # 2. If department selected, filter doctors and diseases for this department
     if dept_id:
@@ -6672,14 +6787,23 @@ def cascading_hospital_data_api(request):
                 models.Q(departments=dept) | models.Q(department=dept),
                 hospital=hospital,
                 is_active=True
-            ).distinct().order_by("order", "name")
+            ).filter(models.Q(user__isnull=True) | models.Q(user__is_active=True)).distinct().order_by("order", "name")
+
+            # If 'Other' department and no specific doctor assigned, fallback to all active hospital doctors
+            if not doc_qs.exists() and dept.name.lower() == "other":
+                doc_qs = HospitalDoctor.objects.filter(hospital=hospital, is_active=True).filter(models.Q(user__isnull=True) | models.Q(user__is_active=True)).distinct().order_by("order", "name")
             
             if branch_id and str(branch_id).isdigit():
                 doc_qs = doc_qs.filter(branches__id=branch_id)
             res["doctors"] = [{"id": doc.id, "name": doc.name, "display_name": f"Dr. {doc.name}" if not doc.name.lower().startswith("dr") else doc.name, "fee": float(doc.consultation_fee)} for doc in doc_qs]
 
             dis_qs = dept.diseases.filter(is_active=True).order_by("order", "name")
-            res["diseases"] = [{"id": dis.id, "name": dis.name} for dis in dis_qs]
+            diseases = [{"id": dis.id, "name": dis.name} for dis in dis_qs]
+            # Ensure 'Other' disease is always present for each department
+            if not any(dis["name"].lower() == "other" for dis in diseases):
+                other_dis, _ = HospitalDisease.objects.get_or_create(hospital=hospital, department=dept, name="Other", defaults={"order": 9999, "is_active": True})
+                diseases.append({"id": other_dis.id, "name": other_dis.name})
+            res["diseases"] = diseases
 
     # 3. If doctor selected, return doctor's available branches and diseases
     if doctor_id:
@@ -7053,6 +7177,15 @@ def appointments_done_list(request):
         doctors_list = list(HospitalDoctor.objects.filter(hospital=target_hospital, is_active=True).values_list("name", flat=True))
         if not doctors_list:
             doctors_list = list(MasterGroup.get_active_choices("Doctors").filter(hospital=target_hospital).values_list("name", flat=True))
+        
+        # Merge historical lead doctors into analytics filter list
+        hist_docs = list(base_qs.exclude(custom_data__doctor="").values_list("custom_data__doctor", flat=True).distinct()) + list(base_qs.exclude(appointments__doctor_name="").values_list("appointments__doctor_name", flat=True).distinct())
+        seen_d = set(d.lower() for d in doctors_list if d)
+        for d in hist_docs:
+            if d and str(d).strip() and str(d).strip().lower() not in seen_d:
+                seen_d.add(str(d).strip().lower())
+                doctors_list.append(str(d).strip())
+
         telecallers_qs = User.objects.filter(
             hospital=target_hospital,
             role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
@@ -7067,6 +7200,13 @@ def appointments_done_list(request):
         doctors_list = list(HospitalDoctor.objects.filter(is_active=True).values_list("name", flat=True).distinct())
         if not doctors_list:
             doctors_list = list(MasterGroup.get_active_choices("Doctors").values_list("name", flat=True).distinct())
+
+        hist_docs = list(base_qs.exclude(custom_data__doctor="").values_list("custom_data__doctor", flat=True).distinct()) + list(base_qs.exclude(appointments__doctor_name="").values_list("appointments__doctor_name", flat=True).distinct())
+        seen_d = set(d.lower() for d in doctors_list if d)
+        for d in hist_docs:
+            if d and str(d).strip() and str(d).strip().lower() not in seen_d:
+                seen_d.add(str(d).strip().lower())
+                doctors_list.append(str(d).strip())
         telecallers_qs = User.objects.filter(
             role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
             is_active=True
@@ -7152,35 +7292,44 @@ def appointments_done_list(request):
     # 1. Total Leads: all leads in the active business / healthcare scope with applied filters
     total_leads_count = filtered_all_leads_qs.count()
     
-    # 2. Appointments Done, Payment Done, Payment Pending calculated on appointment-booked leads
+    # 2. Appointments Done, Approval Pending, Upcoming Appointments calculated on appointment-booked leads
     leads_list = list(leads_qs)
     
-    payment_done_count = 0
-    payment_pending_count = 0
-    appointment_done_count = 0
+    appointment_done_count = len(leads_list)
+    approval_pending_count = 0
+    upcoming_appointments_count = 0
+    today_date = timezone.localdate()
 
     for l in leads_list:
-        st = l.display_status
-        tot = 0
-        try:
-            tot = float(l.custom_data.get('total') or l.custom_data.get('opd_bill') or 0)
-        except Exception:
-            tot = 0
+        st = (l.display_status or "").lower()
+        cd = l.custom_data or {}
+        apt_st = str(cd.get("appointment_status") or "").lower()
+        
+        # Approval Pending check
+        if (
+            "approv" in st
+            or "approv" in apt_st
+            or "await" in apt_st
+            or (l.stage and "approv" in (l.stage.name or "").lower())
+        ):
+            approval_pending_count += 1
 
-        if st == "Payment Done" or tot > 0:
-            payment_done_count += 1
-            appointment_done_count += 1
-        elif st in ("Completed Appointment", "Visited / OPD Done", "Payment Pending"):
-            payment_pending_count += 1
-            appointment_done_count += 1
-        elif "Book" in st or "Confirm" in st or "Approv" in st:
-            appointment_done_count += 1
-        else:
-            appointment_done_count += 1
+        # Upcoming Appointments check (scheduled for today or future date)
+        booked_date_val = cd.get("appo_booked_date")
+        if booked_date_val:
+            try:
+                if isinstance(booked_date_val, str) and len(booked_date_val) >= 10:
+                    d_obj = datetime.strptime(booked_date_val[:10], "%Y-%m-%d").date()
+                    if d_obj >= today_date and "cancel" not in apt_st and "lost" not in st:
+                        upcoming_appointments_count += 1
+                elif hasattr(booked_date_val, 'year') and booked_date_val >= today_date:
+                    upcoming_appointments_count += 1
+            except Exception:
+                pass
 
-    # Conversion Rate (%) = (Payment Done / Total Appointments Done) * 100
-    if appointment_done_count > 0:
-        conversion_rate = round((payment_done_count / appointment_done_count) * 100, 1)
+    # Conversion Rate (%) = (Total Appointments Done / Total Leads) * 100
+    if total_leads_count > 0:
+        conversion_rate = round((appointment_done_count / total_leads_count) * 100, 1)
     else:
         conversion_rate = 0.0
 
@@ -7198,13 +7347,42 @@ def appointments_done_list(request):
         del query_params_dict["page"]
     query_params = query_params_dict.urlencode()
 
-    # Campaign breakdown calculation for Appointments Done
-    date_scoped_appts = leads_qs
+    # Campaign breakdown calculation for Appointments Done:
+    # Compute over appointment leads matching date/search/doctor filters but excluding the specific campaign filter
+    # so user can still see and switch between all available campaigns in the dropdown
+    appts_for_camp_breakdown = base_qs.filter(appt_condition).distinct()
+    if search_q:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
+        )
     if date_from:
-        date_scoped_appts = date_scoped_appts.filter(inquiry_date__gte=date_from)
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
+        )
     if date_to:
-        date_scoped_appts = date_scoped_appts.filter(inquiry_date__lte=date_to)
-    campaign_breakdown = get_campaign_breakdown_stats(base_qs, date_scoped_appts)
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
+        )
+    if sel_dept:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(custom_data__department__iexact=sel_dept)
+    if sel_telecaller:
+        if sel_telecaller.isdigit():
+            appts_for_camp_breakdown = appts_for_camp_breakdown.filter(assigned_to_id=int(sel_telecaller))
+        else:
+            appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+                Q(assigned_to__username__iexact=sel_telecaller)
+                | Q(assigned_to__first_name__icontains=sel_telecaller)
+            )
+    if sel_doctor:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(custom_data__doctor__icontains=sel_doctor)
+            | Q(appointments__doctor_name__icontains=sel_doctor)
+        )
+    if sel_source:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(lead_source__name__iexact=sel_source) | Q(custom_data__lead_source__iexact=sel_source)
+        )
+    campaign_breakdown = get_campaign_breakdown_stats(base_qs, appts_for_camp_breakdown)
 
     return render(request, "leads/appointments_done_list.html", {
         "active": "appointments",
@@ -7215,8 +7393,8 @@ def appointments_done_list(request):
         "total_leads_count": total_leads_count,
         "appointment_done_count": appointment_done_count,
         "conversion_rate": conversion_rate,
-        "payment_done_count": payment_done_count,
-        "payment_pending_count": payment_pending_count,
+        "approval_pending_count": approval_pending_count,
+        "upcoming_appointments_count": upcoming_appointments_count,
         "campaign_breakdown": campaign_breakdown,
         "q": search_q,
         # Filters state
@@ -7276,17 +7454,7 @@ def pending_leads(request):
         | Q(custom_data__appointment_status__icontains="payment pending")
     )
 
-    # Exclude definitively closed/won/lost leads unless they have pending payment/approval
-    leads_base = Lead.objects.select_related(
-        "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
-    ).filter(is_archived=False).filter(pending_condition).exclude(
-        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel")
-    ).distinct()
-
-    # Pass base_qs to get_filtered_leads so common search, date, and sidebar filters apply smoothly
-    leads = get_filtered_leads(request, base_qs=leads_base)
-
-    # Use lead_list context building logic
+    # Determine target hospital context
     selected_hospital_id = (
         request.GET.get("business", "").strip()
         or request.GET.get("hospital", "").strip()
@@ -7295,6 +7463,31 @@ def pending_leads(request):
     is_global_admin = request.user.is_superuser or (
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
+    target_hospital = request.user.hospital
+    if not target_hospital and is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+    elif not target_hospital and is_global_admin:
+        biz_id = request.session.get("active_business_id")
+        if biz_id and str(biz_id).isdigit():
+            target_hospital = Hospital.objects.filter(id=int(biz_id)).first()
+        else:
+            target_hospital = Hospital.objects.filter(name__icontains="nelson").first() or Hospital.objects.first()
+
+    # Exclude definitively closed/won/lost leads unless they have pending payment/approval
+    leads_base = Lead.objects.select_related(
+        "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
+    ).filter(is_archived=False)
+
+    if target_hospital:
+        leads_base = leads_base.filter(hospital=target_hospital)
+
+    leads_base = leads_base.filter(pending_condition).exclude(
+        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel")
+    ).distinct()
+
+    # Pass base_qs to get_filtered_leads so common search, date, and sidebar filters apply smoothly
+    leads = get_filtered_leads(request, base_qs=leads_base)
+
     q = request.GET.get("q", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
     date_from = request.GET.get("date_from") or request.GET.get("date")
@@ -7310,11 +7503,7 @@ def pending_leads(request):
     if "page" in query_params:
         del query_params["page"]
 
-    target_hospital = request.user.hospital
-    if not target_hospital and is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
-        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
-
-    # Calculate campaign breakdown for pending leads tab
+    # Calculate campaign breakdown for pending leads tab strictly for target_hospital
     date_scoped_pending = leads_base
     if date_from:
         date_scoped_pending = date_scoped_pending.filter(inquiry_date__gte=date_from)
@@ -7354,6 +7543,235 @@ def pending_leads(request):
             context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
 
     return render(request, "hospital/leads/lead_list.html", context)
+
+
+@login_required
+def payment_done_list(request):
+    """
+    Payment Done Leads View for Healthcare / Nelson Hospital CRM.
+    Displays leads with Payment Done / Won status, OPD/IPD billings or payments completed.
+    Dynamic KPIs:
+    - Total Leads: All scoped leads matching date/search/filter
+    - Payment Done: Count of paid/won leads
+    - Conversion Rate (%): (Payment Done / Total Leads) * 100
+    - Payment Pending: Count of appointment completed/visited leads awaiting payment
+    - Revenue: Total revenue collected (Sum of total billed / total paid)
+    """
+    is_global_admin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+
+    # Active business determination
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+
+    target_hospital = None
+    if request.user.hospital:
+        target_hospital = request.user.hospital
+    elif selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
+
+    is_healthcare_scope = True
+    if target_hospital:
+        is_healthcare_scope = (
+            target_hospital.industry == Hospital.Industry.HOSPITAL
+            or "hospital" in target_hospital.name.lower()
+            or "clinic" in target_hospital.name.lower()
+            or "nelson" in target_hospital.name.lower()
+        )
+
+    if not is_healthcare_scope:
+        base_qs = Lead.objects.none()
+    else:
+        base_qs = Lead.objects.select_related(
+            "hospital", "assigned_to", "stage", "campaign", "lead_source"
+        ).filter(is_archived=False)
+
+        if target_hospital:
+            base_qs = base_qs.filter(hospital=target_hospital)
+        elif request.user.hospital:
+            base_qs = base_qs.filter(hospital=request.user.hospital)
+        elif not is_global_admin:
+            base_qs = base_qs.filter(hospital__isnull=True)
+
+        if request.user.role == User.Role.MANAGER and request.user.branch:
+            b_name = request.user.branch.name
+            branch_team = User.objects.filter(hospital=request.user.hospital, branch=request.user.branch)
+            base_qs = base_qs.filter(
+                Q(custom_data__hospital_branch__iexact=b_name) |
+                Q(custom_data__branch__iexact=b_name) |
+                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                Q(custom_data__dyn_branch__iexact=b_name) |
+                Q(assigned_to__in=branch_team) |
+                Q(created_by__in=branch_team)
+            )
+        elif request.user.role == User.Role.DOCTOR:
+            doc_name = (request.user.get_full_name() or request.user.username).strip()
+            base_qs = base_qs.filter(
+                Q(assigned_to=request.user) |
+                Q(appointments__doctor_user=request.user) |
+                Q(appointments__doctor_name__icontains=doc_name) |
+                Q(custom_data__doctor__icontains=doc_name)
+            ).distinct()
+
+    # Criteria for Payment Done / Won leads
+    payment_done_condition = (
+        Q(deal_status=DealStatus.WON)
+        | Q(deal_status__in=[DealStatus.WON, "WON", "Payment Done", "PAYMENT DONE", "PAYMENT_DONE"])
+        | Q(admission_status__in=["WON", "ADMISSION_DONE", "PAYMENT_DONE"])
+        | (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__total_paid__isnull=False) & ~Q(custom_data__total_paid__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__opd_bill__isnull=False) & ~Q(custom_data__opd_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__pharmacy_bill__isnull=False) & ~Q(custom_data__pharmacy_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__ipd_bill__isnull=False) & ~Q(custom_data__ipd_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | Q(admission__payments__payment_status="SUCCESS", admission__payments__amount__gt=0)
+        | Q(custom_data__deal_status__icontains="Won")
+        | Q(custom_data__deal_status__icontains="Payment")
+        | Q(custom_data__appointment_status__icontains="Payment Done")
+        | Q(stage__name__icontains="Payment")
+        | Q(stage__name__icontains="Won")
+    )
+
+    paid_leads_qs = base_qs.filter(payment_done_condition).exclude(
+        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel")
+    ).distinct()
+
+    # Header Filters
+    search_q = request.GET.get("q", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    sel_campaign = request.GET.get("campaign", "").strip()
+
+    filtered_all_leads_qs = base_qs
+    if search_q:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
+        )
+        paid_leads_qs = paid_leads_qs.filter(
+            Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
+        )
+    if date_from:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
+        )
+        paid_leads_qs = paid_leads_qs.filter(
+            Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
+        )
+    if date_to:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
+        )
+        paid_leads_qs = paid_leads_qs.filter(
+            Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
+        )
+    if sel_campaign:
+        filtered_all_leads_qs = filtered_all_leads_qs.filter(
+            Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
+        )
+        paid_leads_qs = paid_leads_qs.filter(
+            Q(campaign__name__iexact=sel_campaign) | Q(custom_data__campaign__iexact=sel_campaign)
+        )
+
+    # 1. Total Leads
+    total_leads_count = filtered_all_leads_qs.count()
+
+    # 2. Payment Done list & count
+    paid_leads_list = list(paid_leads_qs)
+    payment_done_count = len(paid_leads_list)
+
+    # 3. Conversion Rate (%) = (Payment Done / Total Leads) * 100
+    if total_leads_count > 0:
+        conversion_rate = round((payment_done_count / total_leads_count) * 100, 1)
+    else:
+        conversion_rate = 0.0
+
+    # 4. Payment Pending (Appointment completed/visited but payment pending)
+    # 5. Total Revenue Collected
+    payment_pending_count = 0
+    total_revenue = 0.0
+
+    for l in paid_leads_list:
+        cd = l.custom_data or {}
+        # Calculate lead total amount
+        amt = 0.0
+        try:
+            val = cd.get("total") or cd.get("total_paid") or cd.get("opd_bill") or cd.get("amount") or 0
+            amt = float(val) if val else 0.0
+        except (ValueError, TypeError):
+            amt = 0.0
+        
+        # Attach total_amount on lead object for display
+        l.computed_total_amount = amt
+        total_revenue += amt
+
+    # Payment Pending count across scope
+    pending_pay_qs = filtered_all_leads_qs.filter(
+        (
+            Q(custom_data__appointment_status__icontains="done")
+            | Q(custom_data__appointment_status__icontains="visit")
+            | Q(custom_data__appointment_status__icontains="complete")
+            | Q(stage__name__icontains="payment pending")
+            | Q(custom_data__deal_status__icontains="pending")
+        )
+        & ~Q(deal_status=DealStatus.WON)
+        & ~Q(id__in=[pl.id for pl in paid_leads_list])
+    ).exclude(
+        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel")
+    ).distinct()
+    payment_pending_count = pending_pay_qs.count()
+
+    # Format revenue nicely (e.g. ₹ 45,200)
+    formatted_revenue = f"₹ {total_revenue:,.0f}" if total_revenue > 0 else "₹ 0"
+
+    # Sort and Paginate
+    paid_leads_list.sort(key=lambda x: x.inquiry_date or timezone.localdate(), reverse=True)
+    from django.core.paginator import Paginator
+    paginator = Paginator(paid_leads_list, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    query_params_dict = request.GET.copy()
+    if "page" in query_params_dict:
+        del query_params_dict["page"]
+    query_params = query_params_dict.urlencode()
+
+    # Campaign breakdown for dropdown (excluding sel_campaign so all remain switchable)
+    appts_for_camp_breakdown = base_qs.filter(payment_done_condition).exclude(
+        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel")
+    ).distinct()
+    if search_q:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(name__icontains=search_q) | Q(mobile__icontains=search_q) | Q(city__icontains=search_q)
+        )
+    if date_from:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(inquiry_date__gte=date_from) | Q(custom_data__appo_booked_date__gte=date_from)
+        )
+    if date_to:
+        appts_for_camp_breakdown = appts_for_camp_breakdown.filter(
+            Q(inquiry_date__lte=date_to) | Q(custom_data__appo_booked_date__lte=date_to)
+        )
+    campaign_breakdown = get_campaign_breakdown_stats(base_qs, appts_for_camp_breakdown)
+
+    return render(request, "leads/payment_done_list.html", {
+        "active": "payments",
+        "target_hospital": target_hospital,
+        "is_healthcare_scope": is_healthcare_scope,
+        "page_obj": page_obj,
+        "total_count": payment_done_count,
+        "total_leads_count": total_leads_count,
+        "payment_done_count": payment_done_count,
+        "conversion_rate": conversion_rate,
+        "payment_pending_count": payment_pending_count,
+        "total_revenue": total_revenue,
+        "formatted_revenue": formatted_revenue,
+        "campaign_breakdown": campaign_breakdown,
+        "q": search_q,
+        "date_from_val": date_from or "",
+        "date_to_val": date_to or "",
+        "query_params": query_params,
+    })
 
 
 

@@ -234,20 +234,26 @@ def upload(request):
             leads_count=Count("leads", filter=Q(leads__is_archived=False))
         ).order_by("name")
 
+    # Strict Multi-tenant Scope:
     if effective_hospital:
         campaigns = HospitalCampaign.objects.filter(hospital=effective_hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(hospital=effective_hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(hospital=effective_hospital, is_archived=False).count()
-    elif selected_hospital_id in ("none", "zappcode"):
-        campaigns = HospitalCampaign.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        courses = Course.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
-        current_leads_count = Lead.objects.filter(hospital__isnull=True, is_archived=False).count()
+    elif user.hospital:
+        campaigns = HospitalCampaign.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(hospital=user.hospital, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital=user.hospital, is_archived=False).count()
     elif is_super_admin_no_hospital and all_hospitals.exists():
         first_h = all_hospitals.first()
         campaigns = HospitalCampaign.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(hospital=first_h, is_archived=False).count()
+    elif selected_hospital_id in ("none", "zappcode"):
+        campaigns = HospitalCampaign.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        courses = Course.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
+        current_leads_count = Lead.objects.filter(hospital__isnull=True, is_archived=False).count()
     else:
+        # Fallback for SuperAdmin without any hospital
         campaigns = HospitalCampaign.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(is_archived=False).count()
@@ -358,6 +364,7 @@ def upload(request):
     context = {
         "active": "import",
         "is_hospital": is_hospital,
+        "effective_hospital": effective_hospital,
         "is_super_admin_no_hospital": is_super_admin_no_hospital,
         "can_import_previous": can_import_previous,
         "can_manage_master_data": can_manage_master_data,
@@ -611,7 +618,7 @@ def campaign_import_process(request):
     # Clean and extract campaign rows
     lead_rows = extract_campaign_lead_data(df, target_campaign=campaign, target_hospital=target_hospital)
     if not lead_rows:
-        messages.error(request, "No valid lead rows could be extracted. Please check the file columns.")
+        messages.error(request, "Missing columns mapping: Could not detect valid lead fields. Please refer to the Download Template and retry.")
         return redirect("imports:upload")
 
     # Check duplicates against DB
@@ -1327,8 +1334,23 @@ def history(request):
 
     user = request.user
     jobs_qs = ImportJob.objects.select_related("created_by")
+
+    # Business / Hospital Scoping
     if user.hospital:
         jobs_qs = jobs_qs.filter(created_by__hospital=user.hospital)
+    elif user.role == User.Role.SUPER_ADMIN and not user.hospital:
+        # Check active business session or query param if selected
+        raw_biz = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
+        session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+        selected_hospital_id = raw_biz or session_biz
+        if selected_hospital_id and selected_hospital_id.isdigit():
+            jobs_qs = jobs_qs.filter(created_by__hospital_id=int(selected_hospital_id))
+
+    # Role-based visibility:
+    # Telecallers / Lead Attendants / Counsellors see strictly their own uploaded history.
+    # Admins, Super Admins, and Managers see all users' upload history for the business.
+    if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.DOCTOR):
+        jobs_qs = jobs_qs.filter(created_by=user)
 
     date_preset = request.GET.get('date_preset', 'all_time')
     start_date_str = request.GET.get('start_date', '')
@@ -1667,12 +1689,13 @@ def export_leads(request):
 def download_template(request):
     """
     Downloads entity-specific Lead Import Template:
-    - Hospital template for Nelson / Hospital users.
-    - Student/Course template for Zappcode Academy users.
+    - Sheet 1: Lead Import Template with sample row and validations.
+    - Sheet 2: Supported Column Mappings & Descriptions for easy user reference.
+    Filename: business_import_template.xlsx (or entity specific fallback).
     """
     from openpyxl import Workbook
     from openpyxl.worksheet.datavalidation import DataValidation
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from leads.models import (
         HospitalDepartment, HospitalDoctor, HospitalBranch, 
         LeadSource, LeadTemperature, AppointmentStatus, Campaign as HospitalCampaign, Course
@@ -1683,8 +1706,15 @@ def download_template(request):
 
     is_hospital = request.user.industry == 'HOSPITAL'
 
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
     if is_hospital:
-        ws.title = "Hospital Leads Template"
+        ws.title = "Import Leads Template"
         headers = [
             "Inquiry Date", 
             "Patient Name", 
@@ -1705,7 +1735,7 @@ def download_template(request):
             "Nagpur", "NEUROLOGY", "Dr. Sharma", "Nelson Neuro Camp", "Meta Ads", "Hot", "Booked", "Consultation needed"
         ]
     else:
-        ws.title = "Zappcode Leads Template"
+        ws.title = "Import Leads Template"
         headers = [
             "Inquiry Date",
             "Full Name",
@@ -1727,7 +1757,7 @@ def download_template(request):
     ws.append(sample_row)
 
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="4F46E5" if not is_hospital else "1F497D", end_color="4F46E5" if not is_hospital else "1F497D", fill_type="solid")
+    header_fill = PatternFill(start_color="1F497D" if is_hospital else "0F2744", end_color="1F497D" if is_hospital else "0F2744", fill_type="solid")
     align_center = Alignment(horizontal="center", vertical="center")
     
     for col_idx, header in enumerate(headers, start=1):
@@ -1735,12 +1765,71 @@ def download_template(request):
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = align_center
+        cell.border = thin_border
 
-    sample_font = Font(name="Calibri", size=10, italic=True, color="595959")
+    sample_font = Font(name="Calibri", size=10, italic=True, color="475569")
     for col_idx in range(1, len(headers) + 1):
         cell = ws.cell(row=2, column=col_idx)
         cell.font = sample_font
+        cell.border = thin_border
 
+    # Build Sheet 2: Supported Column Mappings Reference Guide
+    map_ws = wb.create_sheet(title="Column Mapping Guide")
+    map_headers = ["Field Name", "Accepted Header Aliases / Synonyms", "Required / Optional", "Description & Example Values"]
+    map_ws.append(map_headers)
+
+    for col_idx, h in enumerate(map_headers, start=1):
+        c = map_ws.cell(row=1, column=col_idx)
+        c.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        c.fill = PatternFill(start_color="0284C7", end_color="0284C7", fill_type="solid")
+        c.alignment = align_center
+        c.border = thin_border
+
+    if is_hospital:
+        mapping_data = [
+            ("Patient Name", "patient_name, your_name, full_name, name, patient, lead_name, customer_name, client_name, naam", "Mandatory", "Patient or Inquiry Contact Name (e.g. Ramesh Kumar)"),
+            ("Mobile / Phone", "contact, phone, mobile, phone_number, mobile_no, contact_no, whatsapp, call_number", "Mandatory", "10-digit mobile number with or without +91 / country code"),
+            ("Inquiry Date", "inquiry_date, created_time, created_date, lead_received_date, date, lead_date, time", "Optional", "Inquiry date in YYYY-MM-DD or DD-MM-YYYY format"),
+            ("Department / Speciality", "department, speciality, specialization, dept", "Optional", "Hospital department or clinical speciality (e.g. Neurology, Gynaecology)"),
+            ("Doctor / Consultant", "doctor, dr_name, consultant, physician, surgeon, dr", "Optional", "Assigned Doctor or Consultant name"),
+            ("Campaign", "campaign, campaign_name, ad_name, adset_name", "Optional", "Associated marketing campaign name (e.g. Just Dial, Meta Ads)"),
+            ("Lead Source / Platform", "source, lead_source, platform, channel, publisher_platform", "Optional", "Meta Ads, Google Ads, WhatsApp, Website, Walk-in, Referral, Just Dial"),
+            ("Priority / Temperature", "priority, temperature, lead_priority, lead_temp", "Optional", "Hot, Warm, Cold, Freeze"),
+            ("Appointment Status", "appointment_status, appo_status, appo_book, status", "Optional", "Booked, Visited / OPD Done, Cancelled, Not Interested, Payment Done"),
+            ("City / Location", "location, city, address, area, town, district", "Optional", "Patient city, district, or residential area"),
+            ("Email", "email, email_address, e_mail, mail", "Optional", "Valid email address (e.g. patient@example.com)"),
+            ("Lead Attendant / Caller", "lead_attendant, attendant, assigned_to, caller, telecaller, counsellor, executive", "Optional", "Staff or caller username / full name"),
+            ("Financials & Bills", "opd_bill, ipd_bill, pharmacy_bill, investigation_bill, total_bill, total_paid", "Optional", "Numeric billing amounts recorded for patient"),
+            ("Follow-up Remarks", "first_follow_up_remark, 2nd_follow_up_remark, remarks_1, remark_2, remarks", "Optional", "Follow-up calling conversation logs and remarks"),
+        ]
+    else:
+        mapping_data = [
+            ("Full Name", "full_name, your_name, name, student_name, lead_name, customer_name, client_name", "Mandatory", "Candidate / Student Name (e.g. Rahul Verma)"),
+            ("Phone / Mobile", "phone, contact, mobile, phone_number, mobile_no, contact_no, whatsapp", "Mandatory", "10-digit contact mobile number"),
+            ("Course / Service", "course, program, service, stream, specialization, course_name", "Optional", "Full Stack Python, Data Analytics, Java, Digital Marketing"),
+            ("Inquiry Date", "inquiry_date, created_time, created_date, date, lead_date, lead_received_date", "Optional", "Date of lead inquiry"),
+            ("Lead Source", "lead_source, source, platform, channel", "Optional", "Meta Ads, Google Ads, Instagram, LinkedIn, Walk-in, Website"),
+            ("Campaign Name", "campaign, campaign_name, ad_name", "Optional", "Marketing campaign name"),
+            ("City / Location", "city, location, address, area", "Optional", "Student residential city"),
+            ("Email", "email, email_address, mail", "Optional", "Student email address"),
+            ("Assigned Counsellor", "assigned_to, counsellor, telecaller, agent, executive", "Optional", "Counsellor name or username"),
+            ("Notes / Query", "notes, query, remarks, comment", "Optional", "Student interest / questions notes"),
+        ]
+
+    for row_idx, row_vals in enumerate(mapping_data, start=2):
+        for col_idx, val in enumerate(row_vals, start=1):
+            cell = map_ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = Font(name="Calibri", size=10)
+            cell.border = thin_border
+            if col_idx == 3 and val == "Mandatory":
+                cell.font = Font(name="Calibri", size=10, bold=True, color="DC2626")
+
+    for col in map_ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = col[0].column_letter
+        map_ws.column_dimensions[col_letter].width = max(max_len + 3, 20)
+
+    # Build Sheet 3: Hidden dropdown reference data
     user_hospital = request.user.hospital
     data_ws = wb.create_sheet(title="DropdownData")
 
@@ -1796,7 +1885,6 @@ def download_template(request):
         add_validation("K", "E", len(temperatures), "Select temperature / priority")
         add_validation("L", "F", len(appt_statuses), "Select appointment status")
     else:
-        # Zappcode Academy Template dropdowns
         courses = list(Course.objects.filter(is_active=True).values_list("name", flat=True))
         if not courses:
             courses = ["Full Stack Python", "Data Analytics", "Java Full Stack", "Web Development", "UI/UX Design", "Digital Marketing"]
@@ -1836,9 +1924,9 @@ def download_template(request):
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
         col_letter = col[0].column_letter
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 15)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 16)
 
-    filename = "nelson_hospital_leads_template.xlsx" if is_hospital else "zappcode_academy_leads_template.xlsx"
+    filename = "business_import_template.xlsx"
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
@@ -1882,7 +1970,6 @@ def quick_import(request):
                     return redirect("imports:upload")
         
         df = df.dropna(how="all")
-        df = df.dropna(how="all")
         df.columns = [str(c).strip() for c in df.columns]
         cols = list(df.columns)
         
@@ -1898,6 +1985,41 @@ def quick_import(request):
         selected_campaign = None
         if selected_campaign_id:
             selected_campaign = HospitalCampaign.objects.filter(pk=selected_campaign_id).first()
+
+        # If on_duplicate is "preview" (Review & Resolve), extract structured lead rows and render interactive resolution screen
+        if on_duplicate == "preview":
+            lead_rows = extract_campaign_lead_data(df, target_campaign=selected_campaign, target_hospital=user_hospital)
+            if not lead_rows:
+                job.delete()
+                messages.error(request, "Missing columns mapping: Could not detect valid lead fields. Please refer to the Download Template and retry.")
+                return redirect("imports:upload")
+
+            processed_rows, stats = check_duplicates_in_db(lead_rows, hospital=user_hospital)
+            
+            import uuid
+            cache_key = f"camp_import_{uuid.uuid4().hex}"
+            cache_payload = {
+                "rows": processed_rows,
+                "campaign_id": selected_campaign.id if selected_campaign else None,
+                "target_hospital_id": user_hospital.id if user_hospital else None,
+                "original_filename": excel_file.name,
+                "import_job_id": job.id,
+            }
+            cache.set(cache_key, cache_payload, timeout=86400)
+            request.session[cache_key] = cache_payload
+            request.session.modified = True
+
+            context = {
+                "active": "import",
+                "campaign": selected_campaign,
+                "target_hospital": user_hospital,
+                "original_filename": excel_file.name,
+                "stats": stats,
+                "rows": processed_rows,
+                "cache_key": cache_key,
+                "is_master_import": True,
+            }
+            return render(request, "hospital/imports/campaign_import_preview.html", context)
 
         # Dynamic Column Matcher
         def find_matching_col(aliases):
@@ -1984,8 +2106,8 @@ def quick_import(request):
             job.delete()
             messages.error(
                 request, 
-                "Could not detect Mobile / Contact column in your file. "
-                "Please make sure your sheet has a column for Contact / Phone / Mobile (e.g. 'Contact', 'phone_number', 'Mobile Number', 'Phone')."
+                "Missing columns mapping: Could not detect Mobile / Contact column in your file. "
+                "Please refer to the Download Template (Column Mapping Guide) and retry."
             )
             return redirect("imports:upload")
             

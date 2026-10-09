@@ -171,6 +171,21 @@
     cursor: pointer !important;
   }
 
+  /* Disable spin buttons on number inputs & integer fields across all browsers */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button,
+  input.integer-only-input::-webkit-outer-spin-button,
+  input.integer-only-input::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+  }
+
+  input[type="number"],
+  input.integer-only-input {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+  }
+
   .crm-form-card .form-switch .form-check-input,
   .crm-form-field .form-switch .form-check-input {
     width: 2em !important;
@@ -668,6 +683,10 @@
             <span class="fw-bold text-dark fs-6">Dr. {{ latest_appointment.doctor_name|default:saved_initial.doctor|default:"Consultant" }}</span>
           </div>
           <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-semibold"
+              onclick="confirmScheduledAppointment()">
+              <i class="fa-solid fa-circle-check me-1"></i> Confirm Appointment
+            </button>
             <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm"
               onclick="toggleBookNextAppointment(true)">
               <i class="fa-solid fa-pen-to-square me-1"></i> Change Date / Slot
@@ -746,18 +765,30 @@
           <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
             <thead class="table-light">
               <tr>
-                <th>Date & Time</th>
+                <th>Appointment Date & Time</th>
                 <th>Doctor</th>
                 <th>Status</th>
-                <th>Remarks / Notes</th>
+                <th>Rescheduling & Remarks</th>
               </tr>
             </thead>
             <tbody>
               {% for apt in all_appointments %}
               <tr>
                 <td class="fw-semibold">
-                  <i class="fa-regular fa-calendar me-1 text-muted"></i>{{ apt.appointment_date|date:"d M Y" }}
-                  {% if apt.appointment_time %}<span class="text-muted ms-1">{{ apt.appointment_time|time:"h:i A" }}</span>{% endif %}
+                  <div class="d-flex align-items-center flex-wrap gap-1">
+                    <span><i class="fa-regular fa-calendar me-1 text-primary"></i>{{ apt.appointment_date|date:"d M Y" }}</span>
+                    {% if apt.appointment_time %}<span class="text-dark fw-semibold ms-1">({{ apt.appointment_time|time:"h:i A" }})</span>{% endif %}
+                    {% if apt.is_rescheduled %}
+                      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill ms-1" style="font-size: 0.68rem;">Rescheduled</span>
+                    {% else %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill ms-1" style="font-size: 0.68rem;">Booked</span>
+                    {% endif %}
+                  </div>
+                  {% if apt.is_rescheduled and apt.rescheduled_from_date %}
+                  <div class="small text-muted mt-0.5" style="font-size: 0.73rem;">
+                    <i class="fa-solid fa-arrow-right-arrow-left me-1 text-warning"></i>Rescheduled from: <span class="text-decoration-line-through text-muted">{{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}</span>
+                  </div>
+                  {% endif %}
                 </td>
                 <td>Dr. {{ apt.doctor_name|default:saved_initial.doctor|default:"Consultant" }}</td>
                 <td>
@@ -773,7 +804,12 @@
                     <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ apt.get_status_display }}</span>
                   {% endif %}
                 </td>
-                <td class="text-muted text-break">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</td>
+                <td class="text-muted text-break">
+                  {% if apt.is_rescheduled and apt.rescheduled_from_date %}
+                    <div class="text-dark small fw-medium mb-0.5" style="font-size: 0.76rem;">Rescheduled to {{ apt.appointment_date|date:"d M Y" }}{% if apt.appointment_time %} at {{ apt.appointment_time|time:"h:i A" }}{% endif %}</div>
+                  {% endif %}
+                  <span style="font-size: 0.78rem;">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</span>
+                </td>
               </tr>
               {% endfor %}
             </tbody>
@@ -1129,26 +1165,25 @@
 <div class="modal fade" id="saveConfirmationModal" tabindex="-1" aria-labelledby="saveConfirmationModalLabel" aria-hidden="true" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow-lg">
-      <div class="modal-header border-bottom py-3 px-4 bg-light rounded-top-4">
+      <div class="modal-header border-bottom py-3 px-4 bg-light rounded-top-4 justify-content-between">
         <h6 class="modal-title fw-bold text-dark mb-0" id="saveConfirmationModalLabel">
           <i class="fa-solid fa-circle-check text-primary me-2"></i>Save Lead Confirmation
         </h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
         <div class="text-center mb-3">
           <div id="modalStatusIcon" class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2" style="width: 48px; height: 48px;">
-            <i class="fa-solid fa-floppy-disk fs-4"></i>
+            <i class="fa-solid fa-circle-check text-primary fs-4"></i>
           </div>
           <h5 class="fw-bold text-dark mb-1" id="modalPromptTitle">Confirm Lead Action</h5>
-          <p class="text-muted small mb-0" id="modalPromptSubtitle">Choose how you want to save this patient lead.</p>
+          <p class="text-muted small mb-0" id="modalPromptSubtitle">Choose how to save this lead.</p>
         </div>
 
         <!-- WhatsApp Preview Box (Conditional) -->
         <div id="modalWhatsAppBox" class="p-3 rounded-3 border bg-light mb-3" style="display: none;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="small fw-bold text-success">
-              <i class="fa-brands fa-whatsapp me-1 fs-6"></i> WhatsApp Message Preview:
+              WhatsApp Message Preview:
             </span>
             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;" id="modalTemplateBadge">
               Auto-filled
@@ -1172,11 +1207,11 @@
         <div class="d-flex gap-2">
           <!-- Option 1: Save Lead (Only Save) -->
           <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" id="btnModalSaveOnly" onclick="submitLeadForm(false)">
-            <i class="fa-solid fa-check me-1"></i> Save Lead
+            Save Lead
           </button>
           <!-- Option 2: Save & Send WhatsApp Message -->
           <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" id="btnModalSaveWhatsApp" onclick="submitLeadForm(true)" style="display: none;">
-            <i class="fa-brands fa-whatsapp me-1"></i> Save & Send WhatsApp
+            Save & Send WhatsApp
           </button>
         </div>
       </div>
@@ -1246,44 +1281,48 @@
     if (opdIn) opdIn.focus();
   };
 
-  // Real-Time Total Bill Auto-Calculation (OPD + Pharmacy)
+  // Real-Time Total Bill Auto-Calculation (OPD + Pharmacy + IPD + Investigation)
   function calculateTotalBill() {
     const opdIn = document.querySelector('input[name="opd_bill"]');
     const pharmIn = document.querySelector('input[name="pharmacy_bill"]');
+    const ipdIn = document.querySelector('input[name="ipd_bill"]');
+    const invIn = document.querySelector('input[name="investigation_bill"]');
     const totalIn = document.querySelector('input[name="total"]');
     const actIn = document.getElementById('id_billing_action');
     const headerBadge = document.getElementById('headerTotalPaidBadge');
 
-    const opdVal = parseFloat(opdIn ? opdIn.value : 0) || 0;
-    const pharmVal = parseFloat(pharmIn ? pharmIn.value : 0) || 0;
-    const sumTotal = (opdVal + pharmVal).toFixed(2);
+    const opdVal = parseInt(opdIn ? (opdIn.value.replace(/\D/g, '') || 0) : 0, 10) || 0;
+    const pharmVal = parseInt(pharmIn ? (pharmIn.value.replace(/\D/g, '') || 0) : 0, 10) || 0;
+    const ipdVal = parseInt(ipdIn ? (ipdIn.value.replace(/\D/g, '') || 0) : 0, 10) || 0;
+    const invVal = parseInt(invIn ? (invIn.value.replace(/\D/g, '') || 0) : 0, 10) || 0;
+    const sumTotal = opdVal + pharmVal + ipdVal + invVal;
 
     if (totalIn) {
-      totalIn.value = sumTotal;
+      totalIn.value = sumTotal ? sumTotal : (sumTotal === 0 ? '0' : '');
     }
 
     if (headerBadge) {
       let displayGrandTotal = 0;
       if (actIn && actIn.value === 'add_new') {
-        displayGrandTotal = prevPaidBaseline + (opdVal + pharmVal);
+        displayGrandTotal = prevPaidBaseline + sumTotal;
       } else {
         const pastWithoutCurrent = Math.max(0, prevPaidBaseline - currentBillBaseline);
-        displayGrandTotal = pastWithoutCurrent + (opdVal + pharmVal);
+        displayGrandTotal = pastWithoutCurrent + sumTotal;
       }
-      headerBadge.textContent = `Total Paid: ₹${displayGrandTotal.toFixed(2)}`;
+      headerBadge.textContent = `Total Paid: ₹${Math.round(displayGrandTotal)}`;
     }
   }
 
   const opdField = document.querySelector('input[name="opd_bill"]');
   const pharmField = document.querySelector('input[name="pharmacy_bill"]');
-  if (opdField) {
-    opdField.addEventListener('input', calculateTotalBill);
-    opdField.addEventListener('change', calculateTotalBill);
-  }
-  if (pharmField) {
-    pharmField.addEventListener('input', calculateTotalBill);
-    pharmField.addEventListener('change', calculateTotalBill);
-  }
+  const ipdField = document.querySelector('input[name="ipd_bill"]');
+  const invField = document.querySelector('input[name="investigation_bill"]');
+  [opdField, pharmField, ipdField, invField].forEach(f => {
+    if (f) {
+      f.addEventListener('input', calculateTotalBill);
+      f.addEventListener('change', calculateTotalBill);
+    }
+  });
 
   if (isPaymentAlreadyPaid) {
     setBillingFieldsDisabled(true);
@@ -1340,6 +1379,25 @@
   }
 
   const cancellationContainer = document.getElementById('cancellationFieldsContainer');
+
+  window.confirmScheduledAppointment = function () {
+    if (confirm("Confirm this appointment with the patient?")) {
+      if (appStatusSelect && appStatusSelect.tomselect) {
+        // Find 'Appointment Confirmed' or 'Booking Confirmed' option
+        let opts = Object.keys(appStatusSelect.tomselect.options);
+        let match = opts.find(o => o.toLowerCase().includes('confirm') || o.toLowerCase().includes('approved') || o.toLowerCase().includes('booking')) || 'Appointment Confirmed';
+        appStatusSelect.tomselect.setValue(match, false);
+      } else if (appStatusSelect) {
+        appStatusSelect.value = 'Appointment Confirmed';
+      }
+      // Submit the form to commit confirmation and sync calendar & appointments
+      const formEl = document.getElementById('leadEditForm') || document.querySelector('form');
+      if (formEl) {
+        // If save button exists inside form, trigger it to ensure form handlers run
+        formEl.submit();
+      }
+    }
+  };
 
   window.toggleBookNextAppointment = function (show = true) {
     window._manualBookingToggled = show;
@@ -1565,17 +1623,9 @@
 
   function sanitizePositive(inputEl) {
     if (!inputEl) return 0;
-    let val = parseFloat(inputEl.value);
-    if (isNaN(val) || val < 0) {
-      if (inputEl.value.includes('-')) {
-        inputEl.value = inputEl.value.replace(/-/g, '');
-        val = parseFloat(inputEl.value) || 0;
-      } else if (val < 0) {
-        val = 0;
-        inputEl.value = '0';
-      }
-    }
-    return Math.max(0, val || 0);
+    let clean = (inputEl.value || '').replace(/\D/g, '');
+    let val = parseInt(clean, 10);
+    return isNaN(val) ? 0 : Math.max(0, val);
   }
 
   function calcTotal() {
@@ -1583,8 +1633,8 @@
     let o = sanitizePositive(opd);
     let i = sanitizePositive(ipd);
     let inv = sanitizePositive(investigation);
-    let sum = (p + o + i + inv).toFixed(2);
-    if (total) total.value = sum;
+    let sum = p + o + i + inv;
+    if (total) total.value = sum ? sum : (sum === 0 ? '0' : '');
     if (headerTotalBadge) {
       headerTotalBadge.textContent = `Total Paid: ₹${sum}`;
     }
@@ -2180,21 +2230,21 @@
     if (isCancelling) {
       // Cancelled or Not Interested: Save only
       if (modalIcon) {
-        modalIcon.className = 'avatar-sm bg-danger bg-opacity-10 text-danger rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
-        modalIcon.innerHTML = '<i class="fa-solid fa-ban fs-4"></i>';
+        modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-circle-check text-primary fs-4"></i>';
       }
-      if (modalTitle) modalTitle.textContent = 'Save Cancelled / Not Interested Lead';
-      if (modalSubtitle) modalSubtitle.textContent = 'Are you sure you want to save this lead as Cancelled / Not Interested?';
+      if (modalTitle) modalTitle.textContent = 'Save Cancelled Lead';
+      if (modalSubtitle) modalSubtitle.textContent = 'Confirm saving lead as Cancelled / Not Interested.';
       if (modalWaBox) modalWaBox.style.display = 'none';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'none';
     } else if (isBilling) {
-      // Billing / Payment Completed: Save & Send WhatsApp Thank You Message
+      // Billing / Payment Completed
       if (modalIcon) {
-        modalIcon.className = 'avatar-sm bg-success bg-opacity-10 text-success rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
-        modalIcon.innerHTML = '<i class="fa-solid fa-receipt fs-4"></i>';
+        modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-circle-check text-primary fs-4"></i>';
       }
       if (modalTitle) modalTitle.textContent = 'Save Billing & Payment';
-      if (modalSubtitle) modalSubtitle.textContent = 'Patient consultation is completed. Choose whether to save or save and send thank you WhatsApp message.';
+      if (modalSubtitle) modalSubtitle.textContent = 'Choose whether to save or save and send thank you WhatsApp message.';
       if (modalWaBox) modalWaBox.style.display = 'block';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
 
@@ -2209,11 +2259,11 @@
     } else if (isBooking) {
       // Booking: Save & Send WhatsApp with Doctor, Date, Slot
       if (modalIcon) {
-        modalIcon.className = 'avatar-sm bg-success bg-opacity-10 text-success rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
-        modalIcon.innerHTML = '<i class="fa-solid fa-calendar-check fs-4"></i>';
+        modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
+        modalIcon.innerHTML = '<i class="fa-solid fa-circle-check text-primary fs-4"></i>';
       }
       if (modalTitle) modalTitle.textContent = 'Save Appointment Booking';
-      if (modalSubtitle) modalSubtitle.textContent = 'Appointment slot is locked. Choose whether to save or save and send WhatsApp confirmation to patient.';
+      if (modalSubtitle) modalSubtitle.textContent = 'Choose whether to save or send WhatsApp confirmation to patient.';
       if (modalWaBox) modalWaBox.style.display = 'block';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
 
@@ -2230,10 +2280,10 @@
       // Follow-up: Save & Send WhatsApp with Thank you for enquiry
       if (modalIcon) {
         modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
-        modalIcon.innerHTML = '<i class="fa-solid fa-calendar-plus fs-4"></i>';
+        modalIcon.innerHTML = '<i class="fa-solid fa-circle-check text-primary fs-4"></i>';
       }
       if (modalTitle) modalTitle.textContent = 'Save Follow-up Schedule';
-      if (modalSubtitle) modalSubtitle.textContent = 'Follow-up is scheduled. Choose whether to save or save and send thank you message to patient.';
+      if (modalSubtitle) modalSubtitle.textContent = 'Choose whether to save or send thank you WhatsApp message.';
       if (modalWaBox) modalWaBox.style.display = 'block';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'inline-flex';
 
@@ -2248,10 +2298,10 @@
       // General Lead save
       if (modalIcon) {
         modalIcon.className = 'avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2';
-        modalIcon.innerHTML = '<i class="fa-solid fa-floppy-disk fs-4"></i>';
+        modalIcon.innerHTML = '<i class="fa-solid fa-circle-check text-primary fs-4"></i>';
       }
       if (modalTitle) modalTitle.textContent = 'Confirm Save Lead';
-      if (modalSubtitle) modalSubtitle.textContent = 'Confirm saving lead details.';
+      if (modalSubtitle) modalSubtitle.textContent = 'Choose how to save this lead.';
       if (modalWaBox) modalWaBox.style.display = 'none';
       if (btnSaveWhatsApp) btnSaveWhatsApp.style.display = 'none';
     }

@@ -21,6 +21,18 @@
     padding: 0.2rem 1.5rem 0.2rem 0.5rem !important;
     vertical-align: middle;
   }
+  #task_lead_select, .task-lead-select-box {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background-color: #ffffff !important;
+    min-height: 34px !important;
+    box-shadow: none !important;
+    color: #1e293b !important;
+  }
+  #task_lead_select:focus, .task-lead-select-box:focus {
+    border-color: #94a3b8 !important;
+    box-shadow: 0 0 0 0.2rem rgba(15, 39, 68, 0.1) !important;
+  }
 </style>
 
 <!-- Header & Quick Actions -->
@@ -95,17 +107,15 @@
 <!-- Search & Filters Form -->
 <div class="card border rounded-2 mb-3 bg-white shadow-none">
     <div class="card-body p-2">
-        <form method="GET" action="" class="row g-2 align-items-end">
+        <form method="GET" action="" class="row g-2 align-items-center">
             <div class="col-lg-5 col-md-12">
-                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">SEARCH</label>
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
-                    <input type="text" name="q" class="form-control form-control-sm border-start-0 ps-0" placeholder="Search by title, patient name, phone..." value="{{ q }}">
+                <div class="input-group" style="height: 36px;">
+                    <span class="input-group-text bg-white border text-muted" style="border-right: 0 !important; border-color: #cbd5e1 !important; font-size: 0.82rem;"><i class="fa-solid fa-search"></i></span>
+                    <input type="text" name="q" class="form-control" style="height: 36px; border-left: 0 !important; border-color: #cbd5e1 !important; font-size: 0.82rem;" placeholder="Search by title, patient name, phone..." value="{{ q }}">
                 </div>
             </div>
             <div class="col-lg-3 col-md-4 col-sm-6">
-                <label class="form-label small fw-semibold text-muted mb-1 d-block" style="font-size: 0.72rem;">STATUS</label>
-                <select name="status" class="form-select form-select-sm w-100 no-tom-select">
+                <select name="status" class="form-select w-100 no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
                     <option value="">All Statuses</option>
                     <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
                     <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
@@ -114,8 +124,7 @@
                 </select>
             </div>
             <div class="col-lg-2 col-md-4 col-sm-6">
-                <label class="form-label small fw-semibold text-muted mb-1 d-block" style="font-size: 0.72rem;">PRIORITY</label>
-                <select name="priority" class="form-select form-select-sm w-100 no-tom-select">
+                <select name="priority" class="form-select w-100 no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
                     <option value="">All Priorities</option>
                     <option value="URGENT" {% if priority_filter == 'URGENT' %}selected{% endif %}>Urgent</option>
                     <option value="HIGH" {% if priority_filter == 'HIGH' %}selected{% endif %}>High</option>
@@ -124,8 +133,8 @@
                 </select>
             </div>
             <div class="col-lg-2 col-md-4 col-12 d-flex gap-1">
-                <button type="submit" class="btn btn-sm btn-brand text-white flex-fill shadow-sm"><i class="fa-solid fa-filter me-1"></i> Filter</button>
-                <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-light border flex-fill text-center">Clear</a>
+                <button type="submit" class="btn btn-brand text-white flex-fill shadow-sm d-flex align-items-center justify-content-center" style="height: 36px; font-size: 0.82rem;"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                <a href="{% url 'dashboard:tasks' %}" class="btn btn-light border flex-fill text-center d-flex align-items-center justify-content-center" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">Clear</a>
             </div>
         </form>
     </div>
@@ -155,12 +164,22 @@
                             {% if task.description %}
                                 <div class="small text-muted text-truncate" style="max-width: 250px; font-size: 0.76rem;">{{ task.description }}</div>
                             {% endif %}
+                            {% if task.is_reported_to_admin %}
+                                <div class="mt-1">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size: 0.65rem;" title="Reported: {{ task.reported_at|date:'d M, h:i A' }}">
+                                        <i class="fa-solid fa-check-double me-1"></i> Reported to Admin
+                                    </span>
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-1">
                                 <div>
                                     <div class="fw-semibold text-dark" style="font-size: 0.82rem;">{{ task.user.get_full_name|default:task.user.username }}</div>
                                     <div class="text-muted" style="font-size: 0.7rem;">{{ task.user.get_role_display }}</div>
+                                    {% if task.assigned_by and task.assigned_by != task.user %}
+                                        <div class="text-muted" style="font-size: 0.68rem;"><span class="text-secondary">By:</span> {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </td>
@@ -207,11 +226,69 @@
                             </form>
                         </td>
                         <td class="px-3 text-end">
-                            {% if task.lead %}
-                                <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="btn btn-sm btn-light border px-2 py-0" style="font-size: 0.75rem; height: 26px; line-height: 24px;" title="View Profile">
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-muted"></i>
-                                </a>
-                            {% endif %}
+                            <div class="d-inline-flex align-items-center gap-1">
+                                {% if task.user == request.user or request.user.role in 'SUPER_ADMIN,MANAGER,ADMIN' %}
+                                    <button type="button" class="btn btn-sm {% if task.is_reported_to_admin %}btn-outline-success{% else %}btn-outline-primary{% endif %} px-2 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; height: 28px;" data-bs-toggle="modal" data-bs-target="#sendTaskReportModal_{{ task.pk }}" title="Submit Task Report to Admin / Manager">
+                                        <i class="fa-solid fa-paper-plane" style="font-size: 0.7rem;"></i>
+                                        <span>{% if task.is_reported_to_admin %}Reported{% else %}Send Report{% endif %}</span>
+                                    </button>
+                                {% endif %}
+                                {% if task.lead %}
+                                    <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="btn btn-sm btn-light border px-2 py-0 d-inline-flex align-items-center justify-content-center" style="font-size: 0.75rem; height: 28px; width: 28px;" title="View Patient Profile">
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-muted"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                            <!-- Send Report Modal for this Task -->
+                            <div class="modal fade" id="sendTaskReportModal_{{ task.pk }}" tabindex="-1" aria-hidden="true" style="text-align: left;">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow-lg rounded-3">
+                                        <form method="POST" action="{% url 'dashboard:task_send_report' %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="task_id" value="{{ task.pk }}">
+                                            <div class="modal-header border-bottom py-2.5 px-3 bg-light">
+                                                <h6 class="modal-title fw-bold text-dark mb-0">
+                                                    <i class="fa-solid fa-paper-plane text-primary me-1.5"></i> Submit Task Report
+                                                </h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-3">
+                                                <div class="p-2.5 rounded-2 bg-light border mb-3">
+                                                    <div class="fw-semibold text-dark" style="font-size: 0.88rem;">{{ task.title }}</div>
+                                                    {% if task.description %}
+                                                        <div class="text-muted small mt-1" style="font-size: 0.78rem;">{{ task.description }}</div>
+                                                    {% endif %}
+                                                    <div class="d-flex align-items-center gap-3 mt-2 text-muted small" style="font-size: 0.72rem;">
+                                                        <span><i class="fa-regular fa-calendar me-1"></i> Due: {{ task.due_date|date:"d M Y" }}</span>
+                                                        {% if task.assigned_by %}
+                                                            <span><i class="fa-solid fa-user-tie me-1"></i> Assigned By: {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold text-dark small mb-1">Report Notes / Outcome Summary <span class="text-danger">*</span></label>
+                                                    <textarea name="report_notes" class="form-control rounded-2" rows="3" placeholder="Enter task outcome, feedback or notes for Admin / Manager..." required style="font-size: 0.82rem; border-color: #cbd5e1;">{{ task.admin_report_notes }}</textarea>
+                                                </div>
+
+                                                <div class="form-check form-switch mb-1">
+                                                    <input class="form-check-input" type="checkbox" name="mark_completed" value="1" id="markCompletedCheck_{{ task.pk }}" checked>
+                                                    <label class="form-check-label small fw-semibold text-dark" for="markCompletedCheck_{{ task.pk }}">
+                                                        Mark task as Completed automatically
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-top py-2 px-3 bg-light">
+                                                <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-sm btn-primary px-4 fw-semibold shadow-sm">
+                                                    <i class="fa-solid fa-paper-plane me-1"></i> Submit Report
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
@@ -299,8 +376,13 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border">
             <div class="modal-header py-2 px-3">
-                <h6 class="modal-title fw-bold text-dark mb-0" id="createTaskModalLabel">Create &amp; Assign Task</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h6 class="modal-title fw-bold text-dark mb-0" id="createTaskModalLabel">
+                    {% if user.role == 'LEAD_ATTENDENT' or user.role == 'COUNSELLOR' or user.role == 'DOCTOR' %}
+                        Create Task
+                    {% else %}
+                        Create &amp; Assign Task
+                    {% endif %}
+                </h6>
             </div>
             <form method="POST" action="{% url 'dashboard:task_create' %}" id="createTaskForm">
                 {% csrf_token %}
@@ -440,7 +522,7 @@
                     <!-- Link to Patient / Lead -->
                     <div class="mb-2">
                         <label class="form-label small fw-semibold text-muted mb-1 d-block">Link to Lead / Patient (Optional)</label>
-                        <select name="lead_id" id="task_lead_select" class="form-select form-select-sm" placeholder="Search Patient / Lead...">
+                        <select name="lead_id" id="task_lead_select" class="form-select form-select-sm bg-white" style="border: 1px solid #cbd5e1 !important;" placeholder="Search Patient / Lead...">
                             <option value="">-- None (General Task) --</option>
                             {% for lead in user_leads %}
                                 <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.mobile }})</option>
@@ -512,9 +594,41 @@ function initCustomDateTime() {
     }
 }
 
+function resetCreateTaskForm() {
+    const form = document.getElementById('createTaskForm');
+    if (form) {
+        form.reset();
+    }
+    // Reset timeline custom fields visibility
+    const customFields = document.getElementById('customTimelineFields');
+    if (customFields) {
+        customFields.classList.add('d-none');
+    }
+    const todayRadio = document.getElementById('timeline_today');
+    if (todayRadio) {
+        todayRadio.checked = true;
+    }
+    const medRadio = document.getElementById('prio_medium');
+    if (medRadio) {
+        medRadio.checked = true;
+    }
+    // Uncheck role & user checkboxes if present
+    document.querySelectorAll('.role-filter-cb').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.user-assign-cb').forEach(cb => cb.checked = false);
+    handleRoleFilterChange();
+    initCustomDateTime();
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     initCustomDateTime();
     handleRoleFilterChange();
+
+    const taskModalEl = document.getElementById('createTaskModal');
+    if (taskModalEl) {
+        taskModalEl.addEventListener('hidden.bs.modal', function () {
+            resetCreateTaskForm();
+        });
+    }
 });
 
 function toggleTimelineInput() {
