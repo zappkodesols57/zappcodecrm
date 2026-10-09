@@ -679,9 +679,14 @@ class Lead(models.Model):
 
     @property
     def custom_dept(self):
-        dept = self.get_custom("department") or self.get_custom("disease")
+        dept = self.get_custom("department") or self.get_custom("disease") or self.get_custom("dept")
         if not dept and self.course_id and self.course:
             return self.course.name
+        if not dept and hasattr(self, '_prefetched_objects_cache') and 'appointments' in self._prefetched_objects_cache:
+            appts = self.appointments.all()
+            if appts:
+                # If appointment has notes or department hints or doctor
+                pass
         return dept or ""
 
     @property
@@ -697,7 +702,18 @@ class Lead(models.Model):
 
     @property
     def custom_doctor(self):
-        return self.get_custom("doctor")
+        doc = self.get_custom("doctor") or self.get_custom("appointed_doctor") or self.get_custom("doctor_name")
+        if not doc and hasattr(self, '_prefetched_objects_cache') and 'appointments' in self._prefetched_objects_cache:
+            appts = self.appointments.all()
+            if appts and appts[0].doctor_name:
+                return appts[0].doctor_name
+        elif not doc and self.pk:
+            first_appt = self.appointments.first()
+            if first_appt and first_appt.doctor_name:
+                return first_appt.doctor_name
+        if not doc and self.assigned_to and getattr(self.assigned_to, 'role', '') == 'DOCTOR':
+            return self.assigned_to.get_full_name() or self.assigned_to.username
+        return doc or ""
 
     @property
     def custom_doctor_remark(self):
