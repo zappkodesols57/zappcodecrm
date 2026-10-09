@@ -510,21 +510,26 @@ def superadmin_home(request):
     admitted_patients_count = admitted_qs.distinct().count()
 
     # 7. Won Leads: Payment completed / Won deals
+    payment_done_condition = (
+        Q(deal_status=DealStatus.WON)
+        | Q(deal_status__in=[DealStatus.WON, "WON", "Payment Done", "PAYMENT DONE", "PAYMENT_DONE"])
+        | Q(admission_status__in=["WON", "ADMISSION_DONE", "PAYMENT_DONE"])
+        | (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__total_paid__isnull=False) & ~Q(custom_data__total_paid__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__opd_bill__isnull=False) & ~Q(custom_data__opd_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__pharmacy_bill__isnull=False) & ~Q(custom_data__pharmacy_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | (Q(custom_data__ipd_bill__isnull=False) & ~Q(custom_data__ipd_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
+        | Q(admission__payments__payment_status="SUCCESS", admission__payments__amount__gt=0)
+        | Q(custom_data__deal_status__icontains="Won")
+        | Q(custom_data__deal_status__icontains="Payment")
+        | Q(custom_data__appointment_status__icontains="Payment Done")
+        | Q(stage__name__icontains="Payment")
+        | Q(stage__name__icontains="Won")
+    )
     won_leads_qs = hospital_all_leads.filter(
-        Q(deal_status=DealStatus.WON) |
-        Q(custom_data__total_paid__gt='0') |
-        Q(custom_data__total__gt='0') |
-        Q(admission_status='WON') |
-        Q(admission_status='ADMISSION_DONE') |
-        Q(custom_data__deal_status__icontains='won') |
-        Q(custom_data__deal_status__icontains='Payment Done') |
-        Q(custom_data__appointment_status__icontains='Complete') |
-        Q(custom_data__appointment_status__icontains='Visit Done') |
-        Q(custom_data__appointment_status__icontains='Payment Done')
+        payment_done_condition
     ).exclude(
-        deal_status=DealStatus.LOST
-    ).exclude(
-        custom_data__deal_status__icontains='lost'
+        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel") | Q(custom_data__deal_status__icontains="lost")
     ).distinct()
     won_leads_count = won_leads_qs.count()
 

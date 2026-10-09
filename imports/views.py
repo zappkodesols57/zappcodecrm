@@ -130,6 +130,28 @@ def _get_or_create_course(name):
     return course
 
 
+def _get_or_create_campaign(name, hospital=None, defaults=None):
+    if not name or str(name).strip().lower() in ("none", "nan", "", "-"):
+        return None
+    c_name = str(name).strip()
+    qs = HospitalCampaign.objects.filter(name=c_name)
+    if hospital:
+        qs = qs.filter(hospital=hospital)
+    else:
+        qs = qs.filter(hospital__isnull=True)
+
+    camp = qs.first()
+    if not camp:
+        def_dict = defaults or {}
+        create_kwargs = {"name": c_name, "hospital": hospital}
+        create_kwargs.update(def_dict)
+        try:
+            camp = HospitalCampaign.objects.create(**create_kwargs)
+        except Exception:
+            camp = qs.first()
+    return camp
+
+
 def _default_stage():
     stage = LeadStage.objects.order_by("order").first()
     if not stage:
@@ -461,12 +483,12 @@ def ajax_create_campaign(request):
     if end_date:
         defaults["end_date"] = end_date
 
-    campaign, created = HospitalCampaign.objects.get_or_create(
+    campaign = _get_or_create_campaign(
         name=name,
         hospital=target_hospital,
         defaults=defaults
     )
-    if not created:
+    if campaign:
         if start_date and not campaign.start_date:
             campaign.start_date = start_date
         if end_date and not campaign.end_date:
@@ -605,7 +627,7 @@ def campaign_import_process(request):
             auto_campaign_name = os.path.splitext(uploaded_file.name)[0].replace("_", " ").strip()
             
         if auto_campaign_name:
-            campaign, _ = HospitalCampaign.objects.get_or_create(
+            campaign = _get_or_create_campaign(
                 name=auto_campaign_name,
                 hospital=target_hospital,
                 defaults={"platform": "Meta Ads", "is_active": True}
@@ -775,6 +797,7 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
 
     source_cache = {}
     course_cache = {}
+    campaign_cache = {}
     extracted_dates = []
 
     # Pre-cache existing courses
@@ -863,6 +886,22 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                         )
                         course_cache[c_key] = course_obj
 
+                # Resolve row-specific campaign if present in sheet columns, otherwise fallback to target campaign
+                row_campaign_obj = campaign
+                row_camp_name = (r.get("campaign_name") or raw_meta.get("CAMPAIGN NAME") or raw_meta.get("Campaign Name") or raw_meta.get("campaign_name") or raw_meta.get("Form Name") or "").strip()
+                if row_camp_name and row_camp_name.lower() not in ("none", "nan", "", "-"):
+                    if not custom_data.get("campaign"):
+                        custom_data["campaign"] = row_camp_name
+                    c_low = row_camp_name.lower()
+                    if c_low not in campaign_cache:
+                        c_inst = _get_or_create_campaign(
+                            name=row_camp_name,
+                            hospital=target_hospital,
+                            defaults={"platform": "Meta Ads", "is_active": True}
+                        )
+                        campaign_cache[c_low] = c_inst
+                    row_campaign_obj = campaign_cache[c_low]
+
                 # If duplicate and user chose update
                 if r.get("is_duplicate") and action == "update" and r.get("existing_lead_id"):
                     existing = Lead.objects.filter(pk=r["existing_lead_id"]).first()
@@ -875,8 +914,8 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                             existing.course = course_obj
                         if assigned_user:
                             existing.assigned_to = assigned_user
-                        if campaign:
-                            existing.campaign = campaign
+                        if row_campaign_obj:
+                            existing.campaign = row_campaign_obj
                         if notes:
                             existing.notes = (existing.notes + "\n" + notes).strip()
                         if custom_data:
@@ -901,7 +940,7 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                         location=r.get("city", ""),
                         course=course_obj,
                         hospital=target_hospital,
-                        campaign=campaign,
+                        campaign=row_campaign_obj,
                         assigned_to=assigned_user,
                         source_category=default_cat,
                         lead_source=lead_source_obj,
@@ -925,14 +964,23 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 lead_objs = [item[0] for item in leads_to_create]
                 created_leads = Lead.objects.bulk_create(lead_objs, batch_size=100)
                 imported_count += len(created_leads)
-                for idx, created_l in enumerate(created_leads):
-                    _, r, assigned_user, inq_d = leads_to_create[idx]
-                    lead_meta_list.append((created_l, r, assigned_user, inq_d))
+                
+                # Fetch created leads from DB to get their assigned primary keys (since MySQL bulk_create doesn't populate PK on instances)
+                batch_lead_codes = [l.lead_code for l in lead_objs]
+                saved_leads_map = {l.lead_code: l for l in Lead.objects.filter(lead_code__in=batch_lead_codes)}
+                
+                for item in leads_to_create:
+                    l_obj, r, assigned_user, inq_d = item
+                    persisted_lead = saved_leads_map.get(l_obj.lead_code, l_obj)
+                    lead_meta_list.append((persisted_lead, r, assigned_user, inq_d))
 
             # Bulk create FollowUps & Activities for this batch
             batch_followups = []
             batch_activities = []
+            today_date = timezone.localdate()
             for lead_record, r, assigned_user, inquiry_date in lead_meta_list:
+                if not lead_record or not lead_record.pk:
+                    continue
                 fu1_d = r.get("fu1_date")
                 fu1_rem = r.get("fu1_remark")
                 fu2_d = r.get("fu2_date")
@@ -947,8 +995,10 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 ]
                 for f_date_str, f_rem in fu_items:
                     if f_date_str or f_rem:
-                        parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else inquiry_date
-                        st_choice = FollowUpStatus.COMPLETED if (parsed_fu_date and parsed_fu_date <= timezone.localdate()) else FollowUpStatus.PENDING
+                        parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else (inquiry_date or today_date)
+                        if not parsed_fu_date:
+                            parsed_fu_date = today_date
+                        st_choice = FollowUpStatus.COMPLETED if parsed_fu_date <= today_date else FollowUpStatus.PENDING
                         batch_followups.append(FollowUp(
                             lead=lead_record,
                             followup_date=parsed_fu_date,
@@ -999,9 +1049,10 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
     job.completed_at = timezone.now()
     job.save()
 
+    campaign_label = f" with Campaign '{campaign.name}'" if campaign else ""
     messages.success(
         request,
-        f"✅ Leads Import Successful! {imported_count} new leads created with Campaign '{campaign.name}', "
+        f"✅ Leads Import Successful! {imported_count} new leads created{campaign_label}, "
         f"{updated_count} existing records updated, {skipped_count} duplicates skipped."
     )
 
@@ -1258,9 +1309,9 @@ def run_import(request, pk):
         if parsed["campaign_name"]:
             c_name = parsed["campaign_name"].strip()
             if user_hospital:
-                campaign_obj, _ = HospitalCampaign.objects.get_or_create(
-                    hospital=user_hospital,
+                campaign_obj = _get_or_create_campaign(
                     name=c_name,
+                    hospital=user_hospital,
                     defaults={"platform": parsed["source_name"] or "Meta Ads", "is_active": True}
                 )
                 # Auto-register new Campaign into Master Data & Lead Custom Field options
@@ -1279,7 +1330,7 @@ def run_import(request, pk):
                         cf_camp.options = ", ".join(existing_copts)
                         cf_camp.save(update_fields=["options"])
             else:
-                campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                campaign_obj = _get_or_create_campaign(
                     name=c_name,
                     defaults={"platform": parsed["source_name"] or "Meta Ads", "is_active": True}
                 )
@@ -2425,13 +2476,13 @@ def quick_import(request):
                 campaign_obj = campaign_cache.get(camp_key)
                 if not campaign_obj:
                     if user_hospital:
-                        campaign_obj, _ = HospitalCampaign.objects.get_or_create(
-                            hospital=user_hospital,
+                        campaign_obj = _get_or_create_campaign(
                             name=campaign_val,
+                            hospital=user_hospital,
                             defaults={"platform": source_name or "Meta Ads", "is_active": True}
                         )
                     else:
-                        campaign_obj, _ = HospitalCampaign.objects.get_or_create(
+                        campaign_obj = _get_or_create_campaign(
                             name=campaign_val,
                             defaults={"platform": source_name or "Meta Ads", "is_active": True}
                         )
@@ -2629,6 +2680,46 @@ def delete_import(request, pk):
                 pass
         job.delete()
         messages.success(request, f"Import history item and its {leads_count} associated leads have been deleted successfully.")
+    return redirect("imports:history")
+
+
+@login_required
+@user_passes_test(_can_user_access_import)
+def bulk_delete_imports(request):
+    if request.method == "POST":
+        selected_ids = request.POST.getlist("selected_job_ids")
+        if not selected_ids:
+            raw_ids = request.POST.get("selected_job_ids_csv", "").strip()
+            if raw_ids:
+                selected_ids = [x.strip() for x in raw_ids.split(",") if x.strip().isdigit()]
+
+        valid_ids = [int(i) for i in selected_ids if str(i).isdigit()]
+        if not valid_ids:
+            messages.warning(request, "No import files selected for deletion.")
+            return redirect("imports:history")
+
+        jobs_qs = ImportJob.objects.filter(pk__in=valid_ids)
+        # Check tenant boundaries if user is not superadmin
+        if not request.user.is_superuser and request.user.hospital:
+            jobs_qs = jobs_qs.filter(created_by__hospital=request.user.hospital)
+
+        from leads.models import Lead
+        total_leads_deleted = 0
+        total_jobs_count = 0
+
+        for job in jobs_qs:
+            leads = Lead.objects.filter(import_job=job)
+            total_leads_deleted += leads.count()
+            leads.delete()
+            if job.file:
+                try:
+                    job.file.delete(save=False)
+                except Exception:
+                    pass
+            job.delete()
+            total_jobs_count += 1
+
+        messages.success(request, f"Successfully deleted {total_jobs_count} import file(s) and {total_leads_deleted} associated lead(s).")
     return redirect("imports:history")
 
 

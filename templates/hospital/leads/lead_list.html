@@ -411,13 +411,15 @@
       <div class="filter-item-dropdown">
         <select name="deal_status" class="form-select">
           <option value="">Select Status</option>
-          {% for code, label in deal_status_choices %}
-          <option value="{{ code }}" {% if code in selected_deal_statuses %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-          <option value="WON" {% if 'WON' in selected_deal_statuses %}selected{% endif %}>Payment Done / Won</option>
+          <option value="OPEN" {% if 'OPEN' in selected_deal_statuses %}selected{% endif %}>Open</option>
+          <option value="PENDING" {% if 'PENDING' in selected_deal_statuses %}selected{% endif %}>Pending</option>
+          <option value="WON" {% if 'WON' in selected_deal_statuses %}selected{% endif %}>Won / Payment Done</option>
           <option value="LOST" {% if 'LOST' in selected_deal_statuses %}selected{% endif %}>Lost / Cancelled</option>
-          <option value="PENDING" {% if 'PENDING' in selected_deal_statuses %}selected{% endif %}>Pending Follow-up</option>
-          <option value="OPEN" {% if 'OPEN' in selected_deal_statuses %}selected{% endif %}>Open / Unattended</option>
+          {% for st_item in hospital_statuses %}
+          {% if st_item.name|upper not in "OPEN,PENDING,WON,LOST" %}
+          <option value="{{ st_item.name }}" {% if st_item.name in selected_deal_statuses %}selected{% endif %}>{{ st_item.name }}</option>
+          {% endif %}
+          {% endfor %}
         </select>
       </div>
 
@@ -440,9 +442,6 @@
           <option value="">Select Campaign</option>
           {% for camp in campaigns %}
           <option value="{{ camp.name }}" {% if camp.name in selected_campaigns or camp.id|stringformat:"s" in selected_campaigns %}selected{% endif %}>{{ camp.name }}</option>
-          {% endfor %}
-          {% for hc in hospital_campaigns %}
-          <option value="{{ hc.name }}" {% if hc.name in selected_campaigns %}selected{% endif %}>{{ hc.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -617,8 +616,8 @@
 
             <!-- 3. Source / Campaign -->
             <td class="px-2">
-              <div class="fw-medium text-dark" style="font-size: 0.80rem;">{{ lead.custom_data.lead_source|default:lead.lead_source|default:"Direct" }}</div>
-              {% with camp=lead.campaign|default:lead.custom_data.campaign %}
+              <div class="fw-medium text-dark" style="font-size: 0.80rem;">{{ lead.custom_source|default:"Direct" }}</div>
+              {% with camp=lead.custom_campaign %}
                 {% if camp and camp != '—' %}
                 <div class="text-muted small text-truncate" style="max-width: 140px; font-size: 0.70rem;" title="{{ camp }}">
                   <i class="fa-solid fa-bullhorn text-secondary me-1"></i>{{ camp }}

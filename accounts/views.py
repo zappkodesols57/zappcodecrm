@@ -300,7 +300,12 @@ def auto_generate_master_data_profiles(hospital=None):
         'phone', 'email', 'speciality', 'department', 'is_active', 'is_active_employee'
     ))
     user_by_uname = {u.username.lower(): u for u in all_users}
+    user_by_uname_and_hosp = {(u.username.lower(), u.hospital_id): u for u in all_users}
     user_by_name = {(u.first_name.strip().lower(), u.last_name.strip().lower()): u for u in all_users if u.first_name}
+    user_by_name_and_hosp = {
+        (u.first_name.strip().lower(), u.last_name.strip().lower() if u.last_name else "", u.hospital_id): u 
+        for u in all_users if u.first_name
+    }
     existing_unames = set(user_by_uname.keys())
 
     # Pre-fetch existing HospitalDoctors & MasterItems scoped to the current hospital/business

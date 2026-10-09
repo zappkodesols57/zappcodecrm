@@ -109,13 +109,34 @@
     </div>
   </div>
 
+  <!-- Bulk Action Bar -->
+  <div id="bulkActionBar" class="card border rounded-2 mb-3 bg-white p-2 px-3 d-none" style="border-color: #fca5a5 !important; background-color: #fff1f2 !important;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-danger text-white px-2 py-1 small fw-semibold" id="selectedCountBadge">0 selected</span>
+        <span class="text-dark small fw-semibold">files selected for batch action</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" onclick="clearSelectedImports()" style="font-size: 0.8rem;">
+          Deselect All
+        </button>
+        <button type="button" class="btn btn-sm btn-danger px-3 py-1 fw-semibold" onclick="confirmBulkDeleteImports()" style="font-size: 0.8rem;">
+          Delete Selected Files
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- History Table Card -->
   <div class="card border rounded-2 bg-white" style="border-color: var(--theme-border-subtle) !important;">
     <div class="table-responsive">
       <table class="table history-table table-hover align-middle mb-0">
         <thead>
           <tr>
-            <th class="px-3 py-2.5 text-uppercase" style="max-width: 260px;">File Name</th>
+            <th class="ps-3 pe-1 py-2.5" style="width: 38px;">
+              <input type="checkbox" id="selectAllImports" class="form-check-input" onchange="toggleSelectAllImports(this)">
+            </th>
+            <th class="px-2 py-2.5 text-uppercase" style="max-width: 260px;">File Name</th>
             <th class="py-2.5 text-uppercase" style="white-space: nowrap;">Uploaded By</th>
             <th class="py-2.5 text-uppercase text-center" style="white-space: nowrap;">Status</th>
             <th class="py-2.5 text-uppercase text-center">Total</th>
@@ -128,8 +149,11 @@
         </thead>
         <tbody>
           {% for j in jobs %}
-          <tr>
-            <td class="px-3" style="max-width: 260px;">
+          <tr id="jobRow_{{ j.pk }}">
+            <td class="ps-3 pe-1">
+              <input type="checkbox" class="form-check-input import-item-checkbox" value="{{ j.pk }}" data-filename="{{ j.original_filename|default:'Upload Batch'|escape }}" data-imported="{{ j.imported_count }}" onchange="updateBulkSelectionState()">
+            </td>
+            <td class="px-2" style="max-width: 260px;">
               <div class="fw-semibold text-dark text-break" title="{{ j.original_filename|default:'Upload Batch' }}" style="font-size: 0.86rem; word-break: break-all;">{{ j.original_filename|default:"Upload Batch" }}</div>
               {% if j.sheet_name %}<div class="text-muted small" style="font-size: 0.75rem;">Sheet: {{ j.sheet_name }}</div>{% endif %}
             </td>
@@ -163,7 +187,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4 small">
+            <td colspan="10" class="text-center text-muted py-4 small">
               No imports found for {{ preset_label }}.
             </td>
           </tr>
@@ -252,13 +276,13 @@
   </div>
 </div>
 
-<!-- Modal: Delete Import Confirmation -->
+<!-- Modal: Delete Import Confirmation (Single) -->
 <div class="modal fade" id="deleteImportModal" tabindex="-1" aria-labelledby="deleteImportModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
     <div class="modal-content border-0 rounded-3 shadow" style="border-color: var(--theme-border-subtle);">
       <div class="modal-header py-3 px-4 border-bottom bg-light">
         <h6 class="modal-title fw-bold text-dark mb-0" id="deleteImportModalLabel" style="font-size: 1.05rem;">
-          <i class="fa-solid fa-trash-can text-danger me-2"></i>Delete Import File
+          Delete Import File
         </h6>
       </div>
       <div class="modal-body px-4 py-3.5">
@@ -284,6 +308,46 @@
           Yes, Delete
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Bulk Delete Confirmation -->
+<div class="modal fade" id="bulkDeleteImportsModal" tabindex="-1" aria-labelledby="bulkDeleteImportsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
+    <div class="modal-content border-0 rounded-3 shadow" style="border-color: var(--theme-border-subtle);">
+      <div class="modal-header py-3 px-4 border-bottom bg-light">
+        <h6 class="modal-title fw-bold text-dark mb-0" id="bulkDeleteImportsModalLabel" style="font-size: 1.05rem;">
+          Delete Selected Import Files
+        </h6>
+      </div>
+      <form method="POST" action="{% url 'imports:bulk_delete_imports' %}" id="bulkDeleteImportsForm">
+        {% csrf_token %}
+        <div id="bulkDeleteHiddenInputs"></div>
+        <div class="modal-body px-4 py-3.5">
+          <p class="text-secondary mb-3" style="font-size: 0.92rem; line-height: 1.55;">
+            Are you sure you want to delete the selected import files? This will permanently delete all selected batch records and all associated leads created by them.
+          </p>
+          <div class="p-3 bg-light rounded-2 border" style="border-color: var(--theme-border-subtle); background: #f8fafc;">
+            <div class="row g-2 mb-2 align-items-center">
+              <div class="col-sm-4 text-muted small fw-semibold">Files Selected:</div>
+              <div class="col-sm-8 fw-bold text-dark" style="font-size: 0.92rem;" id="bulkDelFilesCount">0</div>
+            </div>
+            <div class="row g-2 align-items-center">
+              <div class="col-sm-4 text-muted small fw-semibold">Total Leads Affected:</div>
+              <div class="col-sm-8 fw-bold text-danger" style="font-size: 0.95rem;" id="bulkDelLeadsCount">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer py-2.5 px-4 bg-light border-top d-flex justify-content-end gap-2" style="border-color: var(--theme-border-subtle);">
+          <button type="button" class="btn btn-sm btn-outline-secondary px-4 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.85rem; border-color: #94a3b8; color: #334155; background: #ffffff;">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-sm btn-danger px-4 fw-semibold" id="confirmBulkDeleteSubmitBtn" style="font-size: 0.85rem;">
+            Yes, Delete Selected Files
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -405,6 +469,83 @@
     }
   }
 
+  function toggleSelectAllImports(masterCheckbox) {
+    const isChecked = masterCheckbox.checked;
+    const checkboxes = document.querySelectorAll('.import-item-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = isChecked;
+    });
+    updateBulkSelectionState();
+  }
+
+  function updateBulkSelectionState() {
+    const checkboxes = Array.from(document.querySelectorAll('.import-item-checkbox'));
+    const checkedBoxes = checkboxes.filter(cb => cb.checked);
+    const count = checkedBoxes.length;
+
+    const bar = document.getElementById('bulkActionBar');
+    const countBadge = document.getElementById('selectedCountBadge');
+    const selectAll = document.getElementById('selectAllImports');
+
+    if (selectAll) {
+      selectAll.checked = checkboxes.length > 0 && checkedBoxes.length === checkboxes.length;
+      selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
+    }
+
+    if (count > 0) {
+      if (bar) bar.classList.remove('d-none');
+      if (countBadge) countBadge.textContent = count + (count === 1 ? ' selected' : ' selected');
+    } else {
+      if (bar) bar.classList.add('d-none');
+    }
+  }
+
+  function clearSelectedImports() {
+    const checkboxes = document.querySelectorAll('.import-item-checkbox');
+    checkboxes.forEach(cb => { cb.checked = false; });
+    const selectAll = document.getElementById('selectAllImports');
+    if (selectAll) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    }
+    updateBulkSelectionState();
+  }
+
+  function confirmBulkDeleteImports() {
+    const checkedBoxes = Array.from(document.querySelectorAll('.import-item-checkbox:checked'));
+    if (checkedBoxes.length === 0) {
+      alert('Please select at least one import file to delete.');
+      return;
+    }
+
+    let totalLeads = 0;
+    const container = document.getElementById('bulkDeleteHiddenInputs');
+    if (container) {
+      container.innerHTML = '';
+      checkedBoxes.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'selected_job_ids';
+        input.value = cb.value;
+        container.appendChild(input);
+
+        const imp = parseInt(cb.getAttribute('data-imported'), 10) || 0;
+        totalLeads += imp;
+      });
+    }
+
+    const filesEl = document.getElementById('bulkDelFilesCount');
+    const leadsEl = document.getElementById('bulkDelLeadsCount');
+    if (filesEl) filesEl.textContent = checkedBoxes.length.toString();
+    if (leadsEl) leadsEl.textContent = totalLeads.toLocaleString();
+
+    const modalEl = document.getElementById('bulkDeleteImportsModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      bsModal.show();
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     const confirmBtn = document.getElementById('confirmDeleteSubmitBtn');
     if (confirmBtn) {
@@ -419,6 +560,16 @@
         }
       });
     }
+
+    const bulkForm = document.getElementById('bulkDeleteImportsForm');
+    const bulkSubmitBtn = document.getElementById('confirmBulkDeleteSubmitBtn');
+    if (bulkForm && bulkSubmitBtn) {
+      bulkForm.addEventListener('submit', function() {
+        bulkSubmitBtn.disabled = true;
+        bulkSubmitBtn.innerHTML = 'Deleting Selected Files...';
+      });
+    }
+
     updateHistWhatsAppPreview();
   });
 </script>
