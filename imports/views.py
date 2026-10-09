@@ -925,14 +925,23 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 lead_objs = [item[0] for item in leads_to_create]
                 created_leads = Lead.objects.bulk_create(lead_objs, batch_size=100)
                 imported_count += len(created_leads)
-                for idx, created_l in enumerate(created_leads):
-                    _, r, assigned_user, inq_d = leads_to_create[idx]
-                    lead_meta_list.append((created_l, r, assigned_user, inq_d))
+                
+                # Fetch created leads from DB to get their assigned primary keys (since MySQL bulk_create doesn't populate PK on instances)
+                batch_lead_codes = [l.lead_code for l in lead_objs]
+                saved_leads_map = {l.lead_code: l for l in Lead.objects.filter(lead_code__in=batch_lead_codes)}
+                
+                for item in leads_to_create:
+                    l_obj, r, assigned_user, inq_d = item
+                    persisted_lead = saved_leads_map.get(l_obj.lead_code, l_obj)
+                    lead_meta_list.append((persisted_lead, r, assigned_user, inq_d))
 
             # Bulk create FollowUps & Activities for this batch
             batch_followups = []
             batch_activities = []
+            today_date = timezone.localdate()
             for lead_record, r, assigned_user, inquiry_date in lead_meta_list:
+                if not lead_record or not lead_record.pk:
+                    continue
                 fu1_d = r.get("fu1_date")
                 fu1_rem = r.get("fu1_remark")
                 fu2_d = r.get("fu2_date")
@@ -947,8 +956,10 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 ]
                 for f_date_str, f_rem in fu_items:
                     if f_date_str or f_rem:
-                        parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else inquiry_date
-                        st_choice = FollowUpStatus.COMPLETED if (parsed_fu_date and parsed_fu_date <= timezone.localdate()) else FollowUpStatus.PENDING
+                        parsed_fu_date = parse_flexible_date(f_date_str) if f_date_str else (inquiry_date or today_date)
+                        if not parsed_fu_date:
+                            parsed_fu_date = today_date
+                        st_choice = FollowUpStatus.COMPLETED if parsed_fu_date <= today_date else FollowUpStatus.PENDING
                         batch_followups.append(FollowUp(
                             lead=lead_record,
                             followup_date=parsed_fu_date,
