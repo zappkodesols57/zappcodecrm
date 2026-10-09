@@ -218,77 +218,28 @@ def auto_generate_master_data_profiles(hospital=None):
     import re
 
     # 1. Gather distinct Lead Attendant names and Doctor names from Lead records
-    # Try fast database-level JSON extraction if possible, fallback to Python generator
     attendants = set()
     doctors = set()
 
-    extracted_via_sql = False
-    try:
-        with connection.cursor() as cursor:
-            if hospital:
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE hospital_id = %s
-                      AND custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.doctor', hospital.id, '$.doctor'])
-                raw_docs = [r[0] for r in cursor.fetchall() if r[0]]
+    lead_qs = Lead.objects.all()
+    if hospital:
+        lead_qs = lead_qs.filter(hospital=hospital)
 
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE hospital_id = %s
-                      AND custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.lead_attendant', hospital.id, '$.lead_attendant'])
-                raw_atts = [r[0] for r in cursor.fetchall() if r[0]]
-            else:
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.doctor', '$.doctor'])
-                raw_docs = [r[0] for r in cursor.fetchall() if r[0]]
+    lead_rows = lead_qs.values_list('custom_data', 'raw_source_metadata')
+    for cd, raw in lead_rows.iterator(chunk_size=1000):
+        cd_map = cd if isinstance(cd, dict) else {}
+        raw_map = raw if isinstance(raw, dict) else {}
 
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.lead_attendant', '$.lead_attendant'])
-                raw_atts = [r[0] for r in cursor.fetchall() if r[0]]
-
-            for att in raw_atts:
-                if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
-                    attendants.add(str(att).strip())
-
-            for doc in raw_docs:
-                if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
-                    for d in str(doc).split(','):
-                        d_clean = d.strip()
-                        if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
-                            doctors.add(d_clean)
-            extracted_via_sql = True
-    except Exception:
-        extracted_via_sql = False
-
-    if not extracted_via_sql:
-        lead_qs = Lead.objects.all()
-        if hospital:
-            lead_qs = lead_qs.filter(hospital=hospital)
-        lead_qs = lead_qs.exclude(custom_data={}).exclude(custom_data__isnull=True).values_list('custom_data', flat=True)
-
-        for cd in lead_qs.iterator(chunk_size=1000):
-            if not cd:
-                continue
-            att = cd.get('lead_attendant')
-            doc = cd.get('doctor')
-            
-            if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
+        # Attendant name matching
+        for k in ['lead_attendant', 'lead_attendent', 'telecaller', 'caller', 'attendant', 'attendent', 'assigned_to']:
+            att = raw_map.get(k) or cd_map.get(k)
+            if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned', 'null'):
                 attendants.add(str(att).strip())
-            if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
+
+        # Doctor name matching
+        for k in ['doctor', 'dr_name', 'consultant', 'physician', 'surgeon', 'dr']:
+            doc = raw_map.get(k) or cd_map.get(k)
+            if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --', 'null'):
                 for d in str(doc).split(','):
                     d_clean = d.strip()
                     if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
