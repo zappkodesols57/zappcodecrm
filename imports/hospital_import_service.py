@@ -231,21 +231,29 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
     
     # Financial & clinical bills
     uhid_cols = ["uhid_no", "uhid_id_no", "uhid", "patient_id"]
-    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date"]
+    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date", "appo_booked_date"]
     pharmacy_bill_cols = ["pharmacy_bill", "pharmacy"]
     opd_bill_cols = ["opd_bill", "opd"]
     ipd_bill_cols = ["ipd_bill", "ipd_no", "ipd"]
     investigation_bill_cols = ["investigation_bill", "investigation", "lab_bill"]
-    total_bill_cols = ["total", "total_bill", "total_amount", "total_paid"]
+    total_bill_cols = ["total_bill_amount", "total_bill", "total_amount", "total_paid", "total"]
     final_status_cols = ["final_status", "deal_status", "status", "stage"]
+    appt_status_cols = ["appointment_status", "appo_status", "booking_status"]
+    dept_cols = ["department", "dept", "speciality", "specialty"]
+    branch_cols = ["hospital_branch", "branch", "hospital_branch_"]
+    age_cols = ["age", "patient_age"]
+    month_cols = ["month"]
+    year_cols = ["year"]
+    weekday_cols = ["week_day", "weekday", "day"]
 
     # Follow up columns
-    fu1_date_cols = ["first_follow_up_date", "first_followup_date", "1st_follow_up_date", "follow_up_1_date", "calling_date_remark_1", "calling_date_1"]
-    fu1_remark_cols = ["first_follow_up_remark", "first_followup_remark", "1st_follow_up_remark", "remark_1", "follow_up_1_remark", "remarks_1", "calling_remark_1"]
-    fu2_date_cols = ["second_follow_up_date", "second_followup_date", "2nd_follow_up_date", "follow_up_2_date", "calling_date_remark_2", "calling_date_2"]
-    fu2_remark_cols = ["second_follow_up_remark", "second_followup_remark", "2nd_follow_up_remark", "remark_2", "follow_up_2_remark", "remarks_2", "calling_remark_2"]
-    fu3_date_cols = ["third_follow_up_date", "third_followup_date", "3rd_follow_up_date", "follow_up_3_date", "calling_date_remark_3", "calling_date_3"]
-    fu3_remark_cols = ["third_follow_up_remark", "third_followup_remark", "3rd_follow_up_remark", "remark_3", "follow_up_3_remark", "remarks_3", "calling_remark_3"]
+    fu1_date_cols = ["first_follow_up_date", "first_followup_date", "1st_follow_up_date", "follow_up_1_date", "follow_up_1_date_", "calling_date_remark_1", "calling_date_1"]
+    fu1_remark_cols = ["first_follow_up_remark", "first_followup_remark", "1st_follow_up_remark", "remark_1", "follow_up_1_remark", "follow_up_1_remark_", "remarks_1", "calling_remark_1"]
+    fu2_time_cols = ["follow_up_2_time", "follow_up_2_time_"]
+    fu2_date_cols = ["second_follow_up_date", "second_followup_date", "2nd_follow_up_date", "follow_up_2_date", "follow_up_2_date_", "calling_date_remark_2", "calling_date_2"]
+    fu2_remark_cols = ["second_follow_up_remark", "second_followup_remark", "2nd_follow_up_remark", "remark_2", "follow_up_2_remark", "follow_up_2_remark_", "remarks_2", "calling_remark_2"]
+    fu3_date_cols = ["third_follow_up_date", "third_followup_date", "3rd_follow_up_date", "follow_up_3_date", "follow_up_3_date_", "calling_date_remark_3", "calling_date_3"]
+    fu3_remark_cols = ["third_follow_up_remark", "third_followup_remark", "3rd_follow_up_remark", "remark_3", "follow_up_3_remark", "follow_up_3_remark_", "remarks_3", "calling_remark_3"]
 
     # Excluded from survey/generic notes because they are recognized structured columns
     structured_col_keys = set(
@@ -253,8 +261,9 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         attendant_cols + doctor_cols + gender_cols + address_cols + due_date_cols +
         uhid_cols + opd_done_date_cols + pharmacy_bill_cols + opd_bill_cols + ipd_bill_cols +
         investigation_bill_cols + total_bill_cols + final_status_cols +
-        fu1_date_cols + fu1_remark_cols + fu2_date_cols + fu2_remark_cols + fu3_date_cols + fu3_remark_cols +
-        ["sr_no", "sr_no.", "campaign_name", "campaign", "form_name", "ad_name", "adset_name", "patient_update"]
+        appt_status_cols + dept_cols + branch_cols + age_cols + month_cols + year_cols + weekday_cols +
+        fu1_date_cols + fu1_remark_cols + fu2_time_cols + fu2_date_cols + fu2_remark_cols + fu3_date_cols + fu3_remark_cols +
+        ["sr_no", "sr_no.", "campaign_name", "campaign", "form_name", "ad_name", "adset_name", "patient_update", "notes"]
     )
 
     # Explicit list of columns that should NEVER be treated as a person's name
@@ -380,15 +389,24 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
                     course_name_val = raw_crs
                     break
 
-        # 8. Lead Attendant & Doctor
+        # 8. Lead Attendant, Doctor, Branch, Department, Age & Gender
         attendant_raw = get_col_val(attendant_cols)
         doctor_raw = get_col_val(doctor_cols)
         gender_raw = get_col_val(gender_cols)
         due_date_raw = get_col_val(due_date_cols)
+        dept_raw = get_col_val(dept_cols)
+        branch_raw = get_col_val(branch_cols)
+        age_raw = get_col_val(age_cols)
+        month_raw = get_col_val(month_cols)
+        year_raw = get_col_val(year_cols)
+        weekday_raw = get_col_val(weekday_cols)
+        appt_status_raw = get_col_val(appt_status_cols)
+        notes_raw = get_col_val(["notes", "note", "remarks", "remark"])
 
         # 9. Follow-up 1, 2 & 3 details
         fu1_date_raw = get_col_val(fu1_date_cols)
         fu1_remark_raw = get_col_val(fu1_remark_cols)
+        fu2_time_raw = get_col_val(fu2_time_cols)
         fu2_date_raw = get_col_val(fu2_date_cols)
         fu2_remark_raw = get_col_val(fu2_remark_cols)
         fu3_date_raw = get_col_val(fu3_date_cols)
@@ -415,14 +433,31 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             custom_data_survey["course"] = course_name_val
         if gender_raw:
             custom_data_survey["gender"] = gender_raw.upper() if gender_raw.lower() in ("m", "f", "male", "female") else gender_raw.title()
+        if age_raw:
+            custom_data_survey["age"] = age_raw
+        if branch_raw:
+            custom_data_survey["hospital_branch"] = branch_raw
+            custom_data_survey["branch"] = branch_raw
+        if dept_raw:
+            custom_data_survey["department"] = dept_raw
         if doctor_raw:
             custom_data_survey["doctor"] = doctor_raw
         if due_date_raw:
             custom_data_survey["due_date"] = due_date_raw
+        if month_raw:
+            custom_data_survey["month"] = month_raw.title()
+        if year_raw:
+            custom_data_survey["year"] = year_raw
+        if weekday_raw:
+            custom_data_survey["week_day"] = weekday_raw.title()
+        if appt_status_raw:
+            custom_data_survey["appointment_status"] = appt_status_raw
         if uhid_raw:
             custom_data_survey["uhid_id_no"] = uhid_raw
         if opd_done_date_raw:
             custom_data_survey["visit_date"] = str(parse_flexible_date(opd_done_date_raw))
+            custom_data_survey["appo_booked_date"] = str(parse_flexible_date(opd_done_date_raw))
+            custom_data_survey["appointment_date"] = str(parse_flexible_date(opd_done_date_raw))
         if pharmacy_bill_raw:
             try:
                 custom_data_survey["pharmacy_bill"] = float(re.sub(r"[^\d.]", "", pharmacy_bill_raw))
@@ -439,11 +474,15 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
             except Exception:
                 pass
         if investigation_bill_raw:
-            custom_data_survey["investigation"] = investigation_bill_raw
+            try:
+                custom_data_survey["investigation"] = float(re.sub(r"[^\d.]", "", investigation_bill_raw)) if re.sub(r"[^\d.]", "", investigation_bill_raw) else investigation_bill_raw
+            except Exception:
+                custom_data_survey["investigation"] = investigation_bill_raw
         if total_bill_raw:
             try:
                 custom_data_survey["total"] = float(re.sub(r"[^\d.]", "", total_bill_raw))
                 custom_data_survey["total_paid"] = custom_data_survey["total"]
+                custom_data_survey["total_billed_amount"] = custom_data_survey["total"]
             except Exception:
                 pass
 
@@ -467,6 +506,9 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
 
         if not custom_data_survey.get("priority"):
             custom_data_survey["priority"] = "Hot"
+
+        if notes_raw:
+            survey_notes.append(f"Notes: {notes_raw}")
 
         # Survey questions (only truly unmapped questions)
         for s_col in survey_cols:
