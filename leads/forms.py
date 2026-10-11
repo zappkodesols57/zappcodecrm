@@ -653,7 +653,7 @@ class HospitalLeadForm(forms.ModelForm):
                     is_active=True,
                     is_approved=True
                 ).order_by("first_name", "username")
-            self.fields["assigned_to"].empty_label = "-- Select Lead Attendant --"
+            self.fields["assigned_to"].empty_label = "-- Select Telecaller --"
             
             is_manager_or_admin = user and (user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or user.can_assign_leads or user.is_superuser)
             if not is_manager_or_admin:
@@ -860,7 +860,7 @@ class HospitalLeadForm(forms.ModelForm):
                     is_active=True,
                     is_approved=True
                 ).order_by("first_name", "username")
-                self.fields["assigned_to"].empty_label = "-- Select Lead Attendant --"
+                self.fields["assigned_to"].empty_label = "-- Select Telecaller --"
             else:
                 # Global Super Admin: show active lead attendants
                 self.fields["assigned_to"].queryset = User.objects.filter(
@@ -868,7 +868,7 @@ class HospitalLeadForm(forms.ModelForm):
                     is_active=True,
                     is_approved=True
                 ).order_by("first_name", "username")
-                self.fields["assigned_to"].empty_label = "-- Select Lead Attendant --"
+                self.fields["assigned_to"].empty_label = "-- Select Telecaller --"
             
         # Dynamically load Admin-Configured Custom Form Fields (Non-system only)
         from leads.models import LeadCustomField

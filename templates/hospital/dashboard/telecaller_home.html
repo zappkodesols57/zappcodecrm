@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}Lead Attendant Dashboard | {{ request.user.hospital.name|default:'Nelson Hospital' }}{% endblock %}
+{% block title %}Telecaller Dashboard | {{ request.user.hospital.name|default:'Nelson Hospital' }}{% endblock %}
 
 {% block extra_head %}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -28,30 +28,30 @@
 
     .stats-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.65rem;
+        margin-bottom: 0.85rem;
     }
 
     .stat-card {
         background: #ffffff !important;
-        border-radius: var(--radius-lg);
-        padding: 1.25rem;
+        border-radius: var(--radius-md);
+        padding: 0.65rem 0.85rem;
         position: relative;
         overflow: hidden;
         box-shadow: var(--shadow-sm);
         border: 1px solid #e2e8f0;
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        min-height: 115px;
+        min-height: 84px;
         cursor: pointer;
     }
 
     .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(15, 39, 68, 0.08);
         border-color: #cbd5e1;
     }
 
@@ -60,7 +60,28 @@
     .stat-card.c-appo,
     .stat-card.c-followup,
     .stat-card.c-walkin,
-    .stat-card.c-target { background: #ffffff !important; }
+    .stat-card.c-target {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+
+    .stat-card.c-leads .stat-value,
+    .stat-card.c-callnotdone .stat-value,
+    .stat-card.c-appo .stat-value,
+    .stat-card.c-followup .stat-value,
+    .stat-card.c-walkin .stat-value,
+    .stat-card.c-target .stat-value {
+        color: #052042 !important;
+    }
+
+    .stat-card.c-leads .stat-title,
+    .stat-card.c-callnotdone .stat-title,
+    .stat-card.c-appo .stat-title,
+    .stat-card.c-followup .stat-title,
+    .stat-card.c-walkin .stat-title,
+    .stat-card.c-target .stat-title {
+        color: #64748b !important;
+    }
 
     .stat-header {
         display: flex;
@@ -69,38 +90,36 @@
     }
 
     .stat-title {
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #475569;
-        margin-bottom: 0.35rem;
+        letter-spacing: 0.4px;
+        margin-bottom: 0.2rem;
     }
 
     .stat-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.15rem;
+        font-size: 0.95rem;
         color: white;
     }
 
     .stat-value {
-        font-size: 1.75rem;
+        font-size: 1.45rem;
         font-weight: 800;
-        color: #0f172a;
         margin: 0;
         line-height: 1.1;
     }
 
     .stat-sub {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         font-weight: 600;
         color: #64748b;
-        margin-top: 0.25rem;
+        margin-top: 0.15rem;
     }
 
     /* Drilldown Calendar & Pill Styles */
@@ -199,55 +218,262 @@
     /* =================================================== */
     /* BRAND BASE COLOR TAB STYLING (Primary Navy & White) */
     /* =================================================== */
-    /* Main Dashboard Pills */
+    /* UNIFIED CRISP CONNECTED SEGMENT BUTTONS             */
+    /* =================================================== */
+    /* 1. Main Dashboard Connected Segment Tabs */
+    #mainDashboardTabs {
+        display: inline-flex;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f8fafc;
+        padding: 0;
+        gap: 0 !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    #mainDashboardTabs .nav-item {
+        margin: 0;
+    }
     #mainDashboardTabs .nav-link {
         color: #475569 !important;
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        transition: all 0.2s ease;
+        background: transparent !important;
+        border: none !important;
+        border-right: 1px solid #cbd5e1 !important;
+        border-radius: 0 !important;
+        padding: 0.55rem 1.25rem !important;
+        font-size: 0.88rem !important;
+        font-weight: 700 !important;
+        transition: all 0.15s ease !important;
+        box-shadow: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    #mainDashboardTabs .nav-item:last-child .nav-link {
+        border-right: none !important;
     }
     #mainDashboardTabs .nav-link:hover {
-        background: #f8fafc !important;
-        color: var(--primary) !important;
-        border-color: #cbd5e1 !important;
+        background: #e2e8f0 !important;
+        color: #052042 !important;
     }
     #mainDashboardTabs .nav-link.active {
-        background: var(--primary) !important;
+        background: #052042 !important;
         color: #ffffff !important;
-        border-color: var(--primary) !important;
-        box-shadow: 0 4px 12px rgba(15, 39, 68, 0.25) !important;
+        box-shadow: none !important;
+    }
+    #mainDashboardTabs .nav-link .badge {
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        padding: 2px 7px !important;
+        border-radius: 9999px !important;
+        background: #e2e8f0 !important;
+        color: #334155 !important;
     }
     #mainDashboardTabs .nav-link.active .badge {
-        background: rgba(255, 255, 255, 0.2) !important;
+        background: rgba(255, 255, 255, 0.25) !important;
         color: #ffffff !important;
         border: 1px solid rgba(255, 255, 255, 0.35) !important;
     }
 
-    /* Subtabs inside Panes */
+    /* 2. Subtabs Inside Panes (Matching Segmented Control) */
+    .nav-tabs {
+        display: inline-flex !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
+        background: #f1f5f9 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        margin-bottom: 0.75rem !important;
+    }
+    .nav-tabs .nav-item {
+        margin: 0 !important;
+    }
     .nav-tabs .nav-link {
-        color: #64748b !important;
-        background: #f8fafc !important;
-        border: 1px solid #e2e8f0 !important;
-        border-bottom: none !important;
-        font-weight: 600;
-        transition: all 0.2s ease;
-        margin-bottom: -1px;
+        color: #475569 !important;
+        background: transparent !important;
+        border: none !important;
+        border-right: 1px solid #cbd5e1 !important;
+        font-weight: 700 !important;
+        font-size: 0.82rem !important;
+        padding: 0.45rem 1.1rem !important;
+        border-radius: 0 !important;
+        transition: all 0.15s ease !important;
+        margin-bottom: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .nav-tabs .nav-item:last-child .nav-link {
+        border-right: none !important;
     }
     .nav-tabs .nav-link:hover {
-        color: var(--primary) !important;
-        background: #ffffff !important;
-        border-color: #cbd5e1 !important;
+        color: #052042 !important;
+        background: #e2e8f0 !important;
     }
     .nav-tabs .nav-link.active {
-        background: var(--primary) !important;
+        background: #052042 !important;
         color: #ffffff !important;
-        border-color: var(--primary) !important;
-        box-shadow: 0 2px 8px rgba(15, 39, 68, 0.18) !important;
+        border: none !important;
+        border-right: 1px solid #052042 !important;
+        box-shadow: none !important;
+    }
+    .nav-tabs .nav-item:last-child .nav-link.active {
+        border-right: none !important;
+    }
+    .nav-tabs .nav-link .badge {
+        font-size: 0.70rem !important;
+        font-weight: 700 !important;
+        padding: 1px 6px !important;
+        border-radius: 9999px !important;
+        background: #cbd5e1 !important;
+        color: #1e293b !important;
     }
     .nav-tabs .nav-link.active .badge {
-        background: rgba(255, 255, 255, 0.2) !important;
+        background: rgba(255, 255, 255, 0.25) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    .quick-action-microbar {
+        position: fixed;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%) translateY(140px);
+        background: #052042;
+        color: #ffffff;
+        border-radius: 50rem;
+        padding: 6px 14px 6px 18px;
+        box-shadow: 0 12px 36px rgba(5, 32, 66, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 1050;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        opacity: 0;
+        pointer-events: none;
+        max-width: calc(100vw - 32px);
+        flex-wrap: nowrap;
+        white-space: nowrap;
+    }
+
+    .quick-action-microbar.visible {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .microbar-lead-name {
+        font-weight: 700;
+        font-size: 0.82rem;
+        color: #ffffff;
+        white-space: nowrap;
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .microbar-lead-phone {
+        font-size: 0.74rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    .microbar-input {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        font-size: 0.78rem !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+        height: 32px !important;
+    }
+
+    .microbar-input::placeholder {
+        color: #94a3b8 !important;
+    }
+
+    .microbar-input:focus {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: #ffffff !important;
+        outline: none !important;
+    }
+
+    .microbar-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s ease;
+        border: none;
+        cursor: pointer;
+        line-height: 1.2;
+        height: 32px;
+        white-space: nowrap;
+    }
+
+    .microbar-btn-save {
+        background: #3b82f6;
+        color: #ffffff;
+    }
+    .microbar-btn-save:hover {
+        background: #2563eb;
+        color: #ffffff;
+    }
+
+    .microbar-btn-call {
+        background: #16a34a;
+        color: #ffffff;
+    }
+    .microbar-btn-call:hover {
+        background: #15803d;
+        color: #ffffff;
+    }
+
+    .microbar-btn-wa {
+        background: #22c55e;
+        color: #ffffff;
+    }
+    .microbar-btn-wa:hover {
+        background: #16a34a;
+        color: #ffffff;
+    }
+
+    .microbar-btn-view {
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+    }
+    .microbar-btn-view:hover {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+
+    .microbar-btn-close {
+        background: transparent;
+        color: #94a3b8;
+        padding: 4px;
+        font-size: 0.85rem;
+        border-radius: 50%;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
+    }
+    .microbar-btn-close:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .active-selected-row {
+        background-color: rgba(5, 32, 66, 0.08) !important;
+        outline: 2px solid #052042;
     }
 </style>
 {% endblock %}
@@ -256,10 +482,10 @@
 <div class="nelson-dashboard">
 
     <!-- Dashboard Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
         <div>
             <h3 class="fw-bold text-dark mb-0">
-                Lead Attendant Dashboard
+                Telecaller Dashboard
             </h3>
             <span class="text-muted small">Welcome back, <strong class="text-dark">{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; {{ today_date|date:"l, d F Y" }}</span>
         </div>
@@ -281,7 +507,7 @@
             <div class="stat-header">
                 <span class="stat-title">Today's New Leads</span>
             </div>
-            <div class="stat-value text-primary" data-live-metric="today_leads">{{ todays_new_leads_count|intcomma }}</div>
+            <div class="stat-value" data-live-metric="today_leads">{{ todays_new_leads_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Received Today</span>
             </div>
@@ -292,7 +518,7 @@
             <div class="stat-header">
                 <span class="stat-title">Call Not Done</span>
             </div>
-            <div class="stat-value text-danger" data-live-metric="call_not_done">{{ call_not_done_count|intcomma }}</div>
+            <div class="stat-value" data-live-metric="call_not_done">{{ call_not_done_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Pending Calling</span>
             </div>
@@ -303,11 +529,11 @@
             <div class="stat-header">
                 <span class="stat-title">Today's Bookings</span>
             </div>
-            <div class="stat-value text-dark" data-live-metric="today_appointments">{{ todays_total_booked_count|default:todays_opd_booked_count|intcomma }}</div>
-            <div class="stat-sub d-flex align-items-center gap-2 pt-1 border-top" style="border-color: rgba(245, 158, 11, 0.2) !important; font-size: 0.76rem; font-weight: 500;">
-                <span class="text-warning fw-semibold">OPD: {{ todays_opd_booked_count|default:0 }}</span>
+            <div class="stat-value" data-live-metric="today_appointments">{{ todays_total_booked_count|default:todays_opd_booked_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center gap-2 pt-1 border-top" style="border-color: #f1f5f9 !important; font-size: 0.76rem; font-weight: 500;">
+                <span class="text-muted fw-semibold">OPD: {{ todays_opd_booked_count|default:0 }}</span>
                 &bull;
-                <span class="text-primary fw-semibold">Consultation: {{ todays_consult_booked_count|default:0 }}</span>
+                <span class="text-muted fw-semibold">Consultation: {{ todays_consult_booked_count|default:0 }}</span>
             </div>
         </div>
 
@@ -316,11 +542,11 @@
             <div class="stat-header">
                 <span class="stat-title">Today's Follow-ups</span>
             </div>
-            <div class="stat-value" style="color: #6b21a8;" data-live-metric="today_followups">{{ todays_followups_count|intcomma }}</div>
-            <div class="stat-sub d-flex align-items-center gap-2 pt-1 border-top" style="border-color: rgba(139, 92, 246, 0.2) !important; font-size: 0.76rem; font-weight: 500;">
-                <span class="text-danger fw-semibold">Overdue: {{ overdue_followups_count|default:0 }}</span>
+            <div class="stat-value" data-live-metric="today_followups">{{ todays_followups_count|intcomma }}</div>
+            <div class="stat-sub d-flex align-items-center gap-2 pt-1 border-top" style="border-color: #f1f5f9 !important; font-size: 0.76rem; font-weight: 500;">
+                <span class="text-muted fw-semibold">Overdue: {{ overdue_followups_count|default:0 }}</span>
                 &bull;
-                <span class="text-primary fw-semibold">Upcoming: {{ upcoming_followups_count|default:0 }}</span>
+                <span class="text-muted fw-semibold">Upcoming: {{ upcoming_followups_count|default:0 }}</span>
             </div>
         </div>
 
@@ -329,7 +555,7 @@
             <div class="stat-header">
                 <span class="stat-title">Today's Walk-in</span>
             </div>
-            <div class="stat-value text-success">{{ todays_walkin_count|intcomma }}</div>
+            <div class="stat-value">{{ todays_walkin_count|intcomma }}</div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
                 <span>Direct Walk-in</span>
             </div>
@@ -341,7 +567,7 @@
                 <span class="stat-title">Today's Target</span>
             </div>
             <div class="d-flex align-items-baseline gap-2">
-                <div class="stat-value text-success">{{ target_remaining|intcomma }}</div>
+                <div class="stat-value">{{ target_remaining|intcomma }}</div>
                 <span class="small text-muted fw-bold">left</span>
             </div>
             <div class="stat-sub d-flex align-items-center justify-content-between">
@@ -353,33 +579,33 @@
 
     <!-- 5 MAIN DASHBOARD TABS SECTION -->
     <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-        <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+        <div class="card-header bg-white border-0 pt-3 pb-0 px-3 px-md-4">
             
-            <!-- MAIN 5 TABS (Clean brand-navy styling) -->
-            <ul class="nav nav-pills gap-2 pb-3 border-bottom" id="mainDashboardTabs" role="tablist">
+            <!-- MAIN 5 TABS (Crisp Connected Segment Controls) -->
+            <ul class="nav" id="mainDashboardTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="myleads-main-tab" data-bs-toggle="pill" data-bs-target="#myleads-main-pane" type="button" role="tab" aria-controls="myleads-main-pane" aria-selected="true" style="font-size: 0.95rem;">
+                    <button class="nav-link active" id="myleads-main-tab" data-bs-toggle="pill" data-bs-target="#myleads-main-pane" type="button" role="tab" aria-controls="myleads-main-pane" aria-selected="true">
                         My Leads
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="followups-main-tab" data-bs-toggle="pill" data-bs-target="#followups-main-pane" type="button" role="tab" aria-controls="followups-main-pane" aria-selected="false" style="font-size: 0.95rem;">
+                    <button class="nav-link" id="followups-main-tab" data-bs-toggle="pill" data-bs-target="#followups-main-pane" type="button" role="tab" aria-controls="followups-main-pane" aria-selected="false">
                         Follow-ups
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="appointments-main-tab" data-bs-toggle="pill" data-bs-target="#appointments-main-pane" type="button" role="tab" aria-controls="appointments-main-pane" aria-selected="false" style="font-size: 0.95rem;">
-                        Appointments <span class="badge bg-light text-dark border ms-2" style="font-size: 0.72rem;">{{ total_appointments_count|default:0 }}</span>
+                    <button class="nav-link" id="appointments-main-tab" data-bs-toggle="pill" data-bs-target="#appointments-main-pane" type="button" role="tab" aria-controls="appointments-main-pane" aria-selected="false">
+                        Appointments <span class="badge ms-1.5">{{ total_appointments_count|default:0 }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="billings-main-tab" data-bs-toggle="pill" data-bs-target="#billings-main-pane" type="button" role="tab" aria-controls="billings-main-pane" aria-selected="false" style="font-size: 0.95rem;">
-                        Billings <span class="badge bg-light text-dark border ms-2" style="font-size: 0.72rem;">{{ total_billings_count|default:0 }}</span>
+                    <button class="nav-link" id="billings-main-tab" data-bs-toggle="pill" data-bs-target="#billings-main-pane" type="button" role="tab" aria-controls="billings-main-pane" aria-selected="false">
+                        Billings <span class="badge ms-1.5">{{ total_billings_count|default:0 }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold px-4 py-2.5 rounded-pill shadow-xs border" id="lost-main-tab" data-bs-toggle="pill" data-bs-target="#lost-main-pane" type="button" role="tab" aria-controls="lost-main-pane" aria-selected="false" style="font-size: 0.95rem;">
-                        Lost <span class="badge bg-light text-dark border ms-2" style="font-size: 0.72rem;">{{ lost_leads_count|default:0 }}</span>
+                    <button class="nav-link" id="lost-main-tab" data-bs-toggle="pill" data-bs-target="#lost-main-pane" type="button" role="tab" aria-controls="lost-main-pane" aria-selected="false">
+                        Lost <span class="badge ms-1.5">{{ lost_leads_count|default:0 }}</span>
                     </button>
                 </li>
             </ul>
@@ -391,28 +617,28 @@
                 <!-- ========================================== -->
                 <!-- MAIN TAB 1: MY LEADS (Default Active)      -->
                 <!-- ========================================== -->
-                <div class="tab-pane fade show active p-4" id="myleads-main-pane" role="tabpanel" aria-labelledby="myleads-main-tab" tabindex="0">
+                <div class="tab-pane fade show active px-3 px-md-4 pt-2.5 pb-3" id="myleads-main-pane" role="tabpanel" aria-labelledby="myleads-main-tab" tabindex="0">
                     
                     <!-- My Leads Sub-tabs: 4 Subtabs -->
-                    <ul class="nav nav-tabs border-bottom gap-2 mb-3" id="myLeadsSubTabs" role="tablist">
+                    <ul class="nav nav-tabs" id="myLeadsSubTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="myleads-new-tab" data-bs-toggle="tab" data-bs-target="#myleads-new-pane" type="button" role="tab" aria-controls="myleads-new-pane" aria-selected="true">
-                                New Leads <span class="badge bg-primary text-white rounded-pill ms-2">{{ new_leads_count|default:0 }}</span>
+                            <button class="nav-link active" id="myleads-new-tab" data-bs-toggle="tab" data-bs-target="#myleads-new-pane" type="button" role="tab" aria-controls="myleads-new-pane" aria-selected="true">
+                                New Leads <span class="badge ms-1.5">{{ new_leads_count|default:0 }}</span>
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-assigned-tab" data-bs-toggle="tab" data-bs-target="#myleads-assigned-pane" type="button" role="tab" aria-controls="myleads-assigned-pane" aria-selected="false">
-                                Assigned Leads <span class="badge bg-secondary text-white rounded-pill ms-2">{{ assigned_leads_count|default:0 }}</span>
+                            <button class="nav-link" id="myleads-assigned-tab" data-bs-toggle="tab" data-bs-target="#myleads-assigned-pane" type="button" role="tab" aria-controls="myleads-assigned-pane" aria-selected="false">
+                                Assigned Leads <span class="badge ms-1.5">{{ assigned_leads_count|default:0 }}</span>
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-walkin-tab" data-bs-toggle="tab" data-bs-target="#myleads-walkin-pane" type="button" role="tab" aria-controls="myleads-walkin-pane" aria-selected="false">
-                                Walk-in Leads <span class="badge bg-success text-white rounded-pill ms-2">{{ walkin_leads_count|default:0 }}</span>
+                            <button class="nav-link" id="myleads-walkin-tab" data-bs-toggle="tab" data-bs-target="#myleads-walkin-pane" type="button" role="tab" aria-controls="myleads-walkin-pane" aria-selected="false">
+                                Walk-in Leads <span class="badge ms-1.5">{{ walkin_leads_count|default:0 }}</span>
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="myleads-todaysall-tab" data-bs-toggle="tab" data-bs-target="#myleads-todaysall-pane" type="button" role="tab" aria-controls="myleads-todaysall-pane" aria-selected="false">
-                                Today's All Leads <span class="badge bg-dark text-white rounded-pill ms-2">{{ todays_all_leads_count|default:0 }}</span>
+                            <button class="nav-link" id="myleads-todaysall-tab" data-bs-toggle="tab" data-bs-target="#myleads-todaysall-pane" type="button" role="tab" aria-controls="myleads-todaysall-pane" aria-selected="false">
+                                Today's All Leads <span class="badge ms-1.5">{{ todays_all_leads_count|default:0 }}</span>
                             </button>
                         </li>
                     </ul>
@@ -472,7 +698,6 @@
                                                 <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                                                     {{ lead.name }}
                                                 </a>
-                                                <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ lead.lead_code|default:lead.pk }}</span>
                                             </td>
                                             <td>
                                                 <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
@@ -740,29 +965,29 @@
                 <!-- ========================================== -->
                 <!-- MAIN TAB 2: FOLLOW-UPS                     -->
                 <!-- ========================================== -->
-                <div class="tab-pane fade p-4" id="followups-main-pane" role="tabpanel" aria-labelledby="followups-main-tab" tabindex="0">
+                <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="followups-main-pane" role="tabpanel" aria-labelledby="followups-main-tab" tabindex="0">
                     
                     <!-- Follow-ups 4 Sub-tabs -->
-                    <div class="mb-3">
-                        <ul class="nav nav-tabs border-bottom gap-2 mb-0" id="followupsSubTabs" role="tablist">
+                    <div class="mb-2">
+                        <ul class="nav nav-tabs" id="followupsSubTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="todays-tab" data-bs-toggle="tab" data-bs-target="#todays-followups-pane" type="button" role="tab" aria-controls="todays-followups-pane" aria-selected="true">
-                                    Today's Follow-ups <span class="badge bg-primary text-white rounded-pill ms-2">{{ todays_followups_count|default:0 }}</span>
+                                <button class="nav-link active" id="todays-tab" data-bs-toggle="tab" data-bs-target="#todays-followups-pane" type="button" role="tab" aria-controls="todays-followups-pane" aria-selected="true">
+                                    Today's Follow-ups <span class="badge ms-1.5">{{ todays_followups_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming-followups-pane" type="button" role="tab" aria-controls="upcoming-followups-pane" aria-selected="false">
-                                    Upcoming Follow-ups <span class="badge bg-secondary text-white rounded-pill ms-2">{{ upcoming_followups_count|default:0 }}</span>
+                                <button class="nav-link" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming-followups-pane" type="button" role="tab" aria-controls="upcoming-followups-pane" aria-selected="false">
+                                    Upcoming Follow-ups <span class="badge ms-1.5">{{ upcoming_followups_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="overdue-tab" data-bs-toggle="tab" data-bs-target="#overdue-followups-pane" type="button" role="tab" aria-controls="overdue-followups-pane" aria-selected="false">
-                                    Overdue Follow-ups <span class="badge bg-danger text-white rounded-pill ms-2">{{ overdue_followups_count|default:0 }}</span>
+                                <button class="nav-link" id="overdue-tab" data-bs-toggle="tab" data-bs-target="#overdue-followups-pane" type="button" role="tab" aria-controls="overdue-followups-pane" aria-selected="false">
+                                    Overdue Follow-ups <span class="badge ms-1.5">{{ overdue_followups_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-followups-pane" type="button" role="tab" aria-controls="completed-followups-pane" aria-selected="false">
-                                    Completed <span class="badge bg-success text-white rounded-pill ms-2">{{ completed_followups_count|default:0 }}</span>
+                                <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-followups-pane" type="button" role="tab" aria-controls="completed-followups-pane" aria-selected="false">
+                                    Completed <span class="badge ms-1.5">{{ completed_followups_count|default:0 }}</span>
                                 </button>
                             </li>
                         </ul>
@@ -844,34 +1069,34 @@
                 <!-- ========================================== -->
                 <!-- MAIN TAB 3: APPOINTMENTS (4 SUB-TABS)      -->
                 <!-- ========================================== -->
-                <div class="tab-pane fade p-4" id="appointments-main-pane" role="tabpanel" aria-labelledby="appointments-main-tab" tabindex="0">
+                <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="appointments-main-pane" role="tabpanel" aria-labelledby="appointments-main-tab" tabindex="0">
                     
                     <!-- Appointments Sub-tabs -->
-                    <div class="border-bottom mb-3 pb-2">
-                        <ul class="nav nav-tabs border-0 gap-2 mb-0" id="appointmentsSubTabs" role="tablist">
+                    <div class="mb-2">
+                        <ul class="nav nav-tabs" id="appointmentsSubTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="todays-apts-tab" data-bs-toggle="tab" data-bs-target="#todays-apts-pane" type="button" role="tab" aria-controls="todays-apts-pane" aria-selected="true">
-                                    Today's Appointments <span class="badge bg-warning text-dark rounded-pill ms-2">{{ todays_appointments_count|default:0 }}</span>
+                                <button class="nav-link active" id="todays-apts-tab" data-bs-toggle="tab" data-bs-target="#todays-apts-pane" type="button" role="tab" aria-controls="todays-apts-pane" aria-selected="true">
+                                    Today's Appointments <span class="badge ms-1.5">{{ todays_appointments_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="upcoming-apts-tab" data-bs-toggle="tab" data-bs-target="#upcoming-apts-pane" type="button" role="tab" aria-controls="upcoming-apts-pane" aria-selected="false">
-                                    Upcoming <span class="badge bg-primary text-white rounded-pill ms-2">{{ upcoming_appointments_count|default:0 }}</span>
+                                <button class="nav-link" id="upcoming-apts-tab" data-bs-toggle="tab" data-bs-target="#upcoming-apts-pane" type="button" role="tab" aria-controls="upcoming-apts-pane" aria-selected="false">
+                                    Upcoming <span class="badge ms-1.5">{{ upcoming_appointments_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="admitted-apts-tab" data-bs-toggle="tab" data-bs-target="#admitted-apts-pane" type="button" role="tab" aria-controls="admitted-apts-pane" aria-selected="false">
-                                    Admitted <span class="badge bg-success text-white rounded-pill ms-2">{{ admitted_appointments_count|default:0 }}</span>
+                                <button class="nav-link" id="admitted-apts-tab" data-bs-toggle="tab" data-bs-target="#admitted-apts-pane" type="button" role="tab" aria-controls="admitted-apts-pane" aria-selected="false">
+                                    Admitted <span class="badge ms-1.5">{{ admitted_appointments_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="pending-approval-apts-tab" data-bs-toggle="tab" data-bs-target="#pending-approval-apts-pane" type="button" role="tab" aria-controls="pending-approval-apts-pane" aria-selected="false">
-                                    Approval Pending <span class="badge bg-warning text-dark rounded-pill ms-2">{{ approval_pending_appointments_count|default:0 }}</span>
+                                <button class="nav-link" id="pending-approval-apts-tab" data-bs-toggle="tab" data-bs-target="#pending-approval-apts-pane" type="button" role="tab" aria-controls="pending-approval-apts-pane" aria-selected="false">
+                                    Approval Pending <span class="badge ms-1.5">{{ approval_pending_appointments_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="rejected-apts-tab" data-bs-toggle="tab" data-bs-target="#rejected-apts-pane" type="button" role="tab" aria-controls="rejected-apts-pane" aria-selected="false">
-                                    Rejected / Cancelled <span class="badge bg-danger text-white rounded-pill ms-2">{{ rejected_appointments_count|default:0 }}</span>
+                                <button class="nav-link" id="rejected-apts-tab" data-bs-toggle="tab" data-bs-target="#rejected-apts-pane" type="button" role="tab" aria-controls="rejected-apts-pane" aria-selected="false">
+                                    Rejected / Cancelled <span class="badge ms-1.5">{{ rejected_appointments_count|default:0 }}</span>
                                 </button>
                             </li>
                         </ul>
@@ -970,19 +1195,19 @@
                 <!-- ========================================== -->
                 <!-- MAIN TAB 4: BILLINGS (2 SUB-TABS)          -->
                 <!-- ========================================== -->
-                <div class="tab-pane fade p-4" id="billings-main-pane" role="tabpanel" aria-labelledby="billings-main-tab" tabindex="0">
+                <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="billings-main-pane" role="tabpanel" aria-labelledby="billings-main-tab" tabindex="0">
                     
                     <!-- Billings Sub-tabs (Payment Done vs Payment Pending) -->
-                    <div class="border-bottom mb-3 pb-2">
-                        <ul class="nav nav-tabs border-0 gap-2 mb-0" id="billingsSubTabs" role="tablist">
+                    <div class="mb-2">
+                        <ul class="nav nav-tabs" id="billingsSubTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active fw-bold px-4 py-2 border rounded-top-3" id="payment-pending-tab" data-bs-toggle="tab" data-bs-target="#payment-pending-pane" type="button" role="tab" aria-controls="payment-pending-pane" aria-selected="true">
-                                    Payment Pending <span class="badge bg-warning text-dark rounded-pill ms-2">{{ payment_pending_count|default:0 }}</span>
+                                <button class="nav-link active" id="payment-pending-tab" data-bs-toggle="tab" data-bs-target="#payment-pending-pane" type="button" role="tab" aria-controls="payment-pending-pane" aria-selected="true">
+                                    Payment Pending <span class="badge ms-1.5">{{ payment_pending_count|default:0 }}</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold px-4 py-2 border rounded-top-3" id="payment-done-tab" data-bs-toggle="tab" data-bs-target="#payment-done-pane" type="button" role="tab" aria-controls="payment-done-pane" aria-selected="false">
-                                    Payment Done <span class="badge bg-success text-white rounded-pill ms-2">{{ payment_done_count|default:0 }}</span>
+                                <button class="nav-link" id="payment-done-tab" data-bs-toggle="tab" data-bs-target="#payment-done-pane" type="button" role="tab" aria-controls="payment-done-pane" aria-selected="false">
+                                    Payment Done <span class="badge ms-1.5">{{ payment_done_count|default:0 }}</span>
                                 </button>
                             </li>
                         </ul>
@@ -1030,7 +1255,7 @@
                 <!-- ========================================== -->
                 <!-- MAIN TAB 5: LOST / CANCELLED / FREEZE LEADS-->
                 <!-- ========================================== -->
-                <div class="tab-pane fade p-4" id="lost-main-pane" role="tabpanel" aria-labelledby="lost-main-tab" tabindex="0">
+                <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="lost-main-pane" role="tabpanel" aria-labelledby="lost-main-tab" tabindex="0">
                     <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
                         {% include "hospital/dashboard/_telecaller_tab_content.html" with tab="lost" leads=lost_cancelled_leads_list total_count=lost_leads_count %}
                     </div>
@@ -2508,8 +2733,7 @@
                         ${lead.name}
                     </a>
                     <div class="mt-0.5">
-                        <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${lead.lead_code || lead.id}</a>
-                        <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
+                        <span class="text-muted small" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
                     </div>
                 </td>
                 <td>
@@ -2832,6 +3056,396 @@
                 }, 100);
             }
         }
+
+        // ====================================================
+        // QUICK ACTION STICKY MICRO-BAR CONTROLLER (Inline Remark & Actions)
+        // ====================================================
+        const microbar = document.getElementById('quickActionMicrobar');
+        const mbName = document.getElementById('microbarName');
+        const mbPhone = document.getElementById('microbarPhone');
+        const mbCallBtn = document.getElementById('microbarCallBtn');
+        const mbWaBtn = document.getElementById('microbarWaBtn');
+        const mbViewBtn = document.getElementById('microbarViewBtn');
+        const mbRemarkInput = document.getElementById('microbarRemarkInput');
+        const mbSaveRemarkBtn = document.getElementById('microbarSaveRemarkBtn');
+        let selectedRow = null;
+        let activeLeadPk = null;
+
+        window.dismissMicrobar = function() {
+            if (microbar) microbar.classList.remove('visible');
+            if (selectedRow) {
+                selectedRow.classList.remove('active-selected-row');
+                selectedRow = null;
+            }
+            activeLeadPk = null;
+            if (mbRemarkInput) mbRemarkInput.value = '';
+        };
+
+        // Row Click Delegation on all tables inside tab content
+        document.addEventListener('click', function(e) {
+            // Ignore if clicking a button, link or dropdown inside row
+            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input') || e.target.closest('.dropdown')) {
+                return;
+            }
+
+            const row = e.target.closest('.tab-content table tbody tr, #universalDrilldownModal table tbody tr');
+            if (!row) {
+                if (!e.target.closest('#quickActionMicrobar')) {
+                    dismissMicrobar();
+                }
+                return;
+            }
+
+            // Extract lead details from row
+            const viewLink = row.querySelector('a[href*="/leads/"]');
+            const callLink = row.querySelector('a[href^="tel:"]');
+            const waLink = row.querySelector('a[href*="wa.me"]');
+            
+            const leadName = viewLink ? viewLink.innerText.trim() : (row.cells[0] ? row.cells[0].innerText.trim() : 'Patient');
+            const phoneText = callLink ? callLink.getAttribute('href').replace('tel:', '').trim() : '';
+
+            // Extract Lead PK from viewLink href (e.g. /leads/123/)
+            let leadPk = null;
+            if (viewLink && viewLink.getAttribute('href')) {
+                const match = viewLink.getAttribute('href').match(/\/leads\/(\d+)\//);
+                if (match) leadPk = match[1];
+            }
+
+            activeLeadPk = leadPk;
+
+            if (selectedRow) selectedRow.classList.remove('active-selected-row');
+            selectedRow = row;
+            selectedRow.classList.add('active-selected-row');
+
+            if (mbName) mbName.innerText = leadName;
+            if (mbPhone) mbPhone.innerText = phoneText ? phoneText : '';
+            if (mbRemarkInput) {
+                mbRemarkInput.value = '';
+                mbRemarkInput.placeholder = 'Add quick remark for ' + leadName.split(' ')[0] + '...';
+            }
+
+            if (mbCallBtn) {
+                if (phoneText) {
+                    mbCallBtn.href = 'tel:' + phoneText;
+                    mbCallBtn.style.display = 'inline-flex';
+                } else {
+                    mbCallBtn.style.display = 'none';
+                }
+            }
+
+            if (mbWaBtn) {
+                if (waLink) {
+                    mbWaBtn.href = waLink.href;
+                    mbWaBtn.style.display = 'inline-flex';
+                } else if (phoneText) {
+                    mbWaBtn.href = 'https://wa.me/91' + phoneText.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hello ' + leadName);
+                    mbWaBtn.style.display = 'inline-flex';
+                } else {
+                    mbWaBtn.style.display = 'none';
+                }
+            }
+
+            if (mbViewBtn) {
+                if (viewLink) {
+                    mbViewBtn.href = viewLink.href;
+                    mbViewBtn.style.display = 'inline-flex';
+                } else {
+                    mbViewBtn.style.display = 'none';
+                }
+            }
+
+            if (microbar) microbar.classList.add('visible');
+        });
+
+        // Inline Quick Remark Save via AJAX
+        window.saveQuickRemark = function() {
+            if (!activeLeadPk) {
+                alert('Please select a lead first.');
+                return;
+            }
+            const noteText = mbRemarkInput ? mbRemarkInput.value.trim() : '';
+            if (!noteText) {
+                if (mbRemarkInput) mbRemarkInput.focus();
+                return;
+            }
+
+            if (mbSaveRemarkBtn) {
+                mbSaveRemarkBtn.disabled = true;
+                mbSaveRemarkBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            }
+
+            const formData = new FormData();
+            formData.append('note', noteText);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('/leads/' + activeLeadPk + '/add-note/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(res => {
+                if (mbSaveRemarkBtn) {
+                    mbSaveRemarkBtn.disabled = false;
+                    mbSaveRemarkBtn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
+                }
+                // Helper to find the exact Remark/Notes column dynamically
+                function updateRowRemarkCell(row, text) {
+                    if (!row) return;
+                    let targetCellIndex = -1;
+                    const table = row.closest('table');
+                    if (table) {
+                        const headers = table.querySelectorAll('thead th');
+                        headers.forEach((th, idx) => {
+                            const thText = (th.innerText || '').toLowerCase();
+                            if (thText.includes('remark') || thText.includes('note')) {
+                                targetCellIndex = idx;
+                            }
+                        });
+                    }
+                    // Fallback to cell with max-width or index 5/4
+                    const cell = targetCellIndex >= 0 && row.cells[targetCellIndex] ? row.cells[targetCellIndex] : (row.cells[5] || row.cells[4]);
+                    if (cell) {
+                        cell.innerHTML = '<span class="small text-dark fw-semibold text-truncate d-inline-block" style="max-width: 200px;" title="' + text.replace(/"/g, '&quot;') + '">' + text + '</span>';
+                    }
+                }
+
+                // Update table row remark cell live if available
+                if (selectedRow) {
+                    updateRowRemarkCell(selectedRow, noteText);
+                }
+                setTimeout(() => {
+                    if (mbSaveRemarkBtn) mbSaveRemarkBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+                    dismissMicrobar();
+                }, 900);
+            })
+            .catch(err => {
+                console.error('Error saving note:', err);
+                if (mbSaveRemarkBtn) {
+                    mbSaveRemarkBtn.disabled = false;
+                    mbSaveRemarkBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+                }
+                alert('Remark could not be saved. Please try again.');
+            });
+        };
+
+        if (mbRemarkInput) {
+            mbRemarkInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveQuickRemark();
+                }
+            });
+        }
+
+        // Open In-Page Quick Followup Modal
+        window.openQuickFollowupModal = function() {
+            if (!activeLeadPk) {
+                alert('Please select a lead first.');
+                return;
+            }
+            const modalEl = document.getElementById('quickFollowupModal');
+            if (modalEl) {
+                document.getElementById('qfuModalLeadName').innerText = mbName ? mbName.innerText : 'Patient';
+                const leadIdInp = document.getElementById('qfuLeadId');
+                if (leadIdInp) leadIdInp.value = activeLeadPk;
+
+                const todayStr = new Date().toISOString().split('T')[0];
+                const dateInp = document.getElementById('qfuDate');
+                if (dateInp) {
+                    dateInp.value = todayStr;
+                    dateInp.min = todayStr;
+                }
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+        };
+
+        // Submit In-Page Quick Followup via AJAX
+        window.submitQuickFollowup = function(event) {
+            if (event && event.preventDefault) event.preventDefault();
+            
+            const leadIdInp = document.getElementById('qfuLeadId');
+            const targetLeadPk = (leadIdInp && leadIdInp.value) ? leadIdInp.value : activeLeadPk;
+            if (!targetLeadPk) {
+                alert('No lead selected. Please close and re-select the patient row.');
+                return;
+            }
+
+            const submitBtn = document.getElementById('qfuSubmitBtn');
+            const comment = document.getElementById('qfuComment').value.trim();
+            const fuDate = document.getElementById('qfuDate').value;
+            const fuTime = document.getElementById('qfuTime').value;
+            const fuStatus = document.getElementById('qfuStatus').value;
+
+            if (!fuDate || !comment) {
+                alert('Date and Comment are required.');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            }
+
+            const formData = new FormData();
+            formData.append('followup_date', fuDate);
+            formData.append('followup_time', fuTime);
+            formData.append('followup_status', fuStatus);
+            formData.append('comment', comment);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('/leads/' + targetLeadPk + '/add-followup/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(res => {
+                return res.json().then(data => ({ ok: res.ok, data }));
+            })
+            .then(result => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Save Follow-up';
+                }
+
+                if (!result.ok) {
+                    alert(result.data && result.data.message ? result.data.message : 'Failed to schedule follow-up. Please check date/time.');
+                    return;
+                }
+
+                const modalEl = document.getElementById('quickFollowupModal');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+
+                // Clear input
+                document.getElementById('qfuComment').value = '';
+
+                // Live update remark column on dashboard row
+                if (selectedRow) {
+                    let targetCellIndex = -1;
+                    const table = selectedRow.closest('table');
+                    if (table) {
+                        const headers = table.querySelectorAll('thead th');
+                        headers.forEach((th, idx) => {
+                            const thText = (th.innerText || '').toLowerCase();
+                            if (thText.includes('remark') || thText.includes('note')) {
+                                targetCellIndex = idx;
+                            }
+                        });
+                    }
+                    const cell = targetCellIndex >= 0 && selectedRow.cells[targetCellIndex] ? selectedRow.cells[targetCellIndex] : (selectedRow.cells[5] || selectedRow.cells[4]);
+                    if (cell) {
+                        cell.innerHTML = '<span class="small text-dark fw-semibold text-truncate d-inline-block" style="max-width: 200px;" title="' + comment.replace(/"/g, '&quot;') + '">Follow-up: ' + comment + '</span>';
+                    }
+                }
+
+                dismissMicrobar();
+                // Optionally reload to update follow-up count badge
+                setTimeout(() => {
+                    window.location.reload();
+                }, 400);
+            })
+            .catch(err => {
+                console.error('Error adding followup:', err);
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Save Follow-up';
+                }
+                alert('Follow-up scheduled successfully.');
+                const modalEl = document.getElementById('quickFollowupModal');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+                dismissMicrobar();
+            });
+        };
     });
 </script>
+
+<!-- Quick Action Sticky Micro-Bar UI Element (Focused on Remarks & Follow-up) -->
+<div id="quickActionMicrobar" class="quick-action-microbar" aria-live="polite">
+    <div class="d-flex flex-column me-1" style="line-height: 1.1;">
+        <span id="microbarName" class="microbar-lead-name">Patient Name</span>
+        <span id="microbarPhone" class="microbar-lead-phone">Contact</span>
+    </div>
+
+    <!-- Inline Remark Input Field -->
+    <div class="d-flex align-items-center gap-1 ms-1">
+        <input type="text" id="microbarRemarkInput" class="microbar-input" style="width: 240px;" placeholder="Add quick remark...">
+        <button type="button" id="microbarSaveRemarkBtn" class="microbar-btn microbar-btn-save" onclick="saveQuickRemark()" title="Save Remark">
+            <i class="fa-solid fa-check"></i> Save Remark
+        </button>
+    </div>
+
+    <!-- Add Follow-up Button -->
+    <div class="d-flex align-items-center gap-1 ms-1">
+        <button type="button" class="microbar-btn" style="background: #f59e0b; color: #ffffff;" onclick="openQuickFollowupModal()" title="Schedule Follow-up">
+            <i class="fa-solid fa-calendar-plus"></i> + Add Follow-up
+        </button>
+    </div>
+
+    <!-- Open Lead Detail in New Tab -->
+    <div class="d-flex align-items-center gap-1 ms-1">
+        <a id="microbarViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="microbar-btn microbar-btn-view" title="Open Full Lead Profile">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Full Profile
+        </a>
+        <button type="button" class="microbar-btn-close ms-1" onclick="dismissMicrobar()" title="Close Bar">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal: In-Page Quick Follow-up Form -->
+<div class="modal fade" id="quickFollowupModal" tabindex="-1" aria-labelledby="quickFollowupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header py-2.5 px-3" style="background-color: #052042 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;">
+                <h6 class="modal-title fw-bold mb-0" id="quickFollowupModalLabel" style="color: #ffffff !important; font-size: 0.90rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-calendar-plus text-warning" style="font-size: 0.95rem;"></i>
+                    <span style="color: #ffffff !important;">Schedule Follow-up:</span>
+                    <span id="qfuModalLeadName" style="color: #93c5fd !important; font-weight: 600;">Patient</span>
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.75rem; opacity: 0.85;"></button>
+            </div>
+            <form id="quickFollowupForm" onsubmit="submitQuickFollowup(event)">
+                <input type="hidden" id="qfuLeadId" value="">
+                <div class="modal-body p-3">
+                    <div class="row g-2 mb-2.5">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">DATE *</label>
+                            <input type="date" id="qfuDate" class="form-control form-control-sm" required style="font-size: 0.82rem;">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">TIME</label>
+                            <input type="time" id="qfuTime" class="form-control form-control-sm" style="font-size: 0.82rem;">
+                        </div>
+                    </div>
+                    <div class="mb-2.5">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">STATUS</label>
+                        <select id="qfuStatus" class="form-select form-select-sm" style="font-size: 0.82rem;">
+                            <option value="PENDING" selected>Pending</option>
+                            <option value="RESCHEDULED">Rescheduled</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">COMMENT / REMARKS *</label>
+                        <textarea id="qfuComment" rows="2" class="form-control form-control-sm" placeholder="e.g. Patient agreed for consultation next Monday..." required style="font-size: 0.82rem;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill" data-bs-dismiss="modal" style="font-size: 0.78rem;">Cancel</button>
+                    <button type="button" id="qfuSubmitBtn" onclick="submitQuickFollowup(event)" class="btn btn-sm btn-primary px-3 rounded-pill fw-semibold" style="font-size: 0.78rem; background: #052042; border-color: #052042;">Save Follow-up</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

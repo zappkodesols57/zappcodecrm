@@ -255,6 +255,21 @@
             <div class="col-6 col-sm-3">
               <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Patient Lead ID</span>
               <strong class="text-dark" style="font-size: 0.85rem;">{{ lead.lead_code|default:lead.pk }}</strong>
+              {% if lead.parent_lead %}
+                <div class="mt-1">
+                  <a href="{% url 'leads:lead_detail' lead.parent_lead.pk %}" class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle text-decoration-none" style="font-size: 0.68rem;" title="View Parent Original Lead">
+                    &larr; Prev #{{ lead.parent_lead.lead_code|default:lead.parent_lead.pk }}
+                  </a>
+                </div>
+              {% elif lead.clones.exists %}
+                <div class="mt-1">
+                  {% for c in lead.clones.all %}
+                    <a href="{% url 'leads:lead_detail' c.pk %}" class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle text-decoration-none" style="font-size: 0.68rem;" title="View Re-engaged Active Clone">
+                      Re-engaged #{{ c.lead_code|default:c.pk }} &rarr;
+                    </a>
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
             <div class="col-6 col-sm-3">
               <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Lead Owner</span>

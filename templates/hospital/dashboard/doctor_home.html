@@ -17,61 +17,51 @@
     color: #0f2744;
   }
 
-  /* Theme KPI Cards */
+  /* Theme KPI Cards - Compact High Density */
   .doc-stat-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 1.25rem 1.4rem;
+    border-radius: var(--radius-md, 10px);
+    padding: 0.65rem 0.85rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(15, 39, 68, 0.04);
-    transition: all 0.25s ease;
+    box-shadow: 0 1px 3px rgba(15, 39, 68, 0.04);
+    transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 118px;
+    min-height: 84px;
     cursor: pointer;
   }
   .doc-stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 24px -4px rgba(15, 39, 68, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px -3px rgba(15, 39, 68, 0.08);
     border-color: #cbd5e1;
   }
   .doc-stat-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
+    display: none;
   }
-  .doc-stat-card.kpi-today::before { background: linear-gradient(90deg, #0f2744, #2563eb); }
-  .doc-stat-card.kpi-pending::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
-  .doc-stat-card.kpi-upcoming::before { background: linear-gradient(90deg, #0284c7, #06b6d4); }
-  .doc-stat-card.kpi-hours::before { background: linear-gradient(90deg, #10b981, #059669); }
-  .doc-stat-card.kpi-total::before { background: linear-gradient(90deg, #6366f1, #0f2744); }
 
   .doc-stat-title {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     color: #64748b;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
   }
   .doc-stat-val {
-    font-size: 1.85rem;
+    font-size: 1.45rem;
     font-weight: 800;
-    line-height: 1.15;
-    color: #0f172a;
+    line-height: 1.1;
+    color: #0f2744;
     margin: 0;
   }
   .doc-stat-sub {
-    font-size: 0.74rem;
+    font-size: 0.68rem;
     font-weight: 500;
     color: #94a3b8;
-    margin-top: 0.35rem;
+    margin-top: 0.15rem;
   }
 
   /* Main Nav Tabs Styling (Square, Connected with no space) */

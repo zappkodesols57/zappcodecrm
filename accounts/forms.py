@@ -33,7 +33,7 @@ class CRMUserCreateForm(UserCreationForm):
         required=False,
         initial=False,
         label="Allow Branch Transfer",
-        help_text="Check to allow this Lead Attendant / Employee to transfer leads to other branches of this business."
+        help_text="Check to allow this Telecaller / Employee to transfer leads to other branches of this business."
     )
     bulk_self_assign_limit = forms.IntegerField(
         required=False,
@@ -387,7 +387,7 @@ class CRMUserRegisterForm(UserCreationForm):
     role = forms.ChoiceField(choices=[
         (User.Role.ADMIN, "Admin"),
         (User.Role.MANAGER, "Manager"),
-        (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+        (User.Role.LEAD_ATTENDENT, "Telecaller"),
         (User.Role.DOCTOR, "Doctor"),
     ], initial=User.Role.LEAD_ATTENDENT, required=True)
 

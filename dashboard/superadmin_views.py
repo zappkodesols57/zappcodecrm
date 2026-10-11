@@ -1825,11 +1825,14 @@ def live_metrics_api(request):
             Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)
         ).count()
 
-        # Follow-ups
+        # Follow-ups (null-safe JSON lookup for MySQL compatibility)
         booked_exclude = (
-            Q(custom_data__appointment_status__icontains='Book') |
-            Q(custom_data__appointment_status__icontains='Confirm') |
-            Q(deal_status__in=['WON', 'LOST'])
+            Q(custom_data__appointment_status__isnull=False, custom_data__appointment_status__icontains='Book') |
+            Q(custom_data__appointment_status__isnull=False, custom_data__appointment_status__icontains='Confirm') |
+            Q(deal_status__in=['WON', 'LOST']) |
+            Q(admission_status='ADMISSION_DONE') |
+            Q(stage__name__icontains='Lost') |
+            Q(stage__name__icontains='Payment Done')
         )
         today_followups = my_leads_qs.filter(next_followup_date=today).exclude(booked_exclude).count()
 
@@ -1844,8 +1847,12 @@ def live_metrics_api(request):
         awaiting_approval_count = apt_qs.filter(status=AppointmentStatus.SCHEDULED).count()
         confirmed_count = apt_qs.filter(status=AppointmentStatus.APPROVED).count()
 
-        # Call Not Done (Exact same logic as dashboard calculate_insights)
-        call_not_done_base = my_leads_qs
+        # Call Not Done (Exact same logic as telecaller_home and calculate_insights)
+        if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR):
+            call_not_done_base = leads_qs.filter(assigned_to=user)
+        else:
+            call_not_done_base = my_leads_qs
+
         if time_filter == 'today':
             cnd_raw_qs = call_not_done_base.filter(
                 Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)

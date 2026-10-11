@@ -113,10 +113,12 @@ class User(AbstractUser):
         SUPER_ADMIN = "SUPER_ADMIN", "Super Admin"
         ADMIN = "ADMIN", "Admin"
         MANAGER = "MANAGER", "Manager"
-        LEAD_ATTENDENT = "LEAD_ATTENDENT", "Lead Attendant"
+        LEAD_ATTENDENT = "LEAD_ATTENDENT", "Telecaller"
         DOCTOR = "DOCTOR", "Doctor"
         HR = "HR", "HR"
         COUNSELLOR = "COUNSELLOR", "Counsellor"
+
+    Role.TELECALLER = Role.LEAD_ATTENDENT
 
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LEAD_ATTENDENT)

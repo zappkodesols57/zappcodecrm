@@ -96,9 +96,6 @@
     background-position: right 0.55rem center !important;
     background-size: 9px 7px !important;
     cursor: pointer !important;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
   }
 
   .report-filter-bar .form-control:focus,
@@ -187,21 +184,21 @@
     padding: 0.25rem 0.85rem !important;
   }
 
-  /* Table Header exact height and clean typography */
+  /* Table Header exact height and clean typography - High Density */
   .report-table thead th {
     background-color: #F8FAFC !important;
     color: #475569 !important;
     font-weight: 700 !important;
-    font-size: 0.74rem !important;
+    font-size: 0.72rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.4px !important;
-    padding: 0.55rem 0.65rem !important;
+    letter-spacing: 0.35px !important;
+    padding: 0.40rem 0.60rem !important;
     border-bottom: 1px solid #E2E8F0 !important;
     border-top: none !important;
   }
 
   .report-table tbody td {
-    padding: 0.55rem 0.65rem !important;
+    padding: 0.40rem 0.60rem !important;
     font-size: 0.80rem !important;
     vertical-align: middle !important;
   }
@@ -399,7 +396,7 @@
 
       <!-- 2. Stages Dropdown -->
       <div class="filter-item-dropdown">
-        <select name="stage" class="form-select">
+        <select name="stage" class="form-select no-tom-select">
           <option value="">Select Stage</option>
           {% for stg in stages %}
           <option value="{{ stg.name }}" {% if stg.name in selected_stages or stg.id|stringformat:"s" in selected_stages %}selected{% endif %}>{{ stg.name }}</option>
@@ -409,7 +406,7 @@
 
       <!-- 3. Status Dropdown -->
       <div class="filter-item-dropdown">
-        <select name="deal_status" class="form-select">
+        <select name="deal_status" class="form-select no-tom-select">
           <option value="">Select Status</option>
           <option value="OPEN" {% if 'OPEN' in selected_deal_statuses %}selected{% endif %}>Open</option>
           <option value="PENDING" {% if 'PENDING' in selected_deal_statuses %}selected{% endif %}>Pending</option>
@@ -425,7 +422,7 @@
 
       <!-- 4. Telecaller Dropdown -->
       <div class="filter-item-dropdown">
-        <select name="assigned_to" class="form-select">
+        <select name="assigned_to" class="form-select no-tom-select">
           <option value="">Select Telecaller</option>
           <option value="unassigned" {% if 'unassigned' in selected_assigned %}selected{% endif %}>Unassigned</option>
           {% for staff in employees %}
@@ -438,7 +435,7 @@
 
       <!-- 5. Campaign Dropdown -->
       <div class="filter-item-dropdown">
-        <select name="campaign" class="form-select">
+        <select name="campaign" class="form-select no-tom-select">
           <option value="">Select Campaign</option>
           {% for camp in campaigns %}
           <option value="{{ camp.name }}" {% if camp.name in selected_campaigns or camp.id|stringformat:"s" in selected_campaigns %}selected{% endif %}>{{ camp.name }}</option>
@@ -629,7 +626,7 @@
             <!-- 4. Stage -->
             <td class="px-2">
               <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-0.5 fw-semibold rounded-pill font-monospace" style="font-size: 0.70rem;">
-                {{ lead.stage|default:"Appointment" }}
+                {{ lead.display_stage|default:lead.stage|default:"Appointment" }}
               </span>
             </td>
 

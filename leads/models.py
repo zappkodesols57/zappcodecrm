@@ -599,6 +599,7 @@ class Lead(models.Model):
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_leads", db_index=True)
     hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="leads")
     assigned_manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_leads")
+    parent_lead = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="clones", help_text="Original lead if this is a re-engagement clone")
 
     # Follow-up cache (denormalized for fast list/dashboard queries; source of truth is FollowUp model)
     next_followup_date = models.DateField(null=True, blank=True, db_index=True)
@@ -823,7 +824,7 @@ class Lead(models.Model):
         """
         Dynamically calculates pipeline Stage:
         - For Academy/Other: uses the configured stage name, or 'New'.
-        - For Hospital: dynamic clinical pipeline (Awaiting Doctor Approval, Booking Confirmed, Completed, Payment Done, etc.)
+        - For Hospital: dynamic clinical pipeline (Awaiting Doctor Approval, Booking Confirmed, Completed, Payment Done, Follow up, New, Lost, etc.)
         """
         st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
         if not self.is_hospital_industry:
@@ -839,6 +840,12 @@ class Lead(models.Model):
         # Doctor Cancelled / Rejected appointment awaiting follow-up -> Stage is 'Appointment Cancelled'
         if "DOCTOR CANCELLED" in appt_st or "DOCTOR REJECT" in appt_st or st_name == "appointment cancelled" or "APPOINTMENT CANCELLED" in st_up:
             return "Appointment Cancelled"
+
+        # Check Lost / Cancelled:
+        # If custom_temperature is Freeze (e.g. 3 negative remarks) or explicit lost/cancelled
+        temp_val = self.custom_temperature
+        if temp_val == "Freeze":
+            return "Lost"
 
         if adm_st in ("LOST", "CANCELLED") or (("CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up) and st_name != "appointment cancelled") or "LOST" in appt_st or ("CANCEL" in appt_st and "DOCTOR" not in appt_st):
             return "Cancelled" if ("CANCEL" in st_up or "CANCEL" in appt_st or adm_st == "CANCELLED") else "Lost"
@@ -862,13 +869,15 @@ class Lead(models.Model):
             from followups.models import FollowUp
             has_active_pending_fu = FollowUp.objects.filter(lead=self).exists()
 
-        if has_active_pending_fu or "FOLLOW" in st_up or "FOLLOW" in appt_st:
+        def is_clean_val(v):
+            return bool(v and str(v).strip().lower() not in ("nan", "none", "—", "-", "", "null", "nil"))
+
+        has_remarks = any(is_clean_val(cd.get(k)) for k in ["remark_1", "remark_2", "remark_3", "followup_remark", "comments"])
+
+        if has_active_pending_fu or has_remarks or "FOLLOW" in st_up or "FOLLOW" in appt_st:
             return "Follow up"
 
-        if self.assigned_to_id or cd.get("lead_attendant"):
-            return "Assigned"
-
-        return st_name or "New"
+        return "New"
 
     @property
     def custom_temperature(self):
@@ -1001,21 +1010,40 @@ class Lead(models.Model):
         current_level = base_level
         min_level = 0
 
+        # Check explicit 3 remarks first
+        r1, r2, r3 = cd.get("remark_1"), cd.get("remark_2"), cd.get("remark_3")
+        if is_clean_val(r1) and is_clean_val(r2) and is_clean_val(r3):
+            if matches_any(r1, neg_keywords) and matches_any(r2, neg_keywords) and matches_any(r3, neg_keywords):
+                return "Freeze"
+
+        neg_count = 0
+        pos_count = 0
         for text in interactions:
             is_pos = matches_any(text, pos_keywords)
             is_neg = matches_any(text, neg_keywords)
 
             if is_pos and not is_neg:
-                current_level = min(3, current_level + 1)
+                pos_count += 1
             elif is_neg and not is_pos:
-                current_level = max(min_level, current_level - 1)
+                neg_count += 1
             elif is_pos and is_neg:
                 if "NOT" in str(text).upper() or "NO " in str(text).upper():
-                    current_level = max(min_level, current_level - 1)
+                    neg_count += 1
                 else:
-                    current_level = min(3, current_level + 1)
+                    pos_count += 1
 
-        return TEMP_LEVELS[current_level]
+        # User Rule for Hospital: Freeze ONLY if 3 negative remarks exist and no positive interactions
+        if neg_count >= 3 and pos_count == 0:
+            return "Freeze"
+
+        # If 1 or 2 negative remarks exist, keep actionable: Cold
+        if neg_count > 0 and pos_count == 0:
+            return "Cold"
+
+        if pos_count > neg_count:
+            return "Hot"
+
+        return "Warm"
 
     @property
     def custom_priority(self):
@@ -1147,23 +1175,24 @@ class Lead(models.Model):
         if has_completed_fu and not has_active_pending_fu and not has_future_or_pending_apt:
             return "Completed"
 
-        # 5. Check OPEN (Assigned leads with no remarks / follow-up done yet)
-        is_assigned = bool(self.assigned_to_id or (attendant and str(attendant).strip().lower() not in ("unassigned", "none", "nan", "", "-")))
-        has_interactions = bool(
-            self.followup_count > 0
+        # 5. Check OPEN: Leads with follow-up remarks, interaction history, or active follow-up stage
+        def is_clean_val(v):
+            return bool(v and str(v).strip().lower() not in ("nan", "none", "—", "-", "", "null", "nil"))
+
+        has_followup_or_remarks = bool(
+            has_active_pending_fu
+            or self.followup_count > 0
             or self.last_followup_date
-            or any(cd.get(k) and str(cd.get(k)).strip().lower() not in ("nan", "none", "", "—", "-") for k in ["remark_1", "remark_2", "remark_3", "followup_remark", "comments"])
+            or any(is_clean_val(cd.get(k)) for k in ["remark_1", "remark_2", "remark_3", "followup_remark", "comments"])
             or bool(self.notes and self.notes.strip())
+            or (self.pk and hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache and bool(self.followups.all()))
+            or (self.pk and not hasattr(self, '_prefetched_objects_cache') and self.followups.exists())
         )
 
-        if is_assigned:
-            if not has_interactions and st_name in ("new", "assigned", "call not done", "open"):
-                return "Open"
-            if has_interactions:
-                return "Open"
+        if has_followup_or_remarks or "FOLLOW" in st_name:
             return "Open"
 
-        # 6. Check NEW (Unassigned newly created/imported leads)
+        # 6. Check NEW (Fresh leads without follow-up remarks, appointments, payments)
         return "New"
 
     @property

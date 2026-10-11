@@ -2107,7 +2107,7 @@ def admin_reports_view(request):
         all_choices = [
             (User.Role.ADMIN, "Admin"),
             (User.Role.MANAGER, "Manager"),
-            (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+            (User.Role.LEAD_ATTENDENT, "Telecaller"),
             (User.Role.DOCTOR, "Doctor"),
             (User.Role.COUNSELLOR, "Counsellor"),
             (User.Role.HR, "HR"),
@@ -2117,7 +2117,7 @@ def admin_reports_view(request):
         role_choices = [
             (User.Role.ADMIN, "Admin"),
             (User.Role.MANAGER, "Manager"),
-            (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+            (User.Role.LEAD_ATTENDENT, "Telecaller"),
             (User.Role.DOCTOR, "Doctor"),
             (User.Role.COUNSELLOR, "Counsellor"),
             (User.Role.HR, "HR"),

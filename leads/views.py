@@ -3029,7 +3029,20 @@ def lead_detail(request, pk):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
 
-    timeline = lead.activities.all()[:200]
+    # Maintain continuous timeline across re-engagement clones and parent lead
+    related_lead_ids = [lead.id]
+    if lead.parent_lead_id:
+        related_lead_ids.append(lead.parent_lead_id)
+    # Also include any sibling or child clones if present
+    clone_ids = list(lead.clones.values_list("id", flat=True))
+    if clone_ids:
+        related_lead_ids.extend(clone_ids)
+    if lead.parent_lead_id:
+        parent_sibling_ids = list(lead.parent_lead.clones.values_list("id", flat=True))
+        related_lead_ids.extend(parent_sibling_ids)
+    related_lead_ids = list(set(related_lead_ids))
+
+    timeline = Activity.objects.filter(lead_id__in=related_lead_ids).order_by("-created_at")[:200]
     followups = lead.followups.select_related("created_by").all()[:50]
     admission = getattr(lead, "admission", None)
     
@@ -3232,8 +3245,12 @@ def add_note(request, pk):
 def add_followup(request, pk):
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Lead not found."}, status=404)
         return redirect("leads:lead_list")
     if not _can_access_lead(request.user, lead):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "You do not have permission to access this lead."}, status=403)
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
     if request.method == "POST":
@@ -3246,6 +3263,8 @@ def add_followup(request, pk):
             try:
                 parsed_fu = datetime.strptime(fu_date_raw, "%Y-%m-%d").date()
                 if parsed_fu < today:
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({"status": "error", "message": "Follow-up date cannot be in the past."}, status=400)
                     messages.error(request, "Follow-up date cannot be in the past.")
                     return redirect("leads:lead_detail", pk=pk)
                 fu_date = parsed_fu
@@ -3260,6 +3279,8 @@ def add_followup(request, pk):
                 if fu_date == today:
                     now_time = timezone.localtime().time()
                     if fu_time < now_time:
+                        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                            return JsonResponse({"status": "error", "message": f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time."}, status=400)
                         messages.error(request, f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
                         return redirect("leads:lead_detail", pk=pk)
             except ValueError:
@@ -3271,8 +3292,97 @@ def add_followup(request, pk):
 
         comment_text = request.POST.get("comment", "").strip()
 
+
+
+        # Check if the lead is in a terminal state (Lost or Payment Done / Won)
+        is_lost_or_cancelled = (
+            lead.deal_status == DealStatus.LOST or
+            lead.admission_status in ['LOST', 'CANCELLED', 'DROPOUT'] or
+            lead.temperature == LeadTemperature.FREEZE or
+            (lead.stage and any(term in lead.stage.name.lower() for term in ['lost', 'cancel'])) or
+            any(term in str((lead.custom_data or {}).get('deal_status', '')).lower() for term in ['lost', 'cancel']) or
+            any(term in str((lead.custom_data or {}).get('appointment_status', '')).lower() for term in ['cancel', 'not int'])
+        )
+
+        is_payment_done = (
+            lead.deal_status == DealStatus.WON or
+            lead.admission_status == 'ADMISSION_DONE' or
+            (lead.stage and any(term in lead.stage.name.lower() for term in ['payment done', 'booked', 'won'])) or
+            'payment done' in str((lead.custom_data or {}).get('deal_status', '')).lower() or
+            'payment done' in str((lead.custom_data or {}).get('appointment_status', '')).lower() or
+            'won' in str((lead.custom_data or {}).get('deal_status', '')).lower()
+        )
+
+        target_lead = lead
+        was_cloned = False
+
+        if is_lost_or_cancelled or is_payment_done:
+            # Clone lead so the terminal count in Lost / Payment Done is never duplicated,
+            # while a fresh lead life cycle begins with this scheduled follow-up.
+            fu_stage = (
+                LeadStage.objects.filter(name__iexact='Follow up').first()
+                or LeadStage.objects.filter(name__iexact='Follow-up').first()
+                or LeadStage.objects.filter(name__iexact='New').first()
+            )
+
+            # Deep clean custom_data so terminal status flags don't leak into cloned lead
+            clean_custom_data = dict(lead.custom_data or {})
+            clean_custom_data.pop('deal_status', None)
+            clean_custom_data.pop('appointment_status', None)
+            clean_custom_data.pop('consultation_status', None)
+            clean_custom_data.pop('lost_reason', None)
+            clean_custom_data.pop('cancellation_reason', None)
+
+            cloned_lead = Lead.objects.create(
+                name=lead.name,
+                mobile=lead.mobile,
+                alternate_mobile=lead.alternate_mobile,
+                email=lead.email,
+                city=lead.city,
+                state=lead.state,
+                location=lead.location,
+                education=lead.education,
+                qualification=lead.qualification,
+                course=lead.course,
+                lead_type=lead.lead_type,
+                temperature=LeadTemperature.HOT if is_lost_or_cancelled else LeadTemperature.WARM,
+                stage=fu_stage or lead.stage,
+                deal_status=DealStatus.OPEN,
+                admission_status=AdmissionStatus.OPEN,
+                inquiry_date=today,
+                hospital=lead.hospital,
+                lead_source=lead.lead_source,
+                source_category=lead.source_category,
+                campaign=lead.campaign,
+                ad_platform=lead.ad_platform,
+                custom_data=clean_custom_data,
+                assigned_to=request.user,
+                assigned_manager=lead.assigned_manager,
+                parent_lead=lead,
+                notes=f"Re-engaged from previous lead #{lead.lead_code or lead.pk} ({'Lost' if is_lost_or_cancelled else 'Payment Done'}).",
+                created_by=request.user,
+            )
+
+            # Log activity on both leads to preserve timeline
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.NOTE,
+                description=f"Re-engaged! New lead cycle initiated with #{cloned_lead.lead_code or cloned_lead.pk} by {request.user.get_full_name() or request.user.username}.",
+                created_by=request.user,
+            )
+
+            Activity.objects.create(
+                lead=cloned_lead,
+                activity_type=ActivityType.LEAD_CREATED,
+                description=f"Cloned for re-engagement from original lead #{lead.lead_code or lead.pk} with linked timeline.",
+                created_by=request.user,
+            )
+
+            target_lead = cloned_lead
+            was_cloned = True
+
         FollowUp.objects.create(
-            lead=lead,
+            lead=target_lead,
             followup_date=fu_date,
             followup_time=fu_time,
             followup_mode=request.POST.get("followup_mode", FollowUpMode.CALL),
@@ -3283,27 +3393,38 @@ def add_followup(request, pk):
             created_by=request.user,
         )
 
-        # Update Lead cache
+        # Update target lead cache
         if initial_status == FollowUpStatus.PENDING:
-            lead.next_followup_date = fu_date
-            lead.next_followup_time = fu_time
-        elif not lead.followups.filter(followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]).exists():
-            lead.next_followup_date = None
-            lead.next_followup_time = None
+            target_lead.next_followup_date = fu_date
+            target_lead.next_followup_time = fu_time
+        elif not target_lead.followups.filter(followup_status__in=[FollowUpStatus.PENDING, FollowUpStatus.RESCHEDULED]).exists():
+            target_lead.next_followup_date = None
+            target_lead.next_followup_time = None
 
-        if lead.assigned_to is None:
-            lead.assigned_to = request.user
-        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned']:
+        if target_lead.assigned_to is None:
+            target_lead.assigned_to = request.user
+        if not target_lead.stage or target_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned']:
             fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Follow-up').first()
             if fu_stage:
-                lead.stage = fu_stage
+                target_lead.stage = fu_stage
 
-        new_temp = (lead.custom_temperature or "").upper()
+        new_temp = (target_lead.custom_temperature or "").upper()
         if new_temp in LeadTemperature.values:
-            lead.temperature = new_temp
-        lead.save()
-        messages.success(request, "Follow-up scheduled successfully.")
-    return redirect("leads:lead_detail", pk=pk)
+            target_lead.temperature = new_temp
+        target_lead.save()
+
+        success_msg = f"Follow-up scheduled successfully. (New Lead #{target_lead.lead_code} created for re-engagement)" if was_cloned else "Follow-up scheduled successfully."
+        messages.success(request, success_msg)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                "status": "success",
+                "message": success_msg,
+                "fu_date": str(fu_date),
+                "was_cloned": was_cloned,
+                "cloned_lead_id": target_lead.id,
+                "cloned_lead_code": target_lead.lead_code,
+            })
+    return redirect("leads:lead_detail", pk=target_lead.pk if was_cloned else pk)
 
 
 @login_required

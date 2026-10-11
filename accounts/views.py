@@ -117,9 +117,9 @@ def user_list(request):
         try:
             created = auto_generate_master_data_profiles(hospital=hospital)
             if created:
-                messages.success(request, f"Successfully created {len(created)} temporary user profiles for Lead Attendants & Doctors from master data! (Default password: Nelson@123)")
+                messages.success(request, f"Successfully created {len(created)} temporary user profiles for Telecallers & Doctors from master data! (Default password: <FirstName>@zappcode)")
             else:
-                messages.info(request, "All Lead Attendants and Doctors in master data already have matching user profiles.")
+                messages.info(request, "All Telecallers and Doctors in master data already have matching user profiles.")
         except Exception as e:
             messages.warning(request, f"Profile scan completed with skipped duplicates: {str(e)}")
         return redirect("accounts:user_list")
@@ -172,14 +172,14 @@ def user_list(request):
     if request.user.hospital:
         if request.user.role == User.Role.MANAGER:
             available_roles = [
-                (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+                (User.Role.LEAD_ATTENDENT, "Telecaller"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
         else:
             available_roles = [
                 (User.Role.ADMIN, "Admin"),
                 (User.Role.MANAGER, "Manager"),
-                (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+                (User.Role.LEAD_ATTENDENT, "Telecaller"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
     else:
@@ -208,8 +208,8 @@ def user_list(request):
 def auto_generate_master_data_profiles(hospital=None):
     """
     Scans Lead custom_data & relations to auto-generate temporary User profiles
-    and HospitalDoctor entries for uncreated Lead Attendants and Doctors.
-    Default Temporary Password: 'Nelson@123'
+    and HospitalDoctor entries for uncreated Telecallers and Doctors.
+    Default Temporary Password: '<FirstName>@zappcode'
     Optimized for sub-second execution using in-memory set lookups.
     """
     from django.db.models import Q
@@ -304,9 +304,10 @@ def auto_generate_master_data_profiles(hospital=None):
                 uname = f"{base_username}{idx}"
                 idx += 1
 
+            default_pw = f"{first_n}@zappcode"
             new_user = User.objects.create_user(
                 username=uname,
-                password="Nelson@123",
+                password=default_pw,
                 first_name=first_n,
                 last_name=last_n,
                 role=User.Role.LEAD_ATTENDENT,
@@ -341,9 +342,10 @@ def auto_generate_master_data_profiles(hospital=None):
                 uname = f"{raw_uname}{idx}"
                 idx += 1
 
+            default_pw = f"{first_n}@zappcode"
             existing_user = User.objects.create_user(
                 username=uname,
-                password="Nelson@123",
+                password=default_pw,
                 first_name=first_n,
                 last_name=last_n,
                 role=User.Role.DOCTOR,
