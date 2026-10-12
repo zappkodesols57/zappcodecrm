@@ -70,8 +70,9 @@
     </div>
     <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold">{{ mode }} Mode</span>
   </div>
-    <form method="post" id="userForm">
-      {% csrf_token %}
+  <form method="post" id="userForm">
+    {% csrf_token %}
+    <div class="card-body p-4 p-md-4">
       
       {% if form.non_field_errors %}
       <div class="alert alert-danger py-2 small mb-3 rounded-3">
@@ -82,12 +83,12 @@
       <!-- 1. Main Account Details (3 Fields Per Row) -->
       <div class="row g-3">
         {% for field in form %}
-          {% if field.field.widget.input_type != 'checkbox' and field.name != 'password1' and field.name != 'password2' %}
+          {% if field.field.widget.input_type != 'checkbox' and field.name != 'password1' and field.name != 'password2' and field.name != 'assigned_branches' and field.name != 'branch' %}
           <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
             <label class="form-label small fw-semibold text-dark mb-1">
               {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
             </label>
-            {% if field.name == 'role' or field.name == 'reports_to' or field.name == 'department' or field.name == 'speciality' or field.name == 'branch' %}
+            {% if field.name == 'role' or field.name == 'reports_to' or field.name == 'department' or field.name == 'speciality' %}
               <div class="custom-select-wrapper">
                 {{ field }}
               </div>
@@ -103,6 +104,44 @@
           {% endif %}
         {% endfor %}
       </div>
+
+      <!-- Branch Assignment (Multiple Checkboxes) -->
+      {% if form.assigned_branches %}
+      <div id="div_id_assigned_branches" class="mt-4">
+        <label class="form-label small fw-semibold text-dark mb-1">
+          <i class="fa-solid fa-code-branch text-primary me-1"></i> Assigned Branches
+        </label>
+        <div class="p-3 bg-light rounded-3 border">
+          <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+            <span class="text-muted small" style="font-size: 0.75rem;">
+              Select branches this user can access and manage leads for. If no branch is selected, user has full business access.
+            </span>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-primary" style="font-size: 0.73rem;" onclick="toggleAllBranches(true)">Select All</button>
+              <span class="text-muted" style="font-size: 0.73rem;">|</span>
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-secondary" style="font-size: 0.73rem;" onclick="toggleAllBranches(false)">Clear All</button>
+            </div>
+          </div>
+          <div class="row g-2">
+            {% for choice in form.assigned_branches %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+              <div class="form-check p-2 bg-white rounded border h-100 d-flex align-items-center">
+                <input type="checkbox" name="assigned_branches" value="{{ choice.data.value }}" id="{{ choice.id_for_label }}" class="form-check-input ms-0 me-2 branch-checkbox" {% if choice.data.selected %}checked{% endif %}>
+                <label class="form-check-label small fw-medium text-dark mb-0 cursor-pointer text-truncate" for="{{ choice.id_for_label }}" title="{{ choice.choice_label }}">
+                  {{ choice.choice_label }}
+                </label>
+              </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-muted small py-1">No branches configured for this business yet.</div>
+            {% endfor %}
+          </div>
+          {% if form.assigned_branches.errors %}
+          <div class="text-danger small mt-2" style="font-size: 0.75rem;">{{ form.assigned_branches.errors|striptags }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
 
       <!-- 2. Password & Confirm Password (Side-by-Side in 2 Equal Columns with Eye Toggle) -->
       {% if form.password1 or form.password2 %}
@@ -144,7 +183,7 @@
       <!-- 3. Permissions & Status Checkboxes (Placed Right Before Save Button) -->
       <div class="row g-3 mt-1">
         {% for field in form %}
-          {% if field.field.widget.input_type == 'checkbox' %}
+          {% if field.field.widget.input_type == 'checkbox' and field.name != 'assigned_branches' %}
           <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
             <div class="p-3 bg-light rounded-3 border h-100">
               <div class="form-check m-0">
@@ -166,12 +205,12 @@
         <a href="{% url 'accounts:user_list' %}" class="btn btn-light rounded-pill px-4 border">
           <i class="fa-solid fa-arrow-left me-1"></i> Cancel & Return
         </a>
-        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+        <button type="submit" id="saveUserBtn" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
           <i class="fa-solid fa-check me-1"></i> Save Employee User
         </button>
       </div>
-    </form>
-  </div>
+    </div>
+  </form>
 </div>
 
 <script>
@@ -213,13 +252,13 @@
     }
     {% endif %}
 
-    // Enforce 10-digit phone input
+    // Format 10-digit phone input (optional field)
     const phoneInput = document.getElementById("id_phone") || document.querySelector('input[name="phone"]');
     if (phoneInput) {
       phoneInput.setAttribute("maxlength", "10");
-      phoneInput.setAttribute("minlength", "10");
+      phoneInput.removeAttribute("minlength");
+      phoneInput.removeAttribute("pattern");
       phoneInput.setAttribute("inputmode", "numeric");
-      phoneInput.setAttribute("pattern", "^[0-9]{10}$");
       phoneInput.setAttribute("placeholder", "10-digit mobile number");
       phoneInput.addEventListener("input", function() {
         this.value = this.value.replace(/[^0-9]/g, "").slice(0, 10);
@@ -245,23 +284,60 @@
       const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
       const isEligibleForCallingTarget = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
       
-      if (deptDiv) deptDiv.style.display = isDoctor ? "block" : "none";
-      if (specDiv) specDiv.style.display = isDoctor ? "block" : "none";
+      if (deptDiv) {
+        deptDiv.style.display = isDoctor ? "block" : "none";
+        const deptInput = document.getElementById("id_department");
+        if (deptInput) deptInput.disabled = !isDoctor;
+      }
+      if (specDiv) {
+        specDiv.style.display = isDoctor ? "block" : "none";
+        const specInput = document.getElementById("id_speciality");
+        if (specInput) specInput.disabled = !isDoctor;
+      }
       
-      // Hide Daily Calling Target for Doctor / Admin / Non-telecaller roles
+      // Hide & disable Daily Calling Target for Doctor / Admin / Non-telecaller roles
       if (dailyCallDiv) {
         dailyCallDiv.style.display = isEligibleForCallingTarget ? "block" : "none";
-        if (isDoctor && dailyCallInput) {
-          dailyCallInput.value = "0";
+        if (dailyCallInput) {
+          if (!isEligibleForCallingTarget) {
+            dailyCallInput.value = isDoctor ? "0" : "0";
+            dailyCallInput.disabled = true;
+          } else {
+            dailyCallInput.disabled = false;
+            if (!dailyCallInput.value || parseInt(dailyCallInput.value) <= 0) {
+              dailyCallInput.value = "100";
+            }
+          }
         }
       }
       
       if (allowSelfAssignDiv) {
         allowSelfAssignDiv.style.display = isEligibleForSelfAssign ? "block" : "none";
+        if (allowSelfAssignInput) {
+          if (!isEligibleForSelfAssign) {
+            allowSelfAssignInput.checked = false;
+            allowSelfAssignInput.disabled = true;
+          } else {
+            allowSelfAssignInput.disabled = false;
+          }
+        }
       }
+
       if (bulkLimitDiv) {
         const isSelfAssignChecked = allowSelfAssignInput ? allowSelfAssignInput.checked : true;
-        bulkLimitDiv.style.display = (isEligibleForSelfAssign && isSelfAssignChecked) ? "block" : "none";
+        const showBulk = isEligibleForSelfAssign && isSelfAssignChecked;
+        bulkLimitDiv.style.display = showBulk ? "block" : "none";
+        if (bulkLimitInput) {
+          if (!showBulk) {
+            bulkLimitInput.value = "0";
+            bulkLimitInput.disabled = true;
+          } else {
+            bulkLimitInput.disabled = false;
+            if (!bulkLimitInput.value || parseInt(bulkLimitInput.value) <= 0) {
+              bulkLimitInput.value = "25";
+            }
+          }
+        }
       }
       
       if (!isDoctor) {
@@ -464,6 +540,16 @@
 
       toggleFields(); // Initial call
     }
+
+    // Safety submit guard: Log invalid elements if browser blocks submit, ensure form submits cleanly
+    const userForm = document.getElementById("userForm");
+    const saveBtn = document.getElementById("saveUserBtn");
+
+    if (userForm) {
+      userForm.addEventListener("invalid", function(e) {
+        console.warn("Form validation blocked on element:", e.target);
+      }, true);
+    }
   });
 
   window.applyUsernameSuggestion = function(suggestedVal) {
@@ -491,6 +577,12 @@
         icon.classList.add('fa-eye');
       }
     }
+  };
+
+  window.toggleAllBranches = function(select) {
+    document.querySelectorAll(".branch-checkbox").forEach(cb => {
+      cb.checked = select;
+    });
   };
 </script>
 

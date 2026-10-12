@@ -342,12 +342,15 @@ def telecaller_home(request):
         Q(custom_data__deal_status__isnull=True) | ~Q(custom_data__deal_status__icontains='Lost')
     ).select_related('stage', 'campaign', 'lead_source')
 
-    if getattr(user, 'branch', None) and user.branch:
-        new_leads_qs = new_leads_qs.filter(
-            Q(custom_data__hospital_branch__iexact=user.branch.name) |
-            Q(custom_data__branch__iexact=user.branch.name) |
-            Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True)
-        )
+    branch_names = list(user.assigned_branches.values_list('name', flat=True)) if hasattr(user, 'assigned_branches') and user.assigned_branches.exists() else []
+    if not branch_names and getattr(user, 'branch', None) and user.branch:
+        branch_names = [user.branch.name]
+
+    if branch_names:
+        branch_q = Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True)
+        for bn in branch_names:
+            branch_q |= Q(custom_data__hospital_branch__iexact=bn) | Q(custom_data__branch__iexact=bn)
+        new_leads_qs = new_leads_qs.filter(branch_q)
 
     new_leads_count = new_leads_qs.count()
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger

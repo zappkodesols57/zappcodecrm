@@ -527,8 +527,8 @@ Analytics Dashboard{% endif %}{% endblock %}
                     <span>
                         {% if custom_start and custom_end %}{{ custom_start }} to {{ custom_end }}
                         {% elif custom_start %}From {{ custom_start }}
-                        {% elif time_filter == 'today' or not time_filter %}Today
-                        {% elif time_filter == 'last_7_days' %}Last 7 Days
+                        {% elif time_filter == 'last_7_days' or not time_filter %}Last 7 Days
+                        {% elif time_filter == 'today' %}Today
                         {% elif time_filter == 'last_30_days' %}Last 30 Days
                         {% elif time_filter == 'all_time' %}All
                         {% else %}{{ filter_label|default:"Date" }}{% endif %}
@@ -536,8 +536,8 @@ Analytics Dashboard{% endif %}{% endblock %}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderDateDropdown" style="font-size: 0.82rem; min-width: 170px;">
                     <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Quick Date Range</h6></li>
-                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'today' or not time_filter and not custom_start %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-clock me-1.5 text-secondary"></i>Today</a></li>
-                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_7_days' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_7_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 7 Days</a></li>
+                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'today' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-clock me-1.5 text-secondary"></i>Today</a></li>
+                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_7_days' or not time_filter and not custom_start %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_7_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 7 Days</a></li>
                     <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_30_days' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_30_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 30 Days</a></li>
                     <li><a class="dropdown-item py-1.5 {% if time_filter == 'all_time' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=all_time{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-infinity me-1.5 text-secondary"></i>All</a></li>
                 </ul>
@@ -560,10 +560,10 @@ Analytics Dashboard{% endif %}{% endblock %}
                 </span>
                 {% endif %}
 
-                {% if time_filter and time_filter != 'today' and time_filter != '' %}
+                {% if time_filter and time_filter != 'last_7_days' and time_filter != '' %}
                 <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
                     <strong class="text-muted">Date:</strong> 
-                    {% if time_filter == 'last_7_days' %}Last 7 Days
+                    {% if time_filter == 'today' %}Today
                     {% elif time_filter == 'last_30_days' %}Last 30 Days
                     {% elif time_filter == 'all_time' %}All Time
                     {% else %}{{ time_filter }}{% endif %}
@@ -747,8 +747,8 @@ Analytics Dashboard{% endif %}{% endblock %}
                 <div class="col-md-2 col-sm-6">
                     <label class="filter-label">DATE RANGE</label>
                     <select name="time_filter" id="formTimeFilterSelect" class="form-select custom-filter-select" onchange="onTimeFilterSelectChange(this.value)">
-                        <option value="today" {% if time_filter == 'today' or not time_filter and not custom_start %}selected{% endif %}>Today</option>
-                        <option value="last_7_days" {% if time_filter == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="last_7_days" {% if time_filter == 'last_7_days' or not time_filter and not custom_start %}selected{% endif %}>Last 7 Days</option>
+                        <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
                         <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
                         <option value="all_time" {% if time_filter == 'all_time' %}selected{% endif %}>All</option>
                         <option value="custom" {% if custom_start or custom_end or time_filter == 'custom' %}selected{% endif %}>Custom Date Range</option>
@@ -1687,6 +1687,18 @@ Analytics Dashboard{% endif %}{% endblock %}
             drillParams.set('mode', 'all');
         } else if (activeTimeFilter === 'this_month') {
             drillParams.set('mode', 'this_month');
+        } else if (activeTimeFilter === 'last_7_days' || activeTimeFilter === '7days') {
+            drillParams.set('mode', 'date_range');
+            const d7 = new Date();
+            d7.setDate(d7.getDate() - 7);
+            drillParams.set('date_from', d7.toISOString().split('T')[0]);
+            drillParams.set('date_to', todayStrGlobal);
+        } else if (activeTimeFilter === 'last_30_days' || activeTimeFilter === '30days') {
+            drillParams.set('mode', 'date_range');
+            const d30 = new Date();
+            d30.setDate(d30.getDate() - 30);
+            drillParams.set('date_from', d30.toISOString().split('T')[0]);
+            drillParams.set('date_to', todayStrGlobal);
         } else {
             drillParams.set('mode', 'today');
             drillParams.set('date_from', todayStrGlobal);

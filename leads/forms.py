@@ -828,9 +828,28 @@ class HospitalLeadForm(forms.ModelForm):
             b_qs = HospitalBranch.objects.filter(is_active=True)
             if user and user.hospital:
                 b_qs = b_qs.filter(hospital=user.hospital)
-            self.fields["hospital_branch"].choices = [("", "-- Select Hospital Branch --")] + [(b.name, b.name) for b in b_qs]
-            if not self.fields["hospital_branch"].initial and user and getattr(user, 'branch', None):
-                self.fields["hospital_branch"].initial = user.branch.name
+
+            # If user is a telecaller/employee with specific assigned branches, restrict choices to those branches
+            user_assigned_branches = []
+            if user:
+                if hasattr(user, 'assigned_branches') and user.assigned_branches.exists():
+                    user_assigned_branches = list(user.assigned_branches.filter(is_active=True))
+                elif getattr(user, 'branch', None):
+                    user_assigned_branches = [user.branch]
+
+            if user_assigned_branches and user.role not in [getattr(user.__class__.Role, 'SUPER_ADMIN', 'SUPER_ADMIN'), getattr(user.__class__.Role, 'ADMIN', 'ADMIN')]:
+                b_choices = [(b.name, b.name) for b in user_assigned_branches]
+                if len(user_assigned_branches) == 1:
+                    self.fields["hospital_branch"].choices = b_choices
+                    self.fields["hospital_branch"].initial = user_assigned_branches[0].name
+                else:
+                    self.fields["hospital_branch"].choices = [("", "-- Select Hospital Branch --")] + b_choices
+                    if not self.fields["hospital_branch"].initial:
+                        self.fields["hospital_branch"].initial = user_assigned_branches[0].name
+            else:
+                self.fields["hospital_branch"].choices = [("", "-- Select Hospital Branch --")] + [(b.name, b.name) for b in b_qs]
+                if not self.fields["hospital_branch"].initial and user and getattr(user, 'branch', None):
+                    self.fields["hospital_branch"].initial = user.branch.name
 
             # Populate Disease choices
             dis_qs = HospitalDisease.objects.filter(is_active=True)
@@ -908,10 +927,29 @@ class HospitalLeadForm(forms.ModelForm):
                     b_qs = HospitalBranch.objects.filter(is_active=True)
                     if user and user.hospital:
                         b_qs = b_qs.filter(hospital=user.hospital)
-                    opts = [("", f"-- Select {cf.label} --")] + [(b.name, b.name) for b in b_qs]
-                    # Default branch from user profile if not already set
-                    if not field_initial and user and user.branch:
-                        field_initial = user.branch.name
+
+                    user_assigned_branches = []
+                    if user:
+                        if hasattr(user, 'assigned_branches') and user.assigned_branches.exists():
+                            user_assigned_branches = list(user.assigned_branches.filter(is_active=True))
+                        elif getattr(user, 'branch', None):
+                            user_assigned_branches = [user.branch]
+
+                    if user_assigned_branches and user.role not in [getattr(user.__class__.Role, 'SUPER_ADMIN', 'SUPER_ADMIN'), getattr(user.__class__.Role, 'ADMIN', 'ADMIN')]:
+                        b_choices = [(b.name, b.name) for b in user_assigned_branches]
+                        if len(user_assigned_branches) == 1:
+                            opts = b_choices
+                            if not field_initial:
+                                field_initial = user_assigned_branches[0].name
+                        else:
+                            opts = [("", f"-- Select {cf.label} --")] + b_choices
+                            if not field_initial:
+                                field_initial = user_assigned_branches[0].name
+                    else:
+                        opts = [("", f"-- Select {cf.label} --")] + [(b.name, b.name) for b in b_qs]
+                        # Default branch from user profile if not already set
+                        if not field_initial and user and user.branch:
+                            field_initial = user.branch.name
                 else:
                     opts = [("", f"-- Select {cf.label} --")] + [(opt, opt) for opt in cf.get_options_list()]
                 self.fields[fname] = NonStrictChoiceField(choices=opts, required=cf.is_required, label=cf.label, initial=field_initial)

@@ -61,15 +61,37 @@ def superadmin_home(request):
         effective_hospital = user.hospital
         selected_hospital_id = str(user.hospital.id)
         base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
-        if user.role == User.Role.MANAGER and user.branch:
-            b_name = user.branch.name
-            base_leads = base_leads.filter(
-                Q(custom_data__hospital_branch__iexact=b_name) |
-                Q(custom_data__branch__iexact=b_name) |
-                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
-                Q(custom_data__dyn_branch__iexact=b_name) |
-                Q(assigned_to__branch=user.branch)
-            )
+        if user.role == User.Role.MANAGER:
+            # Manager assigned branches (or single branch backward compatibility)
+            mgr_branches = list(user.assigned_branches.filter(is_active=True)) if hasattr(user, 'assigned_branches') and user.assigned_branches.exists() else []
+            if not mgr_branches and user.branch:
+                mgr_branches = [user.branch]
+
+            if mgr_branches:
+                mgr_branch_names = [b.name for b in mgr_branches]
+                mgr_branch_ids = [b.id for b in mgr_branches]
+
+                # Lead filter:
+                # 1. Lead has empty/null branch (open unassigned lead across hospital) -> visible to all branch managers
+                # 2. Lead tagged with any of manager's assigned branches
+                # 3. Lead assigned to telecaller assigned to any of manager's branches
+                lead_branch_q = (
+                    Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True) |
+                    Q(custom_data__hospital_branch="") |
+                    Q(custom_data__branch="")
+                )
+                for b_name in mgr_branch_names:
+                    lead_branch_q |= (
+                        Q(custom_data__hospital_branch__iexact=b_name) |
+                        Q(custom_data__branch__iexact=b_name) |
+                        Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                        Q(custom_data__dyn_branch__iexact=b_name)
+                    )
+                lead_branch_q |= (
+                    Q(assigned_to__assigned_branches__in=mgr_branches) |
+                    Q(assigned_to__branch__in=mgr_branches)
+                )
+                base_leads = base_leads.filter(lead_branch_q).distinct()
     else:
         selected_hospital_id = raw_biz or raw_hosp or session_biz
         if selected_hospital_id and selected_hospital_id.isdigit():
@@ -93,11 +115,23 @@ def superadmin_home(request):
     
     # Telecallers strictly for this hospital/business
     if effective_hospital:
-        telecaller_users = User.objects.filter(
+        telecaller_qs = User.objects.filter(
             hospital=effective_hospital,
             role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
             is_active=True
-        ).order_by('first_name', 'username')
+        )
+        if user.role == User.Role.MANAGER:
+            mgr_branches = list(user.assigned_branches.filter(is_active=True)) if hasattr(user, 'assigned_branches') and user.assigned_branches.exists() else []
+            if not mgr_branches and user.branch:
+                mgr_branches = [user.branch]
+            if mgr_branches:
+                # Telecallers belonging to any of manager's branches OR telecallers with no specific branch (all branches)
+                telecaller_qs = telecaller_qs.filter(
+                    Q(assigned_branches__in=mgr_branches) |
+                    Q(branch__in=mgr_branches) |
+                    Q(assigned_branches__isnull=True, branch__isnull=True)
+                ).distinct()
+        telecaller_users = telecaller_qs.order_by('first_name', 'username')
     else:
         telecaller_users = User.objects.filter(
             role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
@@ -361,10 +395,13 @@ def superadmin_home(request):
             )
 
     # 4. Quick Date Filter & Date Range Logic
+    is_hospital_dashboard = bool(user.hospital or (effective_hospital and user.role != User.Role.SUPER_ADMIN))
+    default_time_filter = 'last_7_days' if is_hospital_dashboard else 'today'
+
     if custom_start or custom_end:
         time_filter = 'custom'
     elif not time_filter:
-        time_filter = 'today'
+        time_filter = default_time_filter
 
     start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
     end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
@@ -720,7 +757,7 @@ def superadmin_home(request):
     # Active filters check: only actual user-applied search/filter parameters count
     # (Default business assignment for tenant admins does not count as an active lead filter)
     has_active_filters = any([
-        time_filter not in ['today', ''],
+        time_filter not in [default_time_filter, ''] if is_hospital_dashboard else time_filter not in ['today', ''],
         bool(custom_start),
         bool(custom_end),
         bool(search_query),
