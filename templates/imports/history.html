@@ -95,10 +95,10 @@
       <form method="GET" class="d-flex align-items-center gap-2 mb-0">
         <input type="hidden" name="date_preset" value="custom">
         <div class="input-group input-group-sm" style="max-width: 300px;">
-          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date" style="font-size: 0.8rem; border-color: var(--theme-border);">
-          <span class="input-group-text bg-light text-muted small py-0 px-2" style="border-color: var(--theme-border);">to</span>
-          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date" style="font-size: 0.8rem; border-color: var(--theme-border);">
-          <button class="btn btn-outline-secondary btn-sm" type="submit" style="font-size: 0.8rem; border-color: var(--theme-border);"><i class="fa-solid fa-filter"></i></button>
+          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required title="Start Date" style="font-size: 0.8rem; border-color: var(--theme-border-subtle);">
+          <span class="input-group-text bg-light text-muted small py-0 px-2" style="border-color: var(--theme-border-subtle);">to</span>
+          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required title="End Date" style="font-size: 0.8rem; border-color: var(--theme-border-subtle);">
+          <button class="btn btn-outline-secondary btn-sm" type="submit" style="font-size: 0.8rem; border-color: var(--theme-border-subtle);"><i class="fa-solid fa-filter"></i></button>
         </div>
         {% if date_preset != 'all_time' %}
           <a href="?date_preset=all_time" class="btn btn-sm btn-outline-secondary px-2" title="Reset filter" style="font-size: 0.78rem;">
