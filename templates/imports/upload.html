@@ -6,8 +6,8 @@
   :root {
     --theme-navy: #0f2744;
     --theme-navy-hover: #1e3a5f;
-    --theme-border: #94a3b8;
-    --theme-border-subtle: #cbd5e1;
+    --theme-border: #cbd5e1;
+    --theme-border-subtle: #e2e8f0;
     --theme-bg-subtle: #f8fafc;
     --theme-text-muted: #64748b;
   }
@@ -31,7 +31,7 @@
     border-bottom: 2px solid var(--theme-navy) !important;
   }
   .upload-dropzone {
-    border: 2px dashed #64748b;
+    border: 1.5px dashed #cbd5e1;
     border-radius: 8px;
     padding: 2.25rem 1.5rem;
     text-align: center;
@@ -45,13 +45,13 @@
   .upload-dropzone:hover,
   .upload-dropzone.drag-active {
     border-color: var(--theme-navy) !important;
-    background-color: #e2e8f0 !important;
-    box-shadow: 0 4px 12px rgba(15, 39, 68, 0.12) !important;
-    transform: scale(1.005);
+    background-color: #f1f5f9 !important;
+    box-shadow: 0 2px 8px rgba(15, 39, 68, 0.08) !important;
+    transform: scale(1.002);
   }
   .form-select-bordered,
   .form-control-bordered {
-    border: 1px solid #94a3b8 !important;
+    border: 1px solid var(--theme-border) !important;
     border-radius: 6px !important;
     font-size: 0.86rem;
     background-color: #ffffff;
@@ -67,7 +67,7 @@
     padding: 0.2rem 0.65rem !important;
     font-weight: 600 !important;
     border-radius: 5px !important;
-    border: 1px solid #94a3b8 !important;
+    border: 1px solid var(--theme-border) !important;
     color: var(--theme-navy) !important;
     background: #ffffff !important;
     transition: all 0.15s ease;
@@ -101,7 +101,7 @@
   }
   .msg-preview-box {
     background: #f8fafc;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--theme-border-subtle);
     border-radius: 6px;
     font-family: 'Consolas', 'Courier New', monospace;
     font-size: 0.82rem;
@@ -186,10 +186,10 @@
         </h5>
         {% if is_superadmin_user or user.is_superuser or user.role == 'SUPER_ADMIN' %}
           <div class="dropdown">
-            <button class="btn btn-sm btn-light border text-dark dropdown-toggle py-1 px-2 fw-semibold" type="button" id="importBusinessSwitchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; border-color: var(--theme-border);">
+            <button class="btn btn-sm btn-light border text-dark dropdown-toggle py-1 px-2 fw-semibold" type="button" id="importBusinessSwitchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; border-color: var(--theme-border-subtle) !important;">
               <span>{% if active_business %}{{ active_business.name }}{% else %}All Businesses{% endif %}</span>
             </button>
-            <ul class="dropdown-menu border py-1 mt-1 shadow-sm" aria-labelledby="importBusinessSwitchDropdown" style="font-size: 0.82rem; min-width: 220px; z-index: 1050; border-color: var(--theme-border);">
+            <ul class="dropdown-menu border py-1 mt-1 shadow-sm" aria-labelledby="importBusinessSwitchDropdown" style="font-size: 0.82rem; min-width: 220px; z-index: 1050; border-color: var(--theme-border-subtle) !important;">
               <li class="px-3 py-1 text-muted text-uppercase fw-bold" style="font-size: 0.68rem;">Switch Business</li>
               <li>
                 <a class="dropdown-item py-1.5 {% if not active_business %}active fw-bold{% endif %}" href="{% url 'accounts:switch_business' %}?business_id=all&next={{ request.get_full_path|urlencode }}">
@@ -207,7 +207,7 @@
             </ul>
           </div>
         {% elif effective_hospital %}
-          <span class="badge bg-light text-dark border px-2 py-1 fw-semibold" style="font-size: 0.78rem; border-color: var(--theme-border) !important;">
+          <span class="badge bg-light text-dark border px-2 py-1 fw-semibold" style="font-size: 0.78rem; border-color: var(--theme-border-subtle) !important;">
             {{ effective_hospital.name }}
           </span>
         {% endif %}
@@ -229,7 +229,7 @@
   </div>
 
   <!-- Quick Date Filter Strip -->
-  <div class="card border rounded-2 mb-3 bg-white p-2 px-3" style="border-color: var(--theme-border) !important;">
+  <div class="card border rounded-2 mb-3 bg-white p-2 px-3" style="border-color: var(--theme-border-subtle) !important;">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div class="d-flex align-items-center gap-1 flex-wrap">
         <span class="text-muted small fw-semibold me-1">Period:</span>
@@ -246,7 +246,7 @@
 
   <!-- Main Import Card -->
   <div class="card import-card mb-3">
-    <div class="card-header bg-light bg-opacity-50 border-bottom p-0" style="border-color: var(--theme-border) !important;">
+    <div class="card-header bg-light bg-opacity-50 border-bottom p-0" style="border-color: var(--theme-border-subtle) !important;">
       <ul class="nav nav-tabs border-bottom-0 px-3 pt-2" id="importModeTabs" role="tablist">
         
         <!-- Tab 1: Course Leads for Academy / Campaign Leads for Hospital -->
@@ -492,7 +492,7 @@
             
             <!-- 1. Download Master Data -->
             <div class="{% if can_delete_master_data %}col-md-6{% else %}col-md-12{% endif %}">
-              <div class="border rounded-2 p-3 h-100 d-flex flex-column justify-content-between bg-light bg-opacity-25" style="border-color: var(--theme-border) !important;">
+              <div class="border rounded-2 p-3 h-100 d-flex flex-column justify-content-between bg-light bg-opacity-25" style="border-color: var(--theme-border-subtle) !important;">
                 <div>
                   <h6 class="fw-bold text-dark mb-1">Download Master Data</h6>
                   <p class="text-muted small mb-3">Export all inquiries, contact details, campaign tags, doctor/course assignments, and follow-ups as an Excel (.xlsx) file.</p>
@@ -508,7 +508,7 @@
             <!-- 2. Delete Master Data -->
             {% if can_delete_master_data %}
             <div class="col-md-6">
-              <div class="border rounded-2 p-3 h-100 d-flex flex-column justify-content-between bg-light bg-opacity-25" style="border-color: var(--theme-border) !important;">
+              <div class="border rounded-2 p-3 h-100 d-flex flex-column justify-content-between bg-light bg-opacity-25" style="border-color: var(--theme-border-subtle) !important;">
                 <div>
                   <h6 class="fw-bold text-dark mb-1">Delete Master Leads</h6>
                   <p class="text-muted small mb-3">Permanently purge all leads, stage history, and follow-up activities belonging to this organization.</p>
@@ -536,8 +536,8 @@
 <!-- Modal: Create New Course Inline -->
 <div class="modal fade" id="newCourseModal" tabindex="-1" aria-labelledby="newCourseModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border);">
-      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border);">
+    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border-subtle);">
+      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border-subtle);">
         <h6 class="modal-title fw-bold text-dark" id="newCourseModalLabel">Add Course</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -551,7 +551,7 @@
           <div id="courseModalError" class="alert alert-danger py-1 px-2 small d-none mt-2"></div>
         </form>
       </div>
-      <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border);">
+      <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border-subtle);">
         <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-sm btn-primary fw-semibold px-3" id="saveCourseBtn" onclick="saveNewCourseAjax()" style="background: var(--theme-navy); border-color: var(--theme-navy);">
           Save Course
@@ -564,8 +564,8 @@
 <!-- Modal: Create New Campaign Inline -->
 <div class="modal fade" id="newCampaignModal" tabindex="-1" aria-labelledby="newCampaignModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border rounded-2 shadow-sm" style="border-color: #CBD5E1 !important;">
-      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: #E2E8F0 !important;">
+    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border-subtle) !important;">
+      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border-subtle) !important;">
         <h6 class="modal-title fw-bold text-dark mb-0" id="newCampaignModalLabel">Create Campaign</h6>
       </div>
       <div class="modal-body p-3">
@@ -573,11 +573,11 @@
           {% csrf_token %}
           <div class="mb-3">
             <label class="form-label small fw-semibold text-dark">Campaign Name <span class="text-danger">*</span></label>
-            <input type="text" id="modalCampaignName" name="name" class="form-control form-control-sm" placeholder="Campaign name" required style="border: 1px solid #CBD5E1 !important; border-radius: 6px;">
+            <input type="text" id="modalCampaignName" name="name" class="form-control form-control-sm" placeholder="Campaign name" required style="border: 1px solid var(--theme-border) !important; border-radius: 6px;">
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold text-dark">Platform / Channel</label>
-            <select id="modalCampaignPlatform" name="platform" class="form-select form-select-sm" style="border: 1px solid #CBD5E1 !important; border-radius: 6px;">
+            <select id="modalCampaignPlatform" name="platform" class="form-select form-select-sm" style="border: 1px solid var(--theme-border) !important; border-radius: 6px;">
               <option value="Meta Ads">Meta Ads</option>
               <option value="Instagram">Instagram</option>
               <option value="Facebook">Facebook</option>
@@ -590,22 +590,22 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label small fw-semibold text-dark">Start Date (Optional)</label>
-              <input type="date" id="modalCampaignStartDate" name="start_date" class="form-control form-control-sm" style="border: 1px solid #CBD5E1 !important; border-radius: 6px;">
+              <input type="date" id="modalCampaignStartDate" name="start_date" class="form-control form-control-sm" style="border: 1px solid var(--theme-border) !important; border-radius: 6px;">
             </div>
             <div class="col-6">
               <label class="form-label small fw-semibold text-dark">End Date (Optional)</label>
-              <input type="date" id="modalCampaignEndDate" name="end_date" class="form-control form-control-sm" style="border: 1px solid #CBD5E1 !important; border-radius: 6px;">
+              <input type="date" id="modalCampaignEndDate" name="end_date" class="form-control form-control-sm" style="border: 1px solid var(--theme-border) !important; border-radius: 6px;">
             </div>
           </div>
           <div class="mb-2">
             <label class="form-label small fw-semibold text-dark">Ad Set Identifier (Optional)</label>
-            <input type="text" id="modalCampaignAdSet" name="ad_set" class="form-control form-control-sm" placeholder="Ad Set" style="border: 1px solid #CBD5E1 !important; border-radius: 6px;">
+            <input type="text" id="modalCampaignAdSet" name="ad_set" class="form-control form-control-sm" placeholder="Ad Set" style="border: 1px solid var(--theme-border) !important; border-radius: 6px;">
           </div>
           <div id="campaignModalError" class="alert alert-danger py-1 px-2 small d-none mt-2"></div>
         </form>
       </div>
-      <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: #E2E8F0 !important;">
-        <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal" style="border-radius: 6px; border-color: #CBD5E1 !important;">Cancel</button>
+      <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border-subtle) !important;">
+        <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal" style="border-radius: 6px; border-color: var(--theme-border) !important;">Cancel</button>
         <button type="button" class="btn btn-sm btn-primary fw-semibold px-3" id="saveCampaignBtn" onclick="saveNewCampaignAjax()" style="background: var(--theme-navy); border-color: var(--theme-navy); border-radius: 6px;">
           Save Campaign
         </button>
@@ -617,8 +617,8 @@
 <!-- Modal: Delete Master Data Confirmation -->
 <div class="modal fade" id="deleteMasterDataModal" tabindex="-1" aria-labelledby="deleteMasterDataModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
-    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border);">
-      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border);">
+    <div class="modal-content border rounded-2 shadow-sm" style="border-color: var(--theme-border-subtle);">
+      <div class="modal-header py-2.5 px-3 border-bottom" style="border-color: var(--theme-border-subtle);">
         <h6 class="modal-title fw-bold text-dark" id="deleteMasterDataModalLabel">Delete Master Data</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -632,7 +632,7 @@
             Are you sure you want to permanently delete all leads for this organization? This action will remove all active leads, inquiries, and follow-up activities.
           </p>
 
-          <div class="p-2.5 bg-light rounded-2 border small mb-3" style="border-color: var(--theme-border);">
+          <div class="p-2.5 bg-light rounded-2 border small mb-3" style="border-color: var(--theme-border-subtle);">
             <div class="d-flex justify-content-between mb-1.5">
               <span class="text-muted">Target Organization:</span>
               <strong class="text-dark" id="delMasterModalBizName">{{ hospital_name }}</strong>
@@ -643,7 +643,7 @@
             </div>
           </div>
 
-          <div class="form-check p-2 bg-light rounded-2 border mb-1" style="border-color: var(--theme-border);">
+          <div class="form-check p-2 bg-light rounded-2 border mb-1" style="border-color: var(--theme-border-subtle);">
             <input class="form-check-input ms-1 me-2" type="checkbox" id="confirmPurgeCheckbox" required>
             <label class="form-check-label small fw-semibold text-dark" for="confirmPurgeCheckbox">
               I understand that this action is irreversible.
@@ -651,7 +651,7 @@
           </div>
         </div>
 
-        <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border);">
+        <div class="modal-footer py-2 px-3 bg-light border-top" style="border-color: var(--theme-border-subtle);">
           <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-sm btn-danger px-3 fw-semibold" id="confirmDeleteMasterBtn">
             Yes, Delete Leads

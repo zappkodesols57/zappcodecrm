@@ -338,8 +338,8 @@ def telecaller_home(request):
         assigned_to__isnull=True
     ).exclude(
         deal_status=DealStatus.LOST
-    ).exclude(
-        custom_data__deal_status__icontains='Lost'
+    ).filter(
+        Q(custom_data__deal_status__isnull=True) | ~Q(custom_data__deal_status__icontains='Lost')
     ).select_related('stage', 'campaign', 'lead_source')
 
     if getattr(user, 'branch', None) and user.branch:
