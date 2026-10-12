@@ -3,6 +3,7 @@ from django import forms
 from django.db import models
 from django.contrib.auth.forms import UserCreationForm
 from .models import User
+from leads.models import HospitalBranch
 
 
 class CRMUserCreateForm(UserCreationForm):
@@ -38,14 +39,22 @@ class CRMUserCreateForm(UserCreationForm):
     bulk_self_assign_limit = forms.IntegerField(
         required=False,
         initial=25,
-        min_value=1,
+        min_value=0,
         label="Bulk Self-Assign Limit",
         help_text="Maximum number of leads this user can bulk self-assign at once (default: 25)."
     )
 
+    assigned_branches = forms.ModelMultipleChoiceField(
+        queryset=HospitalBranch.objects.none(),
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        required=False,
+        label="Assigned Branches",
+        help_text="Select one or more branches to assign to this employee. If none selected, user will have access to all branches."
+    )
+
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
+        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -58,8 +67,11 @@ class CRMUserCreateForm(UserCreationForm):
             self.fields["role"].choices = [("", "Select Employee Role")] + [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
+            branch_qs = HospitalBranch.objects.filter(hospital=self.user.hospital, is_active=True)
+            if "assigned_branches" in self.fields:
+                self.fields["assigned_branches"].queryset = branch_qs
             if "branch" in self.fields:
-                self.fields["branch"].queryset = HospitalBranch.objects.filter(hospital=self.user.hospital, is_active=True)
+                self.fields["branch"].queryset = branch_qs
                 self.fields["branch"].empty_label = "All Branches (Full Access)"
                 self.fields["branch"].required = False
             if "reports_to" in self.fields:
@@ -69,8 +81,11 @@ class CRMUserCreateForm(UserCreationForm):
                 self.fields["reports_to"].queryset = r_qs
         else:
             self.fields["role"].choices = [("", "Select Employee Role")] + list(self.fields["role"].choices)
+            branch_qs = HospitalBranch.objects.filter(is_active=True)
+            if "assigned_branches" in self.fields:
+                self.fields["assigned_branches"].queryset = branch_qs
             if "branch" in self.fields:
-                self.fields["branch"].queryset = HospitalBranch.objects.filter(is_active=True)
+                self.fields["branch"].queryset = branch_qs
                 self.fields["branch"].empty_label = "All Branches (Full Access)"
                 self.fields["branch"].required = False
 
@@ -117,8 +132,6 @@ class CRMUserCreateForm(UserCreationForm):
         if "phone" in self.fields:
             self.fields["phone"].widget.attrs.update({
                 "maxlength": "10",
-                "minlength": "10",
-                "pattern": "^[0-9]{10}$",
                 "inputmode": "numeric",
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
@@ -178,8 +191,18 @@ class CRMUserCreateForm(UserCreationForm):
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
         user.custom_permissions["allow_branch_transfer"] = bool(allow_branch_transfer)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
+
+        assigned_branches_data = self.cleaned_data.get("assigned_branches")
+        if assigned_branches_data is not None:
+            # Sync user.branch to the first assigned branch for backward compatibility
+            first_branch = assigned_branches_data.first() if hasattr(assigned_branches_data, "first") else (assigned_branches_data[0] if assigned_branches_data else None)
+            if first_branch:
+                user.branch = first_branch
+
         if commit:
             user.save()
+            if assigned_branches_data is not None:
+                user.assigned_branches.set(assigned_branches_data)
         return user
 
 
@@ -212,14 +235,21 @@ class CRMUserEditForm(forms.ModelForm):
     )
     bulk_self_assign_limit = forms.IntegerField(
         required=False,
-        min_value=1,
+        min_value=0,
         label="Bulk Self-Assign Limit",
         help_text="Maximum number of leads this user can bulk self-assign at once (default: 25)."
+    )
+    assigned_branches = forms.ModelMultipleChoiceField(
+        queryset=HospitalBranch.objects.none(),
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        required=False,
+        label="Assigned Branches",
+        help_text="Select one or more branches to assign to this employee. If none selected, user will have access to all branches."
     )
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "branch", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "role", "hospital", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -232,6 +262,8 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["allow_self_assign"].initial = self.instance.can_self_assign
             self.fields["allow_branch_transfer"].initial = self.instance.can_transfer_branch
             self.fields["bulk_self_assign_limit"].initial = self.instance.bulk_self_assign_limit
+            if "assigned_branches" in self.fields:
+                self.fields["assigned_branches"].initial = self.instance.assigned_branches.all()
 
         if self.user and self.user.hospital:
             allowed = self.user.hospital.get_allowed_roles()
@@ -240,8 +272,11 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["role"].choices = [("", "Select Employee Role")] + [(r, dict(User.Role.choices).get(r, r)) for r in allowed]
             if "hospital" in self.fields:
                 del self.fields["hospital"]
+            branch_qs = HospitalBranch.objects.filter(hospital=self.user.hospital, is_active=True)
+            if "assigned_branches" in self.fields:
+                self.fields["assigned_branches"].queryset = branch_qs
             if "branch" in self.fields:
-                self.fields["branch"].queryset = HospitalBranch.objects.filter(hospital=self.user.hospital, is_active=True)
+                self.fields["branch"].queryset = branch_qs
                 self.fields["branch"].empty_label = "All Branches (Full Access)"
                 self.fields["branch"].required = False
             if "reports_to" in self.fields:
@@ -251,8 +286,11 @@ class CRMUserEditForm(forms.ModelForm):
                 self.fields["reports_to"].queryset = r_qs
         else:
             self.fields["role"].choices = [("", "Select Employee Role")] + list(self.fields["role"].choices)
+            branch_qs = HospitalBranch.objects.filter(is_active=True)
+            if "assigned_branches" in self.fields:
+                self.fields["assigned_branches"].queryset = branch_qs
             if "branch" in self.fields:
-                self.fields["branch"].queryset = HospitalBranch.objects.filter(is_active=True)
+                self.fields["branch"].queryset = branch_qs
                 self.fields["branch"].empty_label = "All Branches (Full Access)"
                 self.fields["branch"].required = False
 
@@ -294,8 +332,6 @@ class CRMUserEditForm(forms.ModelForm):
         if "phone" in self.fields:
             self.fields["phone"].widget.attrs.update({
                 "maxlength": "10",
-                "minlength": "10",
-                "pattern": "^[0-9]{10}$",
                 "inputmode": "numeric",
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
@@ -355,8 +391,19 @@ class CRMUserEditForm(forms.ModelForm):
         user.custom_permissions["allow_self_assign"] = bool(allow_self_assign)
         user.custom_permissions["allow_branch_transfer"] = bool(allow_branch_transfer)
         user.custom_permissions["bulk_self_assign_limit"] = int(bulk_limit)
+
+        assigned_branches_data = self.cleaned_data.get("assigned_branches")
+        if assigned_branches_data is not None:
+            first_branch = assigned_branches_data.first() if hasattr(assigned_branches_data, "first") else (assigned_branches_data[0] if assigned_branches_data else None)
+            if first_branch:
+                user.branch = first_branch
+            elif not assigned_branches_data:
+                user.branch = None
+
         if commit:
             user.save()
+            if assigned_branches_data is not None:
+                user.assigned_branches.set(assigned_branches_data)
         return user
 
 

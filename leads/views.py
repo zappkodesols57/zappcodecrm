@@ -99,14 +99,33 @@ def _can_access_lead(user, lead):
         return False
 
     # Branch Manager isolation
-    if user.role == User.Role.MANAGER and user.branch:
-        b_name = user.branch.name
-        branch_team = User.objects.filter(hospital=user.hospital, branch=user.branch)
-        cd = lead.custom_data or {}
-        l_branch = str(cd.get("hospital_branch") or cd.get("branch") or cd.get("dyn_hospital_branch") or cd.get("dyn_branch") or "").strip()
-        if l_branch.lower() == b_name.lower() or lead.assigned_to in branch_team or lead.created_by in branch_team:
-            return True
-        return False
+    if user.role == User.Role.MANAGER:
+        mgr_branches = list(user.assigned_branches.filter(is_active=True)) if hasattr(user, 'assigned_branches') and user.assigned_branches.exists() else []
+        if not mgr_branches and user.branch:
+            mgr_branches = [user.branch]
+
+        if mgr_branches:
+            cd = lead.custom_data or {}
+            l_branch = str(cd.get("hospital_branch") or cd.get("branch") or cd.get("dyn_hospital_branch") or cd.get("dyn_branch") or "").strip()
+            # If lead has no branch assigned, it's open hospital lead -> all managers can see
+            if not l_branch:
+                return True
+            mgr_b_names = [b.name.lower() for b in mgr_branches]
+            if l_branch.lower() in mgr_b_names:
+                return True
+            # Check if assigned_to belongs to any of manager's branches
+            if lead.assigned_to:
+                if lead.assigned_to.assigned_branches.filter(id__in=[b.id for b in mgr_branches]).exists():
+                    return True
+                if lead.assigned_to.branch and lead.assigned_to.branch in mgr_branches:
+                    return True
+            # Check if created_by belongs to any of manager's branches
+            if lead.created_by:
+                if lead.created_by.assigned_branches.filter(id__in=[b.id for b in mgr_branches]).exists():
+                    return True
+                if lead.created_by.branch and lead.created_by.branch in mgr_branches:
+                    return True
+            return False
 
     # In Academy/CRM, Admins and managers have VIEW permission
     if user.role in (User.Role.ADMIN, User.Role.SUPER_ADMIN, User.Role.MANAGER):
@@ -223,17 +242,39 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
                 Q(temperature='FREEZE')
             )
         # Branch-level isolation for Branch Managers / Attendants
-        if request.user.role == User.Role.MANAGER and request.user.branch:
-            b_name = request.user.branch.name
-            branch_team = User.objects.filter(hospital=request.user.hospital, branch=request.user.branch)
-            leads = leads.filter(
-                Q(custom_data__hospital_branch__iexact=b_name) |
-                Q(custom_data__branch__iexact=b_name) |
-                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
-                Q(custom_data__dyn_branch__iexact=b_name) |
-                Q(assigned_to__in=branch_team) |
-                Q(created_by__in=branch_team)
-            )
+        if request.user.role == User.Role.MANAGER:
+            mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []
+            if not mgr_branches and request.user.branch:
+                mgr_branches = [request.user.branch]
+
+            if mgr_branches:
+                mgr_b_names = [b.name for b in mgr_branches]
+                # Branch team: users assigned to any of manager's branches
+                branch_team = User.objects.filter(
+                    hospital=request.user.hospital
+                ).filter(
+                    Q(assigned_branches__in=mgr_branches) |
+                    Q(branch__in=mgr_branches)
+                ).distinct()
+
+                # Open leads without branch are visible to all branch managers
+                lead_branch_q = (
+                    Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True) |
+                    Q(custom_data__hospital_branch="") |
+                    Q(custom_data__branch="")
+                )
+                for b_name in mgr_b_names:
+                    lead_branch_q |= (
+                        Q(custom_data__hospital_branch__iexact=b_name) |
+                        Q(custom_data__branch__iexact=b_name) |
+                        Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                        Q(custom_data__dyn_branch__iexact=b_name)
+                    )
+                lead_branch_q |= (
+                    Q(assigned_to__in=branch_team) |
+                    Q(created_by__in=branch_team)
+                )
+                leads = leads.filter(lead_branch_q).distinct()
         elif request.user.role == User.Role.DOCTOR:
             # Doctors strictly see leads assigned to them or with appointments under them
             doc_name = (request.user.get_full_name() or request.user.username).strip()
@@ -2579,6 +2620,17 @@ def lead_edit(request, pk):
     is_lead_hospital_type = (lead_btype == "hospital")
     FormClass = HospitalLeadForm if is_lead_hospital_type else LeadForm
     template = "hospital/leads/lead_form.html" if is_lead_hospital_type else "academy/leads/lead_form.html"
+
+    # Available hospital branches for transfer (all active branches for this business)
+    available_branches = []
+    if is_lead_hospital_type:
+        from leads.models import HospitalBranch
+        b_qs = HospitalBranch.objects.filter(is_active=True)
+        if request.user.hospital:
+            b_qs = b_qs.filter(hospital=request.user.hospital)
+        elif lead.hospital:
+            b_qs = b_qs.filter(hospital=lead.hospital)
+        available_branches = list(b_qs.order_by("name"))
     
     if request.method == "POST":
         if is_view_only:
@@ -3011,6 +3063,7 @@ def lead_edit(request, pk):
         "latest_appointment": latest_appointment,
         "all_appointments": Appointment.objects.filter(lead=lead).order_by("-appointment_date", "-id"),
         "saved_initial": saved_initial,
+        "available_branches": available_branches,
         "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
         "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
         "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
@@ -7350,17 +7403,37 @@ def appointments_done_list(request):
         elif not is_global_admin:
             base_qs = base_qs.filter(hospital__isnull=True)
 
-        if request.user.role == User.Role.MANAGER and request.user.branch:
-            b_name = request.user.branch.name
-            branch_team = User.objects.filter(hospital=request.user.hospital, branch=request.user.branch)
-            base_qs = base_qs.filter(
-                Q(custom_data__hospital_branch__iexact=b_name) |
-                Q(custom_data__branch__iexact=b_name) |
-                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
-                Q(custom_data__dyn_branch__iexact=b_name) |
-                Q(assigned_to__in=branch_team) |
-                Q(created_by__in=branch_team)
-            )
+        if request.user.role == User.Role.MANAGER:
+            mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []
+            if not mgr_branches and request.user.branch:
+                mgr_branches = [request.user.branch]
+
+            if mgr_branches:
+                mgr_b_names = [b.name for b in mgr_branches]
+                branch_team = User.objects.filter(
+                    hospital=request.user.hospital
+                ).filter(
+                    Q(assigned_branches__in=mgr_branches) |
+                    Q(branch__in=mgr_branches)
+                ).distinct()
+
+                lead_branch_q = (
+                    Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True) |
+                    Q(custom_data__hospital_branch="") |
+                    Q(custom_data__branch="")
+                )
+                for b_name in mgr_b_names:
+                    lead_branch_q |= (
+                        Q(custom_data__hospital_branch__iexact=b_name) |
+                        Q(custom_data__branch__iexact=b_name) |
+                        Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                        Q(custom_data__dyn_branch__iexact=b_name)
+                    )
+                lead_branch_q |= (
+                    Q(assigned_to__in=branch_team) |
+                    Q(created_by__in=branch_team)
+                )
+                base_qs = base_qs.filter(lead_branch_q).distinct()
         elif request.user.role == User.Role.DOCTOR:
             doc_name = (request.user.get_full_name() or request.user.username).strip()
             base_qs = base_qs.filter(
@@ -7831,17 +7904,37 @@ def payment_done_list(request):
         elif not is_global_admin:
             base_qs = base_qs.filter(hospital__isnull=True)
 
-        if request.user.role == User.Role.MANAGER and request.user.branch:
-            b_name = request.user.branch.name
-            branch_team = User.objects.filter(hospital=request.user.hospital, branch=request.user.branch)
-            base_qs = base_qs.filter(
-                Q(custom_data__hospital_branch__iexact=b_name) |
-                Q(custom_data__branch__iexact=b_name) |
-                Q(custom_data__dyn_hospital_branch__iexact=b_name) |
-                Q(custom_data__dyn_branch__iexact=b_name) |
-                Q(assigned_to__in=branch_team) |
-                Q(created_by__in=branch_team)
-            )
+        if request.user.role == User.Role.MANAGER:
+            mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []
+            if not mgr_branches and request.user.branch:
+                mgr_branches = [request.user.branch]
+
+            if mgr_branches:
+                mgr_b_names = [b.name for b in mgr_branches]
+                branch_team = User.objects.filter(
+                    hospital=request.user.hospital
+                ).filter(
+                    Q(assigned_branches__in=mgr_branches) |
+                    Q(branch__in=mgr_branches)
+                ).distinct()
+
+                lead_branch_q = (
+                    Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True) |
+                    Q(custom_data__hospital_branch="") |
+                    Q(custom_data__branch="")
+                )
+                for b_name in mgr_b_names:
+                    lead_branch_q |= (
+                        Q(custom_data__hospital_branch__iexact=b_name) |
+                        Q(custom_data__branch__iexact=b_name) |
+                        Q(custom_data__dyn_hospital_branch__iexact=b_name) |
+                        Q(custom_data__dyn_branch__iexact=b_name)
+                    )
+                lead_branch_q |= (
+                    Q(assigned_to__in=branch_team) |
+                    Q(created_by__in=branch_team)
+                )
+                base_qs = base_qs.filter(lead_branch_q).distinct()
         elif request.user.role == User.Role.DOCTOR:
             doc_name = (request.user.get_full_name() or request.user.username).strip()
             base_qs = base_qs.filter(

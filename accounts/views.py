@@ -131,10 +131,20 @@ def user_list(request):
     if request.user.hospital:
         pending_users = pending_users.filter(hospital=request.user.hospital)
         users_qs = users_qs.filter(hospital=request.user.hospital)
-        # If Branch Manager is scoped to a specific branch, isolate users to that branch only
-        if request.user.role == User.Role.MANAGER and request.user.branch:
-            pending_users = pending_users.filter(branch=request.user.branch)
-            users_qs = users_qs.filter(branch=request.user.branch)
+        # If Branch Manager is scoped to specific branch(es), isolate users to those branches (or all-branches users)
+        if request.user.role == User.Role.MANAGER:
+            mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []
+            if not mgr_branches and request.user.branch:
+                mgr_branches = [request.user.branch]
+
+            if mgr_branches:
+                user_branch_filter = (
+                    Q(assigned_branches__in=mgr_branches) |
+                    Q(branch__in=mgr_branches) |
+                    Q(assigned_branches__isnull=True, branch__isnull=True)
+                )
+                pending_users = pending_users.filter(user_branch_filter).distinct()
+                users_qs = users_qs.filter(user_branch_filter).distinct()
     elif selected_hospital_id and selected_hospital_id.isdigit():
         pending_users = pending_users.filter(hospital_id=int(selected_hospital_id))
         users_qs = users_qs.filter(hospital_id=int(selected_hospital_id))
@@ -315,6 +325,9 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_active=True,
                 is_approved=True,
             )
+            # By default, assign all active branches of this business so user is visible across branches
+            if hospital:
+                new_user.assigned_branches.set(hospital.branches.filter(is_active=True))
             created_users.append(new_user)
             user_by_uname_and_hosp[(uname.lower(), hospital_id)] = new_user
             user_by_name_and_hosp[name_key] = new_user
@@ -353,6 +366,9 @@ def auto_generate_master_data_profiles(hospital=None):
                 is_active=True,
                 is_approved=True,
             )
+            # By default, assign all active branches of this business so doctor is visible across branches
+            if hospital:
+                existing_user.assigned_branches.set(hospital.branches.filter(is_active=True))
             created_users.append(existing_user)
             user_by_uname_and_hosp[(uname.lower(), hospital_id)] = existing_user
             user_by_name_and_hosp[name_key] = existing_user

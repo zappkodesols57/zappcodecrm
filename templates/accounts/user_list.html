@@ -250,6 +250,23 @@
             <span class="badge bg-light text-dark border fw-medium px-2.5 py-1" style="font-size: 0.74rem; border-radius: 4px;">
               {{ u.custom_role_display }}
             </span>
+            <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+              {% if u.assigned_branches.all %}
+                {% for b in u.assigned_branches.all %}
+                  <span class="badge bg-white text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem; border-radius: 4px;" title="Assigned Branch">
+                    <i class="fa-solid fa-code-branch text-primary me-0.5" style="font-size: 0.62rem;"></i>{{ b.name }}
+                  </span>
+                {% endfor %}
+              {% elif u.branch %}
+                <span class="badge bg-white text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem; border-radius: 4px;" title="Assigned Branch">
+                  <i class="fa-solid fa-code-branch text-primary me-0.5" style="font-size: 0.62rem;"></i>{{ u.branch.name }}
+                </span>
+              {% else %}
+                <span class="badge bg-light text-muted border px-1.5 py-0.5 fw-normal" style="font-size: 0.66rem; border-radius: 4px;">
+                  All Branches
+                </span>
+              {% endif %}
+            </div>
             {% if u.role == 'ADMIN' and u.can_delete_master_data %}
               <div class="mt-1">
                 <span class="badge bg-light text-secondary border px-2 py-0.5" style="font-size: 0.67rem; border-radius: 4px;" title="Permission to Delete Master Leads">
@@ -294,7 +311,15 @@
 
           <!-- 5. Assigned Branch -->
           <td class="px-3 py-2.5">
-            {% if u.branch %}
+            {% if u.assigned_branches.all %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for b in u.assigned_branches.all %}
+                  <span class="badge bg-light text-dark border px-2 py-0.5 fw-medium" style="font-size: 0.72rem; border-radius: 4px;">
+                    {{ b.name }}
+                  </span>
+                {% endfor %}
+              </div>
+            {% elif u.branch %}
               <span class="badge bg-light text-dark border px-2.5 py-1 fw-medium" style="font-size: 0.73rem; border-radius: 4px;">
                 {{ u.branch.name }}
               </span>

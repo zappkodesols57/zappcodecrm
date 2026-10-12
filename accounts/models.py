@@ -170,9 +170,23 @@ class User(AbstractUser):
     speciality = models.CharField(max_length=50, choices=SPECIALITY_CHOICES, null=True, blank=True)
     hospital = models.ForeignKey(Hospital, on_delete=models.SET_NULL, null=True, blank=True, related_name="users")
     branch = models.ForeignKey("leads.HospitalBranch", on_delete=models.SET_NULL, null=True, blank=True, related_name="users", help_text="Assigned Branch for Branch Managers, Telecallers, and Doctors. Null/Empty means All Branches (Full Business Access).")
+    assigned_branches = models.ManyToManyField("leads.HospitalBranch", blank=True, related_name="assigned_users", help_text="Multiple assigned branches for this user.")
     
     # Store individual permission overrides here
     custom_permissions = models.JSONField(default=dict, blank=True)
+
+    @property
+    def assigned_branches_list(self):
+        """Returns QuerySet of assigned branches. If none assigned, returns empty QS or all depending on context."""
+        return self.assigned_branches.all()
+
+    @property
+    def assigned_branch_names(self):
+        """Returns list of assigned branch names."""
+        names = list(self.assigned_branches.values_list("name", flat=True))
+        if not names and self.branch:
+            names = [self.branch.name]
+        return names
 
     @property
     def business(self):
