@@ -117,9 +117,9 @@ def user_list(request):
         try:
             created = auto_generate_master_data_profiles(hospital=hospital)
             if created:
-                messages.success(request, f"Successfully created {len(created)} temporary user profiles for Lead Attendants & Doctors from master data! (Default password: Nelson@123)")
+                messages.success(request, f"Successfully created {len(created)} temporary user profiles for Telecallers & Doctors from master data! (Default password: <FirstName>@zappcode)")
             else:
-                messages.info(request, "All Lead Attendants and Doctors in master data already have matching user profiles.")
+                messages.info(request, "All Telecallers and Doctors in master data already have matching user profiles.")
         except Exception as e:
             messages.warning(request, f"Profile scan completed with skipped duplicates: {str(e)}")
         return redirect("accounts:user_list")
@@ -172,14 +172,14 @@ def user_list(request):
     if request.user.hospital:
         if request.user.role == User.Role.MANAGER:
             available_roles = [
-                (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+                (User.Role.LEAD_ATTENDENT, "Telecaller"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
         else:
             available_roles = [
                 (User.Role.ADMIN, "Admin"),
                 (User.Role.MANAGER, "Manager"),
-                (User.Role.LEAD_ATTENDENT, "Lead Attendant"),
+                (User.Role.LEAD_ATTENDENT, "Telecaller"),
                 (User.Role.DOCTOR, "Doctor"),
             ]
     else:
@@ -208,8 +208,8 @@ def user_list(request):
 def auto_generate_master_data_profiles(hospital=None):
     """
     Scans Lead custom_data & relations to auto-generate temporary User profiles
-    and HospitalDoctor entries for uncreated Lead Attendants and Doctors.
-    Default Temporary Password: 'Nelson@123'
+    and HospitalDoctor entries for uncreated Telecallers and Doctors.
+    Default Temporary Password: '<FirstName>@zappcode'
     Optimized for sub-second execution using in-memory set lookups.
     """
     from django.db.models import Q
@@ -218,77 +218,28 @@ def auto_generate_master_data_profiles(hospital=None):
     import re
 
     # 1. Gather distinct Lead Attendant names and Doctor names from Lead records
-    # Try fast database-level JSON extraction if possible, fallback to Python generator
     attendants = set()
     doctors = set()
 
-    extracted_via_sql = False
-    try:
-        with connection.cursor() as cursor:
-            if hospital:
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE hospital_id = %s
-                      AND custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.doctor', hospital.id, '$.doctor'])
-                raw_docs = [r[0] for r in cursor.fetchall() if r[0]]
+    lead_qs = Lead.objects.all()
+    if hospital:
+        lead_qs = lead_qs.filter(hospital=hospital)
 
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE hospital_id = %s
-                      AND custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.lead_attendant', hospital.id, '$.lead_attendant'])
-                raw_atts = [r[0] for r in cursor.fetchall() if r[0]]
-            else:
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.doctor', '$.doctor'])
-                raw_docs = [r[0] for r in cursor.fetchall() if r[0]]
+    lead_rows = lead_qs.values_list('custom_data', 'raw_source_metadata')
+    for cd, raw in lead_rows.iterator(chunk_size=1000):
+        cd_map = cd if isinstance(cd, dict) else {}
+        raw_map = raw if isinstance(raw, dict) else {}
 
-                cursor.execute("""
-                    SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(custom_data, %s)) 
-                    FROM leads_lead 
-                    WHERE custom_data IS NOT NULL 
-                      AND JSON_EXTRACT(custom_data, %s) IS NOT NULL
-                """, ['$.lead_attendant', '$.lead_attendant'])
-                raw_atts = [r[0] for r in cursor.fetchall() if r[0]]
-
-            for att in raw_atts:
-                if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
-                    attendants.add(str(att).strip())
-
-            for doc in raw_docs:
-                if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
-                    for d in str(doc).split(','):
-                        d_clean = d.strip()
-                        if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
-                            doctors.add(d_clean)
-            extracted_via_sql = True
-    except Exception:
-        extracted_via_sql = False
-
-    if not extracted_via_sql:
-        lead_qs = Lead.objects.all()
-        if hospital:
-            lead_qs = lead_qs.filter(hospital=hospital)
-        lead_qs = lead_qs.exclude(custom_data={}).exclude(custom_data__isnull=True).values_list('custom_data', flat=True)
-
-        for cd in lead_qs.iterator(chunk_size=1000):
-            if not cd:
-                continue
-            att = cd.get('lead_attendant')
-            doc = cd.get('doctor')
-            
-            if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned'):
+        # Attendant name matching
+        for k in ['lead_attendant', 'lead_attendent', 'telecaller', 'caller', 'attendant', 'attendent', 'assigned_to']:
+            att = raw_map.get(k) or cd_map.get(k)
+            if att and str(att).strip().lower() not in ('none', 'nan', '', '-', 'unassigned', 'null'):
                 attendants.add(str(att).strip())
-            if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --'):
+
+        # Doctor name matching
+        for k in ['doctor', 'dr_name', 'consultant', 'physician', 'surgeon', 'dr']:
+            doc = raw_map.get(k) or cd_map.get(k)
+            if doc and str(doc).strip().lower() not in ('none', 'nan', '', '-', 'select doctor', '-- select doctor / consultant --', 'null'):
                 for d in str(doc).split(','):
                     d_clean = d.strip()
                     if d_clean and d_clean.lower() not in ('none', 'nan', '', '-', 'select doctor'):
@@ -353,9 +304,10 @@ def auto_generate_master_data_profiles(hospital=None):
                 uname = f"{base_username}{idx}"
                 idx += 1
 
+            default_pw = f"{first_n}@zappcode"
             new_user = User.objects.create_user(
                 username=uname,
-                password="Nelson@123",
+                password=default_pw,
                 first_name=first_n,
                 last_name=last_n,
                 role=User.Role.LEAD_ATTENDENT,
@@ -390,9 +342,10 @@ def auto_generate_master_data_profiles(hospital=None):
                 uname = f"{raw_uname}{idx}"
                 idx += 1
 
+            default_pw = f"{first_n}@zappcode"
             existing_user = User.objects.create_user(
                 username=uname,
-                password="Nelson@123",
+                password=default_pw,
                 first_name=first_n,
                 last_name=last_n,
                 role=User.Role.DOCTOR,
@@ -438,6 +391,59 @@ def auto_generate_master_data_profiles(hospital=None):
                     defaults={"is_active": True}
                 )
                 existing_master_items.add(clean_lower)
+
+    # 5. Link imported leads to their matching Lead Attendants / Telecallers
+    all_telecallers = list(User.objects.filter(role=User.Role.LEAD_ATTENDENT, hospital=hospital)) if hospital else list(User.objects.filter(role=User.Role.LEAD_ATTENDENT))
+    if all_telecallers:
+        attendant_lookup = {}
+        for u in all_telecallers:
+            uname = (u.username or "").strip().lower()
+            fname = (u.first_name or "").strip().lower()
+            lname = (u.last_name or "").strip().lower()
+            fullname = (u.get_full_name() or "").strip().lower()
+            if uname:
+                attendant_lookup[uname] = u
+            if fname:
+                attendant_lookup[fname] = u
+            if fullname:
+                attendant_lookup[fullname] = u
+
+        leads_to_assign = Lead.objects.all()
+        if hospital:
+            leads_to_assign = leads_to_assign.filter(hospital=hospital)
+
+        # Batch update leads where assigned_to is null or where attendant is in raw/custom metadata
+        leads_for_update = []
+        for l in leads_to_assign.iterator(chunk_size=1000):
+            raw = l.raw_source_metadata if isinstance(l.raw_source_metadata, dict) else {}
+            cd = l.custom_data if isinstance(l.custom_data, dict) else {}
+            
+            att_val = ""
+            for k in ['lead_attendant', 'lead_attendent', 'telecaller', 'caller', 'attendant', 'attendent', 'assigned_to']:
+                v = raw.get(k) or cd.get(k)
+                if v and str(v).strip().lower() not in ('none', 'nan', '', '-', 'unassigned', 'null'):
+                    att_val = str(v).strip()
+                    break
+
+            if att_val:
+                att_low = att_val.lower()
+                matched_user = attendant_lookup.get(att_low)
+                if not matched_user:
+                    for k_name, u_obj in attendant_lookup.items():
+                        if k_name in att_low or att_low in k_name:
+                            matched_user = u_obj
+                            break
+
+                if matched_user and l.assigned_to_id != matched_user.id:
+                    l.assigned_to = matched_user
+                    # Also ensure custom_data has clean lead_attendant
+                    if not isinstance(l.custom_data, dict):
+                        l.custom_data = {}
+                    l.custom_data['lead_attendant'] = matched_user.get_full_name() or matched_user.username
+                    leads_for_update.append(l)
+
+        if leads_for_update:
+            Lead.objects.bulk_update(leads_for_update, ['assigned_to', 'custom_data'], batch_size=500)
 
     return created_users
 

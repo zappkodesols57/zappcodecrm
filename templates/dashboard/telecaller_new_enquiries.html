@@ -200,10 +200,7 @@
                     {% for lead in leads %}
                     <tr>
                         <td class="px-4">
-                            <div class="fw-bold text-dark">{{ lead.name }}</div>
-                            <div class="small mt-0.5">
-                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="badge bg-light text-primary border text-decoration-none" title="View Lead Details">#{{ lead.lead_code|default:lead.pk }}</a>
-                            </div>
+                            <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">{{ lead.name }}</a>
                         </td>
                         <td>
                             <div><i class="fa-solid fa-phone text-muted me-1 small"></i> <a href="tel:{{ lead.mobile }}" class="text-decoration-none text-dark fw-medium">{{ lead.mobile }}</a></div>

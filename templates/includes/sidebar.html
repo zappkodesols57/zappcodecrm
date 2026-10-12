@@ -537,7 +537,7 @@
     </a>
 
     {% else %}
-    {# 💼 COUNSELLOR / HR EMPLOYEE / LEAD ATTENDANT SIDEBAR #}
+    {# 💼 COUNSELLOR / HR EMPLOYEE / TELECALLER SIDEBAR #}
 
     <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}"
@@ -659,7 +659,7 @@
     </a>
 
     {% if user.role != 'DOCTOR' %}
-    <!-- 6. Temperature Manager Tab for Counsellors / HR / Lead Attendants -->
+    <!-- 6. Temperature Manager Tab for Counsellors / HR / Telecallers -->
     <a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
       href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
       <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>

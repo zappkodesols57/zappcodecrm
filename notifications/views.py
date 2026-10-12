@@ -218,6 +218,9 @@ def get_unread_notifications(request):
         # Gracefully handle temporary network drop / DB reconnect without crashing client
         return JsonResponse({'count': 0, 'notifications': [], 'status': 'retry'})
 
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
 @login_required
 def mark_notification_read(request, pk):
     n = get_object_or_404(Notification, pk=pk, user=request.user)
@@ -225,9 +228,10 @@ def mark_notification_read(request, pk):
     n.save(update_fields=['is_read'])
     return JsonResponse({'status': 'ok'})
 
+@csrf_exempt
 @login_required
 def mark_all_read(request):
-    request.user.notifications.filter(is_read=False).update(is_read=True)
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return JsonResponse({'status': 'ok'})
 
 from django.core.paginator import Paginator

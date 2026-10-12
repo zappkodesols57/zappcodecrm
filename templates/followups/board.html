@@ -78,7 +78,7 @@
             {% if team_members %}
             <div style="min-width: 130px; max-width: 160px;" class="flex-grow-1">
                 <select name="user_id" class="form-select form-select-sm rounded-1 no-tom-select" style="height: 36px; border: 1px solid #ced4da !important; font-size: 0.85rem;">
-                    <option value="">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}All Attendants{% else %}All Counselors{% endif %}</option>
+                    <option value="">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}All Telecallers{% else %}All Counselors{% endif %}</option>
                     {% for m in team_members %}
                         <option value="{{ m.id }}" {% if selected_user_id == m.id|stringformat:'s' %}selected{% endif %}>{{ m.get_full_name|default:m.username }}</option>
                     {% endfor %}
@@ -119,7 +119,7 @@
                         <th class="border-0 py-3 text-muted small text-uppercase">Latest Follow-up Date</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Follow-up Status</th>
                         <th class="border-0 py-3 text-muted small text-uppercase">Remarks / Notes</th>
-                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Assigned Attendant{% else %}Assigned Counselor{% endif %}</th>
+                        <th class="border-0 py-3 text-muted small text-uppercase">{% if is_hospital_business or request.user.industry == 'HOSPITAL' %}Assigned Telecaller{% else %}Assigned Counselor{% endif %}</th>
                         <th class="border-0 px-3 py-3 text-end text-muted small text-uppercase">Action</th>
                     </tr>
                 </thead>

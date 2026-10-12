@@ -837,8 +837,8 @@ def telecaller_tab_data_api(request):
 
     elif tab in ['followups_todays', 'followups_upcoming', 'followups_overdue']:
         booked_exclude_tele = (
-            Q(custom_data__appointment_status__icontains='Book') |
-            Q(custom_data__appointment_status__icontains='Confirm') |
+            Q(custom_data__appointment_status__isnull=False, custom_data__appointment_status__icontains='Book') |
+            Q(custom_data__appointment_status__isnull=False, custom_data__appointment_status__icontains='Confirm') |
             Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
             Q(admission_status='ADMISSION_DONE') |
             (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=['0', '0.00', '', '0.0', 0, 0.0]))

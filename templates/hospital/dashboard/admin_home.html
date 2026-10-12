@@ -61,8 +61,8 @@ Analytics Dashboard{% endif %}{% endblock %}
         border-radius: var(--radius-lg);
         border: 1px solid #E5E7EB;
         box-shadow: var(--shadow-sm);
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 1.5rem;
+        padding: 0.85rem 1.15rem;
+        margin-bottom: 1rem;
     }
 
     /* Simple, clean border for all filter inputs & dropdowns */
@@ -286,7 +286,7 @@ Analytics Dashboard{% endif %}{% endblock %}
 
     .chart-container-wrapper {
         position: relative;
-        height: 290px;
+        height: 230px;
         width: 100%;
         max-width: 100%;
     }
@@ -1044,11 +1044,11 @@ Analytics Dashboard{% endif %}{% endblock %}
         </div>
     </div>
 
-    <!-- 6. Doctor / Attendant Wise Chart -->
+    <!-- 6. Doctor / Telecaller Wise Chart -->
     <div class="chart-card">
         <div class="chart-header">
             <h5 class="chart-title">
-                <i class="ph-bold ph-user-circle text-primary"></i> Doctor / Attendant Performance
+                <i class="ph-bold ph-user-circle text-primary"></i> Doctor / Telecaller Performance
             </h5>
             <div class="d-flex align-items-center gap-1">
                 <span class="small text-muted" style="font-size: 0.72rem;">Show:</span>
@@ -1283,7 +1283,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-primary rounded-pill px-3 py-2 fw-bold" id="drilldownSelectedCountBadge">0
                             Leads Selected</span>
-                        <span class="text-muted small">Choose a lead attendant or self-assign the selected leads:</span>
+                        <span class="text-muted small">Choose a telecaller or self-assign the selected leads:</span>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         {% if request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' %}
@@ -1302,7 +1302,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                             <select id="drilldownBulkAssignSelect"
                                 class="form-select form-select-sm rounded-pill border border-secondary-subtle px-3"
                                 style="min-width: 200px; height: 34px;">
-                                <option value="">-- Select Lead Attendant --</option>
+                                <option value="">-- Select Telecaller --</option>
                             </select>
                             <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm"
                                 onclick="executeDrilldownBulkAssign()">
@@ -2032,9 +2032,9 @@ Analytics Dashboard{% endif %}{% endblock %}
             const ts = sel.tomselect;
             ts.clear();
             ts.clearOptions();
-            ts.settings.placeholder = '-- Select Lead Attendant --';
-            if (ts.input) ts.input.setAttribute('placeholder', '-- Select Lead Attendant --');
-            if (ts.control_input) ts.control_input.setAttribute('placeholder', '-- Select Lead Attendant --');
+            ts.settings.placeholder = '-- Select Telecaller --';
+            if (ts.input) ts.input.setAttribute('placeholder', '-- Select Telecaller --');
+            if (ts.control_input) ts.control_input.setAttribute('placeholder', '-- Select Telecaller --');
             optionsList.forEach(opt => {
                 ts.addOption({ value: opt.value, text: opt.text });
             });
@@ -2043,7 +2043,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         }
 
         // 2. Also keep native <select> options in sync
-        sel.innerHTML = '<option value="">-- Select Lead Attendant --</option>';
+        sel.innerHTML = '<option value="">-- Select Telecaller --</option>';
         optionsList.forEach(opt => {
             const elOpt = document.createElement('option');
             elOpt.value = opt.value;
@@ -2187,7 +2187,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         const assignSelect = document.getElementById('drilldownBulkAssignSelect');
         const assignToId = (assignSelect && assignSelect.tomselect) ? assignSelect.tomselect.getValue() : (assignSelect ? assignSelect.value : '');
         if (!assignToId) {
-            showInWindowAlert("Selection Required", "Please select a lead attendant to assign the leads to.", "warning");
+            showInWindowAlert("Selection Required", "Please select a telecaller to assign the leads to.", "warning");
             return;
         }
         if (selectedDrilldownLeadIds.size === 0) {
@@ -3012,8 +3012,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                         ${lead.name}
                     </a>
                     <div class="mt-0.5">
-                        <a href="${leadDetailHref}" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.72rem;">#${lead.lead_code || lead.id}</a>
-                        <span class="text-muted small ms-1" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
+                        <span class="text-muted small" style="font-size: 0.7rem;">Added: ${lead.created_date}</span>
                     </div>
                 </td>
                 <td>

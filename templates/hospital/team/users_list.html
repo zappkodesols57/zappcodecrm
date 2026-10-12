@@ -81,7 +81,7 @@
     <p class="text-muted small mb-0 mt-0.5" style="font-size: 0.76rem;">Manage staff members, roles, doctor profiles, permissions, and approvals.</p>
   </div>
   <div class="d-flex gap-2 align-items-center">
-    <form method="post" action="{% url 'accounts:user_list' %}" class="d-inline" id="autoGenForm" onsubmit="if(!confirm('Scan master data & auto-create temporary profiles (Password: Nelson@123) for missing Doctors & Lead Attendants?')) { return false; } const btn = document.getElementById('autoGenBtn'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm me-1\' role=\'status\' aria-hidden=\'true\'></span> Generating...'; return true;">
+    <form method="post" action="{% url 'accounts:user_list' %}" class="d-inline" id="autoGenForm" onsubmit="if(!confirm('Scan master data & auto-create temporary profiles (Password: <FirstName>@zappcode) for missing Doctors & Telecallers?')) { return false; } const btn = document.getElementById('autoGenBtn'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm me-1\' role=\'status\' aria-hidden=\'true\'></span> Generating...'; return true;">
       {% csrf_token %}
       <input type="hidden" name="action" value="generate_temp_profiles">
       <button type="submit" id="autoGenBtn" class="btn btn-outline-secondary team-mgmt-header-btn" title="Scan master data and auto-create temporary profiles">
@@ -124,7 +124,7 @@
           <td class="py-2 text-muted small">{{ u.date_joined|date:"d M Y, H:i" }}</td>
           <td class="text-end pe-3 py-2">
             {% if request.user.role == 'MANAGER' and request.user.hospital and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
-            <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only approve Doctors and Attendants">
+            <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only approve Doctors and Telecallers">
               Locked
             </span>
             {% else %}
@@ -313,7 +313,7 @@
           <!-- 7. Actions -->
           <td class="text-end pe-3 py-2.5">
             {% if request.user.role == 'MANAGER' and request.user.hospital and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
-            <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only manage Doctors, Attendants and their own profile">
+            <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only manage Doctors, Telecallers and their own profile">
               Locked
             </span>
             {% else %}
