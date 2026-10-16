@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Today's Updated Leads - {{ report_date|date:"d M Y" }} · CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+  .crm-leads-container {
+    max-width: 1200px;
+    margin: 1.25rem auto 3rem auto;
+  }
+  .crm-table-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .crm-activity-table {
+    margin-bottom: 0;
+    font-size: 0.88rem;
+  }
+  .crm-activity-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 650;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1.5px solid #e2e8f0;
+    padding: 0.65rem 0.85rem;
+    white-space: nowrap;
+  }
+  .crm-activity-table tbody td {
+    padding: 0.75rem 0.85rem;
+    vertical-align: middle;
+    color: #1e293b;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .crm-activity-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+  .crm-badge-stage {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 5px;
+    font-weight: 600;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    display: inline-block;
+  }
+  .crm-badge-status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 5px;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    display: inline-block;
+  }
+  .crm-actions-box {
+    max-width: 240px;
+    font-size: 0.82rem;
+    color: #334155;
+    line-height: 1.4;
+  }
+  .crm-remark-box {
+    max-width: 220px;
+    font-size: 0.82rem;
+    color: #475569;
+    line-height: 1.35;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crm-leads-container">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h5 class="mb-0 fw-bold text-dark">Today's Updated Leads</h5>
+      <span class="text-muted small">
+        {{ report_date|date:"l, d F Y" }} &bull; Total Unique Leads: <strong class="text-dark">{{ total_count }}</strong>
+      </span>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
+        Export Excel
+      </a>
+      <a href="{% url 'dashboard:export_daily_activity_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold">
+        Export PDF
+      </a>
+      <a href="{% url 'dashboard:submit_daily_report' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-light border rounded-pill px-3">
+        Back to EOD Form
+      </a>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="crm-table-card">
+    <div class="table-responsive">
+      <table class="table crm-activity-table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Lead Info</th>
+            <th>Contact</th>
+            <th>Course</th>
+            <th>Current Stage</th>
+            <th>Status / Admission</th>
+            <th>Today's User Actions</th>
+            <th>Remarks / Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in leads_data %}
+          <tr>
+            <td class="text-muted small fw-semibold">{{ forloop.counter }}</td>
+            <td>
+              <div class="fw-bold text-dark">{{ item.lead.name }}</div>
+              <div class="text-muted small">{{ item.lead.lead_code }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold text-dark">{{ item.lead.mobile }}</div>
+              <div class="text-muted small">{{ item.lead.city|default:"—" }}</div>
+            </td>
+            <td>
+              <span class="fw-semibold text-dark">{{ item.course_name }}</span>
+            </td>
+            <td>
+              <span class="crm-badge-stage">{{ item.stage_name }}</span>
+            </td>
+            <td>
+              <span class="crm-badge-status">{{ item.status_str }}</span>
+            </td>
+            <td>
+              <div class="crm-actions-box text-truncate" title="{{ item.actions_str }}">
+                {{ item.actions_str|linebreaksbr }}
+              </div>
+            </td>
+            <td>
+              <div class="crm-remark-box text-truncate" title="{{ item.remarks_str }}">
+                {{ item.remarks_str }}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center py-5 text-muted">
+              <div class="fw-semibold">No leads were touched, assigned, or updated today.</div>
+              <div class="small">Work on leads in your dashboard to view daily activity here.</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

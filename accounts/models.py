@@ -96,7 +96,6 @@ class Hospital(models.Model):
                 User.Role.ADMIN,
                 User.Role.MANAGER,
                 User.Role.COUNSELLOR,
-                User.Role.HR,
             ]
             return [r for r in academy_default_roles if r in [c[0] for c in User.Role.choices]]
 
@@ -232,9 +231,7 @@ class User(AbstractUser):
 
     @property
     def custom_role_display(self):
-        biz_title = self.business.name if self.business else "Global"
-        role_name = self.get_role_display()
-        return f"{biz_title} ({role_name})"
+        return self.get_role_display()
 
     @property
     def doctor_departments_list(self):

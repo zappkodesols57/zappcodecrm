@@ -4,93 +4,134 @@
 
 <!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-  <h4 class="mb-0 fw-bold text-dark">Student Admissions</h4>
-  <a href="{% url 'admissions:add' %}" class="btn btn-brand text-white btn-sm px-3 shadow-sm">
-    <i class="fa-solid fa-user-plus me-1"></i> Add New / Old Student / Direct Admission
+  <div>
+    <h4 class="mb-0 fw-bold text-dark">Student Admissions</h4>
+    <p class="text-muted small mb-0">Manage enrolled students, fee records, payment plans, and training progress.</p>
+  </div>
+  <a href="{% url 'admissions:add' %}" class="btn btn-brand text-white btn-sm px-3 py-2 rounded-pill shadow-sm fw-semibold d-inline-flex align-items-center gap-2">
+    <i class="fa-solid fa-user-plus"></i>
+    <span>Add Old / Direct Student Admission</span>
   </a>
 </div>
 
 <!-- KPI Section -->
 <div class="row g-3 mb-4">
   <div class="col-md col-sm-6">
-    <div class="card shadow-sm border-0 border-start border-primary border-4">
+    <div class="card shadow-sm border bg-white rounded-3" style="border-color: #cbd5e1 !important; border-left: 4px solid #4f46e5 !important;">
       <div class="card-body py-3">
-        <div class="text-muted small text-uppercase fw-semibold">Total Admissions</div>
+        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.03em;">Total Admissions</div>
         <div class="fs-3 fw-bold text-dark mt-1">{{ total_count }}</div>
       </div>
     </div>
   </div>
   <div class="col-md col-sm-6">
-    <div class="card shadow-sm border-0 border-start border-success border-4">
+    <div class="card shadow-sm border bg-white rounded-3" style="border-color: #cbd5e1 !important; border-left: 4px solid #10b981 !important;">
       <div class="card-body py-3">
-        <div class="text-muted small text-uppercase fw-semibold">Full Paid</div>
+        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.03em;">Full Paid</div>
         <div class="fs-3 fw-bold text-success mt-1">{{ full_paid_count }}</div>
       </div>
     </div>
   </div>
   <div class="col-md col-sm-6">
-    <div class="card shadow-sm border-0 border-start border-warning border-4">
+    <div class="card shadow-sm border bg-white rounded-3" style="border-color: #cbd5e1 !important; border-left: 4px solid #f59e0b !important;">
       <div class="card-body py-3">
-        <div class="text-muted small text-uppercase fw-semibold">EMI Plan</div>
+        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.03em;">EMI Plan</div>
         <div class="fs-3 fw-bold text-warning mt-1">{{ emi_count }}</div>
       </div>
     </div>
   </div>
   <div class="col-md col-sm-6">
-    <div class="card shadow-sm border-0 border-start border-info border-4">
+    <div class="card shadow-sm border bg-white rounded-3" style="border-color: #cbd5e1 !important; border-left: 4px solid #06b6d4 !important;">
       <div class="card-body py-3">
-        <div class="text-muted small text-uppercase fw-semibold">Course Completed</div>
+        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.03em;">Course Completed</div>
         <div class="fs-3 fw-bold text-info mt-1">{{ completed_count }}</div>
       </div>
     </div>
   </div>
   <div class="col-md col-sm-6">
-    <div class="card shadow-sm border-0 border-start border-danger border-4">
+    <div class="card shadow-sm border bg-white rounded-3" style="border-color: #cbd5e1 !important; border-left: 4px solid #ef4444 !important;">
       <div class="card-body py-3">
-        <div class="text-muted small text-uppercase fw-semibold">Pending Fees</div>
+        <div class="text-muted small text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.03em;">Pending Fees</div>
         <div class="fs-3 fw-bold text-danger mt-1">₹{{ total_pending_fees|floatformat:0 }}</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Filters Card -->
-<div class="card shadow-sm border-0 mb-4">
-  <div class="card-body">
+<!-- Compact Top Filters Card -->
+<div class="card border shadow-sm mb-4" style="border-radius: 10px; background: #ffffff; border-color: #cbd5e1 !important;">
+  <div class="card-body p-3">
     <form method="get" class="row g-2 align-items-end">
-      <div class="col-md-3">
-        <label class="form-label text-muted small fw-semibold">Search Student</label>
-        <input type="text" name="search" class="form-control form-control-sm" placeholder="Name or Lead ID..." value="{{ search_query }}">
+      <!-- 1. Search Student -->
+      <div class="col-12 col-md-3 col-xl-3">
+        <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Search Student</label>
+        <input type="search" name="search" class="form-control form-control-sm border" style="border-color: #cbd5e1 !important; height: 36px;" placeholder="Student name, mobile, lead code..." value="{{ search_query }}">
       </div>
-      <div class="col-md-2">
-        <label class="form-label text-muted small fw-semibold">Payment Plan</label>
-        <select name="payment_plan" class="form-select form-select-sm">
+
+      <!-- 2. Course Filter -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Course</label>
+        <select name="course" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+          <option value="">All Courses</option>
+          {% for c in courses %}
+          <option value="{{ c.id }}" {% if course_filter == c.id|stringformat:'s' or course_filter == c.name %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 3. Trainer Filter -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Trainer</label>
+        <select name="trainer" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+          <option value="">All Trainers</option>
+          {% for tr in trainers %}
+          <option value="{{ tr }}" {% if trainer_filter == tr %}selected{% endif %}>{{ tr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 4. Payment Plan Filter -->
+      <div class="col-6 col-md-3 col-xl-1">
+        <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Plan</label>
+        <select name="payment_plan" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
           <option value="">All Plans</option>
           {% for code, label in payment_plans %}
           <option value="{{ code }}" {% if plan_filter == code %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
-        <label class="form-label text-muted small fw-semibold">Course Status</label>
-        <select name="course_status" class="form-select form-select-sm">
+
+      <!-- 5. Course Status Filter -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Course Status</label>
+        <select name="course_status" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
           <option value="">All Statuses</option>
           {% for code, label in course_statuses %}
-          <option value="{{ code }}" {% if course_filter == code %}selected{% endif %}>{{ label }}</option>
+          <option value="{{ code }}" {% if course_status_filter == code %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
-        <label class="form-label text-muted small fw-semibold">Fee Status</label>
-        <select name="fee_status" class="form-select form-select-sm">
-          <option value="">All Fees</option>
+
+      <!-- 6. Fee Status Filter -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Fee Status</label>
+        <select name="fee_status" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+          <option value="">All Fee Status</option>
           <option value="FULLY_PAID" {% if fee_filter == 'FULLY_PAID' %}selected{% endif %}>Fully Paid</option>
           <option value="PENDING" {% if fee_filter == 'PENDING' %}selected{% endif %}>Pending / EMI Balance</option>
         </select>
       </div>
-      <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-sm btn-brand text-white w-50"><i class="fa-solid fa-filter me-1"></i>Filter</button>
-        <a href="{% url 'admissions:list' %}" class="btn btn-sm btn-outline-secondary w-50"><i class="fa-solid fa-arrows-rotate me-1"></i>Reset</a>
+
+      <!-- Action Buttons -->
+      <div class="col-12 col-xl-12 mt-2">
+        <div class="d-flex justify-content-end gap-2">
+          <button type="submit" class="btn btn-sm btn-brand text-white px-4 shadow-sm d-flex align-items-center justify-content-center" style="height: 36px; border-radius: 6px; font-weight: 500;">
+            <i class="fa-solid fa-filter me-1.5"></i> Apply Filters
+          </button>
+          <a href="{% url 'admissions:list' %}" class="btn btn-sm btn-outline-secondary px-4 d-flex align-items-center justify-content-center" style="height: 36px; border-radius: 6px; border-color: #cbd5e1 !important; font-weight: 500;">
+            <i class="fa-solid fa-arrows-rotate me-1.5"></i> Reset
+          </a>
+        </div>
       </div>
     </form>
   </div>
@@ -101,89 +142,141 @@
   {% csrf_token %}
   
   <!-- Bulk Action Bar -->
-  <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-3 p-2.5 bg-white rounded-3 border shadow-sm" style="border-color: #cbd5e1 !important;">
     <div class="d-flex align-items-center gap-2">
-      <span class="small text-muted fw-semibold ms-2"><span id="selected-count">0</span> students selected</span>
+      <span class="small text-muted fw-semibold ms-2"><span id="selected-count" class="badge bg-primary rounded-pill px-2 py-1">0</span> students selected</span>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <select name="bulk_action" class="form-select form-select-sm" style="min-width: 290px; width: 320px;" required>
+      <select name="bulk_action" class="form-select form-select-sm border" style="border-color: #cbd5e1 !important; min-width: 250px; height: 35px;" required>
         <option value="">-- Select Bulk Action --</option>
         <option value="mark_ongoing">Mark Course as Ongoing</option>
         <option value="mark_completed">Mark Course as Completed</option>
       </select>
-      <button type="submit" class="btn btn-sm btn-brand text-white text-nowrap px-3">Apply Action</button>
+      <button type="submit" class="btn btn-sm btn-brand text-white text-nowrap px-3 shadow-sm" style="height: 35px; border-radius: 6px; font-weight: 500;">Apply Action</button>
     </div>
   </div>
 
   <!-- Table Card -->
-  <div class="card shadow-sm border-0">
+  <div class="card shadow-sm border bg-white rounded-3 overflow-hidden" style="border-color: #cbd5e1 !important;">
     <div class="table-responsive">
-      <table class="table mb-0 align-middle table-hover text-nowrap">
-        <thead class="table-light">
+      <table class="table mb-0 align-middle table-hover text-nowrap" style="font-size: 0.88rem;">
+        <thead class="bg-light border-bottom">
           <tr>
-            <th width="40" class="text-center"><input type="checkbox" id="select-all" class="form-check-input"></th>
-            <th>Student</th>
-            <th>Course</th>
-            <th>Admission Date</th>
-            <th>Plan</th>
-            <th class="text-end">Base Price</th>
-            <th class="text-end">Discount</th>
-            <th class="text-end">Final Fee</th>
-            <th class="text-end text-success">Collected</th>
-            <th class="text-end text-warning">Pending</th>
-            <th class="text-center">Course Status</th>
-            <th>Counselor</th>
+            <th width="40" class="text-center py-2.5"><input type="checkbox" id="select-all" class="form-check-input"></th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Student Name</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Contact</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Admission Date</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Course</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Batch</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Trainer</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Payment Mode</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-center">Payment Status</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end">Total Fees</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end">Balance Fees</th>
+            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase">Counselor</th>
           </tr>
         </thead>
         <tbody>
           {% for a in admissions %}
           <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' a.lead_id %}" style="cursor: pointer;">
-            <td class="text-center" onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ a.id }}" class="form-check-input student-checkbox"></td>
-            <td>
-              <strong>{{ a.student_name }}</strong>
-              {% if a.discount > a.max_allowed_discount %}
-              <span class="d-block small text-danger" style="font-size: 0.72rem;" title="Reason: {{ a.extra_discount_reason }}">
-                <i class="fa-solid fa-circle-exclamation me-1"></i>Extra Discount Given
+            <td class="text-center" onclick="event.stopPropagation();">
+              <input type="checkbox" name="selected" value="{{ a.id }}" class="form-check-input student-checkbox">
+            </td>
+            
+            <!-- 1. Student Name -->
+            <td class="px-3">
+              <strong class="text-dark">{{ a.student_name }}</strong>
+              {% if a.lead.lead_code %}
+              <div class="text-muted small" style="font-size: 0.72rem;">#{{ a.lead.lead_code }}</div>
+              {% endif %}
+            </td>
+
+            <!-- 2. Contact -->
+            <td class="px-3">
+              <div><i class="fa-solid fa-phone text-muted me-1.5" style="font-size: 0.75rem;"></i>{{ a.lead.mobile|default:"—" }}</div>
+              {% if a.lead.city %}
+              <div class="text-muted small" style="font-size: 0.72rem;"><i class="fa-solid fa-location-dot me-1 text-secondary"></i>{{ a.lead.city }}</div>
+              {% endif %}
+            </td>
+
+            <!-- 3. Admission Date -->
+            <td class="px-3">
+              <span class="fw-semibold text-secondary">{{ a.admission_date|date:"d-m-Y" }}</span>
+            </td>
+
+            <!-- 4. Course -->
+            <td class="px-3">
+              <span class="badge bg-light text-dark border px-2 py-1 fw-medium" style="font-size: 0.78rem;">
+                {{ a.course.name|default:a.course|default:"—" }}
               </span>
-              {% endif %}
             </td>
-            <td>{{ a.course|default:"" }}</td>
-            <td>{{ a.admission_date|date:"d-m-Y" }}</td>
-            <td>
-              {% if a.payment_plan == 'EMI' %}
-              <span class="badge text-bg-warning" style="font-size: 0.72rem;">EMI ({{ a.emi_months|default:3 }}M)</span>
-              {% elif a.payment_option == 'ONE_TIME_CASH' %}
-              <span class="badge text-bg-light text-secondary border" style="font-size: 0.72rem;">One Time Cash</span>
+
+            <!-- 5. Batch -->
+            <td class="px-3">
+              {% if a.batch or a.lead.custom_data.batch %}
+                <span class="badge bg-light text-secondary border fw-medium" style="font-size: 0.75rem;">
+                  <i class="fa-solid fa-users me-1 text-primary"></i>{{ a.batch|default:a.lead.custom_data.batch }}
+                </span>
               {% else %}
-              <span class="badge text-bg-light text-secondary border" style="font-size: 0.72rem;">One Time UPI</span>
-              {% endif %}
-              {% if a.batch %}<small class="d-block text-muted" style="font-size: 0.68rem;"><i class="fa-solid fa-users me-1"></i>{{ a.batch }}</small>{% endif %}
-              {% if a.tutor %}<small class="d-block text-muted" style="font-size: 0.68rem;"><i class="fa-solid fa-chalkboard-user me-1"></i>{{ a.tutor }}</small>{% endif %}
-            </td>
-            <td class="text-end">₹{{ a.total_fee|floatformat:0 }}</td>
-            <td class="text-end text-danger">
-              ₹{{ a.discount|floatformat:0 }}
-              {% if a.discount > a.max_allowed_discount %}
-              <i class="fa-solid fa-triangle-exclamation ms-1 text-warning" style="cursor:help;" title="Exceeded master discount of ₹{{ a.max_allowed_discount|floatformat:0 }}. Reason: {{ a.extra_discount_reason }}"></i>
+                <span class="text-muted small">—</span>
               {% endif %}
             </td>
-            <td class="text-end fw-bold text-dark">₹{{ a.final_fee|floatformat:0 }}</td>
-            <td class="text-end text-success">₹{{ a.total_collected|default:a.collected|floatformat:0 }}</td>
-            <td class="text-end text-warning fw-bold">₹{{ a.pending|floatformat:0 }}</td>
-            <td class="text-center">
-              {% if a.course_status == 'COMPLETED' %}
-              <span class="badge text-bg-success" style="font-size: 0.72rem;">Completed</span>
-              {% elif a.course_status == 'DROPOUT' %}
-              <span class="badge text-bg-danger" style="font-size: 0.72rem;">Dropout</span>
+
+            <!-- 6. Trainer -->
+            <td class="px-3">
+              {% if a.tutor or a.lead.custom_data.tutor or a.course.tutor %}
+                <span class="fw-medium text-dark"><i class="fa-solid fa-chalkboard-user me-1 text-primary" style="font-size: 0.78rem;"></i>{{ a.tutor|default:a.lead.custom_data.tutor|default:a.course.tutor }}</span>
               {% else %}
-              <span class="badge text-bg-info text-white" style="font-size: 0.72rem;">Ongoing</span>
+                <span class="text-muted small">—</span>
               {% endif %}
             </td>
-            <td>{{ a.assigned_counselor|default:"" }}</td>
+
+            <!-- 7. Payment Mode -->
+            <td class="px-3">
+              <span class="badge bg-light text-dark border" style="font-size: 0.75rem;">
+                {{ a.payment_mode_display|default:"UPI / Online" }}
+              </span>
+              {% if a.payment_plan == 'EMI' and a.emi_months %}
+                <small class="d-block text-warning fw-semibold mt-0.5" style="font-size: 0.70rem;">{{ a.emi_months }} Months EMI</small>
+              {% endif %}
+            </td>
+
+            <!-- 8. Payment Status -->
+            <td class="px-3 text-center">
+              {% if a.payment_status_class == 'success' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">Full Paid</span>
+              {% elif a.payment_status_class == 'warning' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">Partial Paid</span>
+              {% else %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">Unpaid</span>
+              {% endif %}
+            </td>
+
+            <!-- 9. Total Fees -->
+            <td class="px-3 text-end fw-bold text-dark">
+              ₹{{ a.final_fee|floatformat:0 }}
+              {% if a.discount > 0 %}
+                <div class="text-muted small fw-normal" style="font-size: 0.70rem;">(₹{{ a.total_fee|floatformat:0 }} - ₹{{ a.discount|floatformat:0 }})</div>
+              {% endif %}
+            </td>
+
+            <!-- 10. Balance Fees -->
+            <td class="px-3 text-end fw-bold {% if a.pending_amount > 0 %}text-danger{% else %}text-success{% endif %}">
+              ₹{{ a.pending_amount|floatformat:0 }}
+            </td>
+
+            <!-- 11. Counselor -->
+            <td class="px-3">
+              {% if a.assigned_counselor %}
+                <span class="small fw-semibold text-secondary"><i class="fa-regular fa-user me-1"></i>{{ a.assigned_counselor.get_full_name|default:a.assigned_counselor.username }}</span>
+              {% else %}
+                <span class="text-muted small">Unassigned</span>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="13" class="text-center py-5 text-muted">
+            <td colspan="12" class="text-center py-5 text-muted">
               <i class="fa-solid fa-user-slash fs-1 d-block mb-2 text-secondary"></i>
               No admitted students matching filter settings.
             </td>

@@ -8,13 +8,14 @@ from .models import Lead, LeadTemperature, AdmissionStatus
 
 @receiver(pre_save, sender=Lead)
 def _stash_previous_state(sender, instance, **kwargs):
-    # Rule: If stage is Cancelled, admission_status must be LOST and temperature must be FREEZE
-    stage_name = (instance.stage.name if instance.stage_id and instance.stage else "").strip().lower()
-    if stage_name in ("cancelled", "lost"):
-        instance.admission_status = AdmissionStatus.LOST
-        instance.temperature = LeadTemperature.FREEZE
-    elif stage_name in ("admission done", "payment done"):
-        instance.admission_status = AdmissionStatus.WON
+    # Rule for Academy: If stage is Cancelled/Lost, admission_status must be LOST and temperature FREEZE
+    if instance.is_academy_industry:
+        stage_name = (instance.stage.name if instance.stage_id and instance.stage else "").strip().lower()
+        if stage_name in ("cancelled", "lost"):
+            instance.admission_status = AdmissionStatus.LOST
+            instance.temperature = LeadTemperature.FREEZE
+        elif stage_name in ("admission done", "payment done"):
+            instance.admission_status = AdmissionStatus.WON
 
     if instance.pk:
         try:

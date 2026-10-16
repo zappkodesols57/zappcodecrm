@@ -1,134 +1,200 @@
 {% extends "base.html" %}
-{% block title %}Submit Daily EOD Report · CRM{% endblock %}
+{% block title %}Daily EOD Report · CRM{% endblock %}
 
 {% block extra_css %}
 <style>
-  .crm-report-wrapper {
-    max-width: 860px;
-    margin: 1.5rem auto 3rem auto;
+  .crm-report-container {
+    max-width: 980px;
+    margin: 1.25rem auto 2.5rem auto;
   }
-  .crm-clean-card {
+  .crm-eod-card {
     background: #ffffff;
-    border-radius: 12px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    padding: 1.75rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    padding: 1.5rem 1.75rem;
   }
-  .form-label-clean {
-    font-size: 0.86rem;
+  .crm-eod-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .crm-field-group {
+    margin-bottom: 0.85rem;
+  }
+  .crm-field-label {
+    display: block;
+    font-size: 0.82rem;
     font-weight: 600;
     color: #334155;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .crm-clean-card .form-control,
-  .crm-clean-card .form-select {
-    border: 1.5px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 0.92rem;
-    padding: 0.55rem 0.85rem;
-    color: #1e293b;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  .crm-eod-card .form-control,
+  .crm-eod-card .form-select {
+    height: 38px !important;
+    min-height: 38px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.4rem 0.65rem !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
   }
-  .crm-clean-card .form-control:focus,
-  .crm-clean-card .form-select:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  .crm-eod-card .form-control:focus,
+  .crm-eod-card .form-select:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+    outline: none !important;
+  }
+  .crm-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="crm-report-wrapper">
+<div class="crm-report-container">
 
-  <!-- Header -->
+  <!-- Clean Minimal Header -->
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="mb-0 fw-bold text-dark">Submit Daily EOD Report</h4>
-      <p class="text-muted small mb-0">{{ report_date|date:"l, d F Y" }}</p>
+      <h5 class="mb-0 fw-bold text-dark">Daily EOD Report</h5>
+      <span class="text-muted small">{{ report_date|date:"l, d F Y" }}</span>
     </div>
-    <div class="d-flex align-items-center gap-2">
-      <!-- Export Today's Activity Leads -->
-      <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm fw-semibold" title="Download Excel sheet of leads touched/assigned today">
-        <i class="fa-solid fa-file-excel text-success me-1"></i> Export Today's Leads
-      </a>
-      <!-- Login Time Badge -->
-      <span class="badge text-bg-light border px-3 py-2 fw-semibold text-secondary">
-        <i class="fa-solid fa-clock text-primary me-1"></i> Login Time: <strong class="text-dark">{% if first_login_time %}{{ first_login_time|time:"h:i A" }}{% else %}Active{% endif %}</strong>
+    <div class="d-flex align-items-center flex-wrap gap-2">
+      <span class="crm-meta-badge">
+        Login Time: <strong class="ms-1 text-dark">{% if first_login_time %}{{ first_login_time|time:"h:i A" }}{% else %}Active{% endif %}</strong>
       </span>
       {% if existing %}
-        <span class="badge text-bg-warning px-2.5 py-2"><i class="fa-solid fa-edit me-1"></i> Editing</span>
+        <span class="badge text-bg-warning px-2.5 py-1.5 fw-semibold">Editing</span>
       {% endif %}
-      <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Cancel</a>
+      <a href="{% url 'dashboard:view_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" title="View today's touched/updated leads in detail">
+        View Today's Leads
+      </a>
+      <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" title="Export activity leads to Excel (.xlsx)">
+        Export Excel
+      </a>
+      <a href="{% url 'dashboard:export_daily_activity_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" title="Export activity leads to PDF">
+        Export PDF
+      </a>
+      <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-light border rounded-pill px-3">Cancel</a>
     </div>
   </div>
 
-  <!-- Main Clean Form -->
-  <form method="post" id="dailyReportForm" class="crm-clean-card">
+  <!-- Main Clean EOD Form -->
+  <form method="post" id="dailyReportForm" class="crm-eod-card">
     {% csrf_token %}
 
-    <div class="row g-3">
-      <!-- 1. Today's Assigned Leads -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Today's Assigned Leads</label>
+    <!-- Section 1: Inflow & Activity -->
+    <div class="crm-eod-section-title">Today's Inflow &amp; Touches</div>
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Total Leads Touched</label>
+        {{ form.todays_total_leads }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Assigned Leads</label>
         {{ form.leads_assigned }}
       </div>
-
-      <!-- 2. Today's Calls -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Today's Calls</label>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Walk-ins</label>
+        {{ form.walk_ins }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Follow-up Done</label>
         {{ form.calls_attended }}
       </div>
+    </div>
 
-      <!-- 3. Today's Admission Done -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Today's Admission Done</label>
+    <!-- Section 2: Progress & Outcomes -->
+    <div class="crm-eod-section-title">Pipeline &amp; Outcomes</div>
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Follow-up Pending</label>
+        {{ form.follow_ups_pending }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Visit Done</label>
+        {{ form.visit_done }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Visit Pending</label>
+        {{ form.visit_pending }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Admission Done</label>
         {{ form.admissions_done }}
       </div>
-
-      <!-- 4. Today's Payments Done -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Today's Payments Done</label>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Admission Pending</label>
+        {{ form.admission_pending }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Payment Done</label>
         {{ form.payments_done }}
       </div>
-
-      <!-- 5. Pending Leads -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Pending Leads</label>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Payment Pending</label>
+        {{ form.payment_pending }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Pending Leads Total</label>
         {{ form.pending_leads }}
       </div>
+    </div>
 
-      <!-- 6. Tomorrow's Follow-ups -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Tomorrow's Follow-ups</label>
+    <!-- Section 3: Timeline & Schedule -->
+    <div class="crm-eod-section-title">Queue &amp; Forecast</div>
+    <div class="row g-2 mb-2">
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Overdue Total</label>
+        {{ form.overdues }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Upcoming Total</label>
+        {{ form.upcoming }}
+      </div>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Tomorrow's Follow-ups</label>
         {{ form.tomorrow_followups }}
       </div>
-
-      <!-- 7. Today's Mood -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Today's Mood</label>
+      <div class="col-6 col-md-3 crm-field-group">
+        <label class="crm-field-label">Today's Mood</label>
         {{ form.mood }}
-      </div>
-
-      <!-- 8. Login Time (Display) -->
-      <div class="col-md-6">
-        <label class="form-label-clean">Login Time</label>
-        <input type="text" class="form-control bg-light" value="{% if first_login_time %}{{ first_login_time|time:'h:i A' }}{% else %}Active Session{% endif %}" readonly tabindex="-1">
       </div>
     </div>
 
     {% if form.errors %}
-    <div class="alert alert-danger rounded-3 py-2 px-3 small mt-3 mb-0">
-      <strong><i class="fa-solid fa-circle-exclamation me-1"></i> Please fix the errors:</strong>
+    <div class="alert alert-danger rounded-2 py-2 px-3 small mt-2 mb-0">
+      <strong>Please correct the form errors:</strong>
       {{ form.errors }}
     </div>
     {% endif %}
 
-    <!-- Action Buttons -->
-    <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+    <!-- Action Bar -->
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
       <div class="text-muted small">
-        <i class="fa-solid fa-paper-plane text-primary me-1"></i>
-        Sending to: 
-        <strong>
+        Recipient: 
+        <strong class="text-dark">
           {% if reports_to_user %}
             {{ reports_to_user.get_full_name|default:reports_to_user.username }}
           {% else %}
@@ -138,10 +204,9 @@
       </div>
 
       <div class="d-flex gap-2">
-        <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
-        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">
-          <i class="fa-solid fa-paper-plane me-1"></i>
-          {% if existing %}Update EOD Report{% else %}Submit EOD Report{% endif %}
+        <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary rounded-pill px-3">Cancel</a>
+        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold" style="background-color: var(--brand, #0f2744); border-color: var(--brand, #0f2744);">
+          {% if existing %}Update Report{% else %}Submit Report{% endif %}
         </button>
       </div>
     </div>
@@ -155,7 +220,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const form = document.getElementById('dailyReportForm');
     const draftKey = "eod_draft_{{ user.id }}_{{ report_date|date:'Y-m-d' }}";
 
-    // Auto-select 0 on click/focus
+    // Auto-select on focus / click
     const numberInputs = document.querySelectorAll('input[type="number"]');
     numberInputs.forEach(input => {
         input.addEventListener('focus', function() {
@@ -200,7 +265,7 @@ document.addEventListener("DOMContentLoaded", function() {
             el.addEventListener('change', saveDraft);
         });
 
-        // Restore draft
+        // Restore draft if empty
         const savedDraft = localStorage.getItem(draftKey);
         if (savedDraft) {
             try {

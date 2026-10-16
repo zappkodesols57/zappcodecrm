@@ -385,10 +385,9 @@ def campaign_dashboard(request):
     user_is_nelson = False
     user_is_academy = False
     if user_hospital:
-        hosp_name = user_hospital.name.lower()
-        if "nelson" in hosp_name or "hospital" in hosp_name:
+        if getattr(user_hospital, "industry", None) == "HOSPITAL":
             user_is_nelson = True
-        elif "zappcode" in hosp_name or "academy" in hosp_name:
+        elif getattr(user_hospital, "industry", None) == "ACADEMY":
             user_is_academy = True
 
     # If NOT Super Admin, restrict strictly to the user's business
@@ -404,7 +403,7 @@ def campaign_dashboard(request):
         selected_entity = request.GET.get("entity", "").strip().lower()
         if not selected_entity:
             if active_business:
-                if "nelson" in active_business.name.lower() or "hospital" in active_business.name.lower():
+                if getattr(active_business, "industry", None) == "HOSPITAL":
                     selected_entity = "nelson"
                 else:
                     selected_entity = "academy"
@@ -807,4 +806,301 @@ def update_meta_token(request):
         messages.success(request, "✅ Meta Page Access Token updated successfully!")
 
     return redirect("meta_ads:dashboard")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🎓 ACADEMY DEDICATED CAMPAIGN ANALYTICS (Clean, Isolated & Fast)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@login_required
+def academy_campaign_analytics(request):
+    """
+    Dedicated Campaign Analytics page for Academy Admin.
+    - Scoped strictly to the logged-in Academy business.
+    - Shows Top KPI Cards (Spend, Leads, Avg CPL, Active Campaigns).
+    - Table with Campaign Name, Status, Budget, Total Spent, Leads, CPL.
+    - Date Filters: Today, Yesterday, Last 7 Days, Last 30 Days, This Month, All Time.
+    - Clean Modal to Connect / Update Meta credentials without clutter.
+    """
+    from accounts.models import Hospital
+    from django.contrib import messages
+    from leads.models import Lead
+
+    user = request.user
+    target_biz = getattr(user, "business", None)
+    if not target_biz:
+        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+
+    # Find Meta Ads Connection strictly for this specific business
+    connection = None
+    if target_biz:
+        connection = MetaAdsConnection.objects.filter(hospital=target_biz, is_active=True).first()
+
+    # Date preset filter
+    date_preset = request.GET.get("date_preset", "all").strip()
+    # Normalize 'all', 'all_time', 'maximum'
+    if date_preset in ("all", "all_time", "maximum"):
+        date_preset = "maximum"
+    elif date_preset not in ("today", "last_7d", "last_30d", "custom"):
+        date_preset = "maximum"
+
+    custom_start = request.GET.get("start_date", "").strip()
+    custom_end = request.GET.get("end_date", "").strip()
+    if custom_start and custom_end:
+        date_preset = "custom"
+
+    # Fetch stored campaign stats for this business
+    stat_qs = MetaCampaignStat.objects.all()
+    if target_biz:
+        stat_qs = stat_qs.filter(Q(hospital=target_biz) | Q(hospital__isnull=True))
+
+    campaigns = list(stat_qs.filter(date_preset=date_preset).order_by("-spend"))
+
+    # Also compute real-time leads associated with this Academy's Meta campaigns
+    lead_qs = Lead.objects.filter(is_archived=False)
+    if target_biz:
+        lead_qs = lead_qs.filter(hospital=target_biz)
+
+    today = timezone.localdate()
+    parsed_start = None
+    parsed_end = None
+    if date_preset == "today":
+        lead_qs = lead_qs.filter(inquiry_date=today)
+        parsed_start = today
+        parsed_end = today
+    elif date_preset == "last_7d":
+        parsed_start = today - timezone.timedelta(days=7)
+        parsed_end = today
+        lead_qs = lead_qs.filter(inquiry_date__gte=parsed_start)
+    elif date_preset == "last_30d":
+        parsed_start = today - timezone.timedelta(days=30)
+        parsed_end = today
+        lead_qs = lead_qs.filter(inquiry_date__gte=parsed_start)
+    elif date_preset == "custom" and custom_start and custom_end:
+        try:
+            parsed_start = datetime.strptime(custom_start, "%Y-%m-%d").date()
+            parsed_end = datetime.strptime(custom_end, "%Y-%m-%d").date()
+            lead_qs = lead_qs.filter(inquiry_date__gte=parsed_start, inquiry_date__lte=parsed_end)
+        except Exception:
+            parsed_start = today - timezone.timedelta(days=30)
+            parsed_end = today
+            date_preset = "last_30d"
+
+    meta_leads_qs = lead_qs.filter(Q(ad_platform__iexact="Meta") | Q(lead_source__name__icontains="Meta") | Q(lead_source__name__icontains="Facebook"))
+    total_leads_captured = meta_leads_qs.count()
+
+    # Aggregate KPIs
+    total_spend = sum(float(c.spend) for c in campaigns)
+    total_campaign_leads = sum(int(c.leads_count) for c in campaigns)
+    effective_leads = max(total_campaign_leads, total_leads_captured)
+    avg_cpl = round(total_spend / effective_leads, 2) if effective_leads else 0
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 📊 Chart 1: Campaign-wise Leads & Budget
+    # ─────────────────────────────────────────────────────────────────────────
+    from leads.models import Campaign
+    import json
+    
+    # Map campaigns from both MetaCampaignStat and CRM Campaign models
+    campaign_chart_labels = []
+    campaign_chart_leads = []
+    campaign_chart_budgets = []
+
+    if campaigns:
+        # If API stats exist from Meta
+        for c in campaigns[:10]:
+            campaign_chart_labels.append(c.campaign_name[:24] if c.campaign_name else "Unnamed")
+            campaign_chart_leads.append(int(c.leads_count or 0))
+            campaign_chart_budgets.append(float(c.spend or 0))
+    else:
+        # Fallback to CRM Lead counts per Campaign object
+        crm_campaigns = Campaign.objects.filter(is_active=True)
+        if target_biz:
+            crm_campaigns = crm_campaigns.filter(hospital=target_biz)
+        
+        camp_list = []
+        for c in crm_campaigns:
+            c_leads = lead_qs.filter(campaign=c).count()
+            b_cost = float(c.cost or 0)
+            if c_leads > 0 or b_cost > 0:
+                camp_list.append({
+                    "name": c.name[:24] if c.name else "Unnamed",
+                    "leads": c_leads,
+                    "budget": b_cost,
+                })
+        
+        # Sort by leads count descending
+        camp_list.sort(key=lambda x: x["leads"], reverse=True)
+        for item in camp_list[:10]:
+            campaign_chart_labels.append(item["name"])
+            campaign_chart_leads.append(item["leads"])
+            campaign_chart_budgets.append(item["budget"])
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 📈 Chart 2: Date-wise Leads Volume Trend
+    # ─────────────────────────────────────────────────────────────────────────
+    date_chart_labels = []
+    date_chart_counts = []
+
+    if date_preset == "custom" and parsed_start and parsed_end:
+        start_date = parsed_start
+        end_date = parsed_end
+    elif date_preset == "today":
+        start_date = today
+        end_date = today
+    elif date_preset == "last_7d":
+        start_date = today - timezone.timedelta(days=6)
+        end_date = today
+    elif date_preset == "last_30d":
+        start_date = today - timezone.timedelta(days=29)
+        end_date = today
+    else:  # maximum / all time
+        # Last 30 days for clean chart rendering
+        start_date = today - timezone.timedelta(days=29)
+        end_date = today
+
+    # Group leads by inquiry_date or created_at
+    date_counts_map = {}
+    date_leads_qs = lead_qs.filter(
+        Q(inquiry_date__gte=start_date, inquiry_date__lte=end_date) | 
+        (Q(inquiry_date__isnull=True) & Q(created_at__date__gte=start_date, created_at__date__lte=end_date))
+    )
+    for l in date_leads_qs:
+        d = l.inquiry_date or l.created_at.date()
+        date_counts_map[d] = date_counts_map.get(d, 0) + 1
+
+    curr = start_date
+    # Cap timeline loop at 90 days to prevent excessive ticks
+    loop_count = 0
+    while curr <= end_date and loop_count < 90:
+        date_chart_labels.append(curr.strftime("%d %b"))
+        date_chart_counts.append(date_counts_map.get(curr, 0))
+        curr += timezone.timedelta(days=1)
+        loop_count += 1
+
+    return render(request, "academy/dashboard/campaign_analytics.html", {
+        "active": "campaign_analytics",
+        "target_biz": target_biz,
+        "connection": connection,
+        "campaigns": campaigns,
+        "date_preset": date_preset,
+        "custom_start": custom_start,
+        "custom_end": custom_end,
+        "total_spend": total_spend,
+        "total_leads": effective_leads,
+        "avg_cpl": avg_cpl,
+        "active_campaigns_count": len(campaign_chart_labels) if not campaigns else len(campaigns),
+        "recent_leads": meta_leads_qs.order_by("-created_at")[:10],
+        # Chart JSON data
+        "camp_labels_json": json.dumps(campaign_chart_labels),
+        "camp_leads_json": json.dumps(campaign_chart_leads),
+        "camp_budgets_json": json.dumps(campaign_chart_budgets),
+        "date_labels_json": json.dumps(date_chart_labels),
+        "date_counts_json": json.dumps(date_chart_counts),
+        "has_chart_data": bool(any(campaign_chart_leads) or any(date_chart_counts)),
+    })
+
+
+@login_required
+def academy_save_meta_credentials(request):
+    """Save or update Meta Ads credentials for the logged-in Academy."""
+    from accounts.models import Hospital
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    if request.method != "POST":
+        return redirect("meta_ads:academy_campaign_analytics")
+
+    user = request.user
+    target_biz = getattr(user, "business", None)
+    if not target_biz:
+        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+
+    ad_account_id = request.POST.get("ad_account_id", "").strip().replace("act_", "")
+    page_access_token = request.POST.get("page_access_token", "").strip()
+    page_id = request.POST.get("page_id", "").strip()
+
+    if not ad_account_id or not page_access_token:
+        messages.error(request, "Ad Account ID and Access Token are required.")
+        return redirect("meta_ads:academy_campaign_analytics")
+
+    # Update or create connection for this Academy
+    connection, created = MetaAdsConnection.objects.update_or_create(
+        hospital=target_biz,
+        defaults={
+            "name": f"{target_biz.name if target_biz else 'Academy'} Meta Ads",
+            "ad_account_id": ad_account_id,
+            "page_access_token": page_access_token,
+            "page_id": page_id,
+            "webhook_verify_token": "zappcode_academy_verify_2026",
+            "is_active": True,
+        }
+    )
+
+    action = "connected" if created else "updated"
+    messages.success(request, f"Meta Ads account successfully {action}! Click 'Sync Now' to pull live campaigns.")
+    return redirect("meta_ads:academy_campaign_analytics")
+
+
+@login_required
+def academy_sync_meta_now(request):
+    """Trigger real-time pull of campaigns and insights from Meta for this Academy."""
+    from accounts.models import Hospital
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    from .api import get_campaign_insights, fetch_all_form_leads
+
+    user = request.user
+    target_biz = getattr(user, "business", None)
+    if not target_biz:
+        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+
+    connection = MetaAdsConnection.objects.filter(hospital=target_biz, is_active=True).first()
+    if not connection:
+        connection = MetaAdsConnection.objects.filter(name__icontains="Academy", is_active=True).first() or \
+                     MetaAdsConnection.objects.filter(name__icontains="Zappcode", is_active=True).first()
+
+    if not connection or not connection.page_access_token or not connection.ad_account_id:
+        messages.error(request, "Please connect your Meta Ad Account ID and Access Token first.")
+        return redirect("meta_ads:academy_campaign_analytics")
+
+    date_preset = request.POST.get("date_preset", "last_30d")
+    campaigns = get_campaign_insights(connection.page_access_token, connection.ad_account_id, date_preset)
+
+    count = 0
+    for c in campaigns:
+        MetaCampaignStat.objects.update_or_create(
+            hospital=target_biz,
+            campaign_id=c["campaign_id"],
+            date_preset=date_preset,
+            defaults={
+                "campaign_name": c["campaign_name"],
+                "spend": c["spend"],
+                "impressions": c["impressions"],
+                "clicks": c["clicks"],
+                "leads_count": c["leads_count"],
+                "reach": c["reach"],
+            }
+        )
+        count += 1
+
+    # Also pull fresh form leads if page_id is provided
+    leads_imported = 0
+    if connection.page_id:
+        try:
+            leads_data = fetch_all_form_leads(connection.page_access_token, connection.page_id, limit_per_form=50)
+            for item in leads_data:
+                lead = create_or_update_meta_lead(connection, item)
+                if lead:
+                    leads_imported += 1
+        except Exception as e:
+            logger.warning(f"Lead fetch error during sync: {e}")
+
+    connection.last_synced_at = timezone.now()
+    connection.save(update_fields=["last_synced_at"])
+
+    lead_msg = f" and imported {leads_imported} new lead(s)" if leads_imported else ""
+    messages.success(request, f"Successfully synced {count} campaign(s){lead_msg} from Meta Ads!")
+    return redirect(f"/meta-ads/academy/campaigns/?date_preset={date_preset}")
+
 

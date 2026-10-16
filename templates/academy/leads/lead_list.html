@@ -49,16 +49,6 @@
   </div>
 
   <div class="d-flex align-items-center gap-2">
-    <!-- Inline Filter Toggle Button -->
-    <button
-      class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
-      type="button" onclick="toggleInlineFilterSidebar()" title="Toggle Sidebar Filters">
-      <span>Filter</span>
-      {% if active_filters_count > 0 %}
-      <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ active_filters_count }}</span>
-      {% endif %}
-    </button>
-
     {% if request.user.can_self_assign and request.user.role != 'SUPER_ADMIN' and request.user.role != 'ADMIN' and request.user.role != 'DOCTOR' %}
     <!-- Bulk Self-Assign Button with Count Badge -->
     <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2 fw-semibold px-3 shadow-sm rounded-pill"
@@ -131,17 +121,132 @@
   </div>
 </div>
 
-<!-- Split View Container: Left Filter Column + Right Main Table -->
-<div class="d-flex align-items-stretch gap-3 w-100">
+<!-- ─── COMPACT TOP FILTER BAR (Exact Dashboard Filter Style) ─── -->
+<div class="card border shadow-sm mb-4" style="border-radius: 10px; background: #ffffff; border-color: #cbd5e1 !important;">
+  <div class="card-body p-2.5">
+    <form method="get" id="academyLeadsFilterForm" action="{% url 'leads:lead_list' %}">
+      <div class="row g-2 align-items-end">
+        
+        <!-- 1. Date Range: From -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">From Date</label>
+          <input type="date" name="date_from" class="form-control form-control-sm border" style="border-color: #cbd5e1 !important; height: 35px;" value="{{ request_get.date_from|default:date_from_val }}">
+        </div>
 
-  <!-- Left Side Filter Panel (Inline) -->
-  {% include "includes/leads_side_filter.html" %}
+        <!-- 2. Date Range: To -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">To Date</label>
+          <input type="date" name="date_to" class="form-control form-control-sm border" style="border-color: #cbd5e1 !important; height: 35px;" value="{{ request_get.date_to|default:date_to_val }}">
+        </div>
 
-  <!-- Right Side Main Content & Table -->
-  <div class="flex-grow-1 overflow-hidden">
-    <form method="post" action="{% url 'leads:bulk_action' %}" id="leadsBulkActionForm">
-      {% csrf_token %}
-      <input type="hidden" name="bulk_action" id="bulkActionInput" value="self_assign">
+        <!-- 3. Course Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Course</label>
+          <select name="course" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Courses</option>
+            {% for c in courses %}
+              <option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' or request_get.course == c.name or c.id|stringformat:'s' in selected_courses %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 4. Trainer Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Trainer</label>
+          <select name="trainer" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Trainers</option>
+            {% for tr in trainers %}
+              <option value="{{ tr }}" {% if request_get.trainer == tr or tr in selected_trainers %}selected{% endif %}>{{ tr }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 5. Counselor / Assigned To -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Counselor</label>
+          <select name="assigned_to" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Counselors</option>
+            <option value="unassigned" {% if request_get.assigned_to == 'unassigned' or request_get.counselor == 'unassigned' or 'unassigned' in selected_assigned %}selected{% endif %}>Unassigned / Open</option>
+            {% for emp in counselors %}
+              <option value="{{ emp.id }}" {% if request_get.assigned_to == emp.id|stringformat:'s' or request_get.counselor == emp.id|stringformat:'s' or emp.id|stringformat:'s' in selected_assigned %}selected{% endif %}>
+                {{ emp.get_full_name|default:emp.username }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 6. Stage Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Stage</label>
+          <select name="stage" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Stages</option>
+            {% for s in stages %}
+              <option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' or request_get.stage == s.name or s.id|stringformat:'s' in selected_stages %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 7. Status Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Status</label>
+          <select name="status" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Statuses</option>
+            {% for st_val, st_lbl in deal_status_choices %}
+              <option value="{{ st_val }}" {% if request_get.status == st_val or request_get.deal_status == st_val or st_val in selected_deal_statuses %}selected{% endif %}>{{ st_lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 8. Source Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Source</label>
+          <select name="lead_source" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Sources</option>
+            {% for src in lead_sources %}
+              <option value="{{ src.id }}" {% if request_get.lead_source == src.id|stringformat:'s' or request_get.source == src.id|stringformat:'s' or src.id|stringformat:'s' in selected_sources %}selected{% endif %}>{{ src.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 9. Campaign Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Campaign</label>
+          <select name="campaign" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px;">
+            <option value="">All Campaigns</option>
+            {% for cmp in campaigns %}
+              <option value="{{ cmp.id }}" {% if request_get.campaign == cmp.id|stringformat:'s' or request_get.campaign == cmp.name or cmp.id|stringformat:'s' in selected_campaigns %}selected{% endif %}>{{ cmp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 10. Search Keyword -->
+        <div class="col-12 col-md-3 col-xl-3">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Search (Name, Mobile, ID)</label>
+          <input type="search" name="q" class="form-control form-control-sm border" style="border-color: #cbd5e1 !important; height: 35px;" placeholder="Search student name, phone..." value="{{ request_get.q|default:q }}">
+        </div>
+
+        <!-- Buttons: Same size and aligned -->
+        <div class="col-12 col-md-3 col-xl-3">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-brand text-white flex-fill shadow-sm d-flex align-items-center justify-content-center" style="height: 35px; border-radius: 6px; font-weight: 500;">
+              Apply Filters
+            </button>
+            <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center" style="height: 35px; border-radius: 6px; border-color: #cbd5e1 !important; font-weight: 500;" title="Clear all filters">
+              Clear
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Main Table Container -->
+<div class="w-100 overflow-hidden">
+  <form method="post" action="{% url 'leads:bulk_action' %}" id="leadsBulkActionForm">
+    {% csrf_token %}
+    <input type="hidden" name="bulk_action" id="bulkActionInput" value="self_assign">
 
       {% if request.user.can_edit_any_lead %}
       <style>
@@ -179,7 +284,7 @@
               <option value="">-- Select Action --</option>
               <option value="assign">Assign to...</option>
               <option value="stage">Change Stage to...</option>
-              {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+              {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.business and user.role == 'MANAGER' %}
               <option value="archive">Archive</option>
               {% endif %}
             </select>
@@ -450,8 +555,8 @@
       </nav>
       {% endif %}
     </div>
-  </div> <!-- /Right Side Main Content -->
-</div> <!-- /Split View Container -->
+  </form>
+</div> <!-- /Main Table Container -->
 
 <!-- Hidden Form for Single Lead Capture -->
 <form id="singleLeadCaptureForm" method="post" action="" style="display: none;">

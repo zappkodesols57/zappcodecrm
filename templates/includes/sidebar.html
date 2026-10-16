@@ -21,15 +21,11 @@
       </span>
       {% endif %}
     </div>
-    <button type="button" class="sidebar-minimize-btn brand-text d-none d-lg-flex" id="sidebarInnerToggleBtn"
-      title="Minimize / Expand Sidebar">
-      <i class="fa-solid fa-chevron-left" id="sidebarInnerToggleIcon" style="font-size: 0.75rem;"></i>
-    </button>
   </div>
 
   <div class="sidebar-nav-container" id="sidebarAccordion">
 
-    {% if user.industry == 'HOSPITAL' and user.role == 'ADMIN' or user.industry == 'HOSPITAL' and user.role == 'MANAGER' or user.hospital and user.role == 'ADMIN' or user.hospital and user.role == 'MANAGER' %}
+    {% if user.role == 'ADMIN' and user.industry == 'HOSPITAL' or user.role == 'MANAGER' and user.industry == 'HOSPITAL' %}
     {# 🏥 HOSPITAL ADMIN & MANAGER SIDEBAR (Strictly 5 Tabs) #}
 
     <!-- 1. Dashboard -->
@@ -143,7 +139,19 @@
           <i class="fa-solid fa-hospital-user"></i> <span class="nav-text">Hospital Profile</span>
         </a>
 
-        <!-- Subtab 2: Data Import -->
+        <!-- Subtab 2: Hospital Configuration (Branches, Departments, Doctors, Diseases) -->
+        <a class="nav-link {% if active == 'hospital_config' %}active{% endif %}"
+          href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration">
+          <i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span>
+        </a>
+
+        <!-- Subtab 3: Custom Lead Form -->
+        <a class="nav-link {% if active == 'universal_masters' %}active{% endif %}"
+          href="{% url 'leads:universal_masters' %}" title="Custom Lead Form">
+          <i class="fa-solid fa-pen-ruler"></i> <span class="nav-text">Custom Lead Form</span>
+        </a>
+
+        <!-- Subtab 4: Data Import -->
         <a class="nav-link {% if active == 'import' %}active{% endif %}"
           href="{% url 'imports:upload' %}" title="Data Import">
           <i class="fa-solid fa-file-import"></i> <span class="nav-text">Data Import</span>
@@ -167,6 +175,119 @@
     <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
       title="Notifications">
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
+    </a>
+
+    {% elif user.role == 'ADMIN' and user.industry != 'HOSPITAL' or user.role == 'MANAGER' and user.industry != 'HOSPITAL' %}
+    {# 🎓 ACADEMY ADMIN & MANAGER SIDEBAR #}
+
+    <!-- 1. Dashboard (Academy Dedicated) -->
+    <a class="nav-link {% if active == 'dashboard' or active == 'academy_admin_home' %}active{% endif %}"
+      href="{% url 'dashboard:academy_admin_home' %}" title="Dashboard" style="margin-top: 4px;">
+      <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Dashboard</span>
+    </a>
+
+    <!-- 2. Lead Management -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'leads_all import export archived_leads leads_dup my_leads lost_leads' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_acad_leads"
+        aria-expanded="{% if active in 'leads_all import export archived_leads leads_dup my_leads lost_leads' %}true{% else %}false{% endif %}"
+        title="Lead Management">
+        <span><i class="fa-solid fa-user-group section-icon"></i><span class="section-title">Lead Management</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'leads_all import export archived_leads leads_dup my_leads lost_leads' %}show{% endif %} nav-sub-items"
+        id="sec_acad_leads">
+        <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
+          title="All Leads"><i class="fa-regular fa-folder-open"></i> <span class="nav-text">All Leads</span></a>
+        <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
+          title="Lost Leads"><i class="fa-regular fa-circle-xmark"></i> <span class="nav-text">Lost Leads</span></a>
+        <a class="nav-link {% if active == 'archived_leads' %}active{% endif %}" href="{% url 'leads:archived_leads' %}"
+          title="Archived Leads"><i class="fa-regular fa-box-archive"></i> <span class="nav-text">Archived Leads</span></a>
+      </div>
+    </div>
+
+    <!-- 3. Admissions & Conversions -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_acad_admissions"
+        aria-expanded="{% if active in 'admissions payments' %}true{% else %}false{% endif %}"
+        title="Admissions">
+        <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">Admissions</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'admissions payments' %}show{% endif %} nav-sub-items"
+        id="sec_acad_admissions">
+        <a class="nav-link {% if active == 'admissions' %}active{% endif %}" href="{% url 'admissions:list' %}"
+          title="Admissions Done"><i class="fa-regular fa-circle-check text-success"></i> <span class="nav-text">Admissions Done</span></a>
+        <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'leads:payment_done' %}"
+          title="Payments Done"><i class="fa-regular fa-credit-card"></i> <span class="nav-text">Payments Done</span></a>
+      </div>
+    </div>
+
+    <!-- 4. Team Management -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'users tasks team_history reports eod_reports reports_daily' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_acad_team"
+        aria-expanded="{% if active in 'users tasks team_history reports eod_reports reports_daily' %}true{% else %}false{% endif %}"
+        title="Team">
+        <span><i class="fa-regular fa-id-card section-icon"></i><span class="section-title">Team</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'users tasks team_history reports eod_reports reports_daily' %}show{% endif %} nav-sub-items"
+        id="sec_acad_team">
+        <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"
+          title="Users & Approvals"><i class="fa-regular fa-user"></i> <span class="nav-text">Users & Approvals</span></a>
+        <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
+          title="Team Performance"><i class="fa-solid fa-arrow-trend-up"></i> <span class="nav-text">Team Performance</span></a>
+        <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"
+          title="Tasks & Reminders"><i class="fa-regular fa-square-check"></i> <span class="nav-text">Tasks & Reminders</span></a>
+        <a class="nav-link {% if active == 'reports_daily' or active == 'reports' or active == 'eod_reports' %}active{% endif %}"
+          href="{% url 'dashboard:management_daily_reports' %}" title="EOD Reports">
+          <i class="fa-regular fa-file-lines"></i> <span class="nav-text">EOD Reports</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 5. Academy Master (Trainer Master, Course Master, Batch Master, Bulk Transfer) -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'trainer_master course_master batch_master bulk_transfer' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_acad_master"
+        aria-expanded="{% if active in 'trainer_master course_master batch_master bulk_transfer' %}true{% else %}false{% endif %}"
+        title="Master">
+        <span><i class="fa-solid fa-sliders section-icon"></i><span class="section-title">Master</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'trainer_master course_master batch_master bulk_transfer' %}show{% endif %} nav-sub-items"
+        id="sec_acad_master">
+        <a class="nav-link {% if active == 'trainer_master' %}active{% endif %}" href="{% url 'leads:trainer_master' %}"
+          title="Trainer Master">
+          <i class="fa-solid fa-chalkboard-user"></i> <span class="nav-text">Trainer Master</span>
+        </a>
+        <a class="nav-link {% if active == 'course_master' %}active{% endif %}" href="{% url 'leads:course_master' %}"
+          title="Course Master">
+          <i class="fa-solid fa-book-open"></i> <span class="nav-text">Course Master</span>
+        </a>
+        <a class="nav-link {% if active == 'batch_master' %}active{% endif %}" href="{% url 'leads:batch_master' %}"
+          title="Batch Master">
+          <i class="fa-regular fa-calendar-days"></i> <span class="nav-text">Batch Master</span>
+        </a>
+        <a class="nav-link {% if active == 'bulk_transfer' %}active{% endif %}" href="{% url 'leads:bulk_lead_transfer' %}"
+          title="Bulk Transfer">
+          <i class="fa-solid fa-arrows-split-up-and-left"></i> <span class="nav-text">Bulk Transfer</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 6. Campaign Analytics (Meta Ads & Spends) -->
+    <a class="nav-link {% if active == 'campaign_analytics' %}active{% endif %}"
+      href="{% url 'meta_ads:academy_campaign_analytics' %}" title="Campaign Analytics">
+      <i class="fa-solid fa-bullhorn"></i> <span class="nav-text">Campaign Analytics</span>
+    </a>
+
+    <!-- 6. Notifications -->
+    <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
+      title="Notifications">
+      <i class="fa-regular fa-bell"></i> <span class="nav-text">Notifications</span>
     </a>
 
     {% elif user.role == 'SUPER_ADMIN' or user.is_superuser %}
@@ -238,34 +359,7 @@
       </div>
     </div>
 
-    <!-- 3. Section: Meta Ads / Campaigns Management -->
-    <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'meta_ads campaign-management reports_campaign' %}collapsed{% endif %}"
-        type="button" data-bs-toggle="collapse" data-bs-target="#sec_meta_campaigns"
-        aria-expanded="{% if active in 'meta_ads campaign-management reports_campaign' %}true{% else %}false{% endif %}"
-        title="Meta Ads / Campaigns">
-        <span><i class="fa-brands fa-meta section-icon"></i><span class="section-title">Meta Ads / Campaigns</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div class="collapse {% if active in 'meta_ads campaign-management reports_campaign' %}show{% endif %} nav-sub-items"
-        id="sec_meta_campaigns">
-        <!-- Separate Tab: Meta Ads -->
-        <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'meta_ads' %}active{% endif %}"
-          href="{% url 'meta_ads:dashboard' %}" title="Meta Ads">
-          <i class="fa-brands fa-meta"></i> <span class="nav-text">Meta Ads</span>
-          {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
-        </a>
-
-        <!-- Separate Tab: Campaign Management -->
-        <a class="nav-link {% if not request.user.can_manage_campaigns %}opacity-50 pe-none{% endif %} {% if active == 'campaign-management' %}active{% endif %}"
-          href="{% url 'dashboard:nelson_module' 'campaign-management' %}" title="Campaign Management">
-          <i class="fa-solid fa-bullhorn"></i> <span class="nav-text">Campaign Management</span>
-          {% if not request.user.can_manage_campaigns %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
-        </a>
-      </div>
-    </div>
-
-    <!-- 4. Manage Business (Single Tab for Super Admin) -->
+    <!-- 3. Manage Businesses (Direct Top Tab for Super Admin) -->
     {% if user.is_superuser or user.role == 'SUPER_ADMIN' and not user.hospital %}
     <a class="nav-link {% if active == 'business_list' %}active{% endif %}" href="{% url 'accounts:business_list' %}"
       title="Manage Business">
@@ -273,7 +367,7 @@
     </a>
     {% endif %}
 
-    <!-- 5. Section: Conversions & Financials -->
+    <!-- 4. Section: Conversions & Financials -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'admissions appointments payments financial-overview' and request.GET.filter not in 'admission_today appo_booked billing_today' and request.GET.has_revenue != '1' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_conversions"
@@ -287,8 +381,8 @@
         
         {# Dynamic Admissions / Appointments Done based on Active Business #}
         {% if active_business %}
-          {% if "nelson" in active_business.name|lower or "hospital" in active_business.name|lower or "clinic" in active_business.name|lower or "medical" in active_business.name|lower %}
-            <!-- Appointments Done (Nelson Hospital Selected) -->
+          {% if active_business.industry == 'HOSPITAL' %}
+            <!-- Appointments Done (Hospital Selected) -->
             <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
               href="{% url 'leads:appointments_done' %}" title="Appointments Done">
               <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
@@ -300,12 +394,6 @@
               <i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions Done</span>
             </a>
           {% endif %}
-        {% elif user.hospital and user.industry == 'HOSPITAL' %}
-          <!-- Appointments Done (Hospital Bound User) -->
-          <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
-            href="{% url 'leads:appointments_done' %}" title="Appointments Done">
-            <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
-          </a>
         {% else %}
           {# Both shown when All Businesses / Global view is active #}
           <a class="nav-link {% if active == 'admissions' or request.GET.filter == 'admission_today' or request.GET.admission_status == 'ADMISSION_DONE' %}active{% endif %}"
@@ -323,115 +411,30 @@
           href="{% url 'leads:payment_done' %}" title="Payments Done">
           <i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments Done</span>
         </a>
-
-        {% if user.industry == 'HOSPITAL' %}
-        <a class="nav-link {% if not request.user.can_view_financials %}opacity-50 pe-none{% endif %} {% if active == 'financial-overview' %}active{% endif %}"
-          href="{% url 'dashboard:nelson_module' 'financial-overview' %}" title="Financial Overview">
-          <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Financial Overview</span>
-          {% if not request.user.can_view_financials %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
-        </a>
-        {% endif %}
       </div>
     </div>
 
-    <!-- 6. Section: Team Management -->
-    {% if user.can_manage_users or user.can_view_reports %}
+    <!-- 5. Section: Team Management -->
+    {% if user.can_manage_users %}
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'users roles_permissions reports eod_reports user_logs tasks reports_daily reports_employee' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'users user_logs' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_team_mgmt"
-        aria-expanded="{% if active in 'users roles_permissions reports eod_reports user_logs tasks reports_daily reports_employee' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active in 'users user_logs' %}true{% else %}false{% endif %}"
         title="Team Management">
         <span><i class="fa-solid fa-user-shield section-icon"></i><span class="section-title">Team Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'users roles_permissions reports eod_reports user_logs tasks reports_daily reports_employee' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'users user_logs' %}show{% endif %} nav-sub-items"
         id="sec_team_mgmt">
-        {% if user.can_manage_users %}
         <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"
           title="Users & Approvals"><i class="fa-solid fa-users-gear"></i> <span class="nav-text">Users & Approvals</span></a>
-        
-        {% if user.role == 'SUPER_ADMIN' %}
-        <a class="nav-link {% if active == 'roles_permissions' %}active{% endif %}"
-          href="{% url 'dashboard:roles_permissions' %}" title="Roles & Permissions"><i
-            class="fa-solid fa-shield-halved"></i> <span class="nav-text">Roles & Permissions</span></a>
-        {% endif %}
-        {% endif %}
-
-        <!-- Tasks & Reminders -->
-        <a class="nav-link {% if active == 'tasks' %}active{% endif %}"
-          href="{% url 'dashboard:tasks' %}" title="Tasks & Reminders">
-          <i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks & Reminders</span>
-        </a>
-
-        <!-- EOD Reports -->
-        <a class="nav-link {% if active == 'reports' or active == 'eod_reports' or active == 'reports_daily' %}active{% endif %}"
-          href="{% if user.industry == 'HOSPITAL' %}{% url 'dashboard:admin_reports' %}#eod-reports{% else %}{% url 'dashboard:management_daily_reports' %}{% endif %}" title="EOD Reports">
-          <i class="fa-solid fa-file-signature"></i> <span class="nav-text">EOD Reports</span>
-        </a>
-
-        {% if user.industry == 'HOSPITAL' %}
-        <a class="nav-link" href="{% url 'dashboard:admin_reports' %}#user-logs" title="User Logs">
-          <i class="fa-solid fa-user-clock"></i> <span class="nav-text">User Logs</span>
-        </a>
-        <a class="nav-link {% if active == 'task_reports' %}active{% endif %}"
-          href="{% url 'dashboard:admin_reports' %}#task-reports" title="Tasks Reports">
-          <i class="fa-solid fa-file-lines"></i> <span class="nav-text">Tasks Reports</span>
-        </a>
-        {% endif %}
       </div>
     </div>
     {% endif %}
 
-    <!-- 7. Section: Masters & Configuration (Hospital / Academy Masters) -->
-    {% if user.can_manage_masters %}
-    <div class="nav-section-group">
-      <button
-        class="nav-section-btn {% if active not in 'settings course_master hospital-profile hospital_profile hospital_config universal_masters' %}collapsed{% endif %}"
-        type="button" data-bs-toggle="collapse" data-bs-target="#sec_master_mgmt"
-        aria-expanded="{% if active in 'settings course_master hospital-profile hospital_profile hospital_config universal_masters' %}true{% else %}false{% endif %}"
-        title="Settings & Masters">
-        <span><i class="fa-solid fa-sliders section-icon"></i><span class="section-title">Masters & Config</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div
-        class="collapse {% if active in 'settings course_master hospital-profile hospital_profile hospital_config universal_masters' %}show{% endif %} nav-sub-items"
-        id="sec_master_mgmt">
-        {% if user.industry == 'HOSPITAL' or active_business and active_business.industry == 'HOSPITAL' or user.role == 'SUPER_ADMIN' or user.is_superuser %}
-        <a class="nav-link {% if not request.user.can_manage_hospital_profile %}opacity-50 pe-none{% endif %} {% if active == 'hospital-profile' or active == 'hospital_profile' or active_tab == 'profile' %}active{% endif %}"
-          href="{% url 'dashboard:nelson_module' 'hospital-profile' %}" title="Hospital Profile">
-          <i class="fa-solid fa-id-card"></i> <span class="nav-text">Hospital Profile</span>
-        </a>
-        <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'hospital_config' and active_tab != 'profile' %}active{% endif %}"
-          href="{% url 'leads:hospital_configuration' %}" title="Hospital Configuration">
-          <i class="fa-solid fa-hospital"></i> <span class="nav-text">Hospital Configuration</span>
-        </a>
-        {% endif %}
-        {% if user.industry != 'HOSPITAL' or user.role == 'SUPER_ADMIN' or user.is_superuser %}
-        <a class="nav-link {% if active == 'settings' %}active{% endif %}" href="{% url 'leads:masters' %}"
-          title="Master Data"><i class="fa-solid fa-database"></i> <span class="nav-text">Master Data</span></a>
-        <a class="nav-link {% if active == 'course_master' %}active{% endif %}" href="{% url 'leads:course_master' %}"
-          title="Course Master"><i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Course Master</span></a>
-        {% endif %}
 
-        <a class="nav-link {% if not request.user.can_manage_masters %}opacity-50 pe-none{% endif %} {% if active == 'universal_masters' %}active{% endif %}"
-          href="{% url 'leads:universal_masters' %}" title="Custom Lead Form">
-          <i class="fa-solid fa-pen-ruler"></i> <span class="nav-text">Custom Lead Form</span>
-        </a>
-        <a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
-          href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
-          <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
-        </a>
-        {% if user.industry == 'HOSPITAL' or user.hospital %}
-        <a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
-          href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
-          <i class="fa-brands fa-whatsapp"></i> <span class="nav-text">Custom Message</span>
-        </a>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
 
-    <!-- 8. Audits -->
+    <!-- 7. Audits -->
     {% if request.user.can_manage_users %}
     <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}"
       title="Audits">
@@ -439,7 +442,7 @@
     </a>
     {% endif %}
 
-    <!-- 9. Notifications -->
+    <!-- 8. Notifications -->
     <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
       title="Notifications">
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
@@ -536,8 +539,12 @@
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
     </a>
 
+    {% elif user.role in 'COUNSELLOR HR' and user.industry != 'HOSPITAL' or user.role == 'LEAD_ATTENDENT' and user.industry != 'HOSPITAL' and not user.hospital.industry == 'HOSPITAL' %}
+    {# 🎓 DEDICATED ACADEMY COUNSELOR / TELECALLER SIDEBAR #}
+    {% include "academy/dashboard/partials/counselor_sidebar.html" %}
+
     {% else %}
-    {# 💼 COUNSELLOR / HR EMPLOYEE / TELECALLER SIDEBAR #}
+    {# 💼 HOSPITAL COUNSELLOR / HR EMPLOYEE / TELECALLER SIDEBAR #}
 
     <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}"
@@ -616,7 +623,6 @@
       </div>
     </div>
 
-    {% if user.role == 'LEAD_ATTENDENT' or user.industry == 'HOSPITAL' %}
     <!-- 4. Section: Appointments & Billings (Hospital Telecaller Dashboard Tabs) -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if request.GET.tab not in 'appointments billings' %}collapsed{% endif %}" type="button"
@@ -632,25 +638,6 @@
           title="Billings & Payments"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Billings</span></a>
       </div>
     </div>
-    {% elif not request.user.industry == 'HOSPITAL' %}
-    <!-- 4. Section: Admissions & Billings (Academy) -->
-    <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'admissions payments' %}collapsed{% endif %}" type="button"
-        data-bs-toggle="collapse" data-bs-target="#sec_emp_adm"
-        aria-expanded="{% if active in 'admissions payments' %}true{% else %}false{% endif %}">
-        <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">Billings &
-            Admissions</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div class="collapse {% if active in 'admissions payments' %}show{% endif %} nav-sub-items" id="sec_emp_adm">
-        <a class="nav-link {% if active == 'admissions' %}active{% endif %}" href="{% url 'admissions:list' %}"
-          title="Admissions"><i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions</span></a>
-        <a class="nav-link {% if active == 'payments' %}active{% endif %}" href="{% url 'payments:list' %}"
-          title="Payments / Billings"><i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Billings &
-            Payments</span></a>
-      </div>
-    </div>
-    {% endif %}
 
     <!-- 5. Tasks & Reminders -->
     <a class="nav-link {% if active == 'tasks' %}active{% endif %}"
@@ -658,19 +645,15 @@
       <i class="fa-solid fa-list-check"></i> <span class="nav-text">Tasks & Reminders</span>
     </a>
 
-    {% if user.role != 'DOCTOR' %}
-    <!-- 6. Temperature Manager Tab for Counsellors / HR / Telecallers -->
+    <!-- 6. Temperature Manager Tab for Hospital Counsellors / Telecallers -->
     <a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
       href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
       <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
     </a>
-    {% if user.industry == 'HOSPITAL' or user.hospital %}
     <a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
       href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
       <i class="fa-brands fa-whatsapp"></i> <span class="nav-text">Custom Message</span>
     </a>
-    {% endif %}
-    {% endif %}
 
     <!-- 7. Submit EOD Report -->
     <a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
@@ -688,15 +671,12 @@
   <div class="sidebar-footer-box">
     <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="{% url 'accounts:profile' %}"
       title="Profile">
-      <i class="fa-solid fa-user-circle"></i> <span class="nav-text">Profile</span>
+      <i class="fa-regular fa-user"></i> <span class="nav-text">Profile</span>
     </a>
 
-    <form method="post" action="{% url 'accounts:logout' %}" class="m-0 p-0">
-      {% csrf_token %}
-      <button type="submit" class="nav-link" title="Logout">
-        <i class="fa-solid fa-right-from-bracket"></i> <span class="nav-text">Logout</span>
-      </button>
-    </form>
+    <button type="button" class="nav-link w-100 text-start border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#logoutConfirmModal" title="Logout">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="nav-text">Logout</span>
+    </button>
   </div>
 </nav>
 {% endif %}

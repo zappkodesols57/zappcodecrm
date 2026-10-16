@@ -37,6 +37,12 @@ from dashboard.superadmin_views import (
     placeholder_view,
 )
 
+# Re-export Academy Views
+from dashboard.academy_counselor_views import (
+    academy_counselor_home,
+    academy_admin_home,
+)
+
 # Re-export Hospital Telecaller Views
 from dashboard.hospital_telecaller_views import (
     telecaller_home,
@@ -62,7 +68,9 @@ from dashboard.reports_and_tasks_views import (
     employee_report,
     employee_detail_activity,
     submit_daily_report,
+    view_daily_activity_leads,
     export_daily_activity_leads,
+    export_daily_activity_pdf,
     download_eod_report_pdf,
     management_daily_reports,
     task_list_view,
@@ -255,7 +263,16 @@ def welcome_view(request):
     dest_resp = _role_redirect(user)
     next_url = dest_resp.url if hasattr(dest_resp, 'url') else "/dashboard/"
 
-    user_name = user.get_full_name().strip() or user.username
+    # Clean friendly first name (avoid long username or business suffixes)
+    full_name = (user.first_name or "").strip()
+    if not full_name:
+        raw_name = (user.get_full_name() or user.username or "User").strip()
+        # Take first word if it has multiple tokens
+        full_name = raw_name.split()[0].title() if raw_name else "User"
+    else:
+        full_name = full_name.title()
+
+    user_name = full_name
     user_role = user.get_role_display() if hasattr(user, 'get_role_display') else str(user.role)
     hospital_name = user.hospital.name if user.hospital else ("Global Super Admin" if is_super_admin else "")
 
@@ -296,6 +313,14 @@ def home(request):
             return redirect(f"{reverse('dashboard:doctor_home')}?{query}" if query else "dashboard:doctor_home")
         elif request.user.role in (User.Role.ADMIN, User.Role.MANAGER):
             return redirect("dashboard:hospital_admin_home")
+    elif request.user.role in (User.Role.ADMIN, User.Role.MANAGER) and (not request.user.hospital or request.user.industry != 'HOSPITAL'):
+        # Academy Admin / Manager goes to dedicated Academy Admin Dashboard
+        query = request.GET.urlencode()
+        return redirect(f"{reverse('dashboard:academy_admin_home')}?{query}" if query else "dashboard:academy_admin_home")
+    elif request.user.role in (User.Role.COUNSELLOR, User.Role.HR) or (request.user.role == User.Role.LEAD_ATTENDENT and not (request.user.hospital and request.user.industry == 'HOSPITAL')):
+        # Academy Counselor / Telecaller / HR goes to Academy Counselor Dashboard
+        query = request.GET.urlencode()
+        return redirect(f"{reverse('dashboard:academy_counselor_home')}?{query}" if query else "dashboard:academy_counselor_home")
 
     from django.db.models import Q
     from leads.models import SourceCategory, Course, LeadStage, LeadSource, Campaign

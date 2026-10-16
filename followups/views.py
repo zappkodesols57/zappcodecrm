@@ -49,12 +49,7 @@ def _board(request, leads, active, title, date_info=None):
             
     is_hospital_business = False
     if hospital:
-        btype = (hospital.settings or {}).get("business_type", "")
-        if not btype:
-            name_lower = (hospital.name or "").lower()
-            if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
-                btype = "hospital"
-        is_hospital_business = str(btype).strip().lower() == "hospital"
+        is_hospital_business = (getattr(hospital, "industry", None) == Hospital.Industry.HOSPITAL)
     elif user.industry == 'HOSPITAL':
         is_hospital_business = True
 

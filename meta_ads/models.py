@@ -2,18 +2,28 @@ from django.db import models
 
 
 class MetaAdsConnection(models.Model):
-    """Stores one Meta Ads account connection. One per deployment for now."""
-    name = models.CharField(max_length=100, default="Nelson Hospital")
+    """Stores Meta Ads account connections per business (Hospital/Academy)."""
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="meta_connections")
+    name = models.CharField(max_length=100, default="Academy Meta Ads")
     page_access_token = models.TextField(help_text="Long-lived Page Access Token from Meta")
     ad_account_id = models.CharField(max_length=100, help_text="Ad Account ID (without act_ prefix)")
-    page_id = models.CharField(max_length=100, help_text="Facebook Page ID")
-    webhook_verify_token = models.CharField(max_length=100, help_text="Secret token for webhook verification")
+    page_id = models.CharField(max_length=100, blank=True, default="", help_text="Facebook Page ID")
+    webhook_verify_token = models.CharField(max_length=100, blank=True, default="", help_text="Secret token for webhook verification")
     is_active = models.BooleanField(default=True)
     connected_at = models.DateTimeField(auto_now_add=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Meta Ads Connection"
+
+    @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
 
     def __str__(self):
         return f"{self.name} — Meta Ads"
@@ -33,6 +43,7 @@ class MetaLeadForm(models.Model):
 
 class MetaCampaignStat(models.Model):
     """Daily snapshot of campaign-level metrics from Meta Insights API."""
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="campaign_stats")
     campaign_id = models.CharField(max_length=100)
     campaign_name = models.CharField(max_length=255)
     date_preset = models.CharField(max_length=50, default="last_30d")
@@ -44,8 +55,17 @@ class MetaCampaignStat(models.Model):
     synced_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("campaign_id", "date_preset")
+        unique_together = ("hospital", "campaign_id", "date_preset")
         ordering = ["-spend"]
+
+    @property
+    def business(self):
+        """Standardized business tenant object."""
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
 
     @property
     def cpl(self):

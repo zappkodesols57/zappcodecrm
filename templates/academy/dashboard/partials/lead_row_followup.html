@@ -1,0 +1,41 @@
+<tr data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" class="counselor-table-row">
+  <td class="fw-semibold">
+    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark">{{ lead.name }}</a>
+    {% if is_overdue %}
+      <span class="badge bg-danger text-white ms-1">Overdue</span>
+    {% endif %}
+  </td>
+  <td>{{ lead.mobile }}</td>
+  <td>{{ lead.course.name|default:"—" }}</td>
+  <td>
+    <span class="fw-bold">{{ lead.scheduled_followup_date|date:"d M Y" }}</span>
+    {% if lead.next_followup_time %}
+      <span class="text-muted small">({{ lead.next_followup_time|time:"h:i A" }})</span>
+    {% endif %}
+  </td>
+  <td class="text-muted small" style="max-width: 240px;">
+    {{ lead.followup_agenda|truncatechars:50 }}
+  </td>
+  <td>
+    {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username|default:"Unassigned" }}
+  </td>
+  <td>
+    <span class="badge bg-light text-dark border">{{ lead.followup_count }} Calls</span>
+  </td>
+  <td class="text-end">
+    <div class="d-inline-flex gap-1 align-items-center">
+      <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
+        <i class="fa-solid fa-phone"></i>
+      </a>
+      <a href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i>
+      </a>
+      <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </a>
+      <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+        <i class="fa-solid fa-eye"></i>
+      </a>
+    </div>
+  </td>
+</tr>

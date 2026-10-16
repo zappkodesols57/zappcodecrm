@@ -39,6 +39,10 @@ urlpatterns = [
     path("course-master/sample-download/", views.course_sample_download, name="course_sample_download"),
     path("masters/course/<int:pk>/edit/", views.course_edit, name="course_edit"),
     path("masters/course/<int:pk>/archive/", views.course_archive, name="course_archive"),
+    path("trainer-master/", views.trainer_master, name="trainer_master"),
+    path("trainer-master/<int:pk>/delete/", views.trainer_delete, name="trainer_delete"),
+    path("batch-master/", views.batch_master, name="batch_master"),
+    path("batch-master/<int:pk>/delete/", views.batch_delete, name="batch_delete"),
     path("masters/<str:kind>/<int:pk>/toggle/", views.master_toggle, name="master_toggle"),
 
     # Universal Master System routes

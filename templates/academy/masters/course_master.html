@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Course Master{% endblock %}
+{% block content %}
+
+<div class="container-fluid px-0 px-md-2">
+  <!-- Page Header Card -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 p-md-4" style="border: 1px solid #e2e8f0 !important;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+          <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-graduation-cap me-1"></i> Academy Master
+          </span>
+          {% if target_biz %}
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+              <i class="fa-solid fa-building me-1"></i> {{ target_biz.name }}
+            </span>
+          {% else %}
+            <span class="badge bg-light text-secondary border px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+              <i class="fa-solid fa-globe me-1"></i> All Businesses
+            </span>
+          {% endif %}
+          <span class="badge bg-light text-muted border px-2 py-1 rounded-pill small">
+            {% if show_archived %}Archived: {{ courses.count }}{% else %}Active: {{ courses.count }}{% endif %}
+          </span>
+        </div>
+        <h4 class="fw-bold text-dark mb-1">Course Master & Fees Schedule</h4>
+        <p class="text-muted small mb-0">Manage courses, tutors, batch schedules, fees, and max allowed discounts.</p>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'leads:trainer_master' %}" class="btn btn-outline-secondary rounded-pill px-3 fw-semibold small d-flex align-items-center gap-2 shadow-xs">
+          <i class="fa-solid fa-chalkboard-user"></i> Trainers Master
+        </a>
+        <a href="{% url 'leads:batch_master' %}" class="btn btn-outline-secondary rounded-pill px-3 fw-semibold small d-flex align-items-center gap-2 shadow-xs">
+          <i class="fa-solid fa-users-rectangle"></i> Batches Master
+        </a>
+        <a href="{% url 'leads:course_sample_download' %}" class="btn btn-light border rounded-pill px-3 fw-semibold small d-flex align-items-center gap-2 shadow-xs" title="Download Excel Template">
+          <i class="fa-solid fa-download text-secondary"></i> Sample Template
+        </a>
+        <button type="button" class="btn btn-outline-success rounded-pill px-3.5 fw-semibold small d-flex align-items-center gap-2 shadow-xs" data-bs-toggle="modal" data-bs-target="#importCourseModal">
+          <i class="fa-solid fa-file-excel"></i> Import by Excel
+        </button>
+        <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold small d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCourseModal">
+          <i class="fa-solid fa-plus"></i> Add New Course
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar: Business Filter & Active/Archived Tabs -->
+  <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white p-3" style="border: 1px solid #e2e8f0 !important;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <!-- Active / Archived Toggle Tabs -->
+      <div class="btn-group p-1 bg-light rounded-pill border" role="group">
+        <a href="?{% if target_biz %}business={{ target_biz.id }}&{% endif %}archived=0" class="btn btn-sm rounded-pill px-3 fw-semibold {% if not show_archived %}btn-white bg-white text-primary shadow-xs{% else %}text-secondary{% endif %}" style="font-size: 0.8rem;">
+          <i class="fa-solid fa-graduation-cap me-1"></i> Active Courses ({{ active_count }})
+        </a>
+        <a href="?{% if target_biz %}business={{ target_biz.id }}&{% endif %}archived=1" class="btn btn-sm rounded-pill px-3 fw-semibold {% if show_archived %}btn-white bg-white text-danger shadow-xs{% else %}text-secondary{% endif %}" style="font-size: 0.8rem;">
+          <i class="fa-solid fa-box-archive me-1"></i> Archived ({{ archived_count }})
+        </a>
+      </div>
+
+      <!-- Business Filter Dropdown -->
+      {% if not request.user.business %}
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small fw-semibold"><i class="fa-solid fa-filter text-primary me-1"></i>Business Filter:</span>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-light border dropdown-toggle fw-semibold rounded-pill px-3" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem;">
+            {% if target_biz %}{{ target_biz.name }}{% else %}All Businesses{% endif %}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+            <li>
+              <a class="dropdown-item small py-2 {% if not target_biz %}active fw-bold{% endif %}" href="?{% if show_archived %}archived=1{% endif %}">
+                All Businesses
+              </a>
+            </li>
+            <li><hr class="dropdown-divider my-1"></li>
+            {% for b in all_businesses %}
+            <li>
+              <a class="dropdown-item small py-2 {% if target_biz and target_biz.id == b.id %}active fw-bold{% endif %}" href="?business={{ b.id }}{% if show_archived %}&archived=1{% endif %}">
+                {{ b.name }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Course List Table Card -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fa-solid fa-table-list text-primary fs-6"></i>
+        <h6 class="fw-bold text-dark mb-0">{% if show_archived %}Archived Courses{% else %}Active Course Catalog & Batches{% endif %}</h6>
+      </div>
+      <span class="text-muted small">Updated in real-time</span>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 50px;" class="ps-4">#</th>
+              <th>Course Name</th>
+              <th>Description / Outline</th>
+              <th class="text-end">Base Price</th>
+              <th class="text-end text-danger">Max Discount</th>
+              <th class="text-center" style="width: 100px;">Status</th>
+              <th class="text-end pe-4" style="width: 130px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in courses %}
+            <tr>
+              <td class="ps-4 text-muted small fw-semibold">{{ forloop.counter }}</td>
+              <td>
+                <div class="fw-bold text-dark fs-6">{{ c.name }}</div>
+                {% if c.is_archived %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5" style="font-size: 0.65rem;">Archived</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if c.description %}
+                  <span class="small text-muted" style="max-width: 280px; display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ c.description }}">
+                    {{ c.description }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="text-end fw-bold text-dark">₹{{ c.base_price }}</td>
+              <td class="text-end text-danger fw-semibold">₹{{ c.max_discount }}</td>
+              <td class="text-center">
+                {% if c.is_active %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">
+                    <i class="fa-solid fa-circle-check me-1"></i>Active
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2.5 py-1 small">
+                    <i class="fa-solid fa-ban me-1"></i>Inactive
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-end pe-4">
+                <div class="d-flex gap-1 justify-content-end">
+                  <a href="{% url 'leads:course_edit' c.pk %}" class="btn btn-light border action-icon-btn text-primary" title="Edit Course">
+                    <i class="fa-solid fa-pen-to-square" style="font-size: 0.78rem;"></i>
+                  </a>
+                  <a href="{% url 'leads:master_toggle' 'course' c.pk %}" class="btn btn-light border action-icon-btn {% if c.is_active %}text-warning{% else %}text-success{% endif %}" title="{% if c.is_active %}Deactivate{% else %}Activate{% endif %}">
+                    <i class="fa-solid {% if c.is_active %}fa-ban{% else %}fa-circle-check{% endif %}" style="font-size: 0.78rem;"></i>
+                  </a>
+                  <a href="{% url 'leads:course_archive' c.pk %}" class="btn btn-light border action-icon-btn {% if c.is_archived %}text-success{% else %}text-danger{% endif %}" onclick="return confirm('{% if c.is_archived %}Restore this course?{% else %}Archive this course?{% endif %}')" title="{% if c.is_archived %}Restore Course{% else %}Archive Course{% endif %}">
+                    <i class="fa-solid {% if c.is_archived %}fa-rotate-left{% else %}fa-box-archive{% endif %}" style="font-size: 0.78rem;"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-graduation-cap fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                <h6 class="fw-bold">{% if show_archived %}No archived courses found{% else %}No courses registered yet{% endif %}</h6>
+                <p class="small text-muted mb-3">{% if show_archived %}Archived courses will appear here.{% else %}Add a course to manage fees and discounts.{% endif %}</p>
+                {% if not show_archived %}
+                <button class="btn btn-sm btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addCourseModal">
+                  <i class="fa-solid fa-plus me-1"></i> Add First Course
+                </button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- ADD NEW COURSE MODAL (Clean UI Designer Standard)                         -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:course_master' %}">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <div class="d-flex align-items-center gap-2.5">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0" id="addCourseModalLabel">Add Course</h5>
+              <p class="text-muted small mb-0">Create course with fees and allowed discount</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body px-4 pt-3 pb-3">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label small fw-semibold text-dark mb-1">Course Name <span class="text-danger">*</span></label>
+              {{ form.name }}
+              {% if form.name.errors %}
+                <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Base Price (₹) <span class="text-danger">*</span></label>
+              {{ form.base_price }}
+              {% if form.base_price.errors %}
+                <div class="text-danger small mt-1">{{ form.base_price.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-dark mb-1">Max Discount (₹)</label>
+              {{ form.max_discount }}
+              {% if form.max_discount.errors %}
+                <div class="text-danger small mt-1">{{ form.max_discount.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small fw-semibold text-dark mb-1">Description / Syllabus</label>
+              {{ form.description }}
+              {% if form.description.errors %}
+                <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-12 pt-1">
+              <div class="form-check form-switch">
+                {{ form.is_active }}
+                <label class="form-check-label small fw-semibold text-dark ms-2" for="{{ form.is_active.id_for_label }}">
+                  Active Course
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="fa-solid fa-check me-1"></i> Save Course
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- IMPORT COURSES VIA EXCEL MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="importCourseModal" tabindex="-1" aria-labelledby="importCourseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form method="post" action="{% url 'leads:course_excel_import' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0 pt-4 px-4">
+          <div class="d-flex align-items-center gap-2">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+              <i class="fa-solid fa-file-excel"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0" id="importCourseModalLabel">Import Courses by Excel</h5>
+              <p class="text-muted small mb-0">Upload .xlsx file to bulk add or update courses.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body px-4 pt-3 pb-4">
+          <div class="alert alert-info border-0 rounded-3 p-3 mb-3 small" style="background: #eff6ff; color: #1e40af;">
+            <div class="d-flex gap-2">
+              <i class="fa-solid fa-circle-info fs-6 mt-0.5"></i>
+              <div>
+                <strong>Smart Upsert Feature:</strong><br>
+                Agar koi course pehle se exist karta hai, to excel ki nayi details (*Base Price, Max Discount, Tutor, Batch, Batch Time*) se update ho jayega. Naye courses automatically create ho jayenge.
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Select Excel (.xlsx) File <span class="text-danger">*</span></label>
+            <input type="file" name="course_excel" accept=".xlsx, .xls" class="form-control" required>
+            <div class="form-text small">Accepted formats: Microsoft Excel (.xlsx, .xls)</div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+            <span class="small text-muted">Need a standard template?</span>
+            <a href="{% url 'leads:course_sample_download' %}" class="btn btn-sm btn-link text-decoration-none p-0 fw-semibold">
+              <i class="fa-solid fa-download me-1"></i>Download Sample (.xlsx)
+            </a>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0 pb-4 px-4">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="fa-solid fa-upload me-1"></i> Upload & Sync Courses
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

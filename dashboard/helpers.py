@@ -167,16 +167,18 @@ def extract_lead_followup_date(l):
                     pass
     return None
 
-def _get_effective_hospital(request):
+def get_effective_business(request):
     """
-    Resolves the effective hospital/business for reports:
-    1. If user has a hospital attached, returns that hospital.
-    2. For Super Admin / Global Admin: checks GET 'business'/'hospital' or session 'active_business_id'.
-    3. Returns (hospital_object, is_filtered_by_hospital).
+    Standardized Business Scoping Helper:
+    1. If user is tied to a specific business (user.business), strictly return that business.
+    2. For Super Admin / Global Admin: checks GET 'business' or session 'active_business_id'.
+    3. Guarantees multi-tenant isolation.
     """
-    user = request.user
-    if user.hospital:
-        return user.hospital
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        return None
+    if getattr(user, 'business', None):
+        return user.business
     selected_biz_id = (
         request.GET.get("business", "").strip()
         or request.GET.get("hospital", "").strip()
@@ -185,5 +187,9 @@ def _get_effective_hospital(request):
     if selected_biz_id and selected_biz_id.isdigit():
         return Hospital.objects.filter(id=int(selected_biz_id)).first()
     return None
+
+def _get_effective_hospital(request):
+    """Deprecated alias for get_effective_business."""
+    return get_effective_business(request)
 
 

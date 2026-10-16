@@ -138,8 +138,16 @@ def superadmin_home(request):
             is_active=True
         ).order_by('first_name', 'username')
 
-    # Stages choices
-    stage_choices = list(LeadStage.objects.filter(is_active=True).values_list('name', flat=True).distinct().order_by('order', 'name'))
+    # Stages choices (strictly unique names)
+    stage_raw_list = LeadStage.objects.filter(is_active=True).values_list('name', flat=True).order_by('order', 'name')
+    stage_seen = set()
+    stage_choices = []
+    for s_name in stage_raw_list:
+        if s_name and s_name.strip():
+            s_clean = s_name.strip()
+            if s_clean.lower() not in stage_seen:
+                stage_seen.add(s_clean.lower())
+                stage_choices.append(s_clean)
     
     deal_status_choices = [
         ("NEW", "New"),
@@ -158,7 +166,7 @@ def superadmin_home(request):
     # Dynamic filter caches strictly for this business
     from django.core.cache import cache
     cache_scope = f"{selected_hospital_id or 'all'}_{industry_filter or 'all'}"
-    cache_key = f"dash_filters_v5_{cache_scope}"
+    cache_key = f"dash_filters_v7_{cache_scope}"
     filter_cache_data = cache.get(cache_key)
 
     if not filter_cache_data:
@@ -212,9 +220,15 @@ def superadmin_home(request):
                         if d_clean and d_clean.lower() not in ['not mentioned', 'docotor', 'doctor', 'nan', 'none']:
                             raw_doc_set.add(d_clean)
 
-        # Include official HospitalDepartment and HospitalDoctor records if applicable
-        from leads.models import HospitalDepartment, HospitalDoctor
+        # Include official HospitalDepartment, HospitalDoctor, Campaign, and LeadSource records if applicable
+        from leads.models import HospitalDepartment, HospitalDoctor, Campaign, LeadSource
+        for src_obj in LeadSource.objects.filter(is_active=True):
+            if src_obj.name:
+                raw_source_set.add(src_obj.name.strip())
         if effective_hospital:
+            for camp_obj in Campaign.objects.filter(hospital=effective_hospital, is_active=True):
+                if camp_obj.name:
+                    raw_campaign_set.add(camp_obj.name.strip())
             for dept_obj in HospitalDepartment.objects.filter(hospital=effective_hospital, is_active=True):
                 if dept_obj.name:
                     raw_dept_set.add(dept_obj.name.strip().upper())
@@ -222,8 +236,26 @@ def superadmin_home(request):
                 if doc_obj.name:
                     raw_doc_set.add(doc_obj.name.strip().title())
 
-        raw_campaigns = sorted(list(raw_campaign_set))
-        raw_sources = sorted(list(raw_source_set))
+        # Clean case-insensitive deduplication for sources
+        clean_sources = []
+        seen_sources = set()
+        for s in sorted(list(raw_source_set)):
+            s_clean = s.strip()
+            if s_clean and s_clean.lower() not in seen_sources:
+                seen_sources.add(s_clean.lower())
+                clean_sources.append(s_clean)
+
+        # Clean case-insensitive deduplication for campaigns
+        clean_campaigns = []
+        seen_camps = set()
+        for c in sorted(list(raw_campaign_set)):
+            c_clean = c.strip()
+            if c_clean and c_clean.lower() not in seen_camps:
+                seen_camps.add(c_clean.lower())
+                clean_campaigns.append(c_clean)
+
+        raw_campaigns = sorted(clean_campaigns)
+        raw_sources = sorted(clean_sources)
         raw_departments = sorted(list(raw_dept_set))
         raw_doctors = sorted(list(raw_doc_set))
         raw_locations = sorted(list(raw_loc_set))
@@ -261,7 +293,7 @@ def superadmin_home(request):
     custom_start = request.GET.get('start_date', '').strip()
     custom_end = request.GET.get('end_date', '').strip()
     stage_filter = request.GET.get('stage', '').strip()
-    deal_status_filter = request.GET.get('deal_status', '').strip()
+    deal_status_filter = request.GET.get('deal_status', '').strip() or request.GET.get('status', '').strip()
     telecaller_filter = request.GET.get('telecaller', '').strip()
     temperature_filter = request.GET.get('temperature', '').strip()
     campaign_filter = request.GET.get('campaign', '').strip()
@@ -603,10 +635,16 @@ def superadmin_home(request):
     year_dist = {}
     stage_dist = {}
     temperature_dist = {}
+    business_dist = {}
+    status_dist = {}
+
+    active_businesses_count = Hospital.objects.filter(is_active=True).count()
+    total_users_count = User.objects.filter(is_active=True).count()
 
     fast_leads = hospital_all_leads.order_by().values(
         'id', 'location', 'campaign__name', 'lead_source__name', 'custom_data',
-        'inquiry_date', 'created_at', 'deal_status', 'temperature', 'stage__name'
+        'inquiry_date', 'created_at', 'deal_status', 'temperature', 'stage__name',
+        'hospital__name'
     )
 
     for l in fast_leads:
@@ -699,6 +737,14 @@ def superadmin_home(request):
         yr = str(cd.get('year') or (lead_date.year if lead_date else '2026')).strip()
         year_dist[yr] = year_dist.get(yr, 0) + 1
 
+        # 12. Business distribution
+        b_name = l.get('hospital__name') or 'Direct / General'
+        business_dist[b_name] = business_dist.get(b_name, 0) + 1
+
+        # 13. Status distribution (DealStatus / Stage)
+        st_name = str(l.get('deal_status') or l.get('stage__name') or 'OPEN').strip().upper()
+        status_dist[st_name] = status_dist.get(st_name, 0) + 1
+
     # Currency formatter for Indian system (Crores, Lakhs, Thousands)
     def format_indian_currency(amt):
         try:
@@ -724,9 +770,14 @@ def superadmin_home(request):
     formatted_revenue = format_indian_currency(total_revenue)
 
     insights = {
-        # 10 Requested KPIs
-        "new_leads": new_leads_count,
+        # Core KPIs for SuperAdmin
+        "active_businesses": active_businesses_count,
         "total_leads": new_leads_count,
+        "total_users": total_users_count,
+        "won_leads": won_leads_count,
+        "lost_leads": lost_leads_count,
+
+        "new_leads": new_leads_count,
         "unassigned_leads": unassigned_count,
         "assigned_leads": assigned_leads_count,
         "call_not_done": call_not_done_count,
@@ -734,18 +785,19 @@ def superadmin_home(request):
         "walkin_leads": walkin_leads_count,
         "appointments_scheduled": appo_sched_count,
         "admitted_patients": admitted_patients_count,
-        "won_leads": won_leads_count,
         "followups_pending": followups_pending_count,
         "total_revenue": total_revenue,
         "formatted_revenue": formatted_revenue,
-        "lost_leads": lost_leads_count,
 
         # Charts Data JSON Formatted
-        "location_distribution": location_dist,
         "month_distribution": month_dist,
+        "business_distribution": business_dist,
+        "status_distribution": status_dist,
+        "campaign_distribution": campaign_dist,
+
+        "location_distribution": location_dist,
         "department_distribution": department_dist,
         "doctor_distribution": doctor_dist,
-        "campaign_distribution": campaign_dist,
         "source_distribution": source_dist,
         "stage_distribution": stage_dist,
         "temperature_distribution": temperature_dist,
@@ -818,11 +870,13 @@ def superadmin_home(request):
         "has_active_filters": has_active_filters,
     }
 
-    # Separate template for Hospital Admin vs Global Super Admin
+    # Separate template and active state for Hospital Admin vs Global Super Admin
     if user.hospital or (effective_hospital and user.role != User.Role.SUPER_ADMIN):
         template_name = "hospital/dashboard/admin_home.html"
+        context["active"] = "hospital_admin_home"
     else:
         template_name = "dashboard/superadmin_home.html"
+        context["active"] = "superadmin_home"
 
     return render(request, template_name, context)
 

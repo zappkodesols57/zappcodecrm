@@ -1480,7 +1480,7 @@
     fetchDrilldownData();
   }
 
-  let cachedHospitalName = "{{ request.user.hospital.name|default:'Zappcode CRM'|escapejs }}";
+  let cachedHospitalName = "{{ request.user.business.name|default:'Zappcode CRM'|escapejs }}";
   let cachedAgentName = "{% if request.user.get_full_name %}{{ request.user.get_full_name|escapejs }}{% elif request.user.username %}{{ request.user.username|escapejs }}{% else %}Admissions & Support Team{% endif %}";
   let selectedCampaignFilter = null;
   let cachedAssignableUsers = [];

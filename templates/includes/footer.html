@@ -272,17 +272,6 @@
           topbarToggleBtn.setAttribute('title', 'Keep Sidebar Permanently Maximized');
         }
       }
-      if (innerToggleBtn) {
-        if (pinned) {
-          innerToggleBtn.classList.add('pinned-active');
-          innerToggleBtn.setAttribute('title', 'Return Sidebar to Auto-Minimize');
-          if (innerToggleIcon) innerToggleIcon.className = 'fa-solid fa-chevron-left';
-        } else {
-          innerToggleBtn.classList.remove('pinned-active');
-          innerToggleBtn.setAttribute('title', 'Keep Sidebar Permanently Maximized');
-          if (innerToggleIcon) innerToggleIcon.className = 'fa-solid fa-chevron-right';
-        }
-      }
     }
 
     function togglePinSidebar() {
@@ -300,10 +289,6 @@
 
     if (topbarToggleBtn) {
       topbarToggleBtn.addEventListener('click', togglePinSidebar);
-    }
-
-    if (innerToggleBtn) {
-      innerToggleBtn.addEventListener('click', togglePinSidebar);
     }
   });
 </script>

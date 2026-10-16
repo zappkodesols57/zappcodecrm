@@ -50,22 +50,80 @@ def crm_login(request):
     if request.user.is_authenticated:
         return _role_redirect(request.user)
 
+    from django.core.cache import cache
+    import time
+
+    # Helper: Extract real client IP
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        client_ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        client_ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+
     if request.method == "POST":
+        # 1. Anti-Bot Honeypot Defense
+        # If the hidden 'website_url' field contains ANY value, it's an automated bot crawler
+        honeypot = request.POST.get("website_url", "").strip()
+        if honeypot:
+            # Silently simulate failure and log audit without hitting database or authentication backend
+            log_action(action="BOT_LOGIN_BLOCKED", new_value=f"Automated bot login blocked via honeypot trap", ip_address=client_ip)
+            time.sleep(1.5)  # Throttle bot
+            messages.error(request, "Invalid username or password.")
+            return render(request, "accounts/login.html", {"form_error": True})
+
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
+
+        # 2. Brute Force Protection: Lockout Check (Max 5 failed attempts, 15 minutes lockout)
+        ip_cache_key = f"login_attempts_ip_{client_ip}"
+        user_cache_key = f"login_attempts_user_{username.lower()}" if username else None
+
+        ip_attempts = cache.get(ip_cache_key, 0)
+        user_attempts = cache.get(user_cache_key, 0) if user_cache_key else 0
+
+        # If locked out, prevent database hit and notify user with remaining wait time
+        lockout_duration = 900  # 15 minutes (900 seconds)
+        if ip_attempts >= 5 or user_attempts >= 5:
+            remaining_mins = 15
+            messages.error(
+                request,
+                f"Too many failed login attempts detected. For security purposes, access is temporarily locked. Please try again after {remaining_mins} minutes."
+            )
+            log_action(action="LOGIN_LOCKOUT_ENFORCED", new_value=f"Blocked brute-force login attempt for username '{username}'", ip_address=client_ip)
+            return render(request, "accounts/login.html", {"form_error": True})
+
+        # 3. Authenticate User
         user = authenticate(request, username=username, password=password)
 
         if user is None:
-            messages.error(request, "Invalid username or password.")
+            # Increment failed attempts on both IP and Username
+            new_ip_attempts = ip_attempts + 1
+            cache.set(ip_cache_key, new_ip_attempts, timeout=lockout_duration)
+            if user_cache_key:
+                new_user_attempts = user_attempts + 1
+                cache.set(user_cache_key, new_user_attempts, timeout=lockout_duration)
+
+            remaining_attempts = max(0, 5 - max(new_ip_attempts, new_user_attempts))
+            if remaining_attempts > 0 and remaining_attempts <= 2:
+                messages.error(request, f"Invalid username or password. Warning: {remaining_attempts} attempt(s) remaining before account lockout.")
+            else:
+                messages.error(request, "Invalid username or password.")
+
+            log_action(action="LOGIN_FAILED", new_value=f"Failed login attempt for username '{username}' (Attempt {max(new_ip_attempts, new_user_attempts)}/5)", ip_address=client_ip)
             return render(request, "accounts/login.html", {"form_error": True})
 
         if not user.is_approved or not user.is_active:
             messages.error(request, "Your account is pending approval or inactive. Please contact an admin.")
             return render(request, "accounts/login.html", {"form_error": True})
 
+        # 4. Successful Login: Clear all failure records
+        cache.delete(ip_cache_key)
+        if user_cache_key:
+            cache.delete(user_cache_key)
+
         login(request, user)
         request.session.set_expiry(2592000)  # 30 Days persistent session (2592000s)
-        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in", user=user)
+        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in successfully", user=user, ip_address=client_ip)
         next_url = request.POST.get("next")
         if next_url:
             return redirect(next_url)
@@ -127,10 +185,13 @@ def user_list(request):
     pending_users = User.objects.filter(is_approved=False).order_by("-date_joined")
     users_qs = User.objects.filter(is_approved=True).order_by("-date_joined")
     
-    selected_hospital_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
-    if request.user.hospital:
-        pending_users = pending_users.filter(hospital=request.user.hospital)
-        users_qs = users_qs.filter(hospital=request.user.hospital)
+    from dashboard.helpers import get_effective_business
+    active_biz = get_effective_business(request)
+    business_id = getattr(active_biz, 'id', None) or getattr(request.user, 'business_id', None)
+
+    if business_id:
+        pending_users = pending_users.filter(hospital_id=business_id)
+        users_qs = users_qs.filter(hospital_id=business_id)
         # If Branch Manager is scoped to specific branch(es), isolate users to those branches (or all-branches users)
         if request.user.role == User.Role.MANAGER:
             mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []
@@ -145,9 +206,9 @@ def user_list(request):
                 )
                 pending_users = pending_users.filter(user_branch_filter).distinct()
                 users_qs = users_qs.filter(user_branch_filter).distinct()
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        pending_users = pending_users.filter(hospital_id=int(selected_hospital_id))
-        users_qs = users_qs.filter(hospital_id=int(selected_hospital_id))
+    elif not request.user.is_superuser and request.user.role != User.Role.SUPER_ADMIN:
+        pending_users = pending_users.none()
+        users_qs = users_qs.none()
 
     # Search keyword filter across entire database
     if q:
@@ -178,8 +239,21 @@ def user_list(request):
 
     total_count = users_qs.count()
 
-    # Roles for dropdown filter
-    if request.user.hospital:
+    # Roles for dropdown filter - Scoped strictly to Business Industry
+    biz_industry = getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', 'ACADEMY')
+
+    if biz_industry == 'ACADEMY':
+        if request.user.role == User.Role.MANAGER:
+            available_roles = [
+                (User.Role.COUNSELLOR, "Counsellor"),
+            ]
+        else:
+            available_roles = [
+                (User.Role.ADMIN, "Admin"),
+                (User.Role.MANAGER, "Manager"),
+                (User.Role.COUNSELLOR, "Counsellor"),
+            ]
+    elif biz_industry == 'HOSPITAL':
         if request.user.role == User.Role.MANAGER:
             available_roles = [
                 (User.Role.LEAD_ATTENDENT, "Telecaller"),
@@ -198,7 +272,7 @@ def user_list(request):
     paginator = Paginator(users_qs, page_size)
     page_obj = paginator.get_page(page_number)
 
-    template_name = "hospital/team/users_list.html" if request.user.hospital or request.user.industry == "HOSPITAL" else "accounts/user_list.html"
+    template_name = "hospital/team/users_list.html" if biz_industry == "HOSPITAL" else "accounts/user_list.html"
 
     return render(request, template_name, {
         "active": "users",
@@ -212,6 +286,7 @@ def user_list(request):
         "status_filter": status_filter,
         "page_size": page_size,
         "available_roles": available_roles,
+        "biz_industry": biz_industry,
     })
 
 
@@ -566,12 +641,30 @@ def user_add(request):
     # Pass user roles mapping for frontend JS filtering
     reports_to_queryset = form.fields["reports_to"].queryset
     user_roles_map = {str(u.id): u.role for u in reports_to_queryset}
+
+    # Pass business meta map (branches & allowed roles) for dynamic scoping
+    from accounts.models import Hospital
+    from leads.models import HospitalBranch
+    all_hospitals = Hospital.objects.filter(is_active=True).prefetch_related('branches')
+    business_meta_map = {}
+    role_labels = dict(User.Role.choices)
+    for h in all_hospitals:
+        b_list = [{"id": b.id, "name": b.name} for b in h.branches.filter(is_active=True)]
+        allowed_keys = h.get_allowed_roles()
+        business_meta_map[str(h.id)] = {
+            "name": h.name,
+            "industry": h.industry,
+            "branches": b_list,
+            "branch_count": len(b_list),
+            "allowed_roles": [{"value": r, "label": role_labels.get(r, r)} for r in allowed_keys if r in role_labels],
+        }
     
     return render(request, "accounts/user_form.html", {
         "active": "users", 
         "form": form, 
         "mode": "Add",
-        "user_roles_map": json.dumps(user_roles_map)
+        "user_roles_map": json.dumps(user_roles_map),
+        "business_meta_map": json.dumps(business_meta_map)
     })
 
 
@@ -601,13 +694,30 @@ def user_edit(request, pk):
     import json
     reports_to_queryset = form.fields["reports_to"].queryset
     user_roles_map = {str(u.id): u.role for u in reports_to_queryset}
+
+    from accounts.models import Hospital
+    from leads.models import HospitalBranch
+    all_hospitals = Hospital.objects.filter(is_active=True).prefetch_related('branches')
+    business_meta_map = {}
+    role_labels = dict(User.Role.choices)
+    for h in all_hospitals:
+        b_list = [{"id": b.id, "name": b.name} for b in h.branches.filter(is_active=True)]
+        allowed_keys = h.get_allowed_roles()
+        business_meta_map[str(h.id)] = {
+            "name": h.name,
+            "industry": h.industry,
+            "branches": b_list,
+            "branch_count": len(b_list),
+            "allowed_roles": [{"value": r, "label": role_labels.get(r, r)} for r in allowed_keys if r in role_labels],
+        }
     
     return render(request, "accounts/user_form.html", {
         "active": "users", 
         "form": form, 
         "mode": "Edit", 
         "obj": obj,
-        "user_roles_map": json.dumps(user_roles_map)
+        "user_roles_map": json.dumps(user_roles_map),
+        "business_meta_map": json.dumps(business_meta_map)
     })
 
 

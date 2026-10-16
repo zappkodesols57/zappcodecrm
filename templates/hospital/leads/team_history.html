@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
-{% block title %}Teams Performance · {{ current_hospital.name|default:"Nelson Hospital" }}{% endblock %}
+{% block title %}Teams Performance · {{ current_business.name|default:"Nelson Hospital" }}{% endblock %}
 
 {% block extra_head %}
 <!-- Chart.js for clean analytics visualization -->
@@ -265,11 +265,11 @@
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-secondary dropdown-toggle rounded px-3 fw-semibold" type="button"
         data-bs-toggle="dropdown" style="border-color: #cbd5e1; height: 33px; font-size: 0.8rem;">
-        {{ current_hospital.name|default:"Select Business" }}
+        {{ current_business.name|default:"Select Business" }}
       </button>
       <ul class="dropdown-menu shadow-sm border py-1">
         {% for b in available_businesses %}
-        <li><a class="dropdown-item small {% if current_hospital and current_hospital.id == b.id %}active fw-bold{% endif %}"
+        <li><a class="dropdown-item small {% if current_business and current_business.id == b.id %}active fw-bold{% endif %}"
             href="?business={{ b.id }}&tab={{ active_tab }}">{{ b.name }}</a></li>
         {% endfor %}
       </ul>
@@ -283,7 +283,7 @@
 
 <!-- Main Form Enclosing Tabs, Checkbox Dropdown, and Filters -->
 <form method="get" action="{% url 'leads:team_history' %}" id="teamMainForm">
-  {% if current_hospital %}<input type="hidden" name="business" value="{{ current_hospital.id }}">{% endif %}
+  {% if current_business %}<input type="hidden" name="business" value="{{ current_business.id }}">{% endif %}
   <input type="hidden" name="tab" id="hiddenActiveTab" value="{{ active_tab }}">
   <input type="hidden" name="date_preset" id="team_hidden_date_preset" value="{{ date_preset }}">
   <input type="hidden" name="month" id="team_hidden_month" value="{{ selected_month }}">
@@ -521,7 +521,7 @@
         </span>
         {% endif %}
 
-        <a href="{% url 'leads:team_history' %}?tab={{ active_tab }}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}"
+        <a href="{% url 'leads:team_history' %}?tab={{ active_tab }}{% if current_business %}&business={{ current_business.id }}{% endif %}"
            class="btn btn-sm btn-link text-danger text-decoration-none fw-semibold ms-auto small p-0" style="font-size: 0.72rem;">
           Reset All
         </a>
@@ -947,7 +947,7 @@
             <div class="empty-state py-3">
               <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">No patient leads found</h6>
               <p class="text-muted mb-2" style="font-size: 0.78rem;">Try selecting different telecallers/doctors or clearing filters.</p>
-              <a href="{% url 'leads:team_history' %}?tab={{ active_tab }}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}"
+              <a href="{% url 'leads:team_history' %}?tab={{ active_tab }}{% if current_business %}&business={{ current_business.id }}{% endif %}"
                  class="btn btn-xs btn-outline-secondary rounded px-3 py-1 fw-semibold" style="font-size: 0.75rem; border-color: #cbd5e1;">
                 Reset
               </a>

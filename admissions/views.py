@@ -12,14 +12,15 @@ from leads.models import Course
 
 @login_required
 def admission_list(request):
-    # Annotate total successful collected fees for database filtering
-    admissions = Admission.objects.select_related("lead", "course", "assigned_counselor").annotate(
+    # Prefetch payments and related fields for optimal performance
+    admissions = Admission.objects.select_related("lead", "course", "assigned_counselor").prefetch_related("payments").annotate(
         total_collected=Coalesce(Sum('payments__amount', filter=Q(payments__payment_status='SUCCESS')), Decimal('0.00'), output_field=DecimalField())
     )
 
-    if request.user.hospital:
-        admissions = admissions.filter(lead__hospital=request.user.hospital)
-    # Global Super Admin (no hospital): see all admissions - no filter needed
+    target_biz = request.user.hospital if request.user.hospital else None
+    if target_biz:
+        admissions = admissions.filter(lead__hospital=target_biz)
+    # Global Super Admin (no hospital): see all admissions
 
     # Dynamic Dashboard Stats (calculated before filters are applied)
     stats_all = admissions
@@ -32,19 +33,74 @@ def admission_list(request):
     # Apply filters
     search_query = request.GET.get("search", "").strip()
     plan_filter = request.GET.get("payment_plan", "")
-    course_filter = request.GET.get("course_status", "")
+    course_status_filter = request.GET.get("course_status", "")
     fee_filter = request.GET.get("fee_status", "")
+    trainer_filter = request.GET.get("trainer", "").strip()
+    course_filter = request.GET.get("course", "").strip()
 
     if search_query:
-        admissions = admissions.filter(Q(student_name__icontains=search_query) | Q(lead__lead_code__icontains=search_query))
+        admissions = admissions.filter(
+            Q(student_name__icontains=search_query) |
+            Q(lead__lead_code__icontains=search_query) |
+            Q(lead__mobile__icontains=search_query) |
+            Q(lead__email__icontains=search_query)
+        )
     if plan_filter:
         admissions = admissions.filter(payment_plan=plan_filter)
+    if course_status_filter:
+        admissions = admissions.filter(course_status=course_status_filter)
+    if trainer_filter:
+        admissions = admissions.filter(
+            Q(tutor__iexact=trainer_filter) |
+            Q(lead__custom_data__tutor__iexact=trainer_filter) |
+            Q(course__tutor__iexact=trainer_filter)
+        )
     if course_filter:
-        admissions = admissions.filter(course_status=course_filter)
+        if course_filter.isdigit():
+            admissions = admissions.filter(course_id=int(course_filter))
+        else:
+            admissions = admissions.filter(course__name__iexact=course_filter)
+
     if fee_filter == "FULLY_PAID":
         admissions = [a for a in admissions if a.total_collected >= a.final_fee]
     elif fee_filter == "PENDING":
         admissions = [a for a in admissions if a.total_collected < a.final_fee]
+
+    # Pre-calculate computed payment attributes on each admission object
+    for a in admissions:
+        a.collected_amount = a.total_collected if hasattr(a, 'total_collected') else a.collected
+        a.pending_amount = max(Decimal('0.00'), a.final_fee - a.collected_amount)
+        if a.collected_amount >= a.final_fee and a.final_fee > 0:
+            a.payment_status_badge = "Full Paid"
+            a.payment_status_class = "success"
+        elif a.collected_amount > 0:
+            a.payment_status_badge = "Partial Paid"
+            a.payment_status_class = "warning"
+        else:
+            a.payment_status_badge = "Unpaid"
+            a.payment_status_class = "danger"
+
+        # Determine payment mode display
+        first_success_pay = next((p for p in a.payments.all() if p.payment_status == 'SUCCESS'), None)
+        if first_success_pay:
+            a.payment_mode_display = first_success_pay.get_payment_mode_display()
+        elif a.payment_option == 'ONE_TIME_CASH':
+            a.payment_mode_display = "Cash"
+        elif a.payment_option == 'ONE_TIME_UPI':
+            a.payment_mode_display = "UPI / Online"
+        elif a.payment_plan == PaymentPlan.EMI:
+            a.payment_mode_display = "EMI / Online"
+        else:
+            a.payment_mode_display = "UPI / Online"
+
+    # Distinct trainers and courses for dropdown filter
+    from leads.models import Trainer, Course
+    courses_qs = Course.objects.filter(is_active=True, hospital=target_biz) if target_biz else Course.objects.filter(is_active=True)
+    trainers_qs = Trainer.objects.filter(is_active=True, hospital=target_biz) if target_biz else Trainer.objects.filter(is_active=True)
+    distinct_trainers = sorted(list(set(
+        list(trainers_qs.values_list("name", flat=True)) +
+        list(Admission.objects.exclude(tutor="").values_list("tutor", flat=True).distinct())
+    )))
 
     return render(request, "admissions/list.html", {
         "active": "admissions",
@@ -56,8 +112,12 @@ def admission_list(request):
         "total_pending_fees": total_pending_fees,
         "search_query": search_query,
         "plan_filter": plan_filter,
-        "course_filter": course_filter,
+        "course_status_filter": course_status_filter,
         "fee_filter": fee_filter,
+        "trainer_filter": trainer_filter,
+        "course_filter": course_filter,
+        "courses": courses_qs,
+        "trainers": distinct_trainers,
         "payment_plans": PaymentPlan.choices,
         "course_statuses": CourseStatus.choices,
     })
@@ -148,15 +208,33 @@ def add_admission(request):
             total_fee = form.cleaned_data["total_fee"]
             discount = form.cleaned_data.get("discount") or Decimal("0.00")
             extra_discount_reason = form.cleaned_data.get("extra_discount_reason", "")
-            payment_plan = form.cleaned_data["payment_plan"]
-            course_status = form.cleaned_data["course_status"]
-            assigned_counselor = form.cleaned_data.get("assigned_counselor")
-            notes = form.cleaned_data.get("notes", "")
+            trainer = form.cleaned_data.get("trainer", "")
+            batch = form.cleaned_data.get("batch", "")
+            batch_time = form.cleaned_data.get("batch_time", "")
+            date_of_joining = form.cleaned_data.get("date_of_joining")
+            payment_mode = form.cleaned_data.get("payment_mode", "ONE_TIME_UPI")
+            token_paid = form.cleaned_data.get("token_paid") or Decimal("0.00")
+            emi_months = form.cleaned_data.get("emi_months") or 0
+            payment_plan = PaymentPlan.EMI if payment_mode == "EMI" else PaymentPlan.FULL
+            final_fee = max(Decimal("0.00"), total_fee - discount)
 
             # 1. Create or retrieve lead record
             admission_stage = LeadStage.objects.filter(name__icontains="admission").first() or LeadStage.objects.order_by("-order").first()
             digits = Lead.clean_mobile(mobile)
             existing_leads = [l for l in Lead.objects.all() if Lead.clean_mobile(l.mobile) == digits] if digits else []
+
+            custom_payload = {
+                "tutor": trainer,
+                "batch": batch,
+                "batch_time": batch_time,
+                "payment_option": payment_mode,
+                "total": str(final_fee),
+                "total_paid": str(final_fee if payment_mode != "EMI" else token_paid),
+                "token_amount": str(token_paid),
+                "balance_amount": str(max(Decimal("0.00"), final_fee - token_paid)),
+            }
+            if date_of_joining:
+                custom_payload["date_of_joining"] = str(date_of_joining)
 
             if existing_leads:
                 lead = existing_leads[0]
@@ -168,6 +246,9 @@ def add_admission(request):
                 lead.deal_status = DealStatus.WON
                 lead.admission_status = AdmissionStatus.WON
                 if assigned_counselor: lead.assigned_to = assigned_counselor
+                cd = lead.custom_data or {}
+                cd.update(custom_payload)
+                lead.custom_data = cd
                 lead.save()
             else:
                 lead = Lead.objects.create(
@@ -183,9 +264,11 @@ def add_admission(request):
                     assigned_to=assigned_counselor or request.user,
                     created_by=request.user,
                     inquiry_date=admission_date,
+                    hospital=request.user.hospital if request.user.hospital else None,
+                    custom_data=custom_payload,
                 )
 
-            # 2. Create Admission record
+            # 2. Create or update Admission record
             admission, created = Admission.objects.get_or_create(
                 lead=lead,
                 defaults={
@@ -197,6 +280,12 @@ def add_admission(request):
                     "max_allowed_discount": getattr(course, "max_discount", Decimal("0.00")),
                     "extra_discount_reason": extra_discount_reason,
                     "payment_plan": payment_plan,
+                    "payment_option": payment_mode,
+                    "emi_months": emi_months if payment_mode == "EMI" else 0,
+                    "monthly_emi_amount": (final_fee - token_paid) / emi_months if (payment_mode == "EMI" and emi_months > 0) else Decimal("0.00"),
+                    "date_of_joining": date_of_joining,
+                    "tutor": trainer,
+                    "batch": batch,
                     "course_status": course_status,
                     "assigned_counselor": assigned_counselor or request.user,
                     "notes": notes,
@@ -211,10 +300,49 @@ def add_admission(request):
                 admission.discount = discount
                 admission.extra_discount_reason = extra_discount_reason
                 admission.payment_plan = payment_plan
+                admission.payment_option = payment_mode
+                admission.emi_months = emi_months if payment_mode == "EMI" else 0
+                if payment_mode == "EMI" and emi_months > 0:
+                    admission.monthly_emi_amount = (final_fee - token_paid) / emi_months
+                if date_of_joining: admission.date_of_joining = date_of_joining
+                if trainer: admission.tutor = trainer
+                if batch: admission.batch = batch
                 admission.course_status = course_status
                 if assigned_counselor: admission.assigned_counselor = assigned_counselor
                 if notes: admission.notes = notes
                 admission.save()
+
+            # 3. Create initial Payment record if token or full payment was paid
+            from payments.models import Payment, PaymentMode, PaymentStatus
+            pay_amt = final_fee if payment_mode != "EMI" else token_paid
+            if pay_amt > 0:
+                p_mode_map = {
+                    "ONE_TIME_CASH": PaymentMode.CASH,
+                    "ONE_TIME_UPI": PaymentMode.UPI,
+                    "EMI": PaymentMode.UPI,
+                }
+                Payment.objects.create(
+                    admission=admission,
+                    amount=pay_amt,
+                    payment_date=admission_date,
+                    payment_mode=p_mode_map.get(payment_mode, PaymentMode.UPI),
+                    payment_status=PaymentStatus.SUCCESS,
+                    remarks="Admission payment recorded directly",
+                )
+
+            # 4. Schedule EMI installments if applicable
+            if payment_mode == "EMI" and emi_months > 0:
+                from admissions.models import Installment
+                from dateutil.relativedelta import relativedelta
+                rem_bal = final_fee - token_paid
+                monthly_amt = (rem_bal / emi_months).quantize(Decimal("1.00")) if emi_months else Decimal("0.00")
+                for m in range(1, emi_months + 1):
+                    due_d = admission_date + relativedelta(months=m)
+                    Installment.objects.create(
+                        admission=admission,
+                        amount=monthly_amt,
+                        due_date=due_d,
+                    )
 
             messages.success(request, f"Student admission for '{student_name}' recorded successfully.")
             return redirect("admissions:list")
@@ -228,12 +356,33 @@ def add_admission(request):
             "name": c.name,
             "base_price": float(c.base_price),
             "max_discount": float(c.max_discount),
+            "tutor": c.tutor or "",
         }
         for c in courses_qs
     }
+
+    # Available batches & trainers for auto-suggestions
+    from leads.models import Batch, Trainer
+    target_biz = request.user.hospital if request.user.hospital else None
+    batches_qs = Batch.objects.filter(is_active=True, hospital=target_biz) if target_biz else Batch.objects.filter(is_active=True)
+    trainers_qs = Trainer.objects.filter(is_active=True, hospital=target_biz) if target_biz else Trainer.objects.filter(is_active=True)
+
+    available_batches = [
+        {
+            "id": b.id,
+            "name": b.name,
+            "course_id": b.course_id,
+            "trainer": b.trainer.name if b.trainer else "",
+            "timing_display": b.timing_display,
+        }
+        for b in batches_qs.select_related("trainer", "course")
+    ]
+    available_trainers = list(trainers_qs.values_list("name", flat=True).distinct())
 
     return render(request, "admissions/admission_form.html", {
         "active": "admissions",
         "form": form,
         "course_data_json": json.dumps(course_data),
+        "available_batches": available_batches,
+        "available_trainers": available_trainers,
     })

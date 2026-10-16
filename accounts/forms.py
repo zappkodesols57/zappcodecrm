@@ -54,7 +54,7 @@ class CRMUserCreateForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "role", "hospital", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
+        fields = ("username", "first_name", "last_name", "email", "hospital", "role", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -165,6 +165,16 @@ class CRMUserCreateForm(UserCreationForm):
             return digits
         return phone
 
+    def clean_assigned_branches(self):
+        branches = self.cleaned_data.get("assigned_branches")
+        hospital = self.cleaned_data.get("hospital") or (self.user.hospital if self.user and self.user.hospital else getattr(self.instance, 'hospital', None))
+        if branches and hospital:
+            # Strictly ensure assigned branches belong to the selected hospital
+            invalid_branches = [b.name for b in branches if b.hospital_id != hospital.id]
+            if invalid_branches:
+                raise forms.ValidationError(f"Branches {', '.join(invalid_branches)} do not belong to the selected business '{hospital.name}'.")
+        return branches
+
     def save(self, commit=True):
         user = super().save(commit=False)
         if self.user and self.user.hospital:
@@ -249,7 +259,7 @@ class CRMUserEditForm(forms.ModelForm):
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "role", "hospital", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "hospital", "role", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -364,6 +374,15 @@ class CRMUserEditForm(forms.ModelForm):
                 raise forms.ValidationError("Mobile number must be exactly 10 digits.")
             return digits
         return phone
+
+    def clean_assigned_branches(self):
+        branches = self.cleaned_data.get("assigned_branches")
+        hospital = self.cleaned_data.get("hospital") or (self.user.hospital if self.user and self.user.hospital else getattr(self.instance, 'hospital', None))
+        if branches and hospital:
+            invalid_branches = [b.name for b in branches if b.hospital_id != hospital.id]
+            if invalid_branches:
+                raise forms.ValidationError(f"Branches {', '.join(invalid_branches)} do not belong to the selected business '{hospital.name}'.")
+        return branches
 
     def save(self, commit=True):
         user = super().save(commit=False)

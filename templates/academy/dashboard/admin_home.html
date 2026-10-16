@@ -1,31 +1,236 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% load humanize %}
+{% block title %}Academy Dashboard{% endblock %}
 {% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-  .kpi-link {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  .kpi-link:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
-  }
-  .btn-outline-brand {
-    color: var(--brand);
-    border-color: var(--brand);
-  }
-  .btn-outline-brand:hover {
-    background-color: var(--brand);
-    color: #fff;
-  }
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-  .animate-pulse {
-    animation: pulse 2s infinite ease-in-out;
-  }
+    :root {
+        --primary: #052042;
+        --primary-gradient: linear-gradient(135deg, #052042 0%, #0A294F 100%);
+        --text-main: #253247;
+        --text-heading: #052042;
+        --text-muted: #64748b;
+        --bg-color: #F7F8F9;
+        --surface: #ffffff;
+        --border: #E5E7EB;
+        --radius-lg: 14px;
+        --radius-md: 10px;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 12px rgba(5, 32, 66, 0.06);
+    }
+
+    .nelson-dashboard {
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-main);
+    }
+
+    .nelson-dashboard h1,
+    .nelson-dashboard h2,
+    .nelson-dashboard h3,
+    .nelson-dashboard h4,
+    .nelson-dashboard h5,
+    .nelson-dashboard h6 {
+        color: #052042 !important;
+    }
+
+    .filter-panel {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid #E5E7EB;
+        box-shadow: var(--shadow-sm);
+        padding: 0.85rem 1.15rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-panel .custom-filter-select,
+    .filter-panel .custom-filter-input,
+    .filter-panel .form-select,
+    .filter-panel .form-control {
+        border: 1px solid #E5E7EB !important;
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+        padding: 0.42rem 0.75rem !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        color: #253247 !important;
+        min-height: 38px !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    .filter-panel select.form-select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23052042' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 0.75rem center !important;
+        background-size: 14px 10px !important;
+        padding-right: 2rem !important;
+        cursor: pointer !important;
+    }
+
+    .filter-panel .custom-filter-select:focus,
+    .filter-panel .custom-filter-input:focus,
+    .filter-panel .form-select:focus,
+    .filter-panel .form-control:focus {
+        border-color: #052042 !important;
+        box-shadow: 0 0 0 3px rgba(5, 32, 66, 0.12) !important;
+        outline: none !important;
+    }
+
+    .filter-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #052042;
+        margin-bottom: 0.35rem;
+        display: block;
+        letter-spacing: 0.5px;
+    }
+
+    .stats-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    @media (max-width: 1200px) {
+        .stats-kpi-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.65rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .stats-kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .stats-kpi-grid {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+    }
+
+    .stat-card {
+        border-radius: var(--radius-md);
+        padding: 0.75rem 0.9rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        border: 1px solid #E5E7EB;
+        background: #ffffff;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 82px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(5, 32, 66, 0.08);
+    }
+
+    .stat-card.c-leads,
+    .stat-card.c-callnotdone,
+    .stat-card.c-appo,
+    .stat-card.c-followup,
+    .stat-card.c-walkin,
+    .stat-card.c-conv,
+    .stat-card.c-won,
+    .stat-card.c-revenue,
+    .stat-card.c-lost {
+        background: #ffffff !important;
+        border: 1px solid #E5E7EB !important;
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #052042;
+        margin-bottom: 0.15rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stat-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #052042;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    .stat-sub {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 0.35rem;
+        padding-top: 0.35rem;
+    }
+
+    .chart-card {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid #E5E7EB;
+        box-shadow: var(--shadow-sm);
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .chart-container-wrapper {
+        position: relative;
+        height: 230px;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+
+    .chart-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #052042;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-outline-brand {
+        color: var(--brand);
+        border-color: var(--brand);
+    }
+    .btn-outline-brand:hover {
+        background-color: var(--brand);
+        color: #fff;
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -51,187 +256,280 @@
   {% endif %}
 {% endif %}
 
-{% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
-<form method="get" class="card p-3 mb-3" style="display: none;">
-  <div class="row g-2">
-    <div class="col-md-2">
-      <div class="input-group input-group-sm">
-        <input type="search" name="q" class="form-control" placeholder="Search..." value="{{ request_get.q }}">
-        <button class="btn btn-primary" type="submit" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
-      </div>
-    </div>
-    <div class="col-md-2">
-      <select name="city" class="form-select form-select-sm">
-        <option value="">All Cities</option>
-        {% for c in cities %}<option value="{{ c }}" {% if request_get.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="source_category" class="form-select form-select-sm">
-        <option value="">All Source Categories</option>
-        {% for sc in source_categories %}<option value="{{ sc.id }}" {% if request_get.source_category == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="lead_source" class="form-select form-select-sm">
-        <option value="">All Lead Sources</option>
-        {% for ls in lead_sources %}<option value="{{ ls.id }}" {% if request_get.lead_source == ls.id|stringformat:'s' %}selected{% endif %}>{{ ls.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="course" class="form-select form-select-sm">
-        <option value="">All Courses</option>
-        {% for c in courses %}<option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-1">
-      <select name="stage" class="form-select form-select-sm">
-        <option value="">All Stages</option>
-        {% for s in stages %}<option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-1">
-      <select name="temperature" class="form-select form-select-sm">
-        <option value="">All Temps</option>
-        <option value="UNCONTACTED" {% if request_get.temperature == "UNCONTACTED" %}selected{% endif %}>Uncontacted</option>
-        <option value="NOT_PICKED" {% if request_get.temperature == "NOT_PICKED" %}selected{% endif %}>Call Not Picked</option>
-        <option value="HOT" {% if request_get.temperature == "HOT" %}selected{% endif %}>Hot</option>
-        <option value="WARM" {% if request_get.temperature == "WARM" %}selected{% endif %}>Warm</option>
-        <option value="COLD" {% if request_get.temperature == "COLD" %}selected{% endif %}>Cold (Not Interested)</option>
-      </select>
-    </div>
-  </div>
-  <div class="row g-2 mt-1">
-    <div class="col-md-2">
-      <select name="admission_status" class="form-select form-select-sm">
-        <option value="">All Admission Statuses</option>
-        <option value="OPEN" {% if request_get.admission_status == "OPEN" or request_get.deal_status == "OPEN" %}selected{% endif %}>Open</option>
-        <option value="HOLD" {% if request_get.admission_status == "HOLD" or request_get.deal_status == "HOLD" %}selected{% endif %}>Hold</option>
-        <option value="WON" {% if request_get.admission_status == "WON" or request_get.deal_status == "WON" %}selected{% endif %}>Won</option>
-        <option value="LOST" {% if request_get.admission_status == "LOST" or request_get.deal_status == "LOST" %}selected{% endif %}>Lost</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <select name="assigned_to" class="form-select form-select-sm">
-        <option value="">All Assigned Employees</option>
-        {% for e in employees %}<option value="{{ e.id }}" {% if request_get.assigned_to == e.id|stringformat:'s' %}selected{% endif %}>{{ e.get_full_name|default:e.username }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request_get.date_from }}">
-    </div>
-    <div class="col-md-2">
-      <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request_get.date_to }}">
-    </div>
-    <div class="col-md-4">
-      <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-brand text-white w-50" type="submit">Apply</button>
-        <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-outline-secondary w-50 text-center d-flex align-items-center justify-content-center">Clear</a>
-      </div>
-    </div>
-  </div>
-</form>
-{% endif %}
+<!-- ─── COMPACT TOP FILTER BAR (Academy Specific Filters with Clean Project Styling) ─── -->
+<div class="card border shadow-sm mb-4" style="border-radius: 12px; background: #ffffff; border-color: #E5E7EB !important;">
+  <div class="card-body p-3">
+    <form method="get" id="academyAdminFilterForm" action="{% url 'dashboard:academy_admin_home' %}">
+      <div class="row g-2 align-items-end">
+        
+        <!-- 1. From Date -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">FROM DATE</label>
+          <input type="date" name="date_from" class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;" value="{{ request_get.date_from }}">
+        </div>
 
-<!-- ─── EXACT 5 KPI CARDS (Total Leads, Uncontacted, Contacted, Booked, Overdue) ─── -->
-<div class="row g-3 mb-4">
+        <!-- 2. To Date -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">TO DATE</label>
+          <input type="date" name="date_to" class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;" value="{{ request_get.date_to }}">
+        </div>
+
+        <!-- 3. Course Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">COURSE</label>
+          <select name="course" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Courses</option>
+            {% for c in courses %}
+              <option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' or request_get.course == c.name %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 4. Trainer Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">TRAINERS</label>
+          <select name="trainer" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Trainers</option>
+            {% for tr in trainers %}
+              <option value="{{ tr }}" {% if request_get.trainer == tr %}selected{% endif %}>{{ tr }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 5. Counselor / Assigned To -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">COUNSELOR</label>
+          <select name="counselor" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Counselors</option>
+            <option value="unassigned" {% if request_get.counselor == 'unassigned' or request_get.assigned_to == 'unassigned' %}selected{% endif %}>Unassigned Staff</option>
+            {% for emp in counselors %}
+              <option value="{{ emp.id }}" {% if request_get.counselor == emp.id|stringformat:'s' or request_get.assigned_to == emp.id|stringformat:'s' %}selected{% endif %}>
+                {{ emp.get_full_name|default:emp.username }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 6. Stage Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">STAGES</label>
+          <select name="stage" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Stages</option>
+            {% for s in stages %}
+              <option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' or request_get.stage == s.name %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 7. Status Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">STATUS</label>
+          <select name="status" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Statuses</option>
+            {% for st_val, st_lbl in status_choices %}
+              <option value="{{ st_val }}" {% if request_get.status == st_val or request_get.admission_status == st_val or request_get.deal_status == st_val %}selected{% endif %}>{{ st_lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 8. Source Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">SOURCE</label>
+          <select name="lead_source" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Sources</option>
+            {% for src in lead_sources %}
+              <option value="{{ src.id }}" {% if request_get.lead_source == src.id|stringformat:'s' or request_get.source == src.id|stringformat:'s' or request_get.lead_source == src.name %}selected{% endif %}>{{ src.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 9. Campaign Filter -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">CAMPAIGN</label>
+          <select name="campaign" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
+            <option value="">All Campaigns</option>
+            {% for cmp in campaigns %}
+              <option value="{{ cmp.id }}" {% if request_get.campaign == cmp.id|stringformat:'s' or request_get.campaign == cmp.name %}selected{% endif %}>{{ cmp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 10. Search Keyword -->
+        <div class="col-12 col-md-3 col-xl-3">
+          <label class="filter-label">SEARCH (NAME, MOBILE, ID)</label>
+          <input type="search" name="q" class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;" placeholder="Search student name, phone..." value="{{ request_get.q }}">
+        </div>
+
+        <!-- Buttons: Apply and Clear -->
+        <div class="col-12 col-md-3 col-xl-3">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary text-white flex-fill shadow-sm d-flex align-items-center justify-content-center" style="height: 36px; border-radius: 8px; font-weight: 600; background-color: #052042 !important; border-color: #052042 !important;">
+              <i class="ph ph-check me-1"></i> Apply Filters
+            </button>
+            <a href="{% url 'dashboard:academy_admin_home' %}" class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center" style="height: 36px; border-radius: 8px; border-color: #E5E7EB !important; font-weight: 500;" title="Clear all filters">
+              <i class="ph ph-arrow-counter-clockwise me-1"></i> Clear
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── EXACT 5 PRESENT ACADEMY KPIS (Hospital Admin Stat-Card Design) ─── -->
+<div class="stats-kpi-grid mb-4">
   
   <!-- 1. Total Leads -->
-  <div class="col-12 col-sm-6 col-lg">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="kpi-card kpi-1 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Total Leads</div>
-      <div class="value">{{ kpis.total_leads }}</div>
-    </a>
-  </div>
+  <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="stat-card c-leads text-decoration-none shadow-sm position-relative">
+    <div class="stat-header mb-1">
+      <div class="w-100">
+        <div class="stat-title d-flex align-items-center justify-content-between">
+          <span>Total Leads</span>
+        </div>
+        <div class="stat-value text-primary mt-1">{{ kpis.total_leads|default:0|intcomma }}</div>
+      </div>
+    </div>
+    <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+      <span>All Inquiries</span>
+    </div>
+  </a>
 
-  <!-- 2. Uncontacted (Today's New Uncontacted Leads) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="kpi-card kpi-7 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Uncontacted (Today's New)</div>
-      <div class="value">{{ kpis.uncontacted }}</div>
-    </a>
-  </div>
+  <!-- 2. Uncontacted Leads -->
+  <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED" class="stat-card c-callnotdone text-decoration-none shadow-sm position-relative">
+    <div class="stat-header mb-1">
+      <div class="w-100">
+        <div class="stat-title d-flex align-items-center justify-content-between">
+          <span class="text-dark">Uncontacted Leads</span>
+        </div>
+        <div class="stat-value text-dark mt-1">{{ kpis.uncontacted|default:0|intcomma }}</div>
+      </div>
+    </div>
+    <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+      <span>Untouched Leads</span>
+    </div>
+  </a>
 
-  <!-- 3. Contacted Leads (Today's Contacted / Edited) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-5 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Contacted (Today)</div>
-      <div class="value">{{ kpis.contacted_today }}</div>
+  <!-- 3. Contacted Leads -->
+  <div class="stat-card c-appo shadow-sm position-relative">
+    <div class="stat-header mb-1">
+      <div class="w-100">
+        <div class="stat-title d-flex align-items-center justify-content-between">
+          <span>Contacted Leads</span>
+        </div>
+        <div class="stat-value text-primary mt-1">{{ kpis.contacted_today|default:0|intcomma }}</div>
+      </div>
+    </div>
+    <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+      <span>Called / Contacted</span>
     </div>
   </div>
 
-  <!-- 4. Booked Leads (Today's Booked Deals) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <div class="kpi-card kpi-2 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Booked (Today)</div>
-      <div class="value">{{ kpis.booked_today }}</div>
+  <!-- 4. Booked Leads / Admissions -->
+  <div class="stat-card c-won shadow-sm position-relative">
+    <div class="stat-header mb-1">
+      <div class="w-100">
+        <div class="stat-title d-flex align-items-center justify-content-between">
+          <span>Booked (Admissions Done)</span>
+        </div>
+        <div class="stat-value text-primary mt-1">{{ kpis.booked_today|default:0|intcomma }}</div>
+      </div>
+    </div>
+    <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+      <span>Admissions Confirmed</span>
     </div>
   </div>
 
-  <!-- 5. Overdue (Followup time today or past) -->
-  <div class="col-12 col-sm-6 col-lg">
-    <a href="{% url 'followups:overdue' %}" class="kpi-card kpi-3 text-decoration-none d-block kpi-link h-100">
-      <div class="label">Overdue Follow-ups</div>
-      <div class="value">{{ kpis.overdue }}</div>
-    </a>
-  </div>
+  <!-- 5. Overdue Follow-ups -->
+  <a href="{% url 'followups:overdue' %}" class="stat-card c-followup text-decoration-none shadow-sm position-relative">
+    <div class="stat-header mb-1">
+      <div class="w-100">
+        <div class="stat-title d-flex align-items-center justify-content-between">
+          <span>Overdue Follow-ups</span>
+        </div>
+        <div class="stat-value text-dark mt-1">{{ kpis.overdue|default:0|intcomma }}</div>
+      </div>
+    </div>
+    <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+      <span>Pending Action</span>
+    </div>
+  </a>
 
 </div>
 
-<!-- ─── CHARTS SECTION (Side-by-Side Modern Clean Layout) ─── -->
-<div class="row g-3 mb-4">
-  <!-- Lead Stage Funnel -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-filter me-2 text-primary"></i>My Lead Stage Funnel</h6>
-        <span class="badge bg-light text-muted border small">Funnel</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="funnelChart"></canvas></div>
-    </div>
-  </div>
+    <!-- Charts Grid (Side-by-Side Clean Project Theme Layout) -->
+    <div class="row g-3 mb-4">
+        <!-- Lead Stage Funnel -->
+        <div class="col-md-6">
+            <div class="chart-card h-100">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="ph-bold ph-funnel text-primary"></i> Stage Funnel
+                    </h5>
+                    <span class="badge bg-light text-muted border small">Funnel</span>
+                </div>
+                <div class="chart-container-wrapper">
+                    <canvas id="funnelChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-  <!-- Monthly Lead Trend -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up me-2 text-info"></i>Monthly Activity Trend</h6>
-        <span class="badge bg-light text-muted border small">Timeline</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="trendChart"></canvas></div>
+        <!-- Monthly Activity Trend -->
+        <div class="col-md-6">
+            <div class="chart-card h-100">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="ph-bold ph-chart-line-up text-primary"></i> Monthly Activity Trend
+                    </h5>
+                    <span class="badge bg-light text-muted border small">Timeline</span>
+                </div>
+                <div class="chart-container-wrapper">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<div class="row g-3 mb-4">
-  <!-- Lead Source Distribution -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px; border-top: 3px solid #6366f1 !important;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Source Distribution</h6>
-        <span class="badge bg-light text-muted border small">Channels</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="sourceChart"></canvas></div>
-    </div>
-  </div>
+    <div class="row g-3 mb-4">
+        <!-- Source Distribution -->
+        <div class="col-md-6">
+            <div class="chart-card h-100">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="ph-bold ph-chart-pie text-primary"></i> Source Distribution
+                    </h5>
+                    <span class="badge bg-light text-muted border small">Channels</span>
+                </div>
+                <div class="chart-container-wrapper">
+                    <canvas id="sourceChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-  <!-- Course-wise Leads -->
-  <div class="col-md-6">
-    <div class="card p-3 h-100 shadow-sm border-0" style="border-radius: 14px; border-top: 3px solid #10b981 !important;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="text-dark fw-bold mb-0"><i class="fa-solid fa-graduation-cap me-2 text-success"></i>Course-wise Distribution</h6>
-        <span class="badge bg-light text-muted border small">Courses</span>
-      </div>
-      <div style="height: 240px; position: relative;"><canvas id="courseChart"></canvas></div>
+        <!-- Course-wise Distribution -->
+        <div class="col-md-6">
+            <div class="chart-card h-100">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="ph-bold ph-graduation-cap text-primary"></i> Course-wise Volume
+                    </h5>
+                    <span class="badge bg-light text-muted border small">Courses</span>
+                </div>
+                <div class="chart-container-wrapper">
+                    <canvas id="courseChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
 {% if request.user.role == 'SUPER_ADMIN' or request.user.role == 'MANAGER' %}
-<div class="card mb-4 shadow-sm border-0">
-  <div class="card-header bg-white py-3 border-0 d-flex align-items-center gap-2">
-    <i class="fa-solid fa-users-gear text-primary fs-5"></i>
-    <h5 class="card-title mb-0 fw-bold">Team Activity Today</h5>
+<div class="card mb-4 shadow-sm border-0" style="border-radius: 14px;">
+  <div class="card-header bg-white py-3 border-0 d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa-solid fa-users-gear text-primary fs-5"></i>
+      <h5 class="card-title mb-0 fw-bold">Team Activity Today</h5>
+    </div>
+    <span class="badge bg-light text-muted border">{{ team_stats|length }} Members</span>
   </div>
   <div class="table-responsive">
     <table class="table mb-0 align-middle">
@@ -282,16 +580,211 @@
 </div>
 {% endif %}
 
+<!-- ─── FILTERED LEADS RESULTS SECTION (Bottom Table) ─── -->
+<div class="card mb-4 shadow-sm border-0" style="border-radius: 14px;">
+  <div class="card-header bg-white py-3 border-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-3">
+        <i class="fa-solid fa-table-list fa-fw"></i>
+      </span>
+      <div>
+        <h5 class="card-title mb-0 fw-bold text-dark">Filtered Leads Results</h5>
+        <span class="text-muted small">Showing {{ filtered_leads.start_index|default:0 }}-{{ filtered_leads.end_index|default:0 }} of <strong>{{ total_filtered_count }}</strong> leads matching applied filters</span>
+      </div>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-outline-brand rounded-pill px-3 fw-semibold">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open in Full Lead Master
+      </a>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="min-width: 980px;">
+      <thead class="table-light">
+        <tr class="text-muted small text-uppercase">
+          <th class="ps-3" style="width: 100px;">Lead ID</th>
+          <th>Date</th>
+          <th>Student Details</th>
+          <th>Course</th>
+          <th>Trainer</th>
+          <th>Counselor / HR</th>
+          <th>Stage</th>
+          <th>Status</th>
+          <th>Source / Campaign</th>
+          <th class="text-end pe-3">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in filtered_leads %}
+        <tr style="cursor: pointer;" onclick="window.location='{% url 'leads:lead_detail' lead.pk %}';">
+          <td class="ps-3">
+            <span class="badge bg-light text-dark border font-monospace">{{ lead.lead_code }}</span>
+          </td>
+          <td>
+            <span class="text-nowrap small text-muted"><i class="fa-regular fa-calendar me-1"></i>{{ lead.inquiry_date|date:"d-m-Y" }}</span>
+          </td>
+          <td>
+            <div class="fw-bold text-dark">{{ lead.name }}</div>
+            <div class="text-muted small"><i class="fa-solid fa-phone me-1 text-secondary" style="font-size: 0.72rem;"></i>{{ lead.mobile }}</div>
+          </td>
+          <td>
+            {% if lead.course %}
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold">
+                <i class="fa-solid fa-graduation-cap me-1"></i>{{ lead.course.name }}
+              </span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if lead.display_trainer and lead.display_trainer != "—" %}
+              <span class="small fw-semibold text-dark">
+                <i class="fa-solid fa-chalkboard-user text-info me-1"></i>{{ lead.display_trainer }}
+              </span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if lead.assigned_to %}
+              <span class="small fw-semibold text-dark">
+                <i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+              </span>
+            {% else %}
+              <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle small">
+                Unassigned
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge rounded-pill bg-light text-dark border fw-medium px-2 py-1">
+              {{ lead.stage.name|default:"New" }}
+            </span>
+          </td>
+          <td>
+            {% if lead.admission_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                <i class="fa-solid fa-check me-1"></i>Won / Enrolled
+              </span>
+            {% elif lead.admission_status == 'LOST' or lead.deal_status == 'LOST' or lead.temperature == 'FREEZE' %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                <i class="fa-solid fa-xmark me-1"></i>Lost
+              </span>
+            {% elif lead.admission_status == 'HOLD' %}
+              <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">
+                Hold
+              </span>
+            {% else %}
+              <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">
+                {{ lead.admission_status|default:lead.deal_status|default:"Open" }}
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="small fw-medium text-dark">{{ lead.lead_source.name|default:"Direct" }}</div>
+            {% if lead.campaign %}
+              <div class="text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-bullseye me-1"></i>{{ lead.campaign.name|truncatechars:22 }}</div>
+            {% endif %}
+          </td>
+          <td class="text-end pe-3" onclick="event.stopPropagation();">
+            <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-light border action-btn-sm" title="View Lead Details">
+              <i class="fa-solid fa-arrow-right text-primary"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="text-center py-5">
+            <div class="text-muted">
+              <i class="fa-solid fa-folder-open fs-2 mb-2 text-secondary"></i>
+              <div class="fw-semibold">No leads found matching the selected filter criteria.</div>
+              <div class="small">Try adjusting dates, course, trainer, counselor, or clear filters.</div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination footer -->
+  {% if filtered_leads.has_other_pages %}
+  <div class="card-footer bg-white py-3 border-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="text-muted small">
+      Page {{ filtered_leads.number }} of {{ filtered_leads.paginator.num_pages }}
+    </div>
+    <ul class="pagination pagination-sm mb-0">
+      {% if filtered_leads.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ request_get.urlencode }}&page={{ filtered_leads.previous_page_number }}" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+
+      {% for p_num in filtered_leads.paginator.page_range %}
+        {% if p_num == filtered_leads.number %}
+          <li class="page-item active"><span class="page-link bg-brand border-0">{{ p_num }}</span></li>
+        {% elif p_num > filtered_leads.number|add:"-3" and p_num < filtered_leads.number|add:"3" %}
+          <li class="page-item"><a class="page-link text-dark" href="?{{ request_get.urlencode }}&page={{ p_num }}">{{ p_num }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if filtered_leads.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ request_get.urlencode }}&page={{ filtered_leads.next_page_number }}" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}
 {% block extra_js %}
 <script>
-  const chartData = {{ chart_data|safe }};
-  const palette = ['#6366f1','#f97316','#0ea5e9','#10b981','#ec4899','#64748b','#eab308','#14b8a6'];
+  // Filter toggle collapse
+  const filterToggleBtn = document.getElementById('academyFilterToggleBtn');
+  const filterCollapseBody = document.getElementById('academyFilterCollapseBody');
+  const filterChevronIcon = document.getElementById('academyFilterChevronIcon');
+  if (filterToggleBtn && filterCollapseBody) {
+    filterToggleBtn.addEventListener('click', function() {
+      const isHidden = filterCollapseBody.style.display === 'none';
+      filterCollapseBody.style.display = isHidden ? 'block' : 'none';
+      if (filterChevronIcon) {
+        filterChevronIcon.className = isHidden ? 'ph ph-caret-up ms-1' : 'ph ph-caret-down ms-1';
+      }
+    });
+  }
 
+  const chartData = {{ chart_data|safe }};
+  const themeNavy = '#052042';
+  const palette = ['#052042', '#0A294F', '#1e3a8a', '#2563eb', '#38bdf8', '#64748b', '#94a3b8'];
+
+  Chart.defaults.color = '#253247';
+  Chart.defaults.borderColor = '#E5E7EB';
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+
+  // 1. Source Distribution (Doughnut)
   const isMobileScreen = window.innerWidth < 768;
   new Chart(document.getElementById('sourceChart'), {
     type: 'doughnut',
-    data: { labels: chartData.source.labels, datasets: [{ data: chartData.source.counts, backgroundColor: palette, borderWidth: 2, borderColor: '#ffffff' }] },
+    data: { 
+      labels: chartData.source.labels, 
+      datasets: [{ 
+        data: chartData.source.counts, 
+        backgroundColor: palette, 
+        borderWidth: 2, 
+        borderColor: '#ffffff' 
+      }] 
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -299,28 +792,84 @@
       plugins: {
         legend: {
           position: isMobileScreen ? 'bottom' : 'right',
-          labels: { boxWidth: 10, padding: 6, font: { size: 10 } }
+          labels: { boxWidth: 10, padding: 6, font: { size: 11, family: "'Outfit', sans-serif" } }
         }
       }
     }
   });
 
+  // 2. Stage Funnel (Horizontal Bar)
   new Chart(document.getElementById('funnelChart'), {
     type: 'bar',
-    data: { labels: chartData.funnel.labels, datasets: [{ label: 'Leads', data: chartData.funnel.counts, backgroundColor: '#4f46e5' }] },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    data: { 
+      labels: chartData.funnel.labels, 
+      datasets: [{ 
+        label: 'Leads', 
+        data: chartData.funnel.counts, 
+        backgroundColor: themeNavy,
+        borderRadius: 6,
+        barPercentage: 0.7
+      }] 
+    },
+    options: { 
+      indexAxis: 'y', 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      scales: {
+        x: { beginAtZero: true, grid: { display: true } },
+        y: { grid: { display: false } }
+      },
+      plugins: { legend: { display: false } } 
+    }
   });
 
+  // 3. Monthly Activity Trend (Line or Bar in project theme)
   new Chart(document.getElementById('trendChart'), {
-    type: 'line',
-    data: { labels: chartData.trend.labels, datasets: [{ label: 'Leads', data: chartData.trend.counts, borderColor: '#0ea5e9', tension: .3, fill: false }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    type: 'bar',
+    data: { 
+      labels: chartData.trend.labels, 
+      datasets: [{ 
+        label: 'Leads', 
+        data: chartData.trend.counts, 
+        backgroundColor: themeNavy,
+        borderRadius: 6,
+        barPercentage: 0.6
+      }] 
+    },
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { display: true } }
+      },
+      plugins: { legend: { display: false } } 
+    }
   });
 
+  // 4. Course-wise Volume (Horizontal Bar)
   new Chart(document.getElementById('courseChart'), {
     type: 'bar',
-    data: { labels: chartData.course.labels, datasets: [{ label: 'Leads', data: chartData.course.counts, backgroundColor: '#10b981' }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    data: { 
+      labels: chartData.course.labels, 
+      datasets: [{ 
+        label: 'Leads', 
+        data: chartData.course.counts, 
+        backgroundColor: themeNavy,
+        borderRadius: 6,
+        barPercentage: 0.7
+      }] 
+    },
+    options: { 
+      indexAxis: 'y',
+      responsive: true, 
+      maintainAspectRatio: false, 
+      scales: {
+        x: { beginAtZero: true, grid: { display: true } },
+        y: { grid: { display: false } }
+      },
+      plugins: { legend: { display: false } } 
+    }
   });
 </script>
 {% endblock %}

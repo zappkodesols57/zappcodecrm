@@ -1,0 +1,40 @@
+<tr data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" class="counselor-table-row">
+  <td class="fw-semibold">
+    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark">{{ lead.name }}</a>
+    {% if is_overdue %}
+      <span class="badge bg-danger text-white ms-1">Overdue</span>
+    {% elif is_completed %}
+      <span class="badge bg-success text-white ms-1">Visited</span>
+    {% endif %}
+  </td>
+  <td>{{ lead.mobile }}</td>
+  <td>{{ lead.course.name|default:"—" }}</td>
+  <td>
+    <span class="fw-bold">{{ lead.display_visit_date|date:"d M Y"|default:"—" }}</span>
+  </td>
+  <td>
+    <span class="badge bg-light text-dark border">{{ lead.display_visit_slot }}</span>
+  </td>
+  <td>
+    {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username|default:"Unassigned" }}
+  </td>
+  <td class="text-muted small" style="max-width: 180px;">
+    {{ lead.display_visit_notes|truncatechars:40 }}
+  </td>
+  <td class="text-end">
+    <div class="d-inline-flex gap-1 align-items-center">
+      <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
+        <i class="fa-solid fa-phone"></i>
+      </a>
+      <a href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i>
+      </a>
+      <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </a>
+      <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+        <i class="fa-solid fa-eye"></i>
+      </a>
+    </div>
+  </td>
+</tr>

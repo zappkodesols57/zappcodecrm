@@ -401,6 +401,12 @@
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ next }}">
 
+      <!-- Bot Trap Honeypot Field (Invisible to human users, traps automated bots) -->
+      <div style="position: absolute; left: -9999px; top: -9999px; opacity: 0; pointer-events: none;" aria-hidden="true">
+        <label for="id_website_url">Website</label>
+        <input type="text" name="website_url" id="id_website_url" tabindex="-1" autocomplete="off">
+      </div>
+
       <div class="mb-3">
         <label class="form-label">Username</label>
         <div class="input-wrap">

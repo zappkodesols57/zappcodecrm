@@ -174,11 +174,11 @@
     {% if is_global_admin and available_businesses %}
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-dark dropdown-toggle rounded-pill px-3 fw-semibold" type="button" data-bs-toggle="dropdown">
-        <i class="fa-solid fa-city me-1 text-primary"></i> {{ current_hospital.name|default:"Select Business" }}
+        <i class="fa-solid fa-city me-1 text-primary"></i> {{ current_business.name|default:"Select Business" }}
       </button>
       <ul class="dropdown-menu shadow-sm border-0">
         {% for b in available_businesses %}
-        <li><a class="dropdown-item small {% if current_hospital and current_hospital.id == b.id %}active fw-bold{% endif %}" href="?business={{ b.id }}">{{ b.name }}</a></li>
+        <li><a class="dropdown-item small {% if current_business and current_business.id == b.id %}active fw-bold{% endif %}" href="?business={{ b.id }}">{{ b.name }}</a></li>
         {% endfor %}
       </ul>
     </div>
@@ -331,8 +331,8 @@
         <input type="hidden" name="date_preset" id="team_hidden_date_preset" value="{{ date_preset }}">
         <input type="hidden" name="month" id="team_hidden_month" value="{{ selected_month }}">
         <input type="hidden" name="year" id="team_hidden_year" value="{{ selected_year }}">
-        {% if current_hospital %}
-        <input type="hidden" name="business" value="{{ current_hospital.id }}">
+        {% if current_business %}
+        <input type="hidden" name="business" value="{{ current_business.id }}">
         {% endif %}
 
         {% if active_filters_count > 0 %}

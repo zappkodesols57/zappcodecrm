@@ -4,7 +4,7 @@ from django.contrib.auth.signals import user_logged_in, user_logged_out
 from django.dispatch import receiver
 
 
-def log_action(action, obj=None, old_value="", new_value="", user=None):
+def log_action(action, obj=None, old_value="", new_value="", user=None, ip_address=None):
     user = user or get_current_user()
     if user is not None and not getattr(user, "is_authenticated", False):
         user = None
@@ -16,7 +16,7 @@ def log_action(action, obj=None, old_value="", new_value="", user=None):
         object_repr=str(obj)[:255] if obj is not None else "",
         old_value=str(old_value)[:1000],
         new_value=str(new_value)[:1000],
-        ip_address=get_current_ip(),
+        ip_address=ip_address or get_current_ip(),
     )
 
 

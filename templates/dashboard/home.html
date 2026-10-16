@@ -1001,7 +1001,7 @@
         const activeTimeFilter = pageParams.get('time_filter') || '{{ time_filter|default:"today" }}';
         const activeStartDate = pageParams.get('start_date') || '{{ custom_start|default:"" }}';
         const activeEndDate = pageParams.get('end_date') || '{{ custom_end|default:"" }}';
-        const activeBiz = pageParams.get('hospital') || pageParams.get('business') || '{{ request.user.hospital_id|default:"" }}';
+        const activeBiz = pageParams.get('hospital') || pageParams.get('business') || '{{ request.user.business_id|default:"" }}';
 
         const drillParams = new URLSearchParams();
         drillParams.set('card_type', cardType);
@@ -1163,7 +1163,7 @@
         fetchDrilldownData();
     }
 
-    let cachedHospitalName = "{{ request.user.hospital.name|default:'Zappcode Academy'|escapejs }}";
+    let cachedHospitalName = "{{ request.user.business.name|default:'Zappcode Academy'|escapejs }}";
     let cachedAgentName = "{{ request.user.get_full_name|default:request.user.username|default:'Admissions & Support Team'|escapejs }}";
     let selectedCampaignFilter = null;
     let cachedAssignableUsers = [];

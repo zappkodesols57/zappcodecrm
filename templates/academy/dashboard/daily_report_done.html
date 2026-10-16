@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Daily EOD Report Submitted · CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+  .crm-done-wrapper {
+    max-width: 820px;
+    margin: 2rem auto 3rem auto;
+  }
+  .crm-done-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    padding: 2rem 2.25rem;
+    text-align: center;
+  }
+  .crm-done-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+  }
+  .crm-stat-tile {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.65rem 0.85rem;
+    text-align: left;
+  }
+  .crm-stat-label {
+    display: block;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .crm-stat-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 py-3">
+  <div class="crm-done-wrapper">
+    <div class="crm-done-card">
+
+      <!-- Status Pill -->
+      <div class="mb-3">
+        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-1.5 fw-semibold" style="font-size: 0.82rem;">
+          Report Submitted Successfully
+        </span>
+      </div>
+
+      <h5 class="fw-bold text-dark mb-1">Daily EOD Report Submitted</h5>
+      <p class="text-muted small mb-4">
+        Report date: <strong class="text-dark">{{ report_date|date:"l, d F Y" }}</strong>
+      </p>
+
+      <!-- Section 1: Inflow & Touches -->
+      <div class="crm-done-section-title">Today's Inflow &amp; Touches</div>
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Total Leads Touched</span>
+            <div class="crm-stat-value">{{ report.custom_data.todays_total_leads|default:report.follow_ups_taken }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Assigned Leads</span>
+            <div class="crm-stat-value">{{ report.leads_assigned }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Walk-ins</span>
+            <div class="crm-stat-value">{{ report.custom_data.walk_ins|default:0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Follow-up Done</span>
+            <div class="crm-stat-value">{{ report.calls_attended }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Pipeline & Outcomes -->
+      <div class="crm-done-section-title">Pipeline &amp; Outcomes</div>
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Follow-up Pending</span>
+            <div class="crm-stat-value">{{ report.custom_data.follow_ups_pending|default:report.follow_ups_pending }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Visit Done</span>
+            <div class="crm-stat-value">{{ report.custom_data.visit_done|default:report.leads_visited }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Visit Pending</span>
+            <div class="crm-stat-value">{{ report.custom_data.visit_pending|default:0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Admission Done</span>
+            <div class="crm-stat-value">{{ report.admissions_done }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Admission Pending</span>
+            <div class="crm-stat-value">{{ report.custom_data.admission_pending|default:0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Payment Done</span>
+            <div class="crm-stat-value">{{ report.payments_done }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Payment Pending</span>
+            <div class="crm-stat-value">{{ report.custom_data.payment_pending|default:0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Pending Leads Total</span>
+            <div class="crm-stat-value">{{ report.pending_leads }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Queue & Forecast -->
+      <div class="crm-done-section-title">Queue &amp; Forecast</div>
+      <div class="row g-2 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Overdue Total</span>
+            <div class="crm-stat-value">{{ report.custom_data.overdues|default:0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Upcoming Total</span>
+            <div class="crm-stat-value">{{ report.custom_data.upcoming|default:0 }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Tomorrow's Follow-ups</span>
+            <div class="crm-stat-value">{{ report.tomorrow_followups }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="crm-stat-tile">
+            <span class="crm-stat-label">Today's Mood</span>
+            <div class="crm-stat-value" style="font-size: 1rem;">{{ report.mood_display }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap pt-2 border-top">
+        <a href="{% url 'dashboard:view_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-2 fw-semibold">
+          View Today's Leads
+        </a>
+        <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+          Export Excel
+        </a>
+        <a href="{% url 'dashboard:export_daily_activity_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+          Export PDF
+        </a>
+        <a href="{% url 'dashboard:submit_daily_report' %}?edit=1" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+          Edit Report
+        </a>
+        <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-primary rounded-pill px-4 py-2 fw-semibold" style="background: var(--brand, #0f2744); border-color: var(--brand, #0f2744);">
+          Dashboard
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

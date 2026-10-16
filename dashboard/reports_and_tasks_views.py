@@ -225,7 +225,13 @@ def submit_daily_report(request):
 
     if report_instance and not is_editing and request.method != "POST":
         # Already submitted → show confirmation page with option to edit
-        return render(request, "dashboard/daily_report_done.html", {
+        user_biz = getattr(request.user, 'business_type', '')
+        if user_biz == 'hospital':
+            done_tpl = "dashboard/daily_report_done.html"
+        else:
+            done_tpl = "academy/dashboard/daily_report_done.html"
+
+        return render(request, done_tpl, {
             "active": "daily_report_submit",
             "report": report_instance,
             "report_date": report_date,
@@ -395,6 +401,18 @@ def submit_daily_report(request):
         Q(custom_data__appointment_status__icontains="Visit")
     ).distinct().count()
 
+    # Walk-in leads created today
+    walk_ins_cnt = Lead.objects.filter(
+        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(inquiry_date=report_date) | Q(created_at__range=(start_dt, end_dt))
+    ).filter(
+        Q(lead_source__name__icontains="walk") |
+        Q(campaign__name__icontains="walk") |
+        Q(custom_data__lead_source__icontains="walk") |
+        Q(custom_data__campaign__icontains="walk") |
+        Q(lead_type__icontains="walk")
+    ).distinct().count()
+
     # Pending and Admissions calculations
     pending_followups_lead_ids = set(FollowUp.objects.filter(
         lead__assigned_to=request.user,
@@ -432,6 +450,36 @@ def submit_daily_report(request):
     all_tomorrow_scheduled_lead_ids = tomorrow_fu_lead_ids | tomorrow_leads_table_ids
     tomorrow_followups_cnt = len(all_tomorrow_scheduled_lead_ids) + pending_leads_cnt
 
+    # Visits Calculation
+    # Visit Done today: Leads visited or marked visited today
+    visit_done_cnt = Lead.objects.filter(
+        Q(assigned_to=request.user) | Q(created_by=request.user),
+        updated_at__range=(start_dt, end_dt)
+    ).filter(
+        Q(stage__name__icontains="visited") |
+        Q(custom_data__visit_status__iexact="DONE") |
+        Q(custom_data__visited=True) |
+        Q(custom_data__appointment_status__icontains="visited")
+    ).distinct().count()
+
+    # Visit Pending today: Scheduled for today but not visited yet
+    visit_pending_cnt = Lead.objects.filter(
+        Q(assigned_to=request.user) | Q(created_by=request.user),
+        is_archived=False
+    ).exclude(
+        deal_status__in=["WON", "LOST"]
+    ).exclude(
+        stage__name__icontains="visited"
+    ).filter(
+        Q(stage__name__icontains="visit") |
+        Q(custom_data__visit_date=report_date_str) |
+        Q(custom_data__visit_date=report_date_alt_str) |
+        Q(next_followup_date=report_date, stage__name__icontains="visit")
+    ).exclude(
+        custom_data__visit_status__iexact="DONE"
+    ).distinct().count()
+
+    # Admissions Calculation
     today_adm_record_lead_ids = set(Admission.objects.filter(
         Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
         Q(admission_date=report_date) | Q(created_at__range=(start_dt, end_dt))
@@ -447,11 +495,106 @@ def submit_daily_report(request):
     ).values_list('id', flat=True))
 
     admissions_today_cnt = len(today_adm_record_lead_ids | today_adm_stage_lead_ids)
+
+    # Admission Pending today: Scheduled or planned for today but pending
+    admission_pending_cnt = Lead.objects.filter(
+        Q(assigned_to=request.user) | Q(created_by=request.user),
+        is_archived=False
+    ).exclude(
+        deal_status="WON"
+    ).exclude(
+        admission_status="WON"
+    ).exclude(
+        stage__name__icontains="admission done"
+    ).filter(
+        Q(custom_data__admission_date=report_date_str) |
+        Q(custom_data__admission_date=report_date_alt_str) |
+        Q(stage__name__icontains="admission planned", next_followup_date=report_date) |
+        Q(stage__name__icontains="admission planned", custom_data__admission_date__isnull=False)
+    ).distinct().count()
+
     fees_today_sum = Payment.objects.filter(
         Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user),
         payment_date=report_date,
         payment_status=PaymentStatus.SUCCESS
     ).aggregate(s=Sum("amount"))["s"] or 0
+
+    # Payment Pending today: leads with admission/billing candidates having balance_due > 0 or payment pending
+    payment_pending_cnt = 0
+    billing_candidates_qs = Lead.objects.filter(
+        Q(assigned_to=request.user) | Q(created_by=request.user),
+        is_archived=False
+    ).filter(
+        Q(deal_status=DealStatus.WON) |
+        Q(stage__name__icontains='admission & payment') |
+        Q(stage__name__icontains='payment') |
+        Q(custom_data__total__isnull=False) |
+        Q(custom_data__total_paid__isnull=False)
+    ).exclude(deal_status=DealStatus.LOST).exclude(stage__name__icontains='cancel')
+
+    for cand in billing_candidates_qs[:200]:
+        cd_cand = cand.custom_data or {}
+        try:
+            t_fee = float(cd_cand.get('total') or cd_cand.get('course_fee') or (cand.course.base_price if cand.course else 0) or 0)
+        except (ValueError, TypeError):
+            t_fee = 0.0
+        try:
+            p_paid = float(cd_cand.get('token_amount') or cd_cand.get('total_paid') or 0)
+        except (ValueError, TypeError):
+            p_paid = 0.0
+        bal = max(0, t_fee - p_paid)
+        if t_fee > 0 and (p_paid == 0 or bal > 0):
+            payment_pending_cnt += 1
+
+    # Overdues: Total overdue follow-ups + overdue visits + overdue admissions planned (< report_date)
+    overdue_fu_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False,
+        next_followup_date__lt=report_date
+    ).exclude(deal_status__in=["WON", "LOST"]).count()
+
+    overdue_visits_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False
+    ).exclude(deal_status__in=["WON", "LOST"]).filter(
+        Q(stage__name__icontains='visit planned', next_followup_date__lt=report_date) |
+        Q(stage__name__icontains='visit planned', custom_data__visit_date__lt=report_date_str)
+    ).count()
+
+    overdue_adm_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False
+    ).exclude(deal_status__in=["WON", "LOST"]).filter(
+        Q(stage__name__icontains='admission planned', next_followup_date__lt=report_date) |
+        Q(stage__name__icontains='admission planned', custom_data__admission_date__lt=report_date_str)
+    ).count()
+
+    overdues_total_cnt = overdue_fu_cnt + overdue_visits_cnt + overdue_adm_cnt
+
+    # Upcoming: Total upcoming follow-ups + visits + admissions (> report_date)
+    upcoming_fu_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False,
+        next_followup_date__gt=report_date
+    ).exclude(deal_status__in=["WON", "LOST"]).count()
+
+    upcoming_visits_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False
+    ).exclude(deal_status__in=["WON", "LOST"]).filter(
+        Q(stage__name__icontains='visit planned', next_followup_date__gt=report_date) |
+        Q(stage__name__icontains='visit planned', custom_data__visit_date__gt=report_date_str)
+    ).count()
+
+    upcoming_adm_cnt = Lead.objects.filter(
+        assigned_to=request.user,
+        is_archived=False
+    ).exclude(deal_status__in=["WON", "LOST"]).filter(
+        Q(stage__name__icontains='admission planned', next_followup_date__gt=report_date) |
+        Q(stage__name__icontains='admission planned', custom_data__admission_date__gt=report_date_str)
+    ).count()
+
+    upcoming_total_cnt = upcoming_fu_cnt + upcoming_visits_cnt + upcoming_adm_cnt
 
     # Login / Logout times from AuditLog
     first_login_log = AuditLog.objects.filter(
@@ -476,8 +619,6 @@ def submit_daily_report(request):
     last_logout_time = last_logout_log.created_at if last_logout_log else None
 
     # ── Determine who this report will be sent to ─────────────
-    # If user has reports_to set, send to them.
-    # Default: send to Zappcode Super Admin(s).
     reports_to_user = request.user.reports_to
     recipients = []
     if reports_to_user and reports_to_user.is_active:
@@ -546,22 +687,30 @@ def submit_daily_report(request):
         tomorrow_followups_cnt = doc_tomorrow_scheduled_cnt
 
     suggestions = {
-        "outgoing_calls": outgoing_calls_cnt,
-        "incoming_calls": incoming_calls_cnt,
-        "calls_attended": calls_attended_cnt,
-        "calls_not_connected": calls_not_connected_cnt,
+        "todays_total_leads": follow_ups_taken_cnt,
         "leads_assigned": leads_assigned_cnt,
-        "appointments_booked": appointments_booked_cnt,
-        "freeze_leads": freeze_leads_cnt,
+        "walk_ins": walk_ins_cnt,
+        "calls_attended": calls_attended_cnt,
         "follow_ups_taken": follow_ups_taken_cnt,
         "follow_ups_pending": follow_ups_pending_cnt,
+        "visit_done": visit_done_cnt,
+        "visit_pending": visit_pending_cnt,
+        "admissions_done": admissions_today_cnt,
+        "admission_pending": admission_pending_cnt,
+        "payments_done": payments_done_cnt,
+        "payment_pending": payment_pending_cnt,
+        "overdues": overdues_total_cnt,
+        "upcoming": upcoming_total_cnt,
         "pending_leads": pending_leads_cnt,
         "tomorrow_followups": tomorrow_followups_cnt,
+        "outgoing_calls": outgoing_calls_cnt,
+        "incoming_calls": incoming_calls_cnt,
+        "calls_not_connected": calls_not_connected_cnt,
+        "appointments_booked": appointments_booked_cnt,
+        "freeze_leads": freeze_leads_cnt,
         "leads_interested": leads_interested_cnt,
         "leads_cold": leads_cold_cnt,
         "leads_visited": leads_visited_cnt,
-        "admissions_done": admissions_today_cnt,
-        "payments_done": payments_done_cnt,
         "fees_collected": fees_today_sum,
         "mood": "Good",
         "first_login_time": first_login_time,
@@ -569,8 +718,6 @@ def submit_daily_report(request):
     }
 
     # ── 1. BUSINESS TENANT CHECK & 2. ROLE CHECK ──────────────────────────────
-    # Business Check first: 'hospital' vs 'academy' (Zappcode)
-    # Then Role Check under the Business:
     user_business_type = request.user.business_type  # 'hospital' or 'academy'
     user_role = request.user.role
 
@@ -606,6 +753,19 @@ def submit_daily_report(request):
                     mood_to_rating = {"Great": 5, "Good": 4, "Moderate": 3, "Tired": 2, "Exhausted": 1, "Sick": 1}
                     mood_rating_val = mood_to_rating.get(mood_val, cleaned.get("mood_rating") or 3)
 
+                    # Populate custom_data with the detailed metrics
+                    custom_report_data = {
+                        "todays_total_leads": cleaned.get("todays_total_leads") if cleaned.get("todays_total_leads") is not None else follow_ups_taken_cnt,
+                        "walk_ins": cleaned.get("walk_ins") if cleaned.get("walk_ins") is not None else walk_ins_cnt,
+                        "follow_ups_pending": cleaned.get("follow_ups_pending") if cleaned.get("follow_ups_pending") is not None else follow_ups_pending_cnt,
+                        "visit_done": cleaned.get("visit_done") if cleaned.get("visit_done") is not None else visit_done_cnt,
+                        "visit_pending": cleaned.get("visit_pending") if cleaned.get("visit_pending") is not None else visit_pending_cnt,
+                        "admission_pending": cleaned.get("admission_pending") if cleaned.get("admission_pending") is not None else admission_pending_cnt,
+                        "payment_pending": cleaned.get("payment_pending") if cleaned.get("payment_pending") is not None else payment_pending_cnt,
+                        "overdues": cleaned.get("overdues") if cleaned.get("overdues") is not None else overdues_total_cnt,
+                        "upcoming": cleaned.get("upcoming") if cleaned.get("upcoming") is not None else upcoming_total_cnt,
+                    }
+
                     # Store exact values entered/edited by user
                     report_data = {
                         "leads_assigned": cleaned.get("leads_assigned") if cleaned.get("leads_assigned") is not None else leads_assigned_cnt,
@@ -615,13 +775,13 @@ def submit_daily_report(request):
                         "outgoing_calls": cleaned.get("outgoing_calls") if cleaned.get("outgoing_calls") is not None else outgoing_calls_cnt,
                         "incoming_calls": cleaned.get("incoming_calls") if cleaned.get("incoming_calls") is not None else incoming_calls_cnt,
                         "calls_not_connected": cleaned.get("calls_not_connected") if cleaned.get("calls_not_connected") is not None else calls_not_connected_cnt,
-                        "follow_ups_taken": cleaned.get("follow_ups_taken") if cleaned.get("follow_ups_taken") is not None else follow_ups_taken_cnt,
+                        "follow_ups_taken": cleaned.get("calls_attended") if cleaned.get("calls_attended") is not None else follow_ups_taken_cnt,
                         "follow_ups_pending": cleaned.get("follow_ups_pending") if cleaned.get("follow_ups_pending") is not None else follow_ups_pending_cnt,
                         "pending_leads": cleaned.get("pending_leads") if cleaned.get("pending_leads") is not None else pending_leads_cnt,
                         "tomorrow_followups": cleaned.get("tomorrow_followups") if cleaned.get("tomorrow_followups") is not None else tomorrow_followups_cnt,
                         "leads_cold": cleaned.get("leads_cold") if cleaned.get("leads_cold") is not None else leads_cold_cnt,
                         "leads_interested": cleaned.get("leads_interested") if cleaned.get("leads_interested") is not None else leads_interested_cnt,
-                        "leads_visited": cleaned.get("leads_visited") if cleaned.get("leads_visited") is not None else leads_visited_cnt,
+                        "leads_visited": cleaned.get("visit_done") if cleaned.get("visit_done") is not None else (cleaned.get("leads_visited") if cleaned.get("leads_visited") is not None else leads_visited_cnt),
                         "admissions_done": cleaned.get("admissions_done") if cleaned.get("admissions_done") is not None else admissions_today_cnt,
                         "payments_done": cleaned.get("payments_done") if cleaned.get("payments_done") is not None else payments_done_cnt,
                         "fees_collected": cleaned.get("fees_collected") if cleaned.get("fees_collected") is not None else fees_today_sum,
@@ -629,6 +789,7 @@ def submit_daily_report(request):
                         "challenges_faced": cleaned.get("challenges_faced") or "",
                         "tomorrow_priority": cleaned.get("tomorrow_priority") or "",
                         "other_updates": cleaned.get("other_updates") or "",
+                        "custom_data": custom_report_data,
                         "mood": mood_val,
                         "mood_rating": mood_rating_val,
                         "first_login_at": first_login_time,
@@ -658,7 +819,7 @@ def submit_daily_report(request):
                         )
                     else:
                         summary_text = (
-                            f"Assigned Leads: {report.leads_assigned} | Calls: {report.calls_attended} | "
+                            f"Assigned Leads: {report.leads_assigned} | Follow-up Done: {report.calls_attended} | "
                             f"Admissions Done: {report.admissions_done} | Payments: {report.payments_done} (₹{report.fees_collected}) | "
                             f"Pending Leads: {report.pending_leads} | Tomorrow FU: {report.tomorrow_followups}"
                         )
@@ -683,6 +844,7 @@ def submit_daily_report(request):
                 return redirect("dashboard:submit_daily_report")
     else:
         if report_instance:
+            cd_inst = report_instance.custom_data or {}
             init_data = {
                 "leads_assigned": report_instance.leads_assigned,
                 "calls_attended": report_instance.calls_attended,
@@ -690,7 +852,7 @@ def submit_daily_report(request):
                 "incoming_calls": report_instance.incoming_calls,
                 "calls_not_connected": report_instance.calls_not_connected,
                 "follow_ups_taken": report_instance.follow_ups_taken,
-                "follow_ups_pending": report_instance.follow_ups_pending,
+                "follow_ups_pending": cd_inst.get("follow_ups_pending", report_instance.follow_ups_pending),
                 "pending_leads": report_instance.pending_leads,
                 "tomorrow_followups": report_instance.tomorrow_followups,
                 "leads_cold": report_instance.leads_cold,
@@ -705,26 +867,42 @@ def submit_daily_report(request):
                 "other_updates": report_instance.other_updates,
                 "mood": report_instance.mood or "Good",
                 "mood_rating": report_instance.mood_rating,
+                "todays_total_leads": cd_inst.get("todays_total_leads", report_instance.follow_ups_taken),
+                "walk_ins": cd_inst.get("walk_ins", suggestions["walk_ins"]),
+                "visit_done": cd_inst.get("visit_done", report_instance.leads_visited),
+                "visit_pending": cd_inst.get("visit_pending", suggestions["visit_pending"]),
+                "admission_pending": cd_inst.get("admission_pending", suggestions["admission_pending"]),
+                "payment_pending": cd_inst.get("payment_pending", suggestions["payment_pending"]),
+                "overdues": cd_inst.get("overdues", suggestions["overdues"]),
+                "upcoming": cd_inst.get("upcoming", suggestions["upcoming"]),
             }
             if is_hospital_form or is_doctor_form:
                 init_data["appointments_booked"] = report_instance.appointments_booked
                 init_data["freeze_leads"] = report_instance.freeze_leads
         else:
             init_data = {
+                "todays_total_leads": suggestions["todays_total_leads"],
                 "leads_assigned": suggestions["leads_assigned"],
+                "walk_ins": suggestions["walk_ins"],
                 "calls_attended": suggestions["calls_attended"],
+                "follow_ups_pending": suggestions["follow_ups_pending"],
+                "visit_done": suggestions["visit_done"],
+                "visit_pending": suggestions["visit_pending"],
+                "admissions_done": suggestions["admissions_done"],
+                "admission_pending": suggestions["admission_pending"],
+                "payments_done": suggestions["payments_done"],
+                "payment_pending": suggestions["payment_pending"],
+                "overdues": suggestions["overdues"],
+                "upcoming": suggestions["upcoming"],
                 "outgoing_calls": suggestions["outgoing_calls"],
                 "incoming_calls": suggestions["incoming_calls"],
                 "calls_not_connected": suggestions["calls_not_connected"],
                 "follow_ups_taken": suggestions["follow_ups_taken"],
-                "follow_ups_pending": suggestions["follow_ups_pending"],
                 "pending_leads": suggestions["pending_leads"],
                 "tomorrow_followups": suggestions["tomorrow_followups"],
                 "leads_interested": suggestions["leads_interested"],
                 "leads_cold": suggestions["leads_cold"],
                 "leads_visited": suggestions["leads_visited"],
-                "admissions_done": suggestions["admissions_done"],
-                "payments_done": suggestions["payments_done"],
                 "fees_collected": suggestions["fees_collected"],
                 "mood": suggestions["mood"],
             }
@@ -1030,6 +1208,351 @@ def export_daily_activity_leads(request):
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def view_daily_activity_leads(request):
+    """
+    View all unique leads touched or updated by the user today in a clean table.
+    Shows user actions, remarks, status, current stage, contact details.
+    """
+    from datetime import datetime
+    from followups.models import FollowUp, Note, Activity, ActivityType
+    from audit.models import AuditLog
+    from admissions.models import Admission
+
+    date_str = request.GET.get("date")
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    import datetime as dt_module
+    tz = timezone.get_current_timezone()
+    start_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.min), tz)
+    end_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.max), tz)
+
+    assigned_leads_qs = Lead.objects.filter(
+        Q(assigned_to=request.user, inquiry_date=report_date) |
+        Q(assigned_to=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, inquiry_date=report_date)
+    )
+    assigned_lead_ids = set(assigned_leads_qs.values_list('id', flat=True))
+
+    assignment_activities_lead_ids = set(Activity.objects.filter(
+        activity_type=ActivityType.ASSIGNMENT,
+        created_at__range=(start_dt, end_dt)
+    ).filter(
+        Q(description__icontains=str(request.user.get_full_name() or request.user.username)) |
+        Q(created_by=request.user)
+    ).values_list('lead_id', flat=True))
+
+    assignment_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        action="ASSIGNMENT",
+        created_at__range=(start_dt, end_dt),
+        new_value__icontains=str(request.user.get_full_name() or request.user.username)
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            assignment_audit_lead_ids.add(int(obj_id))
+
+    user_fu_lead_ids = set(FollowUp.objects.filter(
+        Q(created_by=request.user, followup_date=report_date) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    user_note_lead_ids = set(Note.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_activity_lead_ids = set(Activity.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        user=request.user,
+        created_at__range=(start_dt, end_dt),
+        model_name__iexact='Lead'
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            user_audit_lead_ids.add(int(obj_id))
+
+    today_adm_record_lead_ids = set(Admission.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
+        Q(admission_date=report_date) | Q(created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    all_target_lead_ids = (
+        assigned_lead_ids |
+        assignment_activities_lead_ids |
+        assignment_audit_lead_ids |
+        user_fu_lead_ids |
+        user_note_lead_ids |
+        user_activity_lead_ids |
+        user_audit_lead_ids |
+        today_adm_record_lead_ids
+    )
+
+    leads = Lead.objects.filter(id__in=all_target_lead_ids).select_related(
+        'course', 'stage', 'assigned_to', 'created_by', 'admission'
+    ).prefetch_related('followups', 'lead_notes', 'activities').order_by('-updated_at')
+
+    leads_data = []
+    for lead in leads:
+        today_acts = lead.activities.filter(
+            Q(created_by=request.user) | Q(created_at__range=(start_dt, end_dt)),
+            created_at__range=(start_dt, end_dt)
+        ).order_by('created_at')
+        actions_list = [f"• {act.get_activity_type_display()}: {act.description}" for act in today_acts]
+        if not actions_list:
+            if lead.assigned_to == request.user:
+                actions_list.append("• Assigned to user")
+            if lead.created_by == request.user:
+                actions_list.append("• Created/Captured by user")
+        actions_str = "\n".join(actions_list) if actions_list else "Updated today"
+
+        latest_note = lead.lead_notes.order_by('-created_at').first()
+        latest_fu = lead.followups.order_by('-followup_date', '-created_at').first()
+        latest_remark_str = latest_note.note if latest_note else (latest_fu.comment if (latest_fu and latest_fu.comment) else (lead.notes or "—"))
+
+        course_name = lead.course.name if lead.course else (lead.custom_data.get('department') or lead.lead_type or "—")
+
+        adm_status_list = []
+        if hasattr(lead, 'admission') and lead.admission:
+            adm = lead.admission
+            adm_status_list.append("Admitted")
+            if adm.collected > 0:
+                adm_status_list.append(f"Paid ₹{adm.collected:,.0f}")
+            else:
+                adm_status_list.append("Payment Pending")
+        else:
+            adm_status_list.append(lead.get_admission_status_display() or "Open")
+        status_str = " | ".join(adm_status_list)
+
+        leads_data.append({
+            'lead': lead,
+            'course_name': course_name,
+            'stage_name': lead.stage.name if lead.stage else "—",
+            'status_str': status_str,
+            'actions_str': actions_str,
+            'remarks_str': latest_remark_str,
+        })
+
+    return render(request, "academy/dashboard/daily_activity_leads.html", {
+        'report_date': report_date,
+        'leads_data': leads_data,
+        'total_count': len(leads_data),
+    })
+
+
+@login_required
+def export_daily_activity_pdf(request):
+    """
+    Export today's activity leads as a clean landscape PDF report.
+    """
+    import io
+    try:
+        from reportlab.lib.pagesizes import letter, A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    except ImportError:
+        messages.error(request, "PDF generator is temporarily unavailable.")
+        return redirect("dashboard:submit_daily_report")
+
+    from datetime import datetime
+    from followups.models import FollowUp, Note, Activity, ActivityType
+    from audit.models import AuditLog
+    from admissions.models import Admission
+
+    date_str = request.GET.get("date")
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    import datetime as dt_module
+    tz = timezone.get_current_timezone()
+    start_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.min), tz)
+    end_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.max), tz)
+
+    assigned_leads_qs = Lead.objects.filter(
+        Q(assigned_to=request.user, inquiry_date=report_date) |
+        Q(assigned_to=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=request.user, inquiry_date=report_date)
+    )
+    assigned_lead_ids = set(assigned_leads_qs.values_list('id', flat=True))
+
+    assignment_activities_lead_ids = set(Activity.objects.filter(
+        activity_type=ActivityType.ASSIGNMENT,
+        created_at__range=(start_dt, end_dt)
+    ).filter(
+        Q(description__icontains=str(request.user.get_full_name() or request.user.username)) |
+        Q(created_by=request.user)
+    ).values_list('lead_id', flat=True))
+
+    assignment_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        action="ASSIGNMENT",
+        created_at__range=(start_dt, end_dt),
+        new_value__icontains=str(request.user.get_full_name() or request.user.username)
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            assignment_audit_lead_ids.add(int(obj_id))
+
+    user_fu_lead_ids = set(FollowUp.objects.filter(
+        Q(created_by=request.user, followup_date=report_date) |
+        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    user_note_lead_ids = set(Note.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_activity_lead_ids = set(Activity.objects.filter(
+        created_by=request.user,
+        created_at__range=(start_dt, end_dt)
+    ).values_list('lead_id', flat=True))
+
+    user_audit_lead_ids = set()
+    for obj_id in AuditLog.objects.filter(
+        user=request.user,
+        created_at__range=(start_dt, end_dt),
+        model_name__iexact='Lead'
+    ).values_list('object_id', flat=True):
+        if obj_id and str(obj_id).isdigit():
+            user_audit_lead_ids.add(int(obj_id))
+
+    today_adm_record_lead_ids = set(Admission.objects.filter(
+        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
+        Q(admission_date=report_date) | Q(created_at__range=(start_dt, end_dt))
+    ).values_list('lead_id', flat=True))
+
+    all_target_lead_ids = (
+        assigned_lead_ids |
+        assignment_activities_lead_ids |
+        assignment_audit_lead_ids |
+        user_fu_lead_ids |
+        user_note_lead_ids |
+        user_activity_lead_ids |
+        user_audit_lead_ids |
+        today_adm_record_lead_ids
+    )
+
+    leads = Lead.objects.filter(id__in=all_target_lead_ids).select_related(
+        'course', 'stage', 'assigned_to', 'created_by', 'admission'
+    ).prefetch_related('followups', 'lead_notes', 'activities').order_by('-updated_at')
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=25,
+        leftMargin=25,
+        topMargin=25,
+        bottomMargin=25
+    )
+
+    story = []
+    styles = getSampleStyleSheet()
+
+    NAVY = colors.HexColor("#0f2744")
+    TEXT_DARK = colors.HexColor("#1e293b")
+    TEXT_MUTED = colors.HexColor("#64748b")
+    BORDER_COLOR = colors.HexColor("#cbd5e1")
+    BG_LIGHT = colors.HexColor("#f8fafc")
+
+    title_style = ParagraphStyle('DocTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=15, leading=18, textColor=NAVY)
+    sub_style = ParagraphStyle('DocSub', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12, textColor=TEXT_MUTED)
+    th_style = ParagraphStyle('Th', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=colors.white, alignment=TA_CENTER)
+    td_style = ParagraphStyle('Td', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=TEXT_DARK)
+    td_center = ParagraphStyle('TdCenter', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=TEXT_DARK, alignment=TA_CENTER)
+
+    user_name = request.user.get_full_name() or request.user.username
+    biz_name = request.user.hospital.name if request.user.hospital else "Zappcode Academy CRM"
+
+    header_table = Table([
+        [Paragraph(f"<b>{biz_name}</b> - Today's Updated Leads", title_style),
+         Paragraph(f"<b>Date:</b> {report_date.strftime('%d-%b-%Y')}<br/><b>Staff:</b> {user_name} | <b>Total:</b> {leads.count()}", sub_style)]
+    ], colWidths=[520, 260])
+    header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('ALIGN', (1, 0), (1, 0), 'RIGHT')]))
+    story.append(header_table)
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width="100%", thickness=1, color=NAVY, spaceBefore=2, spaceAfter=8))
+
+    table_data = [[
+        Paragraph("#", th_style),
+        Paragraph("Lead Code & Name", th_style),
+        Paragraph("Contact", th_style),
+        Paragraph("Course", th_style),
+        Paragraph("Current Stage", th_style),
+        Paragraph("Status", th_style),
+        Paragraph("Today's Actions", th_style),
+        Paragraph("Remarks", th_style),
+    ]]
+
+    for idx, lead in enumerate(leads, start=1):
+        today_acts = lead.activities.filter(
+            Q(created_by=request.user) | Q(created_at__range=(start_dt, end_dt)),
+            created_at__range=(start_dt, end_dt)
+        ).order_by('created_at')
+        actions_list = [f"• {act.get_activity_type_display()}: {act.description}" for act in today_acts]
+        if not actions_list:
+            if lead.assigned_to == request.user:
+                actions_list.append("• Assigned")
+            if lead.created_by == request.user:
+                actions_list.append("• Captured")
+        actions_str = "<br/>".join(actions_list[:2]) if actions_list else "Updated"
+
+        latest_note = lead.lead_notes.order_by('-created_at').first()
+        latest_fu = lead.followups.order_by('-followup_date', '-created_at').first()
+        remark_str = (latest_note.note if latest_note else (latest_fu.comment if (latest_fu and latest_fu.comment) else (lead.notes or "—")))[:80]
+
+        course_str = lead.course.name if lead.course else (lead.custom_data.get('department') or lead.lead_type or "—")
+        status_str = "Admitted" if hasattr(lead, 'admission') and lead.admission else (lead.get_admission_status_display() or "Open")
+
+        table_data.append([
+            Paragraph(str(idx), td_center),
+            Paragraph(f"<b>{lead.name}</b><br/><font color='#64748b' size='7'>{lead.lead_code}</font>", td_style),
+            Paragraph(lead.mobile, td_center),
+            Paragraph(course_str, td_style),
+            Paragraph(lead.stage.name if lead.stage else "—", td_style),
+            Paragraph(status_str, td_center),
+            Paragraph(actions_str, td_style),
+            Paragraph(remark_str, td_style),
+        ])
+
+    pdf_table = Table(table_data, colWidths=[25, 125, 75, 105, 95, 70, 155, 140])
+    pdf_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+        ('GRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, BG_LIGHT]),
+    ]))
+    story.append(pdf_table)
+
+    doc.build(story)
+    buffer.seek(0)
+
+    pdf_filename = f"Today_Leads_{request.user.username}_{report_date.strftime('%Y%m%d')}.pdf"
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{pdf_filename}"'
     return response
 
 
@@ -1937,23 +2460,23 @@ def admin_reports_view(request):
         return redirect("dashboard:home")
         
     # Strict Business Boundary Check:
-    # 1. If user is bound to a specific hospital/business, FORCE that hospital only.
+    # 1. If user is bound to a specific business, FORCE that business only.
     #    They MUST NOT be able to override via GET params or session to peek into other businesses.
-    # 2. Only Super Admin / Global Admin (without user.hospital) can switch businesses.
-    if user.hospital:
-        effective_hospital = user.hospital
+    # 2. Only Super Admin / Global Admin (without user.business) can switch businesses.
+    if user.business:
+        active_business = user.business
     elif user.is_superuser or user.role == User.Role.SUPER_ADMIN:
-        selected_hospital_id = (
+        selected_business_id = (
             request.GET.get("business", "").strip()
             or request.GET.get("hospital", "").strip()
             or str(request.session.get("active_business_id", "")).strip()
         )
-        if selected_hospital_id and selected_hospital_id.isdigit():
-            effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+        if selected_business_id and selected_business_id.isdigit():
+            active_business = Hospital.objects.filter(id=int(selected_business_id)).first()
         else:
-            effective_hospital = None
+            active_business = None
     else:
-        effective_hospital = None
+        active_business = None
         
     today = timezone.localdate()
     from datetime import datetime, time
@@ -1978,12 +2501,12 @@ def admin_reports_view(request):
     start_target_date = timezone.make_aware(datetime.combine(target_date, time.min))
     end_target_date = timezone.make_aware(datetime.combine(target_date, time.max))
 
-    # Base Employees for this specific business/hospital only
+    # Base Employees for this specific business only
     employees_qs = User.objects.filter(is_active=True)
-    if effective_hospital:
-        employees_qs = employees_qs.filter(hospital=effective_hospital)
+    if active_business:
+        employees_qs = employees_qs.filter(hospital_id=active_business.id)
     elif not user.is_superuser and user.role != User.Role.SUPER_ADMIN:
-        # Fallback security shield: If user has no hospital and is not superadmin, empty queryset
+        # Fallback security shield: If user has no business and is not superadmin, empty queryset
         employees_qs = employees_qs.none()
 
     # Manager restriction: Only see subordinates or self within the same business
@@ -2070,8 +2593,8 @@ def admin_reports_view(request):
         
         # Activity summary for this date (strictly scoped to lead under this business)
         leads_assigned_on_date = Lead.objects.filter(assigned_to=emp, inquiry_date=target_date)
-        if effective_hospital:
-            leads_assigned_on_date = leads_assigned_on_date.filter(hospital=effective_hospital)
+        if active_business:
+            leads_assigned_on_date = leads_assigned_on_date.filter(hospital_id=active_business.id)
         leads_assigned_count = leads_assigned_on_date.count()
         
         staff_attendance.append({
@@ -2102,8 +2625,8 @@ def admin_reports_view(request):
         del query_params['page']
 
     # Dynamically scope allowed role choices to current business/tenant if configured
-    if effective_hospital and hasattr(effective_hospital, 'get_allowed_roles'):
-        allowed_keys = effective_hospital.get_allowed_roles()
+    if active_business and hasattr(active_business, 'get_allowed_roles'):
+        allowed_keys = active_business.get_allowed_roles()
         all_choices = [
             (User.Role.ADMIN, "Admin"),
             (User.Role.MANAGER, "Manager"),
@@ -2142,6 +2665,6 @@ def admin_reports_view(request):
         'selected_user': task_user_filter,
         'selected_role': role_filter,
         'selected_date': date_filter,
-        'current_hospital': effective_hospital,
+        'current_business': active_business,
     }
     return render(request, "dashboard/admin_reports.html", context)

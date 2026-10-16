@@ -80,23 +80,87 @@
           {% if form.admission_date.errors %}<div class="text-danger small mt-1">{{ form.admission_date.errors.0 }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6 col-lg-4">
-          <label class="form-label small fw-semibold">Payment Plan Structure</label>
-          {{ form.payment_plan }}
-          {% if form.payment_plan.errors %}<div class="text-danger small mt-1">{{ form.payment_plan.errors.0 }}</div>{% endif %}
+          <label class="form-label small fw-semibold">Joining Date</label>
+          {{ form.date_of_joining }}
+          {% if form.date_of_joining.errors %}<div class="text-danger small mt-1">{{ form.date_of_joining.errors.0 }}</div>{% endif %}
+        </div>
+
+        <!-- Academic Batch & Trainer -->
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label small fw-semibold">Batch</label>
+          <div class="input-group">
+            <select id="quick_batch_select" class="form-select" onchange="handleQuickBatchSelect(this)">
+              <option value="">-- Choose Existing Batch --</option>
+              {% for b in available_batches %}
+              <option value="{{ b.name }}" data-trainer="{{ b.trainer }}" data-timing="{{ b.timing_display }}" data-course="{{ b.course_id }}">{{ b.name }} ({{ b.timing_display }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mt-1">
+            {{ form.batch }}
+          </div>
         </div>
         <div class="col-12 col-md-6 col-lg-4">
-          <label class="form-label small fw-semibold">Total Course Fee (₹) *</label>
-          {{ form.total_fee }}
-          {% if form.total_fee.errors %}<div class="text-danger small mt-1">{{ form.total_fee.errors.0 }}</div>{% endif %}
+          <label class="form-label small fw-semibold">Trainer</label>
+          <div class="input-group">
+            <select id="quick_trainer_select" class="form-select" onchange="document.getElementById('id_trainer').value = this.value">
+              <option value="">-- Choose Trainer --</option>
+              {% for tr in available_trainers %}
+              <option value="{{ tr }}">{{ tr }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mt-1">
+            {{ form.trainer }}
+          </div>
         </div>
         <div class="col-12 col-md-6 col-lg-4">
-          <label class="form-label small fw-semibold">Discount Allowed (₹)</label>
-          {{ form.discount }}
-          {% if form.discount.errors %}<div class="text-danger small mt-1">{{ form.discount.errors.0 }}</div>{% endif %}
+          <label class="form-label small fw-semibold">Batch Timing</label>
+          {{ form.batch_time }}
         </div>
-        <div class="col-12 col-md-6 col-lg-4">
-          <label class="form-label small fw-semibold">Discount Reason / Approval Notes</label>
-          {{ form.extra_discount_reason }}
+      </div>
+
+      <!-- Financial & Payment Details Block -->
+      <div class="p-3 rounded-3 bg-light border mb-4" style="border-color: #cbd5e1 !important;">
+        <div class="small fw-bold text-uppercase text-secondary mb-3 pb-1 border-bottom">
+          Fee & Payment Breakdown
+        </div>
+        <div class="row g-3">
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold">Total Course Fee (₹) *</label>
+            {{ form.total_fee }}
+            {% if form.total_fee.errors %}<div class="text-danger small mt-1">{{ form.total_fee.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold">Discount Allowed (₹)</label>
+            {{ form.discount }}
+            {% if form.discount.errors %}<div class="text-danger small mt-1">{{ form.discount.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold">Final Net Payable Fee (₹)</label>
+            <input type="text" id="final_payable_display" class="form-control fw-bold text-success bg-white" readonly value="₹0">
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold">Payment Mode</label>
+            {{ form.payment_mode }}
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold">Paid Today / Token (₹)</label>
+            {{ form.token_paid }}
+            <small class="text-muted d-block mt-0.5" style="font-size: 0.72rem;">Enter initial amount paid at enrollment.</small>
+          </div>
+          <div class="col-12 col-md-6 col-lg-4">
+            <label class="form-label small fw-semibold">Balance Due (₹)</label>
+            <input type="text" id="balance_due_display" class="form-control fw-bold text-danger bg-white" readonly value="₹0">
+          </div>
+          <div class="col-12 col-md-6 col-lg-4" id="emi_tenure_box" style="display: none;">
+            <label class="form-label small fw-semibold">EMI Months Tenure</label>
+            {{ form.emi_months }}
+          </div>
+          <div class="col-12 col-md-6 col-lg-8">
+            <label class="form-label small fw-semibold">Discount Reason / Approval Notes</label>
+            {{ form.extra_discount_reason }}
+          </div>
         </div>
       </div>
 
@@ -217,7 +281,48 @@ document.addEventListener("DOMContentLoaded", function() {
     updateFeeAndDiscountLogic();
   }
 
-  // 3. Dynamic Admission Date Constraints
+  // 3. Dynamic Balance and Payment Mode Logic
+  var paymentModeSelect = document.querySelector('select[name="payment_mode"]');
+  var tokenInput = document.querySelector('input[name="token_paid"]');
+  var emiTenureBox = document.getElementById('emi_tenure_box');
+  var balanceDueDisplay = document.getElementById('balance_due_display');
+  var finalPayableDisplay = document.getElementById('final_payable_display');
+
+  function calculatePaymentBalances() {
+    var totalFee = parseFloat(document.querySelector('input[name="total_fee"]')?.value) || 0;
+    var discount = parseFloat(document.querySelector('input[name="discount"]')?.value) || 0;
+    var finalFee = Math.max(0, totalFee - discount);
+    var tokenPaid = parseFloat(tokenInput?.value) || 0;
+
+    if (finalPayableDisplay) {
+      finalPayableDisplay.value = '₹' + finalFee.toLocaleString('en-IN');
+    }
+
+    var mode = paymentModeSelect ? paymentModeSelect.value : 'ONE_TIME_UPI';
+    if (emiTenureBox) {
+      emiTenureBox.style.display = (mode === 'EMI') ? 'block' : 'none';
+    }
+
+    var balance = 0;
+    if (mode === 'EMI') {
+      balance = Math.max(0, finalFee - tokenPaid);
+    } else {
+      // If user provided a partial token amount in full payment mode
+      balance = Math.max(0, finalFee - (tokenPaid > 0 ? tokenPaid : finalFee));
+    }
+
+    if (balanceDueDisplay) {
+      balanceDueDisplay.value = '₹' + balance.toLocaleString('en-IN');
+    }
+  }
+
+  if (paymentModeSelect) paymentModeSelect.addEventListener('change', calculatePaymentBalances);
+  if (tokenInput) tokenInput.addEventListener('input', calculatePaymentBalances);
+  document.querySelector('input[name="total_fee"]')?.addEventListener('input', calculatePaymentBalances);
+  document.querySelector('input[name="discount"]')?.addEventListener('input', calculatePaymentBalances);
+  calculatePaymentBalances();
+
+  // 4. Dynamic Admission Date Constraints
   var existingStudentCheckbox = document.querySelector('input[name="is_existing_student"]');
   var admissionDateInput = document.querySelector('input[name="admission_date"]');
   var todayDateStr = new Date().toISOString().split('T')[0];
@@ -251,5 +356,27 @@ document.addEventListener("DOMContentLoaded", function() {
     toggleDateMinConstraint(true);
   }
 });
+
+function handleQuickBatchSelect(selectEl) {
+  var opt = selectEl.options[selectEl.selectedIndex];
+  if (!opt || !opt.value) return;
+  var batchName = opt.value;
+  var trainer = opt.getAttribute('data-trainer') || '';
+  var timing = opt.getAttribute('data-timing') || '';
+  var courseId = opt.getAttribute('data-course');
+
+  var batchInput = document.getElementById('id_batch');
+  var trainerInput = document.getElementById('id_trainer');
+  var timingInput = document.getElementById('id_batch_time');
+  var courseSelect = document.getElementById('id_course');
+
+  if (batchInput) batchInput.value = batchName;
+  if (trainerInput && trainer) trainerInput.value = trainer;
+  if (timingInput && timing) timingInput.value = timing;
+  if (courseSelect && courseId && !courseSelect.value) {
+    courseSelect.value = courseId;
+    courseSelect.dispatchEvent(new Event('change'));
+  }
+}
 </script>
 {% endblock %}

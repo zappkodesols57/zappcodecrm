@@ -5,7 +5,7 @@ from django import forms
 from django.db import models
 from django.db.models import Q
 from accounts.models import User, Hospital
-from .models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, HospitalBranch, HospitalDepartment, HospitalDoctor, HospitalDisease, LeadCustomField
+from .models import Lead, SourceCategory, LeadSource, Campaign, Course, Trainer, Batch, LeadStage, Tag, HospitalBranch, HospitalDepartment, HospitalDoctor, HospitalDisease, LeadCustomField
 
 
 class LeadForm(forms.ModelForm):
@@ -14,7 +14,7 @@ class LeadForm(forms.ModelForm):
         fields = [
             "name", "mobile", "alternate_mobile", "email", "city", "state", "location",
             "education", "qualification", "graduation_year",
-            "course", "lead_type", "temperature", "stage", "admission_status", "inquiry_date",
+            "course", "lead_type", "temperature", "stage", "deal_status", "admission_status", "inquiry_date",
             "source_category", "lead_source", "campaign", "ad_platform", "campaign_id_text",
             "referral_type", "referral_person", "referral_contact", "referral_notes", "landing_page",
             "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -94,24 +94,19 @@ class LeadForm(forms.ModelForm):
                     self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
 
         # Determine tenant and business type
-        user_hospital = getattr(user, "hospital", None) if user else None
-        inst_hospital = getattr(self.instance, "hospital", None) if (self.instance and self.instance.pk) else None
-        target_hospital = inst_hospital or user_hospital
+        user_business = getattr(user, "business", None) or getattr(user, "hospital", None)
+        inst_business = getattr(self.instance, "business", None) or getattr(self.instance, "hospital", None) if (self.instance and self.instance.pk) else None
+        target_business = inst_business or user_business
         
-        is_hospital_tenant = False
-        if target_hospital:
-            btype = (target_hospital.settings or {}).get("business_type", "")
-            n_lower = (target_hospital.name or "").lower()
-            is_hospital_tenant = (str(btype).strip().lower() == "hospital") or any(k in n_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])
-        elif user and hasattr(user, "is_hospital_user"):
-            is_hospital_tenant = user.industry == 'HOSPITAL'
+        # Explicit Industry Tenant Detection - strictly based on business.industry / user.industry
+        biz_industry = getattr(target_business, "industry", None) or getattr(user, "industry", None)
+        is_hospital_tenant = (biz_industry == "HOSPITAL")
+        is_academy_tenant = (biz_industry == "ACADEMY")
 
         # Filter master choice fields to active options from Master Data
         if "course" in self.fields:
-            if target_hospital:
-                qs = Course.objects.filter(is_active=True).filter(
-                    Q(hospital=target_hospital) | Q(hospital__isnull=True)
-                )
+            if target_business:
+                qs = Course.objects.filter(is_active=True, hospital=target_business)
             else:
                 qs = Course.objects.filter(is_active=True)
             if self.instance and self.instance.pk and self.instance.course:
@@ -126,13 +121,37 @@ class LeadForm(forms.ModelForm):
 
         if "lead_source" in self.fields:
             qs = LeadSource.objects.filter(is_active=True)
+            if target_business:
+                # 1. Exclude sources that are exclusively used by other businesses
+                my_used_source_ids = set(
+                    Lead.objects.filter(hospital=target_business, lead_source__isnull=False)
+                    .values_list("lead_source_id", flat=True)
+                    .distinct()
+                )
+                other_used_source_ids = set(
+                    Lead.objects.exclude(hospital=target_business)
+                    .filter(lead_source__isnull=False)
+                    .values_list("lead_source_id", flat=True)
+                    .distinct()
+                )
+                other_exclusive_source_ids = other_used_source_ids - my_used_source_ids
+                if other_exclusive_source_ids:
+                    qs = qs.exclude(id__in=other_exclusive_source_ids)
+
+                # 2. For Academy businesses, explicitly exclude healthcare/hospital-exclusive source names
+                if is_academy_tenant:
+                    hospital_exclusive_names = [
+                        "CBSH", "LUXE", "PRACTO", "Practo", "JUST DIAL", "Just Dial",
+                        "ORGANIC LEAD", "GOOGLE", "nan"
+                    ]
+                    qs = qs.exclude(name__in=hospital_exclusive_names)
             if self.instance and self.instance.pk and self.instance.lead_source:
                 qs = qs | LeadSource.objects.filter(pk=self.instance.lead_source.pk)
             self.fields["lead_source"].queryset = qs.distinct().order_by("order", "name")
 
         if "campaign" in self.fields:
-            if target_hospital:
-                qs = Campaign.objects.filter(is_active=True, hospital=target_hospital)
+            if target_business:
+                qs = Campaign.objects.filter(is_active=True, hospital=target_business)
             else:
                 # Global Super Admin: show all active campaigns
                 qs = Campaign.objects.filter(is_active=True)
@@ -141,21 +160,29 @@ class LeadForm(forms.ModelForm):
             self.fields["campaign"].queryset = qs.distinct().order_by("-id")
 
         if "stage" in self.fields:
-            if is_hospital_tenant:
-                if target_hospital:
+            if is_academy_tenant:
+                # Explicit Academy Tenant: strictly the 5 defined lifecycle stages
+                stage_names_5 = ["Follow up needed", "Visit planned", "Admission planned", "Admission & Payment", "Cancelled"]
+                if target_business:
                     qs = LeadStage.objects.filter(is_active=True).filter(
-                        Q(hospital=target_hospital) | (Q(business_type=LeadStage.BusinessType.HOSPITAL) & Q(hospital__isnull=True))
+                        Q(hospital=target_business) | (Q(business_type=LeadStage.BusinessType.ACADEMY) & Q(hospital__isnull=True))
+                    ).filter(name__in=stage_names_5)
+                else:
+                    qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]).filter(name__in=stage_names_5)
+            elif is_hospital_tenant:
+                # Explicit Hospital Tenant
+                if target_business:
+                    qs = LeadStage.objects.filter(is_active=True).filter(
+                        Q(hospital=target_business) | (Q(business_type=LeadStage.BusinessType.HOSPITAL) & Q(hospital__isnull=True))
                     )
                 else:
                     qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.HOSPITAL, LeadStage.BusinessType.ALL])
             else:
-                # Academy / Non-Hospital tenant
-                if target_hospital:
-                    qs = LeadStage.objects.filter(is_active=True).filter(
-                        Q(hospital=target_hospital) | (Q(business_type=LeadStage.BusinessType.ACADEMY) & Q(hospital__isnull=True))
-                    )
+                # Generic fallback for any future industry
+                if target_business:
+                    qs = LeadStage.objects.filter(is_active=True, hospital=target_business)
                 else:
-                    qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL])
+                    qs = LeadStage.objects.filter(is_active=True)
             if self.instance and self.instance.pk and self.instance.stage:
                 qs = qs | LeadStage.objects.filter(pk=self.instance.stage.pk)
             self.fields["stage"].queryset = qs.distinct().order_by("order", "name")
@@ -225,9 +252,21 @@ class LeadForm(forms.ModelForm):
                 "class": "form-select tags-input",
                 "placeholder": "Type or select tags...",
             })
-        required = {"name", "mobile", "stage", "inquiry_date"}
-        for name in required:
-            self.fields[name].required = True
+        if is_academy_tenant:
+            # Academy Lead Form: Name, Contact Number (mobile), and Course Interested are strictly required
+            required = {"name", "mobile", "course"}
+            for name in required:
+                if name in self.fields:
+                    self.fields[name].required = True
+            # Optional in Academy
+            for optional_field in ["stage", "inquiry_date", "education", "qualification", "state", "city", "lead_source", "campaign"]:
+                if optional_field in self.fields:
+                    self.fields[optional_field].required = False
+        else:
+            required = {"name", "mobile", "stage", "inquiry_date"}
+            for name in required:
+                if name in self.fields:
+                    self.fields[name].required = True
 
         if "mobile" in self.fields:
             self.fields["mobile"].widget.attrs.update({
@@ -356,23 +395,67 @@ class CampaignForm(forms.ModelForm):
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
-        fields = ["name", "hospital", "base_price", "max_discount", "tutor", "batch", "batch_time", "is_active"]
+        fields = ["name", "base_price", "max_discount", "description", "is_active"]
         widgets = {
-            "name": forms.TextInput(attrs={"placeholder": "e.g. Full Stack Python Developer"}),
-            "hospital": forms.Select(attrs={"class": "form-select"}),
-            "base_price": forms.NumberInput(attrs={"placeholder": "0"}),
-            "max_discount": forms.NumberInput(attrs={"placeholder": "0"}),
-            "tutor": forms.TextInput(attrs={"placeholder": "Trainer / Tutor Name (e.g. Rahul Sharma)"}),
-            "batch": forms.TextInput(attrs={"placeholder": "Batch Name / Code (e.g. Morning Batch A)"}),
-            "batch_time": forms.TextInput(attrs={"placeholder": "e.g. 10:00 AM - 12:00 PM"}),
+            "name": forms.TextInput(attrs={"placeholder": "e.g. Full Stack Python", "class": "form-control"}),
+            "base_price": forms.NumberInput(attrs={"placeholder": "0", "class": "form-control"}),
+            "max_discount": forms.NumberInput(attrs={"placeholder": "0", "class": "form-control"}),
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "Brief course overview / syllabus outline...", "class": "form-control"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if "hospital" in self.fields:
-            self.fields["hospital"].queryset = Hospital.objects.filter(is_active=True).order_by("name")
-            self.fields["hospital"].required = False
-            self.fields["hospital"].empty_label = "Universal / All Businesses (or Select Specific)"
+        for name, field in self.fields.items():
+            if name == "is_active":
+                field.widget.attrs["class"] = "form-check-input"
+            elif not isinstance(field.widget, (forms.Select, forms.SelectMultiple)):
+                field.widget.attrs.setdefault("class", "form-control")
+
+
+class TrainerForm(forms.ModelForm):
+    class Meta:
+        model = Trainer
+        fields = ["name", "phone", "email", "specialization", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "Full Name"}),
+            "phone": forms.TextInput(attrs={"placeholder": "Phone number"}),
+            "email": forms.EmailInput(attrs={"placeholder": "Email address"}),
+            "specialization": forms.TextInput(attrs={"placeholder": "e.g. Python, Data Analytics"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name == "is_active":
+                field.widget.attrs["class"] = "form-check-input"
+            else:
+                css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+                field.widget.attrs.setdefault("class", css)
+
+
+class BatchForm(forms.ModelForm):
+    class Meta:
+        model = Batch
+        fields = ["name", "course", "trainer", "start_time", "end_time", "start_date", "max_strength", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "e.g. Batch A"}),
+            "course": forms.Select(attrs={"class": "form-select"}),
+            "trainer": forms.Select(attrs={"class": "form-select"}),
+            "start_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "end_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
+            "start_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "max_strength": forms.NumberInput(attrs={"placeholder": "30", "class": "form-control"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "course" in self.fields:
+            self.fields["course"].queryset = Course.objects.filter(is_active=True, is_archived=False).order_by("name")
+            self.fields["course"].empty_label = "Select Course"
+        if "trainer" in self.fields:
+            self.fields["trainer"].queryset = Trainer.objects.filter(is_active=True).order_by("name")
+            self.fields["trainer"].required = False
+            self.fields["trainer"].empty_label = "Select Trainer"
         for name, field in self.fields.items():
             if name == "is_active":
                 field.widget.attrs["class"] = "form-check-input"

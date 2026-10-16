@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Temperature Manager - {{ current_hospital.name|default:"Global" }}{% endblock %}
+{% block title %}Temperature Manager - {{ current_business.name|default:"Global" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-0 py-2">
@@ -36,7 +36,7 @@
           </a>
 
           {% for b in available_businesses %}
-          <a href="?business={{ b.id }}" class="nav-link rounded-2 px-2.5 py-1 fw-semibold small {% if not is_default_tab and current_hospital.id == b.id %}active text-white{% else %}bg-light text-secondary border{% endif %}" style="font-size: 0.8rem; {% if not is_default_tab and current_hospital.id == b.id %}background: var(--primary); border-color: var(--primary);{% endif %}">
+          <a href="?business={{ b.id }}" class="nav-link rounded-2 px-2.5 py-1 fw-semibold small {% if not is_default_tab and current_business.id == b.id %}active text-white{% else %}bg-light text-secondary border{% endif %}" style="font-size: 0.8rem; {% if not is_default_tab and current_business.id == b.id %}background: var(--primary); border-color: var(--primary);{% endif %}">
             {{ b.name }}
           </a>
           {% endfor %}
@@ -95,13 +95,13 @@
                       <button class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 text-primary" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}" title="Edit">
                         Edit
                       </button>
-                      <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=temperature_manager&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 {% if item.is_active %}text-secondary{% else %}text-success{% endif %}" title="Toggle">
+                      <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=temperature_manager&business={% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}" class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 {% if item.is_active %}text-secondary{% else %}text-success{% endif %}" title="Toggle">
                         {% if item.is_active %}Disable{% else %}Enable{% endif %}
                       </a>
                       <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete \'{{ item.name }}\'?');">
                         {% csrf_token %}
                         <input type="hidden" name="from_view" value="temperature_manager">
-                        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+                        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}">
                         <button type="submit" class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 text-danger" title="Delete">
                           Delete
                         </button>
@@ -170,13 +170,13 @@
                       <button class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 text-primary" data-bs-toggle="modal" data-bs-target="#editItemModal{{ item.id }}" title="Edit">
                         Edit
                       </button>
-                      <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=temperature_manager&business={% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}" class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 {% if item.is_active %}text-secondary{% else %}text-success{% endif %}" title="Toggle">
+                      <a href="{% url 'leads:master_item_toggle' item.id %}?from_view=temperature_manager&business={% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}" class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 {% if item.is_active %}text-secondary{% else %}text-success{% endif %}" title="Toggle">
                         {% if item.is_active %}Disable{% else %}Enable{% endif %}
                       </a>
                       <form method="post" action="{% url 'leads:master_item_delete' item.id %}" class="d-inline m-0 p-0" onsubmit="return confirm('Delete \'{{ item.name }}\'?');">
                         {% csrf_token %}
                         <input type="hidden" name="from_view" value="temperature_manager">
-                        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+                        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}">
                         <button type="submit" class="btn btn-sm btn-light border rounded-1 px-1.5 py-0.5 text-danger" title="Delete">
                           Delete
                         </button>
@@ -210,7 +210,7 @@
         {% csrf_token %}
         <input type="hidden" name="from_view" value="temperature_manager">
         <input type="hidden" name="group_id" value="{{ pos_group.id }}">
-        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}">
         <div class="modal-header border-bottom py-2.5 px-3">
           <h6 class="modal-title fw-bold text-dark mb-0" id="addPosKeywordModalLabel">Add Positive Remark</h6>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -250,7 +250,7 @@
         {% csrf_token %}
         <input type="hidden" name="from_view" value="temperature_manager">
         <input type="hidden" name="group_id" value="{{ neg_group.id }}">
-        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}">
         <div class="modal-header border-bottom py-2.5 px-3">
           <h6 class="modal-title fw-bold text-dark mb-0" id="addNegKeywordModalLabel">Add Negative Remark</h6>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -290,7 +290,7 @@
       <form method="post" action="{% url 'leads:master_item_edit' item.id %}">
         {% csrf_token %}
         <input type="hidden" name="from_view" value="temperature_manager">
-        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}">
         <div class="modal-header border-bottom py-2.5 px-3">
           <h6 class="modal-title fw-bold text-dark mb-0">Edit Positive Remark</h6>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -332,7 +332,7 @@
       <form method="post" action="{% url 'leads:master_item_edit' item.id %}">
         {% csrf_token %}
         <input type="hidden" name="from_view" value="temperature_manager">
-        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_hospital %}{{ current_hospital.id }}{% endif %}">
+        <input type="hidden" name="business" value="{% if is_default_tab %}default{% elif current_business %}{{ current_business.id }}{% endif %}">
         <div class="modal-header border-bottom py-2.5 px-3">
           <h6 class="modal-title fw-bold text-dark mb-0">Edit Negative Remark</h6>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
