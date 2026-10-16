@@ -1,0 +1,1377 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Dashboard | Academy{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --brand-navy: #052042;
+    --brand-border: #cbd5e1;
+    --brand-bg: #f8fafc;
+  }
+
+  /* Metric summary bar */
+  .counselor-kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .counselor-kpi-card {
+    background: #ffffff;
+    border: 1px solid var(--brand-border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+
+  .counselor-kpi-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.25rem;
+  }
+
+  .counselor-kpi-value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--brand-navy);
+    line-height: 1.1;
+  }
+
+  /* Primary Connected Segment Tabs */
+  .academy-tabs-nav {
+    display: inline-flex;
+    border: 1px solid var(--brand-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8fafc;
+    padding: 0;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  .academy-tabs-nav .nav-item {
+    margin: 0;
+  }
+
+  .academy-tabs-nav .nav-link {
+    color: #475569;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--brand-border);
+    border-radius: 0;
+    padding: 0.55rem 1.25rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+  }
+
+  .academy-tabs-nav .nav-item:last-child .nav-link {
+    border-right: none;
+  }
+
+  .academy-tabs-nav .nav-link:hover {
+    background: #e2e8f0;
+    color: var(--brand-navy);
+  }
+
+  .academy-tabs-nav .nav-link.active {
+    background: var(--brand-navy);
+    color: #ffffff;
+  }
+
+  .academy-tabs-nav .nav-link .badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    color: #334155;
+  }
+
+  .academy-tabs-nav .nav-link.active .badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  /* Subtabs Navigation (Segmented Pill Style) */
+  .academy-subtabs-nav {
+    display: inline-flex;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f1f5f9;
+    padding: 0;
+    margin-bottom: 0.85rem;
+  }
+
+  .academy-subtabs-nav .nav-item {
+    margin: 0;
+  }
+
+  .academy-subtabs-nav .nav-link {
+    color: #475569;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--brand-border);
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.45rem 1.1rem;
+    border-radius: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-decoration: none;
+  }
+
+  .academy-subtabs-nav .nav-item:last-child .nav-link {
+    border-right: none;
+  }
+
+  .academy-subtabs-nav .nav-link:hover {
+    background: #e2e8f0;
+    color: var(--brand-navy);
+  }
+
+  .academy-subtabs-nav .nav-link.active {
+    background: #ffffff;
+    color: var(--brand-navy);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .academy-subtabs-nav .nav-link .badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  .academy-subtabs-nav .nav-link.active .badge {
+    background: var(--brand-navy);
+    color: #ffffff;
+  }
+
+  /* Uniform Table Styles */
+  .academy-dashboard-card {
+    background: #ffffff;
+    border: 1px solid var(--brand-border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .action-btn-sm {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.28rem 0.65rem;
+    border-radius: 5px;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    text-decoration: none;
+  }
+
+  .action-btn-icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    line-height: 1;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  /* Sleek Quick Action Bar (Bottom Floating) */
+  .counselor-action-microbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(140px);
+    background: #052042;
+    color: #ffffff;
+    border-radius: 50rem;
+    padding: 6px 16px 6px 20px;
+    box-shadow: 0 12px 36px rgba(5, 32, 66, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1050;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+    max-width: calc(100vw - 32px);
+    white-space: nowrap;
+  }
+
+  .counselor-action-microbar.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mb-lead-name {
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #ffffff;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mb-lead-phone {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .mb-input {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+    padding: 4px 10px !important;
+    height: 32px !important;
+    width: 250px;
+  }
+
+  .mb-input::placeholder {
+    color: #94a3b8 !important;
+  }
+
+  .mb-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    height: 32px;
+  }
+
+  .counselor-table-row {
+    cursor: pointer;
+  }
+
+  .counselor-table-row.active-selected-row {
+    background-color: #f1f5f9 !important;
+    box-shadow: inset 3px 0 0 #052042;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-2">
+
+  <!-- Header & Counselor Target -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+    <div>
+      <h5 class="fw-bold mb-0" style="color: var(--brand-navy);">Dashboard</h5>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-light text-dark border px-2 py-1">
+        Daily Calling Target: <strong class="ms-1">{{ calls_completed_today }}/{{ daily_target }}</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- KPI Metrics Ribbon -->
+  <div class="counselor-kpi-bar">
+    <div class="counselor-kpi-card">
+      <div class="counselor-kpi-title">Uncontacted Leads</div>
+      <div class="counselor-kpi-value text-primary">{{ uncontacted_leads_count }}</div>
+    </div>
+    <div class="counselor-kpi-card">
+      <div class="counselor-kpi-title">Today's Follow-ups</div>
+      <div class="counselor-kpi-value text-warning">{{ todays_fu_count }}</div>
+    </div>
+    <div class="counselor-kpi-card">
+      <div class="counselor-kpi-title">Visits Scheduled</div>
+      <div class="counselor-kpi-value text-info">{{ todays_visits_count }}</div>
+    </div>
+    <div class="counselor-kpi-card">
+      <div class="counselor-kpi-title">Admissions Won</div>
+      <div class="counselor-kpi-value text-success">{{ adm_done_count }}</div>
+    </div>
+    <div class="counselor-kpi-card">
+      <div class="counselor-kpi-title">Pending Balances</div>
+      <div class="counselor-kpi-value text-danger">{{ partial_payment_count }}</div>
+    </div>
+  </div>
+
+  <!-- PRIMARY 6 CONNECTED TABS -->
+  <div class="d-flex flex-wrap align-items-center">
+    <ul class="nav academy-tabs-nav" id="academyMainTabs">
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'myleads' %}active{% endif %}" href="?tab=myleads&subtab=fresh">
+          My Leads <span class="badge">{{ total_myleads_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'followups' %}active{% endif %}" href="?tab=followups&subtab=today_fu">
+          Follow-ups <span class="badge">{{ total_followups_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'visits' %}active{% endif %}" href="?tab=visits&subtab=today_visits">
+          Visit Planned <span class="badge">{{ total_visits_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'admissions' %}active{% endif %}" href="?tab=admissions&subtab=planned">
+          Admissions <span class="badge">{{ total_admissions_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'payments' %}active{% endif %}" href="?tab=payments&subtab=pending">
+          Payments <span class="badge">{{ total_payments_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'lost' %}active{% endif %}" href="?tab=lost">
+          Lost Leads <span class="badge">{{ lost_leads_count }}</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- TAB CONTENT PANES -->
+  <div class="tab-content">
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: MY LEADS                                                   -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'myleads' %}
+      <div class="d-flex flex-wrap align-items-center mb-2">
+        <ul class="nav academy-subtabs-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'fresh' or not cur_subtab %}active{% endif %}" href="?tab=myleads&subtab=fresh">
+              1.1 Fresh Leads <span class="badge">{{ fresh_leads_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'uncontacted' %}active{% endif %}" href="?tab=myleads&subtab=uncontacted">
+              1.2 Uncontacted <span class="badge">{{ uncontacted_leads_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'walkin' %}active{% endif %}" href="?tab=myleads&subtab=walkin">
+              1.3 Direct Walk-ins <span class="badge">{{ walkin_leads_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'todays_inquiry' %}active{% endif %}" href="?tab=myleads&subtab=todays_inquiry">
+              1.4 Today's Inquiries <span class="badge">{{ todays_inquiry_count }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Bulk Self-Assign Toolbar for Fresh Leads -->
+      {% if not cur_subtab or cur_subtab == 'fresh' %}
+        <div id="freshBulkBar" class="d-none align-items-center justify-content-between p-2 px-3 mb-2 rounded bg-light border border-primary-subtle shadow-xs">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary rounded-pill px-2.5 py-1" id="freshSelectedCount">0 Selected</span>
+            <span class="small text-muted">Max allowed at once: <strong>{{ bulk_self_assign_limit|default:25 }}</strong></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary px-3" onclick="deselectAllFreshLeads()">Clear Selection</button>
+            <button type="button" class="btn btn-sm btn-success px-3 fw-bold" onclick="performBulkSelfAssign()">
+              <i class="fa-solid fa-hand-holding-hand me-1"></i> Self-Assign Selected
+            </button>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="academy-dashboard-card">
+        <div class="table-responsive custom-table-scrollbar">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                {% if not cur_subtab or cur_subtab == 'fresh' %}
+                  <th style="width: 38px;" class="text-center">
+                    <input type="checkbox" class="form-check-input" id="selectAllFreshCheckbox" title="Select all fresh leads on this page" onchange="toggleSelectAllFresh(this)" style="cursor: pointer;">
+                  </th>
+                {% endif %}
+                <th>Student Name</th>
+                <th>Contact</th>
+                <th>Course</th>
+                <th>Source / Campaign</th>
+                <th>Assigned Counselor</th>
+                <th>Received On</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if cur_subtab == 'uncontacted' %}
+                {% for l in p_uncontacted.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_myleads.html" with lead=l show_checkbox=0 %}
+                {% empty %}
+                  <tr><td colspan="7" class="text-center py-4 text-muted">No uncontacted leads in queue.</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'walkin' %}
+                {% for l in p_walkin.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_myleads.html" with lead=l show_checkbox=0 %}
+                {% empty %}
+                  <tr><td colspan="7" class="text-center py-4 text-muted">No walk-in leads found.</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'todays_inquiry' %}
+                {% for l in p_todays_inquiry.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_myleads.html" with lead=l show_checkbox=0 %}
+                {% empty %}
+                  <tr><td colspan="7" class="text-center py-4 text-muted">No inquiries received today.</td></tr>
+                {% endfor %}
+              {% else %}
+                {% for l in p_fresh.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_myleads.html" with lead=l show_checkbox=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No fresh unassigned inquiries available.</td></tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for My Leads Tab -->
+        {% if cur_subtab == 'uncontacted' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_uncontacted total_count=uncontacted_leads_count %}
+        {% elif cur_subtab == 'walkin' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_walkin total_count=walkin_leads_count %}
+        {% elif cur_subtab == 'todays_inquiry' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_todays_inquiry total_count=todays_inquiry_count %}
+        {% else %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_fresh total_count=fresh_leads_count %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: FOLLOW-UPS                                                 -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'followups' %}
+      <div class="d-flex flex-wrap align-items-center mb-2">
+        <ul class="nav academy-subtabs-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'today_fu' or not cur_subtab %}active{% endif %}" href="?tab=followups&subtab=today_fu">
+              2.1 Today's Follow-ups <span class="badge">{{ todays_fu_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'overdue_fu' %}active{% endif %}" href="?tab=followups&subtab=overdue_fu">
+              2.2 Overdue <span class="badge">{{ overdue_fu_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'upcoming_fu' %}active{% endif %}" href="?tab=followups&subtab=upcoming_fu">
+              2.3 Upcoming <span class="badge">{{ upcoming_fu_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'completed_fu' %}active{% endif %}" href="?tab=followups&subtab=completed_fu">
+              2.4 Completed History <span class="badge">{{ completed_fu_count }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="academy-dashboard-card">
+        <div class="table-responsive custom-table-scrollbar">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Contact Number</th>
+                <th>Course</th>
+                <th>Scheduled Date & Time</th>
+                <th>Call Agenda</th>
+                <th>Counselor</th>
+                <th>Calls Logged</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if cur_subtab == 'overdue_fu' %}
+                {% for l in p_overdue_fu.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_followup.html" with lead=l is_overdue=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No overdue follow-ups. All clear!</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'upcoming_fu' %}
+                {% for l in p_upcoming_fu.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_followup.html" with lead=l %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No upcoming follow-ups scheduled.</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'completed_fu' %}
+                {% for l in p_completed_fu.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_followup.html" with lead=l is_completed=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No completed follow-ups history.</td></tr>
+                {% endfor %}
+              {% else %}
+                {% for l in p_todays_fu.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_followup.html" with lead=l %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No follow-ups scheduled for today.</td></tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for Follow-ups Tab -->
+        {% if cur_subtab == 'overdue_fu' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_overdue_fu total_count=overdue_fu_count %}
+        {% elif cur_subtab == 'upcoming_fu' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_upcoming_fu total_count=upcoming_fu_count %}
+        {% elif cur_subtab == 'completed_fu' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_completed_fu total_count=completed_fu_count %}
+        {% else %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_todays_fu total_count=todays_fu_count %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: VISIT PLANNED                                              -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'visits' %}
+      <div class="d-flex flex-wrap align-items-center mb-2">
+        <ul class="nav academy-subtabs-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'today_visits' or not cur_subtab %}active{% endif %}" href="?tab=visits&subtab=today_visits">
+              3.1 Today's Visits <span class="badge">{{ todays_visits_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'upcoming_visits' %}active{% endif %}" href="?tab=visits&subtab=upcoming_visits">
+              3.2 Upcoming Visits <span class="badge">{{ upcoming_visits_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'overdue_visits' %}active{% endif %}" href="?tab=visits&subtab=overdue_visits">
+              3.3 Overdue Pending <span class="badge">{{ overdue_visits_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'visited_done' %}active{% endif %}" href="?tab=visits&subtab=visited_done">
+              3.4 Visited Completed <span class="badge">{{ visited_completed_count }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="academy-dashboard-card">
+        <div class="table-responsive custom-table-scrollbar">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Contact</th>
+                <th>Course</th>
+                <th>Visit Date</th>
+                <th>Time Slot</th>
+                <th>Counselor</th>
+                <th>Notes</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if cur_subtab == 'upcoming_visits' %}
+                {% for l in p_upcoming_visits.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_visit.html" with lead=l %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No upcoming campus visits.</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'overdue_visits' %}
+                {% for l in p_overdue_visits.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_visit.html" with lead=l is_overdue=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No overdue visits. All visited or rescheduled!</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'visited_done' %}
+                {% for l in p_visited_done.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_visit.html" with lead=l is_completed=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No completed visits in history.</td></tr>
+                {% endfor %}
+              {% else %}
+                {% for l in p_todays_visits.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_visit.html" with lead=l %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No campus visits booked for today.</td></tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for Visits Tab -->
+        {% if cur_subtab == 'upcoming_visits' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_upcoming_visits total_count=upcoming_visits_count %}
+        {% elif cur_subtab == 'overdue_visits' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_overdue_visits total_count=overdue_visits_count %}
+        {% elif cur_subtab == 'visited_done' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_visited_done total_count=visited_completed_count %}
+        {% else %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_todays_visits total_count=todays_visits_count %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: ADMISSIONS                                                 -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'admissions' %}
+      <div class="d-flex flex-wrap align-items-center mb-2">
+        <ul class="nav academy-subtabs-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'planned' or not cur_subtab %}active{% endif %}" href="?tab=admissions&subtab=planned">
+              4.1 Admission Planned <span class="badge">{{ adm_planned_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'done' %}active{% endif %}" href="?tab=admissions&subtab=done">
+              4.2 Admission Done (Won) <span class="badge">{{ adm_done_count }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="academy-dashboard-card">
+        <div class="table-responsive custom-table-scrollbar">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Contact</th>
+                <th>Course</th>
+                <th>Admission Date</th>
+                <th>Trainer</th>
+                <th>Batch Name & Time</th>
+                <th>Counselor</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if cur_subtab == 'done' %}
+                {% for l in p_adm_done.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_admission.html" with lead=l is_done=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No completed admissions yet.</td></tr>
+                {% endfor %}
+              {% else %}
+                {% for l in p_adm_planned.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_admission.html" with lead=l is_done=0 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No admissions planned in pipeline.</td></tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for Admissions Tab -->
+        {% if cur_subtab == 'done' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_adm_done total_count=adm_done_count %}
+        {% else %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_adm_planned total_count=adm_planned_count %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 5: PAYMENTS                                                   -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'payments' %}
+      <div class="d-flex flex-wrap align-items-center mb-2">
+        <ul class="nav academy-subtabs-nav">
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'pending' or not cur_subtab %}active{% endif %}" href="?tab=payments&subtab=pending">
+              5.1 Payment Pending <span class="badge">{{ payment_pending_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'partial' %}active{% endif %}" href="?tab=payments&subtab=partial">
+              5.2 Partial / Token Paid <span class="badge">{{ partial_payment_count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if cur_subtab == 'full' %}active{% endif %}" href="?tab=payments&subtab=full">
+              5.3 Full Payment Done <span class="badge">{{ full_payment_count }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="academy-dashboard-card">
+        <div class="table-responsive custom-table-scrollbar">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Course</th>
+                <th>Total Fee</th>
+                <th>Paid Today / Token</th>
+                <th>Balance Due</th>
+                <th>Mode</th>
+                <th>Next EMI Due</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if cur_subtab == 'partial' %}
+                {% for l in p_partial_payment.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_payment.html" with lead=l %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No pending partial installments.</td></tr>
+                {% endfor %}
+              {% elif cur_subtab == 'full' %}
+                {% for l in p_full_payment.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_payment.html" with lead=l is_full=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No full payments recorded.</td></tr>
+                {% endfor %}
+              {% else %}
+                {% for l in p_payment_pending.object_list %}
+                  {% include "academy/dashboard/partials/lead_row_payment.html" with lead=l is_pending=1 %}
+                {% empty %}
+                  <tr><td colspan="8" class="text-center py-4 text-muted">No pending billing records.</td></tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for Payments Tab -->
+        {% if cur_subtab == 'partial' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_partial_payment total_count=partial_payment_count %}
+        {% elif cur_subtab == 'full' %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_full_payment total_count=full_payment_count %}
+        {% else %}
+          {% include "academy/dashboard/partials/pagination.html" with page_obj=p_payment_pending total_count=payment_pending_count %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 6: LOST LEADS                                                 -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'lost' %}
+      <div class="academy-dashboard-card">
+        <div class="table-responsive custom-table-scrollbar">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Contact</th>
+                <th>Course</th>
+                <th>Cancellation / Lost Reason</th>
+                <th>Counselor</th>
+                <th>Closed Date</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for l in p_lost.object_list %}
+                <tr data-lead-id="{{ l.pk }}" data-lead-name="{{ l.name }}" data-lead-phone="{{ l.mobile }}" data-detail-url="{% url 'leads:lead_detail' l.pk %}" class="counselor-table-row">
+                  <td class="fw-bold">{{ l.name }}</td>
+                  <td>{{ l.mobile }}</td>
+                  <td>{{ l.course.name|default:"—" }}</td>
+                  <td class="text-danger fw-semibold">{{ l.lost_reason }}</td>
+                  <td>{{ l.assigned_to.get_full_name|default:l.assigned_to.username|default:"Unassigned" }}</td>
+                  <td>{{ l.lost_closing_date|date:"d M Y" }}</td>
+                  <td class="text-end">
+                    <div class="d-inline-flex gap-1 align-items-center">
+                      <a href="tel:{{ l.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
+                        <i class="fa-solid fa-phone"></i>
+                      </a>
+                      <a href="https://wa.me/91{{ l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
+                        <i class="fa-brands fa-whatsapp"></i>
+                      </a>
+                      <a href="{% url 'leads:lead_edit' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </a>
+                      <a href="{% url 'leads:lead_detail' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+                        <i class="fa-solid fa-eye"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="7" class="text-center py-4 text-muted">No lost leads recorded.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for Lost Leads Tab -->
+        {% include "academy/dashboard/partials/pagination.html" with page_obj=p_lost total_count=lost_leads_count %}
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Floating Sleek Action Bar for Counselor (Bottom Centered) -->
+<div id="counselorMicrobar" class="counselor-action-microbar" aria-live="polite">
+  <div class="d-flex flex-column me-1" style="line-height: 1.15;">
+    <span id="mbLeadName" class="mb-lead-name">Student Name</span>
+    <span id="mbLeadPhone" class="mb-lead-phone">Contact</span>
+  </div>
+
+  <!-- Inline Quick Remark Input -->
+  <div class="d-flex align-items-center gap-1 ms-1">
+    <input type="text" id="mbRemarkInput" class="mb-input" placeholder="Type quick remark...">
+    <button type="button" id="mbSaveRemarkBtn" class="mb-btn" style="background: #3b82f6; color: #ffffff;" onclick="saveQuickRemark()">
+      Save
+    </button>
+  </div>
+
+  <!-- Quick Add Follow-up Modal Trigger -->
+  <div class="d-flex align-items-center gap-1 ms-1">
+    <button type="button" class="mb-btn" style="background: #f59e0b; color: #ffffff;" onclick="openQuickFollowupModal()">
+      + Follow-up
+    </button>
+  </div>
+
+  <!-- Direct WhatsApp & Call & Close -->
+  <div class="d-flex align-items-center gap-1 ms-1">
+    <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
+      WhatsApp
+    </a>
+    <a id="mbViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #475569; color: #ffffff;">
+      Full Profile
+    </a>
+    <button type="button" class="btn btn-sm text-white ms-1 p-0" onclick="dismissCounselorMicrobar()" style="line-height: 1; opacity: 0.75;" title="Dismiss bar">
+      ✕
+    </button>
+  </div>
+</div>
+
+<!-- Modal: Quick Add Follow-up Form -->
+<div class="modal fade" id="quickFollowupModal" tabindex="-1" aria-labelledby="quickFollowupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 10px; overflow: hidden;">
+      <div class="modal-header py-2 px-3" style="background-color: #052042; color: #ffffff;">
+        <h6 class="modal-title fw-bold mb-0 text-white" id="quickFollowupModalLabel">
+          Schedule Follow-up: <span id="qfuModalLeadName" style="color: #93c5fd;">Student</span>
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickFollowupForm" onsubmit="submitQuickFollowup(event)">
+        <input type="hidden" id="qfuLeadId" value="">
+        <div class="modal-body p-3">
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label text-muted small fw-bold mb-1">Follow-up Date *</label>
+              <input type="date" id="qfuDate" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small fw-bold mb-1">Time Slot</label>
+              <input type="time" id="qfuTime" class="form-control form-control-sm">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label text-muted small fw-bold mb-1">Status</label>
+            <select id="qfuStatus" class="form-select form-select-sm no-tom-select">
+              <option value="PENDING" selected>Pending</option>
+              <option value="RESCHEDULED">Rescheduled</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+          <div class="mb-1">
+            <label class="form-label text-muted small fw-bold mb-1">Call Agenda / Remarks *</label>
+            <textarea id="qfuComment" rows="2" class="form-control form-control-sm" placeholder="Student counseling notes, demo commitment..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+          <button type="button" class="btn btn-sm btn-outline-secondary action-btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="qfuSubmitBtn" class="btn btn-sm btn-primary action-btn-sm" style="background: #052042; border-color: #052042;">Save Follow-up</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modern In-Window Confirmation & Alert Modal (Screen Pop-up instead of browser alert) -->
+<div class="modal fade" id="inWindowActionModal" tabindex="-1" aria-labelledby="inWindowActionModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px); z-index: 1060;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.1rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div id="modalIconContainer" class="p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i id="modalIcon" class="fa-solid fa-circle-question fa-lg"></i>
+          </div>
+          <h5 class="modal-title fw-bold text-dark mb-0" id="inWindowActionModalLabel" style="font-size: 1.1rem;">Confirm Action</h5>
+        </div>
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" style="font-size: 0.8rem;"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <p id="modalMessageText" class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.5;"></p>
+        <div id="modalDetailsBox" class="p-3 bg-light rounded-3 border small text-dark mt-2" style="display: none;"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-sm btn-light border px-3 rounded-pill fw-medium" id="modalCancelBtn" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm" id="modalConfirmBtn" style="background: #052042; border-color: #052042;">Confirm & Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const microbar = document.getElementById('counselorMicrobar');
+  const mbName = document.getElementById('mbLeadName');
+  const mbPhone = document.getElementById('mbLeadPhone');
+  const mbInput = document.getElementById('mbRemarkInput');
+  const mbSaveBtn = document.getElementById('mbSaveRemarkBtn');
+  const mbWaBtn = document.getElementById('mbWaBtn');
+  const mbViewBtn = document.getElementById('mbViewBtn');
+
+  let activeLeadPk = null;
+  let activeRow = null;
+
+  window.dismissCounselorMicrobar = function() {
+    if (microbar) microbar.classList.remove('visible');
+    if (activeRow) activeRow.classList.remove('active-selected-row');
+    activeLeadPk = null;
+    activeRow = null;
+    if (mbInput) mbInput.value = '';
+  };
+
+  // Row Click: activates sleek bottom action bar
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input') || e.target.closest('.dropdown')) {
+      return;
+    }
+
+    const row = e.target.closest('.counselor-table-row');
+    if (!row) {
+      if (!e.target.closest('#counselorMicrobar') && !e.target.closest('#quickFollowupModal')) {
+        dismissCounselorMicrobar();
+      }
+      return;
+    }
+
+    const leadId = row.getAttribute('data-lead-id');
+    const leadName = row.getAttribute('data-lead-name') || 'Student';
+    const leadPhone = row.getAttribute('data-lead-phone') || '';
+    const detailUrl = row.getAttribute('data-detail-url') || ('/leads/' + leadId + '/');
+
+    activeLeadPk = leadId;
+    if (activeRow) activeRow.classList.remove('active-selected-row');
+    activeRow = row;
+    activeRow.classList.add('active-selected-row');
+
+    if (mbName) mbName.innerText = leadName;
+    if (mbPhone) mbPhone.innerText = leadPhone;
+    if (mbInput) {
+      mbInput.value = '';
+      mbInput.placeholder = 'Add remark for ' + leadName.split(' ')[0] + '...';
+    }
+    if (mbWaBtn) {
+      mbWaBtn.href = 'https://wa.me/91' + leadPhone.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hello ' + leadName);
+    }
+    if (mbViewBtn) {
+      mbViewBtn.href = detailUrl;
+    }
+
+    if (microbar) microbar.classList.add('visible');
+  });
+
+  // Modern In-Window Pop-up Alert Helper
+  window.showInWindowAlert = function(title, message, iconType = 'warning') {
+    const modalEl = document.getElementById('inWindowActionModal');
+    const modalTitle = document.getElementById('inWindowActionModalLabel');
+    const modalText = document.getElementById('modalMessageText');
+    const modalDetails = document.getElementById('modalDetailsBox');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+
+    modalTitle.textContent = title;
+    modalText.innerHTML = message;
+    modalDetails.style.display = 'none';
+    modalDetails.innerHTML = '';
+
+    if (iconType === 'warning') {
+      modalIcon.className = 'fa-solid fa-triangle-exclamation fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-warning text-dark px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    } else if (iconType === 'error') {
+      modalIcon.className = 'fa-solid fa-circle-xmark fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-danger px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.textContent = 'OK';
+    } else {
+      modalIcon.className = 'fa-solid fa-circle-check fa-lg';
+      modalIconContainer.className = 'p-2 rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center';
+      confirmBtn.className = 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+      confirmBtn.style.background = '#052042';
+      confirmBtn.style.borderColor = '#052042';
+      confirmBtn.textContent = 'OK';
+    }
+
+    cancelBtn.style.display = 'none';
+    confirmBtn.onclick = function() {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+    };
+
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+  };
+
+  // Modern In-Window Pop-up Confirm Helper
+  window.showInWindowConfirm = function(options) {
+    const modalEl = document.getElementById('inWindowActionModal');
+    const modalTitle = document.getElementById('inWindowActionModalLabel');
+    const modalText = document.getElementById('modalMessageText');
+    const modalDetails = document.getElementById('modalDetailsBox');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+
+    modalTitle.textContent = options.title || 'Confirm Action';
+    modalText.innerHTML = options.message || 'Are you sure you want to proceed?';
+    
+    if (options.detailsHtml) {
+      modalDetails.innerHTML = options.detailsHtml;
+      modalDetails.style.display = 'block';
+    } else {
+      modalDetails.style.display = 'none';
+      modalDetails.innerHTML = '';
+    }
+
+    modalIcon.className = options.icon || 'fa-solid fa-circle-question fa-lg';
+    modalIconContainer.className = 'p-2 rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center';
+    
+    cancelBtn.style.display = 'inline-block';
+    cancelBtn.textContent = 'Cancel';
+    confirmBtn.className = options.confirmBtnClass || 'btn btn-sm btn-primary px-4 rounded-pill fw-bold shadow-sm';
+    if (!options.confirmBtnClass) {
+      confirmBtn.style.background = '#052042';
+      confirmBtn.style.borderColor = '#052042';
+    } else {
+      confirmBtn.style.background = '';
+      confirmBtn.style.borderColor = '';
+    }
+    confirmBtn.textContent = options.confirmText || 'Confirm & Apply';
+
+    confirmBtn.onclick = function() {
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      if (bsModal) bsModal.hide();
+      if (typeof options.onConfirm === 'function') {
+        options.onConfirm();
+      }
+    };
+
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+  };
+
+  // 1-Click Capture Lead (Self-assign)
+  window.captureLead = function(leadPk, btnElement) {
+    if (!leadPk) return;
+    showInWindowConfirm({
+      title: 'Capture Lead',
+      message: 'Do you want to self-assign this student lead to your queue?',
+      confirmText: 'Capture Now',
+      icon: 'fa-solid fa-hand-holding-hand fa-lg',
+      onConfirm: function() {
+        if (btnElement) {
+          btnElement.disabled = true;
+          btnElement.innerText = 'Capturing...';
+        }
+        fetch('/leads/' + leadPk + '/self-assign/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            window.location.reload();
+          } else {
+            showInWindowAlert('Capture Failed', data.message || 'Could not capture lead.', 'error');
+            if (btnElement) {
+              btnElement.disabled = false;
+              btnElement.innerText = 'Capture';
+            }
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          window.location.reload();
+        });
+      }
+    });
+  };
+  // Save Quick Remark via AJAX
+  window.saveQuickRemark = function() {
+    if (!activeLeadPk) {
+      showInWindowAlert('Select Lead', 'Please select a student lead row first.', 'warning');
+      return;
+    }
+    const noteText = mbInput ? mbInput.value.trim() : '';
+    if (!noteText) {
+      if (mbInput) mbInput.focus();
+      return;
+    }
+
+    if (mbSaveBtn) {
+      mbSaveBtn.disabled = true;
+      mbSaveBtn.innerText = 'Saving...';
+    }
+
+    const formData = new FormData();
+    formData.append('note', noteText);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('/leads/' + activeLeadPk + '/add-note/', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => {
+      if (mbSaveBtn) {
+        mbSaveBtn.disabled = false;
+        mbSaveBtn.innerText = 'Saved!';
+      }
+      setTimeout(() => {
+        if (mbSaveBtn) mbSaveBtn.innerText = 'Save';
+        dismissCounselorMicrobar();
+      }, 700);
+    })
+    .catch(err => {
+      console.error(err);
+      if (mbSaveBtn) {
+        mbSaveBtn.disabled = false;
+        mbSaveBtn.innerText = 'Save';
+      }
+      showInWindowAlert('Error', 'Could not save remark.', 'error');
+    });
+  };
+
+  if (mbInput) {
+    mbInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveQuickRemark();
+      }
+    });
+  }
+
+  // Follow-up modal handlers
+  window.openQuickFollowupModal = function() {
+    if (!activeLeadPk) {
+      showInWindowAlert('Select Lead', 'Please click on a student row first.', 'warning');
+      return;
+    }
+    const modalEl = document.getElementById('quickFollowupModal');
+    if (modalEl) {
+      document.getElementById('qfuModalLeadName').innerText = mbName ? mbName.innerText : 'Student';
+      document.getElementById('qfuLeadId').value = activeLeadPk;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const dateInp = document.getElementById('qfuDate');
+      if (dateInp) {
+        dateInp.value = todayStr;
+        dateInp.min = todayStr;
+      }
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
+  };
+
+  window.submitQuickFollowup = function(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const targetLeadPk = document.getElementById('qfuLeadId').value || activeLeadPk;
+    if (!targetLeadPk) return;
+
+    const fuDate = document.getElementById('qfuDate').value;
+    const fuTime = document.getElementById('qfuTime').value;
+    const fuStatus = document.getElementById('qfuStatus').value;
+    const comment = document.getElementById('qfuComment').value.trim();
+    const submitBtn = document.getElementById('qfuSubmitBtn');
+
+    if (!fuDate || !comment) {
+      showInWindowAlert('Required Fields', 'Follow-up Date and Comment/Remarks are required.', 'warning');
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving...';
+    }
+
+    const formData = new FormData();
+    formData.append('followup_date', fuDate);
+    formData.append('followup_time', fuTime);
+    formData.append('followup_status', fuStatus);
+    formData.append('comment', comment);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('/leads/' + targetLeadPk + '/add-followup/', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => {
+      const modalEl = document.getElementById('quickFollowupModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+      dismissCounselorMicrobar();
+      window.location.reload();
+    })
+    .catch(err => {
+      console.error(err);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Save Follow-up';
+      }
+      showInWindowAlert('Error', 'Could not schedule follow-up.', 'error');
+    });
+  };
+
+  // =========================================================================
+  // BULK SELF ASSIGN FOR FRESH LEADS
+  // =========================================================================
+  const maxBulkLimit = parseInt('{{ bulk_self_assign_limit|default:25 }}', 10);
+
+  function getSelectedFreshCheckboxes() {
+    return Array.from(document.querySelectorAll('.fresh-lead-checkbox:checked'));
+  }
+
+  window.toggleSelectAllFresh = function(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.fresh-lead-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = masterCheckbox.checked;
+    });
+    updateFreshSelectionState();
+  };
+
+  window.deselectAllFreshLeads = function() {
+    const master = document.getElementById('selectAllFreshCheckbox');
+    if (master) master.checked = false;
+    document.querySelectorAll('.fresh-lead-checkbox').forEach(cb => cb.checked = false);
+    updateFreshSelectionState();
+  };
+
+  function updateFreshSelectionState() {
+    const selected = getSelectedFreshCheckboxes();
+    const count = selected.length;
+    const bulkBar = document.getElementById('freshBulkBar');
+    const countBadge = document.getElementById('freshSelectedCount');
+    const master = document.getElementById('selectAllFreshCheckbox');
+
+    if (countBadge) {
+      countBadge.innerText = count + ' Selected';
+    }
+
+    if (bulkBar) {
+      if (count > 0) {
+        bulkBar.classList.remove('d-none');
+        bulkBar.classList.add('d-flex');
+      } else {
+        bulkBar.classList.add('d-none');
+        bulkBar.classList.remove('d-flex');
+      }
+    }
+
+    const allCheckboxes = document.querySelectorAll('.fresh-lead-checkbox');
+    if (master && allCheckboxes.length > 0) {
+      master.checked = (selected.length === allCheckboxes.length);
+      master.indeterminate = (selected.length > 0 && selected.length < allCheckboxes.length);
+    }
+  }
+
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('fresh-lead-checkbox')) {
+      updateFreshSelectionState();
+    }
+  });
+
+  window.performBulkSelfAssign = function() {
+    const selected = getSelectedFreshCheckboxes();
+    const leadIds = selected.map(cb => cb.value);
+
+    if (leadIds.length === 0) {
+      showInWindowAlert('No Leads Selected', 'Please select at least one fresh student lead to assign to yourself.', 'warning');
+      return;
+    }
+
+    if (leadIds.length > maxBulkLimit) {
+      showInWindowAlert(
+        'Limit Exceeded',
+        `You can self-assign a maximum of <strong>${maxBulkLimit}</strong> leads at a time. You have selected <strong>${leadIds.length}</strong> leads.`,
+        'error'
+      );
+      return;
+    }
+
+    showInWindowConfirm({
+      title: 'Bulk Self-Assign Leads',
+      message: `Do you want to self-assign all <strong>${leadIds.length}</strong> selected student lead(s) to your queue?`,
+      detailsHtml: `<div class="text-primary small"><i class="fa-solid fa-circle-check me-1"></i>Selected leads will be assigned to you and moved to your active queue immediately.</div>`,
+      confirmText: `Assign ${leadIds.length} Leads`,
+      icon: 'fa-solid fa-hand-holding-hand fa-lg',
+      onConfirm: function() {
+        const formData = new FormData();
+        leadIds.forEach(id => formData.append('selected', id));
+        formData.append('bulk_action', 'self_assign');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch('/leads/bulk-action/', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            window.location.reload();
+          } else {
+            showInWindowAlert('Assign Failed', data.message || 'Could not perform bulk self-assign.', 'error');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          window.location.reload();
+        });
+      }
+    });
+  };
+});
+</script>
+{% endblock %}
+

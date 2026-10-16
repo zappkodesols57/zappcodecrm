@@ -58,6 +58,12 @@ class DirectAdmissionForm(forms.Form):
         required=True
     )
 
+    # Course & Academic Allocation
+    trainer = forms.CharField(label="Trainer", max_length=150, required=False, widget=forms.TextInput(attrs={"placeholder": "e.g. Rahul Sharma"}))
+    batch = forms.CharField(label="Batch", max_length=150, required=False, widget=forms.TextInput(attrs={"placeholder": "e.g. Morning Batch 01"}))
+    batch_time = forms.CharField(label="Batch Timing", max_length=100, required=False, widget=forms.TextInput(attrs={"placeholder": "e.g. 10:00 AM - 12:00 PM"}))
+    date_of_joining = forms.DateField(label="Joining Date", widget=forms.DateInput(attrs={"type": "date"}), required=False)
+
     # Fees & Payment Plan
     total_fee = forms.DecimalField(
         label="Total Fee (₹) *", 
@@ -81,7 +87,33 @@ class DirectAdmissionForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Optional justification if discount provided..."}), 
         required=False
     )
-    payment_plan = forms.ChoiceField(label="Payment Plan", choices=PaymentPlan.choices, initial=PaymentPlan.FULL)
+    payment_mode = forms.ChoiceField(
+        label="Payment Mode", 
+        choices=[
+            ("ONE_TIME_UPI", "One-Time UPI / Online"),
+            ("ONE_TIME_CASH", "One-Time Cash"),
+            ("EMI", "EMI (Monthly Installments)"),
+        ],
+        initial="ONE_TIME_UPI",
+        required=False
+    )
+    token_paid = forms.DecimalField(
+        label="Paid Today / Token (₹)", 
+        max_digits=12, 
+        decimal_places=2, 
+        min_value=0, 
+        initial=Decimal("0.00"), 
+        required=False,
+        widget=forms.NumberInput(attrs={"placeholder": "0.00"})
+    )
+    emi_months = forms.IntegerField(
+        label="EMI Months Tenure", 
+        min_value=0, 
+        initial=0, 
+        required=False,
+        widget=forms.NumberInput(attrs={"placeholder": "e.g. 3, 6, 12"})
+    )
+    payment_plan = forms.ChoiceField(label="Payment Plan", choices=PaymentPlan.choices, initial=PaymentPlan.FULL, required=False)
     course_status = forms.ChoiceField(label="Course Status", choices=CourseStatus.choices, initial=CourseStatus.STARTED)
 
     # Counselor Assignment
@@ -110,9 +142,13 @@ class DirectAdmissionForm(forms.Form):
 
         if user and getattr(user, "hospital", None):
             self.fields["course"].queryset = Course.objects.filter(is_active=True, hospital=user.hospital)
-            self.fields["assigned_counselor"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital)
+            self.fields["assigned_counselor"].queryset = User.objects.filter(
+                is_active=True, is_approved=True, hospital=user.hospital, role__in=[User.Role.COUNSELLOR, User.Role.MANAGER, User.Role.ADMIN]
+            )
         else:
             # Global Super Admin: show all active courses and users
+            self.fields["course"].queryset = Course.objects.filter(is_active=True)
+            self.fields["assigned_counselor"].queryset = User.objects.filter(is_active=True, is_approved=True)
             self.fields["course"].queryset = Course.objects.filter(is_active=True)
             self.fields["assigned_counselor"].queryset = User.objects.filter(is_active=True, is_approved=True)
 

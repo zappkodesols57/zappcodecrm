@@ -107,7 +107,7 @@
 
       <!-- Branch Assignment (Multiple Checkboxes) -->
       {% if form.assigned_branches %}
-      <div id="div_id_assigned_branches" class="mt-4">
+      <div id="div_id_assigned_branches" class="mt-4" style="display: none;">
         <label class="form-label small fw-semibold text-dark mb-1">
           <i class="fa-solid fa-code-branch text-primary me-1"></i> Assigned Branches
         </label>
@@ -122,9 +122,9 @@
               <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-secondary" style="font-size: 0.73rem;" onclick="toggleAllBranches(false)">Clear All</button>
             </div>
           </div>
-          <div class="row g-2">
+          <div class="row g-2" id="branchCheckboxesContainer">
             {% for choice in form.assigned_branches %}
-            <div class="col-sm-6 col-md-4 col-lg-3">
+            <div class="col-sm-6 col-md-4 col-lg-3 branch-item-col" data-branch-id="{{ choice.data.value }}">
               <div class="form-check p-2 bg-white rounded border h-100 d-flex align-items-center">
                 <input type="checkbox" name="assigned_branches" value="{{ choice.data.value }}" id="{{ choice.id_for_label }}" class="form-check-input ms-0 me-2 branch-checkbox" {% if choice.data.selected %}checked{% endif %}>
                 <label class="form-check-label small fw-medium text-dark mb-0 cursor-pointer text-truncate" for="{{ choice.id_for_label }}" title="{{ choice.choice_label }}">
@@ -133,7 +133,7 @@
               </div>
             </div>
             {% empty %}
-            <div class="col-12 text-muted small py-1">No branches configured for this business yet.</div>
+            <div class="col-12 text-muted small py-1" id="noBranchesPlaceholder">No branches configured for this business yet.</div>
             {% endfor %}
           </div>
           {% if form.assigned_branches.errors %}
@@ -215,18 +215,33 @@
 
 <script>
   const userRolesMap = {{ user_roles_map|default:"{}"|safe }};
+  const businessMetaMap = {{ business_meta_map|default:"{}"|safe }};
   let originalReportsToOptions = null; // To store backup of original options
+  let originalRoleOptions = null; // To store backup of original role options
 
   document.addEventListener("DOMContentLoaded", function() {
+    const hospField = document.getElementById("id_hospital");
     const roleField = document.getElementById("id_role");
     const deptDiv = document.getElementById("div_id_department");
     const specDiv = document.getElementById("div_id_speciality");
     const hospDiv = document.getElementById("div_id_hospital");
+    const assignedBranchesDiv = document.getElementById("div_id_assigned_branches");
+    const allowBranchTransferDiv = document.getElementById("div_id_allow_branch_transfer");
+    const allowBranchTransferInput = document.getElementById("id_allow_branch_transfer");
     const allowSelfAssignDiv = document.getElementById("div_id_allow_self_assign");
     const allowSelfAssignInput = document.getElementById("id_allow_self_assign");
     const bulkLimitDiv = document.getElementById("div_id_bulk_self_assign_limit");
     const bulkLimitInput = document.getElementById("id_bulk_self_assign_limit");
     const reportsToSelect = document.getElementById("id_reports_to");
+
+    // Backup original role options
+    if (roleField) {
+      originalRoleOptions = Array.from(roleField.options).map(opt => ({
+        value: opt.value,
+        text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Employee Role" : opt.text,
+        selected: opt.selected
+      }));
+    }
 
     if (allowSelfAssignInput) {
       allowSelfAssignInput.addEventListener("change", function() {
@@ -357,6 +372,9 @@
       // Superadmin Tenant logic
       if (hospDiv) hospDiv.style.display = "block";
 
+      // Business & Branch Dynamic Scoping
+      updateBusinessScope();
+
       // Hierarchy logic for reports_to
       if (reportsToSelect && originalReportsToOptions) {
         const selectedRole = roleField.value;
@@ -409,6 +427,117 @@
                 allowEmptyOption: true,
                 placeholder: 'Select Reporting Manager'
             });
+        }
+      }
+    }
+
+    function updateBusinessScope() {
+      const selectedHospId = hospField ? String(hospField.value || "").trim() : "";
+      const bizInfo = selectedHospId && businessMetaMap ? businessMetaMap[selectedHospId] : null;
+
+      // 1. DYNAMIC ROLE FILTERING BASED ON BUSINESS INDUSTRY & ALLOWED ROLES
+      if (roleField && originalRoleOptions) {
+        let allowedRoleValues = null;
+        if (bizInfo && Array.isArray(bizInfo.allowed_roles) && bizInfo.allowed_roles.length > 0) {
+          allowedRoleValues = bizInfo.allowed_roles.map(r => r.value);
+        }
+
+        const currentRoleVal = roleField.value;
+        const hasTomSelect = !!roleField.tomselect;
+        if (hasTomSelect) {
+          roleField.tomselect.destroy();
+        }
+
+        roleField.innerHTML = "";
+        let roleStillValid = false;
+
+        originalRoleOptions.forEach(optData => {
+          if (optData.value === "") {
+            roleField.add(new Option(optData.text || "Select Employee Role", ""));
+            return;
+          }
+          if (!allowedRoleValues || allowedRoleValues.includes(optData.value)) {
+            const opt = new Option(optData.text, optData.value);
+            if (optData.value === currentRoleVal) {
+              opt.selected = true;
+              roleStillValid = true;
+            }
+            roleField.add(opt);
+          }
+        });
+
+        if (!roleStillValid && currentRoleVal) {
+          roleField.value = "";
+        }
+
+        if (hasTomSelect && typeof TomSelect !== 'undefined') {
+          new TomSelect(roleField, {
+            create: false,
+            maxOptions: 50,
+            allowEmptyOption: true,
+            placeholder: 'Select Employee Role'
+          });
+          roleField.tomselect.on("change", toggleFields);
+        }
+      }
+
+      // 2. DYNAMIC BRANCH VISIBILITY & FILTERING
+      const branchItems = document.querySelectorAll(".branch-item-col");
+      const noBranchesPlaceholder = document.getElementById("noBranchesPlaceholder");
+      let visibleBranchCount = 0;
+
+      if (bizInfo && Array.isArray(bizInfo.branches)) {
+        const allowedBranchIdStrs = bizInfo.branches.map(b => String(b.id));
+        branchItems.forEach(item => {
+          const bId = String(item.getAttribute("data-branch-id") || "");
+          const cb = item.querySelector(".branch-checkbox");
+          if (allowedBranchIdStrs.includes(bId)) {
+            item.style.display = "";
+            visibleBranchCount++;
+          } else {
+            item.style.display = "none";
+            if (cb) cb.checked = false; // uncheck branch not belonging to this business
+          }
+        });
+      } else if (!selectedHospId) {
+        // No business selected yet: hide all branches
+        branchItems.forEach(item => {
+          item.style.display = "none";
+          const cb = item.querySelector(".branch-checkbox");
+          if (cb) cb.checked = false;
+        });
+        visibleBranchCount = 0;
+      } else {
+        // Business selected but has 0 branches configured
+        branchItems.forEach(item => {
+          item.style.display = "none";
+          const cb = item.querySelector(".branch-checkbox");
+          if (cb) cb.checked = false;
+        });
+        visibleBranchCount = 0;
+      }
+
+      // If business has MULTIPLE branches (> 1 or >= 1 with active branches)
+      // "if kisi bussiness me brach nahi hai to ye assigne branches ka option dikhega hi nahi"
+      // "if bussiness me multiple branchees hai tabhi assign branch and allow branch transfer options dikhenge"
+      if (assignedBranchesDiv) {
+        if (visibleBranchCount > 1) {
+          assignedBranchesDiv.style.display = "block";
+        } else {
+          assignedBranchesDiv.style.display = "none";
+        }
+      }
+
+      if (allowBranchTransferDiv) {
+        if (visibleBranchCount > 1) {
+          allowBranchTransferDiv.style.display = "block";
+          if (allowBranchTransferInput) allowBranchTransferInput.disabled = false;
+        } else {
+          allowBranchTransferDiv.style.display = "none";
+          if (allowBranchTransferInput) {
+            allowBranchTransferInput.checked = false;
+            allowBranchTransferInput.disabled = true;
+          }
         }
       }
     }
@@ -522,6 +651,15 @@
     if (p1 && p2) {
       p1.addEventListener("input", checkPasswordMatch);
       p2.addEventListener("input", checkPasswordMatch);
+    }
+
+    if (hospField) {
+      hospField.addEventListener("change", toggleFields);
+      setTimeout(() => {
+        if (hospField.tomselect) {
+          hospField.tomselect.on("change", toggleFields);
+        }
+      }, 500);
     }
 
     if (roleField) {

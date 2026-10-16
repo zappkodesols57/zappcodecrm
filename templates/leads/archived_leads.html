@@ -15,21 +15,6 @@
       </span>
     </div>
 
-    <!-- Search Form -->
-    <div class="d-flex align-items-center gap-2">
-      <form method="get" class="d-flex align-items-center gap-2">
-        <div class="input-group input-group-sm shadow-xs" style="min-width: 260px;">
-          <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input type="text" name="q" value="{{ q_archived|default:'' }}" class="form-control border-start-0" placeholder="Search by name, mobile, lead code...">
-        </div>
-        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-xs">Search</button>
-        {% if q_archived %}
-          <a href="{% url 'leads:archived_leads' %}" class="btn btn-sm btn-light border rounded-pill px-3 text-danger">
-            <i class="fa-solid fa-rotate-left me-1"></i> Clear
-          </a>
-        {% endif %}
-      </form>
-    </div>
   </div>
 
   <!-- Campaign Breakdown & Date Filters Ribbon -->

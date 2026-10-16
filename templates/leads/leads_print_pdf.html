@@ -112,7 +112,7 @@
         <th>Doctor</th>
         <th>Source</th>
         <th>Campaign</th>
-        {% if not request.user.hospital and request.user.role != 'LEAD_ATTENDENT' %}
+        {% if not request.user.business and request.user.role != 'LEAD_ATTENDENT' %}
         <th>Priority</th>
         {% endif %}
         <th>Status</th>
@@ -130,7 +130,7 @@
         <td>{% if lead.custom_doctor %}Dr. {{ lead.custom_doctor }}{% else %}-{% endif %}</td>
         <td>{{ lead.custom_source|default:"-" }}</td>
         <td>{{ lead.custom_camp|default:"-" }}</td>
-        {% if not request.user.hospital and request.user.role != 'LEAD_ATTENDENT' %}
+        {% if not request.user.business and request.user.role != 'LEAD_ATTENDENT' %}
         <td>
           {% with prio=lead.custom_priority %}
             {% if prio == 'Hot' or prio == 'HOT' %}<span class="badge-pill badge-hot">Hot</span>
@@ -159,7 +159,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="{% if not request.user.hospital and request.user.role != 'LEAD_ATTENDENT' %}11{% else %}10{% endif %}" style="text-align: center; padding: 20px; color: #94a3b8;">No leads found for the selected filter criteria.</td>
+        <td colspan="{% if not request.user.business and request.user.role != 'LEAD_ATTENDENT' %}11{% else %}10{% endif %}" style="text-align: center; padding: 20px; color: #94a3b8;">No leads found for the selected filter criteria.</td>
       </tr>
       {% endfor %}
     </tbody>

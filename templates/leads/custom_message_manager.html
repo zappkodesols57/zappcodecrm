@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}WhatsApp Templates · {{ hosp.name|default:"CRM" }}{% endblock %}
+{% block title %}WhatsApp Templates · {{ biz.name|default:hosp.name|default:"CRM" }}{% endblock %}
 
 {% block content %}
 <style>
@@ -140,19 +140,26 @@
     color: #0f172a !important;
   }
 </style>
-<div class="container-fluid px-3 py-3" style="max-width: 1200px; margin: 0 auto;">
+
+<div class="container-fluid px-3 py-3" style="max-width: 1240px; margin: 0 auto;">
 
   <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h5 class="fw-bold mb-1" style="color: var(--brand, #052042);">
-        WhatsApp Templates
+        <i class="fa-brands fa-whatsapp text-success me-2"></i>WhatsApp Templates
       </h5>
-      <p class="text-muted small mb-0">Customize automated WhatsApp message templates with dynamic patient tags.</p>
+      <p class="text-muted small mb-0">
+        {% if is_academy %}
+          Configure academy-tailored WhatsApp messages for enquiries, demo visits, admission confirmations, and fee reminders.
+        {% else %}
+          Customize automated WhatsApp message templates with dynamic patient tags.
+        {% endif %}
+      </p>
     </div>
     <div>
       <span class="badge bg-white border text-secondary px-3 py-2 rounded-2 small shadow-none">
-        {{ request.user.get_full_name|default:request.user.username }}
+        <i class="fa-solid fa-user-circle me-1"></i>{{ request.user.get_full_name|default:request.user.username }}
       </span>
     </div>
   </div>
@@ -161,26 +168,412 @@
   <div class="card border rounded-3 mb-3 bg-white shadow-none">
     <div class="card-body p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div class="small text-muted">
-        <span>Templates use standard system defaults until customized and confirmed. Placeholders are auto-replaced during sending.</span>
+        <span>Templates use system defaults until customized and confirmed. Placeholders in curly braces <code>{...}</code> are automatically filled when sending.</span>
       </div>
-      <div class="d-flex gap-1">
-        <span class="badge bg-light text-dark border px-2 py-1 small"><code>{patient_name}</code></span>
-        <span class="badge bg-light text-dark border px-2 py-1 small"><code>{doctor_name}</code></span>
-        <span class="badge bg-light text-dark border px-2 py-1 small"><code>{appointment_date}</code></span>
-        <span class="badge bg-light text-dark border px-2 py-1 small"><code>{appointment_time}</code></span>
+      <div class="d-flex gap-1 flex-wrap">
+        {% if is_academy %}
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{student_name}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{course_name}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{business_name}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{visit_date}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{admission_date}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{payment_due_date}</code></span>
+        {% else %}
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{patient_name}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{doctor_name}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{appointment_date}</code></span>
+          <span class="badge bg-light text-dark border px-2 py-1 small"><code>{appointment_time}</code></span>
+        {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- Navigation Tabs (Contiguous tabs with distinct borders and no gap) -->
+  {% if is_academy %}
+  <!-- ACADEMY TEMPLATES NAVIGATION -->
+  <ul class="nav nav-tabs mb-3" id="msgTabs" role="tablist">
+    <!-- Tab 1: Enquiry / Welcome -->
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'enquiry' or not active_tab %}active{% endif %}" id="enquiry-tab" data-bs-toggle="tab" data-bs-target="#tab-enquiry" type="button" role="tab">
+        1. Welcome & Enquiry
+        {% if enquiry_msg.is_confirmed %}
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        {% else %}
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        {% endif %}
+      </button>
+    </li>
+    <!-- Tab 2: Campus Visit -->
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'visit' %}active{% endif %}" id="visit-tab" data-bs-toggle="tab" data-bs-target="#tab-visit" type="button" role="tab">
+        2. Campus Visit
+        {% if visit_msg.is_confirmed %}
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        {% else %}
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        {% endif %}
+      </button>
+    </li>
+    <!-- Tab 3: Admission Confirmed -->
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'admission' %}active{% endif %}" id="admission-tab" data-bs-toggle="tab" data-bs-target="#tab-admission" type="button" role="tab">
+        3. Admission Confirmed
+        {% if admission_msg.is_confirmed %}
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        {% else %}
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        {% endif %}
+      </button>
+    </li>
+    <!-- Tab 4: Fee Payment Due -->
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'payment_due' %}active{% endif %}" id="payment-tab" data-bs-toggle="tab" data-bs-target="#tab-payment" type="button" role="tab">
+        4. Payment Due / Pending
+        {% if payment_msg.is_confirmed %}
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        {% else %}
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        {% endif %}
+      </button>
+    </li>
+  </ul>
+
+  <!-- ACADEMY TABS CONTENT -->
+  <div class="tab-content" id="msgTabsContent">
+    
+    <!-- ACADEMY TAB 1: Enquiry / Welcome -->
+    <div class="tab-pane fade {% if active_tab == 'enquiry' or not active_tab %}show active{% endif %}" id="tab-enquiry" role="tabpanel">
+      <div class="row g-3">
+        <!-- Editor Column -->
+        <div class="col-lg-7">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold mb-0 text-dark">Welcome & Enquiry Response Template</h6>
+                <small class="text-muted">Sent when student inquires or is assigned to counselor</small>
+              </div>
+              <div>
+                {% if enquiry_msg.is_confirmed %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
+                {% else %}
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="POST" id="enquiryMsgForm">
+              {% csrf_token %}
+              <input type="hidden" name="message_type" value="ENQUIRY">
+              <input type="hidden" name="action" id="enquiryAction" value="save">
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark small mb-1">Message Content</label>
+                <textarea name="custom_text" id="enquiryCustomText" class="form-control" rows="11" style="font-size: 0.9rem; line-height: 1.55;" placeholder="Enter template text...">{{ enquiry_msg.custom_text|default:default_enquiry_text }}</textarea>
+                
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                  <span class="text-muted small">Insert Placeholders:</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('enquiryCustomText', '{student_name}')">{student_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('enquiryCustomText', '{course_name}')">{course_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('enquiryCustomText', '{business_name}')">{business_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('enquiryCustomText', '{business_address}')">{business_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('enquiryCustomText', '{counselor_name}')">{counselor_name}</button>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
+                <div>
+                  {% if enquiry_msg.is_confirmed %}
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('enquiryMsgForm', 'enquiryAction')">
+                    Reset to Default
+                  </button>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('enquiryMsgForm', 'enquiryAction')">
+                    Save Draft
+                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('ENQUIRY', 'enquiryCustomText')">
+                    Confirm & Activate
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Live Preview Column -->
+        <div class="col-lg-5">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
+              <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
+            </div>
+            
+            <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="enquiryPreviewText">
+              </div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACADEMY TAB 2: Campus Visit -->
+    <div class="tab-pane fade {% if active_tab == 'visit' %}show active{% endif %}" id="tab-visit" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold mb-0 text-dark">Campus Visit & Demo Template</h6>
+                <small class="text-muted">Sent when student campus demo session / visit date is scheduled</small>
+              </div>
+              <div>
+                {% if visit_msg.is_confirmed %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
+                {% else %}
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="POST" id="visitMsgForm">
+              {% csrf_token %}
+              <input type="hidden" name="message_type" value="VISIT">
+              <input type="hidden" name="action" id="visitAction" value="save">
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark small mb-1">Message Content</label>
+                <textarea name="custom_text" id="visitCustomText" class="form-control" rows="11" style="font-size: 0.9rem; line-height: 1.55;" placeholder="Enter template text...">{{ visit_msg.custom_text|default:default_visit_text }}</textarea>
+                
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                  <span class="text-muted small">Insert Placeholders:</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{student_name}')">{student_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{course_name}')">{course_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{business_name}')">{business_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{visit_date}')">{visit_date}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{visit_slot}')">{visit_slot}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{business_address}')">{business_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('visitCustomText', '{counselor_name}')">{counselor_name}</button>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
+                <div>
+                  {% if visit_msg.is_confirmed %}
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('visitMsgForm', 'visitAction')">
+                    Reset to Default
+                  </button>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('visitMsgForm', 'visitAction')">
+                    Save Draft
+                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('VISIT', 'visitCustomText')">
+                    Confirm & Activate
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
+              <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
+            </div>
+            
+            <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="visitPreviewText">
+              </div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACADEMY TAB 3: Admission Confirmed -->
+    <div class="tab-pane fade {% if active_tab == 'admission' %}show active{% endif %}" id="tab-admission" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold mb-0 text-dark">Admission Confirmed Template</h6>
+                <small class="text-muted">Sent when student admission is completed & enrolled into a batch</small>
+              </div>
+              <div>
+                {% if admission_msg.is_confirmed %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
+                {% else %}
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="POST" id="admissionMsgForm">
+              {% csrf_token %}
+              <input type="hidden" name="message_type" value="ADMISSION">
+              <input type="hidden" name="action" id="admissionAction" value="save">
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark small mb-1">Message Content</label>
+                <textarea name="custom_text" id="admissionCustomText" class="form-control" rows="11" style="font-size: 0.9rem; line-height: 1.55;" placeholder="Enter template text...">{{ admission_msg.custom_text|default:default_admission_text }}</textarea>
+                
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                  <span class="text-muted small">Insert Placeholders:</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{student_name}')">{student_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{course_name}')">{course_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{business_name}')">{business_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{admission_date}')">{admission_date}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{batch_name}')">{batch_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{batch_timing}')">{batch_timing}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{business_address}')">{business_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('admissionCustomText', '{counselor_name}')">{counselor_name}</button>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
+                <div>
+                  {% if admission_msg.is_confirmed %}
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('admissionMsgForm', 'admissionAction')">
+                    Reset to Default
+                  </button>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('admissionMsgForm', 'admissionAction')">
+                    Save Draft
+                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('ADMISSION', 'admissionCustomText')">
+                    Confirm & Activate
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
+              <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
+            </div>
+            
+            <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="admissionPreviewText">
+              </div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACADEMY TAB 4: Payment Due / Pending -->
+    <div class="tab-pane fade {% if active_tab == 'payment_due' %}show active{% endif %}" id="tab-payment" role="tabpanel">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold mb-0 text-dark">Fee Payment / Installment Due Template</h6>
+                <small class="text-muted">Sent for balance fee reminder, EMI installment, or pending token clearance</small>
+              </div>
+              <div>
+                {% if payment_msg.is_confirmed %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
+                {% else %}
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="POST" id="paymentMsgForm">
+              {% csrf_token %}
+              <input type="hidden" name="message_type" value="PAYMENT_DUE">
+              <input type="hidden" name="action" id="paymentAction" value="save">
+
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark small mb-1">Message Content</label>
+                <textarea name="custom_text" id="paymentCustomText" class="form-control" rows="11" style="font-size: 0.9rem; line-height: 1.55;" placeholder="Enter template text...">{{ payment_msg.custom_text|default:default_payment_text }}</textarea>
+                
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                  <span class="text-muted small">Insert Placeholders:</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{student_name}')">{student_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{course_name}')">{course_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{business_name}')">{business_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{payment_due_date}')">{payment_due_date}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{total_amount}')">{total_amount}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{paid_amount}')">{paid_amount}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{balance_amount}')">{balance_amount}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('paymentCustomText', '{counselor_name}')">{counselor_name}</button>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
+                <div>
+                  {% if payment_msg.is_confirmed %}
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('paymentMsgForm', 'paymentAction')">
+                    Reset to Default
+                  </button>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('paymentMsgForm', 'paymentAction')">
+                    Save Draft
+                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('PAYMENT_DUE', 'paymentCustomText')">
+                    Confirm & Activate
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
+            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
+              <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
+            </div>
+            
+            <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="paymentPreviewText">
+              </div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {% else %}
+  <!-- HOSPITAL BUSINESS NAVIGATION TABS (Preserved 100% identically) -->
   <ul class="nav nav-tabs mb-3" id="msgTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'booking' or not active_tab %}active{% endif %}" id="booking-tab" data-bs-toggle="tab" data-bs-target="#tab-booking" type="button" role="tab">
         Booking Template
         {% if booking_msg.is_confirmed %}
-        <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
-        <span class="badge tab-badge-default bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
         {% endif %}
       </button>
     </li>
@@ -188,9 +581,9 @@
       <button class="nav-link {% if active_tab == 'followup' %}active{% endif %}" id="followup-tab" data-bs-toggle="tab" data-bs-target="#tab-followup" type="button" role="tab">
         Follow-up Template
         {% if followup_msg.is_confirmed %}
-        <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
-        <span class="badge tab-badge-default bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
         {% endif %}
       </button>
     </li>
@@ -198,21 +591,19 @@
       <button class="nav-link {% if active_tab == 'billing' %}active{% endif %}" id="billing-tab" data-bs-toggle="tab" data-bs-target="#tab-billing" type="button" role="tab">
         Billing / Thank You Template
         {% if billing_msg.is_confirmed %}
-        <span class="badge tab-badge-active bg-success bg-opacity-10 text-success border border-success-subtle ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
+        <span class="badge tab-badge-active ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Custom Active</span>
         {% else %}
-        <span class="badge tab-badge-default bg-light text-muted border ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
+        <span class="badge tab-badge-default ms-2 px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Default</span>
         {% endif %}
       </button>
     </li>
   </ul>
 
-  <!-- Tabs Content -->
+  <!-- HOSPITAL TABS CONTENT -->
   <div class="tab-content" id="msgTabsContent">
-    
-    <!-- TAB 1: Booking Message -->
+    <!-- Booking Message -->
     <div class="tab-pane fade {% if active_tab == 'booking' or not active_tab %}show active{% endif %}" id="tab-booking" role="tabpanel">
       <div class="row g-3">
-        <!-- Editor Column -->
         <div class="col-lg-7">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
@@ -222,13 +613,9 @@
               </div>
               <div>
                 {% if booking_msg.is_confirmed %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">
-                  Custom Active
-                </span>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
                 {% else %}
-                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">
-                  System Default
-                </span>
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
                 {% endif %}
               </div>
             </div>
@@ -246,80 +633,72 @@
                   <span class="text-muted small">Insert tags:</span>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{patient_name}')">{patient_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{hospital_name}')">{hospital_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{branch_name}')">{branch_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{hospital_address}')">{hospital_address}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{doctor_name}')">{doctor_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{appointment_date}')">{appointment_date}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{appointment_time}')">{appointment_time}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('bookingCustomText', '{user_name}')">{user_name}</button>
+                  {% if is_hospital %}
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{patient_name}')">{patient_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{hospital_name}')">{hospital_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{branch_name}')">{branch_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{hospital_address}')">{hospital_address}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{doctor_name}')">{doctor_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{appointment_date}')">{appointment_date}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{appointment_time}')">{appointment_time}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{user_name}')">{user_name}</button>
+                  {% else %}
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{client_name}')">{client_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{business_name}')">{business_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{service_name}')">{service_name}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{booking_date}')">{booking_date}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{booking_time}')">{booking_time}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{business_address}')">{business_address}</button>
+                    <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('bookingCustomText', '{user_name}')">{user_name}</button>
+                  {% endif %}
                 </div>
               </div>
 
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
                 <div>
                   {% if booking_msg.is_confirmed %}
-                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2 px-3" onclick="submitResetDefault('bookingMsgForm', 'bookingAction')">
-                    Reset to Default
-                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('bookingMsgForm', 'bookingAction')">Reset to Default</button>
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2 px-3" onclick="saveDraft('bookingMsgForm', 'bookingAction')">
-                    Save Draft
-                  </button>
-                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('BOOKING', 'bookingCustomText')">
-                    Confirm Custom Message
-                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('bookingMsgForm', 'bookingAction')">Save Draft</button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('BOOKING', 'bookingCustomText')">Confirm Custom Message</button>
                 </div>
               </div>
             </form>
           </div>
         </div>
 
-        <!-- Live Preview Column -->
         <div class="col-lg-5">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
               <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
               <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
             </div>
-            
-            <!-- WhatsApp Chat Bubble Simulation -->
             <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
-              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="bookingPreviewText">
-                <!-- Live text populated by JavaScript -->
-              </div>
-              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
-                Delivered
-              </div>
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="bookingPreviewText"></div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 2: Follow-up Message -->
+    <!-- Follow-up Message -->
     <div class="tab-pane fade {% if active_tab == 'followup' %}show active{% endif %}" id="tab-followup" role="tabpanel">
       <div class="row g-3">
-        <!-- Editor Column -->
         <div class="col-lg-7">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
               <div>
-                <h6 class="fw-bold mb-0 text-dark">Follow-up Greeting Template</h6>
-                <small class="text-muted">Sent when patient enquiry follow-up is scheduled (New, Assigned, Follow-up, Lost stages)</small>
+                <h6 class="fw-bold mb-0 text-dark">Follow-up / Welcome Template</h6>
+                <small class="text-muted">Sent when patient inquires or follow-up is scheduled</small>
               </div>
               <div>
                 {% if followup_msg.is_confirmed %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">
-                  Custom Active
-                </span>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
                 {% else %}
-                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">
-                  System Default
-                </span>
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
                 {% endif %}
               </div>
             </div>
@@ -337,77 +716,59 @@
                   <span class="text-muted small">Insert tags:</span>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{patient_name}')">{patient_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{hospital_name}')">{hospital_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{branch_name}')">{branch_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{hospital_address}')">{hospital_address}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('followupCustomText', '{user_name}')">{user_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('followupCustomText', '{patient_name}')">{patient_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('followupCustomText', '{hospital_name}')">{hospital_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('followupCustomText', '{branch_name}')">{branch_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('followupCustomText', '{hospital_address}')">{hospital_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('followupCustomText', '{user_name}')">{user_name}</button>
                 </div>
               </div>
 
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
                 <div>
                   {% if followup_msg.is_confirmed %}
-                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2 px-3" onclick="submitResetDefault('followupMsgForm', 'followupAction')">
-                    Reset to Default
-                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('followupMsgForm', 'followupAction')">Reset to Default</button>
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2 px-3" onclick="saveDraft('followupMsgForm', 'followupAction')">
-                    Save Draft
-                  </button>
-                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('FOLLOWUP', 'followupCustomText')">
-                    Confirm Custom Message
-                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('followupMsgForm', 'followupAction')">Save Draft</button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('FOLLOWUP', 'followupCustomText')">Confirm Custom Message</button>
                 </div>
               </div>
             </form>
           </div>
         </div>
 
-        <!-- Live Preview Column -->
         <div class="col-lg-5">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
               <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
               <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
             </div>
-            
-            <!-- WhatsApp Chat Bubble Simulation -->
             <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
-              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="followupPreviewText">
-                <!-- Live text populated by JavaScript -->
-              </div>
-              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
-                Delivered
-              </div>
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="followupPreviewText"></div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 3: Billing / Thank You Message -->
+    <!-- Billing Message -->
     <div class="tab-pane fade {% if active_tab == 'billing' %}show active{% endif %}" id="tab-billing" role="tabpanel">
       <div class="row g-3">
-        <!-- Editor Column -->
         <div class="col-lg-7">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
               <div>
-                <h6 class="fw-bold mb-0 text-dark">Billing / Thank You for Visiting Template</h6>
-                <small class="text-muted">Sent when patient consultation is completed &amp; billing/payment is recorded</small>
+                <h6 class="fw-bold mb-0 text-dark">Billing / Thank You Template</h6>
+                <small class="text-muted">Sent when patient completes consultation / billing</small>
               </div>
               <div>
                 {% if billing_msg.is_confirmed %}
-                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">
-                  Custom Active
-                </span>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 rounded-pill">Custom Active</span>
                 {% else %}
-                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">
-                  System Default
-                </span>
+                <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill">System Default</span>
                 {% endif %}
               </div>
             </div>
@@ -425,60 +786,48 @@
                   <span class="text-muted small">Insert tags:</span>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mt-1">
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{patient_name}')">{patient_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_name}')">{hospital_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{branch_name}')">{branch_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{hospital_address}')">{hospital_address}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{doctor_name}')">{doctor_name}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{appointment_date}')">{appointment_date}</button>
-                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" style="font-size: 0.78rem;" onclick="insertTag('billingCustomText', '{user_name}')">{user_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{patient_name}')">{patient_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{hospital_name}')">{hospital_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{branch_name}')">{branch_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{hospital_address}')">{hospital_address}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{doctor_name}')">{doctor_name}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{appointment_date}')">{appointment_date}</button>
+                  <button type="button" class="btn btn-sm crm-tag-btn border py-0.5 px-2 small rounded-2" onclick="insertTag('billingCustomText', '{user_name}')">{user_name}</button>
                 </div>
               </div>
 
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 border-top mt-3">
                 <div>
                   {% if billing_msg.is_confirmed %}
-                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2 px-3" onclick="submitResetDefault('billingMsgForm', 'billingAction')">
-                    Reset to Default
-                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-reset rounded-2" onclick="submitResetDefault('billingMsgForm', 'billingAction')">Reset to Default</button>
                   {% endif %}
                 </div>
                 <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2 px-3" onclick="saveDraft('billingMsgForm', 'billingAction')">
-                    Save Draft
-                  </button>
-                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('BILLING', 'billingCustomText')">
-                    Confirm Custom Message
-                  </button>
+                  <button type="button" class="btn btn-sm crm-btn-draft rounded-2" onclick="saveDraft('billingMsgForm', 'billingAction')">Save Draft</button>
+                  <button type="button" class="btn btn-sm crm-btn-confirm rounded-2 px-3" onclick="openConfirmModal('BILLING', 'billingCustomText')">Confirm Custom Message</button>
                 </div>
               </div>
             </form>
           </div>
         </div>
 
-        <!-- Live Preview Column -->
         <div class="col-lg-5">
           <div class="card border rounded-3 bg-white p-3 h-100 shadow-none">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
               <h6 class="fw-bold text-dark mb-0">Message Preview</h6>
               <span class="badge bg-light text-muted border px-2 py-0.5 small">Live Simulation</span>
             </div>
-            
-            <!-- WhatsApp Chat Bubble Simulation -->
             <div class="p-3 rounded-3" style="background: #efeae2; min-height: 340px; display: flex; flex-direction: column; justify-content: flex-start; border: 1px solid #e2dcd5;">
-              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="billingPreviewText">
-                <!-- Live text populated by JavaScript -->
-              </div>
-              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">
-                Delivered
-              </div>
+              <div class="p-3 bg-white text-dark shadow-xs" style="max-width: 95%; border-radius: 0px 8px 8px 8px; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.5; border: 1px solid #e2e8f0;" id="billingPreviewText"></div>
+              <div class="text-end mt-1 text-muted small pe-1" style="font-size: 0.72rem;">Delivered</div>
             </div>
           </div>
         </div>
       </div>
     </div>
-
   </div>
+  {% endif %}
+
 </div>
 
 <!-- Modal: Confirm Custom Message Activation -->
@@ -492,7 +841,7 @@
       </div>
       <div class="modal-body p-3">
         <p class="text-dark small mb-2">
-          Activate this custom template for patient WhatsApp messages?
+          Activate this custom template for WhatsApp communications?
         </p>
         <div class="p-2.5 bg-light rounded-2 border small text-muted" id="confirmModalSnippet" style="max-height: 140px; overflow-y: auto; white-space: pre-wrap; font-size: 0.84rem;">
         </div>
@@ -545,7 +894,63 @@
   }
 
   function updatePreviews() {
-    const demoContext = {
+    {% if is_academy %}
+    const academyContext = {
+      "{student_name}": "Aman Sharma",
+      "{course_name}": "Full Stack Python Development",
+      "{business_name}": "{{ biz.name|default:'Zappcode Academy'|escapejs }}",
+      "{business_address}": "{{ biz.address|default:'IT Park Road, Nagpur'|escapejs }}",
+      "{counselor_name}": "{{ request.user.get_full_name|default:request.user.username|escapejs }}",
+      "{visit_date}": new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      "{visit_slot}": "11:30 AM - 01:00 PM",
+      "{admission_date}": new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      "{batch_name}": "Morning Fast-track Batch",
+      "{batch_timing}": "10:00 AM - 12:30 PM",
+      "{payment_due_date}": new Date(Date.now() + 7*24*60*60*1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      "{total_amount}": "₹45,000",
+      "{paid_amount}": "₹15,000",
+      "{balance_amount}": "₹30,000"
+    };
+
+    // 1. Enquiry Preview
+    const eqText = document.getElementById('enquiryCustomText');
+    const eqPrev = document.getElementById('enquiryPreviewText');
+    if (eqText && eqPrev) {
+      let raw = eqText.value;
+      for (const [k, v] of Object.entries(academyContext)) raw = raw.replaceAll(k, v);
+      eqPrev.textContent = raw;
+    }
+
+    // 2. Visit Preview
+    const vText = document.getElementById('visitCustomText');
+    const vPrev = document.getElementById('visitPreviewText');
+    if (vText && vPrev) {
+      let raw = vText.value;
+      for (const [k, v] of Object.entries(academyContext)) raw = raw.replaceAll(k, v);
+      vPrev.textContent = raw;
+    }
+
+    // 3. Admission Preview
+    const admText = document.getElementById('admissionCustomText');
+    const admPrev = document.getElementById('admissionPreviewText');
+    if (admText && admPrev) {
+      let raw = admText.value;
+      for (const [k, v] of Object.entries(academyContext)) raw = raw.replaceAll(k, v);
+      admPrev.textContent = raw;
+    }
+
+    // 4. Payment Due Preview
+    const payText = document.getElementById('paymentCustomText');
+    const payPrev = document.getElementById('paymentPreviewText');
+    if (payText && payPrev) {
+      let raw = payText.value;
+      for (const [k, v] of Object.entries(academyContext)) raw = raw.replaceAll(k, v);
+      payPrev.textContent = raw;
+    }
+
+    {% else %}
+    // Hospital Context
+    const hospitalContext = {
       "{patient_name}": "Rahul Sharma",
       "{hospital_name}": "{{ hosp.name|default:'Nelson Mother & Child Care Hospital'|escapejs }}",
       "{branch_name}": "Dhantoli Branch",
@@ -556,38 +961,30 @@
       "{user_name}": "{{ request.user.get_full_name|default:request.user.username|escapejs }}"
     };
 
-    // 1. Booking Preview
     const bTextEl = document.getElementById('bookingCustomText');
     const bPreviewEl = document.getElementById('bookingPreviewText');
     if (bTextEl && bPreviewEl) {
       let raw = bTextEl.value;
-      for (const [k, v] of Object.entries(demoContext)) {
-        raw = raw.replaceAll(k, v);
-      }
+      for (const [k, v] of Object.entries(hospitalContext)) raw = raw.replaceAll(k, v);
       bPreviewEl.textContent = raw;
     }
 
-    // 2. Follow-up Preview
     const fTextEl = document.getElementById('followupCustomText');
     const fPreviewEl = document.getElementById('followupPreviewText');
     if (fTextEl && fPreviewEl) {
       let raw = fTextEl.value;
-      for (const [k, v] of Object.entries(demoContext)) {
-        raw = raw.replaceAll(k, v);
-      }
+      for (const [k, v] of Object.entries(hospitalContext)) raw = raw.replaceAll(k, v);
       fPreviewEl.textContent = raw;
     }
 
-    // 3. Billing Preview
     const billTextEl = document.getElementById('billingCustomText');
     const billPreviewEl = document.getElementById('billingPreviewText');
     if (billTextEl && billPreviewEl) {
       let raw = billTextEl.value;
-      for (const [k, v] of Object.entries(demoContext)) {
-        raw = raw.replaceAll(k, v);
-      }
+      for (const [k, v] of Object.entries(hospitalContext)) raw = raw.replaceAll(k, v);
       billPreviewEl.textContent = raw;
     }
+    {% endif %}
   }
 
   function saveDraft(formId, actionId) {
@@ -621,14 +1018,31 @@
 
   function openConfirmModal(type, textareaId) {
     pendingConfirmType = type;
-    const text = document.getElementById(textareaId).value;
-    document.getElementById('confirmModalSnippet').textContent = text;
+    const el = document.getElementById(textareaId);
+    if (el) {
+      document.getElementById('confirmModalSnippet').textContent = el.value;
+    }
     const modalEl = document.getElementById('confirmCustomMsgModal');
     confirmModalInstance = new bootstrap.Modal(modalEl);
     confirmModalInstance.show();
   }
 
   document.getElementById('btnExecuteConfirmCustom').addEventListener('click', function () {
+    {% if is_academy %}
+    if (pendingConfirmType === 'ENQUIRY') {
+      document.getElementById('enquiryAction').value = 'confirm';
+      document.getElementById('enquiryMsgForm').submit();
+    } else if (pendingConfirmType === 'VISIT') {
+      document.getElementById('visitAction').value = 'confirm';
+      document.getElementById('visitMsgForm').submit();
+    } else if (pendingConfirmType === 'ADMISSION') {
+      document.getElementById('admissionAction').value = 'confirm';
+      document.getElementById('admissionMsgForm').submit();
+    } else if (pendingConfirmType === 'PAYMENT_DUE') {
+      document.getElementById('paymentAction').value = 'confirm';
+      document.getElementById('paymentMsgForm').submit();
+    }
+    {% else %}
     if (pendingConfirmType === 'BOOKING') {
       document.getElementById('bookingAction').value = 'confirm';
       document.getElementById('bookingMsgForm').submit();
@@ -639,15 +1053,27 @@
       document.getElementById('billingAction').value = 'confirm';
       document.getElementById('billingMsgForm').submit();
     }
+    {% endif %}
   });
 
   document.addEventListener('DOMContentLoaded', function () {
+    {% if is_academy %}
+    const eq = document.getElementById('enquiryCustomText');
+    const vi = document.getElementById('visitCustomText');
+    const ad = document.getElementById('admissionCustomText');
+    const py = document.getElementById('paymentCustomText');
+    if (eq) eq.addEventListener('input', updatePreviews);
+    if (vi) vi.addEventListener('input', updatePreviews);
+    if (ad) ad.addEventListener('input', updatePreviews);
+    if (py) py.addEventListener('input', updatePreviews);
+    {% else %}
     const bText = document.getElementById('bookingCustomText');
     const fText = document.getElementById('followupCustomText');
     const billText = document.getElementById('billingCustomText');
     if (bText) bText.addEventListener('input', updatePreviews);
     if (fText) fText.addEventListener('input', updatePreviews);
     if (billText) billText.addEventListener('input', updatePreviews);
+    {% endif %}
     updatePreviews();
   });
 </script>

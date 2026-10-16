@@ -1,10 +1,22 @@
 {% if messages %}
-  <div class="toast-container position-fixed top-0 end-0 p-3">
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
     {% for message in messages %}
-    <div class="toast align-items-center text-bg-{{ message.tags|default:'dark' }} border-0 show" role="alert">
-      <div class="d-flex">
-        <div class="toast-body">{{ message }}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    <div class="toast align-items-center shadow-lg border-0 show mb-2" role="alert" aria-live="assertive" aria-atomic="true"
+         style="border-radius: 12px; background: {% if message.tags == 'error' or message.tags == 'danger' %}#fef2f2; border: 1px solid #fecaca !important; color: #991b1b;{% elif message.tags == 'success' %}#f0fdf4; border: 1px solid #bbf7d0 !important; color: #166534;{% elif message.tags == 'warning' %}#fffbeb; border: 1px solid #fef3c7 !important; color: #92400e;{% else %}#eff6ff; border: 1px solid #bfdbfe !important; color: #1e40af;{% endif %}">
+      <div class="d-flex align-items-center p-2">
+        <div class="me-2 ms-2 fs-5">
+          {% if message.tags == 'error' or message.tags == 'danger' %}
+            <i class="fa-solid fa-circle-exclamation text-danger"></i>
+          {% elif message.tags == 'success' %}
+            <i class="fa-solid fa-circle-check text-success"></i>
+          {% elif message.tags == 'warning' %}
+            <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+          {% else %}
+            <i class="fa-solid fa-circle-info text-primary"></i>
+          {% endif %}
+        </div>
+        <div class="toast-body fw-semibold" style="font-size: 0.88rem;">{{ message }}</div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
     {% endfor %}

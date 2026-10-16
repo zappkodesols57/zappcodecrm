@@ -4,6 +4,17 @@ from .models import DailyReport
 
 class AcademyDailyReportForm(forms.ModelForm):
     """Clean custom EOD form for Zappcode Academy (Counsellor & HR roles)."""
+    # Dynamic fields stored in custom_data
+    todays_total_leads = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    walk_ins = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    follow_ups_pending = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    visit_done = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    visit_pending = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    admission_pending = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    payment_pending = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    overdues = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    upcoming = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+
     class Meta:
         model = DailyReport
         fields = [
@@ -16,12 +27,12 @@ class AcademyDailyReportForm(forms.ModelForm):
             "mood",
         ]
         widgets = {
-            "leads_assigned":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "Enter assigned leads"}),
-            "calls_attended":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "Enter today's calls"}),
-            "admissions_done":    forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "Enter admissions done"}),
-            "payments_done":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "Enter payments done"}),
-            "pending_leads":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "Enter pending leads"}),
-            "tomorrow_followups": forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "Enter tomorrow's follow-ups"}),
+            "leads_assigned":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
+            "calls_attended":     forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
+            "admissions_done":    forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
+            "payments_done":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
+            "pending_leads":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
+            "tomorrow_followups": forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
             "mood":               forms.Select(attrs={"class": "form-select"}),
         }
 
@@ -31,15 +42,26 @@ class AcademyDailyReportForm(forms.ModelForm):
             if name != "mood":
                 field.required = False
 
+        if self.instance and self.instance.pk and self.instance.custom_data:
+            cd = self.instance.custom_data or {}
+            for f in ["todays_total_leads", "walk_ins", "follow_ups_pending", "visit_done", "visit_pending", "admission_pending", "payment_pending", "overdues", "upcoming"]:
+                if f in cd:
+                    self.fields[f].initial = cd[f]
+
     def clean(self):
         cleaned_data = super().clean()
         int_fields = [
             "leads_assigned", "calls_attended", "admissions_done",
             "payments_done", "pending_leads", "tomorrow_followups",
+            "todays_total_leads", "walk_ins", "follow_ups_pending",
+            "visit_done", "visit_pending", "admission_pending",
+            "payment_pending", "overdues", "upcoming",
         ]
         for field in int_fields:
             val = cleaned_data.get(field)
             if val is not None and val < 0:
+                cleaned_data[field] = 0
+            elif val is None and field in self.fields:
                 cleaned_data[field] = 0
         return cleaned_data
 

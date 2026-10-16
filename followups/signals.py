@@ -39,18 +39,31 @@ def _followup_activity(sender, instance, created, **kwargs):
         "next_followup_time": lead.next_followup_time,
         "followup_count": lead.followup_count,
     }
-    from leads.models import LeadTemperature, LeadStage
+    from leads.models import LeadTemperature, LeadStage, DealStatus
     # Dynamically update temperature based on positive/negative remarks
     new_temp = (lead.custom_temperature or "").upper()
     if new_temp in LeadTemperature.values:
         lead.temperature = new_temp
         update_kwargs["temperature"] = new_temp
 
-    if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-        fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
-        if fu_stage:
-            lead.stage = fu_stage
-            update_kwargs["stage"] = fu_stage
+    # Industry-specific follow-up stage progression
+    if lead.is_academy_industry:
+        if instance.followup_status == 'COMPLETED':
+            fu_done_stage = LeadStage.objects.filter(name__iexact='Follow Up Completed', is_active=True).first()
+            if fu_done_stage:
+                lead.stage = fu_done_stage
+                update_kwargs["stage"] = fu_done_stage
+        elif not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned']:
+            fu_stage = LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first() or LeadStage.objects.filter(name__iexact='Follow-up', is_active=True).first()
+            if fu_stage:
+                lead.stage = fu_stage
+                update_kwargs["stage"] = fu_stage
+    elif lead.is_hospital_industry:
+        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+            fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Follow-up').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+            if fu_stage:
+                lead.stage = fu_stage
+                update_kwargs["stage"] = fu_stage
 
     Lead = lead.__class__
     Lead.objects.filter(pk=lead.pk).update(**update_kwargs)
@@ -59,7 +72,21 @@ def _followup_activity(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Note)
 def _note_activity(sender, instance, created, **kwargs):
     if created:
+        lead = instance.lead
         Activity.objects.create(
-            lead=instance.lead, activity_type=ActivityType.NOTE,
+            lead=lead, activity_type=ActivityType.NOTE,
             description=instance.note, created_by=instance.created_by,
         )
+        # Academy specific: Counselor remark added updates deal_status to CONTACTED and recalculates temperature
+        if lead and lead.is_academy_industry:
+            from leads.models import LeadTemperature, DealStatus
+            update_fields = {}
+            if lead.deal_status in [DealStatus.OPEN, "", None]:
+                lead.deal_status = DealStatus.CONTACTED
+                update_fields["deal_status"] = DealStatus.CONTACTED
+            new_temp = (lead.custom_temperature or "").upper()
+            if new_temp in LeadTemperature.values:
+                lead.temperature = new_temp
+                update_fields["temperature"] = new_temp
+            if update_fields:
+                lead.__class__.objects.filter(pk=lead.pk).update(**update_fields)

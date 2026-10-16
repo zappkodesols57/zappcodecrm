@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Edit Course - {{ course.name }}{% endblock %}
+{% block content %}
+
+<div class="container-fluid px-0 px-md-2 py-3">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+      <!-- Edit Course Card -->
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" style="border: 1px solid #e2e8f0 !important;">
+        <!-- Header -->
+        <div class="card-header bg-white border-bottom p-4">
+          <div class="d-flex align-items-center gap-3">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-0.5 rounded-pill fw-semibold" style="font-size: 0.7rem;">
+                  Academy Master
+                </span>
+                {% if course.business %}
+                  <span class="badge bg-light text-secondary border px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">
+                    {{ course.business.name }}
+                  </span>
+                {% endif %}
+              </div>
+              <h5 class="fw-bold text-dark mb-0 mt-1">Edit Course Details</h5>
+              <p class="text-muted small mb-0">Update course pricing, discount limit and description</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Body -->
+        <div class="card-body p-4">
+          <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="row g-3">
+              <!-- Course Name -->
+              <div class="col-12">
+                <label class="form-label small fw-semibold text-dark mb-1">
+                  Course Name <span class="text-danger">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                {% endif %}
+              </div>
+
+              <!-- Base Price -->
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-dark mb-1">
+                  Base Price (₹) <span class="text-danger">*</span>
+                </label>
+                {{ form.base_price }}
+                {% if form.base_price.errors %}
+                  <div class="text-danger small mt-1">{{ form.base_price.errors.0 }}</div>
+                {% endif %}
+              </div>
+
+              <!-- Max Discount -->
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-dark mb-1">
+                  Max Discount (₹)
+                </label>
+                {{ form.max_discount }}
+                {% if form.max_discount.errors %}
+                  <div class="text-danger small mt-1">{{ form.max_discount.errors.0 }}</div>
+                {% endif %}
+              </div>
+
+              <!-- Description -->
+              <div class="col-12">
+                <label class="form-label small fw-semibold text-dark mb-1">
+                  Description / Syllabus Outline
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                  <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
+                {% endif %}
+              </div>
+
+              <!-- Active Status Switch -->
+              <div class="col-12 pt-2">
+                <div class="form-check form-switch p-0 d-flex align-items-center gap-2">
+                  {{ form.is_active }}
+                  <label class="form-check-label small fw-semibold text-dark mb-0" for="{{ form.is_active.id_for_label }}">
+                    Active Course (Available in Lead Forms & Batches)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex align-items-center justify-content-end gap-2 pt-4 mt-3 border-top">
+              <a href="{% url 'leads:course_master' %}" class="btn btn-light rounded-pill px-4 fw-semibold text-secondary">
+                Cancel
+              </a>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm d-flex align-items-center gap-2">
+                <i class="fa-solid fa-check"></i> Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.form-control:focus, .form-select:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+}
+.form-check-input:checked {
+  background-color: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+}
+</style>
+{% endblock %}

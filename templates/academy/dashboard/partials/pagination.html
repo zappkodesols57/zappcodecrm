@@ -1,0 +1,54 @@
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 px-3 border-top bg-white">
+  <div class="text-muted small">
+    Showing <span class="fw-semibold text-dark">{{ page_obj.start_index }}</span> to <span class="fw-semibold text-dark">{{ page_obj.end_index }}</span> of <span class="fw-semibold text-dark">{{ total_count|default:page_obj.paginator.count }}</span> records (20 per page)
+  </div>
+  <nav aria-label="Table Pagination">
+    <ul class="pagination pagination-sm mb-0 gap-1 align-items-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link rounded px-2 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page=1" title="First Page">
+            <i class="fa-solid fa-angles-left"></i>
+          </a>
+        </li>
+        <li class="page-item">
+          <a class="page-link rounded px-2.5 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page={{ page_obj.previous_page_number }}">
+            <i class="fa-solid fa-angle-left me-1"></i> Prev
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled">
+          <span class="page-link rounded px-2.5 py-1 text-muted border opacity-50">
+            <i class="fa-solid fa-angle-left me-1"></i> Prev
+          </span>
+        </li>
+      {% endif %}
+
+      <li class="page-item active">
+        <span class="page-link rounded px-3 py-1 fw-bold" style="background: #052042; border-color: #052042; color: #fff;">
+          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link rounded px-2.5 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page={{ page_obj.next_page_number }}">
+            Next <i class="fa-solid fa-angle-right ms-1"></i>
+          </a>
+        </li>
+        <li class="page-item">
+          <a class="page-link rounded px-2 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page={{ page_obj.paginator.num_pages }}" title="Last Page">
+            <i class="fa-solid fa-angles-right"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled">
+          <span class="page-link rounded px-2.5 py-1 text-muted border opacity-50">
+            Next <i class="fa-solid fa-angle-right ms-1"></i>
+          </span>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endif %}

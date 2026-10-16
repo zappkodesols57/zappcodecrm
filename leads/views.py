@@ -17,13 +17,13 @@ from followups.models import FollowUp, Note, Activity, ActivityType, FollowUpMod
 from admissions.models import Admission
 from accounts.models import User, Hospital
 from .models import (
-    Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, 
+    Lead, SourceCategory, LeadSource, Campaign, Course, Trainer, Batch, LeadStage, Tag, 
     MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
     HospitalDisease, DoctorBranchAvailability, DealStatus, LeadTemperature,
     AdmissionStatus, Appointment, AppointmentStatus,
 )
 from .forms import (
-    LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, LeadStageForm,
+    LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, TrainerForm, BatchForm, LeadStageForm,
 )
 
 
@@ -323,8 +323,8 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
     selected_courses = request.GET.getlist("course")
     selected_departments = request.GET.getlist("department")
     selected_doctors = request.GET.getlist("doctor")
-    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("telecaller")
-    selected_deal_statuses = request.GET.getlist("deal_status")
+    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("counselor") or request.GET.getlist("telecaller")
+    selected_deal_statuses = request.GET.getlist("deal_status") or request.GET.getlist("status")
     selected_admission_statuses = request.GET.getlist("admission_status")
     selected_appointment_statuses = request.GET.getlist("appointment_status")
     selected_priorities = request.GET.getlist("priority")
@@ -375,6 +375,19 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
                 else:
                     crs_q |= Q(course__name__iexact=crs_val) | Q(custom_data__course__icontains=crs_val)
         leads = leads.filter(crs_q)
+
+    # 2c. Trainer filter (Academy)
+    selected_trainers = request.GET.getlist("trainer")
+    if selected_trainers:
+        trn_q = Q()
+        for trn_val in selected_trainers:
+            if trn_val:
+                trn_q |= (
+                    Q(course__trainer__name__iexact=trn_val)
+                    | Q(course__tutor__iexact=trn_val)
+                    | Q(custom_data__trainer__iexact=trn_val)
+                )
+        leads = leads.filter(trn_q)
 
     # 3. Department filter
     if selected_departments:
@@ -694,8 +707,8 @@ def lead_list(request):
     selected_courses = request.GET.getlist("course")
     selected_departments = request.GET.getlist("department")
     selected_doctors = request.GET.getlist("doctor")
-    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("telecaller")
-    selected_deal_statuses = request.GET.getlist("deal_status")
+    selected_assigned = request.GET.getlist("assigned_to") or request.GET.getlist("counselor") or request.GET.getlist("telecaller")
+    selected_deal_statuses = request.GET.getlist("deal_status") or request.GET.getlist("status")
     selected_admission_statuses = request.GET.getlist("admission_status")
     selected_appointment_statuses = request.GET.getlist("appointment_status")
     selected_priorities = request.GET.getlist("priority")
@@ -714,9 +727,12 @@ def lead_list(request):
         from imports.models import ImportJob
         selected_import_job = ImportJob.objects.filter(pk=import_job_id).first()
 
+    selected_trainers = request.GET.getlist("trainer")
+
     # Calculate active filters count
     active_filters_count = (
-        len(selected_campaigns) + len(selected_sources) + len(selected_departments) +
+        len(selected_campaigns) + len(selected_sources) + len(selected_courses) +
+        len(selected_trainers) + len(selected_departments) +
         len(selected_doctors) + len(selected_assigned) + len(selected_deal_statuses) +
         len(selected_appointment_statuses) + len(selected_priorities) + len(selected_temperatures) +
         len(selected_locations) + len(selected_stages) +
@@ -834,13 +850,10 @@ def lead_list(request):
         if sess_biz_id and str(sess_biz_id).isdigit():
             target_hospital = Hospital.objects.filter(id=int(sess_biz_id)).first()
 
-    is_viewing_hospital = False
-    if request.user.hospital:
-        is_viewing_hospital = request.user.industry == 'HOSPITAL' or (getattr(request.user.hospital, 'settings', None) or {}).get("business_type") == "hospital"
-    elif target_hospital:
-        is_viewing_hospital = (getattr(target_hospital, 'settings', None) or {}).get("business_type") == "hospital" or "hospital" in target_hospital.name.lower() or "clinic" in target_hospital.name.lower() or "nelson" in target_hospital.name.lower()
-    else:
-        is_viewing_hospital = True
+    # Determine whether current view should show hospital or academy style layout
+    active_biz = target_hospital or request.user.hospital
+    biz_industry = getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', None)
+    is_viewing_hospital = (biz_industry == 'HOSPITAL')
 
     # Extract departments, doctors, and appointment statuses
     if is_viewing_hospital:
@@ -870,11 +883,28 @@ def lead_list(request):
 
         filter_appointment_statuses = ["Booked", "Booking Done", "Pending Confirmation", "Awaiting Approval from Doctor", "Visited / OPD Done", "Cancelled", "Not Interested", "Payment Done"]
     else:
-        courses_qs = Course.objects.filter(id__in=used_course_ids)
+        courses_qs = Course.objects.filter(is_active=True)
+        if target_hospital:
+            courses_qs = courses_qs.filter(hospital=target_hospital)
         adm_status_choices = AdmissionStatus.choices
         filter_departments = []
         filter_doctors = []
         filter_appointment_statuses = []
+
+    # Trainers for Academy business
+    from leads.models import Trainer
+    academy_trainers = []
+    if not is_viewing_hospital:
+        trainers_qs = Trainer.objects.filter(is_active=True)
+        if target_hospital:
+            trainers_qs = trainers_qs.filter(hospital=target_hospital)
+        for tr in trainers_qs.order_by("name"):
+            if tr.name.strip() and tr.name.strip() not in academy_trainers:
+                academy_trainers.append(tr.name.strip())
+        course_tutors = courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct()
+        for t in course_tutors:
+            if t and t.strip() and t.strip() not in academy_trainers:
+                academy_trainers.append(t.strip())
 
     filter_priorities = ["Hot", "Warm", "Cold", "Freeze"]
 
@@ -998,6 +1028,8 @@ def lead_list(request):
         "active_filters_count": active_filters_count,
         "request_get": request.GET,
         "employees": employees_qs,
+        "trainers": academy_trainers,
+        "counselors": employees_qs.filter(role=User.Role.COUNSELLOR) if not is_viewing_hospital else employees_qs,
         "hospital_campaigns": hospital_campaigns_qs,
         "hospital_sources": hospital_sources_qs,
         "hospital_statuses": hospital_statuses_qs,
@@ -1300,12 +1332,9 @@ def team_history(request):
     # Hospital businesses use LEAD_ATTENDENT & DOCTOR; academies use COUNSELLOR, HR, MANAGER
     is_hospital_business = False
     if hospital:
-        btype = (hospital.settings or {}).get("business_type", "")
-        if not btype:
-            name_lower = (hospital.name or "").lower()
-            if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
-                btype = "hospital"
-        is_hospital_business = str(btype).strip().lower() == "hospital"
+        is_hospital_business = (getattr(hospital, "industry", None) == Hospital.Industry.HOSPITAL)
+    elif getattr(request.user, "industry", None) == "HOSPITAL":
+        is_hospital_business = True
 
     if is_hospital_business:
         team_roles = [User.Role.LEAD_ATTENDENT, User.Role.DOCTOR, User.Role.MANAGER, User.Role.ADMIN]
@@ -2034,6 +2063,7 @@ def team_history(request):
         "today_str": today.strftime("%Y-%m-%d"),
         "is_global_admin": is_global_admin,
         "available_businesses": available_businesses,
+        "current_business": hospital,
         "current_hospital": hospital,
         "is_hospital_business": is_hospital_business,
     }
@@ -2163,12 +2193,9 @@ def user_performance_analysis(request, user_id):
     hospital = target_user.hospital or request.user.hospital
     is_hospital_business = False
     if hospital:
-        btype = (hospital.settings or {}).get("business_type", "")
-        if not btype:
-            name_lower = (hospital.name or "").lower()
-            if "hospital" in name_lower or "clinic" in name_lower or "medical" in name_lower or "nelson" in name_lower:
-                btype = "hospital"
-        is_hospital_business = str(btype).strip().lower() == "hospital"
+        is_hospital_business = (getattr(hospital, "industry", None) == Hospital.Industry.HOSPITAL)
+    elif getattr(request.user, "industry", None) == "HOSPITAL":
+        is_hospital_business = True
 
     today = timezone.localdate()
 
@@ -2402,6 +2429,7 @@ def user_performance_analysis(request, user_id):
 
 @login_required
 def lead_add(request):
+    from django.utils import timezone
     if request.user.role == User.Role.DOCTOR or not request.user.can_add_leads:
         messages.error(request, "Doctors cannot create new leads.")
         return redirect("dashboard:doctor_home")
@@ -2457,23 +2485,121 @@ def lead_add(request):
             from leads.models import LeadStage, LeadSource, SourceCategory, Appointment, AppointmentStatus
             from notifications.models import Notification
             
-            # Process Zappcode conditional form fields
-            custom_fup = request.POST.get("custom_followup_date")
-            custom_adm = request.POST.get("custom_admission_date")
-            custom_reason = request.POST.get("custom_cancellation_reason")
-            
-            if custom_fup:
-                from datetime import datetime
-                try:
-                    lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
-                except ValueError:
-                    pass
-            
+            # Process Academy & Zappcode conditional form fields
             custom_dict = lead.custom_data or {}
-            if custom_adm:
-                custom_dict["admission_date"] = custom_adm
-            if custom_reason:
-                custom_dict["cancellation_reason"] = custom_reason
+            custom_fup = request.POST.get("custom_followup_date")
+            custom_fup_time = request.POST.get("custom_followup_time")
+            custom_fup_remark = request.POST.get("custom_followup_remark", "").strip()
+
+            visit_date = request.POST.get("custom_visit_date")
+            visit_slot = request.POST.get("custom_visit_slot", "").strip()
+            visit_remark = request.POST.get("custom_visit_remark", "").strip()
+
+            custom_adm = request.POST.get("custom_admission_date")
+            custom_doj = request.POST.get("custom_date_of_joining")
+            custom_adm_remark = request.POST.get("custom_admission_remark", "").strip()
+
+            custom_reason = request.POST.get("custom_cancellation_reason", "").strip()
+
+            # Course fee & billing fields (Admission & Payment)
+            total_fee_val = request.POST.get("billing_total_fee")
+            discount_val = request.POST.get("billing_discount")
+            final_fee_val = request.POST.get("billing_final_fee")
+            token_val = float(request.POST.get("billing_token_amount") or 0)
+            balance_val = float(request.POST.get("billing_balance_amount") or 0)
+            payment_option = request.POST.get("billing_payment_option", "ONE_TIME_UPI")
+            emi_months = int(request.POST.get("billing_emi_months") or 0)
+            monthly_emi = float(request.POST.get("billing_monthly_emi") or 0)
+            selected_tutor = request.POST.get("selected_tutor", "").strip()
+            selected_batch = request.POST.get("selected_batch", "").strip()
+            selected_batch_timing = request.POST.get("selected_batch_timing", "").strip()
+
+            stage_name = (lead.stage.name if lead.stage_id and lead.stage else "").strip().lower()
+
+            if lead.is_academy_industry:
+                from leads.models import LeadTemperature, DealStatus
+                from followups.models import FollowUp, FollowUpStatus, FollowUpMode, Activity, ActivityType
+                from datetime import datetime
+
+                # 1. Cancelled / Lost
+                if stage_name in ("cancelled", "lost") or custom_reason:
+                    lead.deal_status = DealStatus.LOST
+                    lead.temperature = LeadTemperature.FREEZE
+                    if custom_reason:
+                        custom_dict["cancellation_reason"] = custom_reason
+
+                # 2. Admission & Payment (Create Admission record & Schedule EMIs if applicable)
+                elif stage_name in ("admission & payment", "admission done", "payment done"):
+                    lead.deal_status = DealStatus.WON
+                    lead.temperature = LeadTemperature.HOT
+                    lead.admission_status = AdmissionStatus.WON
+                    if custom_adm:
+                        custom_dict["admission_date"] = custom_adm
+                    if custom_doj:
+                        custom_dict["date_of_joining"] = custom_doj
+                    if selected_tutor:
+                        custom_dict["tutor"] = selected_tutor
+                    if selected_batch:
+                        custom_dict["batch"] = selected_batch
+                    if final_fee_val:
+                        custom_dict["total"] = final_fee_val
+                        custom_dict["token_amount"] = token_val
+                        custom_dict["balance_amount"] = balance_val
+                        custom_dict["total_paid"] = final_fee_val if payment_option != "EMI" else token_val
+                        custom_dict["payment_option"] = payment_option
+                    if selected_batch_timing:
+                        custom_dict["batch_time"] = selected_batch_timing
+
+                # 3. Visit Planned
+                elif stage_name in ("visit planned",):
+                    lead.deal_status = DealStatus.INTERESTED
+                    if lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                        lead.temperature = LeadTemperature.WARM
+                    if visit_date:
+                        try:
+                            lead.next_followup_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
+                            custom_dict["visit_date"] = visit_date
+                            custom_dict["visit_slot"] = visit_slot
+                        except ValueError:
+                            pass
+
+                # 4. Visited (Visit completed)
+                elif stage_name in ("visited",):
+                    lead.deal_status = DealStatus.INTERESTED
+                    if lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                        lead.temperature = LeadTemperature.WARM
+
+                # 5. Admission Planned / Admission Pending
+                elif stage_name in ("admission planned", "admission pending"):
+                    lead.deal_status = DealStatus.INTERESTED
+                    if lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                        lead.temperature = LeadTemperature.WARM
+                    if custom_adm:
+                        try:
+                            lead.next_followup_date = datetime.strptime(custom_adm, "%Y-%m-%d").date()
+                            custom_dict["admission_date"] = custom_adm
+                        except ValueError:
+                            pass
+
+                # 6. Follow up / Follow up completed
+                elif "follow" in stage_name:
+                    lead.deal_status = DealStatus.OPEN
+                    if custom_fup:
+                        try:
+                            lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                        except ValueError:
+                            pass
+            else:
+                if custom_fup:
+                    from datetime import datetime
+                    try:
+                        lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+                if custom_adm:
+                    custom_dict["admission_date"] = custom_adm
+                if custom_reason:
+                    custom_dict["cancellation_reason"] = custom_reason
             
             # Hospital branch transfer support
             is_branch_transfer = request.POST.get("is_branch_transfer") == "1"
@@ -2484,7 +2610,6 @@ def lead_add(request):
                 custom_dict["branch"] = transfer_target_branch
                 if transfer_reason:
                     custom_dict["transfer_reason"] = transfer_reason
-                # Unassign from current telecaller so it becomes a fresh lead for the target branch
                 lead.assigned_to = None
                 new_stg = LeadStage.objects.filter(name__iexact="New").first() or LeadStage.objects.order_by("order", "id").first()
                 if new_stg:
@@ -2507,45 +2632,202 @@ def lead_add(request):
 
             lead.save()
             form.save_m2m()
+
+            # Post-save automations for Academy leads
+            if lead.is_academy_industry:
+                from followups.models import FollowUp, FollowUpStatus, FollowUpMode, Activity, ActivityType
+                from datetime import datetime
+                today = timezone.localdate()
+
+                # Schedule Follow-up if Follow up stage selected
+                if "follow" in stage_name and custom_fup:
+                    try:
+                        p_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                        p_time = datetime.strptime(custom_fup_time, "%H:%M").time() if custom_fup_time else None
+                        FollowUp.objects.create(
+                            lead=lead,
+                            followup_date=p_date,
+                            followup_time=p_time,
+                            followup_mode=FollowUpMode.CALL,
+                            followup_status=FollowUpStatus.PENDING,
+                            comment=custom_fup_remark or "Follow-up scheduled from lead form.",
+                            next_followup_date=p_date,
+                            next_followup_time=p_time,
+                            created_by=request.user,
+                        )
+                    except Exception:
+                        pass
+
+                # Schedule Visit Slot if Visit Planned stage selected
+                elif stage_name in ("visit planned",) and visit_date:
+                    try:
+                        p_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
+                        FollowUp.objects.create(
+                            lead=lead,
+                            followup_date=p_date,
+                            followup_mode=FollowUpMode.VISIT,
+                            followup_status=FollowUpStatus.PENDING,
+                            comment=f"Visit Planned [Slot: {visit_slot or 'Not specified'}]: {visit_remark}".strip(),
+                            next_followup_date=p_date,
+                            created_by=request.user,
+                        )
+                    except Exception:
+                        pass
+
+                # Schedule Admission Follow-up if Admission Pending stage selected
+                elif stage_name in ("admission pending",) and custom_adm:
+                    try:
+                        p_date = datetime.strptime(custom_adm, "%Y-%m-%d").date()
+                        FollowUp.objects.create(
+                            lead=lead,
+                            followup_date=p_date,
+                            followup_mode=FollowUpMode.CALL,
+                            followup_status=FollowUpStatus.PENDING,
+                            comment=f"Admission Follow-up: {custom_adm_remark}".strip(),
+                            next_followup_date=p_date,
+                            created_by=request.user,
+                        )
+                    except Exception:
+                        pass
+
+                # Visit completed notification to user & admin
+                elif stage_name in ("visited",):
+                    from notifications.models import Notification
+                    notif_users = set(User.objects.filter(
+                        Q(is_superuser=True) |
+                        Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]),
+                        is_active=True
+                    ))
+                    if lead.assigned_to:
+                        notif_users.add(lead.assigned_to)
+                    for u in notif_users:
+                        Notification.objects.create(
+                            user=u,
+                            title=f"🎓 Visit Completed: {lead.name}",
+                            message=f"Student {lead.name} has completed the academy visit. Recommended for admission enrollment!",
+                            link=f"/leads/{lead.pk}/",
+                        )
+
+                # Create Admission record & Installments if Admission & Payment
+                elif stage_name in ("admission & payment", "admission done", "payment done") and not hasattr(lead, "admission"):
+                    try:
+                        from admissions.models import Admission, Installment, PaymentPlan, PaymentOption
+                        from dateutil.relativedelta import relativedelta
+                        adm_date_obj = datetime.strptime(custom_adm, "%Y-%m-%d").date() if custom_adm else today
+                        doj_date_obj = datetime.strptime(custom_doj, "%Y-%m-%d").date() if custom_doj else adm_date_obj
+                        t_fee = float(total_fee_val or (lead.course.base_price if lead.course else 0))
+                        d_val = float(discount_val or 0)
+                        f_val = float(final_fee_val or (t_fee - d_val))
+                        p_plan = PaymentPlan.EMI if payment_option == "EMI" else PaymentPlan.FULL
+                        adm = Admission.objects.create(
+                            lead=lead,
+                            student_name=lead.name,
+                            course=lead.course,
+                            admission_date=adm_date_obj,
+                            total_fee=t_fee,
+                            discount=d_val,
+                            max_allowed_discount=float(lead.course.max_discount if lead.course else 0),
+                            payment_plan=p_plan,
+                            payment_option=payment_option,
+                            emi_months=emi_months if payment_option == "EMI" else 0,
+                            monthly_emi_amount=monthly_emi if payment_option == "EMI" else 0,
+                            date_of_joining=doj_date_obj,
+                            tutor=selected_tutor or (lead.course.tutor if lead.course else ""),
+                            batch=selected_batch or (lead.course.batch if lead.course else ""),
+                            assigned_counselor=lead.assigned_to,
+                        )
+                        # Schedule EMI Installments if EMI
+                        if payment_option == "EMI" and emi_months > 0 and monthly_emi > 0:
+                            for m in range(1, emi_months + 1):
+                                due_d = adm_date_obj + relativedelta(months=m)
+                                Installment.objects.create(
+                                    admission=adm,
+                                    amount=monthly_emi,
+                                    due_date=due_d,
+                                )
+                    except Exception as e:
+                        print("Error creating admission record in lead_create:", e)
             
             if is_branch_transfer and transfer_target_branch:
                 messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully created and transferred to branch '{transfer_target_branch}' as a New Lead! ✅")
             else:
                 messages.success(request, f"Lead #{lead.lead_code or lead.pk} ({lead.name}) saved successfully! ✅")
 
-            # 1. Send Notification to assigned Telecaller / Staff member
+            # 1. Send Notification to assigned Counselor / Telecaller / Staff member
             if lead.assigned_to and lead.assigned_to != request.user:
+                if lead.is_academy_industry:
+                    notif_title = "🎓 New Student Lead Assigned"
+                    notif_msg = f"Student lead '{lead.name}' ({lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}."
+                else:
+                    notif_title = "New Patient Lead Assigned"
+                    notif_msg = f"Patient lead '{lead.name}' ({lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}."
+
                 Notification.objects.create(
                     user=lead.assigned_to,
-                    title="New Lead Assigned",
-                    message=f"Patient lead '{lead.name}' ({lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}.",
+                    title=notif_title,
+                    message=notif_msg,
                     link=f"/leads/{lead.pk}/",
                 )
 
-            # 2. Notify Doctor if appointment was booked or doctor selected
+            # 2. Academy Visit Planned Notification
+            if lead.is_academy_industry and stage_name in ("visit planned",):
+                admin_qs = User.objects.filter(is_active=True).filter(
+                    Q(is_superuser=True) |
+                    Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+                )
+                if lead.hospital:
+                    admin_qs = admin_qs.filter(hospital=lead.hospital)
+                for adm in admin_qs.distinct():
+                    slot_str = f" [Slot: {visit_slot}]" if visit_slot else ""
+                    Notification.objects.create(
+                        user=adm,
+                        title=f"🏫 Visit Planned: {lead.name}",
+                        message=f"Student {lead.name} has scheduled a campus visit on {visit_date}{slot_str}.",
+                        link=f"/leads/{lead.pk}/",
+                    )
+
+            # 3. Academy Admission Done Notification
+            elif lead.is_academy_industry and stage_name in ("admission & payment", "admission done", "payment done"):
+                admin_qs = User.objects.filter(is_active=True).filter(
+                    Q(is_superuser=True) |
+                    Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+                )
+                if lead.hospital:
+                    admin_qs = admin_qs.filter(hospital=lead.hospital)
+                c_name = lead.course.name if lead.course else "Course"
+                for adm in admin_qs.distinct():
+                    Notification.objects.create(
+                        user=adm,
+                        title=f"🎉 Admission Done: {lead.name}",
+                        message=f"Admission completed for student {lead.name} in {c_name} by {request.user.get_full_name() or request.user.username}.",
+                        link=f"/leads/{lead.pk}/",
+                    )
+
+            # 4. Notify Doctor if hospital appointment was booked or doctor selected
             doc_name = (lead.custom_data or {}).get('doctor')
             apt = Appointment.objects.filter(lead=lead).order_by('-id').first()
-            if apt and apt.doctor_user and apt.doctor_user != request.user:
-                time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot pending'
-                Notification.objects.create(
-                    user=apt.doctor_user,
-                    title="New Appointment Scheduled",
-                    message=f"Patient {lead.name} appointment booked for {apt.appointment_date.strftime('%d %b %Y')} at {time_str}.",
-                    link="/dashboard/doctor/",
-                )
-            elif doc_name:
-                import re
-                clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name, flags=re.IGNORECASE).strip()
-                doc_user = User.objects.filter(role=User.Role.DOCTOR, hospital=request.user.hospital).filter(
-                    Q(first_name__icontains=clean_doc_name) | Q(last_name__icontains=clean_doc_name) | Q(username__icontains=clean_doc_name)
-                ).first()
-                if doc_user and doc_user != request.user:
+            if not lead.is_academy_industry:
+                if apt and apt.doctor_user and apt.doctor_user != request.user:
+                    time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot pending'
                     Notification.objects.create(
-                        user=doc_user,
-                        title="New Patient Lead Allocated",
-                        message=f"Patient {lead.name} ({lead.mobile}) has been registered under your consultation by {request.user.get_full_name() or request.user.username}.",
+                        user=apt.doctor_user,
+                        title="New Appointment Scheduled",
+                        message=f"Patient {lead.name} appointment booked for {apt.appointment_date.strftime('%d %b %Y')} at {time_str}.",
                         link="/dashboard/doctor/",
                     )
+                elif doc_name:
+                    import re
+                    clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name, flags=re.IGNORECASE).strip()
+                    doc_user = User.objects.filter(role=User.Role.DOCTOR, hospital=request.user.hospital).filter(
+                        Q(first_name__icontains=clean_doc_name) | Q(last_name__icontains=clean_doc_name) | Q(username__icontains=clean_doc_name)
+                    ).first()
+                    if doc_user and doc_user != request.user:
+                        Notification.objects.create(
+                            user=doc_user,
+                            title="New Patient Lead Allocated",
+                            message=f"Patient {lead.name} ({lead.mobile}) has been registered under your consultation by {request.user.get_full_name() or request.user.username}.",
+                            link="/dashboard/doctor/",
+                        )
 
             send_whatsapp = request.POST.get("send_whatsapp") == "1"
             if send_whatsapp and lead.mobile:
@@ -2574,9 +2856,67 @@ def lead_add(request):
         from django.utils import timezone
         form = FormClass(initial={"inquiry_date": timezone.localdate()}, user=request.user)
         
+    # Active business entity detection (tenant)
+    active_business = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
+
+    # Academy courses data, batches & trainers for dynamic pricing & batch allocation
+    courses_qs = Course.objects.filter(is_active=True, is_archived=False)
+    if active_business:
+        courses_qs = courses_qs.filter(hospital=active_business)
+    courses_json = json.dumps(list(courses_qs.values("id", "name", "base_price", "max_discount", "tutor", "batch", "batch_time")))
+
+    # Dedicated batches connected to courses and trainers
+    batches_qs = Batch.objects.filter(is_active=True).select_related("course", "trainer")
+    if active_business:
+        batches_qs = batches_qs.filter(hospital=active_business)
+    
+    batches_data = []
+    for b in batches_qs:
+        batches_data.append({
+            "id": b.id,
+            "name": b.name,
+            "course_id": b.course_id,
+            "trainer_name": b.trainer.name if b.trainer else "",
+            "timing": b.timing_display,
+            "start_time": b.start_time.strftime("%I:%M %p") if b.start_time else "",
+            "end_time": b.end_time.strftime("%I:%M %p") if b.end_time else "",
+            "start_date": b.start_date.strftime("%d %b %Y") if b.start_date else "",
+        })
+    batches_json = json.dumps(batches_data)
+
+    available_trainers = []
+    # Collect dedicated trainers from Trainer master
+    trainers_qs = Trainer.objects.filter(is_active=True)
+    if active_business:
+        trainers_qs = trainers_qs.filter(hospital=active_business)
+    for tr in trainers_qs.order_by("name"):
+        if tr.name.strip() and tr.name.strip() not in available_trainers:
+            available_trainers.append(tr.name.strip())
+
+    # Also collect legacy tutors from courses
+    existing_tutors = list(courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct())
+    for t in existing_tutors:
+        if t and t.strip() and t.strip() not in available_trainers:
+            available_trainers.append(t.strip())
+    # Also collect staff members who can train (Admin, Manager, Counsellor)
+    trainer_staff = User.objects.filter(
+        is_active=True,
+        role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.SUPER_ADMIN]
+    )
+    if active_business:
+        trainer_staff = trainer_staff.filter(hospital=active_business)
+    for u in trainer_staff.order_by("first_name", "username"):
+        uname = (u.get_full_name() or u.username).strip()
+        if uname and uname not in available_trainers:
+            available_trainers.append(uname)
+
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
         "available_branches": available_branches,
+        "courses_json": courses_json,
+        "batches_json": batches_json,
+        "available_batches": batches_qs,
+        "available_trainers": available_trainers,
         "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
         "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
         "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
@@ -2597,6 +2937,7 @@ def _get_lead_or_redirect(request, pk):
 
 @login_required
 def lead_edit(request, pk):
+    from django.utils import timezone
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
         if request.user.role == User.Role.DOCTOR:
@@ -2654,7 +2995,7 @@ def lead_edit(request, pk):
             has_call_remarks = bool(cd.get('calling_remarks') or cd.get('remarks') or cd.get('last_call_remark'))
             has_call_dates = bool(cd.get('last_calling_date') or cd.get('last_called_on'))
             has_call_interaction = has_call_remarks or has_call_dates
-            
+            is_won = False
             try:
                 is_won = saved_lead.deal_status == DealStatus.WON or saved_lead.admission_status == AdmissionStatus.WON or bool(cd.get('total') and float(cd.get('total') or 0) > 0)
                 if is_lead_hospital_type:
@@ -2734,17 +3075,120 @@ def lead_edit(request, pk):
             except Exception:
                 pass
                 
-            # Process Zappcode conditional form fields
+            # Process Academy & Zappcode conditional form fields
             custom_fup = request.POST.get("custom_followup_date")
+            custom_fup_time = request.POST.get("custom_followup_time")
+            custom_fup_remark = request.POST.get("custom_followup_remark", "").strip()
+
+            visit_date = request.POST.get("custom_visit_date")
+            visit_slot = request.POST.get("custom_visit_slot", "").strip()
+            visit_remark = request.POST.get("custom_visit_remark", "").strip()
+
             custom_adm = request.POST.get("custom_admission_date")
-            custom_reason = request.POST.get("custom_cancellation_reason")
-            
-            if custom_fup:
+            custom_doj = request.POST.get("custom_date_of_joining")
+            custom_adm_remark = request.POST.get("custom_admission_remark", "").strip()
+
+            custom_reason = request.POST.get("custom_cancellation_reason", "").strip()
+
+            # Course fee & billing fields (Admission & Payment)
+            total_fee_val = request.POST.get("billing_total_fee")
+            discount_val = request.POST.get("billing_discount")
+            final_fee_val = request.POST.get("billing_final_fee")
+            token_val = float(request.POST.get("billing_token_amount") or 0)
+            balance_val = float(request.POST.get("billing_balance_amount") or 0)
+            payment_option = request.POST.get("billing_payment_option", "ONE_TIME_UPI")
+            emi_months = int(request.POST.get("billing_emi_months") or 0)
+            monthly_emi = float(request.POST.get("billing_monthly_emi") or 0)
+            selected_tutor = request.POST.get("selected_tutor", "").strip()
+            selected_batch = request.POST.get("selected_batch", "").strip()
+            selected_batch_timing = request.POST.get("selected_batch_timing", "").strip()
+
+            stage_name = (saved_lead.stage.name if saved_lead.stage_id and saved_lead.stage else "").strip().lower()
+
+            if saved_lead.is_academy_industry:
+                from leads.models import LeadTemperature, DealStatus
+                from followups.models import FollowUp, FollowUpStatus, FollowUpMode, Activity, ActivityType
                 from datetime import datetime
-                try:
-                    saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
-                except ValueError:
-                    pass
+
+                # 1. Cancelled / Lost
+                if stage_name in ("cancelled", "lost") or custom_reason:
+                    saved_lead.deal_status = DealStatus.LOST
+                    saved_lead.temperature = LeadTemperature.FREEZE
+                    if custom_reason:
+                        cd["cancellation_reason"] = custom_reason
+
+                # 2. Admission & Payment
+                elif stage_name in ("admission & payment", "admission done", "payment done"):
+                    saved_lead.deal_status = DealStatus.WON
+                    saved_lead.temperature = LeadTemperature.HOT
+                    saved_lead.admission_status = AdmissionStatus.WON
+                    if custom_adm:
+                        cd["admission_date"] = custom_adm
+                    if custom_doj:
+                        cd["date_of_joining"] = custom_doj
+                    if selected_tutor:
+                        cd["tutor"] = selected_tutor
+                    if selected_batch:
+                        cd["batch"] = selected_batch
+                    if final_fee_val:
+                        cd["total"] = final_fee_val
+                        cd["token_amount"] = token_val
+                        cd["balance_amount"] = balance_val
+                        cd["total_paid"] = final_fee_val if payment_option != "EMI" else token_val
+                        cd["payment_option"] = payment_option
+                    if selected_batch_timing:
+                        cd["batch_time"] = selected_batch_timing
+
+                # 3. Visit Planned
+                elif stage_name in ("visit planned",):
+                    saved_lead.deal_status = DealStatus.INTERESTED
+                    if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                        saved_lead.temperature = LeadTemperature.WARM
+                    if visit_date:
+                        try:
+                            saved_lead.next_followup_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
+                            cd["visit_date"] = visit_date
+                            cd["visit_slot"] = visit_slot
+                        except ValueError:
+                            pass
+
+                # 4. Visited (Visit completed)
+                elif stage_name in ("visited",):
+                    saved_lead.deal_status = DealStatus.INTERESTED
+                    if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                        saved_lead.temperature = LeadTemperature.WARM
+
+                # 5. Admission Planned / Admission Pending
+                elif stage_name in ("admission planned", "admission pending"):
+                    saved_lead.deal_status = DealStatus.INTERESTED
+                    if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                        saved_lead.temperature = LeadTemperature.WARM
+                    if custom_adm:
+                        try:
+                            saved_lead.next_followup_date = datetime.strptime(custom_adm, "%Y-%m-%d").date()
+                            cd["admission_date"] = custom_adm
+                        except ValueError:
+                            pass
+
+                # 6. Follow up
+                elif "follow" in stage_name:
+                    saved_lead.deal_status = DealStatus.OPEN
+                    if custom_fup:
+                        try:
+                            saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                        except ValueError:
+                            pass
+            else:
+                if custom_fup:
+                    from datetime import datetime
+                    try:
+                        saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+                if custom_adm:
+                    cd["admission_date"] = custom_adm
+                if custom_reason:
+                    cd["cancellation_reason"] = custom_reason
             
             # Hospital branch transfer support
             is_branch_transfer = request.POST.get("is_branch_transfer") == "1"
@@ -2761,19 +3205,175 @@ def lead_edit(request, pk):
                 if new_stg:
                     saved_lead.stage = new_stg
 
-            prev_assigned = lead.assigned_to
             saved_lead.save()
             if hasattr(form, 'save_m2m'):
                 form.save_m2m()
 
-            # 1. Send notification to newly assigned Telecaller if assigned_to changed
+            # Post-save automations for Academy leads in lead_edit
+            if saved_lead.is_academy_industry:
+                from followups.models import FollowUp, FollowUpStatus, FollowUpMode, Activity, ActivityType
+                from datetime import datetime
+                today = timezone.localdate()
+
+                # Schedule Follow-up if Follow up stage selected
+                if "follow" in stage_name and custom_fup:
+                    try:
+                        p_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+                        p_time = datetime.strptime(custom_fup_time, "%H:%M").time() if custom_fup_time else None
+                        FollowUp.objects.create(
+                            lead=saved_lead,
+                            followup_date=p_date,
+                            followup_time=p_time,
+                            followup_mode=FollowUpMode.CALL,
+                            followup_status=FollowUpStatus.PENDING,
+                            comment=custom_fup_remark or "Follow-up scheduled from lead form.",
+                            next_followup_date=p_date,
+                            next_followup_time=p_time,
+                            created_by=request.user,
+                        )
+                    except Exception:
+                        pass
+
+                # Schedule Visit Slot if Visit Planned stage selected
+                elif stage_name in ("visit planned",) and visit_date:
+                    try:
+                        p_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
+                        FollowUp.objects.create(
+                            lead=saved_lead,
+                            followup_date=p_date,
+                            followup_mode=FollowUpMode.VISIT,
+                            followup_status=FollowUpStatus.PENDING,
+                            comment=f"Visit Planned [Slot: {visit_slot or 'Not specified'}]: {visit_remark}".strip(),
+                            next_followup_date=p_date,
+                            created_by=request.user,
+                        )
+                    except Exception:
+                        pass
+
+                    # Academy Visit Planned notification to managers/admins
+                    admin_qs = User.objects.filter(is_active=True).filter(
+                        Q(is_superuser=True) |
+                        Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+                    )
+                    if saved_lead.hospital:
+                        admin_qs = admin_qs.filter(hospital=saved_lead.hospital)
+                    slot_str = f" [Slot: {visit_slot}]" if visit_slot else ""
+                    for adm in admin_qs.distinct():
+                        Notification.objects.create(
+                            user=adm,
+                            title=f"🏫 Visit Planned: {saved_lead.name}",
+                            message=f"Student {saved_lead.name} has scheduled a campus visit on {visit_date}{slot_str}.",
+                            link=f"/leads/{saved_lead.pk}/",
+                        )
+
+                # Schedule Admission Follow-up if Admission Pending stage selected
+                elif stage_name in ("admission pending",) and custom_adm:
+                    try:
+                        p_date = datetime.strptime(custom_adm, "%Y-%m-%d").date()
+                        FollowUp.objects.create(
+                            lead=saved_lead,
+                            followup_date=p_date,
+                            followup_mode=FollowUpMode.CALL,
+                            followup_status=FollowUpStatus.PENDING,
+                            comment=f"Admission Follow-up: {custom_adm_remark}".strip(),
+                            next_followup_date=p_date,
+                            created_by=request.user,
+                        )
+                    except Exception:
+                        pass
+
+                # Visit completed notification to user & admin
+                elif stage_name in ("visited",):
+                    from notifications.models import Notification
+                    notif_users = set(User.objects.filter(
+                        Q(is_superuser=True) |
+                        Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]),
+                        is_active=True
+                    ))
+                    if saved_lead.assigned_to:
+                        notif_users.add(saved_lead.assigned_to)
+                    for u in notif_users:
+                        Notification.objects.create(
+                            user=u,
+                            title=f"🎓 Visit Completed: {saved_lead.name}",
+                            message=f"Student {saved_lead.name} has completed the academy visit. Recommended for admission enrollment!",
+                            link=f"/leads/{saved_lead.pk}/",
+                        )
+
+                # Create or update Admission record & Installments if Admission & Payment
+                elif stage_name in ("admission & payment", "admission done", "payment done"):
+                    try:
+                        from admissions.models import Admission, Installment, PaymentPlan, PaymentOption
+                        from dateutil.relativedelta import relativedelta
+                        adm_date_obj = datetime.strptime(custom_adm, "%Y-%m-%d").date() if custom_adm else today
+                        doj_date_obj = datetime.strptime(custom_doj, "%Y-%m-%d").date() if custom_doj else adm_date_obj
+                        t_fee = float(total_fee_val or (saved_lead.course.base_price if saved_lead.course else 0))
+                        d_val = float(discount_val or 0)
+                        f_val = float(final_fee_val or (t_fee - d_val))
+                        p_plan = PaymentPlan.EMI if payment_option == "EMI" else PaymentPlan.FULL
+                        
+                        adm = getattr(saved_lead, "admission", None)
+                        if not adm:
+                            adm = Admission.objects.create(
+                                lead=saved_lead,
+                                student_name=saved_lead.name,
+                                course=saved_lead.course,
+                                admission_date=adm_date_obj,
+                                total_fee=t_fee,
+                                discount=d_val,
+                                max_allowed_discount=float(saved_lead.course.max_discount if saved_lead.course else 0),
+                                payment_plan=p_plan,
+                                payment_option=payment_option,
+                                emi_months=emi_months if payment_option == "EMI" else 0,
+                                monthly_emi_amount=monthly_emi if payment_option == "EMI" else 0,
+                                date_of_joining=doj_date_obj,
+                                tutor=selected_tutor or (saved_lead.course.tutor if saved_lead.course else ""),
+                                batch=selected_batch or (saved_lead.course.batch if saved_lead.course else ""),
+                                assigned_counselor=saved_lead.assigned_to,
+                            )
+                        else:
+                            adm.course = saved_lead.course
+                            adm.admission_date = adm_date_obj
+                            adm.date_of_joining = doj_date_obj
+                            adm.total_fee = t_fee
+                            adm.discount = d_val
+                            adm.payment_plan = p_plan
+                            adm.payment_option = payment_option
+                            adm.emi_months = emi_months if payment_option == "EMI" else 0
+                            adm.monthly_emi_amount = monthly_emi if payment_option == "EMI" else 0
+                            if selected_tutor:
+                                adm.tutor = selected_tutor
+                            if selected_batch:
+                                adm.batch = selected_batch
+                            adm.save()
+
+                        # Schedule EMI Installments if EMI
+                        if payment_option == "EMI" and emi_months > 0 and monthly_emi > 0 and not adm.installments.exists():
+                            for m in range(1, emi_months + 1):
+                                due_d = adm_date_obj + relativedelta(months=m)
+                                Installment.objects.create(
+                                    admission=adm,
+                                    amount=monthly_emi,
+                                    due_date=due_d,
+                                )
+                    except Exception as e:
+                        print("Error saving admission in lead_edit:", e)
+
+            # 1. Send notification to newly assigned Counselor / Telecaller if assigned_to changed
             from notifications.models import Notification
             from leads.models import Appointment
             if saved_lead.assigned_to and saved_lead.assigned_to != request.user and saved_lead.assigned_to != prev_assigned:
+                if saved_lead.is_academy_industry:
+                    notif_title = "🎓 Student Lead Assigned to You"
+                    notif_msg = f"Student lead '{saved_lead.name}' ({saved_lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}."
+                else:
+                    notif_title = "Patient Lead Assigned to You"
+                    notif_msg = f"Patient lead '{saved_lead.name}' ({saved_lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}."
+
                 Notification.objects.create(
                     user=saved_lead.assigned_to,
-                    title="Lead Assigned to You",
-                    message=f"Lead '{saved_lead.name}' ({saved_lead.mobile}) has been assigned to you by {request.user.get_full_name() or request.user.username}.",
+                    title=notif_title,
+                    message=notif_msg,
                     link=f"/leads/{saved_lead.pk}/",
                 )
 
@@ -2925,18 +3525,26 @@ def lead_edit(request, pk):
                 from notifications.models import Notification
                 admin_qs = User.objects.filter(is_active=True).filter(
                     Q(is_superuser=True) |
-                    Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN])
+                    Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
                 )
                 if saved_lead.hospital:
-                    admin_qs = admin_qs.filter(Q(hospital=saved_lead.hospital) | Q(hospital__isnull=True))
+                    admin_qs = admin_qs.filter(hospital=saved_lead.hospital)
                 for adm in admin_qs.distinct():
                     # Only notify if not already notified
                     tot_amount = cd.get('total') or cd.get('total_paid') or ''
                     tot_str = f" (₹{tot_amount})" if tot_amount else ""
+                    if saved_lead.is_academy_industry:
+                        notif_title = f"🎉 Admission Done: {saved_lead.name}"
+                        c_name = saved_lead.course.name if saved_lead.course else "Course"
+                        notif_msg = f"Admission completed{tot_str} for student {saved_lead.name} ({c_name}) by {request.user.get_full_name() or request.user.username}."
+                    else:
+                        notif_title = f"💰 Payment Completed: {saved_lead.name}"
+                        notif_msg = f"Payment{tot_str} has been successfully completed for patient {saved_lead.name} by {request.user.get_full_name() or request.user.username}."
+
                     Notification.objects.create(
                         user=adm,
-                        title=f"💰 Payment Completed: {saved_lead.name}",
-                        message=f"Payment{tot_str} has been successfully completed for patient {saved_lead.name} by {request.user.get_full_name() or request.user.username}.",
+                        title=notif_title,
+                        message=notif_msg,
                         link=f"/leads/{saved_lead.pk}/",
                     )
 
@@ -3044,6 +3652,55 @@ def lead_edit(request, pk):
     custom_followup_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="FOLLOWUP", is_confirmed=True).first()
     custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
 
+    # Academy courses data, batches & trainers for dynamic pricing & batch allocation
+    target_biz = lead.hospital or request.user.hospital
+    courses_qs = Course.objects.filter(is_active=True, is_archived=False)
+    if target_biz:
+        courses_qs = courses_qs.filter(hospital=target_biz)
+    courses_json = json.dumps(list(courses_qs.values("id", "name", "base_price", "max_discount", "tutor", "batch", "batch_time")))
+
+    # Dedicated batches connected to courses and trainers
+    batches_qs = Batch.objects.filter(is_active=True).select_related("course", "trainer")
+    if target_biz:
+        batches_qs = batches_qs.filter(hospital=target_biz)
+    
+    batches_data = []
+    for b in batches_qs:
+        batches_data.append({
+            "id": b.id,
+            "name": b.name,
+            "course_id": b.course_id,
+            "trainer_name": b.trainer.name if b.trainer else "",
+            "timing": b.timing_display,
+            "start_time": b.start_time.strftime("%I:%M %p") if b.start_time else "",
+            "end_time": b.end_time.strftime("%I:%M %p") if b.end_time else "",
+            "start_date": b.start_date.strftime("%d %b %Y") if b.start_date else "",
+        })
+    batches_json = json.dumps(batches_data)
+
+    available_trainers = []
+    trainers_qs = Trainer.objects.filter(is_active=True)
+    if target_biz:
+        trainers_qs = trainers_qs.filter(hospital=target_biz)
+    for tr in trainers_qs.order_by("name"):
+        if tr.name.strip() and tr.name.strip() not in available_trainers:
+            available_trainers.append(tr.name.strip())
+
+    existing_tutors = list(courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct())
+    for t in existing_tutors:
+        if t and t.strip() and t.strip() not in available_trainers:
+            available_trainers.append(t.strip())
+    trainer_staff = User.objects.filter(
+        is_active=True,
+        role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.SUPER_ADMIN]
+    )
+    if target_biz:
+        trainer_staff = trainer_staff.filter(hospital=target_biz)
+    for u in trainer_staff.order_by("first_name", "username"):
+        uname = (u.get_full_name() or u.username).strip()
+        if uname and uname not in available_trainers:
+            available_trainers.append(uname)
+
     return render(request, template, {
         "active": "leads_all",
         "form": form,
@@ -3064,6 +3721,10 @@ def lead_edit(request, pk):
         "all_appointments": Appointment.objects.filter(lead=lead).order_by("-appointment_date", "-id"),
         "saved_initial": saved_initial,
         "available_branches": available_branches,
+        "courses_json": courses_json,
+        "batches_json": batches_json,
+        "available_batches": batches_qs,
+        "available_trainers": available_trainers,
         "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
         "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
         "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
@@ -3276,10 +3937,17 @@ def add_note(request, pk):
         Note.objects.create(lead=lead, note=note_text, created_by=request.user)
         if lead.assigned_to is None:
             lead.assigned_to = request.user
-        if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
-            contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
-            if contacted_stage:
-                lead.stage = contacted_stage
+        if lead.is_academy_industry:
+            if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                assigned_stage = LeadStage.objects.filter(name__iexact='Assigned', is_active=True).first()
+                if assigned_stage:
+                    lead.stage = assigned_stage
+            lead.deal_status = DealStatus.CONTACTED
+        elif lead.is_hospital_industry:
+            if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
+                contacted_stage = LeadStage.objects.filter(name__iexact='Contacted').first() or LeadStage.objects.filter(name__iexact='Assigned').first()
+                if contacted_stage:
+                    lead.stage = contacted_stage
         
         # Recalculate dynamic temperature and sync priority
         new_temp = lead.custom_temperature
@@ -3535,6 +4203,11 @@ def update_followup_status(request, pk, fu_id):
             new_temp = (lead.custom_temperature or "").upper()
             if new_temp in LeadTemperature.values:
                 lead.temperature = new_temp
+            if lead.is_academy_industry:
+                fu_completed_stage = LeadStage.objects.filter(name__iexact="Follow Up Completed", is_active=True).first()
+                if fu_completed_stage:
+                    lead.stage = fu_completed_stage
+                lead.deal_status = DealStatus.OPEN
             lead.save()
 
             # Log Activity
@@ -3602,6 +4275,11 @@ def update_followup_status(request, pk, fu_id):
             new_temp = (lead.custom_temperature or "").upper()
             if new_temp in LeadTemperature.values:
                 lead.temperature = new_temp
+            if lead.is_academy_industry:
+                fu_stage = LeadStage.objects.filter(name__iexact="Follow up", is_active=True).first() or LeadStage.objects.filter(name__iexact="Follow-up", is_active=True).first()
+                if fu_stage:
+                    lead.stage = fu_stage
+                lead.deal_status = DealStatus.OPEN
             lead.save()
 
             # Log Activity
@@ -3836,10 +4514,17 @@ def assign_lead(request, pk):
         if lead.assigned_to and lead.assigned_to != request.user and lead.assigned_to != old_assigned:
             from notifications.models import Notification
             assigner_name = request.user.get_full_name() or request.user.username
+            if lead.is_academy_industry:
+                notif_title = "🎓 Student Lead Assigned to You"
+                notif_msg = f"Student lead '{lead.name}' ({lead.mobile}) has been assigned to you by {assigner_name}."
+            else:
+                notif_title = "Patient Lead Assigned to You"
+                notif_msg = f"Patient lead '{lead.name}' ({lead.mobile}) has been assigned to you by {assigner_name}."
+
             Notification.objects.create(
                 user=lead.assigned_to,
-                title="Lead Assigned to You",
-                message=f"Lead '{lead.name}' ({lead.mobile}) has been assigned to you by {assigner_name}.",
+                title=notif_title,
+                message=notif_msg,
                 link=f"/leads/{lead.pk}/",
             )
 
@@ -3877,24 +4562,19 @@ def lead_quick_update_stage(request, pk):
         if new_admission_status in AdmissionStatus.values:
             lead.admission_status = new_admission_status
             if new_admission_status == AdmissionStatus.LOST:
-                is_hospital = bool(lead.hospital_id and any(k in (lead.hospital.name or "").lower() for k in ["hospital", "clinic", "medical", "nelson"]))
-                if not is_hospital:
+                if lead.is_academy_industry:
                     lead.temperature = LeadTemperature.FREEZE
-                    b_type = LeadStage.BusinessType.HOSPITAL if is_hospital else LeadStage.BusinessType.ACADEMY
                     cancelled_stage = (
-                        LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=b_type).first()
+                        LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first()
                         or LeadStage.objects.filter(name__iexact="Cancelled", is_active=True).first()
                         or LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
                     )
                     if cancelled_stage:
                         lead.stage = cancelled_stage
-                    lead.deal_status = DealStatus.LOST
+                lead.deal_status = DealStatus.LOST
             elif new_admission_status == AdmissionStatus.WON:
                 lead.deal_status = DealStatus.WON
                 lead.temperature = LeadTemperature.HOT
-            elif new_admission_status == AdmissionStatus.HOLD:
-                lead.deal_status = DealStatus.HOLD
-                lead.temperature = LeadTemperature.COLD
             elif new_admission_status == AdmissionStatus.OPEN:
                 lead.deal_status = DealStatus.OPEN
                 lead.temperature = LeadTemperature.WARM
@@ -3929,13 +4609,11 @@ def update_admission_status(request, pk):
             old_status_disp = lead.get_admission_status_display()
             lead.admission_status = new_status
             
-            is_hospital = bool(lead.hospital_id and any(k in (lead.hospital.name or "").lower() for k in ["hospital", "clinic", "medical", "nelson"]))
             if new_status == AdmissionStatus.LOST:
-                if not is_hospital:
+                if lead.is_academy_industry:
                     lead.temperature = LeadTemperature.FREEZE
-                    b_type = LeadStage.BusinessType.HOSPITAL if is_hospital else LeadStage.BusinessType.ACADEMY
                     cancelled_stage = (
-                        LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=b_type).first()
+                        LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first()
                         or LeadStage.objects.filter(name__iexact="Cancelled", is_active=True).first()
                         or LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
                     )
@@ -3945,7 +4623,7 @@ def update_admission_status(request, pk):
             elif new_status == AdmissionStatus.WON:
                 lead.deal_status = DealStatus.WON
                 lead.temperature = LeadTemperature.HOT
-                if not is_hospital:
+                if lead.is_academy_industry:
                     won_stage = (
                         LeadStage.objects.filter(name__iexact="Admission Done", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first()
                         or LeadStage.objects.filter(name__iexact="Admission Done", is_active=True).first()
@@ -3953,28 +4631,16 @@ def update_admission_status(request, pk):
                     )
                     if won_stage:
                         lead.stage = won_stage
-            elif new_status == AdmissionStatus.HOLD:
-                lead.deal_status = DealStatus.HOLD
-                lead.temperature = LeadTemperature.COLD
-                if not is_hospital and (not lead.stage or lead.stage.name.lower() in ("cancelled", "lost")):
-                    b_type = LeadStage.BusinessType.ACADEMY
-                    active_stage = (
-                        LeadStage.objects.filter(name__iexact="Follow up", is_active=True, business_type=b_type).first()
-                        or LeadStage.objects.filter(name__iexact="Assigned", is_active=True, business_type=b_type).first()
-                    )
-                    if active_stage:
-                        lead.stage = active_stage
             elif new_status == AdmissionStatus.OPEN:
                 lead.deal_status = DealStatus.OPEN
                 lead.temperature = LeadTemperature.WARM
-                if not is_hospital and (not lead.stage or lead.stage.name.lower() in ("cancelled", "lost", "admission done", "payment done")):
-                    b_type = LeadStage.BusinessType.ACADEMY
+                if lead.is_academy_industry and (not lead.stage or lead.stage.name.lower() in ("cancelled", "lost", "admission done", "payment done")):
                     # Revert stage from Cancelled to Follow up (if followups exist) or Assigned
                     if lead.followups.exists():
-                        revert_stg = LeadStage.objects.filter(name__iexact="Follow up", is_active=True, business_type=b_type).first()
+                        revert_stg = LeadStage.objects.filter(name__iexact="Follow up", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first()
                     else:
-                        revert_stg = LeadStage.objects.filter(name__iexact="Assigned", is_active=True, business_type=b_type).first() or \
-                                     LeadStage.objects.filter(name__iexact="New", is_active=True, business_type=b_type).first()
+                        revert_stg = LeadStage.objects.filter(name__iexact="Assigned", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first() or \
+                                     LeadStage.objects.filter(name__iexact="New", is_active=True, business_type=LeadStage.BusinessType.ACADEMY).first()
                     if revert_stg:
                         lead.stage = revert_stg
 
@@ -4439,10 +5105,8 @@ def course_master(request):
 
     all_businesses = Hospital.objects.filter(is_active=True).order_by("name")
     form = CourseForm()
-    if target_biz:
-        form.fields["hospital"].initial = target_biz.id
 
-    return render(request, "leads/course_master.html", {
+    return render(request, "academy/masters/course_master.html", {
         "active": "course_master",
         "courses": courses,
         "form": form,
@@ -4471,6 +5135,7 @@ def master_toggle(request, kind, pk):
     model = {
         "source_category": SourceCategory, "lead_source": LeadSource,
         "campaign": Campaign, "course": Course, "stage": LeadStage,
+        "trainer": Trainer, "batch": Batch,
     }.get(kind)
     if model:
         obj = get_object_or_404(model, pk=pk)
@@ -4478,7 +5143,143 @@ def master_toggle(request, kind, pk):
         obj.save(update_fields=["is_active"])
     if kind == "course":
         return redirect("leads:course_master")
+    elif kind == "trainer":
+        return redirect("leads:trainer_master")
+    elif kind == "batch":
+        return redirect("leads:batch_master")
     return redirect("leads:masters")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def trainer_master(request):
+    user_hospital = request.user.hospital
+    active_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
+
+    target_biz = None
+    if user_hospital:
+        target_biz = user_hospital
+    elif active_biz_id and active_biz_id.isdigit():
+        target_biz = Hospital.objects.filter(id=int(active_biz_id), is_active=True).first()
+    else:
+        # Default to first academy business if superadmin
+        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+
+    if request.method == "POST":
+        trainer_id = request.POST.get("trainer_id")
+        if trainer_id and str(trainer_id).isdigit():
+            trainer_obj = get_object_or_404(Trainer, pk=int(trainer_id))
+            form = TrainerForm(request.POST, instance=trainer_obj)
+        else:
+            form = TrainerForm(request.POST)
+
+        if form.is_valid():
+            trainer = form.save(commit=False)
+            if target_biz:
+                trainer.hospital = target_biz
+            trainer.save()
+            action = "updated" if trainer_id else "created"
+            messages.success(request, f"Trainer '{trainer.name}' {action} successfully! 🎓")
+            return redirect("leads:trainer_master")
+        else:
+            messages.error(request, f"Could not save trainer: {form.errors.as_text()}")
+            return redirect("leads:trainer_master")
+
+    trainers = Trainer.objects.all().order_by("name")
+    if target_biz:
+        trainers = trainers.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
+
+    all_businesses = Hospital.objects.filter(is_active=True, industry="ACADEMY").order_by("name")
+    form = TrainerForm()
+
+    return render(request, "academy/masters/trainer_master.html", {
+        "active": "trainer_master",
+        "trainers": trainers,
+        "form": form,
+        "target_biz": target_biz,
+        "all_businesses": all_businesses,
+        "active_count": trainers.filter(is_active=True).count(),
+        "total_count": trainers.count(),
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def trainer_delete(request, pk):
+    trainer = get_object_or_404(Trainer, pk=pk)
+    name = trainer.name
+    trainer.delete()
+    messages.success(request, f"Trainer '{name}' deleted successfully.")
+    return redirect("leads:trainer_master")
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def batch_master(request):
+    user_hospital = request.user.hospital
+    active_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
+
+    target_biz = None
+    if user_hospital:
+        target_biz = user_hospital
+    elif active_biz_id and active_biz_id.isdigit():
+        target_biz = Hospital.objects.filter(id=int(active_biz_id), is_active=True).first()
+    else:
+        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+
+    if request.method == "POST":
+        batch_id = request.POST.get("batch_id")
+        if batch_id and str(batch_id).isdigit():
+            batch_obj = get_object_or_404(Batch, pk=int(batch_id))
+            form = BatchForm(request.POST, instance=batch_obj)
+        else:
+            form = BatchForm(request.POST)
+
+        if form.is_valid():
+            batch = form.save(commit=False)
+            if target_biz:
+                batch.hospital = target_biz
+            batch.save()
+            action = "updated" if batch_id else "created"
+            messages.success(request, f"Batch '{batch.name}' {action} successfully! 📅")
+            return redirect("leads:batch_master")
+        else:
+            messages.error(request, f"Could not save batch: {form.errors.as_text()}")
+            return redirect("leads:batch_master")
+
+    batches = Batch.objects.select_related("course", "trainer", "hospital").all().order_by("-id")
+    if target_biz:
+        batches = batches.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
+
+    all_businesses = Hospital.objects.filter(is_active=True, industry="ACADEMY").order_by("name")
+    form = BatchForm()
+    if target_biz:
+        form.fields["course"].queryset = Course.objects.filter(is_active=True, is_archived=False).filter(
+            models.Q(hospital=target_biz) | models.Q(hospital__isnull=True)
+        )
+        form.fields["trainer"].queryset = Trainer.objects.filter(is_active=True).filter(
+            models.Q(hospital=target_biz) | models.Q(hospital__isnull=True)
+        )
+
+    return render(request, "academy/masters/batch_master.html", {
+        "active": "batch_master",
+        "batches": batches,
+        "form": form,
+        "target_biz": target_biz,
+        "all_businesses": all_businesses,
+        "active_count": batches.filter(is_active=True).count(),
+        "total_count": batches.count(),
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.can_manage_masters)
+def batch_delete(request, pk):
+    batch = get_object_or_404(Batch, pk=pk)
+    name = batch.name
+    batch.delete()
+    messages.success(request, f"Batch '{name}' deleted successfully.")
+    return redirect("leads:batch_master")
 
 
 @login_required
@@ -4495,7 +5296,7 @@ def course_edit(request, pk):
             messages.error(request, f"Could not update: {form.errors.as_text()}")
     else:
         form = CourseForm(instance=course)
-    return render(request, "leads/course_edit.html", {
+    return render(request, "academy/masters/course_edit.html", {
         "form": form, "course": course, "active": "course_master"
     })
 
@@ -4750,8 +5551,8 @@ def _ensure_business_core_fields(h):
                 )
         return
 
-    is_academy = "academy" in h.name.lower() or "zappcode" in h.name.lower()
-    is_nelson = "nelson" in h.name.lower() or "hospital" in h.name.lower()
+    is_academy = getattr(h, "industry", None) == Hospital.Industry.ACADEMY
+    is_healthcare = getattr(h, "industry", None) == Hospital.Industry.HOSPITAL
 
     if is_academy:
         core_field_defs = [
@@ -4924,6 +5725,7 @@ def universal_master_list(request):
         "active": "universal_masters",
         "active_main_tab": active_main_tab,
         "all_fields": all_fields_qs,
+        "current_business": current_hospital,
         "current_hospital": current_hospital,
         "is_default_tab": is_default_tab,
         "available_businesses": available_businesses,
@@ -5455,15 +6257,12 @@ def temperature_manager(request):
 def custom_message_manager(request):
     """
     WhatsApp Custom Template Manager:
-    Allows user to customize Booking Message & Follow-up Message.
-    Default system templates are used until user defines and confirms custom templates.
+    Allows user to customize automated WhatsApp message templates.
+    - For Academy businesses: Enquiry/Welcome, Campus Visit, Admission Confirmed, Payment Due/Installment templates.
+    - For Hospital businesses: Booking, Follow-up, Billing/Thank-you templates.
     """
     if request.user.role == User.Role.DOCTOR:
         messages.error(request, "Permission denied: Doctors do not have access to Custom Message Manager.")
-        return redirect("dashboard:home")
-
-    if not (request.user.industry == "HOSPITAL" or request.user.hospital):
-        messages.error(request, "Custom Message Manager is only available for Hospital panels.")
         return redirect("dashboard:home")
 
     from leads.models import UserCustomMessage
@@ -5471,40 +6270,215 @@ def custom_message_manager(request):
     import urllib.parse
 
     user = request.user
-    hosp = user.hospital
+    biz = user.hospital
+    
+    # Determine business domain
+    is_hospital = False
+    is_academy = False
+    if biz and hasattr(biz, 'industry'):
+        if biz.industry == "HOSPITAL":
+            is_hospital = True
+        elif biz.industry == "ACADEMY":
+            is_academy = True
+    elif user.industry == "HOSPITAL":
+        is_hospital = True
+    elif user.industry == "ACADEMY" or getattr(user, 'is_zappcode_user', False):
+        is_academy = True
 
-    # Default system messages
-    hosp_name = hosp.name if hosp else "Nelson Mother & Child Care Hospital"
     agent_name = user.get_full_name() or user.username
 
-    default_booking_text = (
-        f"Hello {{patient_name}},\n\n"
-        f"Welcome to {{hospital_name}} ({{branch_name}})!\n\n"
-        f"Your consultation appointment with {{doctor_name}} is confirmed on {{appointment_date}} at {{appointment_time}}.\n\n"
-        f"Hospital Address: {{hospital_address}}\n\n"
-        f"Please arrive 15 minutes prior to your scheduled slot. We look forward to assisting you.\n\n"
-        f"For any queries or assistance, feel free to contact us.\n\n"
-        f"Warm Regards,\n{{user_name}}\n{{hospital_name}}"
-    )
+    # =========================================================================
+    # 1. ACADEMY / EDUCATION INDUSTRY
+    # =========================================================================
+    if is_academy:
+        biz_name = biz.name if biz else "Zappcode Academy"
+        biz_address = (biz.address if biz and hasattr(biz, 'address') and biz.address else f"{biz_name} Main Campus").strip()
 
-    default_followup_text = (
-        f"Hello {{patient_name}},\n\n"
-        f"Thank you for your enquiry with {{hospital_name}} ({{branch_name}})!\n\n"
-        f"We are pleased to assist you with your healthcare and doctor consultation inquiry.\n\n"
-        f"Hospital Address: {{hospital_address}}\n\n"
-        f"Please let us know your preferred date, time, or specialist requirement so we can schedule your appointment promptly.\n\n"
-        f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
-    )
+        # 1. Enquiry / Welcome Template
+        default_enquiry_text = (
+            f"Hello {{student_name}},\n\n"
+            f"Thank you for inquiring about our {{course_name}} program at {{business_name}}!\n\n"
+            f"We are excited to help you elevate your career with hands-on live project training and expert mentorship.\n\n"
+            f"📍 Campus Address: {{business_address}}\n\n"
+            f"Would you prefer a 10-minute online counseling session or visiting our campus for a personalized demo class?\n\n"
+            f"Warm Regards,\n{{counselor_name}}\nAdmissions & Career Team - {{business_name}}"
+        )
 
-    default_billing_text = (
-        f"Hello {{patient_name}},\n\n"
-        f"Thank you for visiting {{hospital_name}} ({{branch_name}})!\n\n"
-        f"Your consultation with {{doctor_name}} on {{appointment_date}} has been completed successfully.\n\n"
-        f"We truly appreciate having the opportunity to care for your health and well-being. If you have any follow-up questions, prescription queries, or require further medical assistance, please feel free to reach out to us.\n\n"
-        f"Hospital Address: {{hospital_address}}\n\n"
-        f"Wishing you great health and a speedy recovery!\n\n"
-        f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
-    )
+        # 2. Campus Visit Template
+        default_visit_text = (
+            f"Hello {{student_name}},\n\n"
+            f"Greetings from {{business_name}}!\n\n"
+            f"Your campus visit & career counseling demo session for {{course_name}} has been scheduled:\n\n"
+            f"📅 Date: {{visit_date}}\n"
+            f"⏰ Slot / Time: {{visit_slot}}\n"
+            f"📍 Campus Address: {{business_address}}\n\n"
+            f"Please arrive on time. Our counseling team looks forward to meeting you and giving you a comprehensive tour of our lab facilities.\n\n"
+            f"Warm Regards,\n{{counselor_name}}\nAdmissions Team - {{business_name}}"
+        )
+
+        # 3. Admission Confirmed Template
+        default_admission_text = (
+            f"Hello {{student_name}},\n\n"
+            f"🎉 Congratulations & Welcome to {{business_name}}!\n\n"
+            f"We are thrilled to confirm your admission for the {{course_name}} program.\n\n"
+            f"📌 Enrollment Details:\n"
+            f"• Admission Date: {{admission_date}}\n"
+            f"• Batch: {{batch_name}}\n"
+            f"• Timing: {{batch_timing}}\n"
+            f"• Campus: {{business_address}}\n\n"
+            f"Your LMS access credentials and orientation schedule will be shared with you shortly.\n\n"
+            f"Best Wishes,\n{{counselor_name}}\nAdmissions Team - {{business_name}}"
+        )
+
+        # 4. Payment Due / Pending Template
+        default_payment_text = (
+            f"Hello {{student_name}},\n\n"
+            f"This is a gentle payment reminder from {{business_name}} regarding your {{course_name}} fee.\n\n"
+            f"📌 Fee Summary:\n"
+            f"• Total Course Fee: {{total_amount}}\n"
+            f"• Amount Paid: {{paid_amount}}\n"
+            f"• Pending Balance: {{balance_amount}}\n"
+            f"• Payment Due Date: {{payment_due_date}}\n\n"
+            f"Please ensure payment is completed by {{payment_due_date}} to keep your LMS access and batch allocation active.\n\n"
+            f"Warm Regards,\n{{counselor_name}}\nAccounts & Admissions - {{business_name}}"
+        )
+
+        enquiry_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+            user=user, message_type="ENQUIRY",
+            defaults={"hospital": biz, "custom_text": default_enquiry_text, "is_confirmed": False}
+        )
+        visit_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+            user=user, message_type="VISIT",
+            defaults={"hospital": biz, "custom_text": default_visit_text, "is_confirmed": False}
+        )
+        admission_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+            user=user, message_type="ADMISSION",
+            defaults={"hospital": biz, "custom_text": default_admission_text, "is_confirmed": False}
+        )
+        payment_msg_obj, _ = UserCustomMessage.objects.get_or_create(
+            user=user, message_type="PAYMENT_DUE",
+            defaults={"hospital": biz, "custom_text": default_payment_text, "is_confirmed": False}
+        )
+
+        template_map = {
+            "ENQUIRY": (enquiry_msg_obj, default_enquiry_text),
+            "VISIT": (visit_msg_obj, default_visit_text),
+            "ADMISSION": (admission_msg_obj, default_admission_text),
+            "PAYMENT_DUE": (payment_msg_obj, default_payment_text),
+        }
+
+        if request.method == "POST":
+            action = request.POST.get("action", "save")
+            msg_type = request.POST.get("message_type", "ENQUIRY").upper()
+            custom_text = request.POST.get("custom_text", "").strip()
+
+            target_obj, def_text = template_map.get(msg_type, (enquiry_msg_obj, default_enquiry_text))
+
+            if action == "save":
+                target_obj.custom_text = custom_text
+                target_obj.hospital = biz
+                target_obj.save()
+                messages.success(request, f"{target_obj.get_message_type_display()} updated successfully. Click 'Confirm & Activate' to use your custom message.")
+            elif action == "confirm":
+                target_obj.custom_text = custom_text or target_obj.custom_text
+                target_obj.is_confirmed = True
+                target_obj.hospital = biz
+                target_obj.save()
+                messages.success(request, f"✅ Custom {target_obj.get_message_type_display()} is now ACTIVE! Default system template is OFF.")
+            elif action == "reset_default":
+                target_obj.is_confirmed = False
+                target_obj.custom_text = def_text
+                target_obj.save()
+                messages.info(request, f"Custom message turned OFF. Switched back to System Default template for {target_obj.get_message_type_display()}.")
+
+            return redirect(f"/leads/custom-messages/?tab={msg_type.lower()}")
+
+        active_tab = request.GET.get("tab", "enquiry").lower()
+
+        return render(request, "leads/custom_message_manager.html", {
+            "active": "custom_message_manager",
+            "is_academy": True,
+            "is_hospital": False,
+            "enquiry_msg": enquiry_msg_obj,
+            "visit_msg": visit_msg_obj,
+            "admission_msg": admission_msg_obj,
+            "payment_msg": payment_msg_obj,
+            "default_enquiry_text": default_enquiry_text,
+            "default_visit_text": default_visit_text,
+            "default_admission_text": default_admission_text,
+            "default_payment_text": default_payment_text,
+            "active_tab": active_tab,
+            "biz": biz,
+            "hosp": biz,
+        })
+
+    # =========================================================================
+    # 2. HEALTHCARE / HOSPITAL INDUSTRY
+    # =========================================================================
+    hosp = biz
+    if is_hospital:
+        hosp_name = hosp.name if hosp else "Nelson Mother & Child Care Hospital"
+
+        default_booking_text = (
+            f"Hello {{patient_name}},\n\n"
+            f"Welcome to {{hospital_name}} ({{branch_name}})!\n\n"
+            f"Your consultation appointment with {{doctor_name}} is confirmed on {{appointment_date}} at {{appointment_time}}.\n\n"
+            f"Hospital Address: {{hospital_address}}\n\n"
+            f"Please arrive 15 minutes prior to your scheduled slot. We look forward to assisting you.\n\n"
+            f"For any queries or assistance, feel free to contact us.\n\n"
+            f"Warm Regards,\n{{user_name}}\n{{hospital_name}}"
+        )
+
+        default_followup_text = (
+            f"Hello {{patient_name}},\n\n"
+            f"Thank you for your enquiry with {{hospital_name}} ({{branch_name}})!\n\n"
+            f"We are pleased to assist you with your healthcare and doctor consultation inquiry.\n\n"
+            f"Hospital Address: {{hospital_address}}\n\n"
+            f"Please let us know your preferred date, time, or specialist requirement so we can schedule your appointment promptly.\n\n"
+            f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
+        )
+
+        default_billing_text = (
+            f"Hello {{patient_name}},\n\n"
+            f"Thank you for visiting {{hospital_name}} ({{branch_name}})!\n\n"
+            f"Your consultation with {{doctor_name}} on {{appointment_date}} has been completed successfully.\n\n"
+            f"We truly appreciate having the opportunity to care for your health and well-being. If you have any follow-up questions, prescription queries, or require further medical assistance, please feel free to reach out to us.\n\n"
+            f"Hospital Address: {{hospital_address}}\n\n"
+            f"Wishing you great health and a speedy recovery!\n\n"
+            f"Warm Regards,\n{{user_name}}\nPatient Care Team - {{hospital_name}}"
+        )
+    else:
+        # =====================================================================
+        # 3. OTHER / GENERAL BUSINESSES (IT Services, Agency, Corporate)
+        # =====================================================================
+        biz_name = hosp.name if hosp else "Our Business"
+        biz_address = (hosp.address if hosp and hasattr(hosp, 'address') and hosp.address else f"{biz_name} Office").strip()
+
+        default_booking_text = (
+            f"Hello {{client_name}},\n\n"
+            f"Greetings from {{business_name}}!\n\n"
+            f"Your meeting / demo appointment for {{service_name}} is confirmed on {{booking_date}} at {{booking_time}}.\n\n"
+            f"Office Address: {{business_address}}\n\n"
+            f"We look forward to meeting with you.\n\n"
+            f"Warm Regards,\n{{user_name}}\n{{business_name}}"
+        )
+
+        default_followup_text = (
+            f"Hello {{client_name}},\n\n"
+            f"Thank you for contacting {{business_name}} regarding {{service_name}}!\n\n"
+            f"Our team is glad to assist you. Please let us know a convenient time to discuss your requirements in detail.\n\n"
+            f"Office Address: {{business_address}}\n\n"
+            f"Warm Regards,\n{{user_name}}\nBusiness Team - {{business_name}}"
+        )
+
+        default_billing_text = (
+            f"Hello {{client_name}},\n\n"
+            f"Thank you for choosing {{business_name}}!\n\n"
+            f"Your order/service completion for {{service_name}} has been processed successfully.\n\n"
+            f"If you need further assistance or project support, feel free to reach out to us.\n\n"
+            f"Office Address: {{business_address}}\n\n"
+            f"Warm Regards,\n{{user_name}}\nCustomer Success Team - {{business_name}}"
+        )
 
     booking_msg_obj, _ = UserCustomMessage.objects.get_or_create(
         user=user, message_type="BOOKING",
@@ -5544,12 +6518,12 @@ def custom_message_manager(request):
             target_obj.is_confirmed = True
             target_obj.hospital = hosp
             target_obj.save()
-            messages.success(request, f"✅ Custom {target_obj.get_message_type_display()} confirmed and activated! System will now send your customized message.")
+            messages.success(request, f"✅ Custom {target_obj.get_message_type_display()} confirmed and activated! Default system template is now OFF.")
         elif action == "reset_default":
             target_obj.is_confirmed = False
             target_obj.custom_text = default_text
             target_obj.save()
-            messages.info(request, f"Switched back to System Generated Default template for {target_obj.get_message_type_display()}.")
+            messages.info(request, f"Custom message turned OFF. Switched back to System Generated Default template for {target_obj.get_message_type_display()}.")
 
         return redirect(f"/leads/custom-messages/?tab={msg_type.lower()}")
 
@@ -5557,6 +6531,8 @@ def custom_message_manager(request):
 
     return render(request, "leads/custom_message_manager.html", {
         "active": "custom_message_manager",
+        "is_academy": False,
+        "is_hospital": is_hospital,
         "booking_msg": booking_msg_obj,
         "followup_msg": followup_msg_obj,
         "billing_msg": billing_msg_obj,
@@ -5565,6 +6541,7 @@ def custom_message_manager(request):
         "default_billing_text": default_billing_text,
         "active_tab": active_tab,
         "hosp": hosp,
+        "biz": hosp,
     })
 
 def book_appointment(request, pk):
@@ -6324,11 +7301,16 @@ def hospital_branch_delete(request, pk):
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
     if is_global_admin:
-        branch = get_object_or_404(HospitalBranch, pk=pk)
-        hospital = branch.hospital
+        branch = HospitalBranch.objects.filter(pk=pk).first()
+        hospital = branch.hospital if branch else None
     else:
         hospital = request.user.hospital
-        branch = get_object_or_404(HospitalBranch, pk=pk, hospital=hospital)
+        branch = HospitalBranch.objects.filter(pk=pk, hospital=hospital).first()
+
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    if not branch:
+        messages.info(request, "This hospital branch no longer exists or was already deleted.")
+        return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
 
     branch_name = branch.name
     try:
@@ -6339,7 +7321,6 @@ def hospital_branch_delete(request, pk):
         branch.is_active = False
         branch.save(update_fields=["is_active"])
         messages.warning(request, f"Branch '{branch_name}' could not be permanently deleted due to associated records, but has been deactivated and hidden.")
-    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=branches{biz_param}")
 
 
@@ -6371,11 +7352,16 @@ def hospital_department_delete(request, pk):
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
     if is_global_admin:
-        dept = get_object_or_404(HospitalDepartment, pk=pk)
-        hospital = dept.hospital
+        dept = HospitalDepartment.objects.filter(pk=pk).first()
+        hospital = dept.hospital if dept else None
     else:
         hospital = request.user.hospital
-        dept = get_object_or_404(HospitalDepartment, pk=pk, hospital=hospital)
+        dept = HospitalDepartment.objects.filter(pk=pk, hospital=hospital).first()
+
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    if not dept:
+        messages.info(request, "This department no longer exists or was already deleted.")
+        return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
 
     dept_name = dept.name
     try:
@@ -6385,7 +7371,6 @@ def hospital_department_delete(request, pk):
         dept.is_active = False
         dept.save(update_fields=["is_active"])
         messages.warning(request, f"Department '{dept_name}' could not be deleted due to associated records, but has been deactivated.")
-    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=departments{biz_param}")
 
 
@@ -6417,11 +7402,16 @@ def hospital_disease_delete(request, pk):
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
     if is_global_admin:
-        dis = get_object_or_404(HospitalDisease, pk=pk)
-        hospital = dis.hospital
+        dis = HospitalDisease.objects.filter(pk=pk).first()
+        hospital = dis.hospital if dis else None
     else:
         hospital = request.user.hospital
-        dis = get_object_or_404(HospitalDisease, pk=pk, hospital=hospital)
+        dis = HospitalDisease.objects.filter(pk=pk, hospital=hospital).first()
+
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    if not dis:
+        messages.info(request, "This disease/condition no longer exists or was already deleted.")
+        return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
 
     dis_name = dis.name
     try:
@@ -6431,7 +7421,6 @@ def hospital_disease_delete(request, pk):
         dis.is_active = False
         dis.save(update_fields=["is_active"])
         messages.warning(request, f"Disease '{dis_name}' could not be deleted due to associated records, but has been deactivated.")
-    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=diseases{biz_param}")
 
 
@@ -6463,11 +7452,16 @@ def hospital_doctor_delete(request, pk):
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
     if is_global_admin:
-        doc = get_object_or_404(HospitalDoctor, pk=pk)
-        hospital = doc.hospital
+        doc = HospitalDoctor.objects.filter(pk=pk).first()
+        hospital = doc.hospital if doc else None
     else:
         hospital = request.user.hospital
-        doc = get_object_or_404(HospitalDoctor, pk=pk, hospital=hospital)
+        doc = HospitalDoctor.objects.filter(pk=pk, hospital=hospital).first()
+
+    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
+    if not doc:
+        messages.info(request, "This doctor record no longer exists or was already deleted.")
+        return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
     doc_name = doc.name
     try:
@@ -6477,7 +7471,6 @@ def hospital_doctor_delete(request, pk):
         doc.is_active = False
         doc.save(update_fields=["is_active"])
         messages.warning(request, f"Doctor 'Dr. {doc_name}' could not be deleted due to associated records, but has been deactivated.")
-    biz_param = f"&business={hospital.id}" if is_global_admin and hospital else ""
     return redirect(f"/leads/hospital-configuration/?tab=doctors{biz_param}")
 
 
@@ -6673,6 +7666,8 @@ def hospital_master_sample_download(request):
     """Download Sample Excel / CSV template for Hospital Master Configuration"""
     from django.http import HttpResponse
     fmt = request.GET.get("format", "csv").lower()
+    hospital = _get_target_hospital_for_config(request)
+    safe_biz = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in (hospital.name if hospital else "Hospital")).strip('_') or "Hospital"
     
     if fmt in ["xlsx", "excel"]:
         import openpyxl
@@ -6701,11 +7696,11 @@ def hospital_master_sample_download(request):
             cell.border = thin_border
             
         sample_rows = [
-            ["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Migraine"],
-            ["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Stroke"],
-            ["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Dementia"],
-            ["Nelson Luxe Mother & Child Care Hospital, Wardhmannagar", "Gynaecology", "Dr. Priya Sharma", "Infertility / IVF"],
-            ["Central Brain & Spine Hospital, Dhantoli", "Cardiology", "Dr. Rajesh Patil", "Hypertension"],
+            ["Hospital Branch 1", "Neurology", "Dr. Raj Sharma", "Migraine"],
+            ["Hospital Branch 1", "Neurology", "Dr. Raj Sharma", "Stroke"],
+            ["Hospital Branch 1", "Neurology", "Dr. Raj Sharma", "Dementia"],
+            ["Hospital Branch 2", "Gynaecology", "Dr. Priya Sharma", "Infertility / IVF"],
+            ["Hospital Branch 2", "Cardiology", "Dr. Amit Patel", "Hypertension"],
         ]
         
         for r_idx, row in enumerate(sample_rows, 2):
@@ -6720,21 +7715,21 @@ def hospital_master_sample_download(request):
         ws.column_dimensions['D'].width = 28
         
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        response["Content-Disposition"] = 'attachment; filename="hospital_master_import_template.xlsx"'
+        response["Content-Disposition"] = f'attachment; filename="{safe_biz}_Configuration_Template.xlsx"'
         wb.save(response)
         return response
 
     import csv
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="hospital_master_template.csv"'
+    response["Content-Disposition"] = f'attachment; filename="{safe_biz}_Configuration_Template.csv"'
 
     writer = csv.writer(response)
     writer.writerow(["hospital_branch", "department", "doctor", "disease"])
-    writer.writerow(["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Migraine"])
-    writer.writerow(["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Stroke"])
-    writer.writerow(["Nelson Hospital Dhantoli", "Neurology", "Dr. Raj ratan", "Dementia"])
-    writer.writerow(["Nelson Luxe Mother & Child Care Hospital, Wardhmannagar", "Gynaecology", "Dr. Priya Sharma", "Infertility / IVF"])
-    writer.writerow(["Central Brain & Spine Hospital, Dhantoli", "Cardiology", "Dr. Rajesh Patil", "Hypertension"])
+    writer.writerow(["Hospital Branch 1", "Neurology", "Dr. Raj Sharma", "Migraine"])
+    writer.writerow(["Hospital Branch 1", "Neurology", "Dr. Raj Sharma", "Stroke"])
+    writer.writerow(["Hospital Branch 1", "Neurology", "Dr. Raj Sharma", "Dementia"])
+    writer.writerow(["Hospital Branch 2", "Gynaecology", "Dr. Priya Sharma", "Infertility / IVF"])
+    writer.writerow(["Hospital Branch 2", "Cardiology", "Dr. Amit Patel", "Hypertension"])
 
     return response
 
@@ -6752,6 +7747,7 @@ def export_hospital_config_excel(request):
     hospital = _get_target_hospital_for_config(request)
     h_filter = {"hospital": hospital} if hospital else {}
     hospital_name = hospital.name if hospital else "All Hospitals"
+    safe_biz = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in hospital_name).strip('_') or "Hospital"
 
     branches = HospitalBranch.objects.filter(**h_filter).order_by("order", "name")
     departments = HospitalDepartment.objects.filter(**h_filter).order_by("order", "name")
@@ -6941,7 +7937,7 @@ def export_hospital_config_excel(request):
     ws5.column_dimensions['D'].width = 14
 
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    filename = f"Hospital_Configuration_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    filename = f"{safe_biz}_Configuration_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
@@ -7381,12 +8377,7 @@ def appointments_done_list(request):
     # If an academy or non-hospital business is explicitly selected, appointment counts are 0
     is_healthcare_scope = True
     if target_hospital:
-        is_healthcare_scope = (
-            target_hospital.industry == Hospital.Industry.HOSPITAL
-            or "hospital" in target_hospital.name.lower()
-            or "clinic" in target_hospital.name.lower()
-            or "nelson" in target_hospital.name.lower()
-        )
+        is_healthcare_scope = (target_hospital.industry == Hospital.Industry.HOSPITAL)
 
     # Base Appointment / Healthcare lead queryset
     if not is_healthcare_scope:
@@ -7883,12 +8874,7 @@ def payment_done_list(request):
 
     is_healthcare_scope = True
     if target_hospital:
-        is_healthcare_scope = (
-            target_hospital.industry == Hospital.Industry.HOSPITAL
-            or "hospital" in target_hospital.name.lower()
-            or "clinic" in target_hospital.name.lower()
-            or "nelson" in target_hospital.name.lower()
-        )
+        is_healthcare_scope = (target_hospital.industry == Hospital.Industry.HOSPITAL)
 
     if not is_healthcare_scope:
         base_qs = Lead.objects.none()

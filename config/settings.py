@@ -70,6 +70,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'audit.middleware.CurrentUserMiddleware',
+    'config.middleware.CRMGlobalExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

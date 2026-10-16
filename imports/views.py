@@ -244,7 +244,7 @@ def upload(request):
 
     is_hospital = False
     if effective_hospital:
-        is_hospital = "nelson" in effective_hospital.name.lower() or "hospital" in effective_hospital.name.lower()
+        is_hospital = getattr(effective_hospital, "industry", None) == Hospital.Industry.HOSPITAL
     else:
         is_hospital = bool(user.industry == 'HOSPITAL')
 
@@ -1538,7 +1538,7 @@ def export_leads(request):
 
     is_hospital = False
     if effective_hospital:
-        is_hospital = "nelson" in effective_hospital.name.lower() or "hospital" in effective_hospital.name.lower()
+        is_hospital = getattr(effective_hospital, "industry", None) == Hospital.Industry.HOSPITAL
     else:
         is_hospital = bool(user.industry == 'HOSPITAL')
 

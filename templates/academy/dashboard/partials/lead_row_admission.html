@@ -1,0 +1,53 @@
+<tr data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" class="counselor-table-row">
+  <td class="fw-semibold">
+    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark">{{ lead.name }}</a>
+    {% if is_done %}
+      <span class="badge bg-success text-white ms-1">Won</span>
+    {% else %}
+      <span class="badge bg-info text-white ms-1">Planned</span>
+    {% endif %}
+  </td>
+  <td>{{ lead.mobile }}</td>
+  <td>{{ lead.course.name|default:"—" }}</td>
+  <td>
+    {% if is_done %}
+      <span class="fw-bold">{{ lead.final_adm_date|date:"d M Y"|default:lead.final_adm_date }}</span>
+    {% else %}
+      <span class="fw-bold">{{ lead.expected_adm_date|date:"d M Y"|default:lead.expected_adm_date }}</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if is_done %}
+      {{ lead.trainer_name }}
+    {% else %}
+      <span class="text-muted">—</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if is_done %}
+      <span class="fw-semibold">{{ lead.batch_name }}</span>
+      <small class="text-muted d-block">{{ lead.batch_time }}</small>
+    {% else %}
+      <span class="text-muted small">{{ lead.adm_remarks|truncatechars:35 }}</span>
+    {% endif %}
+  </td>
+  <td>
+    {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username|default:"Unassigned" }}
+  </td>
+  <td class="text-end">
+    <div class="d-inline-flex gap-1 align-items-center">
+      <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
+        <i class="fa-solid fa-phone"></i>
+      </a>
+      <a href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i>
+      </a>
+      <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </a>
+      <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+        <i class="fa-solid fa-eye"></i>
+      </a>
+    </div>
+  </td>
+</tr>

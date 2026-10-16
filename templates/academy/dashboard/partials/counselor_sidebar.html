@@ -1,0 +1,184 @@
+{# 🎓 ACADEMY COUNSELOR DEDICATED SIDEBAR #}
+{# Isolated component for Academy Counselors / Telecallers #}
+
+<!-- 1. Direct Dashboard Link -->
+<a class="nav-link {% if active == 'counselor_dashboard' and not request.GET.tab %}active{% endif %}"
+  href="{% url 'dashboard:academy_counselor_home' %}" title="Dashboard" style="margin-top: 4px;">
+  <i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Dashboard</span>
+</a>
+
+<!-- 2. Section: 1. My Leads -->
+<div class="nav-section-group">
+  <button class="nav-section-btn {% if active != 'counselor_dashboard' or request.GET.tab not in 'myleads fresh uncontacted walkin todays_inquiry' and request.GET.tab %}collapsed{% endif %}"
+    type="button" data-bs-toggle="collapse" data-bs-target="#sec_counselor_myleads"
+    aria-expanded="{% if active == 'counselor_dashboard' and request.GET.tab == 'myleads' or not request.GET.tab and active == 'counselor_dashboard' %}true{% else %}false{% endif %}"
+    title="My Leads">
+    <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">1. My Leads</span></span>
+    <i class="fa-solid fa-chevron-down section-arrow"></i>
+  </button>
+  <div class="collapse {% if active == 'counselor_dashboard' and request.GET.tab == 'myleads' or not request.GET.tab and active == 'counselor_dashboard' %}show{% endif %} nav-sub-items"
+    id="sec_counselor_myleads">
+    <a class="nav-link {% if request.GET.tab == 'myleads' and request.GET.subtab == 'fresh' or not request.GET.subtab and not request.GET.tab and active == 'counselor_dashboard' or request.GET.tab == 'myleads' and not request.GET.subtab %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=fresh" title="1.1 Fresh Leads">
+      <i class="fa-regular fa-star"></i> <span class="nav-text">1.1 Fresh Leads</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'myleads' and request.GET.subtab == 'uncontacted' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=uncontacted" title="1.2 Uncontacted">
+      <i class="fa-regular fa-envelope-open"></i> <span class="nav-text">1.2 Uncontacted</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'myleads' and request.GET.subtab == 'walkin' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=walkin" title="1.3 Direct Walk-ins">
+      <i class="fa-regular fa-compass"></i> <span class="nav-text">1.3 Direct Walk-ins</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'myleads' and request.GET.subtab == 'todays_inquiry' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=todays_inquiry" title="1.4 Today's Inquiries">
+      <i class="fa-regular fa-calendar"></i> <span class="nav-text">1.4 Today's Inquiries</span>
+    </a>
+  </div>
+</div>
+
+<!-- 3. Section: 2. Follow-ups -->
+<div class="nav-section-group">
+  <button class="nav-section-btn {% if request.GET.tab != 'followups' %}collapsed{% endif %}"
+    type="button" data-bs-toggle="collapse" data-bs-target="#sec_counselor_fu"
+    aria-expanded="{% if request.GET.tab == 'followups' %}true{% else %}false{% endif %}"
+    title="Follow-ups">
+    <span><i class="fa-regular fa-calendar-check section-icon"></i><span class="section-title">2. Follow-ups</span></span>
+    <i class="fa-solid fa-chevron-down section-arrow"></i>
+  </button>
+  <div class="collapse {% if request.GET.tab == 'followups' %}show{% endif %} nav-sub-items"
+    id="sec_counselor_fu">
+    <a class="nav-link {% if request.GET.tab == 'followups' and request.GET.subtab == 'today_fu' or request.GET.tab == 'followups' and not request.GET.subtab %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=followups&subtab=today_fu" title="2.1 Today's Follow-ups">
+      <i class="fa-regular fa-clock"></i> <span class="nav-text">2.1 Today's Follow-ups</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'followups' and request.GET.subtab == 'overdue_fu' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=followups&subtab=overdue_fu" title="2.2 Overdue">
+      <i class="fa-regular fa-circle-exclamation text-danger"></i> <span class="nav-text">2.2 Overdue</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'followups' and request.GET.subtab == 'upcoming_fu' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=followups&subtab=upcoming_fu" title="2.3 Upcoming">
+      <i class="fa-regular fa-calendar-plus"></i> <span class="nav-text">2.3 Upcoming</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'followups' and request.GET.subtab == 'completed_fu' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=followups&subtab=completed_fu" title="2.4 Completed History">
+      <i class="fa-regular fa-circle-check"></i> <span class="nav-text">2.4 Completed History</span>
+    </a>
+  </div>
+</div>
+
+<!-- 4. Section: 3. Campus Visits -->
+<div class="nav-section-group">
+  <button class="nav-section-btn {% if request.GET.tab != 'visits' %}collapsed{% endif %}"
+    type="button" data-bs-toggle="collapse" data-bs-target="#sec_counselor_visits"
+    aria-expanded="{% if request.GET.tab == 'visits' %}true{% else %}false{% endif %}"
+    title="Campus Visits">
+    <span><i class="fa-regular fa-building section-icon"></i><span class="section-title">3. Campus Visits</span></span>
+    <i class="fa-solid fa-chevron-down section-arrow"></i>
+  </button>
+  <div class="collapse {% if request.GET.tab == 'visits' %}show{% endif %} nav-sub-items"
+    id="sec_counselor_visits">
+    <a class="nav-link {% if request.GET.tab == 'visits' and request.GET.subtab == 'today_visits' or request.GET.tab == 'visits' and not request.GET.subtab %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=visits&subtab=today_visits" title="3.1 Today's Visits">
+      <i class="fa-regular fa-calendar-days"></i> <span class="nav-text">3.1 Today's Visits</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'visits' and request.GET.subtab == 'upcoming_visits' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=visits&subtab=upcoming_visits" title="3.2 Upcoming Visits">
+      <i class="fa-regular fa-calendar-plus"></i> <span class="nav-text">3.2 Upcoming Visits</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'visits' and request.GET.subtab == 'overdue_visits' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=visits&subtab=overdue_visits" title="3.3 Overdue Pending">
+      <i class="fa-regular fa-clock text-danger"></i> <span class="nav-text">3.3 Overdue Pending</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'visits' and request.GET.subtab == 'visited_done' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=visits&subtab=visited_done" title="3.4 Visited Completed">
+      <i class="fa-regular fa-circle-check"></i> <span class="nav-text">3.4 Visited Completed</span>
+    </a>
+  </div>
+</div>
+
+<!-- 5. Section: 4. Admissions -->
+<div class="nav-section-group">
+  <button class="nav-section-btn {% if request.GET.tab != 'admissions' %}collapsed{% endif %}"
+    type="button" data-bs-toggle="collapse" data-bs-target="#sec_counselor_adm"
+    aria-expanded="{% if request.GET.tab == 'admissions' %}true{% else %}false{% endif %}"
+    title="Admissions">
+    <span><i class="fa-solid fa-graduation-cap section-icon"></i><span class="section-title">4. Admissions</span></span>
+    <i class="fa-solid fa-chevron-down section-arrow"></i>
+  </button>
+  <div class="collapse {% if request.GET.tab == 'admissions' %}show{% endif %} nav-sub-items"
+    id="sec_counselor_adm">
+    <a class="nav-link {% if request.GET.tab == 'admissions' and request.GET.subtab == 'planned' or request.GET.tab == 'admissions' and not request.GET.subtab %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=admissions&subtab=planned" title="4.1 Admission Planned">
+      <i class="fa-regular fa-calendar-check"></i> <span class="nav-text">4.1 Admission Planned</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'admissions' and request.GET.subtab == 'done' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=admissions&subtab=done" title="4.2 Admission Done">
+      <i class="fa-regular fa-circle-check text-success"></i> <span class="nav-text">4.2 Admission Done</span>
+    </a>
+  </div>
+</div>
+
+<!-- 6. Section: 5. Fees & Payments -->
+<div class="nav-section-group">
+  <button class="nav-section-btn {% if request.GET.tab != 'payments' %}collapsed{% endif %}"
+    type="button" data-bs-toggle="collapse" data-bs-target="#sec_counselor_payments"
+    aria-expanded="{% if request.GET.tab == 'payments' %}true{% else %}false{% endif %}"
+    title="Fees & Payments">
+    <span><i class="fa-regular fa-credit-card section-icon"></i><span class="section-title">5. Fees & Payments</span></span>
+    <i class="fa-solid fa-chevron-down section-arrow"></i>
+  </button>
+  <div class="collapse {% if request.GET.tab == 'payments' %}show{% endif %} nav-sub-items"
+    id="sec_counselor_payments">
+    <a class="nav-link {% if request.GET.tab == 'payments' and request.GET.subtab == 'pending' or request.GET.tab == 'payments' and not request.GET.subtab %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=payments&subtab=pending" title="5.1 Payment Pending">
+      <i class="fa-regular fa-clock text-warning"></i> <span class="nav-text">5.1 Payment Pending</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'payments' and request.GET.subtab == 'partial' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=payments&subtab=partial" title="5.2 Partial / Token">
+      <i class="fa-regular fa-file-lines"></i> <span class="nav-text">5.2 Partial / Token</span>
+    </a>
+    <a class="nav-link {% if request.GET.tab == 'payments' and request.GET.subtab == 'full' %}active{% endif %}"
+      href="{% url 'dashboard:academy_counselor_home' %}?tab=payments&subtab=full" title="5.3 Full Payment Done">
+      <i class="fa-regular fa-circle-check text-success"></i> <span class="nav-text">5.3 Full Payment Done</span>
+    </a>
+  </div>
+</div>
+
+<!-- 7. Section: 6. Lost Leads -->
+<a class="nav-link {% if request.GET.tab == 'lost' %}active{% endif %}"
+  href="{% url 'dashboard:academy_counselor_home' %}?tab=lost" title="6. Lost Leads">
+  <i class="fa-regular fa-circle-xmark"></i> <span class="nav-text">6. Lost Leads</span>
+</a>
+
+<div class="sidebar-divider my-2 border-top border-secondary border-opacity-25"></div>
+
+<!-- 8. Tasks & Reminders -->
+<a class="nav-link {% if active == 'tasks' %}active{% endif %}"
+  href="{% url 'dashboard:tasks' %}" title="Tasks & Reminders">
+  <i class="fa-regular fa-square-check"></i> <span class="nav-text">Tasks & Reminders</span>
+</a>
+
+<!-- 9. Temperature Manager -->
+<a class="nav-link {% if active == 'temperature_manager' %}active{% endif %}"
+  href="{% url 'leads:temperature_manager' %}" title="Temperature Manager">
+  <i class="fa-solid fa-temperature-half"></i> <span class="nav-text">Temperature Manager</span>
+</a>
+
+<!-- 10. Custom Message / WhatsApp Templates -->
+<a class="nav-link {% if active == 'custom_message_manager' %}active{% endif %}"
+  href="{% url 'leads:custom_message_manager' %}" title="Custom Message / WhatsApp Templates">
+  <i class="fa-regular fa-comment-dots"></i> <span class="nav-text">Custom Message</span>
+</a>
+
+<!-- 11. Submit EOD Report -->
+<a class="nav-link {% if active == 'daily_report_submit' %}active{% endif %}"
+  href="{% url 'dashboard:submit_daily_report' %}" title="Submit EOD Report">
+  <i class="fa-regular fa-file-lines"></i> <span class="nav-text">Submit EOD Report</span>
+</a>
+
+<!-- 12. Notifications -->
+<a class="nav-link {% if active == 'notifications' %}active{% endif %}"
+  href="{% url 'notifications:list' %}" title="Notifications">
+  <i class="fa-regular fa-bell"></i> <span class="nav-text">Notifications</span>
+</a>

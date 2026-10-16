@@ -54,7 +54,7 @@ def management_home(request):
     
     # ── 1. Fetch All Active Businesses (Tenants) ───────────────────────────────
     all_hospitals = list(Hospital.objects.filter(is_active=True).order_by("name"))
-    business_options = [{"id": str(h.id), "name": h.name} for h in all_hospitals]
+    business_options = [{"id": str(h.id), "name": h.name, "industry": getattr(h, "industry", "")} for h in all_hospitals]
 
     # ── 2. Parse Selected Business Filters ─────────────────────────────────────
     raw_biz_list = [b.strip() for b in request.GET.getlist("business") if b.strip()]
@@ -87,12 +87,13 @@ def management_home(request):
     selected_businesses = []
     color_idx = 0
     for b_id in selected_business_ids:
-        b_name = next((b["name"] for b in business_options if b["id"] == b_id), None)
-        if b_name:
+        b_opt = next((b for b in business_options if b["id"] == b_id), None)
+        if b_opt:
             color = BUSINESS_COLOR_PALETTE[color_idx % len(BUSINESS_COLOR_PALETTE)]
             selected_businesses.append({
                 "id": b_id,
-                "name": b_name,
+                "name": b_opt["name"],
+                "industry": b_opt.get("industry", ""),
                 "color": color["primary"],
                 "bg": color["bg"],
                 "border": color["border"],
@@ -176,17 +177,25 @@ def management_home(request):
             filtered_leads = filtered_leads.filter(inquiry_date__lte=date_to)
 
     # ── Helper for Course vs Department Label Determination ────────────────────
-    def get_category_meta_for_business(biz_name):
-        b_lower = (biz_name or "").lower()
-        if "hospital" in b_lower or "nelson" in b_lower or "clinic" in b_lower or "care" in b_lower or "medical" in b_lower:
+    def get_category_meta_for_business(biz_dict_or_name):
+        ind = ""
+        if isinstance(biz_dict_or_name, dict):
+            ind = str(biz_dict_or_name.get("industry", "")).upper()
+        if ind == "HOSPITAL":
             return {"title": "Department Distribution", "icon": "fa-hospital", "unit": "Department"}
-        elif "academy" in b_lower or "zappcode" in b_lower or "institute" in b_lower or "school" in b_lower:
+        elif ind == "ACADEMY":
+            return {"title": "Course Distribution", "icon": "fa-graduation-cap", "unit": "Course"}
+
+        b_lower = (str(biz_dict_or_name.get("name") if isinstance(biz_dict_or_name, dict) else biz_dict_or_name) or "").lower()
+        if "hospital" in b_lower or "clinic" in b_lower or "medical" in b_lower:
+            return {"title": "Department Distribution", "icon": "fa-hospital", "unit": "Department"}
+        elif "academy" in b_lower or "institute" in b_lower or "school" in b_lower:
             return {"title": "Course Distribution", "icon": "fa-graduation-cap", "unit": "Course"}
         return {"title": "Course / Department Distribution", "icon": "fa-graduation-cap", "unit": "Specialization"}
 
     # Determine overall primary business category title
     if is_single_business and selected_businesses:
-        primary_cat_meta = get_category_meta_for_business(selected_businesses[0]["name"])
+        primary_cat_meta = get_category_meta_for_business(selected_businesses[0])
     else:
         primary_cat_meta = {"title": "Course & Department Distribution", "icon": "fa-graduation-cap", "unit": "Course/Dept"}
 
@@ -366,7 +375,7 @@ def management_home(request):
                 "counts": s_counts if s_counts else [0],
             })
 
-            is_hosp = "hospital" in b["name"].lower() or "nelson" in b["name"].lower() or "clinic" in b["name"].lower()
+            is_hosp = b.get("industry") == "HOSPITAL"
             c_labels, c_counts = extract_category_counts(b_leads, is_hospital_domain=is_hosp)
 
             business_course_charts.append({
@@ -414,7 +423,7 @@ def management_home(request):
         }]
 
         # D. Unified Course / Department Pie
-        is_hosp_single = is_single_business and ("hospital" in selected_businesses[0]["name"].lower() or "nelson" in selected_businesses[0]["name"].lower())
+        is_hosp_single = is_single_business and (selected_businesses[0].get("industry") == "HOSPITAL")
         c_labels, c_counts = extract_category_counts(filtered_leads, is_hospital_domain=is_hosp_single)
 
         business_course_charts = [{

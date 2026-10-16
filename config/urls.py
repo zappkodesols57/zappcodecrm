@@ -22,3 +22,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Central User-Friendly Error Handlers (Prevents ugly crash screens across the entire project)
+handler400 = 'config.error_views.custom_bad_request_view'
+handler403 = 'config.error_views.custom_permission_denied_view'
+handler404 = 'config.error_views.custom_page_not_found_view'
+handler500 = 'config.error_views.custom_server_error_view'
+

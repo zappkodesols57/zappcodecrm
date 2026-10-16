@@ -38,6 +38,7 @@ class DailyReport(models.Model):
     challenges_faced = models.TextField(blank=True, verbose_name="Challenges Faced")
     tomorrow_priority = models.TextField(blank=True, verbose_name="Tomorrow's Priority / Plan")
     other_updates = models.TextField(blank=True, verbose_name="Other Updates / Summary")
+    custom_data = models.JSONField(default=dict, blank=True)
 
     # Mood / Energy self-rating
     MOOD_CHOICES = [

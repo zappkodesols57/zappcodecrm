@@ -492,170 +492,35 @@ Analytics Dashboard{% endif %}{% endblock %}
 
 {% block content %}
 <div class="nelson-dashboard">
-    <!-- Header & Top Actions -->
+    <!-- Top Actions / Header -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
         <div>
             <h4 class="fw-bold mb-0 text-dark" style="color: #052042 !important; letter-spacing: -0.3px;">Dashboard</h4>
         </div>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <!-- Filter Toggle Button -->
-            <button type="button"
-                class="btn {% if has_active_filters %}btn-primary text-white shadow-sm{% else %}btn-white bg-white text-dark border{% endif %} btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2"
-                id="filterToggleBtn" style="font-size: 0.82rem;">
-                <i class="ph-bold ph-funnel {% if not has_active_filters %}text-primary{% endif %}"></i>
-                <span>Filters</span>
-                {% if has_active_filters %}
-                <span class="badge bg-white text-primary rounded-circle px-1" style="font-size: 0.65rem;">Active</span>
-                {% endif %}
-                <i class="ph ph-caret-down ms-1" id="filterChevronIcon"></i>
-            </button>
-
-            <!-- Reset Button -->
-            {% if has_active_filters %}
-            <a href="{% url 'dashboard:superadmin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
-                class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 fw-bold text-decoration-none d-flex align-items-center gap-1"
-                style="font-size: 0.82rem;">
-                <i class="ph ph-arrow-counter-clockwise"></i> Reset
-            </a>
-            {% endif %}
-
-            <!-- Top Date Dropdown Card -->
-            <div class="dropdown">
-                <button class="btn btn-sm btn-white bg-white text-dark border dropdown-toggle fw-semibold rounded-pill px-3 py-1 shadow-sm d-flex align-items-center gap-1.5"
-                    type="button" id="topHeaderDateDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.82rem; height: 34px;">
-                    <i class="ph ph-calendar-blank text-primary"></i>
-                    <span>
-                        {% if custom_start and custom_end %}{{ custom_start }} to {{ custom_end }}
-                        {% elif custom_start %}From {{ custom_start }}
-                        {% elif time_filter == 'last_7_days' or not time_filter %}Last 7 Days
-                        {% elif time_filter == 'today' %}Today
-                        {% elif time_filter == 'last_30_days' %}Last 30 Days
-                        {% elif time_filter == 'all_time' %}All
-                        {% else %}{{ filter_label|default:"Date" }}{% endif %}
-                    </span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1" aria-labelledby="topHeaderDateDropdown" style="font-size: 0.82rem; min-width: 170px;">
-                    <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 0.68rem; letter-spacing: 0.5px;">Quick Date Range</h6></li>
-                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'today' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=today{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-clock me-1.5 text-secondary"></i>Today</a></li>
-                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_7_days' or not time_filter and not custom_start %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_7_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 7 Days</a></li>
-                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'last_30_days' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=last_30_days{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-calendar-blank me-1.5 text-secondary"></i>Last 30 Days</a></li>
-                    <li><a class="dropdown-item py-1.5 {% if time_filter == 'all_time' %}active fw-bold{% endif %}" href="{% url 'dashboard:hospital_admin_home' %}?time_filter=all_time{% if selected_hospital_id %}&business={{ selected_hospital_id }}{% endif %}{% if current_industry %}&industry={{ current_industry }}{% endif %}"><i class="ph ph-infinity me-1.5 text-secondary"></i>All</a></li>
-                </ul>
-            </div>
-        </div>
     </div>
 
-    <!-- Active Applied Filters Chips Bar (Shows exactly which filters are applied) -->
-    {% if has_active_filters %}
-    <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white px-3 py-2" style="border: 1px solid #E5E7EB !important;">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-1.5 flex-wrap">
-                <span class="text-muted fw-bold text-uppercase d-flex align-items-center gap-1 me-1" style="font-size: 0.70rem; letter-spacing: 0.5px; color: #052042 !important;">
-                    <i class="fa-solid fa-filter text-primary"></i> APPLIED FILTERS:
-                </span>
-
-                {% if search_query %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Search:</strong> "{{ search_query }}"
-                </span>
-                {% endif %}
-
-                {% if time_filter and time_filter != 'last_7_days' and time_filter != '' %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Date:</strong> 
-                    {% if time_filter == 'today' %}Today
-                    {% elif time_filter == 'last_30_days' %}Last 30 Days
-                    {% elif time_filter == 'all_time' %}All Time
-                    {% else %}{{ time_filter }}{% endif %}
-                </span>
-                {% endif %}
-
-                {% if custom_start or custom_end %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Date Range:</strong> {{ custom_start|default:'Start' }} to {{ custom_end|default:'Today' }}
-                </span>
-                {% endif %}
-
-                {% if current_stage %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Stage:</strong> {{ current_stage }}
-                </span>
-                {% endif %}
-
-                {% if current_deal_status %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Status:</strong> {{ current_deal_status }}
-                </span>
-                {% endif %}
-
-                {% if current_telecaller %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Telecaller:</strong> 
-                    {% if current_telecaller == 'unassigned' %}Unassigned{% else %}Staff ID: {{ current_telecaller }}{% endif %}
-                </span>
-                {% endif %}
-
-                {% if current_doctor %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Doctor:</strong> {{ current_doctor }}
-                </span>
-                {% endif %}
-
-                {% if current_department %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Department:</strong> {{ current_department }}
-                </span>
-                {% endif %}
-
-                {% if current_source %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Source:</strong> {{ current_source }}
-                </span>
-                {% endif %}
-
-                {% if current_campaign %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Campaign:</strong> {{ current_campaign }}
-                </span>
-                {% endif %}
-
-                {% if current_location %}
-                <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.74rem;">
-                    <strong class="text-muted">Location:</strong> {{ current_location }}
-                </span>
-                {% endif %}
-            </div>
-
-            <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
-                class="btn btn-link p-0 text-danger text-decoration-none small fw-bold d-flex align-items-center gap-1"
-                style="font-size: 0.74rem;">
-                <i class="fa-solid fa-arrow-rotate-left"></i> Reset All
-            </a>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Interactive Top Filter Panel -->
-    <div class="filter-panel mb-4" id="filterCollapseBody"
-        style="{% if has_active_filters %}display: block;{% else %}display: none;{% endif %}">
+    <!-- ─── COMPACT ALWAYS-VISIBLE TOP FILTER BAR (Academy Dashboard Style for Hospital Admin) ─── -->
+    <div class="card border shadow-sm mb-4" style="border-radius: 12px; background: #ffffff; border-color: #E5E7EB !important;">
+      <div class="card-body p-3">
         <form method="GET" action="{% url 'dashboard:hospital_admin_home' %}" id="interactiveFilterForm">
             <!-- Hidden inputs to maintain tenant context -->
             {% if selected_hospital_id %}
             <input type="hidden" name="business" value="{{ selected_hospital_id }}">
             {% endif %}
 
-            <div class="row g-3">
-                <!-- Search Bar -->
-                <div class="col-md-3 col-sm-6">
-                    <label class="filter-label">SEARCH</label>
-                    <input type="text" name="q" class="form-control form-control-sm custom-filter-input"
-                        placeholder="Search patient name, mobile, code..." value="{{ search_query }}">
+            <div class="row g-2 align-items-end">
+                <!-- ROW 1 (6 fields): SEARCH (20%), STAGES (16%), STATUS (16%), TELECALLER (16%), DOCTORS (16%), LOCATION (16%) -->
+                <!-- 1. Search Bar -->
+                <div class="col-12 col-md-4 col-xl-2" style="flex: 0 0 20%; max-width: 20%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">SEARCH</label>
+                    <input type="text" name="q" class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;"
+                        placeholder="Search patient, mobile..." value="{{ search_query }}">
                 </div>
 
-                <!-- Stages Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">STAGES</label>
-                    <select name="stage" class="form-select custom-filter-select">
+                <!-- 2. Stages Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 16%; max-width: 16%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">STAGES</label>
+                    <select name="stage" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Stages</option>
                         {% for stg in stages %}
                         <option value="{{ stg }}" {% if current_stage == stg %}selected{% endif %}>{{ stg }}</option>
@@ -663,10 +528,10 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- Status / Deal Status Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">STATUS</label>
-                    <select name="deal_status" class="form-select custom-filter-select">
+                <!-- 3. Status Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 16%; max-width: 16%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">STATUS</label>
+                    <select name="deal_status" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Statuses</option>
                         {% for code, label in deal_statuses %}
                         <option value="{{ code }}" {% if current_deal_status == code %}selected{% endif %}>{{ label }}</option>
@@ -674,10 +539,10 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- Telecaller / Staff Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">TELECALLER</label>
-                    <select name="telecaller" class="form-select custom-filter-select">
+                <!-- 4. Telecaller Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 16%; max-width: 16%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">TELECALLER</label>
+                    <select name="telecaller" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Telecallers</option>
                         <option value="unassigned" {% if current_telecaller == 'unassigned' %}selected{% endif %}>Unassigned Staff</option>
                         {% for staff in telecaller_users %}
@@ -688,10 +553,10 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- Doctors Filter -->
-                <div class="col-md-3 col-sm-6">
-                    <label class="filter-label">DOCTORS</label>
-                    <select name="doctor" class="form-select custom-filter-select">
+                <!-- 5. Doctors Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 16%; max-width: 16%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">DOCTORS</label>
+                    <select name="doctor" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Doctors</option>
                         {% for doc in doctors %}
                         <option value="{{ doc }}" {% if current_doctor == doc %}selected{% endif %}>{{ doc }}</option>
@@ -699,43 +564,10 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- Department Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">DEPARTMENT</label>
-                    <select name="department" class="form-select custom-filter-select">
-                        <option value="">All Departments</option>
-                        {% for dept in departments %}
-                        <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Source Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">SOURCE</label>
-                    <select name="source" class="form-select custom-filter-select">
-                        <option value="">All Sources</option>
-                        {% for src in lead_sources %}
-                        <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Campaign Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">CAMPAIGN</label>
-                    <select name="campaign" class="form-select custom-filter-select">
-                        <option value="">All Campaigns</option>
-                        {% for camp in campaigns %}
-                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Location Filter -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">LOCATION</label>
-                    <select name="location" class="form-select custom-filter-select">
+                <!-- 6. Location Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 16%; max-width: 16%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">LOCATION</label>
+                    <select name="location" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Locations</option>
                         {% for loc in locations %}
                         <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>{{ loc }}</option>
@@ -743,45 +575,84 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- Date Range Dropdown -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">DATE RANGE</label>
-                    <select name="time_filter" id="formTimeFilterSelect" class="form-select custom-filter-select" onchange="onTimeFilterSelectChange(this.value)">
-                        <option value="last_7_days" {% if time_filter == 'last_7_days' or not time_filter and not custom_start %}selected{% endif %}>Last 7 Days</option>
-                        <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
-                        <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
-                        <option value="all_time" {% if time_filter == 'all_time' %}selected{% endif %}>All</option>
-                        <option value="custom" {% if custom_start or custom_end or time_filter == 'custom' %}selected{% endif %}>Custom Date Range</option>
+                <!-- ROW 2 (6 fields + Action Buttons): DEPARTMENT (13.5%), SOURCE (13.5%), CAMPAIGN (13.5%), DATE RANGE (13.5%), FROM DATE (13.5%), TO DATE (13.5%), BUTTONS (19%) -->
+                <!-- 7. Department Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">DEPARTMENT</label>
+                    <select name="department" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if current_department == dept %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
-                <!-- Date Range Inputs -->
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">FROM DATE</label>
+                <!-- 8. Source Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">SOURCE</label>
+                    <select name="source" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
+                        <option value="">All Sources</option>
+                        {% for src in lead_sources %}
+                        <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 9. Campaign Filter -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">CAMPAIGN</label>
+                    <select name="campaign" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
+                        <option value="">All Campaigns</option>
+                        {% for camp in campaigns %}
+                        <option value="{{ camp }}" {% if current_campaign == camp %}selected{% endif %}>{{ camp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 10. Date Range Quick Dropdown -->
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">DATE RANGE</label>
+                    <select name="time_filter" id="formTimeFilterSelect" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" onchange="onTimeFilterSelectChange(this.value)">
+                        <option value="last_7_days" {% if time_filter == 'last_7_days' or not time_filter and not custom_start %}selected{% endif %}>Last 7 Days</option>
+                        <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
+                        <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="all_time" {% if time_filter == 'all_time' %}selected{% endif %}>All Time</option>
+                        <option value="custom" {% if custom_start or custom_end or time_filter == 'custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                </div>
+
+                <!-- 11. From Date -->
+                <div class="col-6 col-md-4 col-xl-2" id="filterStartDateCol" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">FROM DATE</label>
                     <input type="date" name="start_date" id="filterStartDate"
-                        class="form-control form-control-sm custom-filter-input" value="{{ custom_start }}"
+                        class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" value="{{ custom_start }}"
                         max="{{ today_str }}" onchange="onCustomDateRangeInput()">
                 </div>
 
-                <div class="col-md-2 col-sm-6">
-                    <label class="filter-label">TO DATE</label>
+                <!-- 12. To Date -->
+                <div class="col-6 col-md-4 col-xl-2" id="filterEndDateCol" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">TO DATE</label>
                     <input type="date" name="end_date" id="filterEndDate"
-                        class="form-control form-control-sm custom-filter-input" value="{{ custom_end }}"
+                        class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" value="{{ custom_end }}"
                         max="{{ today_str }}" onchange="onCustomDateRangeInput()">
                 </div>
-            </div>
 
-            <!-- Filter Panel Action Buttons (Apply & Reset) -->
-            <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-3 border-top">
-                <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
-                    class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-medium">
-                    <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset
-                </a>
-                <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
-                    <i class="ph ph-check me-1"></i> Apply
-                </button>
+                <!-- Action Buttons: Apply & Reset -->
+                <div class="col-12 col-md-4 col-xl-2" style="flex: 0 0 19%; max-width: 19%;">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary text-white flex-fill shadow-sm d-flex align-items-center justify-content-center" style="height: 32px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; background-color: #052042 !important; border-color: #052042 !important;">
+                            <i class="ph ph-check me-1"></i> Apply
+                        </button>
+                        <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
+                            class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center" style="height: 32px; border-radius: 6px; border-color: #E5E7EB !important; font-size: 0.82rem; font-weight: 500;" title="Reset all filters">
+                            <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset
+                        </a>
+                    </div>
+                </div>
+
             </div>
         </form>
+      </div>
     </div>
 </div>
 
@@ -1551,19 +1422,20 @@ Analytics Dashboard{% endif %}{% endblock %}
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-        // --- 1. Filter Panel Open / Collapse (Only opens when user clicks Filters button) ---
+        // --- 1. Filter Panel Open / Collapse (Safely guarded) ---
         const filterBody = document.getElementById('filterCollapseBody');
         const filterToggleBtn = document.getElementById('filterToggleBtn');
         const filterChevron = document.getElementById('filterChevronIcon');
 
-        // Always default to collapsed/hidden unless user explicitly clicks the Filters toggle button
-        filterBody.style.display = 'none';
-        if (filterChevron) {
-            filterChevron.classList.remove('ph-caret-up');
-            filterChevron.classList.add('ph-caret-down');
+        if (filterBody) {
+            filterBody.style.display = 'none';
+            if (filterChevron) {
+                filterChevron.classList.remove('ph-caret-up');
+                filterChevron.classList.add('ph-caret-down');
+            }
         }
 
-        if (filterToggleBtn) {
+        if (filterToggleBtn && filterBody) {
             filterToggleBtn.addEventListener('click', () => {
                 const isOpen = filterBody.style.display !== 'none';
                 if (isOpen) {

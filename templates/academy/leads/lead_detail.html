@@ -1,332 +1,801 @@
 {% extends "base.html" %}
-{% block title %}{{ lead.name }} · {{ lead.lead_code }}{% endblock %}
+{% block title %}{{ lead.name }} · {{ lead.lead_code|default:lead.pk }}{% endblock %}
+
 {% block content %}
-<div class="row align-items-center mb-3 g-2">
-  <div class="col-12 col-xl-7 col-lg-6">
+<style>
+  /* Premium Academy Lead View Design System (Harmonized with Hospital lead view) */
+  .crm-academy-lead-view {
+    --crm-primary: #0f2744;
+    --crm-primary-light: #f0f4f9;
+    --crm-border: #e2e8f0;
+    --crm-text: #1e293b;
+    --crm-muted: #64748b;
+    --crm-card-bg: #ffffff;
+    --crm-bg-soft: #f8fafc;
+    --crm-brand: #2563eb;
+    --crm-brand-subtle: #eff6ff;
+  }
+
+  .crm-academy-lead-view .card {
+    border: 1px solid var(--crm-border);
+    border-radius: 12px;
+    background: var(--crm-card-bg);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+
+  .crm-academy-lead-view .card-header {
+    background: #ffffff;
+    border-bottom: 1px solid var(--crm-border);
+    padding: 10px 16px;
+    font-weight: 600;
+    color: var(--crm-primary);
+  }
+
+  .crm-academy-lead-view .card-body {
+    padding: 14px 16px;
+  }
+
+  .crm-info-box {
+    background: var(--crm-bg-soft);
+    border: 1px solid var(--crm-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    height: 100%;
+  }
+
+  .crm-info-box .crm-label {
+    font-size: 0.70rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--crm-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+    display: block;
+  }
+
+  .crm-info-box .crm-val {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--crm-text);
+  }
+
+  /* Student Avatar Initials */
+  .crm-student-avatar-init {
+    width: 48px;
+    height: 48px;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Status Badges */
+  .crm-badge-lightblue {
+    background-color: #e0f2fe !important;
+    color: #0369a1 !important;
+    border: 1px solid #bae6fd !important;
+    font-weight: 600;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    letter-spacing: 0.2px;
+  }
+
+  .crm-badge-green {
+    background-color: #dcfce7 !important;
+    color: #15803d !important;
+    border: 1px solid #bbf7d0 !important;
+    font-weight: 600;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .crm-badge-amber {
+    background-color: #fef3c7 !important;
+    color: #b45309 !important;
+    border: 1px solid #fde68a !important;
+    font-weight: 600;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  /* Timeline & Feed Styling */
+  .crm-timeline-row {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.8rem;
+    transition: background-color 0.15s ease;
+  }
+
+  .crm-timeline-row:last-child {
+    border-bottom: none;
+  }
+
+  .crm-timeline-row:hover {
+    background-color: #f8fafc;
+  }
+
+  /* Universal Button Hover Consistency */
+  .crm-academy-lead-view .btn,
+  .crm-academy-lead-view button.btn,
+  .crm-academy-lead-view a.btn {
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .crm-academy-lead-view .btn:hover,
+  .crm-academy-lead-view .btn:focus {
+    background-color: var(--crm-primary) !important;
+    border-color: var(--crm-primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(15, 39, 68, 0.20) !important;
+  }
+
+  .crm-academy-lead-view .btn-success:hover,
+  .crm-academy-lead-view .btn-success:focus {
+    background-color: #14532d !important;
+    border-color: #14532d !important;
+    color: #ffffff !important;
+  }
+
+  .crm-academy-lead-view .btn-close:hover {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+  }
+</style>
+
+<div class="crm-academy-lead-view">
+
+  <!-- 1. Top Action Navigation Bar (Strictly above Student Information Header) -->
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <!-- Left: Navigation (Back, Prev Lead, Next Lead) -->
     <div class="d-flex align-items-center gap-2">
-      <button type="button" onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'leads:lead_list' %}';" class="btn btn-sm btn-light border shadow-2xs rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" title="Go Back">
-        <i class="fa-solid fa-arrow-left text-secondary"></i>
-      </button>
-      <div class="text-truncate">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <span class="text-muted small fw-bold">{{ lead.lead_code }}</span>
-          <h4 class="mb-0 fw-bold text-dark d-inline">{{ lead.name }}</h4>
-          <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
-          <span class="badge badge-stage">{{ lead.stage }}</span>
-          {% if lead.assigned_to %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fw-semibold">
-              <i class="fa-solid fa-user-check me-1"></i>Owner: {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
-            </span>
-          {% else %}
-            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fw-semibold">
-              <i class="fa-solid fa-circle-question me-1"></i>Unassigned
-            </span>
-          {% endif %}
-        </div>
-        <div class="text-muted small mt-1">
-          <i class="fa-solid fa-phone me-1"></i> {{ lead.mobile }}
-          {% if lead.email %} &nbsp;·&nbsp; <i class="fa-solid fa-envelope me-1"></i> {{ lead.email }}{% endif %}
-          {% if lead.city %} &nbsp;·&nbsp; <i class="fa-solid fa-location-dot me-1"></i> {{ lead.city }}{% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-xl-5 col-lg-6">
-    <div class="d-flex gap-2 justify-content-lg-end align-items-center flex-wrap">
-      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
+        &larr; Back
+      </a>
       {% if prev_lead %}
-        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to previous (newer) lead in queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</a>
+        <a href="{% url 'leads:lead_detail' prev_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;" title="Previous Lead">
+          &lsaquo; Prev Lead
+        </a>
       {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Top of leads queue"><i class="fa-solid fa-chevron-left me-1"></i> Prev Lead</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" onclick="showQueueModal('Queue Top Reached', 'You have reached the top of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" style="font-size: 0.8rem;" title="Previous Lead">
+          &lsaquo; Prev Lead
+        </button>
       {% endif %}
       {% if next_lead %}
-        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-primary" title="Go to next (older) lead in queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></a>
+        <a href="{% url 'leads:lead_detail' next_lead.pk %}{% if filter_querystring %}?{{ filter_querystring }}{% endif %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;" title="Next Lead">
+          Next Lead &rsaquo;
+        </a>
       {% else %}
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" title="Bottom of leads queue">Next Lead <i class="fa-solid fa-chevron-right ms-1"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" onclick="showQueueModal('Queue End Reached', 'You have reached the bottom of the leads queue.')" data-bs-toggle="modal" data-bs-target="#queueBoundaryModal" style="font-size: 0.8rem;" title="Next Lead">
+          Next Lead &rsaquo;
+        </button>
       {% endif %}
-      {% if can_edit %}
-      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-pen me-1"></i> Edit</a>
-      {% endif %}
-      {% if not admission %}
-        {% if request.user.industry == 'HOSPITAL' %}
-          <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#appointmentModal"><i class="fa-solid fa-stethoscope me-1"></i> Book Appointment</button>
-        {% elif can_convert %}
-          <button class="btn btn-sm btn-brand text-white fw-semibold" data-bs-toggle="modal" data-bs-target="#admissionModal"><i class="fa-solid fa-graduation-cap me-1"></i> Convert to Admission</button>
-        {% endif %}
-      {% endif %}
-      {% if can_edit and not request.user.industry == 'HOSPITAL' %}
-        <div class="dropdown d-inline-block">
-          <button class="btn btn-sm btn-outline-dark dropdown-toggle fw-semibold d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Change Admission Status">
-            <i class="fa-solid fa-id-card-clip text-primary me-1"></i>
-            <span>Admission Status:</span>
-            <span class="badge {% if lead.admission_status == 'WON' %}bg-success{% elif lead.admission_status == 'LOST' %}bg-danger{% elif lead.admission_status == 'HOLD' %}bg-warning text-dark{% else %}bg-primary{% endif %}">
-              {{ lead.get_admission_status_display|default:lead.admission_status|default:"Open" }}
-            </span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1">
-            <li class="dropdown-header text-uppercase small text-muted px-3 py-1">Update Admission Status</li>
-            {% for code, label in admission_statuses %}
-              <li>
-                <form method="post" action="{% url 'leads:update_admission_status' lead.pk %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="admission_status" value="{{ code }}">
-                  <button type="submit" class="dropdown-item d-flex align-items-center justify-content-between py-1 px-3 {% if lead.admission_status == code %}active fw-bold{% endif %}">
-                    <span>{{ label }}</span>
-                    {% if code == 'WON' %}
-                      <span class="badge bg-success bg-opacity-10 text-success ms-2">Won</span>
-                    {% elif code == 'LOST' %}
-                      <span class="badge bg-danger bg-opacity-10 text-danger ms-2">Freeze / Cancel</span>
-                    {% elif code == 'HOLD' %}
-                      <span class="badge bg-warning bg-opacity-10 text-warning ms-2">Hold</span>
-                    {% else %}
-                      <span class="badge bg-primary bg-opacity-10 text-primary ms-2">Open</span>
-                    {% endif %}
-                  </button>
-                </form>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-      {% endif %}
-      {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
-      <a href="{% url 'leads:lead_archive' lead.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirmAction('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
-        <i class="fa-solid fa-box-archive me-1"></i> {% if lead.is_archived %}Restore{% else %}Archive{% endif %}
+    </div>
+
+    <!-- Right: WhatsApp, Convert/Admission, Edit, Status Dropdown, Options -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% if lead.mobile %}
+      <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success px-3 rounded-pill fw-semibold" style="font-size: 0.8rem; background-color: #15803d; border-color: #15803d;">
+        Send WhatsApp
       </a>
       {% endif %}
+
+      {% if not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' %}
+      <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}" class="d-inline" onsubmit="return confirm('Do you want to capture and assign this student lead to yourself?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-semibold" style="font-size: 0.8rem;">
+          Capture &amp; Assign to Me
+        </button>
+      </form>
+      {% endif %}
+
+      {% if can_edit %}
+        <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
+          Edit Details
+        </a>
+      {% endif %}
+
+      {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.business and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; line-height: 1;">
+          &#8942;
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border" style="font-size: 0.82rem;">
+          <li>
+            <a class="dropdown-item text-danger" href="{% url 'leads:lead_archive' lead.pk %}" onclick="return confirm('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
+              {% if lead.is_archived %}Restore Lead{% else %}Archive Lead{% endif %}
+            </a>
+          </li>
+        </ul>
+      </div>
+      {% endif %}
     </div>
   </div>
-</div>
 
-{% if lead.assigned_to and lead.assigned_to != request.user and not can_edit %}
-<div class="alert alert-info py-2 px-3 small border-0 shadow-xs rounded-3 mb-3 d-flex align-items-center gap-2">
-  <i class="fa-solid fa-users-viewfinder text-primary fs-6"></i>
-  <span>
-    <strong>Team Lead View:</strong> This lead belongs to <strong>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</strong>. You can view progress, record follow-ups, and add internal notes. Editing details and converting to admission are reserved for the lead owner.
-  </span>
-</div>
-{% endif %}
+  <!-- Team Lead View Notice Banner if assigned to another counselor -->
+  {% if lead.assigned_to and lead.assigned_to != request.user and not can_edit %}
+  <div class="alert alert-info py-2 px-3 small border-0 shadow-xs rounded-3 mb-2 d-flex align-items-center gap-2">
+    <span>
+      <strong>Team Lead View:</strong> This lead belongs to <strong>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</strong>. You can view progress, record follow-ups, and add internal notes. Editing details are reserved for the lead owner.
+    </span>
+  </div>
+  {% endif %}
 
-<div class="row g-3">
-  <div class="col-lg-6">
-
-    <div class="card mb-3">
-      <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Overview</h6>
-        <div class="row small">
-          <div class="col-4 text-muted">Course</div><div class="col-8">{{ lead.course|default:"—" }}</div>
-          <div class="col-4 text-muted">Education</div><div class="col-8">{{ lead.education|default:"—" }} {{ lead.qualification }}</div>
-          <div class="col-4 text-muted">Inquiry Date</div><div class="col-8">{{ lead.inquiry_date }}</div>
-          <div class="col-4 text-muted">Admission Status</div>
-          <div class="col-8">
-            <span class="badge {% if lead.admission_status == 'WON' %}bg-success text-white{% elif lead.admission_status == 'LOST' %}bg-danger text-white{% elif lead.admission_status == 'HOLD' %}bg-warning text-dark{% else %}bg-primary text-white{% endif %}">
-              {{ lead.get_admission_status_display|default:lead.admission_status|default:"Open" }}
-            </span>
-          </div>
-          <div class="col-4 text-muted">Lead Temperature</div>
-          <div class="col-8">
-            <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
-          </div>
-          <div class="col-4 text-muted">Assignment / Transfer</div>
-          <div class="col-8">
-            {% if user.can_assign_leads %}
-              <div class="mb-2">
-                {% if lead.assigned_to %}
-                  <span class="fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>Current Owner: {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
-                  <span class="badge bg-light text-secondary border ms-1">{{ lead.assigned_to.get_role_display|default:"Counselor" }}</span>
-                {% else %}
-                  <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
+  <!-- 2. Heading: Student Information Header Card -->
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row align-items-center g-3">
+        <!-- Avatar + Student Name + Course Applied + Phone/City/Email -->
+        <div class="col-12 col-md-5 col-lg-4">
+          <div class="d-flex align-items-center gap-3">
+            <div class="crm-student-avatar-init">
+              {{ lead.name|slice:":2"|upper }}
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <h5 class="mb-0 fw-bold text-dark">{{ lead.name }}</h5>
+                {% if lead.course %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold" style="font-size: 0.76rem;">
+                    {{ lead.course }}
+                  </span>
                 {% endif %}
-                {% if lead.assigned_manager %}
-                  <span class="ms-2 text-muted small">(Manager: {{ lead.assigned_manager.get_full_name|default:lead.assigned_manager.username }})</span>
+                <span class="crm-badge-lightblue">
+                  {{ lead.display_stage|default:lead.stage.name|default:lead.stage|default:"New" }}
+                </span>
+                {% if lead.temperature %}
+                  <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>
+                {% elif lead.custom_temperature %}
+                  <span class="crm-badge-lightblue">{{ lead.custom_temperature }}</span>
                 {% endif %}
               </div>
-              <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="row g-2 align-items-center">
-                {% csrf_token %}
-                <div class="col-md-5">
-                  <select name="assigned_to" class="form-select form-select-sm" title="Counselor/HR">
-                    <option value="">Unassigned (Counselor/HR)</option>
-                    {% for emp in employees %}
-                      <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
-                    {% endfor %}
-                  </select>
+              <div class="d-flex align-items-center gap-2 text-muted flex-wrap" style="font-size: 0.8rem;">
+                <span class="text-dark fw-medium">{{ lead.mobile }}</span>
+                {% if lead.email %}
+                  <span>&bull;</span>
+                  <span class="text-truncate" style="max-width: 150px;" title="{{ lead.email }}">{{ lead.email }}</span>
+                {% endif %}
+                {% if lead.city or lead.custom_data.location %}
+                  <span>&bull;</span>
+                  <span>{{ lead.custom_data.location|default:lead.city }}</span>
+                {% endif %}
+                {% if lead.education or lead.qualification %}
+                  <span>&bull;</span>
+                  <span>{{ lead.education|default:"" }} {{ lead.qualification|default:"" }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta Info Items: Student Lead ID, Course Applied, Lead Owner, Created / Inquiry On -->
+        <div class="col-12 col-md-7 col-lg-8">
+          <div class="row g-2 text-start text-md-center">
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Student Lead ID</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">{{ lead.lead_code|default:lead.pk }}</strong>
+              {% if lead.parent_lead %}
+                <div class="mt-1">
+                  <a href="{% url 'leads:lead_detail' lead.parent_lead.pk %}" class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle text-decoration-none" style="font-size: 0.68rem;" title="View Parent Original Lead">
+                    &larr; Prev #{{ lead.parent_lead.lead_code|default:lead.parent_lead.pk }}
+                  </a>
                 </div>
-                <div class="col-md-5">
-                  <select name="assigned_manager" class="form-select form-select-sm" title="Manager">
-                    <option value="">No Manager</option>
-                    {% for mgr in managers %}
-                      <option value="{{ mgr.id }}" {% if lead.assigned_manager_id == mgr.id %}selected{% endif %}>{{ mgr.get_full_name|default:mgr.username }} ({{ mgr.get_role_display }})</option>
-                    {% endfor %}
-                  </select>
+              {% elif lead.clones.exists %}
+                <div class="mt-1">
+                  {% for c in lead.clones.all %}
+                    <a href="{% url 'leads:lead_detail' c.pk %}" class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle text-decoration-none" style="font-size: 0.68rem;" title="View Re-engaged Active Clone">
+                      Re-engaged #{{ c.lead_code|default:c.pk }} &rarr;
+                    </a>
+                  {% endfor %}
                 </div>
-                <div class="col-md-2">
-                  <button type="submit" class="btn btn-sm btn-brand text-white w-100 py-1" title="Transfer Lead"><i class="fa-solid fa-arrow-right-arrow-left me-1"></i>Transfer</button>
-                </div>
-              </form>
-            {% else %}
-              {% if lead.assigned_to %}
-                <span class="fw-semibold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</span>
-                <span class="badge bg-light text-secondary border ms-1">{{ lead.assigned_to.get_role_display|default:"Counselor" }}</span>
-              {% else %}
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><i class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
               {% endif %}
-              {% if lead.assigned_manager %}
-                <span class="ms-2 text-muted small">(Manager: {{ lead.assigned_manager.get_full_name|default:lead.assigned_manager.username }})</span>
-              {% endif %}
-            {% endif %}
+            </div>
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Course Applied</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">
+                {{ lead.course|default:"—" }}
+              </strong>
+            </div>
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Lead Owner</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">
+                {% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}
+              </strong>
+            </div>
+            <div class="col-6 col-sm-3">
+              <span class="crm-label text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase;">Inquiry Date</span>
+              <strong class="text-dark" style="font-size: 0.85rem;">{{ lead.inquiry_date|default:lead.effective_created_display }}</strong>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Attribution</h6>
-        <div class="row small">
-          <div class="col-4 text-muted">Current Source</div>
-          <div class="col-8">
-            {% if lead.hospital and lead.custom_data.lead_source %}{{ lead.custom_data.lead_source }}
-            {% else %}{{ lead.source_category|default:"—" }} / {{ lead.lead_source|default:"—" }}
-            {% endif %}
+      <!-- Counselor Assignment / Transfer Bar (Clean compact integrated bar) -->
+      {% if user.can_assign_leads %}
+      <div class="mt-3 pt-2 border-top">
+        <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="row g-2 align-items-center">
+          {% csrf_token %}
+          <div class="col-12 col-md-3">
+            <span class="crm-label text-muted mb-0" style="font-size: 0.70rem; text-transform: uppercase;">Assign / Transfer Counselor:</span>
           </div>
-          <div class="col-4 text-muted">Original Source</div><div class="col-8"><strong>{{ lead.original_source_category|default:"—" }} / {{ lead.original_lead_source|default:"—" }}</strong></div>
-          <div class="col-4 text-muted">Campaign</div>
-          <div class="col-8">
-            {% if lead.hospital and lead.custom_data.campaign %}{{ lead.custom_data.campaign }}
-            {% else %}{{ lead.campaign|default:"—" }}
-            {% endif %}
+          <div class="col-12 col-sm-5 col-md-4">
+            <select name="assigned_to" class="form-select form-select-sm" title="Counselor/HR">
+              <option value="">Unassigned (Counselor/HR)</option>
+              {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
+              {% endfor %}
+            </select>
           </div>
-          <div class="col-4 text-muted">UTM</div><div class="col-8">{{ lead.utm_source }} / {{ lead.utm_medium }} / {{ lead.utm_campaign }}</div>
-          {% if lead.referral_person %}
-          <div class="col-4 text-muted">Referral</div><div class="col-8">{{ lead.get_referral_type_display }} — {{ lead.referral_person }} ({{ lead.referral_contact }})</div>
-          {% endif %}
-          <div class="col-4 text-muted">Landing Page</div><div class="col-8">{{ lead.landing_page|default:"—" }}</div>
-        </div>
+          <div class="col-12 col-sm-5 col-md-3">
+            <select name="assigned_manager" class="form-select form-select-sm" title="Manager">
+              <option value="">No Manager</option>
+              {% for mgr in managers %}
+                <option value="{{ mgr.id }}" {% if lead.assigned_manager_id == mgr.id %}selected{% endif %}>{{ mgr.get_full_name|default:mgr.username }} ({{ mgr.get_role_display }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-sm-2 col-md-2">
+            <button type="submit" class="btn btn-sm btn-primary w-100 py-1" style="font-size: 0.8rem;" title="Transfer Lead">Transfer</button>
+          </div>
+        </form>
       </div>
+      {% endif %}
     </div>
-
-    <!-- Import & System Provenance Card -->
-    <div class="card mb-3 border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-import text-primary me-2"></i>Import & Creation Details</h6>
-        {% if lead.import_job or lead.import_source_file %}
-          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill">Imported Record</span>
-        {% elif lead.external_lead_id %}
-          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">Meta API Sync</span>
-        {% else %}
-          <span class="badge bg-light text-secondary border rounded-pill">Direct CRM Record</span>
-        {% endif %}
-      </div>
-      <div class="card-body">
-        <div class="row g-2 small">
-          <div class="col-4 text-muted">Lead Created / Received</div>
-          <div class="col-8 fw-semibold text-dark">
-            <i class="fa-regular fa-calendar-check text-success me-1"></i>
-            {{ lead.effective_created_formatted|default:lead.inquiry_date }}
-          </div>
-
-          <div class="col-4 text-muted">System Import Date</div>
-          <div class="col-8">
-            {% if lead.import_job %}
-              <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.import_job.created_at|date:"d M Y, h:i A" }}
-            {% elif lead.created_at %}
-              <i class="fa-solid fa-clock text-muted me-1"></i>{{ lead.created_at|date:"d M Y, h:i A" }}
-            {% else %}
-              —
-            {% endif %}
-          </div>
-
-          {% if lead.import_source_file or lead.import_job %}
-          <div class="col-4 text-muted">Import File Name</div>
-          <div class="col-8 fw-semibold text-break text-primary">
-            <i class="fa-solid fa-file-excel me-1"></i>{% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}
-          </div>
-          {% endif %}
-
-          {% if lead.external_lead_id %}
-          <div class="col-4 text-muted">Meta LeadGen ID</div>
-          <div class="col-8 font-monospace text-muted">{{ lead.external_lead_id }}</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
   </div>
 
-  <div class="col-lg-6">
-    <!-- Activity Timeline & Follow-ups -->
-    <div class="card mb-3 border-0 shadow-sm rounded-4">
-      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-timeline text-primary me-2"></i>Timeline & Remarks</h6>
-        <span class="badge bg-light text-secondary border">{{ timeline|length }} updates</span>
-      </div>
-      <div class="card-body">
-        <!-- Lead Form Notes & Inquiry Remark (if present) -->
-        {% if lead.notes %}
-        <div class="p-2 mb-3 rounded-3 bg-light border border-secondary-subtle">
-          <div class="d-flex align-items-center justify-content-between mb-1">
-            <span class="fw-bold text-dark small"><i class="fa-solid fa-comment-dots text-primary me-1"></i> Form Note / Remarks</span>
-            <span class="badge bg-white text-muted border" style="font-size: 0.68rem;">Original</span>
-          </div>
-          <div class="text-secondary small text-break" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;">{{ lead.notes }}</div>
-        </div>
-        {% endif %}
+  <!-- 3. Main Content Two-Column Layout -->
+  <div class="row g-3">
 
-        <!-- Add Follow-up Form (Replaces Note Option) -->
-        <div class="p-3 mb-3 rounded-3 bg-light border border-secondary-subtle">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fw-bold text-dark small"><i class="fa-solid fa-calendar-plus text-primary me-1"></i> Add Follow-up</span>
-            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle" style="font-size: 0.68rem;">Action</span>
+    <!-- LEFT COLUMN: Admission Details, Payment Details, Lead Recieve Source & Provenance -->
+    <div class="col-12 col-lg-6">
+
+      <!-- SECTION: Admission Details (if added) -->
+      {% if admission or lead.custom_data.admission_date %}
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Admission Details</span>
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Enrolled</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Admission Date</span>
+                <span class="crm-val">{% if admission %}{{ admission.admission_date|date:"d M Y" }}{% else %}{{ lead.custom_data.admission_date|default:"—" }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Joining Date</span>
+                <span class="crm-val">{% if admission and admission.date_of_joining %}{{ admission.date_of_joining|date:"d M Y" }}{% else %}{{ lead.custom_data.date_of_joining|default:"—" }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Batch / Timing</span>
+                <span class="crm-val">{% if admission and admission.batch %}{{ admission.batch }}{% else %}{{ lead.custom_data.batch|default:"—" }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Tutor / Faculty</span>
+                <span class="crm-val">{% if admission and admission.tutor %}{{ admission.tutor }}{% else %}{{ lead.custom_data.tutor|default:"—" }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Course Status</span>
+                <span class="crm-val">{% if admission %}{{ admission.get_course_status_display|default:admission.course_status }}{% else %}Active{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Enrollment Status</span>
+                <span class="crm-val text-success">Confirmed</span>
+              </div>
+            </div>
           </div>
-          <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="academyTimelineFollowupForm">
+
+          {% if admission %}
+          <!-- Course Status & Payment Plan quick update -->
+          <form method="post" action="{% url 'admissions:update_status' admission.id %}" class="p-2 bg-light rounded-3 border">
             {% csrf_token %}
-            <div class="row g-2 mb-2">
-              <div class="col-4">
-                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.7rem;">Follow-up Date *</label>
-                <input type="date" name="followup_date" id="timeline_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
+            <div class="row g-2 align-items-center">
+              <div class="col-6">
+                <label class="form-label text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.68rem;">Payment Plan</label>
+                <select name="payment_plan" class="form-select form-select-sm" onchange="this.form.submit()">
+                  <option value="FULL" {% if admission.payment_plan == 'FULL' %}selected{% endif %}>Full Payment</option>
+                  <option value="EMI" {% if admission.payment_plan == 'EMI' %}selected{% endif %}>EMI Plan</option>
+                </select>
               </div>
-              <div class="col-4">
-                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.7rem;">Time</label>
-                <input type="time" name="followup_time" id="timeline_fu_time" class="form-control form-control-sm">
-              </div>
-              <div class="col-4">
-                <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.7rem;">Status</label>
-                <select name="followup_status" class="form-select form-select-sm no-tom-select" required>
-                  <option value="PENDING" selected>Pending</option>
-                  <option value="RESCHEDULED">Rescheduled</option>
-                  <option value="COMPLETED">Completed</option>
+              <div class="col-6">
+                <label class="form-label text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.68rem;">Course Status</label>
+                <select name="course_status" class="form-select form-select-sm" onchange="this.form.submit()">
+                  <option value="ONGOING" {% if admission.course_status == 'ONGOING' %}selected{% endif %}>Ongoing</option>
+                  <option value="COMPLETED" {% if admission.course_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                  <option value="DROPOUT" {% if admission.course_status == 'DROPOUT' %}selected{% endif %}>Dropout</option>
                 </select>
               </div>
             </div>
-            <!-- Real-time time error alert -->
-            <div id="timeline_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.75rem;">
-              <i class="fa-solid fa-triangle-exclamation me-1"></i> <span id="timeline_time_error_text">Past time cannot be selected.</span>
-            </div>
-            <div class="input-group input-group-sm">
-              <input type="text" name="comment" class="form-control form-control-sm" placeholder="Follow-up remark or note..." required style="font-size: 0.8rem;">
-              <button class="btn btn-brand text-white px-3" type="submit" id="timeline_fu_submit">
-                <i class="fa-solid fa-paper-plane me-1"></i> Add
-              </button>
-            </div>
           </form>
+          {% endif %}
         </div>
+      </div>
+      {% endif %}
 
-        <!-- Follow-up Updates Section -->
-        {% if followups %}
-        <div class="mb-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="text-uppercase fw-bold text-secondary" style="font-size: 0.72rem; letter-spacing: 0.5px;">
-              <i class="fa-solid fa-clock-rotate-left text-info me-1"></i>Scheduled Follow-ups ({{ followups|length }})
-            </span>
+      <!-- SECTION: Payment Details (if added) -->
+      {% if admission or lead.custom_data.total_fee or lead.custom_data.token_amount %}
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Payment Details &amp; Billing</span>
+          {% if admission %}
+          <a href="{% url 'payments:add' admission.id %}" class="btn btn-sm btn-outline-primary py-0 px-2 fw-medium" style="font-size: 0.75rem;">
+            + Record Payment
+          </a>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+              <div class="crm-info-box">
+                <span class="crm-label">Course Fee</span>
+                <span class="crm-val">₹{% if admission %}{{ admission.total_fee|floatformat:0 }}{% else %}{{ lead.custom_data.total_fee|default:0 }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="crm-info-box">
+                <span class="crm-label">Discount Applied</span>
+                <span class="crm-val text-danger">-₹{% if admission %}{{ admission.discount|floatformat:0 }}{% else %}{{ lead.custom_data.discount|default:0 }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="crm-info-box">
+                <span class="crm-label">Total Bill</span>
+                <span class="crm-val fw-bold text-dark">₹{% if admission %}{{ admission.final_fee|floatformat:0 }}{% else %}{{ lead.custom_data.final_fee|default:0 }}{% endif %}</span>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="crm-info-box">
+                <span class="crm-label">Payment Mode</span>
+                <span class="crm-val">{% if admission %}{{ admission.get_payment_option_display|default:admission.payment_plan }}{% else %}{{ lead.custom_data.payment_mode|default:"—" }}{% endif %}</span>
+              </div>
+            </div>
           </div>
-          <div class="followup-list d-flex flex-column gap-2" style="max-height: 230px; overflow-y: auto;">
+
+          <!-- Financial Breakdown Ledger -->
+          <div class="p-3 bg-light rounded-3 border">
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+              <span class="text-muted small">Token / Paid Today</span>
+              <strong class="text-primary">₹{% if lead.custom_data.token_amount %}{{ lead.custom_data.token_amount|floatformat:0 }}{% elif admission %}{{ admission.collected|floatformat:0 }}{% else %}0{% endif %}</strong>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+              <span class="text-muted small">Total Fee Collected</span>
+              <strong class="text-success">₹{% if admission %}{{ admission.collected|default:lead.custom_data.total_paid|default:0|floatformat:0 }}{% else %}{{ lead.custom_data.total_paid|default:0|floatformat:0 }}{% endif %}</strong>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-1">
+              <span class="text-muted small">Pending Balance</span>
+              <strong class="text-danger">₹{% if admission %}{{ admission.pending|default:lead.custom_data.balance_amount|default:0|floatformat:0 }}{% else %}{{ lead.custom_data.balance_amount|default:0|floatformat:0 }}{% endif %}</strong>
+            </div>
+          </div>
+
+          {% if admission and admission.discount > admission.max_allowed_discount %}
+          <div class="alert alert-warning p-2 mb-2 mt-2" style="font-size: 0.75rem; border-radius: 6px;">
+            <strong>Extra Discount Applied!</strong> (Max Allowed: ₹{{ admission.max_allowed_discount|floatformat:0 }})
+            {% if admission.extra_discount_reason %}
+              <div class="text-muted mt-1" style="font-size: 0.7rem;">Reason: <em>"{{ admission.extra_discount_reason }}"</em></div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <!-- EMI Installments Planner (if EMI) -->
+          {% if admission and admission.payment_plan == 'EMI' %}
+          <div class="mt-3 pt-3 border-top">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="crm-label text-muted mb-0" style="font-size: 0.72rem; text-transform: uppercase;">EMI Installments Schedule</span>
+              <span class="badge bg-light text-secondary border">{{ admission.installments.count }} Scheduled</span>
+            </div>
+            <ul class="list-group list-group-flush small mb-3">
+              {% for inst in admission.installments.all %}
+              <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-bold">₹{{ inst.amount|floatformat:0 }}</div>
+                  <div class="text-muted" style="font-size: 0.72rem;">Due Date: {{ inst.due_date|date:"d M Y" }}</div>
+                </div>
+                <div class="d-flex gap-1 align-items-center">
+                  {% if inst.is_paid %}
+                  <span class="badge bg-success-subtle text-success py-1">Paid</span>
+                  <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Mark Unpaid"><i class="fa-solid fa-xmark"></i></a>
+                  {% else %}
+                  <span class="badge bg-danger-subtle text-danger py-1">Pending</span>
+                  <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark Paid"><i class="fa-solid fa-check"></i></a>
+                  {% endif %}
+                </div>
+              </li>
+              {% empty %}
+              <li class="list-group-item px-0 text-center text-muted py-2">No EMIs scheduled yet.</li>
+              {% endfor %}
+            </ul>
+
+            <!-- Add Installment Form -->
+            <form method="post" action="{% url 'admissions:add_installment' admission.id %}" class="bg-light p-2 rounded-3 border">
+              {% csrf_token %}
+              <div class="fw-semibold text-muted small mb-1" style="font-size: 0.72rem;">Schedule New EMI</div>
+              <div class="row g-1">
+                <div class="col-6">
+                  <input type="number" name="amount" class="form-control form-control-sm" placeholder="Amount (₹)" min="1" required>
+                </div>
+                <div class="col-6">
+                  <input type="date" name="due_date" class="form-control form-control-sm" required>
+                </div>
+                <div class="col-12 mt-1">
+                  <button class="btn btn-sm btn-primary w-100 py-1" style="font-size: 0.75rem;">+ Add EMI Installment</button>
+                </div>
+              </div>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- SECTION: Lead Source & Provenance Details (Combined Single Card) -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Lead Source &amp; Provenance Details</span>
+          {% if lead.import_job or lead.import_source_file %}
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Imported Lead</span>
+          {% elif lead.external_lead_id %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">Meta API Sync</span>
+          {% else %}
+            <span class="badge bg-light text-secondary border">Direct CRM Record</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <!-- 1. Lead Source -->
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Lead Source</span>
+                <span class="crm-val">
+                  {% if lead.source_category and lead.lead_source %}
+                    {{ lead.source_category }} &bull; {{ lead.lead_source }}
+                  {% else %}
+                    {{ lead.lead_source|default:lead.source_category|default:"Direct / Walk-in" }}
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+
+            <!-- 2. Campaign -->
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Campaign</span>
+                <span class="crm-val">{{ lead.campaign|default:"—" }}</span>
+              </div>
+            </div>
+
+            <!-- 3. Enquiry Date -->
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Enquiry Date</span>
+                <span class="crm-val text-dark fw-semibold">{{ lead.inquiry_date|default:lead.effective_created_formatted|default:"—" }}</span>
+              </div>
+            </div>
+
+            <!-- 4. System Add Date -->
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">System Add Date</span>
+                <span class="crm-val">
+                  {% if lead.created_at %}
+                    {{ lead.created_at|date:"d M Y, h:i A" }}
+                  {% elif lead.import_job %}
+                    {{ lead.import_job.created_at|date:"d M Y, h:i A" }}
+                  {% else %}
+                    {{ lead.effective_created_display|default:"—" }}
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+
+            <!-- 5. UTM Tags -->
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">UTM Tags</span>
+                <span class="crm-val text-truncate d-block" title="{% if lead.utm_source or lead.utm_medium %}{{ lead.utm_source }} / {{ lead.utm_medium }}{% else %}—{% endif %}">
+                  {% if lead.utm_source or lead.utm_medium %}{{ lead.utm_source }} / {{ lead.utm_medium }}{% else %}—{% endif %}
+                </span>
+              </div>
+            </div>
+
+            <!-- 6. Landing Page / Original Source -->
+            <div class="col-6 col-md-4">
+              <div class="crm-info-box">
+                <span class="crm-label">Landing Page</span>
+                <span class="crm-val text-truncate d-block" title="{{ lead.landing_page|default:'—' }}">
+                  {{ lead.landing_page|default:"—" }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 7. Source File if imported from import files -->
+            {% if lead.import_source_file or lead.import_job %}
+            <div class="col-12">
+              <div class="crm-info-box bg-light border-primary-subtle">
+                <span class="crm-label text-primary">Import Source File</span>
+                <span class="crm-val text-primary text-break">
+                  {% if lead.import_source_file %}{{ lead.import_source_file }}{% elif lead.import_job %}{{ lead.import_job.original_filename }}{% endif %}
+                </span>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- 8. Meta / External Lead ID (if Meta API synced) -->
+            {% if lead.external_lead_id %}
+            <div class="col-12">
+              <div class="crm-info-box">
+                <span class="crm-label">Meta LeadGen ID</span>
+                <span class="crm-val font-monospace text-muted">{{ lead.external_lead_id }}</span>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- 9. Referral Person (if referral) -->
+            {% if lead.referral_person %}
+            <div class="col-12">
+              <div class="crm-info-box">
+                <span class="crm-label">Referral Person</span>
+                <span class="crm-val">{{ lead.get_referral_type_display|default:"Referral" }} — {{ lead.referral_person }} ({{ lead.referral_contact }})</span>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Timeline & Remarks, Add Remark & Follow-up, Follow-up Queue -->
+    <div class="col-12 col-lg-6">
+
+      <!-- 1. SECTION: Timeline & Remarks (Placed on Top) -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Timeline &amp; Remarks</span>
+          <span class="badge bg-light text-secondary border">{{ timeline|length }} updates</span>
+        </div>
+        <div class="card-body">
+          <!-- Lead Form Notes & Inquiry Remark (if present) -->
+          {% if lead.notes %}
+          <div class="p-2 mb-3 rounded-3 bg-light border border-secondary-subtle">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fw-bold text-dark small">Inquiry Remark / Form Notes</span>
+              <span class="badge bg-white text-muted border" style="font-size: 0.68rem;">Original</span>
+            </div>
+            <div class="text-secondary small text-break" style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;">{{ lead.notes }}</div>
+          </div>
+          {% endif %}
+
+          <!-- Timeline Activities Chronological Feed -->
+          <div class="timeline-feed" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
+            {% for a in timeline %}
+            <div class="crm-timeline-row">
+              <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
+                <span class="fw-bold {% if a.activity_type == 'NOTE' %}text-warning-emphasis{% elif a.activity_type == 'FOLLOWUP' %}text-info-emphasis{% elif a.activity_type == 'STAGE_CHANGE' %}text-primary{% elif a.activity_type == 'ASSIGNMENT' %}text-success{% else %}text-dark{% endif %}">
+                  {{ a.get_activity_type_display }}
+                  &nbsp;&bull;&nbsp;
+                  <span class="text-muted fw-normal">{% if a.created_by %}{{ a.created_by.get_full_name|default:a.created_by.username }}{% else %}System{% endif %}</span>
+                </span>
+                <span class="text-muted">{{ a.created_at|date:"d M Y, h:i A" }}</span>
+              </div>
+              <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ a.description }}</div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted py-4 small">No activity recorded yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons directly beneath Timeline: Add Remark / Note & Add Follow-up (Hospital style) -->
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addRemarkCollapse" aria-expanded="false" style="font-size: 0.8rem;">
+          + Add Remark / Note
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="false" style="font-size: 0.8rem;">
+          + Add Follow-up
+        </button>
+      </div>
+
+      <!-- Collapsible Form: Add Remark / Note -->
+      <div class="collapse mb-3" id="addRemarkCollapse">
+        <div class="card border">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold text-dark" style="font-size: 0.82rem;">Add Confidential Note / Remark</span>
+              <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addRemarkCollapse" aria-label="Close" style="font-size: 0.65rem;"></button>
+            </div>
+            <form method="post" action="{% url 'leads:add_note' lead.pk %}">
+              {% csrf_token %}
+              <div class="mb-2">
+                <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Write internal remark or student interaction note here..." required style="font-size: 0.8rem;"></textarea>
+              </div>
+              <div class="text-end">
+                <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-medium" style="font-size: 0.78rem;">Save Remark</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collapsible Form: Add Follow-up -->
+      <div class="collapse mb-3" id="addFollowupCollapse">
+        <div class="card border">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold text-dark" style="font-size: 0.82rem;">Schedule New Follow-up</span>
+              <button type="button" class="btn-close btn-close-sm" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-label="Close" style="font-size: 0.65rem;"></button>
+            </div>
+            <form method="post" action="{% url 'leads:add_followup' lead.pk %}" id="academyTimelineFollowupForm">
+              {% csrf_token %}
+              <div class="row g-2 mb-2">
+                <div class="col-4">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Date *</label>
+                  <input type="date" name="followup_date" id="timeline_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required style="font-size: 0.8rem;">
+                </div>
+                <div class="col-4">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time</label>
+                  <input type="time" name="followup_time" id="timeline_fu_time" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                </div>
+                <div class="col-4">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Status</label>
+                  <select name="followup_status" class="form-select form-select-sm no-tom-select" required style="font-size: 0.8rem;">
+                    <option value="PENDING" selected>Pending</option>
+                    <option value="RESCHEDULED">Rescheduled</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Past time validation warning -->
+              <div id="timeline_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.75rem;">
+                <span id="timeline_time_error_text">Past time cannot be selected. Please choose an upcoming time.</span>
+              </div>
+              <div class="mb-2">
+                <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment or discussion points..." required style="font-size: 0.8rem;">
+              </div>
+              <div class="text-end">
+                <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-medium" id="timeline_fu_submit" style="font-size: 0.78rem;">Save Follow-up</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. SECTION: Follow-up Queue (Placed Below Buttons) -->
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Follow-up Queue</span>
+          <span class="badge bg-light text-secondary border">{{ followups|length }} Scheduled</span>
+        </div>
+        <div class="card-body">
+          {% if followups %}
+          <div class="followup-list d-flex flex-column gap-2" style="max-height: 280px; overflow-y: auto;">
             {% for fu in followups %}
-            <div class="p-2 rounded-3 border bg-white shadow-2xs">
+            <div class="p-2 rounded-3 border bg-light shadow-2xs">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <div>
                   {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
-                  <span class="badge bg-success" style="font-size: 0.68rem;">
-                    <i class="fa-solid fa-check-double me-1"></i>Completed
-                  </span>
+                  <span class="badge bg-success" style="font-size: 0.68rem;">Completed</span>
                   {% else %}
                   <span class="badge {% if fu.followup_status == 'PENDING' %}bg-warning text-dark{% elif fu.followup_status == 'RESCHEDULED' %}bg-info text-dark{% else %}bg-secondary{% endif %}" style="font-size: 0.68rem;">
                     {{ fu.get_followup_status_display }}
@@ -335,179 +804,45 @@
                 </div>
                 {% if fu.followup_status == 'COMPLETED' or fu.followup_status == 'DONE' %}
                 <span class="badge bg-secondary bg-opacity-10 text-muted border py-0 px-2 fw-semibold" style="font-size: 0.7rem;">
-                  <i class="fa-solid fa-lock me-1"></i>Completed
+                  Completed
                 </span>
                 {% else %}
                 <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 fw-semibold" style="font-size: 0.72rem;" data-bs-toggle="modal" data-bs-target="#updateFollowupModal{{ fu.id }}" title="Update Status">
-                  <i class="fa-solid fa-pen-to-square me-1"></i>Update
+                  Update
                 </button>
                 {% endif %}
               </div>
               <div class="text-muted small d-flex justify-content-between align-items-center mb-1" style="font-size: 0.75rem;">
-                <span><i class="fa-regular fa-calendar me-1"></i>{{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
-                {% if fu.created_by %}<span class="text-truncate" style="max-width: 110px;">By: {{ fu.created_by.get_full_name|default:fu.created_by.username }}</span>{% endif %}
+                <span class="fw-medium text-dark"><i class="fa-regular fa-calendar me-1"></i>{{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+                {% if fu.created_by %}<span class="text-truncate text-muted" style="max-width: 120px;">By: {{ fu.created_by.get_full_name|default:fu.created_by.username }}</span>{% endif %}
               </div>
               {% if fu.comment %}
-              <div class="text-dark small text-break p-1 bg-light rounded" style="font-size: 0.76rem; line-height: 1.35; white-space: pre-wrap;">{{ fu.comment }}</div>
+              <div class="text-dark small text-break p-2 bg-white rounded border" style="font-size: 0.76rem; line-height: 1.35; white-space: pre-wrap;">{{ fu.comment }}</div>
               {% endif %}
             </div>
             {% endfor %}
           </div>
-        </div>
-        {% endif %}
-
-        <!-- Timeline Activities Feed -->
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <span class="text-uppercase fw-bold text-secondary" style="font-size: 0.72rem; letter-spacing: 0.5px;">
-            <i class="fa-solid fa-list text-primary me-1"></i>Activity History
-          </span>
-        </div>
-        <div class="timeline-feed" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
-          {% for a in timeline %}
-          <div class="p-2 mb-2 rounded-3 border {% if a.activity_type == 'NOTE' %}bg-warning bg-opacity-10 border-warning-subtle{% elif a.activity_type == 'FOLLOWUP' %}bg-info bg-opacity-10 border-info-subtle{% else %}bg-light-subtle border-light-subtle{% endif %}">
-            <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.72rem;">
-              <span class="fw-bold {% if a.activity_type == 'NOTE' %}text-warning-emphasis{% elif a.activity_type == 'FOLLOWUP' %}text-info-emphasis{% else %}text-dark{% endif %}">
-                {% if a.activity_type == 'NOTE' %}
-                  <i class="fa-solid fa-note-sticky text-warning me-1"></i>Note
-                {% elif a.activity_type == 'FOLLOWUP' %}
-                  <i class="fa-solid fa-phone-volume text-info me-1"></i>Follow-up
-                {% elif a.activity_type == 'STAGE_CHANGE' %}
-                  <i class="fa-solid fa-arrows-split-up-and-left text-primary me-1"></i>Stage
-                {% elif a.activity_type == 'ASSIGNMENT' %}
-                  <i class="fa-solid fa-user-check text-success me-1"></i>Assignment
-                {% else %}
-                  <i class="fa-solid fa-clock text-secondary me-1"></i>{{ a.get_activity_type_display }}
-                {% endif %}
-                &nbsp;·&nbsp;
-                {% if a.created_by %}{{ a.created_by.get_full_name|default:a.created_by.username }}{% else %}System{% endif %}
-              </span>
-              <span class="text-muted">{{ a.created_at|date:"d M Y, h:i A" }}</span>
-            </div>
-            <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ a.description }}</div>
+          {% else %}
+          <div class="text-center text-muted py-3 small">
+            No scheduled follow-ups in queue for this student.
           </div>
-          {% empty %}
-          <div class="text-center text-muted py-4 small"><i class="fa-solid fa-clock me-1"></i> No activity recorded yet.</div>
-          {% endfor %}
+          {% endif %}
         </div>
       </div>
+
     </div>
 
-    {% if admission %}
-    <!-- Admission Info Card -->
-    <div class="card mt-3">
-      <div class="card-body">
-        <h6 class="text-uppercase small text-muted mb-3"><i class="fa-solid fa-graduation-cap text-brand me-1"></i>Admission Info</h6>
-        <div class="d-flex flex-column gap-1 small">
-          <div class="d-flex justify-content-between"><span>Admission Date:</span><strong>{{ admission.admission_date|date:"d-m-Y" }}</strong></div>
-          {% if admission.date_of_joining %}
-          <div class="d-flex justify-content-between"><span>Joining Date:</span><strong>{{ admission.date_of_joining|date:"d-m-Y" }}</strong></div>
-          {% endif %}
-          {% if admission.batch %}
-          <div class="d-flex justify-content-between"><span>Batch:</span><span class="badge bg-light text-dark border">{{ admission.batch }}</span></div>
-          {% endif %}
-          {% if admission.tutor %}
-          <div class="d-flex justify-content-between"><span>Tutor:</span><strong>{{ admission.tutor }}</strong></div>
-          {% endif %}
-          <div class="d-flex justify-content-between"><span>Payment Mode:</span><span class="badge bg-secondary-subtle text-secondary border">{{ admission.get_payment_option_display|default:admission.payment_plan }}</span></div>
-          <hr class="my-1">
-          <div class="d-flex justify-content-between"><span>Course Fee:</span><span>₹{{ admission.total_fee|floatformat:0 }}</span></div>
-          <div class="d-flex justify-content-between text-danger"><span>Discount:</span><span>-₹{{ admission.discount|floatformat:0 }}</span></div>
-          {% if admission.discount > admission.max_allowed_discount %}
-          <div class="alert alert-warning p-2 mb-2 mt-1" style="font-size: 0.75rem; border-radius: 6px;">
-            <i class="fa-solid fa-circle-exclamation me-1"></i><strong>Extra Discount Applied!</strong> (Max Allowed: ₹{{ admission.max_allowed_discount|floatformat:0 }})
-            <div class="text-muted mt-1" style="font-size: 0.7rem;">Reason: <em>"{{ admission.extra_discount_reason }}"</em></div>
-          </div>
-          {% endif %}
-          <hr class="my-1">
-          <div class="d-flex justify-content-between fw-bold text-dark"><span>Final Fee:</span><span>₹{{ admission.final_fee|floatformat:0 }}</span></div>
-          <div class="d-flex justify-content-between text-success"><span>Collected:</span><span>₹{{ admission.collected|floatformat:0 }}</span></div>
-          <div class="d-flex justify-content-between text-warning fw-bold"><span>Pending Balance:</span><span>₹{{ admission.pending|floatformat:0 }}</span></div>
-        </div>
-
-        <!-- Status Update Form -->
-        <form method="post" action="{% url 'admissions:update_status' admission.id %}" class="mt-3 border-top pt-2">
-          {% csrf_token %}
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Payment Plan</label>
-              <select name="payment_plan" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="FULL" {% if admission.payment_plan == 'FULL' %}selected{% endif %}>Full Payment</option>
-                <option value="EMI" {% if admission.payment_plan == 'EMI' %}selected{% endif %}>EMI Plan</option>
-              </select>
-            </div>
-            <div class="col-6">
-              <label class="form-label text-muted small text-uppercase fw-semibold" style="font-size: 0.7rem;">Course Status</label>
-              <select name="course_status" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="ONGOING" {% if admission.course_status == 'ONGOING' %}selected{% endif %}>Ongoing</option>
-                <option value="COMPLETED" {% if admission.course_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
-                <option value="DROPOUT" {% if admission.course_status == 'DROPOUT' %}selected{% endif %}>Dropout</option>
-              </select>
-            </div>
-          </div>
-        </form>
-        
-        <a href="{% url 'payments:add' admission.id %}" class="btn btn-sm btn-brand text-white mt-3 w-100"><i class="fa-solid fa-plus me-1"></i>Record Payment</a>
-      </div>
-    </div>
-
-    <!-- EMI Installments Planner Card (Visible if Payment Plan is EMI) -->
-    {% if admission.payment_plan == 'EMI' %}
-    <div class="card mt-3">
-      <div class="card-body">
-        <h6 class="text-uppercase small text-muted mb-2"><i class="fa-solid fa-calendar-days text-brand me-1"></i>EMI Installments</h6>
-        
-        <!-- List of Installments -->
-        <ul class="list-group list-group-flush small mb-3">
-          {% for inst in admission.installments.all %}
-          <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
-            <div>
-              <div class="fw-bold">₹{{ inst.amount|floatformat:0 }}</div>
-              <div class="text-muted" style="font-size: 0.75rem;">Due: {{ inst.due_date|date:"d-m-Y" }}</div>
-            </div>
-            <div class="d-flex gap-1 align-items-center">
-              {% if inst.is_paid %}
-              <span class="badge text-bg-success py-1">Paid</span>
-              <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Mark Unpaid"><i class="fa-solid fa-xmark"></i></a>
-              {% else %}
-              <span class="badge text-bg-danger py-1">Pending</span>
-              <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark Paid"><i class="fa-solid fa-check"></i></a>
-              {% endif %}
-            </div>
-          </li>
-          {% empty %}
-          <li class="list-group-item px-0 text-center text-muted py-3">No EMIs scheduled yet.</li>
-          {% endfor %}
-        </ul>
-
-        <!-- Add Installment Form -->
-        <form method="post" action="{% url 'admissions:add_installment' admission.id %}" class="bg-light p-2 rounded border">
-          {% csrf_token %}
-          <div class="fw-semibold text-muted small mb-1" style="font-size: 0.75rem;">Schedule New EMI</div>
-          <div class="row g-1">
-            <div class="col-6">
-              <input type="number" name="amount" class="form-control form-control-sm" placeholder="Amount (₹)" min="1" required>
-            </div>
-            <div class="col-6">
-              <input type="date" name="due_date" class="form-control form-control-sm" required>
-            </div>
-            <div class="col-12 mt-1">
-              <button class="btn btn-sm btn-brand text-white w-100" style="font-size: 0.75rem;">Add EMI</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-    {% endif %}
-    {% endif %}
   </div>
+
 </div>
 
+<!-- Convert to Admission Modal -->
 <div class="modal fade" id="admissionModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <form method="post" action="{% url 'leads:convert_admission' lead.pk %}" class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
       {% csrf_token %}
       <div class="modal-header bg-dark text-white py-3 px-4">
-        <h6 class="modal-title fw-bold"><i class="fa-solid fa-graduation-cap text-primary me-2"></i>Convert to Admission & Enrollment</h6>
+        <h6 class="modal-title fw-bold">Convert to Admission &amp; Enrollment</h6>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4 bg-light-subtle">
@@ -517,11 +852,11 @@
           <div>
             <div class="text-muted small">Student Name</div>
             <strong class="fs-6 text-dark">{{ lead.name }}</strong>
-            <div class="text-muted small"><i class="fa-solid fa-phone me-1"></i>{{ lead.mobile }} {% if lead.email %}· {{ lead.email }}{% endif %}</div>
+            <div class="text-muted small">{{ lead.mobile }} {% if lead.email %}&bull; {{ lead.email }}{% endif %}</div>
           </div>
           <div class="text-end">
             <div class="text-muted small">Lead ID</div>
-            <code class="fw-bold">{{ lead.lead_code }}</code>
+            <code class="fw-bold">{{ lead.lead_code|default:lead.pk }}</code>
           </div>
         </div>
 
@@ -578,7 +913,7 @@
           <!-- Discount Reason if applied / exceeds limit -->
           <div class="col-12 d-none" id="extraDiscountReasonDiv">
             <div class="p-2 border border-danger-subtle bg-danger bg-opacity-10 rounded-3">
-              <label class="form-label small text-danger fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>Discount Reason (Required if discount exceeds limit)</label>
+              <label class="form-label small text-danger fw-bold mb-1">Discount Reason (Required if discount exceeds limit)</label>
               <textarea name="extra_discount_reason" id="extraDiscountReason" class="form-control form-control-sm" rows="2" placeholder="Explain special approval / justification for this discount..."></textarea>
             </div>
           </div>
@@ -602,7 +937,7 @@
           <!-- Tutor / Faculty -->
           <div class="col-md-4">
             <label class="form-label small fw-bold text-secondary">Tutor / Faculty</label>
-            <input type="text" name="tutor" class="form-control form-control-sm" placeholder="e.g. Prof. Sharma / Lead Trainer">
+            <input type="text" name="tutor" class="form-control form-control-sm" placeholder="e.g. Lead Trainer">
           </div>
 
           <!-- Batch -->
@@ -623,7 +958,7 @@
           <!-- EMI Section (Conditional) -->
           <div class="col-12 d-none" id="emiConfigSection">
             <div class="card border border-warning-subtle bg-warning bg-opacity-10 rounded-3 p-3">
-              <h6 class="fw-bold text-warning-emphasis mb-2 small"><i class="fa-solid fa-calculator me-1"></i>EMI Plan Configuration</h6>
+              <h6 class="fw-bold text-warning-emphasis mb-2 small">EMI Plan Configuration</h6>
               <div class="row g-2">
                 <div class="col-sm-6">
                   <label class="form-label small fw-semibold text-secondary">EMI Months *</label>
@@ -654,55 +989,11 @@
       </div>
       <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-sm btn-brand text-white px-4 fw-bold shadow-sm">
-          <i class="fa-solid fa-check me-1"></i>Confirm Admission
+        <button type="submit" class="btn btn-sm btn-primary px-4 fw-bold shadow-sm">
+          Confirm Admission
         </button>
       </div>
     </form>
-  </div>
-</div>
-
-<!-- Appointment Modal -->
-<div class="modal fade" id="appointmentModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content border-0 shadow-lg rounded-4">
-      <div class="modal-header bg-info bg-gradient text-white border-0 rounded-top-4">
-        <h6 class="modal-title fw-bold"><i class="fa-solid fa-stethoscope me-2"></i>Book Appointment</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <form method="POST" action="{% url 'leads:book_appointment' lead.pk %}">
-        {% csrf_token %}
-        <div class="modal-body p-4">
-          <p class="text-muted small mb-4">Schedule an appointment for <strong>{{ lead.name }}</strong> at {{ request.user.hospital.name }}.</p>
-          
-          <div class="mb-3">
-            <label class="form-label fw-bold text-secondary small text-uppercase">Doctor Name</label>
-            <input type="text" name="doctor_name" class="form-control" required placeholder="e.g. Dr. Smith">
-          </div>
-          
-          <div class="row mb-3">
-            <div class="col-6">
-                <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
-                <input type="date" name="appointment_date" class="form-control" required>
-            </div>
-            <div class="col-6">
-                <label class="form-label fw-bold text-secondary small text-uppercase">Time (Optional)</label>
-                <input type="time" name="appointment_time" class="form-control">
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <label class="form-label fw-bold text-secondary small text-uppercase">Symptoms / Notes</label>
-            <textarea name="notes" class="form-control" rows="3" placeholder="Additional info..."></textarea>
-          </div>
-          
-        </div>
-        <div class="modal-footer bg-light border-0 rounded-bottom-4">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-info text-white shadow-sm px-4">Confirm Booking</button>
-        </div>
-      </form>
-    </div>
   </div>
 </div>
 
@@ -712,9 +1003,6 @@
     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
       <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
-          <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-            <i class="fa-solid fa-circle-info fs-5"></i>
-          </div>
           <h6 class="modal-title fw-bold text-dark mb-0" id="queueBoundaryModalLabel">Leads Queue</h6>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -738,9 +1026,9 @@
       <div class="modal-header bg-light border-0 py-3 px-4 d-flex justify-content-between align-items-center">
         <div>
           <h6 class="modal-title fw-bold text-dark mb-0" id="updateFollowupModalLabel{{ fu.id }}">
-            <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>Update Follow-up Status
+            Update Follow-up Status
           </h6>
-          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} · {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -777,8 +1065,8 @@
         </div>
         <div class="modal-footer bg-light border-0 py-2 px-4 d-flex justify-content-between">
           <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-sm btn-brand text-white px-4 fw-semibold rounded-pill shadow-sm" id="btnSaveUpdate{{ fu.id }}">
-            <i class="fa-solid fa-check me-1"></i> Save Update
+          <button type="submit" class="btn btn-sm btn-primary text-white px-4 fw-semibold rounded-pill shadow-sm" id="btnSaveUpdate{{ fu.id }}">
+            Save Update
           </button>
         </div>
       </form>

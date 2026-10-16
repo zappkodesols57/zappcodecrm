@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    SourceCategory, LeadSource, Campaign, Course, LeadStage, Tag, Lead,
+    SourceCategory, LeadSource, Campaign, Course, Trainer, Batch, LeadStage, Tag, Lead,
     MasterGroup, MasterItem,
 )
 
@@ -48,8 +48,20 @@ class CampaignAdmin(admin.ModelAdmin):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ("name", "is_active")
+    list_display = ("name", "hospital", "base_price", "max_discount", "is_active")
     search_fields = ("name",)
+
+
+@admin.register(Trainer)
+class TrainerAdmin(admin.ModelAdmin):
+    list_display = ("name", "hospital", "phone", "specialization", "is_active")
+    search_fields = ("name", "phone", "specialization")
+
+
+@admin.register(Batch)
+class BatchAdmin(admin.ModelAdmin):
+    list_display = ("name", "course", "trainer", "start_time", "end_time", "is_active")
+    search_fields = ("name", "course__name")
 
 
 @admin.register(LeadStage)

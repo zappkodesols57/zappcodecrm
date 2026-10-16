@@ -6,21 +6,12 @@
   <!-- Page Header -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-4 rounded-4 shadow-sm border border-light">
     <div>
-      <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-2 fw-semibold" style="font-size: 0.75rem;">
-          Hospital Master Settings
-        </span>
-        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 rounded-2" style="font-size: 0.75rem;">
-          {{ hospital.name }}
-        </span>
-      </div>
       <h3 class="fw-bold text-dark mb-0">Hospital Configuration</h3>
-      <p class="text-muted small mb-0 mt-1">Manage Hospital Branches, Clinical Departments, Doctors, Diseases, and Cascading Availability.</p>
     </div>
-    <div class="d-flex flex-wrap gap-2">
+    <div class="d-flex flex-wrap align-items-center gap-2">
       <!-- Download Template Dropdown / Link -->
       <div class="dropdown">
-        <button class="btn btn-outline-secondary rounded-3 px-3 shadow-sm fw-semibold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <button class="btn btn-navy-outline btn-config-action dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="fa-solid fa-file-excel text-success me-1"></i> Download Template
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
@@ -29,7 +20,7 @@
               <i class="fa-solid fa-file-excel text-success"></i>
               <div>
                 <div class="fw-semibold">Excel Template (.xlsx)</div>
-                <small class="text-muted">Pre-formatted table for import</small>
+                <small class="text-muted">Pre-formatted table with {{ hospital.name }}</small>
               </div>
             </a>
           </li>
@@ -47,8 +38,8 @@
 
       <!-- Export Hospital Config Dropdown (Excel & PDF) -->
       <div class="dropdown">
-        <button class="btn btn-outline-primary rounded-3 px-3 shadow-sm fw-semibold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="fa-solid fa-download me-1"></i> Download Configuration
+        <button class="btn btn-navy-outline btn-config-action dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fa-solid fa-download me-1 text-primary"></i> Download Configuration
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
           <li>
@@ -72,10 +63,10 @@
         </ul>
       </div>
 
-      <button type="button" class="btn btn-success rounded-3 px-3 shadow-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalExcelImport">
-        <i class="fa-solid fa-cloud-arrow-up me-1"></i> Import Configuration
+      <button type="button" class="btn btn-navy-outline btn-config-action" data-bs-toggle="modal" data-bs-target="#modalExcelImport">
+        <i class="fa-solid fa-cloud-arrow-up me-1 text-teal"></i> Import Configuration
       </button>
-      <button type="button" class="btn btn-primary rounded-3 px-4 shadow-sm fw-semibold" id="btnAddNewRecord" onclick="openActiveTabModal()">
+      <button type="button" class="btn btn-navy-primary btn-config-action" id="btnAddNewRecord" onclick="openActiveTabModal()">
         <i class="fa-solid fa-plus me-1"></i> Add Record
       </button>
     </div>
@@ -105,6 +96,128 @@
   {% endif %}
 
 <style>
+  /* Uniform Action Buttons Style & Height */
+  .btn-config-action {
+    height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 16px !important;
+    font-size: 0.86rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+  }
+  .btn-navy-outline {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+  }
+  .btn-navy-outline:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+  }
+  .btn-navy-primary {
+    background: #052042 !important;
+    color: #ffffff !important;
+    border: 1px solid #052042 !important;
+    box-shadow: 0 2px 4px rgba(5, 32, 66, 0.18) !important;
+  }
+  .btn-navy-primary:hover {
+    background: #0a3164 !important;
+    color: #ffffff !important;
+    border-color: #0a3164 !important;
+  }
+  .text-teal {
+    color: #0d9488 !important;
+  }
+
+  /* Master Search Bar Uniform Styling matching 38px button height */
+  .master-search-group {
+    width: 290px !important;
+  }
+  .master-search-input {
+    height: 38px !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 0 14px !important;
+    font-size: 0.85rem !important;
+    color: #1e293b !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+    transition: all 0.2s ease !important;
+  }
+  .master-search-input:focus {
+    border-color: #052042 !important;
+    box-shadow: 0 0 0 3px rgba(5, 32, 66, 0.1) !important;
+    outline: none !important;
+  }
+
+  /* Table action buttons: Icon-only, 32x32px square rounded with clear spacing */
+  .table-actions-wrapper {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+  .table-action-btn {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    font-size: 0.82rem !important;
+    border-radius: 6px !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out !important;
+  }
+  .table-action-btn-danger {
+    background: #fff !important;
+    border: 1px solid #fecaca !important;
+    color: #dc2626 !important;
+  }
+  .table-action-btn-danger:hover {
+    background: #fee2e2 !important;
+    border-color: #f87171 !important;
+    color: #b91c1c !important;
+  }
+  .table-action-btn-edit {
+    background: #fff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+  }
+  .table-action-btn-edit:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #052042 !important;
+  }
+  .table-action-btn-warn {
+    background: #fff !important;
+    border: 1px solid #fed7aa !important;
+    color: #ea580c !important;
+  }
+  .table-action-btn-warn:hover {
+    background: #ffedd5 !important;
+    border-color: #fb923c !important;
+    color: #c2410c !important;
+  }
+  .table-action-btn-success {
+    background: #fff !important;
+    border: 1px solid #bbf7d0 !important;
+    color: #16a34a !important;
+  }
+  .table-action-btn-success:hover {
+    background: #dcfce7 !important;
+    border-color: #4ade80 !important;
+    color: #15803d !important;
+  }
+
   .custom-tab-container {
     background: #f1f5f9;
     border: 1px solid #e2e8f0;
@@ -133,7 +246,7 @@
     background: #e2e8f0 !important;
   }
   .custom-hospital-tab.active {
-    color: #1d4ed8 !important;
+    color: #052042 !important;
     background: #ffffff !important;
     border-color: #cbd5e1 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
@@ -144,13 +257,8 @@
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
     <div class="card-header bg-white border-bottom py-3 px-4">
       <div class="custom-tab-container" id="hospitalMasterTabs" role="tablist">
-        <!-- 0. Hospital Profile Tab -->
-        <a class="custom-hospital-tab nav-link {% if active_tab == 'profile' %}active{% endif %}" 
-           id="tab-profile-btn" data-bs-toggle="tab" href="#tab-profile" role="tab">
-          Hospital Profile
-        </a>
         <!-- 1. Branches Tab -->
-        <a class="custom-hospital-tab nav-link {% if active_tab == 'branches' %}active{% endif %}" 
+        <a class="custom-hospital-tab nav-link {% if active_tab == 'branches' or active_tab == 'profile' %}active{% endif %}" 
            id="tab-branches-btn" data-bs-toggle="tab" href="#tab-branches" role="tab">
           Hospital Branches
           <span class="badge bg-primary bg-opacity-10 text-primary ms-1 rounded-3">{{ branches.count }}</span>
@@ -179,108 +287,19 @@
     <div class="card-body p-4">
       <div class="tab-content" id="hospitalMasterTabContent">
         
-        <!-- ==================== 0. HOSPITAL PROFILE TAB ==================== -->
-        <div class="tab-pane fade {% if active_tab == 'profile' %}show active{% endif %}" id="tab-profile" role="tabpanel">
-          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-3">
-            <div>
-              <h6 class="fw-bold text-dark mb-0">Hospital Core Profile & Branding</h6>
-              <small class="text-muted">Manage hospital logo, registration number, contact email, and primary address</small>
-            </div>
-          </div>
-
-          <div class="row g-4 pt-2">
-            <div class="col-lg-8">
-              <form method="post" action="{% url 'leads:hospital_profile_save' %}" enctype="multipart/form-data" class="bg-light p-4 rounded-4 border">
-                {% csrf_token %}
-                {% if is_global_admin and hospital %}
-                <input type="hidden" name="business" value="{{ hospital.id }}">
-                {% endif %}
-                <div class="row g-3">
-                  <!-- Hospital Name -->
-                  <div class="col-md-12">
-                    <label class="form-label small fw-bold text-dark">Hospital / Organization Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control rounded-3" value="{{ hospital.name }}" required>
-                  </div>
-
-                  <!-- Registration Number -->
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-dark">Registration / License No.</label>
-                    <input type="text" name="registration_no" class="form-control rounded-3" value="{{ hospital.registration_no|default:'' }}" placeholder="e.g. MH-HOSP-2024-9981">
-                  </div>
-
-                  <!-- Phone Number -->
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-dark">Contact Phone</label>
-                    <input type="text" name="phone" class="form-control rounded-3" value="{{ hospital.phone|default:'' }}" maxlength="11" minlength="10" pattern="^[0-9]{10,11}$" inputmode="numeric" placeholder="10-digit mobile or STD landline" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,11)">
-                    <small class="text-muted" style="font-size: 0.72rem;">10-digit mobile or 10-11 digit phone with STD code</small>
-                  </div>
-
-                  <!-- Email Address -->
-                  <div class="col-md-12">
-                    <label class="form-label small fw-bold text-dark">Official Contact Email</label>
-                    <input type="email" name="contact_email" class="form-control rounded-3" value="{{ hospital.contact_email|default:'' }}" placeholder="info@nelsonhospital.com">
-                  </div>
-
-                  <!-- Primary Address -->
-                  <div class="col-md-12">
-                    <label class="form-label small fw-bold text-dark">Primary Address / Headquarters</label>
-                    <textarea name="address" class="form-control rounded-3" rows="3" placeholder="Full address of hospital headquarters">{{ hospital.address|default:'' }}</textarea>
-                  </div>
-
-                  <!-- Logo Upload -->
-                  <div class="col-md-12">
-                    <label class="form-label small fw-bold text-dark">Hospital Logo</label>
-                    <input type="file" name="logo" class="form-control rounded-3" accept="image/*">
-                    <small class="text-muted">Recommended format: Transparent PNG or SVG (Max: 2MB)</small>
-                  </div>
-
-                  <div class="col-md-12 mt-4 pt-2 border-top d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold shadow-sm">
-                      Save Hospital Profile
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            <!-- Profile Preview Summary Box -->
-            <div class="col-lg-4">
-              <div class="card border rounded-4 shadow-sm p-3 h-100 bg-white">
-                <div class="text-center py-3 border-bottom">
-                  {% if hospital.logo %}
-                    <img src="{{ hospital.logo.url }}" alt="{{ hospital.name }}" class="img-fluid mb-2" style="max-height: 70px; object-fit: contain;">
-                  {% else %}
-                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-inline-flex align-items-center justify-content-center mb-2" style="width: 70px; height: 70px; font-size: 1.5rem; font-weight: 700;">
-                      {{ hospital.name|slice:":2"|upper }}
-                    </div>
-                  {% endif %}
-                  <h6 class="fw-bold text-dark mb-0">{{ hospital.name }}</h6>
-                  <span class="badge bg-success bg-opacity-10 text-success rounded-2 mt-1">Active Hospital Organization</span>
-                </div>
-                <div class="py-3 small d-flex flex-column gap-2 text-muted">
-                  <div><strong class="text-dark">Reg No:</strong> {{ hospital.registration_no|default:'Not Provided' }}</div>
-                  <div><strong class="text-dark">Phone:</strong> {{ hospital.phone|default:'Not Provided' }}</div>
-                  <div><strong class="text-dark">Email:</strong> {{ hospital.contact_email|default:'Not Provided' }}</div>
-                  <div><strong class="text-dark">Address:</strong> {{ hospital.address|default:'Not Provided' }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- ==================== 1. BRANCHES TAB ==================== -->
-        <div class="tab-pane fade {% if active_tab == 'branches' %}show active{% endif %}" id="tab-branches" role="tabpanel">
+        <div class="tab-pane fade {% if active_tab == 'branches' or active_tab == 'profile' %}show active{% endif %}" id="tab-branches" role="tabpanel">
           <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-3">
             <div>
               <h6 class="fw-bold text-dark mb-0">Hospital Branches & Campuses</h6>
               <small class="text-muted">Manage hospital branch locations, address and contact details</small>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-              <div class="input-group input-group-sm" style="width: 270px;">
-                <input type="text" id="branchSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search branch, city, code..." onkeyup="filterBranchTable()">
+              <div class="master-search-group">
+                <input type="text" id="branchSearchInput" class="form-control master-search-input" placeholder="Search branch, city, code..." onkeyup="filterBranchTable()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#modalAddBranch">
-                <span>Add Branch</span>
+              <button class="btn btn-navy-primary btn-config-action" data-bs-toggle="modal" data-bs-target="#modalAddBranch">
+                <i class="fa-solid fa-plus me-1.5"></i> Add Branch
               </button>
             </div>
           </div>
@@ -325,16 +344,16 @@
                       <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 210px;">
-                    <div class="d-inline-flex align-items-center justify-content-end gap-1">
-                      <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-1 text-nowrap" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}">
-                        {% if b.is_active %}Deactivate{% else %}Activate{% endif %}
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; width: 160px;">
+                    <div class="table-actions-wrapper">
+                      <a href="{% url 'leads:hospital_branch_toggle' b.id %}" class="table-action-btn {% if b.is_active %}table-action-btn-warn{% else %}table-action-btn-success{% endif %}" title="{% if b.is_active %}Deactivate Branch{% else %}Activate Branch{% endif %}" data-bs-toggle="tooltip">
+                        <i class="fa-solid {% if b.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
                       </a>
-                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})">
-                        Edit
+                      <button class="table-action-btn table-action-btn-edit" onclick="editBranch({{ b.id }}, '{{ b.name|escapejs }}', '{{ b.code|escapejs }}', '{{ b.city|escapejs }}', '{{ b.contact_number|escapejs }}', '{{ b.address|escapejs }}', {{ b.is_main_branch|yesno:'true,false' }}, {{ b.order }})" title="Edit Branch" data-bs-toggle="tooltip">
+                        <i class="fa-solid fa-pen-to-square"></i>
                       </button>
-                      <a href="{% url 'leads:hospital_branch_delete' b.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 text-nowrap" onclick="return confirm('Are you sure you want to delete branch \'{{ b.name|escapejs }}\'? If it has active records it will be deactivated.');" title="Delete Branch">
-                        <i class="fa-solid fa-trash-can"></i> Delete
+                      <a href="{% url 'leads:hospital_branch_delete' b.id %}" class="table-action-btn table-action-btn-danger" onclick="return confirm('Are you sure you want to delete branch \'{{ b.name|escapejs }}\'? If it has active records it will be deactivated.');" title="Delete Branch" data-bs-toggle="tooltip">
+                        <i class="fa-solid fa-trash-can"></i>
                       </a>
                     </div>
                   </td>
@@ -357,11 +376,11 @@
               <small class="text-muted">Manage clinical units, doctor mapping and branches</small>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-              <div class="input-group input-group-sm" style="width: 270px;">
-                <input type="text" id="deptSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search department, code..." onkeyup="filterDeptTable()">
+              <div class="master-search-group">
+                <input type="text" id="deptSearchInput" class="form-control master-search-input" placeholder="Search department, code..." onkeyup="filterDeptTable()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#modalAddDept">
-                <span>Add Department</span>
+              <button class="btn btn-navy-primary btn-config-action" data-bs-toggle="modal" data-bs-target="#modalAddDept">
+                <i class="fa-solid fa-plus me-1.5"></i> Add Department
               </button>
             </div>
           </div>
@@ -412,16 +431,16 @@
                       <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 210px;">
-                    <div class="d-inline-flex align-items-center justify-content-end gap-1">
-                      <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="btn btn-sm {% if d.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-1 text-nowrap" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}">
-                        {% if d.is_active %}Deactivate{% else %}Activate{% endif %}
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; width: 160px;">
+                    <div class="table-actions-wrapper">
+                      <a href="{% url 'leads:hospital_department_toggle' d.id %}" class="table-action-btn {% if d.is_active %}table-action-btn-warn{% else %}table-action-btn-success{% endif %}" title="{% if d.is_active %}Deactivate Department{% else %}Activate Department{% endif %}" data-bs-toggle="tooltip">
+                        <i class="fa-solid {% if d.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
                       </a>
-                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])">
-                        Edit
+                      <button class="table-action-btn table-action-btn-edit" onclick="editDept({{ d.id }}, '{{ d.name|escapejs }}', '{{ d.code|escapejs }}', '{{ d.description|escapejs }}', {{ d.order }}, [{% for b in d.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}])" title="Edit Department" data-bs-toggle="tooltip">
+                        <i class="fa-solid fa-pen-to-square"></i>
                       </button>
-                      <a href="{% url 'leads:hospital_department_delete' d.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 text-nowrap" onclick="return confirm('Are you sure you want to delete department \'{{ d.name|escapejs }}\'?');" title="Delete Department">
-                        <i class="fa-solid fa-trash-can"></i> Delete
+                      <a href="{% url 'leads:hospital_department_delete' d.id %}" class="table-action-btn table-action-btn-danger" onclick="return confirm('Are you sure you want to delete department \'{{ d.name|escapejs }}\'?');" title="Delete Department" data-bs-toggle="tooltip">
+                        <i class="fa-solid fa-trash-can"></i>
                       </a>
                     </div>
                   </td>
@@ -444,11 +463,11 @@
               <small class="text-muted">Doctors linked with registered user logins and assigned to departments/branches</small>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-              <div class="input-group input-group-sm" style="width: 270px;">
-                <input type="text" id="docSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search doctor, dept, user..." onkeyup="filterDoctorTable()">
+              <div class="master-search-group">
+                <input type="text" id="docSearchInput" class="form-control master-search-input" placeholder="Search doctor, dept, user..." onkeyup="filterDoctorTable()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" onclick="openAddDoctorModal()">
-                <span>Add Doctor</span>
+              <button class="btn btn-navy-primary btn-config-action" onclick="openAddDoctorModal()">
+                <i class="fa-solid fa-plus me-1.5"></i> Add Doctor
               </button>
             </div>
           </div>
@@ -519,17 +538,17 @@
                       <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle rounded-2">Inactive</span>
                     {% endif %}
                   </td>
-                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; min-width: 250px;">
-                    <div class="d-inline-flex align-items-center justify-content-end gap-1">
+                  <td class="px-3 text-end text-nowrap" style="white-space: nowrap; width: 190px;">
+                    <div class="table-actions-wrapper">
                       {% if doc.user %}
-                      <a href="{% url 'accounts:doctor_schedule_manage' doc.user.id %}" class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap" title="Manage Schedule / Leave Calendar">
-                        Schedule
+                      <a href="{% url 'accounts:doctor_schedule_manage' doc.user.id %}" class="table-action-btn table-action-btn-edit" title="Manage Schedule / Leave Calendar" data-bs-toggle="tooltip">
+                        <i class="fa-regular fa-calendar-days"></i>
                       </a>
                       {% endif %}
-                      <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="btn btn-sm {% if doc.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-1 text-nowrap" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}">
-                        {% if doc.is_active %}Deactivate{% else %}Activate{% endif %}
+                      <a href="{% url 'leads:hospital_doctor_toggle' doc.id %}" class="table-action-btn {% if doc.is_active %}table-action-btn-warn{% else %}table-action-btn-success{% endif %}" title="{% if doc.is_active %}Deactivate Doctor{% else %}Activate Doctor{% endif %}" data-bs-toggle="tooltip">
+                        <i class="fa-solid {% if doc.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
                       </a>
-                      <button class="btn btn-sm btn-light border rounded-3 px-2 py-1 text-nowrap btn-edit-doctor" 
+                      <button class="table-action-btn table-action-btn-edit btn-edit-doctor" 
                               data-id="{{ doc.id }}"
                               data-name="{{ doc.name }}"
                               data-departments="[{% for d in doc.departments.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% empty %}{% if doc.department %}{{ doc.department.id }}{% endif %}{% endfor %}]"
@@ -541,11 +560,13 @@
                               data-fee="{{ doc.consultation_fee|floatformat:0 }}"
                               data-diseases="[{% for d in doc.associated_diseases.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
                               data-branches="[{% for b in doc.branches.all %}{{ b.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
-                              onclick="openEditDoctorModal(this)">
-                        Edit
+                              onclick="openEditDoctorModal(this)"
+                              title="Edit Doctor"
+                              data-bs-toggle="tooltip">
+                        <i class="fa-solid fa-pen-to-square"></i>
                       </button>
-                      <a href="{% url 'leads:hospital_doctor_delete' doc.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1 text-nowrap" onclick="return confirm('Are you sure you want to delete Dr. {{ doc.name|escapejs }}?');" title="Delete Doctor">
-                        <i class="fa-solid fa-trash-can"></i> Delete
+                      <a href="{% url 'leads:hospital_doctor_delete' doc.id %}" class="table-action-btn table-action-btn-danger" onclick="return confirm('Are you sure you want to delete Dr. {{ doc.name|escapejs }}?');" title="Delete Doctor" data-bs-toggle="tooltip">
+                        <i class="fa-solid fa-trash-can"></i>
                       </a>
                     </div>
                   </td>
@@ -568,11 +589,11 @@
               <small class="text-muted">Manage treatable conditions grouped by clinical department</small>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-              <div class="input-group input-group-sm" style="width: 270px;">
-                <input type="text" id="diseaseSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search disease, symptom..." onkeyup="filterDiseaseCards()">
+              <div class="master-search-group">
+                <input type="text" id="diseaseSearchInput" class="form-control master-search-input" placeholder="Search disease, symptom..." onkeyup="filterDiseaseCards()">
               </div>
-              <button class="btn btn-sm btn-primary rounded-3 px-3 py-2 shadow-sm text-nowrap fw-semibold d-inline-flex align-items-center" onclick="openAddDiseaseModal()">
-                <span>Add Disease</span>
+              <button class="btn btn-navy-primary btn-config-action" onclick="openAddDiseaseModal()">
+                <i class="fa-solid fa-plus me-1.5"></i> Add Disease
               </button>
             </div>
           </div>
@@ -582,15 +603,15 @@
             {% for d in departments %}
             <div class="col-lg-6 disease-dept-card">
               <div class="card border rounded-4 shadow-none h-100 bg-white">
-                <div class="card-header bg-light bg-opacity-50 py-2 px-3 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+                <div class="card-header bg-light bg-opacity-50 py-2.5 px-3 border-bottom d-flex justify-content-between align-items-center rounded-top-4">
                   <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-2 py-1 rounded-2">
                       {{ d.name }}
                     </span>
                     <span class="small text-muted">({{ d.diseases.count }} conditions)</span>
                   </div>
-                  <button class="btn btn-sm btn-outline-primary rounded-3 py-1 px-2 small" onclick="openAddDiseaseModalForDept({{ d.id }}, '{{ d.name|escapejs }}')">
-                    Add Under {{ d.name }}
+                  <button class="btn btn-sm btn-outline-primary rounded-2 py-1 px-2.5 small fw-semibold" onclick="openAddDiseaseModalForDept({{ d.id }}, '{{ d.name|escapejs }}')">
+                    <i class="fa-solid fa-plus me-1"></i> Add Under {{ d.name }}
                   </button>
                 </div>
                 <div class="card-body p-0">
@@ -601,7 +622,7 @@
                           <th class="border-0 px-3 py-2">Condition Name</th>
                           <th class="border-0 py-2">Code</th>
                           <th class="border-0 py-2">Status</th>
-                          <th class="border-0 px-3 py-2 text-end">Action</th>
+                          <th class="border-0 px-3 py-2 text-end" style="width: 140px;">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -616,29 +637,32 @@
                           </td>
                           <td class="py-2">
                             {% if dis.is_active %}
-                              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-0 rounded-2" style="font-size: 0.65rem;">Active</span>
+                              <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle py-0.5 px-2 rounded-2" style="font-size: 0.7rem;">Active</span>
                             {% else %}
-                              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle py-0 rounded-2" style="font-size: 0.65rem;">Inactive</span>
+                              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle py-0.5 px-2 rounded-2" style="font-size: 0.7rem;">Inactive</span>
                             {% endif %}
                           </td>
-                          <td class="px-3 py-2 text-end text-nowrap">
-                            <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="btn btn-sm {% if dis.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} rounded-3 px-2 py-0 me-1" style="font-size: 0.72rem;" title="{% if dis.is_active %}Deactivate Disease{% else %}Activate Disease{% endif %}">
-                              {% if dis.is_active %}Deactivate{% else %}Activate{% endif %}
-                            </a>
-                            <button class="btn btn-sm btn-light border rounded-3 px-2 py-0 me-1" 
-                                    data-id="{{ dis.id }}"
-                                    data-name="{{ dis.name }}"
-                                    data-code="{{ dis.code|default:'' }}"
-                                    data-dept="{{ dis.department_id }}"
-                                    data-deptname="{{ dis.department.name }}"
-                                    data-desc="{{ dis.description|default:'' }}"
-                                    onclick="openEditDiseaseModal(this)"
-                                    style="font-size: 0.72rem;">
-                              Edit
-                            </button>
-                            <a href="{% url 'leads:hospital_disease_delete' dis.id %}" class="btn btn-sm btn-outline-danger rounded-3 px-2 py-0" onclick="return confirm('Are you sure you want to delete {{ dis.name|escapejs }}?');" style="font-size: 0.72rem;" title="Delete Disease">
-                              <i class="fa-solid fa-trash-can"></i>
-                            </a>
+                          <td class="px-3 py-2 text-end text-nowrap" style="white-space: nowrap; width: 140px;">
+                            <div class="table-actions-wrapper">
+                              <a href="{% url 'leads:hospital_disease_toggle' dis.id %}" class="table-action-btn {% if dis.is_active %}table-action-btn-warn{% else %}table-action-btn-success{% endif %}" title="{% if dis.is_active %}Deactivate Condition{% else %}Activate Condition{% endif %}" data-bs-toggle="tooltip">
+                                <i class="fa-solid {% if dis.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
+                              </a>
+                              <button class="table-action-btn table-action-btn-edit" 
+                                      data-id="{{ dis.id }}"
+                                      data-name="{{ dis.name }}"
+                                      data-code="{{ dis.code|default:'' }}"
+                                      data-dept="{{ dis.department_id }}"
+                                      data-deptname="{{ dis.department.name }}"
+                                      data-desc="{{ dis.description|default:'' }}"
+                                      onclick="openEditDiseaseModal(this)"
+                                      title="Edit Condition"
+                                      data-bs-toggle="tooltip">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                              </button>
+                              <a href="{% url 'leads:hospital_disease_delete' dis.id %}" class="table-action-btn table-action-btn-danger" onclick="return confirm('Are you sure you want to delete {{ dis.name|escapejs }}?');" title="Delete Condition" data-bs-toggle="tooltip">
+                                <i class="fa-solid fa-trash-can"></i>
+                              </a>
+                            </div>
                           </td>
                         </tr>
                         {% empty %}
@@ -1002,82 +1026,99 @@
 <!-- 5. Excel / CSV Bulk Import Master Modal -->
 <div class="modal fade" id="modalExcelImport" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content rounded-4 border-0 shadow">
+    <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
       <form method="post" action="{% url 'leads:hospital_master_excel_import' %}" enctype="multipart/form-data">
         {% csrf_token %}
         {% if is_global_admin and hospital %}
         <input type="hidden" name="business" value="{{ hospital.id }}">
         {% endif %}
-        <div class="modal-header border-0 pb-0">
-          <div>
-            <h5 class="modal-title fw-bold text-dark mb-1">
-              Bulk Import Hospital Masters
-            </h5>
-            <p class="text-muted small mb-0">Upload an Excel (.xlsx) or CSV (.csv) file containing Branches, Departments, Doctors and Diseases.</p>
+        <div class="modal-header border-bottom px-4 py-3 bg-white">
+          <div class="d-flex align-items-center gap-2">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary bg-opacity-10 text-primary" style="width: 36px; height: 36px;">
+              <i class="fa-solid fa-cloud-arrow-up fs-6" style="color: #052042;"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0 fs-6">
+                Bulk Import Hospital Masters
+              </h5>
+              <p class="text-muted small mb-0" style="font-size: 0.78rem;">Upload an Excel (.xlsx) or CSV (.csv) file containing Branches, Departments, Doctors and Diseases</p>
+            </div>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body p-4">
-          <!-- Required Format Alert -->
-          <div class="alert alert-info border-0 rounded-3 mb-3 p-3 small">
-            <div class="fw-bold mb-2 text-primary">
-              Expected Excel Columns Structure:
+        <div class="modal-body p-4 bg-light bg-opacity-25">
+          <!-- Expected Format Box (Navy Themed) -->
+          <div class="card border rounded-3 mb-3 bg-white shadow-none" style="border-color: #cbd5e1 !important;">
+            <div class="card-header border-bottom py-2 px-3 bg-white d-flex justify-content-between align-items-center">
+              <span class="small fw-bold text-dark d-inline-flex align-items-center gap-1.5" style="color: #052042 !important;">
+                <i class="fa-solid fa-table-cells text-primary"></i> Expected Excel Columns Structure:
+              </span>
+              <span class="badge bg-light text-secondary border small fw-normal">4 Mandatory Columns</span>
             </div>
-            <div class="table-responsive bg-white rounded-2 border p-1 mb-2">
-              <table class="table table-sm table-bordered mb-0 small text-center">
-                <thead class="bg-light fw-bold">
-                  <tr>
-                    <th>hospital_branch</th>
-                    <th>department</th>
-                    <th>doctor</th>
-                    <th>disease</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Nelson Hospital Dhantoli</td>
-                    <td>Neurology</td>
-                    <td>Dr. Raj ratan</td>
-                    <td>Migraine</td>
-                  </tr>
-                  <tr>
-                    <td>Nelson Hospital Dhantoli</td>
-                    <td>Neurology</td>
-                    <td>Dr. Raj ratan</td>
-                    <td>Stroke</td>
-                  </tr>
-                  <tr>
-                    <td>Nelson Hospital Dhantoli</td>
-                    <td>Neurology</td>
-                    <td>Dr. Raj ratan</td>
-                    <td>Dementia</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="d-flex justify-content-between align-items-center">
-              <span class="text-muted small">Rows will automatically create Branches, Departments, Doctors and link Diseases!</span>
-              <div class="d-flex gap-2">
-                <a href="{% url 'leads:hospital_master_sample_download' %}?format=xlsx" class="btn btn-xs btn-outline-success rounded-3 px-3 py-1 fw-semibold">
-                  <i class="fa-solid fa-file-excel me-1"></i> Sample Excel (.xlsx)
-                </a>
-                <a href="{% url 'leads:hospital_master_sample_download' %}?format=csv" class="btn btn-xs btn-outline-primary rounded-3 px-3 py-1 fw-semibold">
-                  <i class="fa-solid fa-file-csv me-1"></i> Sample CSV
-                </a>
+            <div class="card-body p-3">
+              <div class="table-responsive rounded-2 border mb-3" style="border-color: #e2e8f0 !important;">
+                <table class="table table-sm mb-0 small text-center align-middle">
+                  <thead style="background: #052042; color: #ffffff;">
+                    <tr>
+                      <th class="py-2 px-3 fw-semibold border-0" style="font-size: 0.75rem; letter-spacing: 0.3px;">HOSPITAL_BRANCH</th>
+                      <th class="py-2 px-3 fw-semibold border-0" style="font-size: 0.75rem; letter-spacing: 0.3px;">DEPARTMENT</th>
+                      <th class="py-2 px-3 fw-semibold border-0" style="font-size: 0.75rem; letter-spacing: 0.3px;">DOCTOR</th>
+                      <th class="py-2 px-3 fw-semibold border-0" style="font-size: 0.75rem; letter-spacing: 0.3px;">DISEASE</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white">
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                      <td class="py-2 px-3 text-dark fw-medium">Hospital Branch 1</td>
+                      <td class="py-2 px-3 text-muted">Neurology</td>
+                      <td class="py-2 px-3 text-muted">Dr. Raj Sharma</td>
+                      <td class="py-2 px-3 text-muted">Migraine</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                      <td class="py-2 px-3 text-dark fw-medium">Hospital Branch 1</td>
+                      <td class="py-2 px-3 text-muted">Neurology</td>
+                      <td class="py-2 px-3 text-muted">Dr. Raj Sharma</td>
+                      <td class="py-2 px-3 text-muted">Stroke</td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 px-3 text-dark fw-medium">Hospital Branch 2</td>
+                      <td class="py-2 px-3 text-muted">Cardiology</td>
+                      <td class="py-2 px-3 text-muted">Dr. Amit Patel</td>
+                      <td class="py-2 px-3 text-muted">Hypertension</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-1">
+                <span class="text-muted small" style="font-size: 0.78rem;">
+                  <i class="fa-solid fa-circle-check text-success me-1"></i> Rows will automatically create Branches, Departments, Doctors and link Diseases.
+                </span>
+                <div class="d-flex gap-2">
+                  <a href="{% url 'leads:hospital_master_sample_download' %}?format=xlsx" class="btn btn-navy-outline btn-config-action" style="height: 32px !important; font-size: 0.78rem !important; padding: 0 12px !important;">
+                    <i class="fa-solid fa-file-excel text-success me-1"></i> Sample Excel (.xlsx)
+                  </a>
+                  <a href="{% url 'leads:hospital_master_sample_download' %}?format=csv" class="btn btn-navy-outline btn-config-action" style="height: 32px !important; font-size: 0.78rem !important; padding: 0 12px !important;">
+                    <i class="fa-solid fa-file-csv text-primary me-1"></i> Sample CSV
+                  </a>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-dark">Select Excel / CSV File <span class="text-danger">*</span></label>
-            <input type="file" name="excel_file" class="form-control" accept=".xlsx, .xls, .csv" required>
-            <div class="form-text small text-muted">Supported formats: .xlsx, .xls, .csv</div>
+          <!-- File Upload Input Area -->
+          <div class="bg-white p-3 rounded-3 border" style="border-color: #cbd5e1 !important;">
+            <label class="form-label small fw-bold text-dark mb-1.5">
+              Select Excel / CSV File <span class="text-danger">*</span>
+            </label>
+            <input type="file" name="excel_file" class="form-control rounded-2 border" accept=".xlsx, .xls, .csv" required style="border-color: #cbd5e1; font-size: 0.85rem;">
+            <div class="form-text small text-muted mt-1" style="font-size: 0.75rem;">Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> (Max size: 5MB)</div>
           </div>
         </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success rounded-3 px-4 fw-semibold shadow-sm">
-            Upload & Import
+        <div class="modal-footer border-top px-4 py-3 bg-white d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-navy-outline btn-config-action" data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-navy-primary btn-config-action">
+            <i class="fa-solid fa-cloud-arrow-up me-1"></i> Upload & Import
           </button>
         </div>
       </form>
@@ -1093,11 +1134,9 @@
   }
 
   function openActiveTabModal() {
-    const activeTab = document.querySelector('#hospitalMasterTabs .nav-link.active').getAttribute('href');
-    if (activeTab === '#tab-profile') {
-      const nameInput = document.querySelector('#tab-profile input[name="name"]');
-      if (nameInput) nameInput.focus();
-    } else if (activeTab === '#tab-branches') {
+    const activeBtn = document.querySelector('#hospitalMasterTabs .nav-link.active');
+    const activeTab = activeBtn ? activeBtn.getAttribute('href') : '#tab-branches';
+    if (activeTab === '#tab-branches') {
       document.getElementById('formBranch').action = "{% url 'leads:hospital_branch_create' %}";
       document.getElementById('modalBranchTitle').innerText = "Add Hospital Branch";
       document.getElementById('formBranch').reset();

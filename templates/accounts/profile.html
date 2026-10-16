@@ -159,9 +159,9 @@
                 <span class="badge bg-light text-secondary border px-2.5 py-1.5 rounded-2 small fw-semibold">
                     {{ request.user.get_role_display }}
                 </span>
-                {% if request.user.hospital %}
+                {% if request.user.business %}
                 <span class="badge bg-light text-primary border px-2.5 py-1.5 rounded-2 small fw-semibold">
-                    {{ request.user.hospital.name }}
+                    {{ request.user.business.name }}
                 </span>
                 {% endif %}
             </div>

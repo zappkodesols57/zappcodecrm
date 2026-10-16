@@ -1,0 +1,50 @@
+<tr data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" class="counselor-table-row" id="counselor-lead-row-{{ lead.pk }}">
+  {% if show_checkbox %}
+    <td class="text-center" style="width: 38px;" onclick="event.stopPropagation();">
+      <input type="checkbox" class="form-check-input fresh-lead-checkbox" value="{{ lead.pk }}" style="cursor: pointer;">
+    </td>
+  {% endif %}
+  <td class="fw-semibold">
+    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark">{{ lead.name }}</a>
+  </td>
+  <td>{{ lead.mobile }}</td>
+  <td>{{ lead.course.name|default:"—" }}</td>
+  <td>
+    {% if lead.campaign %}
+      <span class="badge bg-light text-dark border">{{ lead.campaign.name }}</span>
+    {% elif lead.lead_source %}
+      <span class="badge bg-light text-secondary border">{{ lead.lead_source.name }}</span>
+    {% else %}
+      —
+    {% endif %}
+  </td>
+  <td>
+    {% if lead.assigned_to %}
+      {{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+    {% else %}
+      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">Unassigned</span>
+    {% endif %}
+  </td>
+  <td>{{ lead.created_at|date:"d M Y, h:i A" }}</td>
+  <td class="text-end">
+    <div class="d-inline-flex gap-1 align-items-center">
+      {% if not lead.assigned_to %}
+        <button type="button" class="btn btn-sm btn-outline-success action-btn-sm" onclick="captureLead('{{ lead.pk }}', this)" title="Capture & Assign to Me">
+          <i class="fa-solid fa-hand-holding-hand me-1"></i> Capture
+        </button>
+      {% endif %}
+      <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
+        <i class="fa-solid fa-phone"></i>
+      </a>
+      <a href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i>
+      </a>
+      <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </a>
+      <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+        <i class="fa-solid fa-eye"></i>
+      </a>
+    </div>
+  </td>
+</tr>

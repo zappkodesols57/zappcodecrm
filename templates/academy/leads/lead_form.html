@@ -1,58 +1,101 @@
 {% extends "base.html" %}
-{% block title %}{{ mode }} Academy Lead{% endblock %}
+{% block title %}{% if obj %}Edit Academy Lead - {{ obj.name }}{% else %}New Academy Lead{% endif %}{% endblock %}
 
 {% block extra_head %}
 <style>
-  .zapp-form-card {
+  /* Match Hospital Form Aesthetic & Balanced 2-Column Architecture */
+  .crm-form-card {
     background: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-    padding: 2rem 2.25rem;
-    margin-bottom: 2.5rem;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 2rem 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto 3rem auto;
   }
 
-  .zapp-section-header {
-    font-size: 0.92rem;
+  .crm-section-header {
+    font-size: 1.05rem;
     font-weight: 700;
-    color: #4338ca;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e0e7ff;
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid #f1f5f9;
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  /* Form control height, border & crisp clean white background */
-  .zapp-form-card .form-control,
-  .zapp-form-card input {
-    height: 42px;
-    min-height: 42px;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 8px;
-    font-size: 0.92rem;
-    font-weight: 500;
-    color: #0f172a !important;
-    background-color: #ffffff !important;
-    padding: 0.45rem 0.85rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  .crm-form-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.1rem;
   }
 
-  .zapp-form-card .form-select,
-  .zapp-form-card select {
-    height: 42px;
-    min-height: 42px;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 8px;
+  .crm-form-label {
+    width: 32%;
     font-size: 0.92rem;
-    font-weight: 500;
+    font-weight: 650;
+    color: #1e293b;
+    text-align: right;
+    padding-right: 1.25rem;
+    margin-bottom: 0;
+    user-select: none;
+    letter-spacing: 0.2px;
+  }
+
+  .crm-form-label.required::after {
+    content: " *";
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  .crm-form-field {
+    width: 68%;
+    position: relative;
+  }
+
+  /* Universal input & select styling: EXACT SAME 42px HEIGHT & BORDER AS HOSPITAL FORM */
+  .crm-form-card input.form-control,
+  .crm-form-card .form-control,
+  .crm-form-field input {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    padding: 0.45rem 0.85rem !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    display: block !important;
+    width: 100% !important;
+    line-height: 1.5 !important;
+  }
+
+  .crm-form-card select.form-select,
+  .crm-form-card .form-select,
+  .crm-form-field select {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    font-size: 0.94rem !important;
+    font-weight: 500 !important;
     color: #0f172a !important;
     background-color: #ffffff !important;
     padding: 0.45rem 2.25rem 0.45rem 0.85rem !important;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    box-sizing: border-box !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    display: block !important;
+    width: 100% !important;
+    line-height: 1.5 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -61,356 +104,587 @@
     background-position: right 0.75rem center !important;
     background-size: 14px 10px !important;
     appearance: none !important;
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
   }
 
-  .zapp-form-card textarea.form-control,
-  .zapp-form-card textarea {
-    height: auto;
-    min-height: 80px;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 8px;
-    font-size: 0.92rem;
+  .crm-form-card textarea.form-control,
+  .crm-form-field textarea {
+    height: auto !important;
+    min-height: 52px !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 7px !important;
+    font-size: 0.94rem !important;
     color: #0f172a !important;
-    background-color: #ffffff !important;
-    padding: 0.6rem 0.85rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    padding: 0.45rem 0.85rem !important;
   }
 
-  /* Crisp Focus Background and Border */
-  .zapp-form-card .form-control:focus,
-  .zapp-form-card .form-select:focus,
-  .zapp-form-card select:focus,
-  .zapp-form-card input:focus,
-  .zapp-form-card textarea:focus {
-    border-color: #6366f1 !important;
+  .crm-form-card input:focus,
+  .crm-form-card select:focus,
+  .crm-form-card textarea:focus,
+  .crm-form-field input:focus,
+  .crm-form-field select:focus,
+  .crm-form-field textarea:focus {
+    border-color: #4f46e5 !important;
     background-color: #ffffff !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
+    box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.18) !important;
     outline: none !important;
   }
 
-  /* Dropdown Option Items */
-  .zapp-form-card select option {
-    background-color: #ffffff;
-    color: #0f172a;
-    padding: 6px 10px;
-  }
-
-  /* Validation Error Highlighting */
-  .zapp-form-card .form-control.is-invalid,
-  .zapp-form-card .form-select.is-invalid,
-  .zapp-form-card .field-invalid {
-    border-color: #ef4444 !important;
-    background-color: #fef2f2 !important;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
-  }
-
-  .zapp-form-card .form-label,
-  .zapp-form-card label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #334155;
-    margin-bottom: 0.35rem;
-    display: block;
-  }
-
-  .zapp-form-card .form-control::placeholder {
-    color: #94a3b8;
+  .crm-owner-badge {
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
     font-size: 0.88rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
-  .req-star {
-    color: #ef4444;
-    font-weight: 700;
-    margin-left: 2px;
+  .crm-btn-save {
+    background-color: #4f46e5;
+    color: #ffffff;
+    border: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.6rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+  }
+  .crm-btn-save:hover {
+    background-color: #4338ca;
+    color: #ffffff;
+  }
+
+  .crm-btn-cancel {
+    background-color: #ffffff;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.4rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .crm-btn-cancel:hover {
+    background-color: #f8fafc;
+    color: #334155;
+  }
+
+  /* Responsive breakpoints */
+  @media (max-width: 900px) {
+    .crm-form-card { padding: 1.5rem 1.25rem; }
+    .crm-form-row { flex-direction: column; align-items: flex-start; margin-bottom: 0.9rem; }
+    .crm-form-label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 0.35rem; }
+    .crm-form-field { width: 100%; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h4 class="mb-0 fw-bold text-dark">{{ mode }} Academy Lead</h4>
-    <p class="text-muted small mb-0">Record and manage student inquiries and course enrollments.</p>
+<div class="container-fluid py-2">
+
+  <!-- Header Bar -->
+  <div class="d-flex justify-content-end align-items-center mb-3" style="max-width: 1100px; margin: 0 auto;">
+    <div>
+      <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="btn btn-sm btn-secondary rounded-pill px-3">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back
+      </a>
+    </div>
   </div>
-  <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-    <i class="fa-solid fa-arrow-left me-1"></i> Back to Leads
-  </a>
-</div>
 
-{% if duplicates %}
-<div class="card mb-3 border-warning shadow-sm rounded-3">
-  <div class="card-body">
-    <h6 class="text-warning fw-bold mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Existing Lead(s) Found — same mobile number</h6>
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-2">
-        <thead class="table-light"><tr><th>Lead ID</th><th>Name</th><th>Mobile</th><th>Course</th><th>Source</th><th>Stage</th><th>Assigned</th><th></th></tr></thead>
-        <tbody>
-          {% for d in duplicates %}
-          <tr>
-            <td><code>{{ d.lead_code }}</code></td><td><strong>{{ d.name }}</strong></td><td>{{ d.mobile }}</td>
-            <td>{{ d.course|default:"—" }}</td><td>{{ d.lead_source|default:"—" }}</td><td>{{ d.stage }}</td><td>{{ d.assigned_to|default:"—" }}</td>
-            <td><a href="{% url 'leads:lead_detail' d.pk %}" class="btn btn-sm btn-outline-primary rounded-pill">View</a></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  {% if duplicates %}
+  <div class="card mb-3 border-warning shadow-sm rounded-3" style="max-width: 1100px; margin: 0 auto 1.5rem auto;">
+    <div class="card-body p-3">
+      <h6 class="text-warning fw-bold mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Student with this contact number already exists:</h6>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-2">
+          <thead class="bg-light">
+            <tr>
+              <th>Lead ID</th><th>Student Name</th><th>Mobile</th><th>Course</th><th>Stage</th><th>Assigned</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in duplicates %}
+            <tr>
+              <td class="fw-bold">{{ d.lead_code }}</td>
+              <td>{{ d.name }}</td>
+              <td>{{ d.mobile }}</td>
+              <td>{{ d.course|default:"—" }}</td>
+              <td><span class="badge text-bg-light border">{{ d.stage.name }}</span></td>
+              <td>{{ d.assigned_to.get_full_name|default:d.assigned_to.username|default:"Unassigned" }}</td>
+              <td><a href="{% url 'leads:lead_detail' d.pk %}" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 small">View Lead</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <p class="text-muted small mb-0">You can view/update the existing lead instead, or force-create a new one below if this is genuinely a different inquiry.</p>
+  </div>
+  {% endif %}
+
+  <div class="crm-form-card">
+    <form method="POST" id="academyLeadForm" class="needs-validation" novalidate>
+      {% csrf_token %}
+      {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
+
+      <!-- Hidden lifecycle state fields -->
+      <input type="hidden" name="deal_status" id="id_deal_status" value="{{ form.instance.deal_status|default:'OPEN' }}">
+      <input type="hidden" name="admission_status" id="id_admission_status" value="{{ form.instance.admission_status|default:'NEW' }}">
+      <input type="hidden" name="temperature" id="id_temperature" value="{{ form.instance.temperature|default:'HOT' }}">
+
+      <!-- Section 1: Lead Information -->
+      <div class="crm-section-header">
+        <i class="fa-solid fa-id-card text-primary opacity-75"></i> Student Lead Information
+      </div>
+
+      <!-- Top Bar: Assigned Counselor -->
+      <div class="row mb-3 pb-3 border-bottom">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label">Assign To</label>
+            <div class="crm-form-field">
+              {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
+                {{ form.assigned_to }}
+              {% else %}
+                <div class="crm-owner-badge">
+                  <span><i class="fa-solid fa-circle-user text-primary me-2"></i><strong>{{ user.get_full_name|default:user.username }}</strong></span>
+                  <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
+                </div>
+                <input type="hidden" name="assigned_to" value="{{ user.pk }}">
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- ROW-BY-ROW BALANCED 2-COLUMN GRID (Exact Hospital Form Layout)      -->
+      <!-- ================================================================= -->
+
+      <!-- Row 1: Student Name | Contact Number -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label required" for="id_name">Student Name</label>
+            <div class="crm-form-field">{{ form.name }}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label required" for="id_mobile">Contact Number</label>
+            <div class="crm-form-field">{{ form.mobile }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Email | State -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_email">Email</label>
+            <div class="crm-form-field">{{ form.email }}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_state">State</label>
+            <div class="crm-form-field">
+              <select name="state" id="id_state" class="form-select no-tom-select">
+                <option value="">Select State</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: City | Education Category -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_city">City</label>
+            <div class="crm-form-field">
+              <select name="city" id="id_city" class="form-select no-tom-select">
+                <option value="">Select City</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_education">Education Category</label>
+            <div class="crm-form-field">
+              <select name="education" id="id_education" class="form-select no-tom-select">
+                <option value="">Select Education</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Medical">Medical</option>
+                <option value="Management">Management</option>
+                <option value="Arts & Commerce">Arts & Commerce</option>
+                <option value="Polytechnic / Diploma">Polytechnic / Diploma</option>
+                <option value="School Student">School Student (10th / 12th)</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 4: Qualification | Passing Year -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_qualification">Qualification</label>
+            <div class="crm-form-field">
+              <select name="qualification" id="id_qualification" class="form-select no-tom-select">
+                <option value="">Select Qualification</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_graduation_year">Passing Year</label>
+            <div class="crm-form-field">{{ form.graduation_year }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 5: Course Interested | Lead Source -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label required" for="id_course">Course Interested</label>
+            <div class="crm-form-field">{{ form.course }}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_lead_source">Lead Source</label>
+            <div class="crm-form-field">{{ form.lead_source }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 6: Campaign | Admission Status (Stage Trigger) -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_campaign">Campaign</label>
+            <div class="crm-form-field">{{ form.campaign }}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label" for="id_stage">Admission Status</label>
+            <div class="crm-form-field">
+              {{ form.stage }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- DYNAMIC CONDITIONAL CONTAINERS (Exact Hospital Form Design)         -->
+      <!-- ================================================================= -->
+
+      <!-- 1. Follow-up Needed Container -->
+      <div id="followupContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-primary-subtle shadow-xs">
+        <div class="mb-3 pb-2 border-bottom">
+          <h6 class="fw-bold text-dark mb-0">Follow-up Schedule</h6>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 38%;">Follow-up Date</label>
+              <div class="crm-form-field" style="width: 62%;">
+                <input type="date" name="custom_followup_date" id="custom_followup_date" class="form-control" value="{{ form.instance.next_followup_date|date:'Y-m-d'|default:'' }}">
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label" style="width: 35%;">Slot Time</label>
+              <div class="crm-form-field" style="width: 65%;">
+                <input type="time" name="custom_followup_time" id="custom_followup_time" class="form-control" value="{{ form.instance.next_followup_time|time:'H:i'|default:'' }}">
+              </div>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 30%;">Call Agenda</label>
+              <div class="crm-form-field" style="width: 70%;">
+                <input type="text" name="custom_followup_remark" id="custom_followup_remark" class="form-control" placeholder="Enter follow-up agenda...">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Visit Planned Container (Calendar & Slot Booking) -->
+      <div id="visitContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-warning shadow-xs">
+        <div class="mb-3 pb-2 border-bottom">
+          <h6 class="fw-bold text-dark mb-0">Visit Booking</h6>
+        </div>
+        <div class="row g-3" id="visit_fields_row">
+          <div class="col-md-4">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 38%;">Visit Date</label>
+              <div class="crm-form-field" style="width: 62%;">
+                <input type="date" name="custom_visit_date" id="custom_visit_date" class="form-control">
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 35%;">Time Slot</label>
+              <div class="crm-form-field" style="width: 65%;">
+                <select name="custom_visit_slot" id="custom_visit_slot" class="form-select no-tom-select">
+                  <option value="">Select Slot</option>
+                  <option value="Morning (10:00 AM - 12:00 PM)">Morning (10:00 AM - 12:00 PM)</option>
+                  <option value="Afternoon (12:00 PM - 02:00 PM)">Afternoon (12:00 PM - 02:00 PM)</option>
+                  <option value="Mid-Day (02:00 PM - 04:00 PM)">Mid-Day (02:00 PM - 04:00 PM)</option>
+                  <option value="Evening (04:00 PM - 06:30 PM)">Evening (04:00 PM - 06:30 PM)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label" style="width: 30%;">Notes</label>
+              <div class="crm-form-field" style="width: 70%;">
+                <input type="text" name="custom_visit_remark" id="custom_visit_remark" class="form-control" placeholder="Visiting with parents, demo...">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Admission Planned Container -->
+      <div id="admissionPlannedContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-info shadow-xs">
+        <div class="mb-3 pb-2 border-bottom">
+          <h6 class="fw-bold text-dark mb-0">Admission Follow-up</h6>
+        </div>
+        <div class="row g-3" id="admission_planned_row">
+          <div class="col-md-5">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 42%;">Expected Date</label>
+              <div class="crm-form-field" style="width: 58%;">
+                <input type="date" name="custom_admission_date" id="custom_admission_date" class="form-control">
+              </div>
+            </div>
+          </div>
+          <div class="col-md-7">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label" style="width: 25%;">Remarks</label>
+              <div class="crm-form-field" style="width: 75%;">
+                <input type="text" name="custom_admission_remark" id="custom_admission_remark" class="form-control" placeholder="Token commitment / fee arrangement notes...">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Admission & Payment Container -->
+      <div id="billingFieldsContainer" style="display: none;" class="mb-4">
+        <div class="card border border-success shadow-sm rounded-3">
+          <div class="card-header bg-white border-bottom py-2 px-3 fw-bold text-dark">
+            Admission & Payment
+          </div>
+
+          <div class="card-body p-3 bg-white rounded-bottom-3">
+            <!-- Step A: Academic Allocation -->
+            <div class="small fw-bold text-uppercase text-secondary mb-2 pb-1 border-bottom">
+              Admission Details
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4 col-lg-2">
+                <div class="crm-form-row mb-0">
+                  <label class="crm-form-label required" style="width: 50%;">Admission Date</label>
+                  <div class="crm-form-field" style="width: 50%;">
+                    <input type="date" name="custom_admission_date" id="billing_admission_date" class="form-control" value="{% if form.instance.custom_data.admission_date %}{{ form.instance.custom_data.admission_date }}{% else %}{% now 'Y-m-d' %}{% endif %}">
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 col-lg-2">
+                <div class="crm-form-row mb-0">
+                  <label class="crm-form-label" style="width: 48%;">Joining Date</label>
+                  <div class="crm-form-field" style="width: 52%;">
+                    <input type="date" name="custom_date_of_joining" id="billing_date_of_joining" class="form-control" value="{% if form.instance.custom_data.date_of_joining %}{{ form.instance.custom_data.date_of_joining }}{% elif form.instance.admission.date_of_joining %}{{ form.instance.admission.date_of_joining|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6 col-lg-3">
+                <div class="crm-form-row mb-0">
+                  <label class="crm-form-label" style="width: 32%;">Batch</label>
+                  <div class="crm-form-field" style="width: 68%;">
+                    <select name="selected_batch_id" id="selected_batch_select" class="form-select no-tom-select">
+                      <option value="">Select Batch (Auto-fills Trainer & Time)</option>
+                      {% for b in available_batches %}
+                        <option value="{{ b.id }}" data-course-id="{{ b.course_id }}" data-trainer="{% if b.trainer %}{{ b.trainer.name }}{% endif %}" data-timing="{{ b.timing_display }}" data-name="{{ b.name }}" {% if form.instance.admission.batch == b.name or form.instance.custom_data.batch == b.name %}selected{% endif %}>
+                          {{ b.name }} ({{ b.timing_display }}{% if b.trainer %} - {{ b.trainer.name }}{% endif %})
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <input type="hidden" name="selected_batch" id="selected_batch" value="{{ form.instance.admission.batch|default:form.instance.custom_data.batch|default:'' }}">
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 col-lg-2">
+                <div class="crm-form-row mb-0">
+                  <label class="crm-form-label required" style="width: 38%;">Trainer</label>
+                  <div class="crm-form-field" style="width: 62%;">
+                    <select name="selected_tutor" id="selected_tutor" class="form-select no-tom-select">
+                      <option value="">Select Trainer</option>
+                      {% for t in available_trainers %}
+                        <option value="{{ t }}" {% if form.instance.admission.tutor == t or form.instance.custom_data.tutor == t %}selected{% endif %}>{{ t }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6 col-lg-3">
+                <div class="crm-form-row mb-0">
+                  <label class="crm-form-label" style="width: 38%;">Batch Time</label>
+                  <div class="crm-form-field" style="width: 62%;">
+                    <input type="text" name="selected_batch_timing" id="selected_batch_timing" class="form-control" placeholder="e.g. 10:00 AM - 12:00 PM" value="{{ form.instance.custom_data.batch_time|default:'' }}">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step B: Financial Ledger -->
+            <div class="small fw-bold text-uppercase text-secondary mb-2 pb-1 border-bottom">
+              Billing Details
+            </div>
+            <div class="row g-3">
+              <!-- Left Column: Base Price, Discount, Total Bill, Token Paid -->
+              <div class="col-md-6">
+                <div class="crm-form-row">
+                  <label class="crm-form-label fw-bold">Course Price (₹)</label>
+                  <div class="crm-form-field">
+                    <input type="number" step="0.01" name="billing_total_fee" id="billing_total_fee" class="form-control fw-bold" readonly style="background-color: #f8fafc !important;">
+                    <small id="billing_max_disc_hint" class="text-muted d-block mt-1" style="font-size: 0.72rem;">Max discount allowed: ₹0</small>
+                  </div>
+                </div>
+                <div class="crm-form-row">
+                  <label class="crm-form-label fw-bold">Discount (₹)</label>
+                  <div class="crm-form-field">
+                    <input type="number" step="0.01" name="billing_discount" id="billing_discount" class="form-control" value="0">
+                    <div id="billing_disc_warning" class="text-danger small mt-1 d-none" style="font-size: 0.72rem;">Exceeds maximum discount limit!</div>
+                  </div>
+                </div>
+                <div class="crm-form-row">
+                  <label class="crm-form-label fw-bold text-success">Total Bill (₹)</label>
+                  <div class="crm-form-field">
+                    <input type="number" step="0.01" name="billing_final_fee" id="billing_final_fee" class="form-control fw-bold text-success" readonly style="background-color: #f0fdf4 !important; font-size: 1.05rem !important;">
+                  </div>
+                </div>
+                <div class="crm-form-row">
+                  <label class="crm-form-label fw-bold text-primary">Paid Today / Token (₹)</label>
+                  <div class="crm-form-field">
+                    <input type="number" step="0.01" name="billing_token_amount" id="billing_token_amount" class="form-control fw-bold text-primary" value="0">
+                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Full payment = Total Bill; Token payment = Advance Token amount.</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Balance, Payment Mode, EMI Months, Monthly EMI -->
+              <div class="col-md-6">
+                <div class="crm-form-row">
+                  <label class="crm-form-label fw-bold text-danger">Balance Due (₹)</label>
+                  <div class="crm-form-field">
+                    <input type="number" step="0.01" name="billing_balance_amount" id="billing_balance_amount" class="form-control fw-bold text-danger" readonly style="background-color: #fef2f2 !important;">
+                  </div>
+                </div>
+                <div class="crm-form-row">
+                  <label class="crm-form-label fw-bold required">Payment Mode</label>
+                  <div class="crm-form-field">
+                    <select name="billing_payment_option" id="billing_payment_option" class="form-select no-tom-select">
+                      <option value="ONE_TIME_UPI">One-Time UPI / Online</option>
+                      <option value="ONE_TIME_CASH">One-Time Cash</option>
+                      <option value="EMI">EMI (Monthly Installments)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="crm-form-row" id="row_emi_months" style="display: none;">
+                  <label class="crm-form-label fw-bold required">EMI Tenure</label>
+                  <div class="crm-form-field">
+                    <select name="billing_emi_months" id="billing_emi_months" class="form-select no-tom-select">
+                      <option value="3">3 Months EMI</option>
+                      <option value="6" selected>6 Months EMI</option>
+                      <option value="9">9 Months EMI</option>
+                      <option value="12">12 Months EMI</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="crm-form-row" id="row_monthly_emi" style="display: none;">
+                  <label class="crm-form-label fw-bold text-primary">Monthly EMI (₹)</label>
+                  <div class="crm-form-field">
+                    <input type="number" step="0.01" name="billing_monthly_emi" id="billing_monthly_emi" class="form-control fw-bold text-primary" readonly style="background-color: #eff6ff !important;">
+                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Recurring monthly reminder notification counselor ko schedule date par aayega.</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Cancelled / Lost Container -->
+      <div id="cancelledContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-danger shadow-xs">
+        <div class="mb-2">
+          <h6 class="fw-bold text-danger mb-0">Cancellation Reason (Lead Lost)</h6>
+        </div>
+        <div class="crm-form-row mb-0">
+          <label class="crm-form-label required" style="width: 25%;">Cancellation Reason</label>
+          <div class="crm-form-field" style="width: 75%;">
+            <input type="text" name="custom_cancellation_reason" id="custom_cancellation_reason" class="form-control" placeholder="Specify why the student cancelled or chose not to enroll...">
+          </div>
+        </div>
+      </div>
+
+      <!-- General Notes -->
+      <div class="crm-form-row mb-3">
+        <label class="crm-form-label">Notes & Remarks</label>
+        <div class="crm-form-field">
+          {{ form.notes }}
+        </div>
+      </div>
+
+      <!-- Footer Action Buttons (Cancel & Save Lead) -->
+      <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+        <a href="{% if obj %}{% url 'leads:lead_detail' obj.pk %}{% else %}{% url 'leads:lead_list' %}{% endif %}" class="crm-btn-cancel">
+          Cancel
+        </a>
+        <button type="submit" id="btnSaveAcademyLead" class="crm-btn-save">
+          <i class="fa-solid fa-floppy-disk me-1"></i> Save Academy Lead
+        </button>
+      </div>
+
+    </form>
   </div>
 </div>
-{% endif %}
 
-<div class="zapp-form-card">
-  <form method="post" id="zappLeadForm" novalidate>
-    {% csrf_token %}
-    {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
-
-    <!-- Alert container for validation errors -->
-    <div id="formValidationErrorBox" class="alert alert-danger py-2 px-3 mb-3 rounded-3 d-none">
-      <i class="fa-solid fa-circle-exclamation me-2"></i> Please fill in all required fields highlighted below before saving.
-    </div>
-
-    <!-- Top Bar: Lead Owner / Assign To -->
-    <div class="row mb-3 pb-3 border-bottom align-items-center">
-      <div class="col-md-6">
-        <label class="form-label text-muted small fw-bold text-uppercase mb-1">
-          <i class="fa-solid fa-user-check me-1 text-primary"></i> Lead Owner / Assigned Counselor
-        </label>
-        {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
-          {{ form.assigned_to }}
-        {% else %}
-          <div class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-light shadow-xs" style="min-height: 42px;">
-            <span class="d-flex align-items-center">
-              <i class="fa-solid fa-circle-user text-primary fs-5 me-2"></i>
-              <strong class="text-dark">{{ user.get_full_name|default:user.username }}</strong>
-              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-2" style="font-size: 0.72rem;">{{ user.get_role_display|default:"Counselor" }}</span>
-            </span>
-            <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
-          </div>
-          <input type="hidden" name="assigned_to" value="{{ user.pk }}">
-        {% endif %}
-      </div>
-      <div class="col-md-6 text-md-end mt-2 mt-md-0">
-        <span class="badge bg-light text-muted border px-3 py-2 rounded-pill small">
-          <i class="fa-solid fa-shield-halved text-success me-1"></i> Zappcode Academy CRM
-        </span>
-      </div>
-    </div>
-
-    <!-- 1. Basic Information -->
-    <div class="zapp-section-header">
-      <i class="fa-solid fa-user me-1"></i> Basic Student Information
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <label class="form-label" for="id_name">Student Name <span class="req-star">*</span></label>
-        {{ form.name }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_mobile">Mobile Number <span class="req-star">*</span></label>
-        {{ form.mobile }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_alternate_mobile">Alternate Mobile</label>
-        {{ form.alternate_mobile }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_email">Email Address</label>
-        {{ form.email }}
-      </div>
-      <!-- State FIRST, then City -->
-      <div class="col-md-4">
-        <label class="form-label" for="id_state">State <span class="req-star">*</span></label>
-        <select name="state" id="id_state" class="form-select no-tom-select" required>
-          <option value="">Select State</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_city">City <span class="req-star">*</span></label>
-        <select name="city" id="id_city" class="form-select no-tom-select" required>
-          <option value="">Select City</option>
-        </select>
-      </div>
-      <div class="col-md-12">
-        <label class="form-label" for="id_location">Area / Location / Address</label>
-        {{ form.location }}
-      </div>
-    </div>
-
-    <!-- 2. Education -->
-    <div class="zapp-section-header">
-      <i class="fa-solid fa-user-graduate me-1"></i> Educational Background
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <label class="form-label" for="id_education">Education Category <span class="req-star">*</span></label>
-        <select name="education" id="id_education" class="form-select no-tom-select" required>
-          <option value="">Select Education</option>
-          <option value="Engineering">Engineering</option>
-          <option value="Medical">Medical</option>
-          <option value="Management">Management</option>
-          <option value="Arts & Commerce">Arts & Commerce</option>
-          <option value="Polytechnic / Diploma">Polytechnic / Diploma</option>
-          <option value="School Student">School Student (10th / 12th)</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_qualification">Qualification / Year <span class="req-star">*</span></label>
-        <select name="qualification" id="id_qualification" class="form-select no-tom-select" required>
-          <option value="">Select Qualification</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_graduation_year">Graduation / Passing Year</label>
-        {{ form.graduation_year }}
-      </div>
-    </div>
-
-    <!-- 3. Lead & Course Information -->
-    <div class="zapp-section-header">
-      <i class="fa-solid fa-book-open-reader me-1"></i> Course & Lead Status
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <label class="form-label" for="id_course">Course Interested <span class="req-star">*</span></label>
-        {{ form.course }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_stage">Lead Stage <span class="req-star">*</span></label>
-        {{ form.stage }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_admission_status">Admission Status <span class="req-star">*</span></label>
-        {{ form.admission_status }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_temperature">Lead Temperature <span class="badge bg-secondary-subtle text-muted border ms-1" style="font-size: 0.68rem;">System Auto</span></label>
-        {{ form.temperature }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_inquiry_date">Inquiry Date <span class="req-star">*</span></label>
-        {{ form.inquiry_date }}
-      </div>
-    </div>
-
-      <!-- Dynamic Conditional Fields based on Admission Status -->
-      <div class="col-md-4 d-none" id="div_followup_date">
-        <label class="form-label" for="custom_followup_date">Next Follow-up Date <span class="req-star">*</span></label>
-        <input type="date" name="custom_followup_date" id="custom_followup_date" class="form-control">
-      </div>
-      <div class="col-md-4 d-none" id="div_admission_date">
-        <label class="form-label" for="custom_admission_date">Admission Date <span class="req-star">*</span></label>
-        <input type="date" name="custom_admission_date" id="custom_admission_date" class="form-control">
-      </div>
-      <div class="col-md-8 d-none" id="div_cancellation_reason">
-        <label class="form-label" for="custom_cancellation_reason">Reason for Cancellation <span class="req-star">*</span></label>
-        <input type="text" name="custom_cancellation_reason" id="custom_cancellation_reason" class="form-control" placeholder="Enter reason why lead cancelled / lost...">
-      </div>
-    </div>
-
-    <!-- 4. Lead Origin / Attribution -->
-    <div class="zapp-section-header">
-      <i class="fa-solid fa-bullhorn me-1"></i> Lead Source & Attribution
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <label class="form-label" for="id_lead_source">Lead Source</label>
-        {{ form.lead_source }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_campaign">Campaign</label>
-        {{ form.campaign }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_ad_platform">Ad Platform</label>
-        {{ form.ad_platform }}
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="id_campaign_id_text">Campaign Tracking Code</label>
-        {{ form.campaign_id_text }}
-      </div>
-    </div>
-
-    <!-- Referral Fields (Conditionally shown only when Lead Source is Referral) -->
-    <div id="referral_fields_container" class="p-3 mb-4 rounded-3 border bg-light d-none" style="border: 1.5px dashed #6366f1 !important;">
-      <div class="d-flex align-items-center gap-2 mb-3">
-        <i class="fa-solid fa-user-group text-primary fs-6"></i>
-        <h6 class="fw-bold text-dark mb-0" style="font-size: 0.88rem;">Referral Information</h6>
-        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill small">Active on Referral Source</span>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label" for="id_referral_type">Referral Type</label>
-          {{ form.referral_type }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label" for="id_referral_person">Referral Person Name</label>
-          {{ form.referral_person }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label" for="id_referral_contact">Referral Contact / Phone</label>
-          {{ form.referral_contact }}
-        </div>
-        <div class="col-md-12">
-          <label class="form-label" for="id_referral_notes">Referral Notes / Context</label>
-          {{ form.referral_notes }}
-        </div>
-      </div>
-    </div>
-
-    <!-- 5. Assignment -->
-    <div class="zapp-section-header">
-      <i class="fa-solid fa-user-check me-1"></i> Assignment
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-6">
-        <label class="form-label" for="id_assigned_to">Assigned Counselor</label>
-        {% if user.role == 'SUPER_ADMIN' or user.role == 'ADMIN' or user.role == 'MANAGER' or user.can_assign_leads or user.is_superuser %}
-          {{ form.assigned_to }}
-        {% else %}
-          <div class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-light shadow-xs" style="min-height: 42px;">
-            <span class="d-flex align-items-center">
-              <i class="fa-solid fa-circle-user text-primary fs-5 me-2"></i>
-              <strong class="text-dark">{{ user.get_full_name|default:user.username }}</strong>
-              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle ms-2" style="font-size: 0.72rem;">{{ user.get_role_display|default:"Counselor" }}</span>
-            </span>
-            <span class="badge text-bg-secondary"><i class="fa-solid fa-lock me-1"></i>Auto-assigned</span>
-          </div>
-        {% endif %}
-      </div>
-      {% if form.assigned_manager %}
-      <div class="col-md-6">
-        <label class="form-label" for="id_assigned_manager">Reporting Manager</label>
-        {{ form.assigned_manager }}
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- 6. Additional Notes -->
-    <div class="zapp-section-header">
-      <i class="fa-solid fa-note-sticky me-1"></i> Lead Notes & Remarks
-    </div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-12">
-        <label class="form-label" for="id_notes">Lead Notes / Remarks</label>
-        {{ form.notes }}
-      </div>
-    </div>
-
-    <div class="d-flex align-items-center gap-2 mt-4 pt-3 border-top">
-      <button type="submit" class="btn btn-brand text-white px-4 rounded-pill shadow-sm">
-        <i class="fa-solid fa-floppy-disk me-1"></i> Save Lead
-      </button>
-      <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
-    </div>
-  </form>
-</div>
+<!-- EMBEDDED DATA FOR JS REACTIVITY -->
+<script id="academy_courses_data" type="application/json">
+  {{ courses_json|safe }}
+</script>
+<script id="academy_batches_data" type="application/json">
+  {{ batches_json|default:"[]"|safe }}
+</script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+  // ─── 0. Parse Course Master Data ───
+  let coursesList = [];
+  try {
+    const rawData = document.getElementById("academy_courses_data").textContent;
+    coursesList = JSON.parse(rawData);
+  } catch (err) {
+    console.warn("Could not parse courses JSON:", err);
+  }
+
   // ─── 1. State & City Dependent Data ───
   const stateCityData = {
     "Maharashtra": [
@@ -441,7 +715,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const existingStateVal = "{{ form.instance.state|default:form.state.value|default:''|escapejs }}".trim();
   const existingCityVal = "{{ form.instance.city|default:form.city.value|default:''|escapejs }}".trim();
 
-  // Populate States
   stateSelect.innerHTML = '<option value="">Select State</option>';
   Object.keys(stateCityData).forEach(function(st) {
     const opt = document.createElement("option");
@@ -456,11 +729,8 @@ document.addEventListener("DOMContentLoaded", function() {
   function updateCities(selectedState, targetCityVal) {
     citySelect.innerHTML = '<option value="">Select City</option>';
     if (!selectedState) return;
-
-    // Match exact or case-insensitive state key
     let stateKey = Object.keys(stateCityData).find(k => k.toLowerCase() === selectedState.toLowerCase());
     let citiesList = stateKey ? stateCityData[stateKey] : null;
-
     if (citiesList) {
       citiesList.forEach(function(ct) {
         const opt = document.createElement("option");
@@ -482,7 +752,6 @@ document.addEventListener("DOMContentLoaded", function() {
   if (stateSelect.value) {
     updateCities(stateSelect.value, existingCityVal);
   }
-
   stateSelect.addEventListener("change", function() {
     updateCities(this.value, "");
   });
@@ -532,11 +801,8 @@ document.addEventListener("DOMContentLoaded", function() {
   function updateQualifications(selectedEdu, targetQualVal) {
     qualSelect.innerHTML = '<option value="">Select Qualification</option>';
     if (!selectedEdu) return;
-
-    // Match exact or case-insensitive/partial education key
     let eduKey = Object.keys(eduQualData).find(k => k.toLowerCase() === selectedEdu.toLowerCase() || selectedEdu.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(selectedEdu.toLowerCase()));
     let qualList = eduKey ? eduQualData[eduKey] : null;
-
     if (qualList) {
       qualList.forEach(function(q) {
         const opt = document.createElement("option");
@@ -558,197 +824,296 @@ document.addEventListener("DOMContentLoaded", function() {
   if (eduSelect.value) {
     updateQualifications(eduSelect.value, existingQualVal);
   }
-
   eduSelect.addEventListener("change", function() {
     updateQualifications(this.value, "");
   });
 
-  // ─── 3. Dynamic Admission Status & Stage Interconnection ───
-  const admissionStatusSelect = document.getElementById("id_admission_status");
+  // ─── 3. Dynamic Conditional Containers & Stages ───
   const stageSelect = document.getElementById("id_stage");
-  const tempSelect = document.getElementById("id_temperature");
-  const divFollowup = document.getElementById("div_followup_date");
-  const divAdmission = document.getElementById("div_admission_date");
-  const divReason = document.getElementById("div_cancellation_reason");
+  const dealStatusInput = document.getElementById("id_deal_status");
+  const tempInput = document.getElementById("id_temperature");
+  const admissionStatusInput = document.getElementById("id_admission_status");
+  const courseSelect = document.getElementById("id_course");
 
-  const inputFollowup = document.getElementById("custom_followup_date");
-  const inputAdmission = document.getElementById("custom_admission_date");
+  const containerFollowup = document.getElementById("followupContainer");
+  const containerVisit = document.getElementById("visitContainer");
+  const containerAdmPlan = document.getElementById("admissionPlannedContainer");
+  const containerBilling = document.getElementById("billingFieldsContainer");
+  const containerCancelled = document.getElementById("cancelledContainer");
+
+  const inputFollowupDate = document.getElementById("custom_followup_date");
+  const inputFollowupRemark = document.getElementById("custom_followup_remark");
+  const inputVisitDate = document.getElementById("custom_visit_date");
+  const selectVisitSlot = document.getElementById("custom_visit_slot");
+  const inputAdmDate = document.getElementById("custom_admission_date");
   const inputReason = document.getElementById("custom_cancellation_reason");
+  const billingAdmissionDate = document.getElementById("billing_admission_date");
+
+  // Billing elements
+  const billingTotalFee = document.getElementById("billing_total_fee");
+  const billingDiscount = document.getElementById("billing_discount");
+  const billingFinalFee = document.getElementById("billing_final_fee");
+  const billingTokenAmount = document.getElementById("billing_token_amount");
+  const billingBalanceAmount = document.getElementById("billing_balance_amount");
+  const billingPaymentOpt = document.getElementById("billing_payment_option");
+  const rowEmiMonths = document.getElementById("row_emi_months");
+  const rowMonthlyEmi = document.getElementById("row_monthly_emi");
+  const billingEmiMonths = document.getElementById("billing_emi_months");
+  const billingMonthlyEmi = document.getElementById("billing_monthly_emi");
+  const billingMaxDiscHint = document.getElementById("billing_max_disc_hint");
+  const billingDiscWarning = document.getElementById("billing_disc_warning");
+  const selectedTutor = document.getElementById("selected_tutor");
+  const selectedBatchSelect = document.getElementById("selected_batch_select");
+  const selectedBatch = document.getElementById("selected_batch");
+  const selectedBatchTiming = document.getElementById("selected_batch_timing");
+
+  let currentSelectedCourse = null;
+
+  let batchesList = [];
+  try {
+    const rawBatches = document.getElementById("academy_batches_data").textContent;
+    batchesList = JSON.parse(rawBatches);
+  } catch (err) {
+    console.warn("Could not parse batches JSON:", err);
+  }
+
+  // When counselor picks a batch, automatically fill Trainer and Batch Time
+  if (selectedBatchSelect) {
+    selectedBatchSelect.addEventListener("change", function() {
+      const selectedOpt = this.options[this.selectedIndex];
+      if (selectedOpt && selectedOpt.value) {
+        const bName = selectedOpt.getAttribute("data-name") || "";
+        const bTrainer = selectedOpt.getAttribute("data-trainer") || "";
+        const bTiming = selectedOpt.getAttribute("data-timing") || "";
+
+        if (selectedBatch) selectedBatch.value = bName;
+        if (bTiming && selectedBatchTiming) selectedBatchTiming.value = bTiming;
+
+        if (bTrainer && selectedTutor) {
+          let matched = false;
+          for (let i = 0; i < selectedTutor.options.length; i++) {
+            if (selectedTutor.options[i].value.toLowerCase() === bTrainer.toLowerCase()) {
+              selectedTutor.options[i].selected = true;
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) {
+            const newOpt = document.createElement("option");
+            newOpt.value = bTrainer;
+            newOpt.textContent = bTrainer;
+            newOpt.selected = true;
+            selectedTutor.appendChild(newOpt);
+          }
+        }
+      } else {
+        if (selectedBatch) selectedBatch.value = "";
+      }
+    });
+  }
+
+  function updateCoursePricing() {
+    if (!courseSelect) return;
+    const cid = parseInt(courseSelect.value);
+    currentSelectedCourse = coursesList.find(c => c.id === cid) || null;
+    if (currentSelectedCourse) {
+      const basePrice = parseFloat(currentSelectedCourse.base_price) || 0;
+      const maxDisc = parseFloat(currentSelectedCourse.max_discount) || 0;
+      billingTotalFee.value = basePrice;
+      billingMaxDiscHint.textContent = "Max discount allowed: ₹" + maxDisc.toLocaleString('en-IN');
+      
+      // Filter Batch Select dropdown to matching course batches
+      if (selectedBatchSelect) {
+        const curBatchVal = selectedBatchSelect.value;
+        let hasActiveSelection = false;
+        for (let i = 1; i < selectedBatchSelect.options.length; i++) {
+          const opt = selectedBatchSelect.options[i];
+          const bCourseId = parseInt(opt.getAttribute("data-course-id"));
+          if (!isNaN(bCourseId) && bCourseId !== cid) {
+            opt.style.display = "none";
+          } else {
+            opt.style.display = "";
+            if (opt.value === curBatchVal) hasActiveSelection = true;
+          }
+        }
+        if (!hasActiveSelection && selectedBatchSelect.options.length > 1) {
+          // If a batch from another course was chosen, reset or auto-pick first match
+          const firstMatch = Array.from(selectedBatchSelect.options).find((opt, idx) => idx > 0 && opt.style.display !== "none");
+          if (firstMatch) {
+            firstMatch.selected = true;
+            selectedBatchSelect.dispatchEvent(new Event("change"));
+          }
+        }
+      }
+
+      if (currentSelectedCourse.tutor && selectedTutor && !selectedTutor.value) {
+        for (let i = 0; i < selectedTutor.options.length; i++) {
+          if (selectedTutor.options[i].value.toLowerCase() === currentSelectedCourse.tutor.toLowerCase()) {
+            selectedTutor.options[i].selected = true;
+            break;
+          }
+        }
+      }
+      if (currentSelectedCourse.batch && selectedBatch && !selectedBatch.value) {
+        selectedBatch.value = currentSelectedCourse.batch;
+      }
+      if (currentSelectedCourse.batch_time && selectedBatchTiming && !selectedBatchTiming.value) {
+        selectedBatchTiming.value = currentSelectedCourse.batch_time;
+      }
+      recalculateBilling();
+    }
+  }
+
+  function recalculateBilling() {
+    const total = parseFloat(billingTotalFee.value) || 0;
+    let disc = parseFloat(billingDiscount.value) || 0;
+    const maxDisc = currentSelectedCourse ? (parseFloat(currentSelectedCourse.max_discount) || 0) : 0;
+
+    if (maxDisc > 0 && disc > maxDisc) {
+      billingDiscWarning.classList.remove("d-none");
+    } else {
+      billingDiscWarning.classList.add("d-none");
+    }
+
+    const finalFee = Math.max(0, total - disc);
+    billingFinalFee.value = finalFee.toFixed(2);
+
+    let token = parseFloat(billingTokenAmount.value) || 0;
+    if (billingPaymentOpt.value !== "EMI") {
+      // One time full payment: token defaults to finalFee, balance is 0
+      token = finalFee;
+      billingTokenAmount.value = token.toFixed(2);
+      billingBalanceAmount.value = "0.00";
+      rowEmiMonths.style.display = "none";
+      rowMonthlyEmi.style.display = "none";
+    } else {
+      // EMI Mode: Balance is finalFee - token
+      rowEmiMonths.style.display = "flex";
+      rowMonthlyEmi.style.display = "flex";
+      const balance = Math.max(0, finalFee - token);
+      billingBalanceAmount.value = balance.toFixed(2);
+      const months = parseInt(billingEmiMonths.value) || 6;
+      const monthly = months > 0 ? (balance / months) : 0;
+      billingMonthlyEmi.value = monthly.toFixed(2);
+    }
+  }
+
+  if (courseSelect) {
+    courseSelect.addEventListener("change", updateCoursePricing);
+  }
+  if (billingDiscount) {
+    billingDiscount.addEventListener("input", recalculateBilling);
+  }
+  if (billingTokenAmount) {
+    billingTokenAmount.addEventListener("input", recalculateBilling);
+  }
+  if (billingPaymentOpt) {
+    billingPaymentOpt.addEventListener("change", recalculateBilling);
+  }
+  if (billingEmiMonths) {
+    billingEmiMonths.addEventListener("change", recalculateBilling);
+  }
 
   function handleStageChange() {
     if (!stageSelect) return;
     const selectedOption = stageSelect.options[stageSelect.selectedIndex];
-    const stageText = (selectedOption ? selectedOption.textContent : "").trim().toLowerCase();
-    
-    if (stageText === "cancelled") {
-      if (admissionStatusSelect) {
-        admissionStatusSelect.value = "LOST";
-      }
-      if (tempSelect) {
-        tempSelect.value = "FREEZE";
-      }
-    } else if (stageText.includes("admission done") || stageText.includes("payment done")) {
-      if (admissionStatusSelect) {
-        admissionStatusSelect.value = "WON";
+    const stageName = (selectedOption ? selectedOption.textContent : "").trim().toLowerCase();
+
+    // Hide all first
+    containerFollowup.style.display = "none";
+    containerVisit.style.display = "none";
+    containerAdmPlan.style.display = "none";
+    containerBilling.style.display = "none";
+    containerCancelled.style.display = "none";
+
+    [inputFollowupDate, inputFollowupRemark, inputVisitDate, selectVisitSlot, inputAdmDate, inputReason].forEach(i => { if (i) i.required = false; });
+
+    // 1. Follow up needed
+    if (stageName.includes("follow up") || stageName.includes("followup")) {
+      containerFollowup.style.display = "block";
+      inputFollowupDate.required = true;
+      inputFollowupRemark.required = true;
+      if (dealStatusInput) dealStatusInput.value = "OPEN";
+      if (admissionStatusInput) admissionStatusInput.value = "HOLD";
+    }
+    // 2. Visit planned
+    else if (stageName.includes("visit planned")) {
+      containerVisit.style.display = "block";
+      inputVisitDate.required = true;
+      selectVisitSlot.required = true;
+      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
+      if (admissionStatusInput) admissionStatusInput.value = "OPEN";
+      if (tempInput && (tempInput.value === "COLD" || tempInput.value === "FREEZE")) {
+        tempInput.value = "WARM";
       }
     }
-    handleAdmissionStatusChange();
-  }
-
-  function handleAdmissionStatusChange() {
-    if (!admissionStatusSelect) return;
-    const val = (admissionStatusSelect.value || "").toUpperCase();
-    
-    // Hide all first
-    divFollowup.classList.add("d-none");
-    divAdmission.classList.add("d-none");
-    divReason.classList.add("d-none");
-
-    inputFollowup.required = false;
-    inputAdmission.required = false;
-    inputReason.required = false;
-
-    if (val === "HOLD") {
-      divFollowup.classList.remove("d-none");
-      inputFollowup.required = true;
-    } else if (val === "WON") {
-      divAdmission.classList.remove("d-none");
-      inputAdmission.required = true;
-    } else if (val === "LOST") {
-      divReason.classList.remove("d-none");
-      inputReason.required = true;
-      if (tempSelect) {
-        tempSelect.value = "FREEZE";
+    // 3. Admission planned
+    else if (stageName.includes("admission planned") || stageName.includes("admission pending")) {
+      containerAdmPlan.style.display = "block";
+      inputAdmDate.required = true;
+      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
+      if (admissionStatusInput) admissionStatusInput.value = "OPEN";
+      if (tempInput && (tempInput.value === "COLD" || tempInput.value === "FREEZE")) {
+        tempInput.value = "WARM";
       }
+    }
+    // 4. Admission & Payment (Won)
+    else if (stageName.includes("admission & payment") || stageName.includes("admission done") || stageName.includes("payment done")) {
+      containerBilling.style.display = "block";
+      if (dealStatusInput) dealStatusInput.value = "WON";
+      if (admissionStatusInput) admissionStatusInput.value = "WON";
+      if (tempInput) tempInput.value = "HOT";
+      updateCoursePricing();
+    }
+    // 5. Cancelled (Lost)
+    else if (stageName.includes("cancel") || stageName.includes("lost")) {
+      containerCancelled.style.display = "block";
+      inputReason.required = true;
+      if (dealStatusInput) dealStatusInput.value = "LOST";
+      if (admissionStatusInput) admissionStatusInput.value = "LOST";
+      if (tempInput) tempInput.value = "FREEZE";
     }
   }
 
   if (stageSelect) {
     stageSelect.addEventListener("change", handleStageChange);
+    handleStageChange();
   }
 
-  if (admissionStatusSelect) {
-    handleAdmissionStatusChange();
-    admissionStatusSelect.addEventListener("change", handleAdmissionStatusChange);
+  // Mobile numeric validation
+  const mobileInput = document.querySelector('input[name="mobile"]');
+  if (mobileInput) {
+    mobileInput.setAttribute('maxlength', '10');
+    mobileInput.setAttribute('minlength', '10');
+    mobileInput.setAttribute('inputmode', 'numeric');
+    mobileInput.setAttribute('pattern', '^[0-9]{10}$');
+    mobileInput.addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+    });
   }
 
-  // ─── 4. Dynamic Referral Fields Conditional Visibility ───
-  const leadSourceSelect = document.getElementById("id_lead_source");
-  const referralContainer = document.getElementById("referral_fields_container");
-
-  function handleLeadSourceChange() {
-    if (!leadSourceSelect || !referralContainer) return;
-    
-    // Check both selected option text and value for "referral"
-    const selectedOption = leadSourceSelect.options[leadSourceSelect.selectedIndex];
-    const text = selectedOption ? (selectedOption.textContent || "").toLowerCase() : "";
-    const val = (leadSourceSelect.value || "").toLowerCase();
-
-    if (text.includes("referral") || val.includes("referral")) {
-      referralContainer.classList.remove("d-none");
-    } else {
-      referralContainer.classList.add("d-none");
-    }
-  }
-
-  if (leadSourceSelect) {
-    handleLeadSourceChange();
-    leadSourceSelect.addEventListener("change", handleLeadSourceChange);
-  }
-
-  // ─── 5. Form Validation & Highlight Required Fields ───
-  const form = document.getElementById("zappLeadForm");
-  const errorBox = document.getElementById("formValidationErrorBox");
-
+  // Form submit validation
+  const form = document.getElementById("academyLeadForm");
   form.addEventListener("submit", function(e) {
     let isValid = true;
-    errorBox.classList.add("d-none");
-
-    // Clear previous error classes
-    form.querySelectorAll(".is-invalid, .field-invalid").forEach(function(el) {
-      el.classList.remove("is-invalid", "field-invalid");
-    });
-
-    // Check all required inputs & selects
     const requiredInputs = form.querySelectorAll("[required]");
     requiredInputs.forEach(function(input) {
+      if (input.closest('[style*="display: none"]')) return;
       if (!input.value || input.value.trim() === "") {
         isValid = false;
         input.classList.add("is-invalid");
-        if (input.closest(".form-select") || input.closest("select")) {
-          input.classList.add("field-invalid");
-        }
+      } else {
+        input.classList.remove("is-invalid");
       }
     });
-
     if (!isValid) {
       e.preventDefault();
-      errorBox.classList.remove("d-none");
-      const firstInvalid = form.querySelector(".is-invalid, .field-invalid");
+      const firstInvalid = form.querySelector(".is-invalid");
       if (firstInvalid) {
         firstInvalid.focus();
         firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
-  });
-
-  // Clear invalid styling on user input
-  form.querySelectorAll("input, select, textarea").forEach(function(el) {
-    el.addEventListener("change", function() {
-      if (this.value && this.value.trim() !== "") {
-        this.classList.remove("is-invalid", "field-invalid");
-      }
-    });
-    el.addEventListener("input", function() {
-      if (this.value && this.value.trim() !== "") {
-        this.classList.remove("is-invalid", "field-invalid");
-      }
-    });
-  });
-
-
-
-  // ─── 6. Mobile input numeric restriction ───
-  const mobileInput = document.querySelector('input[name="mobile"]');
-  const altMobileInput = document.querySelector('input[name="alternate_mobile"]');
-
-  [mobileInput, altMobileInput].forEach(function(inp) {
-    if (inp) {
-      inp.setAttribute('maxlength', '10');
-      inp.setAttribute('minlength', '10');
-      inp.setAttribute('inputmode', 'numeric');
-      inp.setAttribute('pattern', '^[0-9]{10}$');
-      inp.addEventListener('input', function() {
-        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
-      });
-    }
-  });
-
-  if (!mobileInput) return;
-
-  const statusDiv = document.createElement('div');
-  statusDiv.className = 'mt-1 small';
-  mobileInput.parentNode.appendChild(statusDiv);
-
-  let timer = null;
-  mobileInput.addEventListener('input', function() {
-    clearTimeout(timer);
-    const val = mobileInput.value.trim();
-    if (val.length < 8) {
-      statusDiv.innerHTML = '';
-      return;
-    }
-    timer = setTimeout(function() {
-      fetch("{% url 'leads:check_duplicate_mobile' %}?mobile=" + encodeURIComponent(val))
-        .then(function(res){ return res.json(); })
-        .then(function(data) {
-          if (data.exists) {
-            statusDiv.innerHTML = '<span class="badge text-bg-danger py-1 px-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Existing Lead Found: ' + data.name + ' (' + data.lead_code + ') — Assigned: ' + data.assigned_to + '</span>';
-          } else {
-            statusDiv.innerHTML = '<span class="badge text-bg-success py-1 px-2"><i class="fa-solid fa-check me-1"></i> Mobile Available</span>';
-          }
-        });
-    }, 350);
   });
 });
 </script>

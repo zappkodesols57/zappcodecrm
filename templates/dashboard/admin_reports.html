@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h4 class="fw-bold text-dark mb-1">Operations &amp; Task Reports</h4>
-        <p class="text-muted small mb-0">Review telecaller daily activity summaries, submitted task reports, and calling milestones for {{ request.user.hospital.name|default:'Hospital Management' }}.</p>
+        <p class="text-muted small mb-0">Review telecaller daily activity summaries, submitted task reports, and calling milestones for {{ request.user.business.name|default:'Hospital Management' }}.</p>
     </div>
     <div class="d-flex gap-2">
         <a href="{% url 'dashboard:tasks' %}" class="btn btn-sm btn-brand text-white px-3 shadow-sm rounded-2">
@@ -43,7 +43,7 @@
         </a>
     </div>
     <div class="col-md-4">
-        <a href="{% url 'dashboard:management_daily_reports' %}{% if current_hospital %}?business={{ current_hospital.id }}{% endif %}" class="text-decoration-none d-block h-100">
+        <a href="{% url 'dashboard:management_daily_reports' %}{% if current_business %}?business={{ current_business.id }}{% endif %}" class="text-decoration-none d-block h-100">
             <div class="card border rounded-3 p-3 bg-white h-100 shadow-sm transition-all" style="border-color: #e2e8f0 !important; cursor: pointer;">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>

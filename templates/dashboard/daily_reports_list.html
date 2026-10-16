@@ -69,11 +69,11 @@
 
 <!-- Tabs Navigation with Clean Borders -->
 <div class="d-flex gap-2 mb-3">
-  <a href="?tab=eod{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'eod' %}active{% endif %}">
+  <a href="?tab=eod{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'eod' %}active{% endif %}">
     <span>EOD Reports</span>
     <span class="badge {% if active_tab == 'eod' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ eod_reports_count }}</span>
   </a>
-  <a href="?tab=tasks{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'tasks' %}active{% endif %}">
+  <a href="?tab=tasks{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'tasks' %}active{% endif %}">
     <span>Task Reports</span>
     <span class="badge {% if active_tab == 'tasks' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ task_reports_count }}</span>
   </a>
@@ -82,8 +82,8 @@
 <!-- Clean Inline Filter Row (No Outer Card Box) -->
 <form method="get" class="row g-2 align-items-center mb-3">
   <input type="hidden" name="tab" value="{{ active_tab }}">
-  {% if current_hospital %}
-    <input type="hidden" name="business" value="{{ current_hospital.id }}">
+  {% if current_business %}
+    <input type="hidden" name="business" value="{{ current_business.id }}">
   {% endif %}
 
   <!-- 1. Role Filter -->
@@ -129,7 +129,7 @@
     <button class="btn btn-brand text-white flex-fill d-flex align-items-center justify-content-center shadow-sm" style="height: 36px; font-size: 0.82rem;" type="submit">
       Filter
     </button>
-    <a href="{% url 'dashboard:management_daily_reports' %}?tab={{ active_tab }}{% if current_hospital %}&business={{ current_hospital.id }}{% endif %}" class="btn btn-light border flex-fill d-flex align-items-center justify-content-center" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+    <a href="{% url 'dashboard:management_daily_reports' %}?tab={{ active_tab }}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="btn btn-light border flex-fill d-flex align-items-center justify-content-center" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
       Clear
     </a>
   </div>

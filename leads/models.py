@@ -73,6 +73,7 @@ class Course(models.Model):
     tutor = models.CharField(max_length=150, blank=True, help_text="Tutor / Trainer / Instructor Name")
     batch = models.CharField(max_length=150, blank=True, help_text="Batch Name / Code (e.g. Batch A, Morning Batch, Full-Stack Python June)")
     batch_time = models.CharField(max_length=100, blank=True, help_text="Batch Timing (e.g. 10:00 AM - 12:00 PM)")
+    description = models.TextField(blank=True, help_text="Course overview or syllabus summary")
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False, db_index=True)
 
@@ -92,6 +93,75 @@ class Course(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Trainer(models.Model):
+    """
+    Dedicated Trainer / Instructor master entity for Academy businesses.
+    """
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="trainers")
+    name = models.CharField(max_length=150)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    specialization = models.CharField(max_length=200, blank=True, help_text="e.g. Python Full Stack, Data Analytics, React")
+    user = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="trainer_profile", help_text="Linked CRM User if trainer has a login")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("hospital", "name")
+
+    def __str__(self):
+        return self.name
+
+
+class Batch(models.Model):
+    """
+    Dedicated Batch master entity for Academy businesses.
+    Directly connects Course, Trainer, Start Time, and End Time.
+    """
+    hospital = models.ForeignKey("accounts.Hospital", on_delete=models.CASCADE, null=True, blank=True, related_name="batches")
+    name = models.CharField(max_length=150, help_text="Batch Name (e.g. Morning Python Batch 01)")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="batches")
+    trainer = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, related_name="batches")
+    start_time = models.TimeField(null=True, blank=True, help_text="Batch start time (e.g. 10:00 AM)")
+    end_time = models.TimeField(null=True, blank=True, help_text="Batch end time (e.g. 12:00 PM)")
+    start_date = models.DateField(null=True, blank=True, help_text="Batch starting date")
+    max_strength = models.PositiveIntegerField(default=30, blank=True, null=True, help_text="Max student capacity")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def timing_display(self):
+        if self.start_time and self.end_time:
+            return f"{self.start_time.strftime('%I:%M %p')} - {self.end_time.strftime('%I:%M %p')}"
+        elif self.start_time:
+            return f"From {self.start_time.strftime('%I:%M %p')}"
+        return "Timing TBD"
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
+    class Meta:
+        ordering = ["-id"]
+
+    def __str__(self):
+        trainer_str = f" ({self.trainer.name})" if self.trainer else ""
+        return f"{self.name} - {self.course.name}{trainer_str}"
 
 
 class LeadStage(models.Model):
@@ -429,9 +499,9 @@ class LeadTemperature(models.TextChoices):
 class DealStatus(models.TextChoices):
     OPEN = "OPEN", "Open"
     CONTACTED = "CONTACTED", "Contacted"
+    INTERESTED = "INTERESTED", "Interested"
     WON = "WON", "Won"
     LOST = "LOST", "Lost"
-    HOLD = "HOLD", "Hold"
 
 
 class AdmissionStatus(models.TextChoices):
@@ -482,23 +552,25 @@ def next_lead_code(hospital=None):
     prefix = get_business_lead_prefix(hospital)
     full_prefix = f"{prefix}{year}-"
     
-    # Extract maximum integer sequence accurately instead of string alphabetical ordering
-    existing_codes = Lead.objects.filter(lead_code__startswith=full_prefix).values_list("lead_code", flat=True)
+    # Efficiently extract the highest sequence using reverse order limit 1
+    latest_code = (
+        Lead.objects.filter(lead_code__startswith=full_prefix)
+        .order_by("-lead_code")
+        .values_list("lead_code", flat=True)
+        .first()
+    )
     max_seq = 0
-    for code in existing_codes:
-        if code and "-" in code:
-            parts = code.split("-")
-            if len(parts) >= 3 and parts[-1].isdigit():
-                try:
-                    num = int(parts[-1])
-                    if num > max_seq:
-                        max_seq = num
-                except ValueError:
-                    pass
-    
+    if latest_code and "-" in latest_code:
+        parts = latest_code.split("-")
+        if len(parts) >= 3 and parts[-1].isdigit():
+            try:
+                max_seq = int(parts[-1])
+            except ValueError:
+                max_seq = 0
+
     seq = max_seq + 1
     new_code = f"{full_prefix}{seq:06d}"
-    # Safety check in case of collision
+    # Guard against gaps or collisions
     while Lead.objects.filter(lead_code=new_code).exists():
         seq += 1
         new_code = f"{full_prefix}{seq:06d}"
@@ -559,7 +631,7 @@ class Lead(models.Model):
     lead_type = models.CharField(max_length=50, blank=True)
     temperature = models.CharField(max_length=20, choices=LeadTemperature.choices, default=LeadTemperature.HOT, db_index=True)
     stage = models.ForeignKey(LeadStage, on_delete=models.PROTECT, related_name="leads")
-    deal_status = models.CharField(max_length=10, choices=DealStatus.choices, default=DealStatus.OPEN, db_index=True)
+    deal_status = models.CharField(max_length=20, choices=DealStatus.choices, default=DealStatus.OPEN, db_index=True)
     admission_status = models.CharField(max_length=20, choices=AdmissionStatus.choices, default=AdmissionStatus.OPEN)
     inquiry_date = models.DateField(default=timezone.localdate, db_index=True)
 
@@ -626,6 +698,9 @@ class Lead(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
+            models.Index(fields=["hospital", "-created_at"]),
+            models.Index(fields=["hospital", "assigned_to"]),
+            models.Index(fields=["hospital", "stage"]),
             models.Index(fields=["mobile"]),
             models.Index(fields=["stage", "temperature"]),
             models.Index(fields=["deal_status"]),
@@ -769,25 +844,25 @@ class Lead(models.Model):
         )
     @property
     def is_hospital_industry(self):
-        """Returns True if the lead belongs to a Healthcare/Hospital/Clinic business."""
+        """Returns True ONLY if the lead belongs to a Healthcare/Hospital/Clinic business."""
         if not self.hospital_id or not self.hospital:
-            return True  # default fallback if tenant not set
+            return False
         ind = getattr(self.hospital, 'industry', None)
         if ind == 'HOSPITAL':
             return True
         name = (getattr(self.hospital, 'name', '') or '').lower()
-        return 'hospital' in name or 'clinic' in name or 'healthcare' in name
+        return any(k in name for k in ['hospital', 'clinic', 'healthcare', 'nelson', 'medical'])
 
     @property
     def is_academy_industry(self):
-        """Returns True if the lead belongs to an Education/Academy/Coaching business."""
+        """Returns True ONLY if the lead belongs to an Education/Academy/Coaching business."""
         if not self.hospital_id or not self.hospital:
             return False
         ind = getattr(self.hospital, 'industry', None)
         if ind == 'ACADEMY':
             return True
         name = (getattr(self.hospital, 'name', '') or '').lower()
-        return 'academy' in name or 'institute' in name or 'school' in name or 'college' in name
+        return any(k in name for k in ['academy', 'institute', 'school', 'college', 'coaching', 'zappcode'])
 
     @property
     def custom_reschedule_remark(self):
@@ -823,8 +898,8 @@ class Lead(models.Model):
     def display_stage(self):
         """
         Dynamically calculates pipeline Stage:
-        - For Academy/Other: uses the configured stage name, or 'New'.
         - For Hospital: dynamic clinical pipeline (Awaiting Doctor Approval, Booking Confirmed, Completed, Payment Done, Follow up, New, Lost, etc.)
+        - For Academy and other industries: uses the configured stage name, or 'New'.
         """
         st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
         if not self.is_hospital_industry:
@@ -883,9 +958,100 @@ class Lead(models.Model):
     def custom_temperature(self):
         """
         Calculates lead temperature:
-        - For Academy/Other: Returns stored self.get_temperature_display() or self.temperature ('Hot', 'Warm', 'Cold', 'Freeze').
-        - For Hospital: Dynamic recalculation based on doctor appointments and interaction remarks.
+        - For Academy: Dynamic temperature based on Academy lifecycle:
+            * Lost/Cancelled -> Freeze
+            * Payment Done / Admission Done -> Hot
+            * Visit Planned / Visited / Admission Pending -> Min Warm (or Hot)
+            * Negative remark -> steps down by 1 level (HOT -> WARM -> COLD -> FREEZE)
+            * Positive remark -> stays HOT or steps up
+        - For Hospital: Dynamic recalculation based on doctor appointments and clinical interaction remarks.
+        - For Other / Generic: Returns stored temperature display.
         """
+        if self.is_academy_industry:
+            st_name = (self.stage.name if self.stage_id and self.stage else "").strip().lower()
+            adm_st = str(self.admission_status or "").strip().upper()
+            cd = self.custom_data or {}
+            cd_ds = str(cd.get("deal_status") or "").strip().upper()
+
+            # 1. Lost / Cancelled -> FREEZE
+            if (
+                adm_st in ("LOST", "CANCELLED", "DROPOUT")
+                or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+                or self.deal_status == DealStatus.LOST
+                or cd_ds in ("LOST", "CANCELLED")
+            ):
+                return "Freeze"
+
+            # 2. Payment Done or Admission Done -> HOT
+            if (
+                adm_st in ("WON", "ADMISSION_DONE")
+                or self.total_billed_amount > 0
+                or st_name in ("payment done", "closed won", "admission done")
+                or self.deal_status == DealStatus.WON
+                or cd_ds in ("WON", "WON (PAYMENT DONE)")
+            ):
+                return "Hot"
+
+            # Count positive and negative remarks/interactions
+            pos_kw = [
+                "INTERESTED", "INTRESTED", "POSITIVE", "WILL VISIT", "READY TO JOIN",
+                "VISIT PLANNED", "VISITED", "ADMISSION", "ENROLLED", "GOOD RESPONSE",
+                "CALLBACK", "CALL BACK", "WANTS ADMISSION", "FEES AGREED"
+            ]
+            neg_kw = [
+                "NOT INTERESTED", "NOT INTRESTED", "NO INTEREST", "NO INTREST",
+                "REJECTED", "WRONG NUMBER", "INVALID NUMBER", "CALL DISCONNECTED",
+                "BUSY", "SWITCH OFF", "NOT REACHABLE", "NO ANSWER", "DECLINE",
+                "CALL NOT REC", "NOT REC", "CALL CUT", "DNP", "DONT WANT", "DON'T WANT",
+                "FEE HIGH", "TOO EXPENSIVE", "NOT REQUIRED"
+            ]
+
+            def is_clean_val(v):
+                return bool(v and str(v).strip().lower() not in ("nan", "none", "—", "-", "", "null", "nil"))
+
+            interactions = []
+            for r in [cd.get("remark_1"), cd.get("remark_2"), cd.get("remark_3"), cd.get("followup_remark"), cd.get("comments")]:
+                if is_clean_val(r):
+                    interactions.append(str(r).strip())
+
+            if self.pk:
+                try:
+                    for n in self.lead_notes.all():
+                        if is_clean_val(n.note):
+                            interactions.append(str(n.note).strip())
+                except Exception:
+                    pass
+
+                try:
+                    for fu in self.followups.all():
+                        if is_clean_val(fu.comment):
+                            interactions.append(str(fu.comment).strip())
+                        if fu.followup_status in ["DNP", "NOT_INTERESTED", "NOT_CONNECTED", "CANCELLED"]:
+                            interactions.append(fu.get_followup_status_display())
+                        elif fu.followup_status in ["INTERESTED", "COMPLETED", "DONE"]:
+                            interactions.append(fu.get_followup_status_display())
+                except Exception:
+                    pass
+
+            # Step-down scale: 3=HOT, 2=WARM, 1=COLD, 0=FREEZE
+            # Fresh leads start at HOT (3)
+            current_level = 3
+            for text in interactions:
+                t_up = str(text).upper()
+                is_pos = any(k in t_up for k in pos_kw)
+                is_neg = any(k in t_up for k in neg_kw)
+                if is_neg:
+                    current_level = max(0, current_level - 1)
+                elif is_pos:
+                    current_level = min(3, current_level + 1)
+
+            # 3. Visit Planned / Visited / Admission Pending -> Min Warm (level 2)
+            if st_name in ("visit planned", "visited", "admission pending", "payment pending"):
+                current_level = max(2, current_level)
+
+            levels = ["Freeze", "Cold", "Warm", "Hot"]
+            return levels[current_level]
+
         if not self.is_hospital_industry:
             return self.get_temperature_display() if hasattr(self, 'get_temperature_display') else (self.temperature or "Warm")
 
@@ -937,7 +1103,7 @@ class Lead(models.Model):
                 base_level = 2
             else:
                 base_level = 2  # default Warm
-        elif adm_st == "HOLD" or self.deal_status == DealStatus.HOLD:
+        elif adm_st == "HOLD" or str(self.deal_status).upper() == "HOLD":
             base_level = 1  # Cold
         elif adm_st == "OPEN":
             base_level = 2  # Warm
@@ -1079,9 +1245,17 @@ class Lead(models.Model):
     def custom_deal_status(self):
         """
         Calculates Lead / Deal Status:
-        - For Academy/Other: returns mapped standard admission_status / deal_status (e.g. 'Open', 'Contacted', 'Won', 'Lost', 'Hold').
-        - For Hospital: returns Hospital flow ('New', 'Open', 'Pending', 'Won', 'Lost', 'Completed').
+        - For Hospital: returns Hospital clinical pipeline flow ('New', 'Open', 'Pending', 'Won', 'Lost', 'Completed').
+        - For Academy: returns Academy lifecycle deal status ('Open', 'Contacted', 'Interested', 'Won', 'Lost').
+        - For Other / Generic: returns admission_status or deal_status.
         """
+        if self.is_academy_industry:
+            if self.deal_status:
+                return self.get_deal_status_display() or self.deal_status
+            if self.admission_status:
+                return self.get_admission_status_display() or self.admission_status
+            return "Open"
+
         if not self.is_hospital_industry:
             if self.admission_status:
                 return self.get_admission_status_display() or self.admission_status
@@ -1203,24 +1377,28 @@ class Lead(models.Model):
     def display_deal_status(self):
         """
         Calculates human-readable, consistent Deal Status for the lead.
-        - For Academy/Other: uses admission_status or deal_status text.
         - For Hospital: returns Hospital standardized deal status.
+        - For Academy: returns Academy standardized deal status ('Open', 'Contacted', 'Interested', 'Won', 'Lost').
+        - For Other: uses deal_status / admission_status text.
         """
-        if not self.is_hospital_industry:
-            return self.get_admission_status_display() or self.get_deal_status_display() or self.admission_status or self.deal_status or "Open"
+        if self.is_hospital_industry:
+            st = self.custom_deal_status
+            if st in ("Lost", "Cancelled"):
+                return "Lost"
+            if st in ("Won", "Payment Done"):
+                return "Won"
+            if st in ("Pending", "Follow-up"):
+                return "Pending"
+            if st == "Open":
+                return "Open"
+            if st == "New":
+                return "New"
+            return self.get_deal_status_display() or self.deal_status or "Open"
 
-        st = self.custom_deal_status
-        if st in ("Lost", "Cancelled"):
-            return "Lost"
-        if st in ("Won", "Payment Done"):
-            return "Won"
-        if st in ("Pending", "Follow-up"):
-            return "Pending"
-        if st == "Open":
-            return "Open"
-        if st == "New":
-            return "New"
-        return self.get_deal_status_display() or self.deal_status or "Open"
+        if self.is_academy_industry:
+            return self.get_deal_status_display() or self.deal_status or "Open"
+
+        return self.get_admission_status_display() or self.get_deal_status_display() or self.admission_status or self.deal_status or "Open"
 
     @property
     def interaction_remark(self):
@@ -1411,74 +1589,125 @@ class Lead(models.Model):
 
         is_doc_cancelled = "doctor cancel" in cd_apt or "doctor reject" in cd_apt or st_name == "appointment cancelled"
 
-        # Condition 1: LOST
-        # If stage is cancelled/lost or admission_status is LOST or appointment cancelled/not interested
-        if not is_doc_cancelled and (
-            adm_st in ("LOST", "CANCELLED", "DROPOUT")
-            or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
-            or "cancel" in cd_apt
-            or "not int" in cd_apt
-            or (cd_ds in ("lost", "cancelled") and adm_st not in ("OPEN", "HOLD", "WON"))
-        ):
-            self.deal_status = DealStatus.LOST
-            # If admission status is marked as LOST (or cancelled), auto-update temperature to FREEZE and stage to Cancelled
-            is_hospital = bool(self.hospital_id and any(k in (self.hospital.name or "").lower() for k in ["hospital", "clinic", "medical", "nelson"]))
-            if adm_st in ("LOST", "CANCELLED") or "cancel" in st_name or "lost" in st_name:
-                if not is_hospital:
-                    self.temperature = LeadTemperature.FREEZE
-                    if st_name not in ("cancelled", "lost"):
-                        b_type = LeadStage.BusinessType.HOSPITAL if is_hospital else LeadStage.BusinessType.ACADEMY
-                        cancelled_stage = (
-                            LeadStage.objects.filter(name__iexact="Cancelled", is_active=True, business_type=b_type).first()
-                            or LeadStage.objects.filter(name__iexact="Cancelled", is_active=True).first()
-                            or LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
-                        )
-                        if cancelled_stage:
-                            self.stage = cancelled_stage
-            cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
+        if self.is_academy_industry:
+            # =================================================================
+            # ACADEMY / EDUCATION SPECIFIC LIFECYCLE RESOLUTION
+            # =================================================================
+            # 1. Lost / Cancelled
+            if (
+                adm_st in ("LOST", "CANCELLED", "DROPOUT")
+                or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+                or cd_ds in ("lost", "cancelled")
+            ):
+                self.deal_status = DealStatus.LOST
+                self.temperature = LeadTemperature.FREEZE
+                cd["deal_status"] = "Lost"
 
-        # Condition 2: WON
-        # If admission_status is WON or payment done / total > 0 or stage is Payment Done / Appointment Completed
-        elif (
-            adm_st in ("WON", "ADMISSION_DONE")
-            or tot > 0
-            or st_name in ("payment done", "appointment completed", "admission done", "admission", "payment completed", "closed won")
-            or "payment done" in cd_apt
-            or "payment done" in cd_ds
-            or cd_ds in ("won", "won (payment done)", "admission")
-        ):
-            self.deal_status = DealStatus.WON
-            cd["deal_status"] = "Won (Payment Done)" if tot > 0 else "Won"
+            # 2. Payment Done -> Won (HOT)
+            elif (
+                adm_st in ("WON", "ADMISSION_DONE")
+                or tot > 0
+                or st_name in ("payment done", "closed won")
+                or cd_ds in ("won", "won (payment done)")
+            ):
+                self.deal_status = DealStatus.WON
+                self.temperature = LeadTemperature.HOT
+                cd["deal_status"] = "Won"
 
-        # Condition 2.5: HOLD
-        elif (
-            adm_st == "HOLD"
-            or st_name in ("hold", "on hold")
-            or cd_ds in ("hold", "on hold")
-        ):
-            self.deal_status = DealStatus.HOLD
-            cd["deal_status"] = "Hold"
+            # 3. Admission Done -> INTERESTED (HOT)
+            elif st_name in ("admission done",) or cd_ds in ("admission done",):
+                self.deal_status = DealStatus.INTERESTED
+                self.temperature = LeadTemperature.HOT
+                cd["deal_status"] = "Interested"
 
-        # Condition 3: CONTACTED
-        # If stage is follow-up, awaiting doctor approval, appointment confirmed, payment pending
-        elif (
-            st_name in ("follow-up", "follow up", "contacted", "awaiting doctor approval", "awaiting approval from doctor", "appointment confirmed", "booking confirmed", "payment pending", "visited", "visit planned", "interested")
-            or any(k in cd_apt for k in ["follow", "visit", "book", "confirm", "contact", "awaiting"])
-            or self.last_followup_date is not None
-            or self.next_followup_date is not None
-        ):
-            self.deal_status = DealStatus.CONTACTED
-            cd["deal_status"] = "Contacted"
+            # 4. Visit Planned / Visited / Admission Pending / Payment Pending -> INTERESTED (at least WARM)
+            elif (
+                st_name in ("visit planned", "visited", "admission pending", "payment pending")
+                or cd_ds in ("interested", "visit planned", "visited", "admission pending", "payment pending")
+            ):
+                self.deal_status = DealStatus.INTERESTED
+                cd["deal_status"] = "Interested"
+                if self.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+                    self.temperature = LeadTemperature.WARM
 
-        # Condition 4: OPEN
-        # If stage is new, fresh, uncontacted, assigned or admission_status is OPEN
-        elif (
-            adm_st == "OPEN"
-            or st_name in ("new", "fresh", "uncontacted", "assigned", "open")
-            or not self.deal_status
-        ):
-            self.deal_status = DealStatus.OPEN
-            cd["deal_status"] = "Open"
+            # 5. Follow-up / Follow-up Completed / Contacted
+            elif (
+                st_name in ("follow up", "follow-up", "follow up completed")
+                or cd_ds in ("follow up", "follow-up", "follow up completed")
+            ):
+                self.deal_status = DealStatus.OPEN
+                cd["deal_status"] = "Open"
+
+            # 6. Assigned (counsellor assigned) / New (unassigned)
+            elif st_name in ("assigned", "new", "fresh", "open") or not self.deal_status:
+                if self.deal_status == DealStatus.CONTACTED and st_name == "assigned":
+                    pass  # keep Contacted if counsellor added remarks
+                else:
+                    self.deal_status = DealStatus.OPEN
+                    cd["deal_status"] = "Open"
+                # Fresh unassigned leads default to HOT
+                if not self.assigned_to and st_name in ("new", "fresh", ""):
+                    self.temperature = LeadTemperature.HOT
+
+        elif self.is_hospital_industry:
+            # =================================================================
+            # HOSPITAL CLINICAL PIPELINE (EXISTING LOGIC 100% PRESERVED)
+            # =================================================================
+            # Condition 1: LOST
+            if not is_doc_cancelled and (
+                adm_st in ("LOST", "CANCELLED", "DROPOUT")
+                or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+                or "cancel" in cd_apt
+                or "not int" in cd_apt
+                or (cd_ds in ("lost", "cancelled") and adm_st not in ("OPEN", "HOLD", "WON"))
+            ):
+                self.deal_status = DealStatus.LOST
+                cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
+
+            # Condition 2: WON
+            elif (
+                adm_st in ("WON", "ADMISSION_DONE")
+                or tot > 0
+                or st_name in ("payment done", "appointment completed", "admission done", "admission", "payment completed", "closed won")
+                or "payment done" in cd_apt
+                or "payment done" in cd_ds
+                or cd_ds in ("won", "won (payment done)", "admission")
+            ):
+                self.deal_status = DealStatus.WON
+                cd["deal_status"] = "Won (Payment Done)" if tot > 0 else "Won"
+
+            # Condition 3: CONTACTED
+            elif (
+                st_name in ("follow-up", "follow up", "contacted", "awaiting doctor approval", "awaiting approval from doctor", "appointment confirmed", "booking confirmed", "payment pending", "visited", "visit planned", "interested")
+                or any(k in cd_apt for k in ["follow", "visit", "book", "confirm", "contact", "awaiting"])
+                or self.last_followup_date is not None
+                or self.next_followup_date is not None
+            ):
+                self.deal_status = DealStatus.CONTACTED
+                cd["deal_status"] = "Contacted"
+
+            # Condition 4: OPEN
+            elif (
+                adm_st == "OPEN"
+                or st_name in ("new", "fresh", "uncontacted", "assigned", "open")
+                or not self.deal_status
+            ):
+                self.deal_status = DealStatus.OPEN
+                cd["deal_status"] = "Open"
+
+        else:
+            # =================================================================
+            # GENERIC / OTHER FUTURE INDUSTRIES (CLEAN SAFE DEFAULT)
+            # =================================================================
+            if adm_st in ("LOST", "CANCELLED") or st_name in ("cancelled", "lost"):
+                self.deal_status = DealStatus.LOST
+                cd["deal_status"] = "Lost"
+            elif adm_st == "WON" or st_name in ("won", "closed won"):
+                self.deal_status = DealStatus.WON
+                cd["deal_status"] = "Won"
+            elif not self.deal_status:
+                self.deal_status = DealStatus.OPEN
+                cd["deal_status"] = "Open"
 
         super().save(*args, **kwargs)
 
@@ -1525,55 +1754,191 @@ class Lead(models.Model):
         from leads.models import UserCustomMessage
 
         cd = self.custom_data or {}
-        patient_name = (self.name or "Valued Patient").strip()
-        hosp_name = (self.hospital.name if self.hospital else "Nelson Mother & Child Care Hospital").strip()
-        branch_name = (cd.get("hospital_branch") or cd.get("branch") or (self.hospital.name if self.hospital else "Main Branch")).strip()
-        hosp_address = (self.hospital.address if self.hospital and hasattr(self.hospital, 'address') and self.hospital.address else f"{branch_name}, {hosp_name}").strip()
-        doc_name = (cd.get("doctor") or "our specialist doctor").strip()
-        if doc_name and not doc_name.lower().startswith("dr"):
-            doc_name = f"Dr. {doc_name}"
+        # =====================================================================
+        # 1. ACADEMY / EDUCATION INDUSTRY
+        # =====================================================================
+        if self.is_academy_industry:
+            student_name = (self.name or "Valued Student").strip()
+            biz_name = (self.hospital.name if self.hospital else "Zappcode Academy").strip()
+            branch_name = (cd.get("branch") or cd.get("hospital_branch") or (self.hospital.name if self.hospital else "Main Campus")).strip()
+            biz_address = (self.hospital.address if self.hospital and hasattr(self.hospital, 'address') and self.hospital.address else f"{branch_name}, {biz_name}").strip()
+            course_name = (self.course.name if self.course else cd.get("course") or "our training program").strip()
             
-        appt_date = str(cd.get("appo_booked_date") or cd.get("appointment_date") or "").strip()
-        appt_time = str(cd.get("appointment_time") or "").strip()
-        agent_user = user or self.assigned_to or self.created_by
-        agent_name = (agent_user.get_full_name() or agent_user.username if agent_user else "Patient Care Team").strip()
+            counselor_user = user or self.assigned_to or self.created_by
+            counselor_name = (counselor_user.get_full_name() or counselor_user.username if counselor_user else "Admissions Team").strip()
+            
+            visit_date = str(cd.get("visit_date") or self.next_followup_date or "Scheduled Visit Date").strip()
+            visit_slot = str(cd.get("visit_slot") or cd.get("slot") or "11:00 AM - 01:00 PM").strip()
+            admission_date = str(cd.get("admission_date") or timezone.localdate()).strip()
+            batch_name = str(cd.get("batch") or cd.get("selected_batch") or "Upcoming Regular Batch").strip()
+            batch_timing = str(cd.get("batch_time") or cd.get("selected_batch_timing") or "Morning Session").strip()
+            
+            try:
+                total_fee = float(cd.get('total') or cd.get('course_fee') or (self.course.base_price if self.course else 0) or 0)
+            except (ValueError, TypeError):
+                total_fee = 0.0
+            try:
+                token_paid = float(cd.get('token_amount') or cd.get('total_paid') or 0)
+            except (ValueError, TypeError):
+                token_paid = 0.0
+            try:
+                balance_amt = float(cd.get('balance_amount') or max(0, total_fee - token_paid))
+            except (ValueError, TypeError):
+                balance_amt = max(0, total_fee - token_paid)
+                
+            due_date = str(cd.get("next_emi_date") or cd.get("payment_due_date") or "Upcoming Due Date").strip()
 
-        # Determine effective message type if not passed
-        if not msg_type:
-            if self.is_billing_done:
-                msg_type = "BILLING"
-            elif self.is_booked:
-                msg_type = "BOOKING"
+            if not msg_type:
+                st_name = (self.stage.name if self.stage else "").lower()
+                if "payment" in st_name or balance_amt > 0:
+                    msg_type = "PAYMENT_DUE"
+                elif self.deal_status == DealStatus.WON or "admission" in st_name:
+                    msg_type = "ADMISSION"
+                elif "visit" in st_name or cd.get("visit_date"):
+                    msg_type = "VISIT"
+                else:
+                    msg_type = "ENQUIRY"
+
+            # Check for confirmed UserCustomMessage (Default off, Custom on)
+            custom_obj = None
+            if user:
+                custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
+            if not custom_obj and self.assigned_to:
+                custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+
+            if custom_obj and custom_obj.custom_text and custom_obj.custom_text.strip():
+                text = custom_obj.custom_text
+                replacements = {
+                    "{student_name}": student_name,
+                    "{patient_name}": student_name,
+                    "{client_name}": student_name,
+                    "{course_name}": course_name,
+                    "{business_name}": biz_name,
+                    "{hospital_name}": biz_name,
+                    "{branch_name}": branch_name,
+                    "{business_address}": biz_address,
+                    "{hospital_address}": biz_address,
+                    "{counselor_name}": counselor_name,
+                    "{user_name}": counselor_name,
+                    "{visit_date}": visit_date,
+                    "{visit_slot}": visit_slot,
+                    "{admission_date}": admission_date,
+                    "{batch_name}": batch_name,
+                    "{batch_timing}": batch_timing,
+                    "{payment_due_date}": due_date,
+                    "{due_date}": due_date,
+                    "{total_amount}": f"₹{total_fee:,.0f}" if total_fee else "₹0",
+                    "{paid_amount}": f"₹{token_paid:,.0f}" if token_paid else "₹0",
+                    "{balance_amount}": f"₹{balance_amt:,.0f}" if balance_amt else "₹0",
+                }
+                for k, v in replacements.items():
+                    text = text.replace(k, str(v))
+                return text
+
+            # Default System Generated Templates for Academy (Active when custom is OFF)
+            if msg_type in ["PAYMENT_DUE", "BILLING"]:
+                return (
+                    f"Hello {student_name},\n\n"
+                    f"This is a gentle payment reminder from {biz_name} ({branch_name}) regarding your {course_name} course.\n\n"
+                    f"📌 Course Fee Details:\n"
+                    f"• Total Fee: ₹{total_fee:,.0f}\n"
+                    f"• Paid / Token: ₹{token_paid:,.0f}\n"
+                    f"• Pending Balance: ₹{balance_amt:,.0f}\n"
+                    f"• Due Date: {due_date}\n\n"
+                    f"Please complete your payment before {due_date} to ensure uninterrupted learning and access to LMS & live classes.\n\n"
+                    f"For payment queries or fee receipt assistance, please contact your counselor.\n\n"
+                    f"Warm Regards,\n{counselor_name}\nAdmissions & Accounts Team - {biz_name}"
+                )
+            elif msg_type in ["ADMISSION", "BOOKING"]:
+                return (
+                    f"Hello {student_name},\n\n"
+                    f"🎉 Congratulations & Welcome to {biz_name}!\n\n"
+                    f"We are delighted to confirm your admission for the {course_name} program.\n\n"
+                    f"📌 Enrollment Overview:\n"
+                    f"• Admission Date: {admission_date}\n"
+                    f"• Batch: {batch_name}\n"
+                    f"• Timing: {batch_timing}\n"
+                    f"• Campus: {biz_address}\n\n"
+                    f"Your student portal & orientation details will be shared shortly. We are excited to support your career journey!\n\n"
+                    f"Best Wishes,\n{counselor_name}\nAdmissions Team - {biz_name}"
+                )
+            elif msg_type == "VISIT":
+                return (
+                    f"Hello {student_name},\n\n"
+                    f"Greetings from {biz_name}!\n\n"
+                    f"Your campus visit & one-on-one career counseling demo session for {course_name} is confirmed:\n\n"
+                    f"📅 Date: {visit_date}\n"
+                    f"⏰ Slot / Time: {visit_slot}\n"
+                    f"📍 Campus Address: {biz_address}\n\n"
+                    f"Please arrive on time. Our counseling team looks forward to guiding you through our practical curriculum and lab setup.\n\n"
+                    f"Warm Regards,\n{counselor_name}\nCareer Counseling Team - {biz_name}"
+                )
             else:
-                msg_type = "FOLLOWUP"
+                return (
+                    f"Hello {student_name},\n\n"
+                    f"Thank you for inquiring about our {course_name} program at {biz_name} ({branch_name})!\n\n"
+                    f"We are excited to help you upgrade your technical skills and build a rewarding career.\n\n"
+                    f"📍 Campus Address: {biz_address}\n\n"
+                    f"Would you prefer a 10-minute online counseling call or a visit to our campus for a free demo session?\n\n"
+                    f"Warm Regards,\n{counselor_name}\nAdmissions & Career Team - {biz_name}"
+                )
 
-        # Check for confirmed UserCustomMessage for this user
-        custom_obj = None
-        if user:
-            custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
-        if not custom_obj and self.assigned_to:
-            custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+        # =====================================================================
+        # 2. HEALTHCARE / HOSPITAL INDUSTRY
+        # =====================================================================
+        if self.is_hospital_industry:
+            patient_name = (self.name or "Valued Patient").strip()
+            hosp_name = (self.hospital.name if self.hospital else "Nelson Mother & Child Care Hospital").strip()
+            branch_name = (cd.get("hospital_branch") or cd.get("branch") or (self.hospital.name if self.hospital else "Main Branch")).strip()
+            hosp_address = (self.hospital.address if self.hospital and hasattr(self.hospital, 'address') and self.hospital.address else f"{branch_name}, {hosp_name}").strip()
+            doc_name = (cd.get("doctor") or "our specialist doctor").strip()
+            if doc_name and not doc_name.lower().startswith("dr"):
+                doc_name = f"Dr. {doc_name}"
+                
+            appt_date = str(cd.get("appo_booked_date") or cd.get("appointment_date") or "").strip()
+            appt_time = str(cd.get("appointment_time") or "").strip()
+            agent_user = user or self.assigned_to or self.created_by
+            agent_name = (agent_user.get_full_name() or agent_user.username if agent_user else "Patient Care Team").strip()
 
-        if custom_obj and custom_obj.custom_text and custom_obj.custom_text.strip():
-            # Replace template placeholders
-            text = custom_obj.custom_text
-            replacements = {
-                "{patient_name}": patient_name,
-                "{hospital_name}": hosp_name,
-                "{branch_name}": branch_name,
-                "{hospital_address}": hosp_address,
-                "{doctor_name}": doc_name,
-                "{appointment_date}": appt_date or "Scheduled Date",
-                "{appointment_time}": appt_time or "Scheduled Slot",
-                "{user_name}": agent_name,
-            }
-            for k, v in replacements.items():
-                text = text.replace(k, str(v))
-        else:
-            # Default System Generated Templates
+            if not msg_type:
+                if self.is_billing_done:
+                    msg_type = "BILLING"
+                elif self.is_booked:
+                    msg_type = "BOOKING"
+                else:
+                    msg_type = "FOLLOWUP"
+
+            # Check for confirmed UserCustomMessage (Default off, Custom on)
+            custom_obj = None
+            if user:
+                custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
+            if not custom_obj and self.assigned_to:
+                custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+
+            if custom_obj and custom_obj.custom_text and custom_obj.custom_text.strip():
+                text = custom_obj.custom_text
+                replacements = {
+                    "{patient_name}": patient_name,
+                    "{student_name}": patient_name,
+                    "{client_name}": patient_name,
+                    "{hospital_name}": hosp_name,
+                    "{business_name}": hosp_name,
+                    "{branch_name}": branch_name,
+                    "{hospital_address}": hosp_address,
+                    "{business_address}": hosp_address,
+                    "{doctor_name}": doc_name,
+                    "{appointment_date}": appt_date or "Scheduled Date",
+                    "{appointment_time}": appt_time or "Scheduled Slot",
+                    "{user_name}": agent_name,
+                }
+                for k, v in replacements.items():
+                    text = text.replace(k, str(v))
+                return text
+
+            # Default System Generated Templates for Hospital (Active when custom is OFF)
             if msg_type == "BILLING":
                 date_part = f" on {appt_date}" if appt_date else ""
-                text = (
+                return (
                     f"Hello {patient_name},\n\n"
                     f"Thank you for visiting {hosp_name} ({branch_name})!\n\n"
                     f"Your consultation with {doc_name}{date_part} has been completed successfully.\n\n"
@@ -1585,7 +1950,7 @@ class Lead(models.Model):
             elif msg_type == "BOOKING":
                 date_part = f" on {appt_date}" if appt_date else ""
                 time_part = f" at {appt_time}" if appt_time else ""
-                text = (
+                return (
                     f"Hello {patient_name},\n\n"
                     f"Welcome to {hosp_name} ({branch_name})!\n\n"
                     f"Your consultation appointment with {doc_name} is confirmed{date_part}{time_part}.\n\n"
@@ -1595,8 +1960,7 @@ class Lead(models.Model):
                     f"Warm Regards,\n{agent_name}\n{hosp_name}"
                 )
             else:
-                # FOLLOWUP template for new, assigned, follow up, lost, enquiry leads
-                text = (
+                return (
                     f"Hello {patient_name},\n\n"
                     f"Thank you for your enquiry with {hosp_name} ({branch_name})!\n\n"
                     f"We are pleased to assist you with your healthcare and doctor consultation inquiry.\n\n"
@@ -1605,7 +1969,87 @@ class Lead(models.Model):
                     f"Warm Regards,\n{agent_name}\nPatient Care Team - {hosp_name}"
                 )
 
-        return text
+        # =====================================================================
+        # 3. OTHER / GENERAL BUSINESSES (IT Services, Real Estate, Agency, Corporate)
+        # =====================================================================
+        client_name = (self.name or "Valued Client").strip()
+        biz_name = (self.hospital.name if self.hospital else "Our Business").strip()
+        branch_name = (cd.get("branch") or cd.get("hospital_branch") or (self.hospital.name if self.hospital else "Head Office")).strip()
+        biz_address = (self.hospital.address if self.hospital and hasattr(self.hospital, 'address') and self.hospital.address else f"{branch_name}, {biz_name}").strip()
+        service_name = (self.course.name if self.course else cd.get("service") or cd.get("requirement") or "our services").strip()
+        
+        agent_user = user or self.assigned_to or self.created_by
+        agent_name = (agent_user.get_full_name() or agent_user.username if agent_user else "Client Support Team").strip()
+        
+        booking_date = str(cd.get("appointment_date") or self.next_followup_date or "Scheduled Date").strip()
+        booking_time = str(cd.get("appointment_time") or "Business Hours").strip()
+
+        if not msg_type:
+            if self.deal_status == DealStatus.WON or self.is_billing_done:
+                msg_type = "BILLING"
+            elif self.is_booked or "book" in (self.stage.name if self.stage else "").lower():
+                msg_type = "BOOKING"
+            else:
+                msg_type = "FOLLOWUP"
+
+        # Check for confirmed UserCustomMessage (Default off, Custom on)
+        custom_obj = None
+        if user:
+            custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
+        if not custom_obj and self.assigned_to:
+            custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+
+        if custom_obj and custom_obj.custom_text and custom_obj.custom_text.strip():
+            text = custom_obj.custom_text
+            replacements = {
+                "{client_name}": client_name,
+                "{student_name}": client_name,
+                "{patient_name}": client_name,
+                "{service_name}": service_name,
+                "{course_name}": service_name,
+                "{business_name}": biz_name,
+                "{hospital_name}": biz_name,
+                "{branch_name}": branch_name,
+                "{business_address}": biz_address,
+                "{hospital_address}": biz_address,
+                "{booking_date}": booking_date,
+                "{appointment_date}": booking_date,
+                "{booking_time}": booking_time,
+                "{appointment_time}": booking_time,
+                "{agent_name}": agent_name,
+                "{user_name}": agent_name,
+            }
+            for k, v in replacements.items():
+                text = text.replace(k, str(v))
+            return text
+
+        # Default System Generated Templates for Other Industries (Active when custom is OFF)
+        if msg_type == "BILLING":
+            return (
+                f"Hello {client_name},\n\n"
+                f"Thank you for choosing {biz_name} ({branch_name})!\n\n"
+                f"Your order/service completion for {service_name} has been processed successfully.\n\n"
+                f"If you need further assistance or project support, feel free to reach out to us.\n\n"
+                f"Office Address: {biz_address}\n\n"
+                f"Warm Regards,\n{agent_name}\nCustomer Success Team - {biz_name}"
+            )
+        elif msg_type == "BOOKING":
+            return (
+                f"Hello {client_name},\n\n"
+                f"Greetings from {biz_name}!\n\n"
+                f"Your meeting / demo appointment for {service_name} is confirmed on {booking_date} at {booking_time}.\n\n"
+                f"Office Address: {biz_address}\n\n"
+                f"We look forward to meeting with you.\n\n"
+                f"Warm Regards,\n{agent_name}\n{biz_name}"
+            )
+        else:
+            return (
+                f"Hello {client_name},\n\n"
+                f"Thank you for contacting {biz_name} regarding {service_name}!\n\n"
+                f"Our team is glad to assist you. Please let us know a convenient time to discuss your requirements in detail.\n\n"
+                f"Office Address: {biz_address}\n\n"
+                f"Warm Regards,\n{agent_name}\nBusiness Team - {biz_name}"
+            )
 
     @property
     def whatsapp_message(self):
@@ -1613,7 +2057,24 @@ class Lead(models.Model):
         Dynamically returns URL-encoded WhatsApp message.
         """
         import urllib.parse
-        if self.is_billing_done:
+        if self.is_academy_industry:
+            st_name = (self.stage.name if self.stage else "").lower()
+            cd = self.custom_data or {}
+            try:
+                tot = float(cd.get('total') or cd.get('course_fee') or (self.course.base_price if self.course else 0) or 0)
+                paid = float(cd.get('token_amount') or cd.get('total_paid') or 0)
+                bal = float(cd.get('balance_amount') or max(0, tot - paid))
+            except Exception:
+                bal = 0.0
+            if "payment" in st_name or bal > 0:
+                msg_type = "PAYMENT_DUE"
+            elif self.deal_status == DealStatus.WON or "admission" in st_name:
+                msg_type = "ADMISSION"
+            elif "visit" in st_name or cd.get("visit_date"):
+                msg_type = "VISIT"
+            else:
+                msg_type = "ENQUIRY"
+        elif self.is_billing_done:
             msg_type = "BILLING"
         elif self.is_booked:
             msg_type = "BOOKING"
@@ -1801,13 +2262,17 @@ class UserCustomMessage(models.Model):
     message_type = models.CharField(
         max_length=20,
         choices=[
-            ("BOOKING", "Booking Message"),
-            ("FOLLOWUP", "Follow-up Message"),
-            ("BILLING", "Billing / Thank You Message"),
+            ("BOOKING", "Booking / Admission Message"),
+            ("FOLLOWUP", "Follow-up / Welcome Enquiry Message"),
+            ("BILLING", "Billing / Payment Message"),
+            ("VISIT", "Campus Visit Template"),
+            ("ADMISSION", "Admission Confirmed Template"),
+            ("PAYMENT_DUE", "Payment Due / Installment Template"),
+            ("ENQUIRY", "Welcome & Enquiry Template"),
         ],
         db_index=True,
     )
-    custom_text = models.TextField(blank=True, help_text="Custom template text with placeholders like {patient_name}, {hospital_name}, {branch_name}, {hospital_address}, {doctor_name}, {appointment_date}, {appointment_time}, {user_name}")
+    custom_text = models.TextField(blank=True, help_text="Custom template text with placeholders like {student_name}, {course_name}, {business_name}, {visit_date}, {visit_slot}, {admission_date}, {payment_due_date}, {balance_amount}, {counselor_name}, {business_address}")
     is_confirmed = models.BooleanField(default=False, help_text="True if user has confirmed using this custom template over system default")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

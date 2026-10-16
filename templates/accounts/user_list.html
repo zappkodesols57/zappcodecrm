@@ -123,7 +123,7 @@
           <td class="py-2">{{ u.phone|default:"—" }}</td>
           <td class="py-2 text-muted small">{{ u.date_joined|date:"d M Y, H:i" }}</td>
           <td class="text-end pe-3 py-2">
-            {% if request.user.role == 'MANAGER' and request.user.hospital and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
+            {% if request.user.role == 'MANAGER' and request.user.business and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
             <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only approve Doctors and Telecallers">
               Locked
             </span>
@@ -160,7 +160,7 @@
       
       <!-- Search Input -->
       <div class="col-12 col-md-5">
-        <input type="search" name="q" id="userSearchInput" class="form-control team-filter-control px-3" placeholder="Search name, username, phone, email, department..." value="{{ q }}" autocomplete="off">
+        <input type="search" name="q" id="userSearchInput" class="form-control team-filter-control px-3" placeholder="Search name, username, phone, email{% if biz_industry == 'HOSPITAL' %}, department{% endif %}..." value="{{ q }}" autocomplete="off">
       </div>
       
       <!-- Role Filter -->
@@ -208,7 +208,9 @@
           <th class="ps-3 py-2.5 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 140px;">Username</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 220px;">Role</th>
+          {% if biz_industry != 'ACADEMY' %}
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Department / Speciality</th>
+          {% endif %}
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 150px;">Branch</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Reports To</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-center" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 90px;">Status</th>
@@ -233,7 +235,7 @@
                 </span>
               {% endif %}
             </div>
-            {% if u.hospital and not request.user.hospital %}
+            {% if u.hospital and not request.user.business %}
               <div class="text-muted small mt-1" style="font-size: 0.7rem;">
                 {{ u.hospital.name }}
               </div>
@@ -284,6 +286,7 @@
           </td>
 
           <!-- 4. Department / Speciality -->
+          {% if biz_industry != 'ACADEMY' %}
           <td class="px-3 py-2.5">
             {% if u.role == 'DOCTOR' and u.doctor_departments_list %}
               <div class="d-flex flex-wrap gap-1 align-items-center">
@@ -308,6 +311,7 @@
               <span class="text-muted small">—</span>
             {% endif %}
           </td>
+          {% endif %}
 
           <!-- 5. Assigned Branch -->
           <td class="px-3 py-2.5">
@@ -351,7 +355,7 @@
 
           <!-- 8. Actions -->
           <td class="text-end pe-3 py-2.5">
-            {% if request.user.role == 'MANAGER' and request.user.hospital and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
+            {% if request.user.role == 'MANAGER' and request.user.business and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
             <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only manage Doctors, Telecallers and their own profile">
               Locked
             </span>

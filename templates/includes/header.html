@@ -4,6 +4,7 @@
   <button class="btn btn-sm btn-light d-none d-lg-inline-flex align-items-center justify-content-center me-2 text-secondary" id="sidebarMinimizeBtn" title="Toggle Sidebar Minimize" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #e2e8f0;">
     <i class="fa-solid fa-bars-staggered" id="sidebarMinimizeIcon"></i>
   </button>
+  {% if user.role != 'SUPER_ADMIN' or active_business %}
   <form class="search-box" method="get" action="{% url 'leads:lead_list' %}">
     <div class="input-group input-group-sm">
       <input type="search" name="q" class="form-control bg-white" placeholder="Search leads by name, mobile, email, lead ID..." value="{{ request.GET.q }}">
@@ -57,7 +58,10 @@
     </ul>
   </div>
   {% endif %}
+  {% endif %}
+
   <div class="ms-auto d-flex align-items-center gap-2">
+    {% if user.role != 'SUPER_ADMIN' or active_business %}
     {% if user.role != 'DOCTOR' and user.can_add_leads %}
     <a href="{% url 'leads:lead_add' %}" class="btn btn-sm btn-primary text-white d-none d-sm-inline-flex align-items-center rounded-pill px-3 shadow-xs" style="background-color: var(--brand) !important; border-color: var(--brand) !important; height: 34px;">
       Add Lead
@@ -68,6 +72,7 @@
     <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center fw-semibold rounded-pill px-3 shadow-xs" title="Import Leads from XML / Excel / CSV / Google Sheets" style="height: 34px; border-color: #cbd5e1 !important; color: #0f2744 !important; background: #ffffff !important;">
       Import Leads
     </a>
+    {% endif %}
     {% endif %}
 
     <!-- Notification Bell -->
@@ -135,12 +140,9 @@
         {% endif %}
         <li><hr class="dropdown-divider my-1"></li>
         <li>
-          <form method="post" action="{% url 'accounts:logout' %}">
-            {% csrf_token %}
-            <button class="dropdown-item py-2 text-danger" type="submit">
-              <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
-            </button>
-          </form>
+          <button class="dropdown-item py-2 text-danger" type="button" data-bs-toggle="modal" data-bs-target="#logoutConfirmModal">
+            Logout
+          </button>
         </li>
       </ul>
     </div>
@@ -392,9 +394,13 @@
 
     window.fetchNotifications = fetchNotifications;
 
-    // Initial fetch & polling every 30 seconds
+    // Initial fetch & polling every 30 seconds (pauses when tab is hidden or backgrounded)
     fetchNotifications();
-    setInterval(fetchNotifications, 30000);
+    setInterval(function() {
+      if (!document.hidden) {
+        fetchNotifications();
+      }
+    }, 30000);
   });
 
   function markNotificationRead(id, event) {
