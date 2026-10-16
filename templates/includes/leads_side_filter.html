@@ -615,8 +615,8 @@ Features:
             </div>
             {% endif %}
 
-            <!-- Lead Status (Only for Hospital Users) -->
-            {% if request.user.industry == 'HOSPITAL' %}
+            <!-- Lead Status (Available for Hospital & Global Views) -->
+            {% if request.user.industry == 'HOSPITAL' or hospital_statuses or deal_status_choices or is_superadmin_user %}
             <div class="py-1">
               <a class="text-decoration-none text-dark d-flex align-items-center justify-content-between small fw-semibold py-1"
                 data-bs-toggle="collapse" href="#subLeadStatus" role="button" style="font-size: 0.84rem;">
