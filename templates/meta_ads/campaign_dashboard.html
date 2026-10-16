@@ -251,56 +251,66 @@
 <div class="meta-top-nav-card">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
 
-    <!-- Business Entity Pills (Super Admin sees all businesses, Single Business Admin sees only their business) -->
+    <!-- Business Pills (Super Admin sees All Businesses + every active business; Tenant sees their business) -->
     <div class="d-flex align-items-center gap-2 flex-wrap">
       {% if is_super_admin %}
-        <a href="?entity=nelson&channel={{ active_channel|default:'meta' }}&date_preset={{ date_preset }}"
-          class="entity-tab-pill {% if selected_entity == 'nelson' %}active{% endif %}">
-          <span>Nelson Hospital Dhantoli</span>
-          <span
-            class="badge {% if selected_entity == 'nelson' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
-            {{ nelson_meta_count|add:nelson_justdial_count|add:nelson_practo_count }}
+        <!-- All Businesses Tab -->
+        <a href="?business=all&channel={{ active_channel }}&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}"
+          class="entity-tab-pill {% if not active_business %}active{% endif %}">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>All Businesses</span>
+          <span class="badge {% if not active_business %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
+            {{ total_all_businesses_count }}
           </span>
         </a>
 
-        <a href="?entity=academy&date_preset={{ date_preset }}"
-          class="entity-tab-pill {% if selected_entity == 'academy' %}active{% endif %}">
-          <span>Zappcode Academy</span>
-          <span
-            class="badge {% if selected_entity == 'academy' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
-            {{ academy_leads_count }}
+        <!-- Dynamic Active Businesses List -->
+        {% for b_item in business_analytics_list %}
+        <a href="?business={{ b_item.id }}&channel={{ active_channel }}&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}"
+          class="entity-tab-pill {% if active_business and active_business.id == b_item.id %}active{% endif %}">
+          <i class="fa-solid fa-building"></i>
+          <span>{{ b_item.name }}</span>
+          <span class="badge {% if active_business and active_business.id == b_item.id %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} rounded-pill px-2">
+            {{ b_item.count }}
           </span>
         </a>
+        {% endfor %}
       {% else %}
-        {% if user_is_nelson or selected_entity == 'nelson' %}
         <div class="entity-tab-pill active">
-          <span>Nelson Hospital Dhantoli</span>
-          <span class="badge bg-danger text-white rounded-pill px-2">
-            {{ nelson_meta_count|add:nelson_justdial_count|add:nelson_practo_count }}
-          </span>
-        </div>
-        {% elif user_is_academy or selected_entity == 'academy' %}
-        <div class="entity-tab-pill active">
-          <span>Zappcode Academy</span>
+          <i class="fa-solid fa-building"></i>
+          <span>{{ active_business.name|default:"My Business" }}</span>
           <span class="badge bg-primary text-white rounded-pill px-2">
-            {{ academy_leads_count }}
+            {{ channel_total_count }}
           </span>
         </div>
-        {% endif %}
       {% endif %}
     </div>
 
     <!-- Date Range Filter & Action Controls -->
     <div class="d-flex align-items-center gap-2 flex-wrap">
-      <form method="get" class="d-flex align-items-center gap-2 mb-0">
-        <input type="hidden" name="entity" value="{{ selected_entity }}">
+      <form method="get" class="d-flex align-items-center gap-2 mb-0 flex-wrap" id="campaignDateFilterForm">
+        {% if active_business %}
+        <input type="hidden" name="business" value="{{ active_business.id }}">
+        {% else %}
+        <input type="hidden" name="business" value="all">
+        {% endif %}
         <input type="hidden" name="channel" value="{{ active_channel }}">
-        <select name="date_preset" class="form-select form-select-sm no-tom-select date-filter-select" onchange="this.form.submit()"
-          style="border: 1.5px solid #111827 !important; border-radius: 8px !important; font-weight: 600 !important; width: 155px !important; color: #111827 !important; outline: none !important; box-shadow: none !important;">
+        
+        <select name="date_preset" id="campaignDatePresetSelect" class="form-select form-select-sm no-tom-select date-filter-select"
+          style="border: 1.5px solid #111827 !important; border-radius: 8px !important; font-weight: 600 !important; width: 145px !important; color: #111827 !important; outline: none !important; box-shadow: none !important;">
           {% for value, label in date_presets %}
           <option value="{{ value }}" {% if date_preset == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
+
+        <div id="campaignCustomDateInputs" class="d-flex align-items-center gap-1 {% if date_preset != 'custom' %}d-none{% endif %}">
+          <input type="date" name="start_date" id="campaignStartDate" class="form-control form-control-sm" value="{{ start_date }}" max="{{ today_date }}" style="width: 135px; border-radius: 8px; font-weight: 500;" title="From Date (Start Date)">
+          <span class="text-muted small">to</span>
+          <input type="date" name="end_date" id="campaignEndDate" class="form-control form-control-sm" value="{{ end_date }}" max="{{ today_date }}" style="width: 135px; border-radius: 8px; font-weight: 500;" title="To Date (End Date)">
+          <button type="submit" class="btn btn-sm btn-dark px-2 rounded-2 fw-semibold" title="Apply Custom Dates">
+            Apply
+          </button>
+        </div>
       </form>
 
       {% if connection %}
@@ -316,27 +326,30 @@
 
   </div>
 
-  <!-- Sub-Channel Navigation (For Nelson Hospital) -->
-  {% if selected_entity == 'nelson' %}
+  <!-- Marketing Channels Navigation Ribbon -->
   <div class="d-flex align-items-center gap-2 pt-3 mt-3 border-top flex-wrap">
     <span class="text-muted small fw-bold text-uppercase me-2" style="font-size: 0.72rem;">Channels:</span>
-    <a href="?entity=nelson&channel=meta&date_preset={{ date_preset }}"
+    <a href="?{% if active_business %}business={{ active_business.id }}&{% else %}business=all&{% endif %}channel=all&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}"
+      class="sub-channel-link {% if active_channel == 'all' %}active-sub{% endif %}">
+      All Inbound Channels
+      <span class="badge bg-light text-dark border ms-1">{{ channel_total_count }}</span>
+    </a>
+    <a href="?{% if active_business %}business={{ active_business.id }}&{% else %}business=all&{% endif %}channel=meta&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}"
       class="sub-channel-link {% if active_channel == 'meta' %}active-sub{% endif %}">
       Meta Ads (Facebook & Instagram)
-      <span class="badge bg-light text-primary border ms-1">{{ nelson_meta_count }}</span>
+      <span class="badge bg-light text-primary border ms-1">{{ channel_meta_count }}</span>
     </a>
-    <a href="?entity=nelson&channel=justdial&date_preset={{ date_preset }}"
+    <a href="?{% if active_business %}business={{ active_business.id }}&{% else %}business=all&{% endif %}channel=justdial&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}"
       class="sub-channel-link {% if active_channel == 'justdial' %}active-sub{% endif %}">
       Justdial Leads
-      <span class="badge bg-light text-dark border ms-1">{{ nelson_justdial_count }}</span>
+      <span class="badge bg-light text-dark border ms-1">{{ channel_justdial_count }}</span>
     </a>
-    <a href="?entity=nelson&channel=practo&date_preset={{ date_preset }}"
+    <a href="?{% if active_business %}business={{ active_business.id }}&{% else %}business=all&{% endif %}channel=practo&date_preset={{ date_preset }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}"
       class="sub-channel-link {% if active_channel == 'practo' %}active-sub{% endif %}">
       Practo Inquiries
-      <span class="badge bg-light text-info border ms-1">{{ nelson_practo_count }}</span>
+      <span class="badge bg-light text-info border ms-1">{{ channel_practo_count }}</span>
     </a>
   </div>
-  {% endif %}
 </div>
 
 
@@ -456,8 +469,11 @@
             <thead style="position: sticky; top: 0; z-index: 2;">
               <tr>
                 <th>Lead Name</th>
+                {% if not active_business %}
+                <th>Business</th>
+                {% endif %}
                 <th>Source</th>
-                <th>Campaign / Dept</th>
+                <th>Campaign / Course</th>
                 <th>Date/Time</th>
                 <th>Contact</th>
                 <th>Status</th>
@@ -468,9 +484,14 @@
               <tr>
                 <td class="fw-bold text-dark">
                   <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-dark text-decoration-none">
-                    {{ lead.name|default:"Patient Inquiry" }}
+                    {{ lead.name|default:"Inquiry" }}
                   </a>
                 </td>
+                {% if not active_business %}
+                <td>
+                  <span class="badge bg-light text-dark border">{{ lead.hospital.name|default:"General" }}</span>
+                </td>
+                {% endif %}
                 <td>
                   {% if active_channel == 'justdial' %}
                   <span
@@ -513,7 +534,7 @@
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
+                <td colspan="7" class="text-center py-5 text-muted">
                   <i class="fa-solid fa-inbox d-block mb-2 text-secondary opacity-50" style="font-size:2rem;"></i>
                   No leads recorded for this selection.
                 </td>
@@ -752,6 +773,65 @@ document.addEventListener("DOMContentLoaded", function () {
             ticks: { color: '#94a3b8', font: { size: 11 }, precision: 0 },
             beginAtZero: true
           }
+        }
+      }
+    });
+  }
+
+  // Handle Campaign Date Preset Change and Limitations
+  const datePresetSelect = document.getElementById('campaignDatePresetSelect');
+  const customInputs = document.getElementById('campaignCustomDateInputs');
+  const dateFilterForm = document.getElementById('campaignDateFilterForm');
+  const startDateInput = document.getElementById('campaignStartDate');
+  const endDateInput = document.getElementById('campaignEndDate');
+
+  function syncDateLimits() {
+    if (!startDateInput || !endDateInput) return;
+    const startVal = startDateInput.value;
+    const endVal = endDateInput.value;
+
+    if (startVal) {
+      endDateInput.min = startVal;
+    }
+    if (endVal) {
+      startDateInput.max = endVal;
+    } else {
+      startDateInput.max = "{{ today_date }}";
+    }
+  }
+
+  if (startDateInput && endDateInput) {
+    syncDateLimits();
+    startDateInput.addEventListener('change', syncDateLimits);
+    endDateInput.addEventListener('change', syncDateLimits);
+  }
+
+  if (dateFilterForm) {
+    dateFilterForm.addEventListener('submit', function(e) {
+      if (datePresetSelect && datePresetSelect.value === 'custom') {
+        const s = startDateInput ? startDateInput.value : '';
+        const ed = endDateInput ? endDateInput.value : '';
+        if (s && ed && s > ed) {
+          e.preventDefault();
+          alert('From Date cannot be later than To Date.');
+          return false;
+        }
+      }
+    });
+  }
+
+  if (datePresetSelect) {
+    datePresetSelect.addEventListener('change', function() {
+      if (this.value === 'custom') {
+        if (customInputs) {
+          customInputs.classList.remove('d-none');
+        }
+      } else {
+        if (customInputs) {
+          customInputs.classList.add('d-none');
+        }
+        if (dateFilterForm) {
+          dateFilterForm.submit();
         }
       }
     });

@@ -433,12 +433,37 @@
         </select>
       </div>
 
+      <!-- Business Filter (if SuperAdmin / Multi-business) -->
+      {% if is_superadmin_user or available_businesses %}
+      <div class="filter-item-dropdown">
+        <select name="business" class="form-select no-tom-select" onchange="document.getElementById('leadsInteractiveFilterForm').submit()">
+          <option value="">All Businesses</option>
+          {% for b in available_businesses %}
+          <option value="{{ b.id }}" {% if selected_hospital_id == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
       <!-- 5. Campaign Dropdown -->
       <div class="filter-item-dropdown">
         <select name="campaign" class="form-select no-tom-select">
           <option value="">Select Campaign</option>
           {% for camp in campaigns %}
           <option value="{{ camp.name }}" {% if camp.name in selected_campaigns or camp.id|stringformat:"s" in selected_campaigns %}selected{% endif %}>{{ camp.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 5b. Source Dropdown -->
+      <div class="filter-item-dropdown">
+        <select name="source" class="form-select no-tom-select">
+          <option value="">Select Source</option>
+          {% for src in lead_sources %}
+          <option value="{{ src.name }}" {% if src.name in selected_sources or src.id|stringformat:"s" in selected_sources %}selected{% endif %}>{{ src.name }}</option>
+          {% endfor %}
+          {% for hsrc in hospital_sources %}
+          <option value="{{ hsrc.name }}" {% if hsrc.name in selected_sources %}selected{% endif %}>{{ hsrc.name }}</option>
           {% endfor %}
         </select>
       </div>

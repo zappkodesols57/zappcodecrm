@@ -25,7 +25,154 @@
 
   <div class="sidebar-nav-container" id="sidebarAccordion">
 
-    {% if user.role == 'ADMIN' and user.industry == 'HOSPITAL' or user.role == 'MANAGER' and user.industry == 'HOSPITAL' %}
+    {% if user.role == 'SUPER_ADMIN' or user.is_superuser %}
+    {# 👑 SUPERADMIN SIDEBAR (Redesigned) #}
+
+    <!-- 1. Dashboard -->
+    <a class="nav-link {% if active == 'superadmin_home' or active == 'management_dashboard' %}active{% endif %}"
+      href="{% url 'dashboard:superadmin_home' %}" title="Dashboard" style="margin-top: 4px;">
+      <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
+    </a>
+
+    <!-- 2. Leads (All Leads, Pending Leads, Won Leads, Lost Leads, Archive Leads) -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' and request.GET.deal_status != 'WON' and request.GET.deal_status != 'PAYMENT DONE' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_leads"
+        aria-expanded="{% if active in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}true{% else %}false{% endif %}"
+        title="Leads">
+        <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Leads</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}show{% endif %} nav-sub-items"
+        id="sec_super_leads">
+        <!-- All Leads -->
+        <a class="nav-link {% if active == 'leads_all' and request.GET.deal_status != 'WON' and request.GET.deal_status != 'PAYMENT DONE' %}active{% endif %}"
+          href="{% url 'leads:lead_list' %}" title="All Leads">
+          <i class="fa-solid fa-list"></i> <span class="nav-text">All Leads</span>
+        </a>
+
+        <!-- Pending Leads -->
+        <a class="nav-link {% if active == 'pending_leads' %}active{% endif %}"
+          href="{% url 'leads:pending_leads' %}" title="Pending Leads">
+          <i class="fa-solid fa-clock"></i> <span class="nav-text">Pending Leads</span>
+        </a>
+
+        <!-- Won Leads -->
+        <a class="nav-link {% if active == 'won_leads' or active == 'payments' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}active{% endif %}"
+          href="{% url 'leads:payment_done' %}" title="Won Leads">
+          <i class="fa-solid fa-trophy"></i> <span class="nav-text">Won Leads</span>
+        </a>
+
+        <!-- Lost Leads -->
+        <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}"
+          href="{% url 'leads:lost_leads' %}" title="Lost Leads">
+          <i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span>
+        </a>
+
+        <!-- Archive Leads -->
+        <a class="nav-link {% if active == 'archived_leads' %}active{% endif %}"
+          href="{% url 'leads:archived_leads' %}" title="Archive Leads">
+          <i class="fa-solid fa-box-archive"></i> <span class="nav-text">Archive Leads</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 3. Team (Team Performance, Bulk Transfer) -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'team_history bulk_transfer' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_team"
+        aria-expanded="{% if active in 'team_history bulk_transfer' %}true{% else %}false{% endif %}"
+        title="Team">
+        <span><i class="fa-solid fa-users-gear section-icon"></i><span class="section-title">Team</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'team_history bulk_transfer' %}show{% endif %} nav-sub-items"
+        id="sec_super_team">
+        <!-- Team Performance -->
+        <a class="nav-link {% if active == 'team_history' %}active{% endif %}"
+          href="{% url 'leads:team_history' %}" title="Team Performance">
+          <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Team Performance</span>
+        </a>
+
+        <!-- Bulk Transfer -->
+        <a class="nav-link {% if active == 'bulk_transfer' %}active{% endif %}"
+          href="{% url 'leads:bulk_lead_transfer' %}" title="Bulk Transfer">
+          <i class="fa-solid fa-arrows-split-up-and-left"></i> <span class="nav-text">Bulk Transfer</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 4. Master (Import/Export, Users & Approvals, Manage Business) -->
+    <div class="nav-section-group">
+      <button class="nav-section-btn {% if active not in 'import export import_history users user_logs business_list' %}collapsed{% endif %}"
+        type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_master"
+        aria-expanded="{% if active in 'import export import_history' or active in 'users user_logs business_list' %}true{% else %}false{% endif %}"
+        title="Master">
+        <span><i class="fa-solid fa-sliders section-icon"></i><span class="section-title">Master</span></span>
+        <i class="fa-solid fa-chevron-down section-arrow"></i>
+      </button>
+      <div class="collapse {% if active in 'import export import_history users user_logs business_list' %}show{% endif %} nav-sub-items"
+        id="sec_super_master">
+        <!-- Submodule: Import/Export -->
+        <div class="nav-sub-item-group">
+          <button class="nav-sub-item-btn {% if active not in 'import export import_history' %}collapsed{% endif %}"
+            type="button" data-bs-toggle="collapse" data-bs-target="#sec_sub_impexp"
+            aria-expanded="{% if active in 'import export import_history' %}true{% else %}false{% endif %}"
+            title="Import / Export">
+            <span><i class="fa-solid fa-file-excel section-icon"></i><span class="nav-text">Import / Export</span></span>
+            <i class="fa-solid fa-chevron-down sub-arrow"></i>
+          </button>
+          <div class="collapse {% if active in 'import export import_history' %}show{% endif %} nav-sub-sub-items" id="sec_sub_impexp">
+            <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'import' %}active{% endif %}"
+              href="{% url 'imports:upload' %}" title="Import Leads">
+              <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span>
+              {% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
+            </a>
+            <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'export' %}active{% endif %}"
+              href="{% url 'imports:export' %}" title="Export Leads">
+              <i class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span>
+              {% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
+            </a>
+            <a class="nav-link {% if active == 'import_history' %}active{% endif %}"
+              href="{% url 'imports:history' %}" title="Import History">
+              <i class="fa-solid fa-clock-rotate-left"></i> <span class="nav-text">Import History</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Users & Approvals -->
+        <a class="nav-link {% if active == 'users' or active == 'user_logs' %}active{% endif %}"
+          href="{% url 'accounts:user_list' %}" title="Users and Approvals">
+          <i class="fa-solid fa-user-shield"></i> <span class="nav-text">Users & Approvals</span>
+        </a>
+
+        <!-- Manage Business -->
+        <a class="nav-link {% if active == 'business_list' %}active{% endif %}"
+          href="{% url 'accounts:business_list' %}" title="Manage Business">
+          <i class="fa-solid fa-building-circle-check"></i> <span class="nav-text">Manage Business</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 5. Campaigns -->
+    <a class="nav-link {% if active == 'meta_ads' or active == 'campaigns' %}active{% endif %}"
+      href="{% url 'meta_ads:dashboard' %}" title="Campaigns">
+      <i class="fa-solid fa-bullhorn"></i> <span class="nav-text">Campaigns</span>
+    </a>
+
+    <!-- 6. Audit Logs -->
+    <a class="nav-link {% if active == 'audit' %}active{% endif %}"
+      href="{% url 'accounts:audit_log' %}" title="Audit Logs">
+      <i class="fa-solid fa-shield-halved"></i> <span class="nav-text">Audit Logs</span>
+    </a>
+
+    <!-- 7. Notifications -->
+    <a class="nav-link {% if active == 'notifications' %}active{% endif %}"
+      href="{% url 'notifications:list' %}" title="Notifications">
+      <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
+    </a>
+
+    {% elif user.role == 'ADMIN' and user.industry == 'HOSPITAL' or user.role == 'MANAGER' and user.industry == 'HOSPITAL' %}
     {# 🏥 HOSPITAL ADMIN & MANAGER SIDEBAR (Strictly 5 Tabs) #}
 
     <!-- 1. Dashboard -->
@@ -288,164 +435,6 @@
     <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
       title="Notifications">
       <i class="fa-regular fa-bell"></i> <span class="nav-text">Notifications</span>
-    </a>
-
-    {% elif user.role == 'SUPER_ADMIN' or user.is_superuser %}
-    {# 👑 GLOBAL SUPER ADMIN SIDEBAR (Original structure restored) #}
-
-    <!-- 1. Direct Dashboard Link -->
-    <a class="nav-link {% if active == 'superadmin_home' or active == 'management_dashboard' %}active{% endif %}"
-      href="{% url 'dashboard:superadmin_home' %}" title="Dashboard" style="margin-top: 4px;">
-      <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
-    </a>
-
-    <!-- 2. Section: Lead Management -->
-    <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads lost_leads' %}collapsed{% endif %}"
-        type="button" data-bs-toggle="collapse" data-bs-target="#sec_lead_mgmt"
-        aria-expanded="{% if active in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads lost_leads' %}true{% else %}false{% endif %}"
-        title="Lead Management">
-        <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div class="collapse {% if active in 'leads_all team_history bulk_transfer import export archived_leads leads_dup my_leads lost_leads' %}show{% endif %} nav-sub-items"
-        id="sec_lead_mgmt">
-        <!-- Submodule: All Leads -->
-        <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
-          title="All Leads"><i class="fa-solid fa-list"></i> <span class="nav-text">All Leads</span></a>
-
-        <!-- Submodule: Team Performance (Team History) -->
-        <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
-          title="Team Performance"><i class="fa-solid fa-chart-line"></i> <span class="nav-text">Team Performance</span></a>
-
-        <!-- Submodule: Bulk Lead Transfer -->
-        <a class="nav-link {% if active == 'bulk_transfer' %}active{% endif %}" href="{% url 'leads:bulk_lead_transfer' %}"
-          title="Bulk Transfer"><i class="fa-solid fa-arrows-split-up-and-left"></i> <span class="nav-text">Bulk Transfer</span></a>
-
-        <!-- Submodule: Import / Export Leads -->
-        <div class="nav-sub-item-group">
-          <button class="nav-sub-item-btn {% if active not in 'import export import_history' %}collapsed{% endif %}" type="button"
-            data-bs-toggle="collapse" data-bs-target="#sec_sub_impexp"
-            aria-expanded="{% if active in 'import export import_history' %}true{% else %}false{% endif %}"
-            title="Import / Export">
-            <span><i class="fa-solid fa-file-excel section-icon"></i><span class="nav-text">Import / Export</span></span>
-            <i class="fa-solid fa-chevron-down sub-arrow"></i>
-          </button>
-          <div class="collapse {% if active in 'import export import_history' %}show{% endif %} nav-sub-sub-items" id="sec_sub_impexp">
-            <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'import' %}active{% endif %}"
-              href="{% url 'imports:upload' %}" title="Import Leads">
-              <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Leads</span>
-              {% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
-            </a>
-            <a class="nav-link {% if not request.user.can_import_export %}opacity-50 pe-none{% endif %} {% if active == 'export' %}active{% endif %}"
-              href="{% url 'imports:export' %}" title="Export Leads">
-              <i class="fa-solid fa-file-export"></i> <span class="nav-text">Export Leads</span>
-              {% if not request.user.can_import_export %}<i class='fa-solid fa-lock ms-auto text-secondary' style="width: auto;"></i>{% endif %}
-            </a>
-            <a class="nav-link {% if active == 'import_history' %}active{% endif %}"
-              href="{% url 'imports:history' %}" title="Import History">
-              <i class="fa-solid fa-clock-rotate-left"></i> <span class="nav-text">Import History</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Submodule: Lost Leads -->
-        <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
-          title="Lost Leads"><i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span></a>
-
-        <!-- Submodule: Archived Leads -->
-        <a class="nav-link {% if active == 'archived_leads' %}active{% endif %}" href="{% url 'leads:archived_leads' %}"
-          title="Archived Leads"><i class="fa-solid fa-box-archive"></i> <span class="nav-text">Archived Leads</span></a>
-      </div>
-    </div>
-
-    <!-- 3. Manage Businesses (Direct Top Tab for Super Admin) -->
-    {% if user.is_superuser or user.role == 'SUPER_ADMIN' and not user.hospital %}
-    <a class="nav-link {% if active == 'business_list' %}active{% endif %}" href="{% url 'accounts:business_list' %}"
-      title="Manage Business">
-      <i class="fa-solid fa-building-circle-check"></i> <span class="nav-text">Manage Business</span>
-    </a>
-    {% endif %}
-
-    <!-- 4. Section: Conversions & Financials -->
-    <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'admissions appointments payments financial-overview' and request.GET.filter not in 'admission_today appo_booked billing_today' and request.GET.has_revenue != '1' %}collapsed{% endif %}"
-        type="button" data-bs-toggle="collapse" data-bs-target="#sec_conversions"
-        aria-expanded="{% if active in 'admissions appointments payments financial-overview' or request.GET.filter in 'admission_today appo_booked billing_today' or request.GET.has_revenue == '1' %}true{% else %}false{% endif %}"
-        title="Conversions">
-        <span><i class="fa-solid fa-hand-holding-dollar section-icon"></i><span class="section-title">Conversions</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div class="collapse {% if active in 'admissions appointments payments financial-overview' or request.GET.filter in 'admission_today appo_booked billing_today' or request.GET.has_revenue == '1' %}show{% endif %} nav-sub-items"
-        id="sec_conversions">
-        
-        {# Dynamic Admissions / Appointments Done based on Active Business #}
-        {% if active_business %}
-          {% if active_business.industry == 'HOSPITAL' %}
-            <!-- Appointments Done (Hospital Selected) -->
-            <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
-              href="{% url 'leads:appointments_done' %}" title="Appointments Done">
-              <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
-            </a>
-          {% else %}
-            <!-- Admissions Done (Academy Selected) -->
-            <a class="nav-link {% if active == 'admissions' or request.GET.filter == 'admission_today' or request.GET.admission_status == 'ADMISSION_DONE' %}active{% endif %}"
-              href="{% url 'admissions:list' %}" title="Admissions Done">
-              <i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions Done</span>
-            </a>
-          {% endif %}
-        {% else %}
-          {# Both shown when All Businesses / Global view is active #}
-          <a class="nav-link {% if active == 'admissions' or request.GET.filter == 'admission_today' or request.GET.admission_status == 'ADMISSION_DONE' %}active{% endif %}"
-            href="{% url 'admissions:list' %}" title="Admissions Done (Academy)">
-            <i class="fa-solid fa-graduation-cap"></i> <span class="nav-text">Admissions Done</span>
-          </a>
-          <a class="nav-link {% if active == 'appointments' %}active{% endif %}"
-            href="{% url 'leads:appointments_done' %}" title="Appointments Done (Hospital)">
-            <i class="fa-solid fa-calendar-check"></i> <span class="nav-text">Appointments Done</span>
-          </a>
-        {% endif %}
-
-        <!-- Tab: Payments (Payments Done Leads Business-Wise) -->
-        <a class="nav-link {% if active == 'payments' %}active{% endif %}"
-          href="{% url 'leads:payment_done' %}" title="Payments Done">
-          <i class="fa-solid fa-indian-rupee-sign"></i> <span class="nav-text">Payments Done</span>
-        </a>
-      </div>
-    </div>
-
-    <!-- 5. Section: Team Management -->
-    {% if user.can_manage_users %}
-    <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'users user_logs' %}collapsed{% endif %}"
-        type="button" data-bs-toggle="collapse" data-bs-target="#sec_team_mgmt"
-        aria-expanded="{% if active in 'users user_logs' %}true{% else %}false{% endif %}"
-        title="Team Management">
-        <span><i class="fa-solid fa-user-shield section-icon"></i><span class="section-title">Team Management</span></span>
-        <i class="fa-solid fa-chevron-down section-arrow"></i>
-      </button>
-      <div class="collapse {% if active in 'users user_logs' %}show{% endif %} nav-sub-items"
-        id="sec_team_mgmt">
-        <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"
-          title="Users & Approvals"><i class="fa-solid fa-users-gear"></i> <span class="nav-text">Users & Approvals</span></a>
-      </div>
-    </div>
-    {% endif %}
-
-
-
-    <!-- 7. Audits -->
-    {% if request.user.can_manage_users %}
-    <a class="nav-link {% if active == 'audit' %}active{% endif %}" href="{% url 'accounts:audit_log' %}"
-      title="Audits">
-      <i class="fa-solid fa-shield-halved"></i> <span class="nav-text">Audits</span>
-    </a>
-    {% endif %}
-
-    <!-- 8. Notifications -->
-    <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
-      title="Notifications">
-      <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
     </a>
 
     {% elif user.role == 'DOCTOR' %}

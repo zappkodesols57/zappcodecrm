@@ -364,65 +364,141 @@ def campaign_dashboard(request):
     from accounts.models import Hospital
     from leads.models import Lead, LeadStage
 
-    # 1. Identify all active businesses and active selection
-    all_hospitals = list(Hospital.objects.filter(is_active=True).order_by("name"))
-    
-    # Priority: GET param > Session active_business_id > User's hospital
+    # 1. Identify all active businesses
+    all_businesses = list(Hospital.objects.filter(is_active=True).order_by("name"))
+
+    # Determine if current user is Super Admin
+    is_super_admin = getattr(request.user, "is_superuser", False) or getattr(request.user, "role", "") == "SUPER_ADMIN"
+
+    # Active business determination
     req_biz = request.GET.get("business", "").strip()
-    if not req_biz:
+    if not req_biz and not is_super_admin:
         req_biz = str(request.session.get("active_business_id", "")).strip()
 
     active_business = None
     if req_biz and req_biz.isdigit():
         active_business = Hospital.objects.filter(id=int(req_biz), is_active=True).first()
-    elif request.user.hospital:
+    elif not is_super_admin and request.user.hospital:
         active_business = request.user.hospital
+    elif is_super_admin and req_biz:
+        if req_biz == "all":
+            active_business = None
+        elif req_biz.isdigit():
+            active_business = Hospital.objects.filter(id=int(req_biz), is_active=True).first()
 
-    # Determine if current user is Super Admin
-    is_super_admin = getattr(request.user, "is_superuser", False) or getattr(request.user, "role", "") == "SUPER_ADMIN"
+    # Active channel selection: 'all', 'meta', 'justdial', 'practo'
+    active_channel = request.GET.get("channel", "all").strip().lower()
+    if active_channel not in ("all", "meta", "justdial", "practo"):
+        active_channel = "all"
 
-    user_hospital = getattr(request.user, "hospital", None)
-    user_is_nelson = False
-    user_is_academy = False
-    if user_hospital:
-        if getattr(user_hospital, "industry", None) == "HOSPITAL":
-            user_is_nelson = True
-        elif getattr(user_hospital, "industry", None) == "ACADEMY":
-            user_is_academy = True
+    # Date preset calculation: today, last_7d, last_30d, all, custom
+    date_preset = request.GET.get("date_preset", "last_30d").strip().lower()
+    start_date_str = request.GET.get("start_date", "").strip()
+    end_date_str = request.GET.get("end_date", "").strip()
 
-    # If NOT Super Admin, restrict strictly to the user's business
-    if not is_super_admin:
-        if user_is_nelson:
-            selected_entity = "nelson"
-        elif user_is_academy:
-            selected_entity = "academy"
-        else:
-            selected_entity = "nelson"
+    DATE_PRESETS = [
+        ("today", "Today"),
+        ("last_7d", "Last 7 Days"),
+        ("last_30d", "Last 30 Days"),
+        ("all", "All"),
+        ("custom", "Custom"),
+    ]
+
+    now = timezone.now()
+    today_date = now.date()
+    date_filter = Q()
+
+    if date_preset == "today":
+        date_filter = Q(inquiry_date=today_date)
+    elif date_preset == "last_7d":
+        date_filter = Q(inquiry_date__gte=today_date - timezone.timedelta(days=7))
+    elif date_preset == "last_30d":
+        date_filter = Q(inquiry_date__gte=today_date - timezone.timedelta(days=30))
+    elif date_preset == "all":
+        date_filter = Q()
+    elif date_preset == "custom":
+        from datetime import datetime
+        if start_date_str:
+            try:
+                sd = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                date_filter &= Q(inquiry_date__gte=sd)
+            except ValueError:
+                pass
+        if end_date_str:
+            try:
+                ed = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                date_filter &= Q(inquiry_date__lte=ed)
+            except ValueError:
+                pass
     else:
-        # Determine Active Entity Mode for Super Admin: 'nelson' or 'academy'
-        selected_entity = request.GET.get("entity", "").strip().lower()
-        if not selected_entity:
-            if active_business:
-                if getattr(active_business, "industry", None) == "HOSPITAL":
-                    selected_entity = "nelson"
-                else:
-                    selected_entity = "academy"
-            else:
-                selected_entity = "nelson"
+        # Default fallback to last_30d
+        date_preset = "last_30d"
+        date_filter = Q(inquiry_date__gte=today_date - timezone.timedelta(days=30))
 
-    # Nelson sub-channel: 'meta', 'justdial', 'practo'
-    active_channel = request.GET.get("channel", "meta").strip().lower()
-    if active_channel not in ("meta", "justdial", "practo"):
-        active_channel = "meta"
+    # 2. Base Leads Queryset according to business scope
+    leads_base = Lead.objects.filter(is_archived=False)
+    if active_business:
+        leads_base = leads_base.filter(hospital=active_business)
+    elif not is_super_admin and request.user.hospital:
+        leads_base = leads_base.filter(hospital=request.user.hospital)
 
-    # Separate Meta connection resolution per business
-    if selected_entity == "nelson":
-        connection = MetaAdsConnection.objects.filter(is_active=True, name__icontains="Nelson").first()
+    if date_filter:
+        leads_base = leads_base.filter(date_filter)
+
+    # Calculate per-business lead counts for top business pills
+    business_analytics_list = []
+    for biz in all_businesses:
+        b_leads = Lead.objects.filter(hospital=biz, is_archived=False)
+        if date_filter:
+            b_leads = b_leads.filter(date_filter)
+        b_count = b_leads.count()
+        business_analytics_list.append({
+            "business": biz,
+            "id": biz.id,
+            "name": biz.name,
+            "count": b_count,
+        })
+
+    total_all_businesses_count = sum(item["count"] for item in business_analytics_list)
+
+    # Channel-specific sub-queries
+    meta_leads_qs = leads_base.filter(
+        Q(ad_platform="Meta") | Q(lead_source__name__icontains="Meta") | Q(lead_source__name__icontains="Facebook") | Q(custom_data__lead_source__icontains="Meta") | Q(custom_data__lead_source__icontains="Facebook")
+    )
+    justdial_leads_qs = leads_base.filter(
+        Q(ad_platform="Justdial") | Q(lead_source__name__icontains="Justdial") | Q(lead_source__name__icontains="Just Dial") | Q(custom_data__lead_source__icontains="Justdial") | Q(custom_data__lead_source__icontains="Just Dial")
+    )
+    practo_leads_qs = leads_base.filter(
+        Q(ad_platform="Practo") | Q(lead_source__name__icontains="Practo") | Q(custom_data__lead_source__icontains="Practo")
+    )
+
+    channel_meta_count = meta_leads_qs.count()
+    channel_justdial_count = justdial_leads_qs.count()
+    channel_practo_count = practo_leads_qs.count()
+
+    # Active channel leads selection
+    if active_channel == "meta":
+        active_channel_leads = meta_leads_qs
+        channel_name_display = "Meta Ads (Facebook & Instagram)"
+    elif active_channel == "justdial":
+        active_channel_leads = justdial_leads_qs
+        channel_name_display = "Justdial Inquiries"
+    elif active_channel == "practo":
+        active_channel_leads = practo_leads_qs
+        channel_name_display = "Practo Consultations"
     else:
-        connection = MetaAdsConnection.objects.filter(is_active=True, name__icontains="Zappcode").first()
+        active_channel_leads = leads_base
+        channel_name_display = "All Marketing Channels"
+
+    # Meta API Connection for active business or global default
+    if active_business:
+        connection = MetaAdsConnection.objects.filter(is_active=True, hospital=active_business).first()
         if not connection:
-            connection = MetaAdsConnection.objects.filter(is_active=True).first()
+            connection = MetaAdsConnection.objects.filter(is_active=True, name__icontains=active_business.name).first()
+    else:
+        connection = MetaAdsConnection.objects.filter(is_active=True).first()
 
+    # Campaign stats & Insights
     campaigns = []
     total_spend = 0
     total_leads = 0
@@ -430,21 +506,12 @@ def campaign_dashboard(request):
     total_impressions = 0
     error = None
 
-    date_preset = request.GET.get("date_preset", "last_30d")
-    DATE_PRESETS = [
-        ("today", "Today"),
-        ("yesterday", "Yesterday"),
-        ("last_7d", "Last 7 Days"),
-        ("last_30d", "Last 30 Days"),
-        ("this_month", "This Month"),
-        ("last_month", "Last Month"),
-    ]
-
     if connection and connection.page_access_token:
         campaigns = get_campaign_insights(connection.page_access_token, connection.ad_account_id, date_preset)
         if campaigns:
             for c in campaigns:
                 MetaCampaignStat.objects.update_or_create(
+                    hospital=connection.hospital,
                     campaign_id=c["campaign_id"],
                     date_preset=date_preset,
                     defaults={
@@ -458,6 +525,8 @@ def campaign_dashboard(request):
                 )
         else:
             db_stats = MetaCampaignStat.objects.filter(date_preset=date_preset)
+            if active_business:
+                db_stats = db_stats.filter(hospital=active_business)
             campaigns = [
                 {
                     "campaign_id": s.campaign_id,
@@ -473,92 +542,14 @@ def campaign_dashboard(request):
                 }
                 for s in db_stats
             ]
-            if not campaigns and selected_entity != "nelson":
-                error = "Could not connect to Meta Ads API. Showing cached data."
 
         total_spend = sum(c.get("spend", 0) for c in campaigns)
         total_leads = sum(c.get("leads_count", 0) for c in campaigns)
         total_clicks = sum(c.get("clicks", 0) for c in campaigns)
         total_impressions = sum(c.get("impressions", 0) for c in campaigns)
 
-    # Date filter logic for leads (using actual lead generation date `inquiry_date` from master/campaign data)
-    now = timezone.now()
-    today_date = now.date()
-    
-    date_filter = Q()
-    if date_preset == "today":
-        date_filter = Q(inquiry_date=today_date)
-    elif date_preset == "yesterday":
-        yest_date = today_date - timezone.timedelta(days=1)
-        date_filter = Q(inquiry_date=yest_date)
-    elif date_preset == "last_7d":
-        date_filter = Q(inquiry_date__gte=today_date - timezone.timedelta(days=7))
-    elif date_preset == "last_30d":
-        date_filter = Q(inquiry_date__gte=today_date - timezone.timedelta(days=30))
-    elif date_preset == "this_month":
-        month_start_date = today_date.replace(day=1)
-        date_filter = Q(inquiry_date__gte=month_start_date)
-    elif date_preset == "last_month":
-        first_of_this_month = today_date.replace(day=1)
-        last_month_end = first_of_this_month - timezone.timedelta(days=1)
-        last_month_start = last_month_end.replace(day=1)
-        date_filter = Q(inquiry_date__gte=last_month_start, inquiry_date__lte=last_month_end)
-
-    # 2. Build Querysets for Nelson vs Academy and Channels
-    nelson_hosp = Hospital.objects.filter(name__icontains="Nelson").first()
-    academy_hosp = Hospital.objects.filter(name__icontains="Zappcode").first()
-
-    # Nelson Meta Leads — Strictly Meta Ads Leads for Nelson
-    nelson_meta_leads_qs = Lead.objects.filter(is_archived=False).filter(
-        Q(hospital=nelson_hosp) | Q(custom_data__hospital_branch__icontains="Nelson")
-    ).filter(
-        Q(ad_platform="Meta") | Q(lead_source__name__icontains="Meta") | Q(lead_source__name__icontains="Facebook")
-    )
-    if date_filter:
-        nelson_meta_leads_qs = nelson_meta_leads_qs.filter(date_filter)
-
-    # Nelson Justdial Leads
-    nelson_justdial_leads_qs = Lead.objects.filter(is_archived=False).filter(
-        Q(hospital=nelson_hosp) | Q(custom_data__hospital_branch__icontains="Nelson")
-    ).filter(
-        Q(ad_platform="Justdial") | Q(lead_source__name__icontains="Just Dial") | Q(lead_source__name__icontains="Justdial") | Q(custom_data__lead_source__icontains="Just Dial")
-    )
-    if date_filter:
-        nelson_justdial_leads_qs = nelson_justdial_leads_qs.filter(date_filter)
-
-    # Nelson Practo Leads
-    nelson_practo_leads_qs = Lead.objects.filter(is_archived=False).filter(
-        Q(hospital=nelson_hosp) | Q(custom_data__hospital_branch__icontains="Nelson")
-    ).filter(
-        Q(ad_platform="Practo") | Q(lead_source__name__icontains="Practo") | Q(custom_data__lead_source__icontains="Practo")
-    )
-    if date_filter:
-        nelson_practo_leads_qs = nelson_practo_leads_qs.filter(date_filter)
-
-    # Zappcode Academy Leads — Strictly Meta API Ingested Leads for Zappcode Academy
-    academy_leads_qs = Lead.objects.filter(is_archived=False).filter(
-        Q(hospital=academy_hosp) | Q(custom_data__hospital_branch__icontains="Zappcode")
-    ).filter(ad_platform="Meta")
-    if date_filter:
-        academy_leads_qs = academy_leads_qs.filter(date_filter)
-
-    # Pick active list of leads based on selected entity & channel
-    if selected_entity == "nelson":
-        if active_channel == "justdial":
-            active_channel_leads = nelson_justdial_leads_qs
-            channel_name_display = "Justdial Health Inquiries"
-        elif active_channel == "practo":
-            active_channel_leads = nelson_practo_leads_qs
-            channel_name_display = "Practo Doctor Consultations"
-        else:
-            active_channel_leads = nelson_meta_leads_qs
-            channel_name_display = "Nelson Meta Ads (Facebook & Instagram)"
-    else:
-        active_channel_leads = academy_leads_qs
-        channel_name_display = "Zappcode Academy Meta Ads"
-
-    # Recent Leads for Table (Ordered by lead inquiry_date and id, scrollable feed)
-    recent_channel_leads = active_channel_leads.select_related("stage", "assigned_to", "course", "lead_source").order_by("-inquiry_date", "-id")[:50]
+    # Lead Table Feed
+    recent_channel_leads = active_channel_leads.select_related("stage", "assigned_to", "course", "lead_source", "hospital").order_by("-inquiry_date", "-id")[:60]
 
     # Funnel Stats
     stages = LeadStage.objects.filter(is_active=True).order_by("order")
@@ -567,18 +558,17 @@ def campaign_dashboard(request):
         for s in stages
     ]
 
-    # Metric counts for cards
+    # Metrics for Top KPI Cards
     channel_total_count = active_channel_leads.count()
     channel_converted_count = active_channel_leads.filter(
         Q(deal_status="WON") | Q(admission_status="ADMISSION_DONE") | Q(stage__name__icontains="Admission") | Q(stage__name__icontains="Payment") | Q(stage__name__icontains="Converted")
     ).count()
     channel_conv_rate = round((channel_converted_count / channel_total_count * 100), 1) if channel_total_count else 0.0
 
-    # Lead Volume Chart Timeline Calculation (Using actual inquiry_date)
+    # Lead Volume Chart Timeline (Day-by-day)
     chart_labels = []
     chart_values = []
     if date_preset == "today":
-        # Today hourly breakdown (if leads have timestamp) or daily comparison
         today_leads = active_channel_leads.filter(inquiry_date=today_date)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timezone.timedelta(days=1)
@@ -588,7 +578,6 @@ def campaign_dashboard(request):
             h_end = today_start.replace(hour=h+2) if h < 20 else today_end
             chart_values.append(today_leads.filter(created_at__gte=h_start, created_at__lt=h_end).count())
     else:
-        # Day-by-day breakdown of generated leads
         days_count = 7 if date_preset in ("last_7d", "yesterday") else 14
         for i in range(days_count - 1, -1, -1):
             target_date = today_date - timezone.timedelta(days=i)
@@ -601,11 +590,10 @@ def campaign_dashboard(request):
     return render(request, "meta_ads/campaign_dashboard.html", {
         "active": "meta_ads",
         "is_super_admin": is_super_admin,
-        "user_is_nelson": user_is_nelson,
-        "user_is_academy": user_is_academy,
-        "all_hospitals": all_hospitals,
+        "all_businesses": all_businesses,
+        "business_analytics_list": business_analytics_list,
+        "total_all_businesses_count": total_all_businesses_count,
         "active_business": active_business,
-        "selected_entity": selected_entity,
         "active_channel": active_channel,
         "channel_name_display": channel_name_display,
         "connection": connection,
@@ -615,10 +603,9 @@ def campaign_dashboard(request):
         "channel_total_count": channel_total_count,
         "channel_converted_count": channel_converted_count,
         "channel_conv_rate": channel_conv_rate,
-        "nelson_meta_count": nelson_meta_leads_qs.count(),
-        "nelson_justdial_count": nelson_justdial_leads_qs.count(),
-        "nelson_practo_count": nelson_practo_leads_qs.count(),
-        "academy_leads_count": academy_leads_qs.count(),
+        "channel_meta_count": channel_meta_count,
+        "channel_justdial_count": channel_justdial_count,
+        "channel_practo_count": channel_practo_count,
         "total_spend": total_spend,
         "total_leads": total_leads,
         "total_clicks": total_clicks,
@@ -629,6 +616,9 @@ def campaign_dashboard(request):
         "chart_values_json": json.dumps(chart_values),
         "date_preset": date_preset,
         "date_presets": DATE_PRESETS,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+        "today_date": today_date.strftime("%Y-%m-%d"),
         "error": error,
     })
 
