@@ -8142,8 +8142,31 @@ def bulk_lead_transfer(request):
         ).order_by("first_name", "username")
         courses_qs = Course.objects.filter(is_active=True).order_by("name")
 
-    # LeadStage is global across tenant types
-    stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+    # LeadStage filtered by active business/tenant to prevent duplicate stages across businesses
+    if active_hospital:
+        stages_qs = LeadStage.objects.filter(
+            is_active=True,
+            hospital=active_hospital
+        ).order_by("order", "name")
+        if not stages_qs.exists():
+            is_hosp = "hospital" in active_hospital.name.lower()
+            stages_qs = LeadStage.objects.filter(
+                is_active=True,
+                business_type__in=[
+                    LeadStage.BusinessType.HOSPITAL if is_hosp else LeadStage.BusinessType.ACADEMY,
+                    LeadStage.BusinessType.ALL
+                ]
+            ).order_by("order", "name")
+    else:
+        # Default Zappcode Academy stages
+        academy_hosp = Hospital.objects.filter(name__icontains="Academy").first()
+        if academy_hosp:
+            stages_qs = LeadStage.objects.filter(is_active=True, hospital=academy_hosp).order_by("order", "name")
+        else:
+            stages_qs = LeadStage.objects.filter(
+                is_active=True,
+                business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]
+            ).order_by("order", "name")
 
 
     # Helper function to query matching leads based on source user and filter params
