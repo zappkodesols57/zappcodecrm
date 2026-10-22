@@ -3420,11 +3420,11 @@
                     <div class="row g-2 mb-2.5">
                         <div class="col-6">
                             <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">DATE *</label>
-                            <input type="date" id="qfuDate" class="form-control form-control-sm" required style="font-size: 0.82rem;">
+                            <input type="date" id="qfuDate" class="form-control form-control-sm" min="{% now 'Y-m-d' %}" max="2099-12-31" required style="font-size: 0.82rem;">
                         </div>
                         <div class="col-6">
-                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">TIME</label>
-                            <input type="time" id="qfuTime" class="form-control form-control-sm" style="font-size: 0.82rem;">
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">TIME (24H)</label>
+                            <input type="text" id="qfuTime" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" style="font-size: 0.82rem;">
                         </div>
                     </div>
                     <div class="mb-2.5">

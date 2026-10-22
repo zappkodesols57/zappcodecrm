@@ -696,11 +696,11 @@
           <div class="row g-2 mb-2">
             <div class="col-6">
               <label class="form-label text-muted small fw-bold mb-1">Follow-up Date *</label>
-              <input type="date" id="qfuDate" class="form-control form-control-sm" required>
+              <input type="date" id="qfuDate" class="form-control form-control-sm" min="{% now 'Y-m-d' %}" max="2099-12-31" required>
             </div>
             <div class="col-6">
-              <label class="form-label text-muted small fw-bold mb-1">Time Slot</label>
-              <input type="time" id="qfuTime" class="form-control form-control-sm">
+              <label class="form-label text-muted small fw-bold mb-1">Time Slot (24h)</label>
+              <input type="text" id="qfuTime" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
             </div>
           </div>
           <div class="mb-2">

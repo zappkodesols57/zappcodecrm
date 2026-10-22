@@ -1527,7 +1527,7 @@ def user_profile(request):
             for field in password_form.fields.values():
                 field.widget.attrs.update({
                     'class': 'form-control',
-                    'placeholder': '••••••••'
+                    'placeholder': ''
                 })
             if password_form.is_valid():
                 user = password_form.save()
@@ -1542,7 +1542,7 @@ def user_profile(request):
         for field in password_form.fields.values():
             field.widget.attrs.update({
                 'class': 'form-control',
-                'placeholder': '••••••••'
+                'placeholder': ''
             })
 
     return render(request, 'accounts/profile.html', {

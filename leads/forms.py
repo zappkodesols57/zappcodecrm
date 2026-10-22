@@ -47,6 +47,16 @@ class LeadForm(forms.ModelForm):
                 "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
                 "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
             }),
+            "graduation_year": forms.TextInput(attrs={
+                "class": "form-control",
+                "maxlength": "4",
+                "minlength": "4",
+                "pattern": r"^(19|20)\d{2}$",
+                "inputmode": "numeric",
+                "placeholder": "YYYY (e.g. 2024)",
+                "title": "Please enter a valid 4-digit year (e.g. 2024)",
+                "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)",
+            }),
             "notes": forms.Textarea(attrs={"rows": 3}),
             "referral_notes": forms.Textarea(attrs={"rows": 2}),
             "tags": forms.SelectMultiple(),
@@ -325,6 +335,76 @@ class LeadForm(forms.ModelForm):
                 raise forms.ValidationError("Alternate mobile number must be exactly 10 digits.")
             return digits
         return alt
+
+    def clean_graduation_year(self):
+        year_val = self.cleaned_data.get("graduation_year")
+        if year_val is not None and str(year_val).strip() != "":
+            raw_str = str(year_val).strip()
+            digits = re.sub(r"\D", "", raw_str)
+            if not digits:
+                return None
+            if len(digits) != 4:
+                raise forms.ValidationError("Passing year must be a valid 4-digit year (e.g. 2024).")
+            year_int = int(digits)
+            current_year = timezone.now().year
+            # Reasonable range: 1980 to next 10 years
+            if year_int < 1980 or year_int > current_year + 10:
+                raise forms.ValidationError(f"Please enter a valid passing year between 1980 and {current_year + 10}.")
+            return year_int
+        return year_val
+
+    def clean_next_followup_date(self):
+        fup_date = self.cleaned_data.get("next_followup_date")
+        if fup_date:
+            today = timezone.localdate()
+            if fup_date < today:
+                raise forms.ValidationError("Follow-up date cannot be in the past. Please select today or a future date.")
+            if fup_date.year > today.year + 2:
+                raise forms.ValidationError(f"Invalid follow-up year ({fup_date.year}). Please select a realistic upcoming date.")
+        return fup_date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        today = timezone.localdate()
+        max_year = today.year + 2
+
+        # Validate custom_followup_date from form POST
+        custom_fup = self.data.get("custom_followup_date")
+        if custom_fup and str(custom_fup).strip():
+            try:
+                fup_d = datetime.strptime(str(custom_fup).strip(), "%Y-%m-%d").date()
+                if fup_d < today:
+                    self.add_error(None, "Follow-up date cannot be in the past. Please select today or a future date.")
+                elif fup_d.year > max_year:
+                    self.add_error(None, f"Invalid follow-up year ({fup_d.year}). Follow-up date must be within 2 years (up to {max_year}).")
+            except ValueError:
+                self.add_error(None, "Invalid follow-up date format.")
+
+        # Validate custom_visit_date
+        custom_visit = self.data.get("custom_visit_date")
+        if custom_visit and str(custom_visit).strip():
+            try:
+                visit_d = datetime.strptime(str(custom_visit).strip(), "%Y-%m-%d").date()
+                if visit_d < today:
+                    self.add_error(None, "Visit date cannot be in the past. Please select today or a future date.")
+                elif visit_d.year > max_year:
+                    self.add_error(None, f"Invalid visit year ({visit_d.year}). Visit date must be within 2 years (up to {max_year}).")
+            except ValueError:
+                self.add_error(None, "Invalid visit date format.")
+
+        # Validate custom_admission_date
+        custom_adm = self.data.get("custom_admission_date")
+        if custom_adm and str(custom_adm).strip():
+            try:
+                adm_d = datetime.strptime(str(custom_adm).strip(), "%Y-%m-%d").date()
+                if adm_d < today:
+                    self.add_error(None, "Admission expected date cannot be in the past. Please select today or a future date.")
+                elif adm_d.year > max_year:
+                    self.add_error(None, f"Invalid admission year ({adm_d.year}). Date must be within 2 years (up to {max_year}).")
+            except ValueError:
+                self.add_error(None, "Invalid admission date format.")
+
+        return cleaned_data
 
     def clean_tags(self):
         """Allows users to enter new tag strings directly and automatically creates Tag instances."""

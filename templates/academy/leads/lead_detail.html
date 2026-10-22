@@ -474,17 +474,17 @@
 
           <!-- Financial Breakdown Ledger -->
           <div class="p-3 bg-light rounded-3 border">
-            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-              <span class="text-muted small">Token / Paid Today</span>
-              <strong class="text-primary">₹{% if lead.custom_data.token_amount %}{{ lead.custom_data.token_amount|floatformat:0 }}{% elif admission %}{{ admission.collected|floatformat:0 }}{% else %}0{% endif %}</strong>
+            <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom">
+              <span class="text-muted small">Total Fee (After Discount)</span>
+              <strong class="text-dark fs-6">₹{% if admission %}{{ admission.final_fee|floatformat:0 }}{% elif lead.custom_data.final_fee %}{{ lead.custom_data.final_fee|floatformat:0 }}{% else %}{{ lead.custom_data.total|default:0|floatformat:0 }}{% endif %}</strong>
             </div>
-            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
-              <span class="text-muted small">Total Fee Collected</span>
-              <strong class="text-success">₹{% if admission %}{{ admission.collected|default:lead.custom_data.total_paid|default:0|floatformat:0 }}{% else %}{{ lead.custom_data.total_paid|default:0|floatformat:0 }}{% endif %}</strong>
+            <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom">
+              <span class="text-muted small">Paid Amount</span>
+              <strong class="text-success fs-6">₹{% if admission and admission.collected > 0 %}{{ admission.collected|floatformat:0 }}{% elif lead.custom_data.total_paid %}{{ lead.custom_data.total_paid|floatformat:0 }}{% elif lead.custom_data.token_amount %}{{ lead.custom_data.token_amount|floatformat:0 }}{% else %}0{% endif %}</strong>
             </div>
-            <div class="d-flex justify-content-between align-items-center py-1">
-              <span class="text-muted small">Pending Balance</span>
-              <strong class="text-danger">₹{% if admission %}{{ admission.pending|default:lead.custom_data.balance_amount|default:0|floatformat:0 }}{% else %}{{ lead.custom_data.balance_amount|default:0|floatformat:0 }}{% endif %}</strong>
+            <div class="d-flex justify-content-between align-items-center py-1.5">
+              <span class="text-muted small">Pending Amount</span>
+              <strong class="text-danger fs-6">₹{% if admission %}{{ admission.pending|floatformat:0 }}{% elif lead.custom_data.balance_amount %}{{ lead.custom_data.balance_amount|floatformat:0 }}{% else %}0{% endif %}</strong>
             </div>
           </div>
 
@@ -542,6 +542,44 @@
                 </div>
               </div>
             </form>
+          </div>
+          {% endif %}
+
+          <!-- Payment Transactions History -->
+          {% if admission and admission.payments.all %}
+          <div class="mt-3 pt-3 border-top">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="crm-label text-muted mb-0" style="font-size: 0.72rem; text-transform: uppercase;">Payment Transaction History</span>
+              <span class="badge bg-light text-secondary border">{{ admission.payments.count }} Recorded</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle table-borderless mb-0" style="font-size: 0.8rem;">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-2 py-1 text-muted fw-semibold">Date</th>
+                    <th class="py-1 text-muted fw-semibold">Amount</th>
+                    <th class="py-1 text-muted fw-semibold">Mode</th>
+                    <th class="py-1 text-muted fw-semibold">Reference</th>
+                    <th class="pe-2 py-1 text-muted fw-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in admission.payments.all %}
+                  <tr class="border-bottom">
+                    <td class="ps-2 py-2">{{ p.payment_date|date:"d M Y" }}</td>
+                    <td class="py-2 fw-bold text-success">₹{{ p.amount|floatformat:0 }}</td>
+                    <td class="py-2"><span class="badge bg-light text-dark border">{{ p.get_payment_mode_display }}</span></td>
+                    <td class="py-2 text-muted">{{ p.transaction_reference|default:p.remarks|default:"—" }}</td>
+                    <td class="pe-2 py-2">
+                      <span class="badge {% if p.payment_status == 'SUCCESS' %}bg-success-subtle text-success{% else %}bg-warning-subtle text-warning{% endif %}">
+                        {{ p.get_payment_status_display }}
+                      </span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
           {% endif %}
         </div>
@@ -754,8 +792,8 @@
                   <input type="date" name="followup_date" id="timeline_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required style="font-size: 0.8rem;">
                 </div>
                 <div class="col-4">
-                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time</label>
-                  <input type="time" name="followup_time" id="timeline_fu_time" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time (24h)</label>
+                  <input type="text" name="followup_time" id="timeline_fu_time" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" style="font-size: 0.8rem;">
                 </div>
                 <div class="col-4">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Status</label>
@@ -1053,8 +1091,8 @@
               <input type="date" name="next_followup_date" id="zappReschedDate{{ fu.id }}" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
             </div>
             <div class="col-5">
-              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
-              <input type="time" name="next_followup_time" class="form-control form-control-sm">
+              <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Time (24h)</label>
+              <input type="text" name="next_followup_time" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
             </div>
           </div>
 

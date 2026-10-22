@@ -19,6 +19,21 @@
       display: none;
     }
 
+    /* Prevent Bootstrap is-invalid warning icon from overlapping with native date & time picker icons */
+    input[type="date"].is-invalid,
+    input[type="time"].is-invalid,
+    input[type="datetime-local"].is-invalid,
+    input.time-mask-input.is-invalid {
+      background-position: right 2.25rem center !important;
+      padding-right: 3.5rem !important;
+    }
+
+    /* Smart Time Input (Clean 24hr HH:MM formatting without scroll wheel popup) */
+    .time-mask-input {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em;
+    }
+
     :root {
       --sidebar-w: 265px;
       --sidebar-collapsed-w: 70px;
@@ -1206,6 +1221,84 @@
           }
         }
       });
+
+      // 4. Global Smart Time Masking (Option A: Auto-formats HH:MM, validates 00-23 hrs and 00-59 mins)
+      document.addEventListener('input', function(e) {
+        if (!e.target.matches('.time-mask-input')) return;
+        const input = e.target;
+        let v = input.value.replace(/[^0-9]/g, ''); // strip non-digits
+
+        if (v.length === 0) {
+          input.value = '';
+          input.setCustomValidity('');
+          return;
+        }
+
+        // Limit to 4 raw digits
+        if (v.length > 4) v = v.substring(0, 4);
+
+        let h = v.substring(0, 2);
+        let m = v.substring(2, 4);
+
+        // Validate hours (00 - 23)
+        if (h.length === 2) {
+          let numH = parseInt(h, 10);
+          if (numH > 23) h = '23';
+        } else if (h.length === 1 && parseInt(h, 10) > 2) {
+          // If user types '3' to '9' as first digit, auto-prefix with 0 (e.g. '03:')
+          h = '0' + h;
+        }
+
+        // Validate minutes (00 - 59)
+        if (m.length > 0) {
+          if (m.length === 1 && parseInt(m, 10) > 5) {
+            m = '5';
+          } else if (m.length === 2) {
+            let numM = parseInt(m, 10);
+            if (numM > 59) m = '59';
+          }
+        }
+
+        if (v.length <= 2 && !h.startsWith('0') && parseInt(h, 10) <= 2) {
+          input.value = h;
+        } else if (m.length > 0) {
+          input.value = h + ':' + m;
+        } else if (h.length === 2) {
+          input.value = h + ':';
+        } else {
+          input.value = h;
+        }
+
+        if (input.value.length === 5) {
+          input.setCustomValidity('');
+          input.classList.remove('is-invalid');
+        }
+      });
+
+      document.addEventListener('blur', function(e) {
+        if (!e.target.matches('.time-mask-input')) return;
+        const input = e.target;
+        let v = input.value.trim();
+        if (!v) {
+          input.setCustomValidity('');
+          input.classList.remove('is-invalid');
+          return;
+        }
+        // Normalize formats like "9" -> "09:00", "9:3" -> "09:30", "14" -> "14:00"
+        let parts = v.split(':');
+        let h = parseInt(parts[0], 10);
+        let m = parts.length > 1 && parts[1] !== '' ? parseInt(parts[1], 10) : 0;
+
+        if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
+          input.setCustomValidity('Please enter a valid time (00:00 to 23:59)');
+          input.classList.add('is-invalid');
+          return;
+        }
+        input.setCustomValidity('');
+        input.classList.remove('is-invalid');
+        input.value = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }, true);
     });
   </script>
 

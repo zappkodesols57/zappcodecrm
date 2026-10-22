@@ -26,8 +26,8 @@
               <input type="date" name="new_date" class="form-control" value="{{ apt.appointment_date|date:'Y-m-d' }}" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label small fw-bold text-dark mb-1">New Time <span class="text-danger">*</span></label>
-              <input type="time" name="new_time" class="form-control" value="{{ apt.appointment_time|time:'H:i' }}" required>
+              <label class="form-label small fw-bold text-dark mb-1">New Time (24h) <span class="text-danger">*</span></label>
+              <input type="text" name="new_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" value="{{ apt.appointment_time|time:'H:i' }}" required>
             </div>
           </div>
 

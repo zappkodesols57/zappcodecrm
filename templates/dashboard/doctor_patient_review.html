@@ -181,8 +181,8 @@
               <input type="date" name="new_date" id="inputNewDate" class="form-control" value="{{ current_date_ymd }}" min="{{ today_ymd }}" onchange="handleSlotInputChange(); fetchDoctorCalendarSlots();">
             </div>
             <div class="col-md-6">
-              <label class="form-label small fw-bold text-dark">New Appointment Time / Slot <span class="text-danger">*</span></label>
-              <input type="time" name="new_time" id="inputNewTime" class="form-control" value="{{ current_time_hi }}" onchange="handleSlotInputChange(); highlightSelectedTimeSlot(this.value);">
+              <label class="form-label small fw-bold text-dark">New Appointment Time / Slot (24h) <span class="text-danger">*</span></label>
+              <input type="text" name="new_time" id="inputNewTime" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" value="{{ current_time_hi }}" onchange="handleSlotInputChange(); highlightSelectedTimeSlot(this.value);">
             </div>
 
             <!-- Doctor Calendar Status & Available Slots Grid -->

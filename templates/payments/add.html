@@ -1,24 +1,264 @@
 {% extends "base.html" %}
-{% block title %}Record Payment{% endblock %}
+{% block title %}Record Payment — {{ admission.student_name }}{% endblock %}
+
 {% block content %}
-<h4 class="mb-3">Record Payment — {{ admission.student_name }}</h4>
-<div class="card" style="max-width:480px;">
-  <div class="card-body">
-    <div class="small text-muted mb-3">Final Fee: ₹{{ admission.final_fee }} · Pending: ₹{{ admission.pending }}</div>
-    <form method="post">
-      {% csrf_token %}
-      <div class="mb-2"><label class="form-label small">Amount</label><input type="number" step="0.01" name="amount" class="form-control" required></div>
-      <div class="mb-2"><label class="form-label small">Payment Date</label><input type="date" name="payment_date" class="form-control"></div>
-      <div class="mb-2"><label class="form-label small">Mode</label>
-        <select name="payment_mode" class="form-select">
-          <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="CARD">Card</option>
-          <option value="NETBANKING">Net Banking</option><option value="CHEQUE">Cheque</option><option value="OTHER">Other</option>
-        </select>
+<style>
+  .payment-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+    background: #ffffff;
+  }
+  .payment-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border-radius: 11px 11px 0 0;
+    padding: 1.25rem 1.5rem;
+  }
+  .stat-badge-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    transition: all 0.2s ease;
+  }
+  .stat-badge-box:hover {
+    background: #f1f5f9;
+  }
+  .crm-input-group {
+    position: relative;
+  }
+  .crm-currency-symbol {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 600;
+    color: #64748b;
+    pointer-events: none;
+    font-size: 0.95rem;
+  }
+  .form-control-currency {
+    padding-left: 28px !important;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #0f172a;
+  }
+  .validation-hint {
+    font-size: 0.78rem;
+    display: none;
+    margin-top: 4px;
+  }
+  .validation-hint.active {
+    display: block;
+  }
+</style>
+
+<div class="container py-3" style="max-width: 680px;">
+  <!-- Breadcrumb & Top Bar -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <a href="{% url 'leads:lead_detail' admission.lead_id %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+      <i class="fa-solid fa-arrow-left"></i> Back to Lead
+    </a>
+    <span class="badge bg-light text-secondary border">Student ID: {{ admission.lead.lead_code|default:admission.lead_id }}</span>
+  </div>
+
+  <div class="card payment-card">
+    <!-- Header -->
+    <div class="payment-header d-flex align-items-center justify-content-between">
+      <div>
+        <div class="text-uppercase small fw-semibold" style="letter-spacing: 0.8px; color: #94a3b8; font-size: 0.72rem;">Payment Collection</div>
+        <h5 class="mb-0 fw-bold text-white d-flex align-items-center gap-2">
+          <span>Record Payment</span>
+          <span class="text-secondary fw-normal">|</span>
+          <span class="fw-semibold" style="color: #38bdf8;">{{ admission.student_name }}</span>
+        </h5>
       </div>
-      <div class="mb-2"><label class="form-label small">Transaction Reference</label><input type="text" name="transaction_reference" class="form-control"></div>
-      <div class="mb-2"><label class="form-label small">Remarks</label><input type="text" name="remarks" class="form-control"></div>
-      <button class="btn btn-brand text-white">Save Payment</button>
-    </form>
+      <div class="text-end">
+        <span class="badge bg-primary bg-opacity-25 text-white border border-primary-subtle px-2 py-1" style="font-size: 0.75rem;">
+          {{ admission.course.name|default:admission.course }}
+        </span>
+      </div>
+    </div>
+
+    <div class="card-body p-4">
+      <!-- Financial Summary Cards -->
+      <div class="row g-2 mb-4">
+        <div class="col-4">
+          <div class="stat-badge-box text-center">
+            <div class="text-muted small" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Total Fee</div>
+            <div class="fw-bold text-dark fs-6 mt-0.5">₹{{ admission.final_fee|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-badge-box text-center">
+            <div class="text-muted small" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Paid Amount</div>
+            <div class="fw-bold text-success fs-6 mt-0.5">₹{{ admission.collected|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-badge-box text-center" style="background: #fef2f2; border-color: #fee2e2;">
+            <div class="text-danger small" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700;">Pending Amount</div>
+            <div class="fw-bold text-danger fs-6 mt-0.5" id="displayPendingAmount">₹{{ pending_amount|floatformat:0 }}</div>
+          </div>
+        </div>
+      </div>
+
+      {% if pending_amount <= 0 %}
+      <div class="alert alert-success d-flex align-items-center gap-2 p-3 mb-3 rounded-3">
+        <i class="fa-solid fa-circle-check fs-5"></i>
+        <div>
+          <div class="fw-bold">Full Payment Completed</div>
+          <div class="small">This admission has zero pending amount. No further payment collection required.</div>
+        </div>
+      </div>
+      <div class="text-end">
+        <a href="{% url 'leads:lead_detail' admission.lead_id %}" class="btn btn-outline-secondary">Go Back to Lead Details</a>
+      </div>
+      {% else %}
+
+      <form method="post" id="recordPaymentForm" novalidate>
+        {% csrf_token %}
+
+        <!-- Amount & Quick Fill Buttons -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label small fw-bold text-dark mb-0">Payment Amount <span class="text-danger">*</span></label>
+            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold" id="fillFullPendingBtn" style="font-size: 0.78rem;">
+              Pay Full Pending (₹{{ pending_amount|floatformat:0 }})
+            </button>
+          </div>
+          <div class="crm-input-group">
+            <span class="crm-currency-symbol">₹</span>
+            <input 
+              type="number" 
+              step="0.01" 
+              name="amount" 
+              id="paymentAmountInput"
+              class="form-control form-control-currency" 
+              placeholder="0.00"
+              min="1" 
+              max="{{ pending_amount }}" 
+              required
+              autocomplete="off"
+            >
+          </div>
+          <div class="validation-hint text-danger" id="amountErrorMsg">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i> Amount cannot exceed pending amount of ₹{{ pending_amount|floatformat:0 }}
+          </div>
+          <div class="validation-hint text-success" id="remainingCalculatedMsg">
+            <i class="fa-solid fa-check-circle me-1"></i> Remaining Pending Amount after this payment: <strong id="calculatedBalance">₹0</strong>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <!-- Payment Date -->
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold text-secondary">Payment Date <span class="text-danger">*</span></label>
+            <input type="date" name="payment_date" id="payment_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+          </div>
+
+          <!-- Payment Mode -->
+          <div class="col-12 col-sm-6">
+            <label class="form-label small fw-semibold text-secondary">Payment Mode <span class="text-danger">*</span></label>
+            <select name="payment_mode" class="form-select" required>
+              <option value="UPI" selected>UPI / GooglePay / PhonePe</option>
+              <option value="CASH">Cash</option>
+              <option value="CARD">Debit / Credit Card</option>
+              <option value="NETBANKING">Net Banking / NEFT / IMPS</option>
+              <option value="CHEQUE">Cheque / Demand Draft</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Transaction Reference -->
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Transaction Reference / UTR Number</label>
+          <input type="text" name="transaction_reference" class="form-control" placeholder="e.g. UPI Ref / Cheque No / Bank Trans ID">
+        </div>
+
+        <!-- Remarks -->
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Payment Remarks / Notes</label>
+          <input type="text" name="remarks" class="form-control" placeholder="e.g. 2nd Installment / Course fee instalment">
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+          <a href="{% url 'leads:lead_detail' admission.lead_id %}" class="btn btn-outline-secondary px-3">
+            Cancel
+          </a>
+          <button type="submit" id="savePaymentBtn" class="btn btn-primary px-4 fw-semibold d-inline-flex align-items-center gap-2">
+            <i class="fa-solid fa-lock"></i> Save Payment
+          </button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const amountInput = document.getElementById("paymentAmountInput");
+    const errorMsg = document.getElementById("amountErrorMsg");
+    const balanceMsg = document.getElementById("remainingCalculatedMsg");
+    const calculatedBalance = document.getElementById("calculatedBalance");
+    const saveBtn = document.getElementById("savePaymentBtn");
+    const fillFullBtn = document.getElementById("fillFullPendingBtn");
+    const form = document.getElementById("recordPaymentForm");
+
+    const maxPending = parseFloat("{{ pending_amount|default:0 }}");
+
+    function validateAmount() {
+      if (!amountInput) return true;
+      const val = parseFloat(amountInput.value);
+
+      if (isNaN(val) || val <= 0) {
+        errorMsg.textContent = "Payment amount must be greater than zero.";
+        errorMsg.classList.remove("active");
+        balanceMsg.classList.remove("active");
+        if (saveBtn) saveBtn.disabled = false;
+        return false;
+      }
+
+      if (val > maxPending) {
+        errorMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Amount cannot exceed pending amount of ₹' + Math.round(maxPending).toLocaleString();
+        errorMsg.classList.add("active");
+        balanceMsg.classList.remove("active");
+        if (saveBtn) saveBtn.disabled = true;
+        return false;
+      }
+
+      // Valid
+      errorMsg.classList.remove("active");
+      const rem = Math.max(0, maxPending - val);
+      calculatedBalance.textContent = "₹" + Math.round(rem).toLocaleString();
+      balanceMsg.classList.add("active");
+      if (saveBtn) saveBtn.disabled = false;
+      return true;
+    }
+
+    if (amountInput) {
+      amountInput.addEventListener("input", validateAmount);
+    }
+
+    if (fillFullBtn && amountInput) {
+      fillFullBtn.addEventListener("click", function () {
+        amountInput.value = Math.round(maxPending);
+        validateAmount();
+      });
+    }
+
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        if (!validateAmount()) {
+          e.preventDefault();
+          alert("Please enter a valid amount less than or equal to the Pending Amount (₹" + Math.round(maxPending).toLocaleString() + ").");
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

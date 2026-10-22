@@ -827,12 +827,12 @@
 
                     <div class="row g-3 mb-3">
                       <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">OPD Start Time <span class="text-danger">*</span></label>
-                        <input type="time" name="opd_start_time" class="form-control" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
+                        <label class="form-label small fw-bold text-dark mb-1">OPD Start Time (24h) <span class="text-danger">*</span></label>
+                        <input type="text" name="opd_start_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">OPD End Time <span class="text-danger">*</span></label>
-                        <input type="time" name="opd_end_time" class="form-control" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
+                        <label class="form-label small fw-bold text-dark mb-1">OPD End Time (24h) <span class="text-danger">*</span></label>
+                        <input type="text" name="opd_end_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
                       </div>
                     </div>
 
@@ -907,12 +907,12 @@
 
                     <div class="row g-3 mb-4" id="docPartialTimeDiv" style="display:none;">
                       <div class="col-md-6">
-                        <label class="form-label small text-muted">From Time</label>
-                        <input type="time" name="start_time" class="form-control">
+                        <label class="form-label small text-muted">From Time (24h)</label>
+                        <input type="text" name="start_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label small text-muted">To Time</label>
-                        <input type="time" name="end_time" class="form-control">
+                        <label class="form-label small text-muted">To Time (24h)</label>
+                        <input type="text" name="end_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
                       </div>
                     </div>
 

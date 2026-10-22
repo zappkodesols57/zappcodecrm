@@ -169,13 +169,15 @@
 
             <div class="row g-2.5 mb-2.5">
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">OPD Start Time</label>
-                <input type="time" name="opd_start_time" class="form-control doc-sched-input"
+                <label class="form-label doc-field-label">OPD Start Time (24h)</label>
+                <input type="text" name="opd_start_time" class="form-control doc-sched-input time-mask-input"
+                  placeholder="HH:MM" maxlength="5" inputmode="numeric"
                   value="{{ schedule.opd_start_time|time:'H:i' }}" required>
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">OPD End Time</label>
-                <input type="time" name="opd_end_time" class="form-control doc-sched-input"
+                <label class="form-label doc-field-label">OPD End Time (24h)</label>
+                <input type="text" name="opd_end_time" class="form-control doc-sched-input time-mask-input"
+                  placeholder="HH:MM" maxlength="5" inputmode="numeric"
                   value="{{ schedule.opd_end_time|time:'H:i' }}" required>
               </div>
             </div>
@@ -330,12 +332,12 @@
 
             <div class="row g-2.5 mb-2.5" id="partialTimeDiv" style="display:none;">
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">From Time</label>
-                <input type="time" name="start_time" id="leave_start_time" class="form-control doc-sched-input">
+                <label class="form-label doc-field-label">From Time (24h)</label>
+                <input type="text" name="start_time" id="leave_start_time" class="form-control doc-sched-input time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">To Time</label>
-                <input type="time" name="end_time" id="leave_end_time" class="form-control doc-sched-input">
+                <label class="form-label doc-field-label">To Time (24h)</label>
+                <input type="text" name="end_time" id="leave_end_time" class="form-control doc-sched-input time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
               </div>
             </div>
           </div>
