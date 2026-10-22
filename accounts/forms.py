@@ -94,13 +94,34 @@ class CRMUserCreateForm(UserCreationForm):
             if "role" in self.fields:
                 self.fields["role"].initial = ""
 
+        # Explicitly enforce required fields requested by user
+        for req_field in ["username", "first_name", "role", "password1", "password2"]:
+            if req_field in self.fields:
+                self.fields[req_field].required = True
+                self.fields[req_field].widget.attrs["required"] = "required"
+
         if "role" in self.fields:
+            self.fields["role"].required = True
             self.fields["role"].empty_label = "Select Employee Role"
             self.fields["role"].widget.attrs.update({
                 "placeholder": "Select Employee Role",
                 "data-placeholder": "Select Employee Role",
+                "required": "required",
             })
+            self.fields["role"].error_messages = {
+                "required": "Please select an employee role."
+            }
         
+        if "first_name" in self.fields:
+            self.fields["first_name"].required = True
+            self.fields["first_name"].widget.attrs.update({
+                "placeholder": "Enter first name",
+                "required": "required",
+            })
+            self.fields["first_name"].error_messages = {
+                "required": "First name is required."
+            }
+
         if "branch" in self.fields:
             self.fields["branch"].widget.attrs.update({
                 "placeholder": "Select Branch (or All Branches)",
@@ -304,12 +325,27 @@ class CRMUserEditForm(forms.ModelForm):
                 self.fields["branch"].empty_label = "All Branches (Full Access)"
                 self.fields["branch"].required = False
 
+        if "first_name" in self.fields:
+            self.fields["first_name"].required = True
+            self.fields["first_name"].widget.attrs.update({
+                "placeholder": "Enter first name",
+                "required": "required",
+            })
+            self.fields["first_name"].error_messages = {
+                "required": "First name is required."
+            }
+
         if "role" in self.fields:
+            self.fields["role"].required = True
             self.fields["role"].empty_label = "Select Employee Role"
             self.fields["role"].widget.attrs.update({
                 "placeholder": "Select Employee Role",
                 "data-placeholder": "Select Employee Role",
+                "required": "required",
             })
+            self.fields["role"].error_messages = {
+                "required": "Please select an employee role."
+            }
                 
         if "branch" in self.fields:
             self.fields["branch"].widget.attrs.update({
@@ -379,9 +415,9 @@ class CRMUserEditForm(forms.ModelForm):
         branches = self.cleaned_data.get("assigned_branches")
         hospital = self.cleaned_data.get("hospital") or (self.user.hospital if self.user and self.user.hospital else getattr(self.instance, 'hospital', None))
         if branches and hospital:
-            invalid_branches = [b.name for b in branches if b.hospital_id != hospital.id]
-            if invalid_branches:
-                raise forms.ValidationError(f"Branches {', '.join(invalid_branches)} do not belong to the selected business '{hospital.name}'.")
+            # Filter strictly to branches belonging to the selected business
+            valid_branches = [b for b in branches if b.hospital_id == hospital.id]
+            return valid_branches
         return branches
 
     def save(self, commit=True):

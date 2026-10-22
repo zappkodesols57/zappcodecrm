@@ -373,28 +373,36 @@
   <!-- Right Side: Form Panel -->
   <div class="form-panel">
     <div class="form-header">
-      <h2>Welcome Back</h2>
-      <p>Sign in to access your CRM workspace</p>
+      {% if is_system_login %}
+        <div class="d-inline-flex align-items-center gap-2 px-2.5 py-1 rounded-pill bg-danger bg-opacity-10 text-danger fw-semibold small mb-2" style="font-size: 0.76rem;">
+          <i class="fa-solid fa-shield-halved"></i> System Administration Gateway
+        </div>
+        <h2>Super Admin Portal</h2>
+        <p>Authorized root access only. All sessions are monitored.</p>
+      {% else %}
+        <h2>Welcome Back</h2>
+        <p>Sign in to access your CRM workspace</p>
+      {% endif %}
     </div>
 
-    {% if form.errors or form_error %}
+    {% for message in messages %}
       <div class="alert-custom alert-error">
         <i class="fa-solid fa-circle-exclamation"></i>
-        <span>
-          {% if form.non_field_errors %}
-            {{ form.non_field_errors.0 }}
-          {% else %}
-            Invalid username or password. Please try again.
-          {% endif %}
-        </span>
-      </div>
-    {% endif %}
-
-    {% for message in messages %}
-      <div class="alert-custom" style="background: #fffbeb; color: #92400e; border: 1px solid #fde68a;">
-        <i class="fa-solid fa-triangle-exclamation"></i>
         <span>{{ message }}</span>
       </div>
+    {% empty %}
+      {% if form.errors or form_error %}
+        <div class="alert-custom alert-error">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>
+            {% if form.non_field_errors %}
+              {{ form.non_field_errors.0 }}
+            {% else %}
+              Invalid username or password. Please try again.
+            {% endif %}
+          </span>
+        </div>
+      {% endif %}
     {% endfor %}
 
     <form method="post">
@@ -428,7 +436,7 @@
       </div>
 
       <button type="submit" class="btn-submit">
-        <span>Sign In to Zappcode CRM</span>
+        <span>{% if is_system_login %}Sign In as Super Admin{% else %}Sign In to Zappcode CRM{% endif %}</span>
         <i class="fa-solid fa-arrow-right"></i>
       </button>
     </form>

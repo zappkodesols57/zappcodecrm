@@ -211,7 +211,9 @@
           {% if biz_industry != 'ACADEMY' %}
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Department / Speciality</th>
           {% endif %}
+          {% if has_branches %}
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 150px;">Branch</th>
+          {% endif %}
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Reports To</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-center" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 90px;">Status</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 150px;">Actions</th>
@@ -252,6 +254,7 @@
             <span class="badge bg-light text-dark border fw-medium px-2.5 py-1" style="font-size: 0.74rem; border-radius: 4px;">
               {{ u.custom_role_display }}
             </span>
+            {% if has_branches %}
             <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
               {% if u.assigned_branches.all %}
                 {% for b in u.assigned_branches.all %}
@@ -269,6 +272,7 @@
                 </span>
               {% endif %}
             </div>
+            {% endif %}
             {% if u.role == 'ADMIN' and u.can_delete_master_data %}
               <div class="mt-1">
                 <span class="badge bg-light text-secondary border px-2 py-0.5" style="font-size: 0.67rem; border-radius: 4px;" title="Permission to Delete Master Leads">
@@ -314,6 +318,7 @@
           {% endif %}
 
           <!-- 5. Assigned Branch -->
+          {% if has_branches %}
           <td class="px-3 py-2.5">
             {% if u.assigned_branches.all %}
               <div class="d-flex flex-wrap gap-1">
@@ -333,6 +338,7 @@
               </span>
             {% endif %}
           </td>
+          {% endif %}
 
           <!-- 6. Reports To -->
           <td class="px-3 py-2.5">

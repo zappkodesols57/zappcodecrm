@@ -46,7 +46,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 # ─── UNIFIED LOGIN ─────────────────────────────────────────────────────────────
 
 @ensure_csrf_cookie
-def crm_login(request):
+def crm_login(request, is_system_login=False):
     if request.user.is_authenticated:
         return _role_redirect(request.user)
 
@@ -69,7 +69,7 @@ def crm_login(request):
             log_action(action="BOT_LOGIN_BLOCKED", new_value=f"Automated bot login blocked via honeypot trap", ip_address=client_ip)
             time.sleep(1.5)  # Throttle bot
             messages.error(request, "Invalid username or password.")
-            return render(request, "accounts/login.html", {"form_error": True})
+            return render(request, "accounts/login.html", {"form_error": True, "is_system_login": is_system_login})
 
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
@@ -90,7 +90,7 @@ def crm_login(request):
                 f"Too many failed login attempts detected. For security purposes, access is temporarily locked. Please try again after {remaining_mins} minutes."
             )
             log_action(action="LOGIN_LOCKOUT_ENFORCED", new_value=f"Blocked brute-force login attempt for username '{username}'", ip_address=client_ip)
-            return render(request, "accounts/login.html", {"form_error": True})
+            return render(request, "accounts/login.html", {"form_error": True, "is_system_login": is_system_login})
 
         # 3. Authenticate User
         user = authenticate(request, username=username, password=password)
@@ -110,26 +110,46 @@ def crm_login(request):
                 messages.error(request, "Invalid username or password.")
 
             log_action(action="LOGIN_FAILED", new_value=f"Failed login attempt for username '{username}' (Attempt {max(new_ip_attempts, new_user_attempts)}/5)", ip_address=client_ip)
-            return render(request, "accounts/login.html", {"form_error": True})
+            return render(request, "accounts/login.html", {"form_error": True, "is_system_login": is_system_login})
 
         if not user.is_approved or not user.is_active:
             messages.error(request, "Your account is pending approval or inactive. Please contact an admin.")
-            return render(request, "accounts/login.html", {"form_error": True})
+            return render(request, "accounts/login.html", {"form_error": True, "is_system_login": is_system_login})
 
-        # 4. Successful Login: Clear all failure records
+        # 4. Strict Role & Gateway Isolation
+        from accounts.models import User
+        if is_system_login:
+            # system/login route is STRICTLY for Super Admin
+            if user.role != User.Role.SUPER_ADMIN:
+                messages.error(request, "Invalid username or password.")
+                log_action(action="SYSTEM_LOGIN_DENIED", obj=user, new_value=f"Non-superadmin '{user.username}' attempted system/login gateway", user=user, ip_address=client_ip)
+                return render(request, "accounts/login.html", {"form_error": True, "is_system_login": True})
+        else:
+            # Regular public login route: block superadmin with generic error so existence of separate portal remains completely hidden
+            if user.role == User.Role.SUPER_ADMIN:
+                messages.error(request, "Invalid username or password.")
+                log_action(action="SUPERADMIN_PUBLIC_LOGIN_BLOCKED", obj=user, new_value=f"Superadmin '{user.username}' attempted public login portal", user=user, ip_address=client_ip)
+                return render(request, "accounts/login.html", {"form_error": True, "is_system_login": False})
+
+        # 5. Successful Login: Clear all failure records
         cache.delete(ip_cache_key)
         if user_cache_key:
             cache.delete(user_cache_key)
 
         login(request, user)
         request.session.set_expiry(2592000)  # 30 Days persistent session (2592000s)
-        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in successfully", user=user, ip_address=client_ip)
+        log_action(action="USER_LOGIN", obj=user, new_value=f"User {user.username} logged in successfully via {'system/login' if is_system_login else 'public login'}", user=user, ip_address=client_ip)
         next_url = request.POST.get("next")
         if next_url:
             return redirect(next_url)
         return redirect("dashboard:welcome")
 
-    return render(request, "accounts/login.html")
+    return render(request, "accounts/login.html", {"is_system_login": is_system_login})
+
+
+def system_login(request):
+    """Dedicated Superadmin secure login gateway at system/login."""
+    return crm_login(request, is_system_login=True)
 
 
 # Aliases for backwards-compatibility
@@ -274,6 +294,16 @@ def user_list(request):
 
     template_name = "hospital/team/users_list.html" if biz_industry == "HOSPITAL" else "accounts/user_list.html"
 
+    # Check if current business actually has any active branches configured
+    from leads.models import HospitalBranch
+    if active_biz:
+        business_branch_count = HospitalBranch.objects.filter(hospital=active_biz, is_active=True).count()
+    elif request.user.hospital:
+        business_branch_count = HospitalBranch.objects.filter(hospital=request.user.hospital, is_active=True).count()
+    else:
+        business_branch_count = HospitalBranch.objects.filter(is_active=True).count()
+    has_branches = business_branch_count > 0
+
     return render(request, template_name, {
         "active": "users",
         "users": page_obj,
@@ -287,6 +317,8 @@ def user_list(request):
         "page_size": page_size,
         "available_roles": available_roles,
         "biz_industry": biz_industry,
+        "has_branches": has_branches,
+        "business_branch_count": business_branch_count,
     })
 
 
@@ -659,12 +691,22 @@ def user_add(request):
             "allowed_roles": [{"value": r, "label": role_labels.get(r, r)} for r in allowed_keys if r in role_labels],
         }
     
+    from dashboard.helpers import get_effective_business
+    active_biz = get_effective_business(request)
+    biz_industry = getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', None)
+    if not biz_industry and getattr(request.user, 'business', None):
+        biz_industry = request.user.business.industry
+    elif not biz_industry and getattr(request.user, 'hospital', None):
+        biz_industry = request.user.hospital.industry
+    biz_industry = biz_industry or 'ACADEMY'
+
     return render(request, "accounts/user_form.html", {
         "active": "users", 
         "form": form, 
         "mode": "Add",
         "user_roles_map": json.dumps(user_roles_map),
-        "business_meta_map": json.dumps(business_meta_map)
+        "business_meta_map": json.dumps(business_meta_map),
+        "biz_industry": biz_industry,
     })
 
 
@@ -711,13 +753,23 @@ def user_edit(request, pk):
             "allowed_roles": [{"value": r, "label": role_labels.get(r, r)} for r in allowed_keys if r in role_labels],
         }
     
+    from dashboard.helpers import get_effective_business
+    active_biz = get_effective_business(request)
+    biz_industry = getattr(getattr(obj, 'business', None) or obj.hospital, 'industry', None) or getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', None)
+    if not biz_industry and getattr(request.user, 'business', None):
+        biz_industry = request.user.business.industry
+    elif not biz_industry and getattr(request.user, 'hospital', None):
+        biz_industry = request.user.hospital.industry
+    biz_industry = biz_industry or 'ACADEMY'
+
     return render(request, "accounts/user_form.html", {
         "active": "users", 
         "form": form, 
         "mode": "Edit", 
         "obj": obj,
         "user_roles_map": json.dumps(user_roles_map),
-        "business_meta_map": json.dumps(business_meta_map)
+        "business_meta_map": json.dumps(business_meta_map),
+        "biz_industry": biz_industry,
     })
 
 

@@ -1559,10 +1559,11 @@ class HospitalLeadForm(forms.ModelForm):
                 target_user = instance.assigned_to or getattr(self, 'current_user', None)
                 if target_user:
                     time_str = f" at {fu_time.strftime('%I:%M %p')}" if fu_time else ""
+                    person_label = "student" if getattr(instance, 'is_academy_industry', False) else "patient"
                     Notification.objects.create(
                         user=target_user,
                         title=f"Follow-up Scheduled: {instance.name}",
-                        message=f"Follow-up scheduled for patient {instance.name} on {fu_date}{time_str}. Mobile: {instance.mobile}",
+                        message=f"Follow-up scheduled for {person_label} {instance.name} on {fu_date}{time_str}. Mobile: {instance.mobile}",
                         link=f"/leads/{instance.pk}/"
                     )
 
