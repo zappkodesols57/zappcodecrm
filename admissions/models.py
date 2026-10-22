@@ -69,7 +69,8 @@ class Admission(models.Model):
 
     @property
     def pending(self):
-        return self.final_fee - self.collected
+        diff = self.final_fee - self.collected
+        return max(Decimal("0.00"), diff) if diff else Decimal("0.00")
 
 
 class Installment(models.Model):

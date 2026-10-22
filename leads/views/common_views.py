@@ -2516,6 +2516,7 @@ def lead_add(request):
 
             if lead.is_academy_industry:
                 from leads.models import LeadTemperature, DealStatus
+                from admissions.models import PaymentOption
                 from followups.models import FollowUp, FollowUpStatus, FollowUpMode, Activity, ActivityType
                 from datetime import datetime
 
@@ -3127,6 +3128,7 @@ def lead_edit(request, pk):
 
             if saved_lead.is_academy_industry:
                 from leads.models import LeadTemperature, DealStatus
+                from admissions.models import PaymentOption
                 from followups.models import FollowUp, FollowUpStatus, FollowUpMode, Activity, ActivityType
                 from datetime import datetime
 

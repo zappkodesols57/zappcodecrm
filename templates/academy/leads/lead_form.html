@@ -236,6 +236,26 @@
       {% csrf_token %}
       {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
 
+      <!-- Server-side Django Form Errors Display -->
+      {% if form.errors %}
+      <div class="alert alert-danger alert-dismissible fade show mb-3 py-2.5 px-3 rounded-3 shadow-xs" role="alert" style="border-left: 4px solid #dc3545;">
+        <div class="d-flex align-items-start">
+          <i class="fa-solid fa-circle-exclamation text-danger fs-5 me-2 mt-0.5 flex-shrink-0"></i>
+          <div class="w-100">
+            <strong class="d-block" style="font-size: 0.85rem;">Please correct the following errors:</strong>
+            <ul class="mb-0 ps-3 small mt-1">
+              {% for field, error_list in form.errors.items %}
+                {% for err in error_list %}
+                  <li><strong>{{ field|title }}:</strong> {{ err }}</li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close" style="top: 0.8rem;"></button>
+      </div>
+      {% endif %}
+
       <!-- Prominent Form Validation Warning Alert Banner -->
       <div id="formValidationAlert" class="alert alert-danger alert-dismissible fade show d-none mb-3 py-2.5 px-3 rounded-3 shadow-xs" role="alert" style="border-left: 4px solid #dc3545;">
         <div class="d-flex align-items-center">
@@ -250,7 +270,7 @@
 
       <!-- Hidden lifecycle state fields -->
       <input type="hidden" name="deal_status" id="id_deal_status" value="{{ form.instance.deal_status|default:'OPEN' }}">
-      <input type="hidden" name="admission_status" id="id_admission_status" value="{{ form.instance.admission_status|default:'NEW' }}">
+      <input type="hidden" name="admission_status" id="id_admission_status" value="{% if form.instance.admission_status and form.instance.admission_status != 'NEW' %}{{ form.instance.admission_status }}{% else %}OPEN{% endif %}">
       <input type="hidden" name="temperature" id="id_temperature" value="{{ form.instance.temperature|default:'HOT' }}">
 
       <!-- Section 1: Lead Information -->
