@@ -249,6 +249,7 @@
             <span class="badge bg-light text-dark border fw-medium px-2.5 py-1" style="font-size: 0.74rem; border-radius: 4px;">
               {{ u.custom_role_display }}
             </span>
+            {% if has_branches %}
             <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
               {% if u.assigned_branches.all %}
                 {% for b in u.assigned_branches.all %}
@@ -266,6 +267,7 @@
                 </span>
               {% endif %}
             </div>
+            {% endif %}
             {% if u.role == 'ADMIN' and u.can_delete_master_data %}
               <div class="mt-1">
                 <span class="badge bg-light text-secondary border px-2 py-0.5" style="font-size: 0.67rem; border-radius: 4px;" title="Permission to Delete Master Leads">

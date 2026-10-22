@@ -7,6 +7,10 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path('django-admin/', admin.site.urls),
     path('', RedirectView.as_view(pattern_name='accounts:login', permanent=False)),
+    path('system/login/', include([
+        path('', RedirectView.as_view(pattern_name='accounts:system_login', permanent=False)),
+    ])),
+    path('system/login', RedirectView.as_view(pattern_name='accounts:system_login', permanent=False)),
     path('accounts/', include('accounts.urls')),
     path('leads/', include('leads.urls')),
     path('followups/', include('followups.urls')),

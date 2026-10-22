@@ -84,7 +84,7 @@
       <div class="row g-3">
         {% for field in form %}
           {% if field.field.widget.input_type != 'checkbox' and field.name != 'password1' and field.name != 'password2' and field.name != 'assigned_branches' and field.name != 'branch' %}
-          <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
+          <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4" {% if field.name == 'department' or field.name == 'speciality' %}style="display: none;"{% endif %}>
             <label class="form-label small fw-semibold text-dark mb-1">
               {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
             </label>
@@ -295,7 +295,12 @@
     function toggleFields() {
       if (!roleField) return;
       
-      const isDoctor = roleField.value === "DOCTOR";
+      const selectedHospId = hospField ? String(hospField.value || "").trim() : "";
+      const bizInfo = selectedHospId && businessMetaMap ? businessMetaMap[selectedHospId] : null;
+      const currentIndustry = (bizInfo ? bizInfo.industry : null) || "{{ biz_industry|default:'ACADEMY' }}";
+      const isHospitalIndustry = currentIndustry === "HOSPITAL";
+
+      const isDoctor = roleField.value === "DOCTOR" && isHospitalIndustry;
       const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
       const isEligibleForCallingTarget = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
       
@@ -481,51 +486,43 @@
         }
       }
 
-      // 2. DYNAMIC BRANCH VISIBILITY & FILTERING
+      // 2. DYNAMIC BRANCH VISIBILITY & FILTERING STRICTLY BY SELECTED BUSINESS
       const branchItems = document.querySelectorAll(".branch-item-col");
-      const noBranchesPlaceholder = document.getElementById("noBranchesPlaceholder");
       let visibleBranchCount = 0;
 
-      if (bizInfo && Array.isArray(bizInfo.branches)) {
+      if (bizInfo && Array.isArray(bizInfo.branches) && bizInfo.branches.length > 0) {
         const allowedBranchIdStrs = bizInfo.branches.map(b => String(b.id));
         branchItems.forEach(item => {
           const bId = String(item.getAttribute("data-branch-id") || "");
           const cb = item.querySelector(".branch-checkbox");
           if (allowedBranchIdStrs.includes(bId)) {
             item.style.display = "";
+            if (cb) cb.disabled = false;
             visibleBranchCount++;
           } else {
             item.style.display = "none";
-            if (cb) cb.checked = false; // uncheck branch not belonging to this business
+            if (cb) {
+              cb.checked = false;
+              cb.disabled = true; // Prevents form submission of branches from other businesses
+            }
           }
         });
-      } else if (!selectedHospId) {
-        // No business selected yet: hide all branches
-        branchItems.forEach(item => {
-          item.style.display = "none";
-          const cb = item.querySelector(".branch-checkbox");
-          if (cb) cb.checked = false;
-        });
-        visibleBranchCount = 0;
       } else {
-        // Business selected but has 0 branches configured
+        // No business selected or business has 0 branches: hide & disable all
         branchItems.forEach(item => {
           item.style.display = "none";
           const cb = item.querySelector(".branch-checkbox");
-          if (cb) cb.checked = false;
+          if (cb) {
+            cb.checked = false;
+            cb.disabled = true;
+          }
         });
         visibleBranchCount = 0;
       }
 
-      // If business has MULTIPLE branches (> 1 or >= 1 with active branches)
-      // "if kisi bussiness me brach nahi hai to ye assigne branches ka option dikhega hi nahi"
-      // "if bussiness me multiple branchees hai tabhi assign branch and allow branch transfer options dikhenge"
+      // If business has branches (>= 1), show Assigned Branches section; otherwise hide
       if (assignedBranchesDiv) {
-        if (visibleBranchCount > 1) {
-          assignedBranchesDiv.style.display = "block";
-        } else {
-          assignedBranchesDiv.style.display = "none";
-        }
+        assignedBranchesDiv.style.display = visibleBranchCount > 0 ? "block" : "none";
       }
 
       if (allowBranchTransferDiv) {
@@ -675,9 +672,9 @@
           // Let's run toggleFields again after Tom Selects have initialized globally in footer
           setTimeout(toggleFields, 100);
       }, 500);
-
-      toggleFields(); // Initial call
     }
+
+    toggleFields(); // Initial call to sync field visibility right away
 
     // Safety submit guard: Log invalid elements if browser blocks submit, ensure form submits cleanly
     const userForm = document.getElementById("userForm");
@@ -718,8 +715,13 @@
   };
 
   window.toggleAllBranches = function(select) {
-    document.querySelectorAll(".branch-checkbox").forEach(cb => {
-      cb.checked = select;
+    document.querySelectorAll(".branch-item-col").forEach(item => {
+      if (item.style.display !== "none") {
+        const cb = item.querySelector(".branch-checkbox");
+        if (cb && !cb.disabled) {
+          cb.checked = select;
+        }
+      }
     });
   };
 </script>

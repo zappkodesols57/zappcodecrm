@@ -7,6 +7,7 @@ app_name = "accounts"
 urlpatterns = [
     # Single Unified Login
     path("login/", views.crm_login, name="login"),
+    path("system/login/", views.system_login, name="system_login"),
     path("portal/", views.crm_login, name="portal_select"),          # compatibility redirect
     path("login/employee/", views.crm_login, name="employee_login"), # compatibility redirect
     path("login/management/", views.crm_login, name="management_login"), # compatibility redirect

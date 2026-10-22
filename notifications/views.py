@@ -64,6 +64,10 @@ def get_unread_notifications(request):
             time_msg = ""
             alert_types = []  # ('30m', '5m', 'due')
             
+            # Determine person label based on lead industry (student vs patient)
+            is_acad = getattr(fu.lead, 'is_academy_industry', False) or (user_hosp and getattr(user_hosp, 'industry', None) == 'ACADEMY')
+            person_label = "student" if is_acad else "patient"
+            
             if fu.followup_time:
                 fu_dt = timezone.datetime.combine(today, fu.followup_time)
                 fu_dt = timezone.make_aware(fu_dt, tz)
@@ -72,12 +76,12 @@ def get_unread_notifications(request):
                 
                 # 30-min window alert (25 to 35 mins before)
                 if 25 <= diff_minutes <= 35:
-                    alert_types.append(('30m', f"⏳ Follow-up in 30 Mins: {fu.lead.name}", f"Upcoming call with patient {fu.lead.name}{time_msg} in 30 minutes."))
+                    alert_types.append(('30m', f"⏳ Follow-up in 30 Mins: {fu.lead.name}", f"Upcoming call with {person_label} {fu.lead.name}{time_msg} in 30 minutes."))
                 # 5-min window alert (-10 to 5 mins before)
                 if -10 <= diff_minutes <= 6:
-                    alert_types.append(('5m', f"⏰ Follow-up Due Now: {fu.lead.name}", f"Scheduled follow-up with patient {fu.lead.name}{time_msg} is due. Mobile: {fu.lead.mobile}"))
+                    alert_types.append(('5m', f"⏰ Follow-up Due Now: {fu.lead.name}", f"Scheduled follow-up with {person_label} {fu.lead.name}{time_msg} is due. Mobile: {fu.lead.mobile}"))
             else:
-                alert_types.append(('daily', f"⏰ Follow-up Due Today: {fu.lead.name}", f"Follow-up with patient {fu.lead.name} is scheduled for today."))
+                alert_types.append(('daily', f"⏰ Follow-up Due Today: {fu.lead.name}", f"Follow-up with {person_label} {fu.lead.name} is scheduled for today."))
 
             for a_key, notif_title, notif_msg in alert_types:
                 fu_link = f"/leads/{fu.lead.pk}/"
@@ -110,17 +114,19 @@ def get_unread_notifications(request):
                 continue
             time_msg = ""
             apt_alerts = []
+            apt_acad = getattr(apt.lead, 'is_academy_industry', False) or (user_hosp and getattr(user_hosp, 'industry', None) == 'ACADEMY')
+            apt_person = "student" if apt_acad else "patient"
             if apt.appointment_time:
                 apt_dt = timezone.datetime.combine(today, apt.appointment_time)
                 apt_dt = timezone.make_aware(apt_dt, tz)
                 diff_minutes = (apt_dt - now).total_seconds() / 60.0
                 time_msg = f" at {apt.appointment_time.strftime('%I:%M %p')}"
                 if 25 <= diff_minutes <= 35:
-                    apt_alerts.append(('30m', f"📅 Appointment in 30 Mins: {apt.lead.name}", f"Appointment with Dr. {apt.doctor_name} for patient {apt.lead.name}{time_msg} starts in 30 minutes."))
+                    apt_alerts.append(('30m', f"📅 Appointment in 30 Mins: {apt.lead.name}", f"Appointment with Dr. {apt.doctor_name} for {apt_person} {apt.lead.name}{time_msg} starts in 30 minutes."))
                 if -10 <= diff_minutes <= 6:
-                    apt_alerts.append(('5m', f"🩺 Appointment Due: {apt.lead.name}", f"Appointment with Dr. {apt.doctor_name} for patient {apt.lead.name}{time_msg} is starting now."))
+                    apt_alerts.append(('5m', f"🩺 Appointment Due: {apt.lead.name}", f"Appointment with Dr. {apt.doctor_name} for {apt_person} {apt.lead.name}{time_msg} is starting now."))
             else:
-                apt_alerts.append(('daily', f"📅 Appointment Today: {apt.lead.name}", f"Patient {apt.lead.name} has an appointment scheduled with Dr. {apt.doctor_name} today."))
+                apt_alerts.append(('daily', f"📅 Appointment Today: {apt.lead.name}", f"{apt_person.capitalize()} {apt.lead.name} has an appointment scheduled with Dr. {apt.doctor_name} today."))
 
             for a_key, apt_title, apt_msg in apt_alerts:
                 apt_link = f"/leads/{apt.lead.pk}/"

@@ -9,14 +9,14 @@
 
 <!-- 2. Section: 1. My Leads -->
 <div class="nav-section-group">
-  <button class="nav-section-btn {% if active != 'counselor_dashboard' or request.GET.tab not in 'myleads fresh uncontacted walkin todays_inquiry' and request.GET.tab %}collapsed{% endif %}"
+  <button class="nav-section-btn {% if active not in 'counselor_dashboard my_leads leads_all' or request.GET.tab not in 'myleads fresh uncontacted walkin todays_inquiry' and request.GET.tab and active not in 'my_leads leads_all' %}collapsed{% endif %}"
     type="button" data-bs-toggle="collapse" data-bs-target="#sec_counselor_myleads"
-    aria-expanded="{% if active == 'counselor_dashboard' and request.GET.tab == 'myleads' or not request.GET.tab and active == 'counselor_dashboard' %}true{% else %}false{% endif %}"
+    aria-expanded="{% if active in 'my_leads leads_all' or active == 'counselor_dashboard' and request.GET.tab == 'myleads' or not request.GET.tab and active == 'counselor_dashboard' %}true{% else %}false{% endif %}"
     title="My Leads">
     <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">1. My Leads</span></span>
     <i class="fa-solid fa-chevron-down section-arrow"></i>
   </button>
-  <div class="collapse {% if active == 'counselor_dashboard' and request.GET.tab == 'myleads' or not request.GET.tab and active == 'counselor_dashboard' %}show{% endif %} nav-sub-items"
+  <div class="collapse {% if active in 'my_leads leads_all' or active == 'counselor_dashboard' and request.GET.tab == 'myleads' or not request.GET.tab and active == 'counselor_dashboard' %}show{% endif %} nav-sub-items"
     id="sec_counselor_myleads">
     <a class="nav-link {% if request.GET.tab == 'myleads' and request.GET.subtab == 'fresh' or not request.GET.subtab and not request.GET.tab and active == 'counselor_dashboard' or request.GET.tab == 'myleads' and not request.GET.subtab %}active{% endif %}"
       href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=fresh" title="1.1 Fresh Leads">
@@ -33,6 +33,14 @@
     <a class="nav-link {% if request.GET.tab == 'myleads' and request.GET.subtab == 'todays_inquiry' %}active{% endif %}"
       href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=todays_inquiry" title="1.4 Today's Inquiries">
       <i class="fa-regular fa-calendar"></i> <span class="nav-text">1.4 Today's Inquiries</span>
+    </a>
+    <a class="nav-link {% if active == 'my_leads' %}active{% endif %}"
+      href="{% url 'leads:my_leads' %}" title="My All Leads">
+      <i class="fa-solid fa-user-check"></i> <span class="nav-text">My All Leads</span>
+    </a>
+    <a class="nav-link {% if active == 'leads_all' %}active{% endif %}"
+      href="{% url 'leads:lead_list' %}" title="Overall Leads">
+      <i class="fa-solid fa-list-ul"></i> <span class="nav-text">Overall Leads</span>
     </a>
   </div>
 </div>
