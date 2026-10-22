@@ -1,120 +1,343 @@
 {% extends "base.html" %}
-{% block title %}Edit Course - {{ course.name }}{% endblock %}
-{% block content %}
+{% block title %}Edit Course — {{ course.name }}{% endblock %}
 
-<div class="container-fluid px-0 px-md-2 py-3">
-  <div class="row justify-content-center">
-    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
-      <!-- Edit Course Card -->
-      <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" style="border: 1px solid #e2e8f0 !important;">
-        <!-- Header -->
-        <div class="card-header bg-white border-bottom p-4">
-          <div class="d-flex align-items-center gap-3">
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(79, 70, 229, 0.1); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
-              <i class="fa-solid fa-graduation-cap"></i>
-            </div>
-            <div>
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-0.5 rounded-pill fw-semibold" style="font-size: 0.7rem;">
-                  Academy Master
+{% block content %}
+<style>
+  .course-edit-container {
+    max-width: 620px;
+    margin: 1.5rem auto 3rem;
+  }
+  .course-edit-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+  }
+  .course-header-banner {
+    padding: 1.5rem 1.75rem 1.25rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    border-bottom: 1px solid #edf2f7;
+  }
+  .course-icon-badge {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    color: #4f46e5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.15);
+  }
+  .form-label-custom {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .input-currency-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .currency-prefix {
+    position: absolute;
+    left: 14px;
+    font-weight: 600;
+    color: #64748b;
+    pointer-events: none;
+    font-size: 0.95rem;
+  }
+  .input-currency-wrapper input {
+    padding-left: 32px !important;
+    font-weight: 600;
+    color: #0f172a;
+  }
+  .form-control-custom,
+  .form-control-custom:focus {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.92rem;
+    transition: all 0.2s ease-in-out;
+  }
+  .form-control-custom:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+    background-color: #ffffff;
+  }
+  .effective-pricing-banner {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .active-switch-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.85rem 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.2s ease;
+  }
+  .active-switch-card:hover {
+    background: #f1f5f9;
+  }
+  .form-check-input-custom {
+    width: 2.75rem !important;
+    height: 1.4rem !important;
+    cursor: pointer;
+    background-color: #cbd5e1;
+    border-color: #cbd5e1;
+    transition: all 0.2s ease-in-out;
+  }
+  .form-check-input-custom:checked {
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+  }
+  .btn-save-custom {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
+  }
+  .btn-save-custom:hover {
+    background: #020617;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+    transform: translateY(-1px);
+  }
+  .btn-cancel-custom {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    border-radius: 10px;
+    padding: 0.6rem 1.35rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
+  }
+  .btn-cancel-custom:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #94a3b8;
+  }
+</style>
+
+<div class="container-fluid px-3">
+  <div class="course-edit-container">
+    <!-- Top Back Navigation -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <a href="{% url 'leads:course_master' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-pill px-3 py-1">
+        <i class="fa-solid fa-arrow-left small"></i>
+        <span>Back to Course Master</span>
+      </a>
+      <span class="text-muted small">Course ID: #{{ course.id }}</span>
+    </div>
+
+    <!-- Main Card -->
+    <div class="card course-edit-card">
+      <!-- Header Banner -->
+      <div class="course-header-banner">
+        <div class="d-flex align-items-start gap-3">
+          <div class="course-icon-badge flex-shrink-0">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-indigo-subtle text-indigo px-2 py-0.5 rounded-pill fw-semibold" style="font-size: 0.7rem; background-color: #e0e7ff; color: #4338ca;">
+                Academy Master
+              </span>
+              {% if course.business %}
+                <span class="badge bg-light text-secondary border px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">
+                  {{ course.business.name }}
                 </span>
-                {% if course.business %}
-                  <span class="badge bg-light text-secondary border px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">
-                    {{ course.business.name }}
-                  </span>
-                {% endif %}
-              </div>
-              <h5 class="fw-bold text-dark mb-0 mt-1">Edit Course Details</h5>
-              <p class="text-muted small mb-0">Update course pricing, discount limit and description</p>
+              {% endif %}
             </div>
+            <h5 class="fw-bold text-dark mb-0.5" style="letter-spacing: -0.2px;">Edit Course Details</h5>
+            <p class="text-muted small mb-0">Update course pricing, discount limit and syllabus description</p>
           </div>
         </div>
+      </div>
 
-        <!-- Form Body -->
-        <div class="card-body p-4">
-          <form method="post" novalidate>
-            {% csrf_token %}
+      <!-- Form Content -->
+      <div class="p-4">
+        <form method="post" novalidate id="editCourseForm">
+          {% csrf_token %}
 
-            <div class="row g-3">
-              <!-- Course Name -->
-              <div class="col-12">
-                <label class="form-label small fw-semibold text-dark mb-1">
-                  Course Name <span class="text-danger">*</span>
-                </label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                  <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
-                {% endif %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2 small mb-3 rounded-3">
+            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+          </div>
+          {% endif %}
+
+          <div class="row g-3">
+            <!-- Course Name -->
+            <div class="col-12">
+              <label class="form-label-custom" for="{{ form.name.id_for_label }}">
+                <span>Course Name <span class="text-danger">*</span></span>
+              </label>
+              <input 
+                type="text" 
+                name="{{ form.name.name }}" 
+                id="{{ form.name.id_for_label }}" 
+                class="form-control form-control-custom"
+                value="{{ form.name.value|default:'' }}" 
+                placeholder="e.g. Advanced Digital Marketing" 
+                required
+              >
+              {% if form.name.errors %}
+                <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ form.name.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Base Price -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label-custom" for="{{ form.base_price.id_for_label }}">
+                <span>Base Price <span class="text-danger">*</span></span>
+              </label>
+              <div class="input-currency-wrapper">
+                <span class="currency-prefix">₹</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  name="{{ form.base_price.name }}" 
+                  id="{{ form.base_price.id_for_label }}" 
+                  class="form-control form-control-custom" 
+                  value="{{ form.base_price.value|default:'' }}" 
+                  placeholder="0" 
+                  required
+                >
               </div>
+              {% if form.base_price.errors %}
+                <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ form.base_price.errors.0 }}</div>
+              {% endif %}
+            </div>
 
-              <!-- Base Price -->
-              <div class="col-md-6">
-                <label class="form-label small fw-semibold text-dark mb-1">
-                  Base Price (₹) <span class="text-danger">*</span>
-                </label>
-                {{ form.base_price }}
-                {% if form.base_price.errors %}
-                  <div class="text-danger small mt-1">{{ form.base_price.errors.0 }}</div>
-                {% endif %}
+            <!-- Max Discount -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label-custom" for="{{ form.max_discount.id_for_label }}">
+                <span>Max Discount Limit</span>
+                <span class="text-muted fw-normal" style="font-size: 0.72rem;">Optional</span>
+              </label>
+              <div class="input-currency-wrapper">
+                <span class="currency-prefix">₹</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  name="{{ form.max_discount.name }}" 
+                  id="{{ form.max_discount.id_for_label }}" 
+                  class="form-control form-control-custom" 
+                  value="{{ form.max_discount.value|default:'0' }}" 
+                  placeholder="0"
+                >
               </div>
+              {% if form.max_discount.errors %}
+                <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ form.max_discount.errors.0 }}</div>
+              {% endif %}
+            </div>
 
-              <!-- Max Discount -->
-              <div class="col-md-6">
-                <label class="form-label small fw-semibold text-dark mb-1">
-                  Max Discount (₹)
-                </label>
-                {{ form.max_discount }}
-                {% if form.max_discount.errors %}
-                  <div class="text-danger small mt-1">{{ form.max_discount.errors.0 }}</div>
-                {% endif %}
-              </div>
-
-              <!-- Description -->
-              <div class="col-12">
-                <label class="form-label small fw-semibold text-dark mb-1">
-                  Description / Syllabus Outline
-                </label>
-                {{ form.description }}
-                {% if form.description.errors %}
-                  <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
-                {% endif %}
-              </div>
-
-              <!-- Active Status Switch -->
-              <div class="col-12 pt-2">
-                <div class="form-check form-switch p-0 d-flex align-items-center gap-2">
-                  {{ form.is_active }}
-                  <label class="form-check-label small fw-semibold text-dark mb-0" for="{{ form.is_active.id_for_label }}">
-                    Active Course (Available in Lead Forms & Batches)
-                  </label>
+            <!-- Dynamic Live Preview Box -->
+            <div class="col-12">
+              <div class="effective-pricing-banner">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="fa-solid fa-calculator text-primary"></i>
+                  <span class="small text-muted">Minimum Floor Fee (After Max Discount):</span>
                 </div>
+                <strong class="text-dark fs-6" id="floorFeeDisplay">₹0</strong>
               </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="d-flex align-items-center justify-content-end gap-2 pt-4 mt-3 border-top">
-              <a href="{% url 'leads:course_master' %}" class="btn btn-light rounded-pill px-4 fw-semibold text-secondary">
-                Cancel
-              </a>
-              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm d-flex align-items-center gap-2">
-                <i class="fa-solid fa-check"></i> Save Changes
-              </button>
+            <!-- Description / Syllabus -->
+            <div class="col-12">
+              <label class="form-label-custom" for="{{ form.description.id_for_label }}">
+                <span>Description / Syllabus Outline</span>
+                <span class="text-muted fw-normal" style="font-size: 0.72rem;">Shown to Counselors</span>
+              </label>
+              <textarea 
+                name="{{ form.description.name }}" 
+                id="{{ form.description.id_for_label }}" 
+                class="form-control form-control-custom" 
+                rows="3" 
+                placeholder="Brief course overview, core modules, eligibility criteria, or syllabus outline..."
+              >{{ form.description.value|default:'' }}</textarea>
+              {% if form.description.errors %}
+                <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i>{{ form.description.errors.0 }}</div>
+              {% endif %}
             </div>
-          </form>
-        </div>
+
+            <!-- Active Course Switch Card -->
+            <div class="col-12 pt-1">
+              <label class="active-switch-card mb-0 cursor-pointer" for="{{ form.is_active.id_for_label }}">
+                <div class="d-flex align-items-center gap-2.5">
+                  <div class="d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669;">
+                    <i class="fa-solid fa-toggle-on"></i>
+                  </div>
+                  <div>
+                    <div class="small fw-semibold text-dark">Course Status</div>
+                    <div class="text-muted" style="font-size: 0.74rem;">Make available in lead forms, batch creation, and direct admission</div>
+                  </div>
+                </div>
+                <div class="form-check form-switch m-0 p-0">
+                  <input 
+                    type="checkbox" 
+                    name="{{ form.is_active.name }}" 
+                    id="{{ form.is_active.id_for_label }}" 
+                    class="form-check-input form-check-input-custom ms-0"
+                    {% if form.is_active.value %}checked{% endif %}
+                  >
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons -->
+          <div class="d-flex align-items-center justify-content-end gap-2 pt-3 mt-4 border-top">
+            <a href="{% url 'leads:course_master' %}" class="btn btn-cancel-custom">
+              Cancel
+            </a>
+            <button type="submit" class="btn btn-save-custom d-inline-flex align-items-center gap-2">
+              <i class="fa-solid fa-check"></i> Save Changes
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 </div>
 
-<style>
-.form-control:focus, .form-select:focus {
-  border-color: #4f46e5 !important;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
-}
-.form-check-input:checked {
-  background-color: #4f46e5 !important;
-  border-color: #4f46e5 !important;
-}
-</style>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const basePriceInput = document.getElementById("{{ form.base_price.id_for_label }}");
+    const maxDiscountInput = document.getElementById("{{ form.max_discount.id_for_label }}");
+    const floorFeeDisplay = document.getElementById("floorFeeDisplay");
+
+    function updateFloorFee() {
+      const base = parseFloat(basePriceInput ? basePriceInput.value : 0) || 0;
+      const discount = parseFloat(maxDiscountInput ? maxDiscountInput.value : 0) || 0;
+      const floor = Math.max(0, base - discount);
+      if (floorFeeDisplay) {
+        floorFeeDisplay.textContent = "₹" + Math.round(floor).toLocaleString();
+      }
+    }
+
+    if (basePriceInput) basePriceInput.addEventListener("input", updateFloorFee);
+    if (maxDiscountInput) maxDiscountInput.addEventListener("input", updateFloorFee);
+    updateFloorFee();
+  });
+</script>
 {% endblock %}

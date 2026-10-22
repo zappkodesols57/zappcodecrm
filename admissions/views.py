@@ -158,11 +158,146 @@ def add_installment(request, pk):
 
 @login_required
 def installment_toggle_paid(request, pk):
+    from decimal import Decimal
+    from payments.models import Payment, PaymentMode, PaymentStatus
+    from leads.models import LeadStage, DealStatus, AdmissionStatus
+    from followups.models import Activity, ActivityType
+
     inst = get_object_or_404(Installment, pk=pk)
-    inst.is_paid = not inst.is_paid
-    inst.paid_date = timezone.localdate() if inst.is_paid else None
-    inst.save()
-    messages.success(request, f"EMI installment status changed to {'Paid' if inst.is_paid else 'Unpaid'}.")
+    admission = inst.admission
+    lead = admission.lead
+
+    if not inst.is_paid:
+        # User is trying to mark this installment as PAID
+        current_pending = admission.final_fee - admission.collected
+        if current_pending <= Decimal("0.00"):
+            messages.warning(request, "This admission is already fully paid. Cannot mark additional EMI installments as paid.")
+            return redirect(request.META.get('HTTP_REFERER', 'admissions:list'))
+
+        # If remaining pending is less than the installment amount (due to earlier ad-hoc payments), cap it!
+        actual_paid_amount = min(inst.amount, current_pending)
+        inst.amount = actual_paid_amount
+        inst.is_paid = True
+        inst.paid_date = timezone.localdate()
+        inst.save()
+
+        # Create corresponding Payment record if not exists
+        payment, created = Payment.objects.get_or_create(
+            admission=admission,
+            transaction_reference=ref_tag,
+            defaults={
+                "amount": actual_paid_amount,
+                "payment_date": inst.paid_date,
+                "payment_mode": PaymentMode.UPI,
+                "payment_status": PaymentStatus.SUCCESS,
+                "remarks": f"EMI Installment payment (Due: {inst.due_date.strftime('%d-%b-%Y')})",
+            }
+        )
+        if not created and payment.amount != actual_paid_amount:
+            payment.amount = actual_paid_amount
+            payment.save()
+
+        if lead and created:
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.PAYMENT,
+                description=f"EMI installment marked Paid: ₹{actual_paid_amount:,.0f} (Due date: {inst.due_date.strftime('%d-%b-%Y')})",
+                created_by=request.user,
+            )
+        action_text = "Paid"
+
+        # Rebalance upcoming remaining unpaid installments with the newly remaining pending balance
+        new_collected = admission.collected
+        new_remaining = max(Decimal("0.00"), admission.final_fee - new_collected)
+        unpaid_installments = list(admission.installments.filter(is_paid=False).exclude(id=inst.id).order_by("due_date"))
+        if unpaid_installments:
+            if new_remaining <= Decimal("0.00"):
+                # No balance remaining; mark the rest completed with 0 or clean up
+                for rem_inst in unpaid_installments:
+                    rem_inst.amount = Decimal("0.00")
+                    rem_inst.is_paid = True
+                    rem_inst.paid_date = inst.paid_date
+                    rem_inst.save()
+            else:
+                count_unpaid = len(unpaid_installments)
+                import math
+                ceil_emi = Decimal(str(math.ceil(float(new_remaining) / count_unpaid)))
+                for idx, rem_inst in enumerate(unpaid_installments):
+                    if idx == count_unpaid - 1:
+                        sum_prev = ceil_emi * (count_unpaid - 1)
+                        rem_inst.amount = max(Decimal("0.00"), new_remaining - sum_prev)
+                    else:
+                        rem_inst.amount = ceil_emi
+                    rem_inst.save()
+    else:
+        # User is reverting installment to UNPAID
+        inst.is_paid = False
+        inst.paid_date = None
+        inst.save()
+
+        # Remove corresponding Payment record if exists
+        deleted_count, _ = Payment.objects.filter(
+            admission=admission,
+            transaction_reference=ref_tag
+        ).delete()
+        if lead and deleted_count:
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.PAYMENT,
+                description=f"EMI installment reverted to Unpaid: ₹{inst.amount:,.0f} (Due date: {inst.due_date.strftime('%d-%b-%Y')})",
+                created_by=request.user,
+            )
+        action_text = "Unpaid"
+
+        # Rebalance all unpaid installments with current pending amount
+        new_collected = admission.collected
+        new_remaining = max(Decimal("0.00"), admission.final_fee - new_collected)
+        unpaid_installments = list(admission.installments.filter(is_paid=False).order_by("due_date"))
+        if unpaid_installments:
+            count_unpaid = len(unpaid_installments)
+            import math
+            ceil_emi = Decimal(str(math.ceil(float(new_remaining) / count_unpaid)))
+            for idx, rem_inst in enumerate(unpaid_installments):
+                if idx == count_unpaid - 1:
+                    sum_prev = ceil_emi * (count_unpaid - 1)
+                    rem_inst.amount = max(Decimal("0.00"), new_remaining - sum_prev)
+                else:
+                    rem_inst.amount = ceil_emi
+                rem_inst.save()
+
+    # Sync lead custom_data and stages
+    new_collected = admission.collected
+    remaining_pending = max(Decimal("0.00"), admission.final_fee - new_collected)
+
+    if lead:
+        cd = lead.custom_data or {}
+        cd["total_paid"] = float(new_collected)
+        cd["balance_amount"] = float(remaining_pending)
+        lead.custom_data = cd
+
+        if remaining_pending <= Decimal("0.00"):
+            won_stage = (
+                LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+                or LeadStage.objects.filter(name__icontains="Payment Done").first()
+            )
+            if won_stage:
+                lead.stage = won_stage
+            lead.deal_status = DealStatus.WON
+            lead.admission_status = AdmissionStatus.WON
+            cd["deal_status"] = "Won"
+        else:
+            pending_stage = (
+                LeadStage.objects.filter(name__iexact="Payment Pending", is_active=True).first()
+                or LeadStage.objects.filter(name__icontains="Payment Pending").first()
+            )
+            if pending_stage:
+                lead.stage = pending_stage
+            lead.deal_status = DealStatus.WON
+            cd["deal_status"] = "Payment Pending"
+
+        lead.save()
+
+    messages.success(request, f"EMI installment marked {action_text}. Updated Paid: ₹{new_collected:,.0f}, Pending: ₹{remaining_pending:,.0f}.")
     return redirect(request.META.get('HTTP_REFERER', 'admissions:list'))
 
 

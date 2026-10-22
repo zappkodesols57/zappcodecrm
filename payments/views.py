@@ -94,6 +94,32 @@ def payment_add(request, admission_id):
         new_collected = admission.collected
         remaining_pending = max(Decimal("0.00"), admission.final_fee - new_collected)
 
+        # If lead has active unpaid EMI installments, automatically adjust/redistribute
+        # upcoming EMIs so that the sum of remaining installments equals the remaining pending amount!
+        if admission.payment_plan == "EMI":
+            unpaid_installments = list(admission.installments.filter(is_paid=False).order_by("due_date"))
+            if unpaid_installments:
+                if remaining_pending <= Decimal("0.00"):
+                    # All balance cleared by ad-hoc payment; remove or zero out upcoming installments
+                    for inst in unpaid_installments:
+                        inst.amount = Decimal("0.00")
+                        inst.is_paid = True
+                        inst.paid_date = payment.payment_date
+                        inst.save()
+                else:
+                    count_unpaid = len(unpaid_installments)
+                    import math
+                    # Distribute remaining_pending across unpaid installments
+                    ceil_emi = Decimal(str(math.ceil(float(remaining_pending) / count_unpaid)))
+                    for idx, inst in enumerate(unpaid_installments):
+                        if idx == count_unpaid - 1:
+                            # Last installment absorbs the exact remainder
+                            sum_prev = ceil_emi * (count_unpaid - 1)
+                            inst.amount = max(Decimal("0.00"), remaining_pending - sum_prev)
+                        else:
+                            inst.amount = ceil_emi
+                        inst.save()
+
         # Sync lead state & custom_data
         if lead:
             cd = lead.custom_data or {}
