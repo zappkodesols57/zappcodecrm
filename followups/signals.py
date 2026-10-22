@@ -49,10 +49,35 @@ def _followup_activity(sender, instance, created, **kwargs):
     # Industry-specific follow-up stage progression
     if lead.is_academy_industry:
         if instance.followup_status == 'COMPLETED':
-            fu_done_stage = LeadStage.objects.filter(name__iexact='Follow Up Completed', is_active=True).first()
-            if fu_done_stage:
-                lead.stage = fu_done_stage
-                update_kwargs["stage"] = fu_done_stage
+            adm = getattr(lead, "admission", None)
+            cd = lead.custom_data or {}
+            pending_amt = None
+            if adm:
+                pending_amt = float(adm.pending)
+            elif "balance_amount" in cd:
+                try:
+                    pending_amt = float(cd.get("balance_amount") or 0)
+                except (ValueError, TypeError):
+                    pending_amt = None
+
+            if pending_amt is not None and (adm or "token_amount" in cd or "balance_amount" in cd):
+                if pending_amt > 0:
+                    pending_stage = LeadStage.objects.filter(name__iexact="Payment Pending", is_active=True).first()
+                    if pending_stage:
+                        lead.stage = pending_stage
+                        update_kwargs["stage"] = pending_stage
+                else:
+                    done_stage = LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+                    if done_stage:
+                        lead.stage = done_stage
+                        update_kwargs["stage"] = done_stage
+                    lead.deal_status = DealStatus.WON
+                    update_kwargs["deal_status"] = DealStatus.WON
+            else:
+                fu_done_stage = LeadStage.objects.filter(name__iexact='Follow Up Completed', is_active=True).first()
+                if fu_done_stage:
+                    lead.stage = fu_done_stage
+                    update_kwargs["stage"] = fu_done_stage
         elif not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned']:
             fu_stage = LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first() or LeadStage.objects.filter(name__iexact='Follow-up', is_active=True).first()
             if fu_stage:

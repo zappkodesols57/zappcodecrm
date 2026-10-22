@@ -720,8 +720,8 @@
                   <input type="date" name="followup_date" id="hosp_detail_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required style="font-size: 0.8rem;">
                 </div>
                 <div class="col-4">
-                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time</label>
-                  <input type="time" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time (24h)</label>
+                  <input type="text" name="followup_time" id="hosp_detail_fu_time" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" style="font-size: 0.8rem;">
                 </div>
                 <div class="col-4">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Status</label>
@@ -845,8 +845,8 @@
               <input type="date" name="next_followup_date" id="reschedDate{{ fu.id }}" class="form-control form-control-sm" min="{{ today|date:'Y-m-d' }}">
             </div>
             <div class="col-5">
-              <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">Time</label>
-              <input type="time" name="next_followup_time" class="form-control form-control-sm">
+              <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">Time (24h)</label>
+              <input type="text" name="next_followup_time" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
             </div>
           </div>
 

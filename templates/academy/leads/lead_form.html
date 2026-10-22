@@ -179,6 +179,13 @@
     .crm-form-label { width: 100%; text-align: left; padding-right: 0; margin-bottom: 0.35rem; }
     .crm-form-field { width: 100%; }
   }
+
+  /* Prevent Bootstrap is-invalid warning icon from colliding/overlapping with native date & time calendar picker icons */
+  input[type="date"].is-invalid,
+  input[type="time"].is-invalid {
+    background-position: right 2.25rem center !important;
+    padding-right: 3.5rem !important;
+  }
 </style>
 {% endblock %}
 
@@ -228,6 +235,18 @@
     <form method="POST" id="academyLeadForm" class="needs-validation" novalidate>
       {% csrf_token %}
       {% if duplicates %}<input type="hidden" name="force_create" value="1">{% endif %}
+
+      <!-- Prominent Form Validation Warning Alert Banner -->
+      <div id="formValidationAlert" class="alert alert-danger alert-dismissible fade show d-none mb-3 py-2.5 px-3 rounded-3 shadow-xs" role="alert" style="border-left: 4px solid #dc3545;">
+        <div class="d-flex align-items-center">
+          <i class="fa-solid fa-circle-exclamation text-danger fs-5 me-2 flex-shrink-0"></i>
+          <div>
+            <strong class="d-block" style="font-size: 0.85rem;" id="formValidationAlertTitle">Please correct the highlighted fields before saving:</strong>
+            <span style="font-size: 0.80rem;" id="formValidationAlertMsg">Follow-up date cannot be in the past or beyond realistic years.</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-sm" onclick="document.getElementById('formValidationAlert').classList.add('d-none')" aria-label="Close" style="top: 0.8rem;"></button>
+      </div>
 
       <!-- Hidden lifecycle state fields -->
       <input type="hidden" name="deal_status" id="id_deal_status" value="{{ form.instance.deal_status|default:'OPEN' }}">
@@ -398,7 +417,8 @@
             <div class="crm-form-row mb-0">
               <label class="crm-form-label required" style="width: 38%;">Follow-up Date</label>
               <div class="crm-form-field" style="width: 62%;">
-                <input type="date" name="custom_followup_date" id="custom_followup_date" class="form-control" value="{{ form.instance.next_followup_date|date:'Y-m-d'|default:'' }}">
+                <input type="date" name="custom_followup_date" id="custom_followup_date" class="form-control" min="{% now 'Y-m-d' %}" max="2028-12-31" value="{{ form.instance.next_followup_date|date:'Y-m-d'|default:'' }}">
+                <div class="invalid-feedback" id="custom_followup_date_error" style="font-size: 0.72rem;">Please select today or a future date within 2 years.</div>
               </div>
             </div>
           </div>
@@ -406,7 +426,7 @@
             <div class="crm-form-row mb-0">
               <label class="crm-form-label" style="width: 35%;">Slot Time</label>
               <div class="crm-form-field" style="width: 65%;">
-                <input type="time" name="custom_followup_time" id="custom_followup_time" class="form-control" value="{{ form.instance.next_followup_time|time:'H:i'|default:'' }}">
+                <input type="text" name="custom_followup_time" id="custom_followup_time" class="form-control time-mask-input" placeholder="HH:MM (24h)" maxlength="5" inputmode="numeric" value="{{ form.instance.next_followup_time|time:'H:i'|default:'' }}">
               </div>
             </div>
           </div>
@@ -431,7 +451,7 @@
             <div class="crm-form-row mb-0">
               <label class="crm-form-label required" style="width: 38%;">Visit Date</label>
               <div class="crm-form-field" style="width: 62%;">
-                <input type="date" name="custom_visit_date" id="custom_visit_date" class="form-control">
+                <input type="date" name="custom_visit_date" id="custom_visit_date" class="form-control" min="{% now 'Y-m-d' %}" max="2099-12-31">
               </div>
             </div>
           </div>
@@ -470,7 +490,7 @@
             <div class="crm-form-row mb-0">
               <label class="crm-form-label required" style="width: 42%;">Expected Date</label>
               <div class="crm-form-field" style="width: 58%;">
-                <input type="date" name="custom_admission_date" id="custom_admission_date" class="form-control">
+                <input type="date" name="custom_admission_date" id="custom_admission_date" class="form-control" min="{% now 'Y-m-d' %}" max="2099-12-31">
               </div>
             </div>
           </div>
@@ -494,30 +514,49 @@
 
           <div class="card-body p-3 bg-white rounded-bottom-3">
             <!-- Step A: Academic Allocation -->
-            <div class="small fw-bold text-uppercase text-secondary mb-2 pb-1 border-bottom">
+            <div class="small fw-bold text-uppercase text-secondary mb-3 pb-1 border-bottom">
               Admission Details
             </div>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4 col-lg-2">
+
+            <!-- Row 1: Admission Date & Joining Date -->
+            <div class="row mb-3">
+              <div class="col-md-6">
                 <div class="crm-form-row mb-0">
-                  <label class="crm-form-label required" style="width: 50%;">Admission Date</label>
-                  <div class="crm-form-field" style="width: 50%;">
+                  <label class="crm-form-label required" for="billing_admission_date">Admission Date</label>
+                  <div class="crm-form-field">
                     <input type="date" name="custom_admission_date" id="billing_admission_date" class="form-control" value="{% if form.instance.custom_data.admission_date %}{{ form.instance.custom_data.admission_date }}{% else %}{% now 'Y-m-d' %}{% endif %}">
                   </div>
                 </div>
               </div>
-              <div class="col-md-4 col-lg-2">
+              <div class="col-md-6">
                 <div class="crm-form-row mb-0">
-                  <label class="crm-form-label" style="width: 48%;">Joining Date</label>
-                  <div class="crm-form-field" style="width: 52%;">
+                  <label class="crm-form-label" for="billing_date_of_joining">Joining Date</label>
+                  <div class="crm-form-field">
                     <input type="date" name="custom_date_of_joining" id="billing_date_of_joining" class="form-control" value="{% if form.instance.custom_data.date_of_joining %}{{ form.instance.custom_data.date_of_joining }}{% elif form.instance.admission.date_of_joining %}{{ form.instance.admission.date_of_joining|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
                   </div>
                 </div>
               </div>
-              <div class="col-md-6 col-lg-3">
+            </div>
+
+            <!-- Row 2: Trainer & Batch -->
+            <div class="row mb-3">
+              <div class="col-md-6">
                 <div class="crm-form-row mb-0">
-                  <label class="crm-form-label" style="width: 32%;">Batch</label>
-                  <div class="crm-form-field" style="width: 68%;">
+                  <label class="crm-form-label required" for="selected_tutor">Trainer</label>
+                  <div class="crm-form-field">
+                    <select name="selected_tutor" id="selected_tutor" class="form-select no-tom-select">
+                      <option value="">Select Trainer</option>
+                      {% for t in available_trainers %}
+                        <option value="{{ t }}" {% if form.instance.admission.tutor == t or form.instance.custom_data.tutor == t %}selected{% endif %}>{{ t }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="crm-form-row mb-0">
+                  <label class="crm-form-label" for="selected_batch_select">Batch</label>
+                  <div class="crm-form-field">
                     <select name="selected_batch_id" id="selected_batch_select" class="form-select no-tom-select">
                       <option value="">Select Batch (Auto-fills Trainer & Time)</option>
                       {% for b in available_batches %}
@@ -530,23 +569,14 @@
                   </div>
                 </div>
               </div>
-              <div class="col-md-4 col-lg-2">
+            </div>
+
+            <!-- Row 3: Batch Time -->
+            <div class="row mb-4">
+              <div class="col-md-6">
                 <div class="crm-form-row mb-0">
-                  <label class="crm-form-label required" style="width: 38%;">Trainer</label>
-                  <div class="crm-form-field" style="width: 62%;">
-                    <select name="selected_tutor" id="selected_tutor" class="form-select no-tom-select">
-                      <option value="">Select Trainer</option>
-                      {% for t in available_trainers %}
-                        <option value="{{ t }}" {% if form.instance.admission.tutor == t or form.instance.custom_data.tutor == t %}selected{% endif %}>{{ t }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6 col-lg-3">
-                <div class="crm-form-row mb-0">
-                  <label class="crm-form-label" style="width: 38%;">Batch Time</label>
-                  <div class="crm-form-field" style="width: 62%;">
+                  <label class="crm-form-label" for="selected_batch_timing">Batch Time</label>
+                  <div class="crm-form-field">
                     <input type="text" name="selected_batch_timing" id="selected_batch_timing" class="form-control" placeholder="e.g. 10:00 AM - 12:00 PM" value="{{ form.instance.custom_data.batch_time|default:'' }}">
                   </div>
                 </div>
@@ -583,7 +613,7 @@
                 <div class="crm-form-row">
                   <label class="crm-form-label fw-bold text-primary">Paid Today / Token (₹)</label>
                   <div class="crm-form-field">
-                    <input type="number" step="0.01" name="billing_token_amount" id="billing_token_amount" class="form-control fw-bold text-primary" value="0">
+                    <input type="number" step="1" min="0" name="billing_token_amount" id="billing_token_amount" class="form-control fw-bold text-primary" placeholder="Enter amount paid today (e.g. 2000)" value="{{ form.instance.custom_data.token_amount|default:'' }}">
                     <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Full payment = Total Bill; Token payment = Advance Token amount.</small>
                   </div>
                 </div>
@@ -592,7 +622,7 @@
               <!-- Right Column: Balance, Payment Mode, EMI Months, Monthly EMI -->
               <div class="col-md-6">
                 <div class="crm-form-row">
-                  <label class="crm-form-label fw-bold text-danger">Balance Due (₹)</label>
+                  <label class="crm-form-label fw-bold text-danger">Pending Amount (₹)</label>
                   <div class="crm-form-field">
                     <input type="number" step="0.01" name="billing_balance_amount" id="billing_balance_amount" class="form-control fw-bold text-danger" readonly style="background-color: #fef2f2 !important;">
                   </div>
@@ -621,8 +651,9 @@
                 <div class="crm-form-row" id="row_monthly_emi" style="display: none;">
                   <label class="crm-form-label fw-bold text-primary">Monthly EMI (₹)</label>
                   <div class="crm-form-field">
-                    <input type="number" step="0.01" name="billing_monthly_emi" id="billing_monthly_emi" class="form-control fw-bold text-primary" readonly style="background-color: #eff6ff !important;">
-                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">Recurring monthly reminder notification counselor ko schedule date par aayega.</small>
+                    <input type="number" step="1" name="billing_monthly_emi" id="billing_monthly_emi" class="form-control fw-bold text-primary" readonly style="background-color: #eff6ff !important;">
+                    <div id="emi_breakdown_hint" class="small text-primary fw-semibold mt-1" style="font-size: 0.74rem;"></div>
+                    <small class="text-muted d-block mt-0.5" style="font-size: 0.70rem;">Recurring monthly reminder notification counselor ko schedule date par aayega.</small>
                   </div>
                 </div>
               </div>
@@ -877,6 +908,69 @@ document.addEventListener("DOMContentLoaded", function() {
     console.warn("Could not parse batches JSON:", err);
   }
 
+  // Dynamically filter Batch options based on Selected Course AND Selected Trainer
+  function filterBatchesDropdown() {
+    if (!selectedBatchSelect) return;
+    const selectedCid = courseSelect ? parseInt(courseSelect.value) : null;
+    const selectedTrainerName = selectedTutor ? (selectedTutor.value || "").trim().toLowerCase() : "";
+
+    // Clear and rebuild options or show/hide
+    let visibleCount = 0;
+    const curVal = selectedBatchSelect.value;
+    let keepCurrent = false;
+
+    for (let i = 1; i < selectedBatchSelect.options.length; i++) {
+      const opt = selectedBatchSelect.options[i];
+      const optCourseId = parseInt(opt.getAttribute("data-course-id"));
+      const optTrainer = (opt.getAttribute("data-trainer") || "").trim().toLowerCase();
+
+      let matchCourse = true;
+      let matchTrainer = true;
+
+      if (selectedCid && !isNaN(selectedCid)) {
+        // Direct course match OR loose name match
+        matchCourse = (optCourseId === selectedCid);
+      }
+      if (selectedTrainerName) {
+        matchTrainer = (!optTrainer || optTrainer === selectedTrainerName);
+      }
+
+      if (matchCourse && matchTrainer) {
+        opt.hidden = false;
+        opt.disabled = false;
+        opt.style.display = "";
+        visibleCount++;
+        if (opt.value === curVal) keepCurrent = true;
+      } else {
+        opt.hidden = true;
+        opt.disabled = true;
+        opt.style.display = "none";
+      }
+    }
+
+    if (!keepCurrent) {
+      // Find first visible match
+      const firstValid = Array.from(selectedBatchSelect.options).find((opt, idx) => idx > 0 && !opt.disabled && !opt.hidden);
+      if (firstValid) {
+        firstValid.selected = true;
+        selectedBatchSelect.dispatchEvent(new Event("change"));
+      } else {
+        selectedBatchSelect.selectedIndex = 0;
+        if (selectedBatch) selectedBatch.value = "";
+      }
+    }
+
+    // Update empty label to guide user
+    const defaultOpt = selectedBatchSelect.options[0];
+    if (defaultOpt) {
+      if (visibleCount === 0) {
+        defaultOpt.textContent = "No batch found for selected Course & Trainer";
+      } else {
+        defaultOpt.textContent = `Select Batch (${visibleCount} available)`;
+      }
+    }
+  }
+
   // When counselor picks a batch, automatically fill Trainer and Batch Time
   if (selectedBatchSelect) {
     selectedBatchSelect.addEventListener("change", function() {
@@ -912,6 +1006,13 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  // When Trainer changes, filter matching batches
+  if (selectedTutor) {
+    selectedTutor.addEventListener("change", function() {
+      filterBatchesDropdown();
+    });
+  }
+
   function updateCoursePricing() {
     if (!courseSelect) return;
     const cid = parseInt(courseSelect.value);
@@ -922,30 +1023,7 @@ document.addEventListener("DOMContentLoaded", function() {
       billingTotalFee.value = basePrice;
       billingMaxDiscHint.textContent = "Max discount allowed: ₹" + maxDisc.toLocaleString('en-IN');
       
-      // Filter Batch Select dropdown to matching course batches
-      if (selectedBatchSelect) {
-        const curBatchVal = selectedBatchSelect.value;
-        let hasActiveSelection = false;
-        for (let i = 1; i < selectedBatchSelect.options.length; i++) {
-          const opt = selectedBatchSelect.options[i];
-          const bCourseId = parseInt(opt.getAttribute("data-course-id"));
-          if (!isNaN(bCourseId) && bCourseId !== cid) {
-            opt.style.display = "none";
-          } else {
-            opt.style.display = "";
-            if (opt.value === curBatchVal) hasActiveSelection = true;
-          }
-        }
-        if (!hasActiveSelection && selectedBatchSelect.options.length > 1) {
-          // If a batch from another course was chosen, reset or auto-pick first match
-          const firstMatch = Array.from(selectedBatchSelect.options).find((opt, idx) => idx > 0 && opt.style.display !== "none");
-          if (firstMatch) {
-            firstMatch.selected = true;
-            selectedBatchSelect.dispatchEvent(new Event("change"));
-          }
-        }
-      }
-
+      // Auto-set tutor if course has dedicated tutor and not set
       if (currentSelectedCourse.tutor && selectedTutor && !selectedTutor.value) {
         for (let i = 0; i < selectedTutor.options.length; i++) {
           if (selectedTutor.options[i].value.toLowerCase() === currentSelectedCourse.tutor.toLowerCase()) {
@@ -954,6 +1032,10 @@ document.addEventListener("DOMContentLoaded", function() {
           }
         }
       }
+
+      // Filter batches by chosen course & trainer
+      filterBatchesDropdown();
+
       if (currentSelectedCourse.batch && selectedBatch && !selectedBatch.value) {
         selectedBatch.value = currentSelectedCourse.batch;
       }
@@ -961,6 +1043,8 @@ document.addEventListener("DOMContentLoaded", function() {
         selectedBatchTiming.value = currentSelectedCourse.batch_time;
       }
       recalculateBilling();
+    } else {
+      filterBatchesDropdown();
     }
   }
 
@@ -976,25 +1060,60 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     const finalFee = Math.max(0, total - disc);
-    billingFinalFee.value = finalFee.toFixed(2);
+    billingFinalFee.value = Math.round(finalFee);
 
-    let token = parseFloat(billingTokenAmount.value) || 0;
-    if (billingPaymentOpt.value !== "EMI") {
-      // One time full payment: token defaults to finalFee, balance is 0
-      token = finalFee;
-      billingTokenAmount.value = token.toFixed(2);
-      billingBalanceAmount.value = "0.00";
+    const isEmi = (billingPaymentOpt.value === "EMI");
+    const breakdownEl = document.getElementById("emi_breakdown_hint");
+
+    if (!isEmi) {
       rowEmiMonths.style.display = "none";
       rowMonthlyEmi.style.display = "none";
+      if (breakdownEl) breakdownEl.textContent = "";
+
+      // One-time payment mode:
+      // Do NOT auto-fill token amount. If user has typed something, calculate balance = finalFee - token.
+      // If token is empty or 0, user owes the full finalFee as balance due.
+      const rawToken = billingTokenAmount.value.trim();
+      let token = rawToken !== "" ? (parseFloat(rawToken) || 0) : 0;
+      
+      const balance = Math.max(0, finalFee - token);
+      billingBalanceAmount.value = Math.round(balance);
     } else {
-      // EMI Mode: Balance is finalFee - token
+      // EMI Mode:
       rowEmiMonths.style.display = "flex";
       rowMonthlyEmi.style.display = "flex";
+
+      const rawToken = billingTokenAmount.value.trim();
+      let token = rawToken !== "" ? (parseFloat(rawToken) || 0) : 0;
+
+      // Balance to be divided into EMI installments
       const balance = Math.max(0, finalFee - token);
-      billingBalanceAmount.value = balance.toFixed(2);
+      billingBalanceAmount.value = Math.round(balance);
+
       const months = parseInt(billingEmiMonths.value) || 6;
-      const monthly = months > 0 ? (balance / months) : 0;
-      billingMonthlyEmi.value = monthly.toFixed(2);
+      if (months > 0 && balance > 0) {
+        // Always round off to UPPER whole number (Math.ceil)
+        const regularEmi = Math.ceil(balance / months);
+        billingMonthlyEmi.value = regularEmi;
+
+        // Calculate last month adjustment so total equals balance
+        if (months > 1) {
+          const sumPreviousMonths = regularEmi * (months - 1);
+          const lastMonthEmi = Math.max(0, balance - sumPreviousMonths);
+          if (breakdownEl) {
+            if (lastMonthEmi === regularEmi) {
+              breakdownEl.textContent = `₹${regularEmi.toLocaleString('en-IN')}/mo for ${months} months.`;
+            } else {
+              breakdownEl.textContent = `1st to ${months - 1}th month: ₹${regularEmi.toLocaleString('en-IN')} | Last month (${months}th): ₹${lastMonthEmi.toLocaleString('en-IN')}`;
+            }
+          }
+        } else {
+          if (breakdownEl) breakdownEl.textContent = `₹${regularEmi.toLocaleString('en-IN')} due in 1 month.`;
+        }
+      } else {
+        billingMonthlyEmi.value = 0;
+        if (breakdownEl) breakdownEl.textContent = "";
+      }
     }
   }
 
@@ -1079,6 +1198,7 @@ document.addEventListener("DOMContentLoaded", function() {
     stageSelect.addEventListener("change", handleStageChange);
     handleStageChange();
   }
+  filterBatchesDropdown();
 
   // Mobile numeric validation
   const mobileInput = document.querySelector('input[name="mobile"]');
@@ -1092,10 +1212,122 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  // Passing Year formatting & validation
+  const yearInput = document.getElementById('id_graduation_year') || document.querySelector('input[name="graduation_year"]');
+  if (yearInput) {
+    yearInput.setAttribute('maxlength', '4');
+    yearInput.setAttribute('inputmode', 'numeric');
+    yearInput.setAttribute('pattern', '^(19|20)\\d{2}$');
+    yearInput.setAttribute('placeholder', 'YYYY (e.g. 2024)');
+
+    yearInput.addEventListener('input', function() {
+      // Allow only numbers and cap at 4 digits
+      this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);
+      if (this.value.length === 4) {
+        const yr = parseInt(this.value, 10);
+        const maxYear = new Date().getFullYear() + 10;
+        if (yr < 1980 || yr > maxYear) {
+          this.setCustomValidity(`Please enter a valid passing year between 1980 and ${maxYear}`);
+          this.classList.add('is-invalid');
+        } else {
+          this.setCustomValidity('');
+          this.classList.remove('is-invalid');
+        }
+      } else {
+        this.setCustomValidity('');
+        this.classList.remove('is-invalid');
+      }
+    });
+
+    yearInput.addEventListener('blur', function() {
+      if (this.value && this.value.length > 0 && this.value.length < 4) {
+        this.setCustomValidity('Passing year must be a 4-digit year (e.g. 2024)');
+        this.classList.add('is-invalid');
+      }
+    });
+  }
+
+  // Follow-up Date validation (Must be today or within next 2 years)
+  if (inputFollowupDate) {
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const maxYear = todayYear + 2;
+    const todayStr = `${todayYear}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const maxDateStr = `${maxYear}-12-31`;
+
+    inputFollowupDate.min = todayStr;
+    inputFollowupDate.max = maxDateStr;
+
+    function validateFollowupDate() {
+      const errDiv = document.getElementById("custom_followup_date_error");
+      const rawVal = (inputFollowupDate.value || "").trim();
+
+      if (!rawVal) {
+        if (inputFollowupDate.hasAttribute('required')) {
+          inputFollowupDate.setCustomValidity('Please select a follow-up date.');
+          inputFollowupDate.classList.add('is-invalid');
+          if (errDiv) errDiv.textContent = 'Follow-up date is required.';
+          return false;
+        }
+        inputFollowupDate.setCustomValidity('');
+        inputFollowupDate.classList.remove('is-invalid');
+        return true;
+      }
+
+      // Check year format and realistic boundary
+      const parts = rawVal.split('-');
+      const year = parseInt(parts[0], 10);
+
+      if (parts.length < 3 || isNaN(year) || parts[0].length !== 4) {
+        inputFollowupDate.setCustomValidity('Please enter a valid complete date (DD-MM-YYYY).');
+        inputFollowupDate.classList.add('is-invalid');
+        if (errDiv) errDiv.textContent = 'Please enter a valid complete date.';
+        return false;
+      }
+
+      if (year > maxYear || year < todayYear - 1) {
+        inputFollowupDate.setCustomValidity(`Invalid year (${year}). Follow-up date must be within 2 years (up to ${maxYear}).`);
+        inputFollowupDate.classList.add('is-invalid');
+        if (errDiv) errDiv.textContent = `Invalid year (${year}). Must be between ${todayYear} and ${maxYear}.`;
+        return false;
+      }
+
+      if (rawVal < todayStr) {
+        inputFollowupDate.setCustomValidity('Follow-up date cannot be in the past. Please select today or an upcoming date.');
+        inputFollowupDate.classList.add('is-invalid');
+        if (errDiv) errDiv.textContent = 'Follow-up date cannot be in the past. Please select today or a future date.';
+        return false;
+      }
+
+      inputFollowupDate.setCustomValidity('');
+      inputFollowupDate.classList.remove('is-invalid');
+      return true;
+    }
+
+    inputFollowupDate.addEventListener('input', validateFollowupDate);
+    inputFollowupDate.addEventListener('change', validateFollowupDate);
+    inputFollowupDate.addEventListener('blur', validateFollowupDate);
+  }
+
   // Form submit validation
   const form = document.getElementById("academyLeadForm");
+  const alertBanner = document.getElementById("formValidationAlert");
+  const alertTitle = document.getElementById("formValidationAlertTitle");
+  const alertMsg = document.getElementById("formValidationAlertMsg");
+
   form.addEventListener("submit", function(e) {
     let isValid = true;
+    let errorMessages = [];
+
+    // 1. Follow-up Date validation check
+    if (inputFollowupDate && !inputFollowupDate.closest('[style*="display: none"]')) {
+      if (!validateFollowupDate()) {
+        isValid = false;
+        errorMessages.push("Follow-up date must be today or an upcoming date within 2 years (cannot be past or invalid year).");
+      }
+    }
+
+    // 2. Required fields check
     const requiredInputs = form.querySelectorAll("[required]");
     requiredInputs.forEach(function(input) {
       if (input.closest('[style*="display: none"]')) return;
@@ -1106,13 +1338,32 @@ document.addEventListener("DOMContentLoaded", function() {
         input.classList.remove("is-invalid");
       }
     });
+
     if (!isValid) {
       e.preventDefault();
+      e.stopPropagation();
+
+      // Show prominent warning banner
+      if (alertBanner) {
+        alertBanner.classList.remove("d-none");
+        if (errorMessages.length > 0) {
+          if (alertMsg) alertMsg.textContent = errorMessages.join(" ");
+        } else {
+          if (alertMsg) alertMsg.textContent = "Please fill in all mandatory fields marked with an asterisk (*).";
+        }
+      }
+
+      // Find first invalid element to focus & scroll into view
       const firstInvalid = form.querySelector(".is-invalid");
       if (firstInvalid) {
+        if (firstInvalid.reportValidity) {
+          firstInvalid.reportValidity();
+        }
         firstInvalid.focus();
         firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+    } else {
+      if (alertBanner) alertBanner.classList.add("d-none");
     }
   });
 });

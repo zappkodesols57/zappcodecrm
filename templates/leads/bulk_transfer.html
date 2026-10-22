@@ -5,42 +5,44 @@
 <style>
   .simple-card {
     background: #ffffff;
-    border-radius: 8px;
-    border: 1.5px solid #000000 !important;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     padding: 1.5rem;
     margin-bottom: 1.5rem;
   }
   .filter-box {
-    border: 1.5px solid #000000 !important;
-    border-radius: 8px;
-    padding: 1.25rem;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
     background: #ffffff;
     margin-bottom: 1.5rem;
   }
   .simple-select-box {
-    background: #ffffff;
-    border: 1px solid #000000 !important;
-    border-radius: 6px;
-    padding: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px;
+    padding: 1.1rem 1.25rem;
   }
   .lead-preview-table {
     font-size: 0.88rem;
-    border: 1px solid #000000 !important;
   }
   .lead-preview-table th {
-    background-color: #f1f5f9;
-    color: #000000;
+    background-color: #f8fafc;
+    color: #475569;
     font-weight: 600;
-    border-bottom: 1px solid #000000 !important;
+    font-size: 0.82rem;
+    border-bottom: 1px solid #e2e8f0 !important;
   }
   .lead-preview-table td {
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #f1f5f9;
   }
-  /* Crisp 1px solid black border on all input and select fields */
+  /* Uniform CRM input and select styling matching other pages */
   .filter-box .form-control, 
   .filter-box .form-select,
-  .simple-card .form-control,
-  .simple-card .form-select,
+  .simple-select-box .form-control,
+  .simple-select-box .form-select,
   #sourceUserSelect,
   #targetUserSelect,
   #filterStage,
@@ -50,17 +52,20 @@
   #filterDateTo,
   #filterLimit,
   #filterSearch {
-    border: 1px solid #000000 !important;
-    border-radius: 4px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
     background-color: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
+    font-size: 0.88rem !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   }
   .filter-box .form-control:focus, 
   .filter-box .form-select:focus,
   #sourceUserSelect:focus,
-  #targetUserSelect:focus {
-    border: 1.5px solid #000000 !important;
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08) !important;
+  #targetUserSelect:focus,
+  #filterSearch:focus {
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
     outline: none !important;
   }
 </style>
@@ -78,8 +83,8 @@
         Reassign active leads from one user to another. All previous remarks and notes will be preserved.
       </p>
     </div>
-    <a href="{% url 'leads:lead_list' %}" class="btn btn-outline-dark btn-sm px-3">
-      Back to Leads
+    <a href="{% url 'leads:lead_list' %}" class="btn btn-sm btn-secondary rounded-pill px-3">
+      <i class="fa-solid fa-arrow-left me-1"></i> Back to Leads
     </a>
   </div>
 
@@ -204,21 +209,21 @@
     </div>
 
     <!-- 3. Summary & Execute Action Bar -->
-    <div class="d-flex justify-content-between align-items-center p-3 bg-light border border-dark rounded mb-4">
-      <div>
+    <div class="d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-xs mb-4" style="border-color: #e2e8f0 !important;">
+      <div class="d-flex align-items-center flex-wrap gap-2">
         <span class="fw-bold text-dark fs-6">Matched Leads:</span>
-        <span id="liveMatchCount" class="badge bg-dark text-white fs-6 ms-1">0</span>
-        <span class="text-muted small ms-2" id="liveMatchSubtext">Select a source user to calculate leads.</span>
+        <span id="liveMatchCount" class="badge bg-primary fs-6 px-2.5 py-1 rounded-pill">0</span>
+        <span class="text-muted small" id="liveMatchSubtext">Select a source user to calculate leads.</span>
       </div>
-      <button type="button" class="btn btn-primary px-4 fw-bold" id="btnOpenConfirmModal" disabled>
+      <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm" id="btnOpenConfirmModal" disabled>
         Transfer Leads
       </button>
     </div>
 
     <!-- 4. Leads Preview Table with Pagination -->
-    <div class="card border border-dark rounded mb-4">
-      <div class="card-header bg-white py-2 border-bottom border-dark d-flex justify-content-between align-items-center">
-        <span class="fw-bold text-dark">Leads Preview</span>
+    <div class="card border rounded-3 overflow-hidden shadow-xs mb-4" style="border-color: #e2e8f0 !important;">
+      <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center" style="border-color: #e2e8f0 !important;">
+        <h6 class="fw-bold text-dark mb-0">Leads Preview</h6>
         <span class="small text-muted" id="previewNote">No leads loaded.</span>
       </div>
       <div class="card-body p-0">

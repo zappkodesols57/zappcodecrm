@@ -2531,6 +2531,14 @@ def lead_add(request):
                     lead.deal_status = DealStatus.WON
                     lead.temperature = LeadTemperature.HOT
                     lead.admission_status = AdmissionStatus.WON
+                    if balance_val > 0:
+                        stg_obj = LeadStage.objects.filter(name__iexact="Payment Pending", is_active=True).first()
+                        if stg_obj:
+                            lead.stage = stg_obj
+                    else:
+                        stg_obj = LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+                        if stg_obj:
+                            lead.stage = stg_obj
                     if custom_adm:
                         custom_dict["admission_date"] = custom_adm
                     if custom_doj:
@@ -2540,11 +2548,15 @@ def lead_add(request):
                     if selected_batch:
                         custom_dict["batch"] = selected_batch
                     if final_fee_val:
+                        custom_dict["total_fee"] = total_fee_val
+                        custom_dict["discount"] = discount_val
+                        custom_dict["final_fee"] = final_fee_val
                         custom_dict["total"] = final_fee_val
                         custom_dict["token_amount"] = token_val
+                        custom_dict["total_paid"] = token_val
                         custom_dict["balance_amount"] = balance_val
-                        custom_dict["total_paid"] = final_fee_val if payment_option != "EMI" else token_val
                         custom_dict["payment_option"] = payment_option
+                        custom_dict["payment_mode"] = dict(PaymentOption.choices).get(payment_option, payment_option)
                     if selected_batch_timing:
                         custom_dict["batch_time"] = selected_batch_timing
 
@@ -2735,14 +2747,33 @@ def lead_add(request):
                             assigned_counselor=lead.assigned_to,
                         )
                         # Schedule EMI Installments if EMI
-                        if payment_option == "EMI" and emi_months > 0 and monthly_emi > 0:
+                        if payment_option == "EMI" and emi_months > 0 and balance_val > 0:
+                            import math
+                            ceil_emi = math.ceil(balance_val / emi_months)
                             for m in range(1, emi_months + 1):
                                 due_d = adm_date_obj + relativedelta(months=m)
+                                if m == emi_months:
+                                    inst_amt = max(0, balance_val - (ceil_emi * (emi_months - 1)))
+                                else:
+                                    inst_amt = ceil_emi
                                 Installment.objects.create(
                                     admission=adm,
-                                    amount=monthly_emi,
+                                    amount=inst_amt,
                                     due_date=due_d,
                                 )
+
+                        # Record initial payment (Token / Paid Today) if amount > 0
+                        if token_val > 0:
+                            from payments.models import Payment, PaymentMode, PaymentStatus
+                            p_mode = PaymentMode.CASH if "CASH" in payment_option else PaymentMode.UPI
+                            Payment.objects.create(
+                                admission=adm,
+                                amount=token_val,
+                                payment_date=adm_date_obj,
+                                payment_mode=p_mode,
+                                payment_status=PaymentStatus.SUCCESS,
+                                remarks="Initial token / advance payment on admission.",
+                            )
                     except Exception as e:
                         print("Error creating admission record in lead_create:", e)
             
@@ -2883,7 +2914,7 @@ def lead_add(request):
     batches_json = json.dumps(batches_data)
 
     available_trainers = []
-    # Collect dedicated trainers from Trainer master
+    # Collect dedicated trainers from Trainer master only
     trainers_qs = Trainer.objects.filter(is_active=True)
     if active_business:
         trainers_qs = trainers_qs.filter(hospital=active_business)
@@ -2891,22 +2922,12 @@ def lead_add(request):
         if tr.name.strip() and tr.name.strip() not in available_trainers:
             available_trainers.append(tr.name.strip())
 
-    # Also collect legacy tutors from courses
-    existing_tutors = list(courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct())
-    for t in existing_tutors:
-        if t and t.strip() and t.strip() not in available_trainers:
-            available_trainers.append(t.strip())
-    # Also collect staff members who can train (Admin, Manager, Counsellor)
-    trainer_staff = User.objects.filter(
-        is_active=True,
-        role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.SUPER_ADMIN]
-    )
-    if active_business:
-        trainer_staff = trainer_staff.filter(hospital=active_business)
-    for u in trainer_staff.order_by("first_name", "username"):
-        uname = (u.get_full_name() or u.username).strip()
-        if uname and uname not in available_trainers:
-            available_trainers.append(uname)
+    # Fallback to course legacy tutors only if no trainer master exists
+    if not available_trainers:
+        existing_tutors = list(courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct())
+        for t in existing_tutors:
+            if t and t.strip() and t.strip() not in available_trainers:
+                available_trainers.append(t.strip())
 
     return render(request, template, {
         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
@@ -3121,6 +3142,14 @@ def lead_edit(request, pk):
                     saved_lead.deal_status = DealStatus.WON
                     saved_lead.temperature = LeadTemperature.HOT
                     saved_lead.admission_status = AdmissionStatus.WON
+                    if balance_val > 0:
+                        stg_obj = LeadStage.objects.filter(name__iexact="Payment Pending", is_active=True).first()
+                        if stg_obj:
+                            saved_lead.stage = stg_obj
+                    else:
+                        stg_obj = LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+                        if stg_obj:
+                            saved_lead.stage = stg_obj
                     if custom_adm:
                         cd["admission_date"] = custom_adm
                     if custom_doj:
@@ -3130,11 +3159,15 @@ def lead_edit(request, pk):
                     if selected_batch:
                         cd["batch"] = selected_batch
                     if final_fee_val:
+                        cd["total_fee"] = total_fee_val
+                        cd["discount"] = discount_val
+                        cd["final_fee"] = final_fee_val
                         cd["total"] = final_fee_val
                         cd["token_amount"] = token_val
+                        cd["total_paid"] = token_val
                         cd["balance_amount"] = balance_val
-                        cd["total_paid"] = final_fee_val if payment_option != "EMI" else token_val
                         cd["payment_option"] = payment_option
+                        cd["payment_mode"] = dict(PaymentOption.choices).get(payment_option, payment_option)
                     if selected_batch_timing:
                         cd["batch_time"] = selected_batch_timing
 
@@ -3347,14 +3380,33 @@ def lead_edit(request, pk):
                             adm.save()
 
                         # Schedule EMI Installments if EMI
-                        if payment_option == "EMI" and emi_months > 0 and monthly_emi > 0 and not adm.installments.exists():
+                        if payment_option == "EMI" and emi_months > 0 and balance_val > 0 and not adm.installments.exists():
+                            import math
+                            ceil_emi = math.ceil(balance_val / emi_months)
                             for m in range(1, emi_months + 1):
                                 due_d = adm_date_obj + relativedelta(months=m)
+                                if m == emi_months:
+                                    inst_amt = max(0, balance_val - (ceil_emi * (emi_months - 1)))
+                                else:
+                                    inst_amt = ceil_emi
                                 Installment.objects.create(
                                     admission=adm,
-                                    amount=monthly_emi,
+                                    amount=inst_amt,
                                     due_date=due_d,
                                 )
+
+                        # Record initial payment (Token / Paid Today) if amount > 0 and not already recorded
+                        if token_val > 0 and not adm.payments.exists():
+                            from payments.models import Payment, PaymentMode, PaymentStatus
+                            p_mode = PaymentMode.CASH if "CASH" in payment_option else PaymentMode.UPI
+                            Payment.objects.create(
+                                admission=adm,
+                                amount=token_val,
+                                payment_date=adm_date_obj,
+                                payment_mode=p_mode,
+                                payment_status=PaymentStatus.SUCCESS,
+                                remarks="Initial token / advance payment on admission.",
+                            )
                     except Exception as e:
                         print("Error saving admission in lead_edit:", e)
 
@@ -3685,20 +3737,11 @@ def lead_edit(request, pk):
         if tr.name.strip() and tr.name.strip() not in available_trainers:
             available_trainers.append(tr.name.strip())
 
-    existing_tutors = list(courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct())
-    for t in existing_tutors:
-        if t and t.strip() and t.strip() not in available_trainers:
-            available_trainers.append(t.strip())
-    trainer_staff = User.objects.filter(
-        is_active=True,
-        role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.SUPER_ADMIN]
-    )
-    if target_biz:
-        trainer_staff = trainer_staff.filter(hospital=target_biz)
-    for u in trainer_staff.order_by("first_name", "username"):
-        uname = (u.get_full_name() or u.username).strip()
-        if uname and uname not in available_trainers:
-            available_trainers.append(uname)
+    if not available_trainers:
+        existing_tutors = list(courses_qs.exclude(tutor="").values_list("tutor", flat=True).distinct())
+        for t in existing_tutors:
+            if t and t.strip() and t.strip() not in available_trainers:
+                available_trainers.append(t.strip())
 
     return render(request, template, {
         "active": "leads_all",
@@ -4203,10 +4246,32 @@ def update_followup_status(request, pk, fu_id):
             if new_temp in LeadTemperature.values:
                 lead.temperature = new_temp
             if lead.is_academy_industry:
-                fu_completed_stage = LeadStage.objects.filter(name__iexact="Follow Up Completed", is_active=True).first()
-                if fu_completed_stage:
-                    lead.stage = fu_completed_stage
-                lead.deal_status = DealStatus.OPEN
+                adm = getattr(lead, "admission", None)
+                cd = lead.custom_data or {}
+                pending_amt = None
+                if adm:
+                    pending_amt = float(adm.pending)
+                elif "balance_amount" in cd:
+                    try:
+                        pending_amt = float(cd.get("balance_amount") or 0)
+                    except (ValueError, TypeError):
+                        pending_amt = None
+
+                if pending_amt is not None and (adm or "token_amount" in cd or "balance_amount" in cd):
+                    if pending_amt > 0:
+                        pending_stage = LeadStage.objects.filter(name__iexact="Payment Pending", is_active=True).first()
+                        if pending_stage:
+                            lead.stage = pending_stage
+                    else:
+                        done_stage = LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+                        if done_stage:
+                            lead.stage = done_stage
+                        lead.deal_status = DealStatus.WON
+                else:
+                    fu_completed_stage = LeadStage.objects.filter(name__iexact="Follow Up Completed", is_active=True).first()
+                    if fu_completed_stage:
+                        lead.stage = fu_completed_stage
+                    lead.deal_status = DealStatus.OPEN
             lead.save()
 
             # Log Activity

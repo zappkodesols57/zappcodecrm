@@ -7,21 +7,8 @@
   <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 p-md-4" style="border: 1px solid #e2e8f0 !important;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
       <div>
-        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-          <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-graduation-cap me-1"></i> Academy Master
-          </span>
-          {% if target_biz %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-1 rounded-pill fw-semibold" style="font-size: 0.75rem;">
-              <i class="fa-solid fa-building me-1"></i> {{ target_biz.name }}
-            </span>
-          {% endif %}
-          <span class="badge bg-light text-muted border px-2 py-1 rounded-pill small">
-            Batches: {{ total_count }} (Active: {{ active_count }})
-          </span>
-        </div>
         <h4 class="fw-bold text-dark mb-1">Batches Master</h4>
-        <p class="text-muted small mb-0">Assign courses, trainers, and timing schedules to student batches.</p>
+        <p class="text-muted small mb-0">Manage course batches and schedules.</p>
       </div>
       
       <!-- Action Buttons -->
@@ -36,10 +23,7 @@
   <!-- Batch List Table Card -->
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
     <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-      <div class="d-flex align-items-center gap-2">
-        <i class="fa-solid fa-users-rectangle text-primary fs-6"></i>
-        <h6 class="fw-bold text-dark mb-0">Academy Batches</h6>
-      </div>
+      <h6 class="fw-bold text-dark mb-0">Academy Batches</h6>
       <span class="text-muted small">Real-time sync with Lead Form</span>
     </div>
 
@@ -64,18 +48,11 @@
             <tr>
               <td class="ps-4 text-muted small fw-semibold">{{ forloop.counter }}</td>
               <td>
-                <div class="d-flex align-items-center gap-2">
-                  <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(59, 130, 246, 0.1); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">
-                    <i class="fa-solid fa-chalkboard"></i>
-                  </div>
-                  <div>
-                    <div class="fw-bold text-dark fs-6">{{ b.name }}</div>
-                  </div>
-                </div>
+                <div class="fw-bold text-dark">{{ b.name }}</div>
               </td>
               <td>
                 <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.76rem;">
-                  <i class="fa-solid fa-graduation-cap me-1"></i>{{ b.course.name }}
+                  {{ b.course.name }}
                 </span>
                 <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">
                   ₹{{ b.course.base_price }} (Max disc: ₹{{ b.course.max_discount }})
@@ -83,19 +60,13 @@
               </td>
               <td>
                 {% if b.trainer %}
-                  <div class="d-flex align-items-center gap-1.5">
-                    <i class="fa-solid fa-chalkboard-user text-primary" style="font-size: 0.82rem;"></i>
-                    <strong class="text-dark small">{{ b.trainer.name }}</strong>
-                  </div>
+                  <span class="text-dark small fw-medium">{{ b.trainer.name }}</span>
                 {% else %}
                   <span class="text-muted small">—</span>
                 {% endif %}
               </td>
               <td>
-                <div class="d-flex align-items-center gap-1.5">
-                  <i class="fa-regular fa-clock text-secondary" style="font-size: 0.8rem;"></i>
-                  <span class="fw-semibold text-dark small">{{ b.timing_display }}</span>
-                </div>
+                <span class="fw-semibold text-dark small">{{ b.timing_display }}</span>
               </td>
               <td>
                 {% if b.start_date %}
@@ -112,11 +83,11 @@
               <td class="text-center">
                 {% if b.is_active %}
                   <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">
-                    <i class="fa-solid fa-circle-check me-1"></i>Active
+                    Active
                   </span>
                 {% else %}
                   <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-2.5 py-1 small">
-                    <i class="fa-solid fa-ban me-1"></i>Inactive
+                    Inactive
                   </span>
                 {% endif %}
               </td>
