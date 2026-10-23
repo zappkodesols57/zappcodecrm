@@ -448,6 +448,152 @@ def batch_delete(request, pk):
 
 
 @login_required
+def quick_create_batch_api(request):
+    """
+    AJAX endpoint for quick batch creation directly from lead edit/form.
+    Saves batch to DB for the active business tenant and returns JSON so the client
+    can select it immediately without reloading the page.
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+
+    name = request.POST.get("name", "").strip()
+    course_id = request.POST.get("course_id")
+    trainer_name = request.POST.get("trainer_name", "").strip()
+    start_time_raw = request.POST.get("start_time", "").strip()
+    end_time_raw = request.POST.get("end_time", "").strip()
+    start_date_raw = request.POST.get("start_date", "").strip()
+    max_strength_raw = request.POST.get("max_strength", "30").strip()
+
+    if not name:
+        return JsonResponse({"success": False, "error": "Batch Name is required."}, status=400)
+    if not course_id:
+        return JsonResponse({"success": False, "error": "Course is required."}, status=400)
+
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return JsonResponse({"success": False, "error": "Selected Course not found."}, status=404)
+
+    # Determine tenant
+    target_biz = getattr(request.user, "hospital", None) or getattr(course, "hospital", None)
+
+    # Match or create Trainer if specified
+    trainer_obj = None
+    if trainer_name:
+        trainer_qs = Trainer.objects.filter(name__iexact=trainer_name)
+        if target_biz:
+            trainer_qs = trainer_qs.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
+        trainer_obj = trainer_qs.first()
+        if not trainer_obj:
+            trainer_obj = Trainer.objects.create(
+                name=trainer_name,
+                hospital=target_biz,
+                is_active=True
+            )
+
+    from datetime import datetime, time
+    start_t = None
+    end_t = None
+    start_d = None
+    if start_time_raw:
+        try:
+            start_t = datetime.strptime(start_time_raw, "%H:%M").time()
+        except ValueError:
+            pass
+    if end_time_raw:
+        try:
+            end_t = datetime.strptime(end_time_raw, "%H:%M").time()
+        except ValueError:
+            pass
+    if start_date_raw:
+        try:
+            start_d = datetime.strptime(start_date_raw, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    max_str = 30
+    if max_strength_raw and max_strength_raw.isdigit():
+        max_str = int(max_strength_raw)
+
+    # ─── Duplicate Batch Detection Manager ───
+    # Check if a batch already exists with the same Course, Trainer, Timing, and Starting Date
+    dup_filter = models.Q(course=course)
+    if trainer_obj:
+        dup_filter &= models.Q(trainer=trainer_obj)
+    else:
+        dup_filter &= models.Q(trainer__isnull=True)
+
+    if start_t:
+        dup_filter &= models.Q(start_time=start_t)
+    if end_t:
+        dup_filter &= models.Q(end_time=end_t)
+    if start_d:
+        dup_filter &= models.Q(start_date=start_d)
+
+    if target_biz:
+        dup_filter &= (models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
+
+    existing_batch = Batch.objects.filter(dup_filter).first()
+    if existing_batch:
+        date_display = existing_batch.start_date.strftime("%d-%m-%Y") if existing_batch.start_date else "N/A"
+        trainer_display = existing_batch.trainer.name if existing_batch.trainer else "No Trainer"
+        timing_display = existing_batch.timing_display
+        return JsonResponse({
+            "success": False,
+            "is_duplicate": True,
+            "error": (
+                f"Duplicate Batch Detected! A batch named '{existing_batch.name}' already exists in database with the exact same details: "
+                f"Course: {course.name}, Trainer: {trainer_display}, Timing: {timing_display}, Starting Date: {date_display}. "
+                "Please change the timing/date or select the existing batch to prevent confusion."
+            ),
+            "existing_batch": {
+                "id": existing_batch.id,
+                "name": existing_batch.name,
+                "course_id": existing_batch.course_id,
+                "trainer": trainer_display,
+                "timing_display": timing_display,
+            }
+        }, status=409)
+
+    # Check duplicate name within the same course/business
+    name_dup = Batch.objects.filter(course=course, name__iexact=name)
+    if target_biz:
+        name_dup = name_dup.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
+    if name_dup.exists():
+        return JsonResponse({
+            "success": False,
+            "error": f"A batch with the name '{name}' already exists for {course.name}. Please choose a unique batch name."
+        }, status=400)
+
+    batch = Batch.objects.create(
+        name=name,
+        course=course,
+        trainer=trainer_obj,
+        start_time=start_t,
+        end_time=end_t,
+        start_date=start_d,
+        max_strength=max_str,
+        hospital=target_biz,
+        is_active=True
+    )
+
+    return JsonResponse({
+        "success": True,
+        "batch": {
+            "id": batch.id,
+            "name": batch.name,
+            "course_id": batch.course_id,
+            "trainer": batch.trainer.name if batch.trainer else "",
+            "timing_display": batch.timing_display,
+            "start_time": batch.start_time.strftime("%H:%M") if batch.start_time else "",
+            "end_time": batch.end_time.strftime("%H:%M") if batch.end_time else "",
+        },
+        "message": f"Batch '{batch.name}' created and added to database successfully! 🎉"
+    })
+
+
+
+@login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def course_edit(request, pk):
     course = get_object_or_404(Course, pk=pk)
@@ -892,3 +1038,291 @@ def payment_done_list(request):
         "date_to_val": date_to or "",
         "query_params": query_params,
     })
+
+
+# ===========================================================================
+# 🎓 ACADEMY LIFECYCLE & ADMISSION HANDLERS (Domain Isolation)
+# ===========================================================================
+
+def handle_academy_lead_save(request, saved_lead, cd):
+    """
+    Dedicated handler for Academy lead state transitions, conversions, and billing.
+    Isolates Academy business logic from generic/hospital flows.
+    """
+    import math
+    from decimal import Decimal
+    from dateutil.relativedelta import relativedelta
+    from notifications.models import Notification
+    from admissions.models import Admission, Installment, PaymentPlan, PaymentOption
+    from payments.models import Payment, PaymentMode, PaymentStatus
+
+    today = timezone.localdate()
+
+    # Form parameters
+    custom_fup = request.POST.get("custom_followup_date")
+    custom_fup_time = request.POST.get("custom_followup_time")
+    custom_fup_remark = request.POST.get("custom_followup_remark", "").strip()
+
+    visit_date = request.POST.get("custom_visit_date")
+    visit_slot = request.POST.get("custom_visit_slot", "").strip()
+    visit_remark = request.POST.get("custom_visit_remark", "").strip()
+
+    custom_adm = request.POST.get("custom_admission_date")
+    custom_doj = request.POST.get("custom_date_of_joining")
+    custom_adm_remark = request.POST.get("custom_admission_remark", "").strip()
+
+    custom_reason = request.POST.get("custom_cancellation_reason", "").strip()
+
+    total_fee_val = request.POST.get("billing_total_fee")
+    discount_val = request.POST.get("billing_discount")
+    final_fee_val = request.POST.get("billing_final_fee")
+    token_val = float(request.POST.get("billing_token_amount") or 0)
+    balance_val = float(request.POST.get("billing_balance_amount") or 0)
+    payment_option = request.POST.get("billing_payment_option", "ONE_TIME_UPI")
+    emi_months = int(request.POST.get("billing_emi_months") or 0)
+    monthly_emi = float(request.POST.get("billing_monthly_emi") or 0)
+    selected_tutor = request.POST.get("selected_tutor", "").strip()
+    selected_batch = request.POST.get("selected_batch", "").strip()
+    selected_batch_timing = request.POST.get("selected_batch_timing", "").strip()
+
+    stage_name = (saved_lead.stage.name if saved_lead.stage_id and saved_lead.stage else "").strip().lower()
+
+    # 1. Cancelled / Lost
+    if stage_name in ("cancelled", "lost") or custom_reason:
+        saved_lead.deal_status = DealStatus.LOST
+        saved_lead.temperature = LeadTemperature.FREEZE
+        saved_lead.admission_status = AdmissionStatus.LOST
+        if custom_reason:
+            cd["cancellation_reason"] = custom_reason
+
+    # 2. Admission & Payment / Won conversion
+    elif stage_name in ("admission & payment", "admission done", "payment done"):
+        saved_lead.deal_status = DealStatus.WON
+        saved_lead.temperature = LeadTemperature.HOT
+        saved_lead.admission_status = AdmissionStatus.WON
+
+        # Assign correct Academy stage based on balance
+        if balance_val > 0:
+            stg_obj = LeadStage.objects.filter(name__iexact="Payment Pending", is_active=True).first()
+            if stg_obj:
+                saved_lead.stage = stg_obj
+        else:
+            stg_obj = LeadStage.objects.filter(name__iexact="Payment Done", is_active=True).first()
+            if stg_obj:
+                saved_lead.stage = stg_obj
+
+        if custom_adm:
+            cd["admission_date"] = custom_adm
+        if custom_doj:
+            cd["date_of_joining"] = custom_doj
+        if selected_tutor:
+            cd["tutor"] = selected_tutor
+        if selected_batch:
+            cd["batch"] = selected_batch
+        if final_fee_val:
+            cd["total_fee"] = total_fee_val
+            cd["discount"] = discount_val
+            cd["final_fee"] = final_fee_val
+            cd["total"] = final_fee_val
+            cd["token_amount"] = token_val
+            cd["total_paid"] = token_val
+            cd["balance_amount"] = balance_val
+            cd["payment_option"] = payment_option
+            cd["payment_mode"] = dict(PaymentOption.choices).get(payment_option, payment_option)
+        if selected_batch_timing:
+            cd["batch_time"] = selected_batch_timing
+
+    # 3. Visit Planned
+    elif stage_name in ("visit planned",):
+        saved_lead.deal_status = DealStatus.INTERESTED
+        if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+            saved_lead.temperature = LeadTemperature.WARM
+        if visit_date:
+            try:
+                saved_lead.next_followup_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
+                cd["visit_date"] = visit_date
+                cd["visit_slot"] = visit_slot
+            except ValueError:
+                pass
+
+    # 4. Visited
+    elif stage_name in ("visited",):
+        saved_lead.deal_status = DealStatus.INTERESTED
+        if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+            saved_lead.temperature = LeadTemperature.WARM
+
+    # 5. Admission Planned / Pending
+    elif stage_name in ("admission planned", "admission pending"):
+        saved_lead.deal_status = DealStatus.INTERESTED
+        if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
+            saved_lead.temperature = LeadTemperature.WARM
+        if custom_adm:
+            try:
+                saved_lead.next_followup_date = datetime.strptime(custom_adm, "%Y-%m-%d").date()
+                cd["admission_date"] = custom_adm
+            except ValueError:
+                pass
+
+    # 6. Follow up
+    elif "follow" in stage_name:
+        saved_lead.deal_status = DealStatus.OPEN
+        if custom_fup:
+            try:
+                saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+    saved_lead.custom_data = cd
+    saved_lead.save()
+
+    # Post-save Follow-up & Activity automations
+    if "follow" in stage_name and custom_fup:
+        try:
+            p_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
+            p_time = datetime.strptime(custom_fup_time, "%H:%M").time() if custom_fup_time else None
+            FollowUp.objects.create(
+                lead=saved_lead,
+                followup_date=p_date,
+                followup_time=p_time,
+                followup_mode=FollowUpMode.CALL,
+                followup_status=FollowUpStatus.PENDING,
+                comment=custom_fup_remark or "Follow-up scheduled from lead form.",
+                next_followup_date=p_date,
+                next_followup_time=p_time,
+                created_by=request.user,
+            )
+        except Exception:
+            pass
+
+    elif stage_name in ("visit planned",) and visit_date:
+        try:
+            p_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
+            FollowUp.objects.create(
+                lead=saved_lead,
+                followup_date=p_date,
+                followup_mode=FollowUpMode.VISIT,
+                followup_status=FollowUpStatus.PENDING,
+                comment=f"Visit Planned [Slot: {visit_slot or 'Not specified'}]: {visit_remark}".strip(),
+                next_followup_date=p_date,
+                created_by=request.user,
+            )
+        except Exception:
+            pass
+
+        admin_qs = User.objects.filter(is_active=True).filter(
+            Q(is_superuser=True) |
+            Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+        )
+        if saved_lead.hospital:
+            admin_qs = admin_qs.filter(hospital=saved_lead.hospital)
+        slot_str = f" [Slot: {visit_slot}]" if visit_slot else ""
+        for adm in admin_qs.distinct():
+            Notification.objects.create(
+                user=adm,
+                title=f"🏫 Visit Planned: {saved_lead.name}",
+                message=f"Student {saved_lead.name} has scheduled a campus visit on {visit_date}{slot_str}.",
+                link=f"/leads/{saved_lead.pk}/",
+            )
+
+    elif stage_name in ("admission pending",) and custom_adm:
+        try:
+            p_date = datetime.strptime(custom_adm, "%Y-%m-%d").date()
+            FollowUp.objects.create(
+                lead=saved_lead,
+                followup_date=p_date,
+                followup_mode=FollowUpMode.CALL,
+                followup_status=FollowUpStatus.PENDING,
+                comment=f"Admission Follow-up: {custom_adm_remark}".strip(),
+                next_followup_date=p_date,
+                created_by=request.user,
+            )
+        except Exception:
+            pass
+
+    elif stage_name in ("visited",):
+        notif_users = set(User.objects.filter(
+            Q(is_superuser=True) |
+            Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]),
+            is_active=True
+        ))
+        if saved_lead.assigned_to:
+            notif_users.add(saved_lead.assigned_to)
+        for u in notif_users:
+            Notification.objects.create(
+                user=u,
+                title=f"🎓 Visit Completed: {saved_lead.name}",
+                message=f"Student {saved_lead.name} has completed the academy visit. Recommended for admission enrollment!",
+                link=f"/leads/{saved_lead.pk}/",
+            )
+
+    # Create or update Admission record & EMI Installments
+    elif stage_name in ("admission & payment", "admission done", "payment done"):
+        try:
+            adm_date_obj = datetime.strptime(custom_adm, "%Y-%m-%d").date() if custom_adm else today
+            doj_date_obj = datetime.strptime(custom_doj, "%Y-%m-%d").date() if custom_doj else adm_date_obj
+            t_fee = float(total_fee_val or (saved_lead.course.base_price if saved_lead.course else 0))
+            d_val = float(discount_val or 0)
+            f_val = float(final_fee_val or (t_fee - d_val))
+            p_plan = PaymentPlan.EMI if payment_option == "EMI" else PaymentPlan.FULL
+
+            adm = getattr(saved_lead, "admission", None)
+            if not adm:
+                adm = Admission.objects.create(
+                    lead=saved_lead,
+                    student_name=saved_lead.name,
+                    course=saved_lead.course,
+                    admission_date=adm_date_obj,
+                    total_fee=t_fee,
+                    discount=d_val,
+                    max_allowed_discount=float(saved_lead.course.max_discount if saved_lead.course else 0),
+                    payment_plan=p_plan,
+                    payment_option=payment_option,
+                    emi_months=emi_months if payment_option == "EMI" else 0,
+                    monthly_emi_amount=monthly_emi if payment_option == "EMI" else 0,
+                    date_of_joining=doj_date_obj,
+                    tutor=selected_tutor or (saved_lead.course.tutor if saved_lead.course else ""),
+                    batch=selected_batch or (saved_lead.course.batch if saved_lead.course else ""),
+                    assigned_counselor=saved_lead.assigned_to,
+                )
+            else:
+                adm.course = saved_lead.course
+                adm.admission_date = adm_date_obj
+                adm.date_of_joining = doj_date_obj
+                adm.total_fee = t_fee
+                adm.discount = d_val
+                adm.payment_plan = p_plan
+                adm.payment_option = payment_option
+                adm.emi_months = emi_months if payment_option == "EMI" else 0
+                adm.monthly_emi_amount = monthly_emi if payment_option == "EMI" else 0
+                if selected_tutor:
+                    adm.tutor = selected_tutor
+                if selected_batch:
+                    adm.batch = selected_batch
+                adm.save()
+
+            # Schedule EMI Installments if EMI
+            if payment_option == "EMI" and emi_months > 0 and balance_val > 0 and not adm.installments.exists():
+                ceil_emi = math.ceil(balance_val / emi_months)
+                for m in range(1, emi_months + 1):
+                    due_d = adm_date_obj + relativedelta(months=m)
+                    inst_amt = max(0, balance_val - (ceil_emi * (emi_months - 1))) if m == emi_months else ceil_emi
+                    Installment.objects.create(
+                        admission=adm,
+                        amount=inst_amt,
+                        due_date=due_d,
+                    )
+
+            # Record initial token payment
+            if token_val > 0 and not adm.payments.exists():
+                p_mode = PaymentMode.CASH if "CASH" in payment_option else PaymentMode.UPI
+                Payment.objects.create(
+                    admission=adm,
+                    amount=token_val,
+                    payment_date=adm_date_obj,
+                    payment_mode=p_mode,
+                    payment_status=PaymentStatus.SUCCESS,
+                    remarks="Initial token / advance payment on admission.",
+                )
+        except Exception as e:
+            print("Error in handle_academy_lead_save:", e)
+

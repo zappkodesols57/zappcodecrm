@@ -577,15 +577,28 @@
                 <div class="crm-form-row mb-0">
                   <label class="crm-form-label" for="selected_batch_select">Batch</label>
                   <div class="crm-form-field">
-                    <select name="selected_batch_id" id="selected_batch_select" class="form-select no-tom-select">
-                      <option value="">Select Batch (Auto-fills Trainer & Time)</option>
-                      {% for b in available_batches %}
-                        <option value="{{ b.id }}" data-course-id="{{ b.course_id }}" data-trainer="{% if b.trainer %}{{ b.trainer.name }}{% endif %}" data-timing="{{ b.timing_display }}" data-name="{{ b.name }}" {% if form.instance.admission.batch == b.name or form.instance.custom_data.batch == b.name %}selected{% endif %}>
-                          {{ b.name }} ({{ b.timing_display }}{% if b.trainer %} - {{ b.trainer.name }}{% endif %})
-                        </option>
-                      {% endfor %}
-                    </select>
+                    <div class="d-flex align-items-center w-100" style="gap: 10px; max-width: 100%;">
+                      <select name="selected_batch_id" id="selected_batch_select" class="form-select no-tom-select" style="flex: 1 1 0%; min-width: 0 !important; max-width: calc(100% - 75px) !important; width: auto !important;">
+                        <option value="">Select Batch (Auto-fills Trainer & Time)</option>
+                        {% for b in available_batches %}
+                          <option value="{{ b.id }}" data-course-id="{{ b.course_id }}" data-trainer="{% if b.trainer %}{{ b.trainer.name }}{% endif %}" data-timing="{{ b.timing_display }}" data-name="{{ b.name }}" {% if form.instance.admission.batch == b.name or form.instance.custom_data.batch == b.name %}selected{% endif %}>
+                            {{ b.name }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                      <button type="button" class="btn btn-outline-primary fw-bold text-nowrap d-inline-flex align-items-center justify-content-center flex-shrink-0" id="btnOpenQuickBatchModal" title="Create new batch for this Course & Trainer" style="height: 42px; min-height: 42px; width: 65px; border-radius: 7px; font-size: 0.82rem; border-width: 1.5px; border-color: #2563eb; color: #2563eb; padding: 0;">
+                        + New
+                      </button>
+                    </div>
                     <input type="hidden" name="selected_batch" id="selected_batch" value="{{ form.instance.admission.batch|default:form.instance.custom_data.batch|default:'' }}">
+                    <div id="quickBatchHint" class="mt-1" style="display: none;">
+                      <span class="text-danger small" style="font-size: 0.74rem; font-weight: 500;">
+                        No batch found. Click <strong>+ New</strong> to create one.
+                      </span>
+                    </div>
+                    <div id="quickBatchCourseWarning" class="alert alert-warning py-1 px-2 mt-1 mb-0 border border-warning-subtle text-warning-emphasis" style="display: none; font-size: 0.76rem; border-radius: 6px;">
+                      Please select a Course first before creating a batch.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -714,6 +727,91 @@
       </div>
 
     </form>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- QUICK CREATE BATCH MODAL (Clean, User-Friendly Popup)            -->
+<!-- ================================================================= -->
+<!-- ================================================================= -->
+<!-- QUICK CREATE BATCH MODAL (Clean, Modern & High-Contrast Design)    -->
+<!-- ================================================================= -->
+<div class="modal fade" id="quickBatchModal" tabindex="-1" aria-labelledby="quickBatchModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+      
+      <!-- Clean Crisp Header with 100% visible Title -->
+      <div class="modal-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between" style="border-color: #e2e8f0 !important;">
+        <div>
+          <h6 class="modal-title fw-bold text-dark mb-0" id="quickBatchModalLabel" style="font-size: 1.05rem; letter-spacing: -0.2px;">Quick Create Batch</h6>
+          <span class="text-muted small" style="font-size: 0.74rem;">Create and assign batch instantly without page reload</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.7;"></button>
+      </div>
+
+      <form id="quickBatchForm" novalidate>
+        {% csrf_token %}
+        <div class="modal-body p-4" style="background-color: #f8fafc;">
+          
+          <!-- Live Alert box for errors -->
+          <div id="quickBatchAlert" class="alert alert-danger py-2 px-3 small d-none mb-3 rounded-2 shadow-xs border-0" style="background: #fee2e2; color: #b91c1c;"></div>
+
+          <!-- Course (Auto-Selected) -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">Course <span class="text-danger">*</span></label>
+            <input type="text" id="qb_course_display" class="form-control bg-white fw-bold" style="border-color: #cbd5e1; color: #0f172a;" readonly>
+            <input type="hidden" id="qb_course_id" name="course_id">
+          </div>
+
+          <!-- Trainer (Auto-Selected or Editable) -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">Assigned Trainer</label>
+            <input type="text" id="qb_trainer_name" name="trainer_name" class="form-control bg-white" placeholder="Enter trainer name..." style="border-color: #cbd5e1;">
+          </div>
+
+          <!-- Batch Name -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">Batch Name <span class="text-danger">*</span></label>
+            <input type="text" id="qb_name" name="name" class="form-control bg-white" placeholder="e.g. Morning Python 10AM (Nov Batch)" required style="border-color: #cbd5e1;">
+            <div class="text-muted mt-1" style="font-size: 0.72rem;">Suggested based on course, timing, or month.</div>
+          </div>
+
+          <!-- Timing (Start Time & End Time) -->
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">Start Time</label>
+              <input type="time" id="qb_start_time" name="start_time" class="form-control bg-white" style="border-color: #cbd5e1;">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">End Time</label>
+              <input type="time" id="qb_end_time" name="end_time" class="form-control bg-white" style="border-color: #cbd5e1;">
+            </div>
+          </div>
+
+          <!-- Start Date & Strength -->
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">Starting Date</label>
+              <input type="date" id="qb_start_date" name="start_date" class="form-control bg-white" value="{% now 'Y-m-d' %}" style="border-color: #cbd5e1;">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.8rem;">Max Capacity</label>
+              <input type="number" id="qb_max_strength" name="max_strength" class="form-control bg-white" value="30" min="1" max="200" style="border-color: #cbd5e1;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Clean Footer -->
+        <div class="modal-footer bg-white py-3 px-4 border-top d-flex justify-content-between" style="border-color: #e2e8f0 !important;">
+          <button type="button" class="btn btn-sm btn-light border rounded-pill px-3.5 fw-semibold text-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+          <button type="submit" id="btnSubmitQuickBatch" class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold shadow-xs" style="background-color: #2563eb; border-color: #2563eb;">
+            Create &amp; Select Batch
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -980,15 +1078,246 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     }
 
-    // Update empty label to guide user
+    // Update empty label and quick-batch hint to guide user
     const defaultOpt = selectedBatchSelect.options[0];
+    const quickBatchHint = document.getElementById("quickBatchHint");
     if (defaultOpt) {
       if (visibleCount === 0) {
         defaultOpt.textContent = "No batch found for selected Course & Trainer";
+        if (quickBatchHint) quickBatchHint.style.display = "block";
       } else {
         defaultOpt.textContent = `Select Batch (${visibleCount} available)`;
+        if (quickBatchHint) quickBatchHint.style.display = "none";
       }
     }
+  }
+
+  // ─── Quick Batch Modal Controller ───
+  const quickBatchModalEl = document.getElementById("quickBatchModal");
+  let quickBatchModal = null;
+  if (quickBatchModalEl && typeof bootstrap !== "undefined") {
+    quickBatchModal = new bootstrap.Modal(quickBatchModalEl);
+  }
+
+  function openQuickBatchModal() {
+    const courseWarnEl = document.getElementById("quickBatchCourseWarning");
+    if (!courseSelect || !courseSelect.value) {
+      if (courseWarnEl) {
+        courseWarnEl.style.display = "block";
+      }
+      if (courseSelect) {
+        courseSelect.focus();
+        courseSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+    if (courseWarnEl) {
+      courseWarnEl.style.display = "none";
+    }
+
+    const cid = courseSelect.value;
+    const cText = courseSelect.options[courseSelect.selectedIndex] ? courseSelect.options[courseSelect.selectedIndex].text : "Selected Course";
+    const tName = selectedTutor && selectedTutor.value ? selectedTutor.value : "";
+
+    document.getElementById("qb_course_id").value = cid;
+    document.getElementById("qb_course_display").value = cText;
+    document.getElementById("qb_trainer_name").value = tName;
+
+    // Suggest intelligent batch name
+    const now = new Date();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const curMonth = monthNames[now.getMonth()];
+    const cleanCourseName = cText.split("·")[0].split("(")[0].trim();
+    document.getElementById("qb_name").value = `${cleanCourseName} - ${curMonth} Batch`;
+
+    // Reset alert
+    const qbAlert = document.getElementById("quickBatchAlert");
+    if (qbAlert) {
+      qbAlert.classList.add("d-none");
+      qbAlert.textContent = "";
+    }
+
+    if (quickBatchModal) {
+      quickBatchModal.show();
+    }
+  }
+
+  const btnOpenQuickBatchModal = document.getElementById("btnOpenQuickBatchModal");
+  if (btnOpenQuickBatchModal) {
+    btnOpenQuickBatchModal.addEventListener("click", openQuickBatchModal);
+  }
+
+  const linkQuickCreateBatchHint = document.getElementById("linkQuickCreateBatchHint");
+  if (linkQuickCreateBatchHint) {
+    linkQuickCreateBatchHint.addEventListener("click", openQuickBatchModal);
+  }
+
+  // Handle Quick Batch Form Submit (AJAX)
+  const quickBatchForm = document.getElementById("quickBatchForm");
+  if (quickBatchForm) {
+    quickBatchForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const qbAlert = document.getElementById("quickBatchAlert");
+      const btnSubmit = document.getElementById("btnSubmitQuickBatch");
+
+      const bName = (document.getElementById("qb_name").value || "").trim();
+      const cId = document.getElementById("qb_course_id").value;
+      const tName = (document.getElementById("qb_trainer_name").value || "").trim();
+      const sTime = document.getElementById("qb_start_time").value;
+      const eTime = document.getElementById("qb_end_time").value;
+      const sDate = document.getElementById("qb_start_date").value;
+      const maxStr = document.getElementById("qb_max_strength").value;
+
+      if (!bName) {
+        if (qbAlert) {
+          qbAlert.textContent = "Please enter a valid Batch Name.";
+          qbAlert.classList.remove("d-none");
+        }
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Creating...`;
+
+      const formData = new FormData();
+      formData.append("name", bName);
+      formData.append("course_id", cId);
+      formData.append("trainer_name", tName);
+      formData.append("start_time", sTime);
+      formData.append("end_time", eTime);
+      formData.append("start_date", sDate);
+      formData.append("max_strength", maxStr);
+
+      const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]") ? document.querySelector("[name=csrfmiddlewaretoken]").value : "";
+
+      fetch("{% url 'leads:quick_create_batch_api' %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrfToken,
+        },
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-check me-1"></i> Create & Select Batch`;
+
+        if (data.success && data.batch) {
+          const newB = data.batch;
+          // 1. Add to batchesList for future reactivities
+          batchesList.push(newB);
+
+          // 2. Add as option in selectedBatchSelect
+          const newOpt = document.createElement("option");
+          newOpt.value = newB.id;
+          newOpt.setAttribute("data-course-id", newB.course_id);
+          newOpt.setAttribute("data-trainer", newB.trainer);
+          newOpt.setAttribute("data-timing", newB.timing_display);
+          newOpt.setAttribute("data-name", newB.name);
+          newOpt.textContent = newB.name;
+          selectedBatchSelect.appendChild(newOpt);
+
+          // 3. If trainer was entered and not in selectedTutor, append it
+          if (newB.trainer && selectedTutor) {
+            let foundT = false;
+            for (let i = 0; i < selectedTutor.options.length; i++) {
+              if (selectedTutor.options[i].value.toLowerCase() === newB.trainer.toLowerCase()) {
+                selectedTutor.options[i].selected = true;
+                foundT = true;
+                break;
+              }
+            }
+            if (!foundT) {
+              const optT = document.createElement("option");
+              optT.value = newB.trainer;
+              optT.textContent = newB.trainer;
+              optT.selected = true;
+              selectedTutor.appendChild(optT);
+            }
+          }
+
+          // 4. Select the newly created batch
+          newOpt.selected = true;
+          if (selectedBatch) selectedBatch.value = newB.name;
+          if (selectedBatchTiming && newB.timing_display) selectedBatchTiming.value = newB.timing_display;
+
+          // 5. Re-run filter to refresh visibility state
+          filterBatchesDropdown();
+          newOpt.selected = true;
+
+          // 6. Close Modal
+          if (quickBatchModal) quickBatchModal.hide();
+
+          // 7. Show quick feedback notification
+          const hint = document.getElementById("quickBatchHint");
+          if (hint) {
+            hint.style.display = "block";
+            hint.innerHTML = `<span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 fw-semibold" style="font-size: 0.74rem;"><i class="fa-solid fa-circle-check me-1"></i> Batch "${newB.name}" created and selected!</span>`;
+            setTimeout(() => { if (hint) hint.style.display = "none"; }, 4000);
+          }
+        } else {
+          if (qbAlert) {
+            qbAlert.classList.remove("d-none");
+            if (data.is_duplicate && data.existing_batch) {
+              qbAlert.className = "alert alert-warning py-2 px-3 small mb-3 rounded-2 shadow-xs border border-warning-subtle text-dark";
+              qbAlert.innerHTML = `
+                <div class="fw-bold text-dark mb-1">
+                  ⚠️ Duplicate Batch Detected!
+                </div>
+                <div class="text-muted small mb-2" style="font-size: 0.76rem;">
+                  A batch named <strong>${data.existing_batch.name}</strong> already exists in database with the exact same Course, Trainer, Timing, and Date.
+                </div>
+                <button type="button" class="btn btn-sm btn-dark w-100 fw-bold py-1" id="btnSelectDuplicateBatch" style="font-size: 0.78rem;">
+                  Use Existing Batch "${data.existing_batch.name}"
+                </button>
+              `;
+
+              const btnUseDup = document.getElementById("btnSelectDuplicateBatch");
+              if (btnUseDup) {
+                btnUseDup.addEventListener("click", function() {
+                  const existB = data.existing_batch;
+                  if (selectedBatchSelect) {
+                    let found = false;
+                    for (let i = 0; i < selectedBatchSelect.options.length; i++) {
+                      if (parseInt(selectedBatchSelect.options[i].value) === existB.id) {
+                        selectedBatchSelect.options[i].selected = true;
+                        found = true;
+                        break;
+                      }
+                    }
+                    if (!found) {
+                      const opt = document.createElement("option");
+                      opt.value = existB.id;
+                      opt.textContent = existB.name;
+                      opt.setAttribute("data-course-id", existB.course_id);
+                      opt.setAttribute("data-trainer", existB.trainer);
+                      opt.setAttribute("data-timing", existB.timing_display);
+                      opt.setAttribute("data-name", existB.name);
+                      opt.selected = true;
+                      selectedBatchSelect.appendChild(opt);
+                    }
+                    selectedBatchSelect.dispatchEvent(new Event("change"));
+                  }
+                  if (quickBatchModal) quickBatchModal.hide();
+                });
+              }
+            } else {
+              qbAlert.className = "alert alert-danger py-2 px-3 small mb-3 rounded-2 shadow-xs border-0";
+              qbAlert.textContent = data.error || "Failed to create batch.";
+            }
+          }
+        }
+      })
+      .catch(err => {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `Create & Select Batch`;
+        if (qbAlert) {
+          qbAlert.className = "alert alert-danger py-2 px-3 small mb-3 rounded-2 shadow-xs border-0";
+          qbAlert.textContent = "Network error while creating batch. Please try again.";
+          qbAlert.classList.remove("d-none");
+        }
+      });
+    });
   }
 
   // When counselor picks a batch, automatically fill Trainer and Batch Time
@@ -1055,6 +1384,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
       // Filter batches by chosen course & trainer
       filterBatchesDropdown();
+      const courseWarnEl = document.getElementById("quickBatchCourseWarning");
+      if (courseWarnEl) courseWarnEl.style.display = "none";
 
       if (currentSelectedCourse.batch && selectedBatch && !selectedBatch.value) {
         selectedBatch.value = currentSelectedCourse.batch;

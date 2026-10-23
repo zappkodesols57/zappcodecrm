@@ -371,13 +371,13 @@
             <div class="col-6 col-md-4">
               <div class="crm-info-box">
                 <span class="crm-label">Admission Date</span>
-                <span class="crm-val">{% if admission %}{{ admission.admission_date|date:"d M Y" }}{% else %}{{ lead.custom_data.admission_date|default:"—" }}{% endif %}</span>
+                <span class="crm-val">{% if admission %}{{ admission.admission_date|date:"j F Y" }}{% else %}{{ lead.custom_data.admission_date|default:"—" }}{% endif %}</span>
               </div>
             </div>
             <div class="col-6 col-md-4">
               <div class="crm-info-box">
                 <span class="crm-label">Joining Date</span>
-                <span class="crm-val">{% if admission and admission.date_of_joining %}{{ admission.date_of_joining|date:"d M Y" }}{% else %}{{ lead.custom_data.date_of_joining|default:"—" }}{% endif %}</span>
+                <span class="crm-val">{% if admission and admission.date_of_joining %}{{ admission.date_of_joining|date:"j F Y" }}{% else %}{{ lead.custom_data.date_of_joining|default:"—" }}{% endif %}</span>
               </div>
             </div>
             <div class="col-6 col-md-4">
@@ -509,12 +509,11 @@
               <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
                 <div>
                   <div class="fw-bold">₹{{ inst.amount|floatformat:0 }}</div>
-                  <div class="text-muted" style="font-size: 0.72rem;">Due Date: {{ inst.due_date|date:"d M Y" }}</div>
+                  <div class="text-muted" style="font-size: 0.72rem;">Due Date: {{ inst.due_date|date:"j F Y" }}</div>
                 </div>
                 <div class="d-flex gap-1 align-items-center">
                   {% if inst.is_paid %}
-                  <span class="badge bg-success-subtle text-success py-1">Paid</span>
-                  <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Mark Unpaid"><i class="fa-solid fa-xmark"></i></a>
+                  <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fa-solid fa-check me-1"></i>Paid</span>
                   {% else %}
                   <span class="badge bg-danger-subtle text-danger py-1">Pending</span>
                   <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark Paid"><i class="fa-solid fa-check"></i></a>
@@ -566,7 +565,7 @@
                 <tbody>
                   {% for p in admission.payments.all %}
                   <tr class="border-bottom">
-                    <td class="ps-2 py-2">{{ p.payment_date|date:"d M Y" }}</td>
+                    <td class="ps-2 py-2">{{ p.payment_date|date:"j F Y" }}</td>
                     <td class="py-2 fw-bold text-success">₹{{ p.amount|floatformat:0 }}</td>
                     <td class="py-2"><span class="badge bg-light text-dark border">{{ p.get_payment_mode_display }}</span></td>
                     <td class="py-2 text-muted">{{ p.transaction_reference|default:p.remarks|default:"—" }}</td>
@@ -626,7 +625,7 @@
             <div class="col-6 col-md-4">
               <div class="crm-info-box">
                 <span class="crm-label">Enquiry Date</span>
-                <span class="crm-val text-dark fw-semibold">{{ lead.inquiry_date|default:lead.effective_created_formatted|default:"—" }}</span>
+                <span class="crm-val text-dark fw-semibold">{% if lead.inquiry_date %}{{ lead.inquiry_date|date:"j F Y" }}{% else %}{{ lead.effective_created_formatted|default:"—" }}{% endif %}</span>
               </div>
             </div>
 
@@ -636,9 +635,9 @@
                 <span class="crm-label">System Add Date</span>
                 <span class="crm-val">
                   {% if lead.created_at %}
-                    {{ lead.created_at|date:"d M Y, h:i A" }}
+                    {{ lead.created_at|date:"j F Y, h:i A" }}
                   {% elif lead.import_job %}
-                    {{ lead.import_job.created_at|date:"d M Y, h:i A" }}
+                    {{ lead.import_job.created_at|date:"j F Y, h:i A" }}
                   {% else %}
                     {{ lead.effective_created_display|default:"—" }}
                   {% endif %}
@@ -734,7 +733,7 @@
                   &nbsp;&bull;&nbsp;
                   <span class="text-muted fw-normal">{% if a.created_by %}{{ a.created_by.get_full_name|default:a.created_by.username }}{% else %}System{% endif %}</span>
                 </span>
-                <span class="text-muted">{{ a.created_at|date:"d M Y, h:i A" }}</span>
+                <span class="text-muted">{{ a.created_at|date:"j F Y, h:i A" }}</span>
               </div>
               <div class="text-dark small text-break" style="font-size: 0.8rem; line-height: 1.35;">{{ a.description }}</div>
             </div>
@@ -851,7 +850,7 @@
                 {% endif %}
               </div>
               <div class="text-muted small d-flex justify-content-between align-items-center mb-1" style="font-size: 0.75rem;">
-                <span class="fw-medium text-dark"><i class="fa-regular fa-calendar me-1"></i>{{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+                <span class="fw-medium text-dark"><i class="fa-regular fa-calendar me-1"></i>{{ fu.followup_date|date:"j F Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
                 {% if fu.created_by %}<span class="text-truncate text-muted" style="max-width: 120px;">By: {{ fu.created_by.get_full_name|default:fu.created_by.username }}</span>{% endif %}
               </div>
               {% if fu.comment %}
@@ -1066,7 +1065,7 @@
           <h6 class="modal-title fw-bold text-dark mb-0" id="updateFollowupModalLabel{{ fu.id }}">
             Update Follow-up Status
           </h6>
-          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"d M Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
+          <span class="text-muted small" style="font-size: 0.75rem;">Current: {{ fu.followup_date|date:"j F Y" }}{% if fu.followup_time %} &bull; {{ fu.followup_time|time:"h:i A" }}{% endif %}</span>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>

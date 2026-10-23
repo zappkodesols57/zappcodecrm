@@ -337,9 +337,9 @@
       </thead>
       <tbody>
         {% for lead in page_obj %}
-        <tr class="clickable-lead-row counselor-table-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+        <tr class="counselor-table-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
           <td class="px-3 text-nowrap small text-muted">
-            {{ lead.inquiry_date|date:"d-m-Y" }}
+            {{ lead.inquiry_date|date:"j F Y" }}
           </td>
           <td class="px-3">
             <strong class="text-dark">{{ lead.name }}</strong>
@@ -376,7 +376,7 @@
           </td>
           <td class="px-3">
             {% if lead.next_followup_date %}
-              <span class="small text-nowrap fw-semibold text-secondary"><i class="fa-regular fa-calendar-check text-warning me-1"></i>{{ lead.next_followup_date|date:"d-m-Y" }}</span>
+              <span class="small text-nowrap fw-semibold text-secondary"><i class="fa-regular fa-calendar-check text-warning me-1"></i>{{ lead.next_followup_date|date:"j F Y" }}</span>
             {% else %}
               <span class="text-muted small">—</span>
             {% endif %}

@@ -1173,11 +1173,11 @@
           return;
         }
 
-        // Row Click: Check data-href or find lead link (unless on interactive telecaller dashboard with microbar)
+        // Row Click: Check data-href or find lead link (unless on interactive dashboard with sleek microbar)
         const tr = e.target.closest('tr');
         if (!tr) return;
-        if (tr.closest('.tab-content') && document.getElementById('quickActionMicrobar')) {
-          // On telecaller dashboard, row click activates in-page Quick Action Microbar
+        if ((tr.closest('.tab-content') && document.getElementById('quickActionMicrobar')) || document.getElementById('counselorMicrobar') || tr.classList.contains('counselor-table-row')) {
+          // On counselor/telecaller dashboard, row click activates sleek in-page Quick Action Microbar
           return;
         }
 
