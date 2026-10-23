@@ -501,9 +501,9 @@
             </thead>
             <tbody>
               {% for lead in page_obj %}
-              <tr class="clickable-lead-row counselor-table-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+              <tr class="counselor-table-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
                 <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
-                <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
+                <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"j F Y" }}</span></td>
                 <td><strong class="text-dark">{{ lead.name }}</strong></td>
                 <td>
                   <span class="fw-semibold">{{ lead.mobile }}</span>
@@ -532,7 +532,7 @@
                       class="fa-solid fa-circle-question me-1"></i>Unassigned</span>
                   {% endif %}
                 </td>
-                <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"d-m-Y" }}</span>{% else %}—{% endif %}</td>
+                <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"j F Y" }}</span>{% else %}—{% endif %}</td>
                 <td class="text-end">
                   <div class="d-inline-flex align-items-center gap-1">
                     {% if not lead.assigned_to %}

@@ -543,6 +543,38 @@ class BatchForm(forms.ModelForm):
                 css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
                 field.widget.attrs.setdefault("class", css)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        course = cleaned_data.get("course")
+        trainer = cleaned_data.get("trainer")
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        start_date = cleaned_data.get("start_date")
+        name = cleaned_data.get("name")
+
+        if course:
+            # Check duplicate by same Course, Trainer, Timing, and Start Date
+            dup_qs = Batch.objects.filter(
+                course=course,
+                trainer=trainer,
+                start_time=start_time,
+                end_time=end_time,
+                start_date=start_date,
+            )
+            if self.instance and self.instance.pk:
+                dup_qs = dup_qs.exclude(pk=self.instance.pk)
+
+            if dup_qs.exists():
+                existing = dup_qs.first()
+                t_str = existing.timing_display
+                date_str = existing.start_date.strftime("%d-%m-%Y") if existing.start_date else "N/A"
+                tr_str = existing.trainer.name if existing.trainer else "No Trainer"
+                raise forms.ValidationError(
+                    f"Duplicate Batch Detected! A batch '{existing.name}' already exists in database with the same Course ({course.name}), Trainer ({tr_str}), Timing ({t_str}), and Start Date ({date_str}). Please modify the timing, date, or select the existing batch."
+                )
+
+        return cleaned_data
+
 
 class LeadStageForm(forms.ModelForm):
     class Meta:

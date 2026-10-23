@@ -43,6 +43,7 @@ urlpatterns = [
     path("trainer-master/<int:pk>/delete/", views.trainer_delete, name="trainer_delete"),
     path("batch-master/", views.batch_master, name="batch_master"),
     path("batch-master/<int:pk>/delete/", views.batch_delete, name="batch_delete"),
+    path("api/quick-create-batch/", views.quick_create_batch_api, name="quick_create_batch_api"),
     path("masters/<str:kind>/<int:pk>/toggle/", views.master_toggle, name="master_toggle"),
 
     # Universal Master System routes

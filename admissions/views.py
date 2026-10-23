@@ -166,6 +166,7 @@ def installment_toggle_paid(request, pk):
     inst = get_object_or_404(Installment, pk=pk)
     admission = inst.admission
     lead = admission.lead
+    ref_tag = f"EMI-INST-{inst.id}"
 
     if not inst.is_paid:
         # User is trying to mark this installment as PAID
@@ -230,40 +231,9 @@ def installment_toggle_paid(request, pk):
                         rem_inst.amount = ceil_emi
                     rem_inst.save()
     else:
-        # User is reverting installment to UNPAID
-        inst.is_paid = False
-        inst.paid_date = None
-        inst.save()
-
-        # Remove corresponding Payment record if exists
-        deleted_count, _ = Payment.objects.filter(
-            admission=admission,
-            transaction_reference=ref_tag
-        ).delete()
-        if lead and deleted_count:
-            Activity.objects.create(
-                lead=lead,
-                activity_type=ActivityType.PAYMENT,
-                description=f"EMI installment reverted to Unpaid: ₹{inst.amount:,.0f} (Due date: {inst.due_date.strftime('%d-%b-%Y')})",
-                created_by=request.user,
-            )
-        action_text = "Unpaid"
-
-        # Rebalance all unpaid installments with current pending amount
-        new_collected = admission.collected
-        new_remaining = max(Decimal("0.00"), admission.final_fee - new_collected)
-        unpaid_installments = list(admission.installments.filter(is_paid=False).order_by("due_date"))
-        if unpaid_installments:
-            count_unpaid = len(unpaid_installments)
-            import math
-            ceil_emi = Decimal(str(math.ceil(float(new_remaining) / count_unpaid)))
-            for idx, rem_inst in enumerate(unpaid_installments):
-                if idx == count_unpaid - 1:
-                    sum_prev = ceil_emi * (count_unpaid - 1)
-                    rem_inst.amount = max(Decimal("0.00"), new_remaining - sum_prev)
-                else:
-                    rem_inst.amount = ceil_emi
-                rem_inst.save()
+        # Prevent reverting paid installment to unpaid
+        messages.warning(request, f"Installment #{inst.id} is already paid. Paid installments cannot be reverted to unpaid.")
+        return redirect(request.META.get('HTTP_REFERER', 'admissions:list'))
 
     # Sync lead custom_data and stages
     new_collected = admission.collected
