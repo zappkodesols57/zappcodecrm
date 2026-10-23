@@ -42,6 +42,10 @@ def convert_admission(request, pk):
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
 
+    if getattr(lead, "is_archived", False):
+        messages.warning(request, "This lead is currently archived. It must be restored/opened by an admin before converting to admission.")
+        return redirect("leads:lead_detail", pk=pk)
+
     # Only lead owner (assigned counsellor) or users with Manager/Admin role can convert lead to admission
     is_owner = (lead.assigned_to == request.user or lead.assigned_to is None)
     is_admin_or_manager = (request.user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or request.user.can_edit_any_lead)

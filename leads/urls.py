@@ -30,6 +30,7 @@ urlpatterns = [
     path("<int:pk>/convert-admission/", views.convert_admission, name="convert_admission"),
     path("bulk-action/", views.bulk_action, name="bulk_action"),
     path("archived/", views.archived_leads, name="archived_leads"),
+    path("archived/bulk-action/", views.bulk_archive_action, name="bulk_archive_action"),
     path("duplicates/", views.duplicates, name="duplicates"),
     path("duplicates/<int:pk>/delete/", views.duplicate_lead_delete, name="duplicate_lead_delete"),
     path("duplicates/merge/", views.duplicate_leads_merge, name="duplicate_leads_merge"),

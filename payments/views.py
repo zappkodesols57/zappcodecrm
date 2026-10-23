@@ -26,6 +26,10 @@ def payment_add(request, admission_id):
     admission = get_object_or_404(Admission, pk=admission_id)
     lead = admission.lead
 
+    if lead and getattr(lead, "is_archived", False):
+        messages.warning(request, "This lead is currently archived. It must be restored/opened by an admin before recording payments.")
+        return redirect("leads:lead_detail", pk=lead.pk)
+
     # Ensure initial token amount is recorded if missing in payments
     if not admission.payments.exists() and lead and lead.custom_data.get("token_amount"):
         try:
