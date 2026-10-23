@@ -193,9 +193,11 @@
       </form>
       {% endif %}
 
+      {% if not lead.is_archived and can_edit %}
       <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
         Edit Details
       </a>
+      {% endif %}
 
       {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
       <div class="dropdown">
@@ -204,8 +206,8 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm border" style="font-size: 0.82rem;">
           <li>
-            <a class="dropdown-item text-danger" href="{% url 'leads:lead_archive' lead.pk %}" onclick="return confirm('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
-              {% if lead.is_archived %}Restore Lead{% else %}Archive Lead{% endif %}
+            <a class="dropdown-item {% if lead.is_archived %}text-success fw-semibold{% else %}text-danger{% endif %}" href="{% url 'leads:lead_archive' lead.pk %}" onclick="return confirm('{% if lead.is_archived %}Restore / Open this lead back to active leads?{% else %}Archive this lead?{% endif %}')">
+              {% if lead.is_archived %}<i class="fa-solid fa-arrow-rotate-left me-1"></i>Restore Lead{% else %}<i class="fa-solid fa-box-archive me-1"></i>Archive Lead{% endif %}
             </a>
           </li>
         </ul>
@@ -213,6 +215,23 @@
       {% endif %}
     </div>
   </div>
+
+  <!-- Archived Lead Alert Banner -->
+  {% if lead.is_archived %}
+  <div class="alert alert-warning py-2.5 px-3 rounded-3 shadow-xs mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2" style="background-color: #fffbeb; border: 1px solid #fef3c7;">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa-solid fa-box-archive text-warning fs-6"></i>
+      <div style="font-size: 0.86rem; color: #92400e;">
+        <strong>Archived Lead (Read-Only Mode):</strong> This lead is currently archived. You can view all information and add internal remarks. To edit lead details or schedule follow-ups, an admin must first restore/open this lead.
+      </div>
+    </div>
+    {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+    <a href="{% url 'leads:lead_archive' lead.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-semibold shadow-xs" onclick="return confirm('Restore / Open lead {{ lead.name }} back to active leads?');" style="font-size: 0.8rem;">
+      Restore / Open Lead
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <!-- 2. Patient Header Card -->
   <div class="card mb-3">
@@ -678,9 +697,11 @@
         <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addRemarkCollapse" aria-expanded="false" style="font-size: 0.8rem;">
           + Add Remark / Note
         </button>
+        {% if not lead.is_archived %}
         <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="false" style="font-size: 0.8rem;">
           + Add Follow-up
         </button>
+        {% endif %}
       </div>
 
       <!-- Collapsible Form: Add Remark / Note -->

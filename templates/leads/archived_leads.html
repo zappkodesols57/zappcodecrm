@@ -2,6 +2,147 @@
 {% block title %}Archive Leads · Nelson Hospital CRM{% endblock %}
 
 {% block content %}
+<style>
+  /* Sleek Premium Floating Action Bar for Archived Leads */
+  .archive-floating-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: #0f172a; /* Deep modern slate navy */
+    color: #ffffff;
+    border-radius: 9999px;
+    padding: 8px 14px 8px 22px;
+    box-shadow: 0 16px 40px -8px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 1060;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+    opacity: 0;
+    pointer-events: none;
+    max-width: calc(100vw - 32px);
+    backdrop-filter: blur(8px);
+  }
+
+  .archive-floating-bar.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Counter Section */
+  .archive-bar-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+
+  .archive-count-badge {
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 2px 9px;
+    border-radius: 9999px;
+    min-width: 24px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+  }
+
+  .archive-count-text {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: #e2e8f0;
+    white-space: nowrap;
+  }
+
+  .archive-bar-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  /* Actions Container */
+  .archive-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+
+  /* Base Button Styling - Spacious, Pill Shaped, No clutter */
+  .archive-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 18px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.35;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease-in-out;
+    text-decoration: none;
+  }
+
+  /* 1. Restore (Open) - Fresh, subtle emerald */
+  .archive-action-btn.btn-action-restore {
+    background: #10b981;
+    color: #ffffff;
+    border-color: #10b981;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+  }
+  .archive-action-btn.btn-action-restore:hover {
+    background: #059669;
+    border-color: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
+  }
+
+  /* 2. Restore & Assign - Sleek Royal Blue */
+  .archive-action-btn.btn-action-assign {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  }
+  .archive-action-btn.btn-action-assign:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+  }
+
+  /* 3. Delete Forever - Refined Rose Outline */
+  .archive-action-btn.btn-action-delete {
+    background: transparent;
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+  .archive-action-btn.btn-action-delete:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  }
+
+  /* 4. Cancel / Dismiss */
+  .archive-action-btn.btn-action-cancel {
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    padding: 7px 12px;
+  }
+  .archive-action-btn.btn-action-cancel:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+</style>
 <div class="container-fluid px-0 px-md-2">
   <!-- Top Title Bar -->
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -20,13 +161,20 @@
   <!-- Campaign Breakdown & Date Filters Ribbon -->
   {% include "includes/campaign_date_header.html" %}
 
-  <!-- Archived Leads Table Card -->
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
-    <div class="table-responsive custom-table-scrollbar pb-2">
-      <table class="table table-hover align-middle mb-0" style="min-width: 1250px; font-size: 0.86rem;">
-        <thead class="bg-light border-bottom">
-          <tr>
-            <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">Patient Name</th>
+  <!-- Form for Bulk Admin Actions -->
+  <form id="bulkArchiveForm" method="POST" action="{% url 'leads:bulk_archive_action' %}">
+    {% csrf_token %}
+
+    <!-- Archived Leads Table Card -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+      <div class="table-responsive custom-table-scrollbar pb-2">
+        <table class="table table-hover align-middle mb-0" style="min-width: 1250px; font-size: 0.86rem;">
+          <thead class="bg-light border-bottom">
+            <tr>
+              <th style="width: 40px;" class="py-2.5 px-3 text-center">
+                <input type="checkbox" id="masterArchiveCheckbox" class="form-check-input" style="cursor: pointer;" title="Select All">
+              </th>
+              <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">Lead / Student Name</th>
             <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Contact / Location</th>
             <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Source / Campaign</th>
             <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Stage</th>
@@ -41,8 +189,12 @@
         <tbody>
           {% for lead in leads %}
           <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+            <!-- Checkbox -->
+            <td class="px-3 text-center" onclick="event.stopPropagation();">
+              <input type="checkbox" name="selected" value="{{ lead.pk }}" class="form-check-input archive-row-check" style="cursor: pointer;">
+            </td>
             
-            <!-- 1. Patient Name -->
+            <!-- 1. Patient / Lead Name -->
             <td class="px-3">
               <strong class="text-dark d-block">{{ lead.name }}</strong>
               {% if lead.gender or lead.age %}
@@ -167,9 +319,8 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="10" class="text-center py-5 text-muted">
+            <td colspan="11" class="text-center py-5 text-muted">
               <div class="py-3">
-                <i class="fa-solid fa-box-open fs-1 mb-2 text-secondary opacity-50"></i>
                 <h6 class="fw-bold text-dark mb-1">No Archived Leads Found</h6>
                 <p class="small text-muted mb-0">There are currently no archived leads in this scope.</p>
               </div>
@@ -180,6 +331,128 @@
       </table>
     </div>
   </div>
+
+  <!-- Hidden bulk action field -->
+  <input type="hidden" name="bulk_action" id="bulkActionInput" value="">
+  <input type="hidden" name="assign_to" id="bulkAssignToInput" value="">
+
+  <!-- Floating Sleek Admin Action Bar (Premium Floating Capsule Design) -->
+  <div id="archiveAdminActionBar" class="archive-floating-bar d-none" aria-live="polite">
+    <!-- Selected Count -->
+    <div class="archive-bar-count">
+      <span class="archive-count-badge" id="selectedCountBadge">0</span>
+      <span class="archive-count-text">leads selected</span>
+    </div>
+
+    <div class="archive-bar-divider"></div>
+
+    <!-- Actions with generous breathing room -->
+    <div class="archive-bar-actions">
+      <!-- 1. Restore (Open) Button -->
+      <button type="button" class="archive-action-btn btn-action-restore" id="btnBulkRestore">
+        Restore (Open)
+      </button>
+
+      <!-- 2. Restore & Assign Button -->
+      <button type="button" class="archive-action-btn btn-action-assign" id="btnOpenAssignModal">
+        Restore &amp; Assign
+      </button>
+
+      <!-- 3. Permanent Hard Delete Button -->
+      <button type="button" class="archive-action-btn btn-action-delete" id="btnBulkHardDelete">
+        Delete Forever
+      </button>
+
+      <!-- Dismiss Button -->
+      <button type="button" class="archive-action-btn btn-action-cancel" id="btnDismissArchiveBar" title="Clear selection">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- On-Screen Confirmation Modal 1: Restore Leads -->
+  <div class="modal fade" id="confirmRestoreModal" tabindex="-1" aria-labelledby="confirmRestoreModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-body p-4 text-center">
+          <h5 class="fw-bold text-dark mb-2" id="confirmRestoreModalLabel" style="font-size: 1.15rem;">Restore Leads</h5>
+          <p class="text-muted small mb-4" id="restoreModalText" style="font-size: 0.9rem; line-height: 1.5;">
+            Are you sure you want to restore the selected lead(s) back to active leads?
+          </p>
+          <div class="d-flex justify-content-center gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.86rem; min-width: 100px;">
+              Cancel
+            </button>
+            <button type="button" class="btn btn-success rounded-pill px-4 py-2 fw-semibold" id="btnExecuteRestore" style="background-color: #10b981; border-color: #10b981; font-size: 0.86rem; min-width: 110px;">
+              Yes, Restore
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- On-Screen Confirmation Modal 2: Delete Forever (Hard Purge) -->
+  <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 410px;">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-body p-4 text-center">
+          <h5 class="fw-bold text-danger mb-2" id="confirmDeleteModalLabel" style="font-size: 1.15rem;">Permanently Delete Leads</h5>
+          <p class="text-muted small mb-4" id="deleteModalText" style="font-size: 0.9rem; line-height: 1.5;">
+            Warning: This action cannot be undone. Selected lead(s) will be completely erased from the database.
+          </p>
+          <div class="d-flex justify-content-center gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.86rem; min-width: 100px;">
+              Cancel
+            </button>
+            <button type="button" class="btn btn-danger rounded-pill px-4 py-2 fw-semibold" id="btnExecuteDeleteForever" style="background-color: #ef4444; border-color: #ef4444; font-size: 0.86rem; min-width: 120px;">
+              Delete Forever
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- On-Screen Modal 3: Assign Restored Leads (Scoped strictly to Business Users) -->
+  <div class="modal fade" id="assignArchivedModal" tabindex="-1" aria-labelledby="assignArchivedModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-header border-bottom py-3 px-4">
+          <h6 class="modal-title fw-bold text-dark mb-0" id="assignArchivedModalLabel" style="font-size: 1.05rem;">
+            Restore &amp; Assign Leads
+          </h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="text-muted small mb-3" id="assignModalLeadCountText" style="font-size: 0.88rem;">
+            Select a team member from your business to allocate the selected leads:
+          </p>
+          <div class="mb-4">
+            <label class="form-label small fw-semibold text-dark">Assignee</label>
+            <select id="modalAssigneeSelect" class="form-select" required style="border-radius: 8px;">
+              <option value="">Choose Team Member...</option>
+              {% for u in business_users %}
+                <option value="{{ u.id }}">
+                  {{ u.get_full_name|default:u.username }} ({{ u.get_role_display|default:u.role }})
+                </option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback" id="assigneeSelectFeedback">Please select a team member.</div>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.86rem;">
+              Cancel
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold" id="btnConfirmRestoreAssign" style="background-color: #2563eb; border-color: #2563eb; font-size: 0.86rem;">
+              Confirm &amp; Assign
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </form>
 
   <!-- Pagination & Records Summary -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3 px-1 py-2 border-top">
@@ -224,4 +497,160 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const masterCheck = document.getElementById("masterArchiveCheckbox");
+  const rowChecks = document.querySelectorAll(".archive-row-check");
+  const actionBar = document.getElementById("archiveAdminActionBar");
+  const countBadge = document.getElementById("selectedCountBadge");
+  const form = document.getElementById("bulkArchiveForm");
+  const actionInput = document.getElementById("bulkActionInput");
+  const assignToInput = document.getElementById("bulkAssignToInput");
+
+  function updateActionBar() {
+    const selectedCount = document.querySelectorAll(".archive-row-check:checked").length;
+    if (countBadge) countBadge.textContent = selectedCount;
+
+    if (actionBar) {
+      if (selectedCount > 0) {
+        actionBar.classList.remove("d-none");
+        // Trigger reflow for CSS transition
+        void actionBar.offsetWidth;
+        actionBar.classList.add("visible");
+      } else {
+        actionBar.classList.remove("visible");
+        setTimeout(() => {
+          if (!actionBar.classList.contains("visible")) {
+            actionBar.classList.add("d-none");
+          }
+        }, 280);
+      }
+    }
+  }
+
+  // Dismiss / Cancel selection
+  const btnDismiss = document.getElementById("btnDismissArchiveBar");
+  if (btnDismiss) {
+    btnDismiss.addEventListener("click", function() {
+      if (masterCheck) masterCheck.checked = false;
+      rowChecks.forEach(cb => cb.checked = false);
+      updateActionBar();
+    });
+  }
+
+  if (masterCheck) {
+    masterCheck.addEventListener("change", function() {
+      rowChecks.forEach(cb => cb.checked = masterCheck.checked);
+      updateActionBar();
+    });
+  }
+
+  rowChecks.forEach(cb => {
+    cb.addEventListener("change", function() {
+      if (!this.checked && masterCheck) {
+        masterCheck.checked = false;
+      }
+      updateActionBar();
+    });
+  });
+
+  // Initialize Bootstrap Modals
+  let restoreModal = null;
+  let deleteModal = null;
+  let assignModal = null;
+
+  const restoreModalEl = document.getElementById("confirmRestoreModal");
+  const deleteModalEl = document.getElementById("confirmDeleteModal");
+  const assignModalEl = document.getElementById("assignArchivedModal");
+
+  if (typeof bootstrap !== "undefined") {
+    if (restoreModalEl) restoreModal = new bootstrap.Modal(restoreModalEl);
+    if (deleteModalEl) deleteModal = new bootstrap.Modal(deleteModalEl);
+    if (assignModalEl) assignModal = new bootstrap.Modal(assignModalEl);
+  }
+
+  // Action 1: On-Screen Restore Modal
+  const btnRestore = document.getElementById("btnBulkRestore");
+  const restoreModalText = document.getElementById("restoreModalText");
+  const btnExecuteRestore = document.getElementById("btnExecuteRestore");
+
+  if (btnRestore) {
+    btnRestore.addEventListener("click", function() {
+      const count = document.querySelectorAll(".archive-row-check:checked").length;
+      if (restoreModalText) {
+        restoreModalText.textContent = `Are you sure you want to restore ${count} selected lead(s) back to active leads?`;
+      }
+      if (restoreModal) restoreModal.show();
+    });
+  }
+
+  if (btnExecuteRestore) {
+    btnExecuteRestore.addEventListener("click", function() {
+      actionInput.value = "restore";
+      if (restoreModal) restoreModal.hide();
+      form.submit();
+    });
+  }
+
+  // Action 2: On-Screen Modal for Restore & Assign
+  const btnOpenAssign = document.getElementById("btnOpenAssignModal");
+  const assignModalLeadCountText = document.getElementById("assignModalLeadCountText");
+
+  if (btnOpenAssign) {
+    btnOpenAssign.addEventListener("click", function() {
+      const count = document.querySelectorAll(".archive-row-check:checked").length;
+      if (assignModalLeadCountText) {
+        assignModalLeadCountText.textContent = `Select a team member from your business to allocate ${count} selected lead(s):`;
+      }
+      const select = document.getElementById("modalAssigneeSelect");
+      if (select) {
+        select.classList.remove("is-invalid");
+      }
+      if (assignModal) assignModal.show();
+    });
+  }
+
+  const btnConfirmAssign = document.getElementById("btnConfirmRestoreAssign");
+  if (btnConfirmAssign) {
+    btnConfirmAssign.addEventListener("click", function() {
+      const select = document.getElementById("modalAssigneeSelect");
+      if (!select || !select.value) {
+        if (select) {
+          select.classList.add("is-invalid");
+          select.focus();
+        }
+        return;
+      }
+      actionInput.value = "restore_assign";
+      assignToInput.value = select.value;
+      if (assignModal) assignModal.hide();
+      form.submit();
+    });
+  }
+
+  // Action 3: On-Screen Permanent Hard Delete Modal
+  const btnDeleteForever = document.getElementById("btnBulkHardDelete");
+  const deleteModalText = document.getElementById("deleteModalText");
+  const btnExecuteDelete = document.getElementById("btnExecuteDeleteForever");
+
+  if (btnDeleteForever) {
+    btnDeleteForever.addEventListener("click", function() {
+      const count = document.querySelectorAll(".archive-row-check:checked").length;
+      if (deleteModalText) {
+        deleteModalText.innerHTML = `Warning: <strong>${count} lead(s)</strong> will be permanently deleted from the database. This action <strong>CANNOT</strong> be undone.`;
+      }
+      if (deleteModal) deleteModal.show();
+    });
+  }
+
+  if (btnExecuteDelete) {
+    btnExecuteDelete.addEventListener("click", function() {
+      actionInput.value = "delete_forever";
+      if (deleteModal) deleteModal.hide();
+      form.submit();
+    });
+  }
+});
+</script>
 {% endblock %}

@@ -126,6 +126,10 @@ def admission_list(request):
 @login_required
 def admission_update_status(request, pk):
     admission = get_object_or_404(Admission, pk=pk)
+    if admission.lead and getattr(admission.lead, "is_archived", False):
+        messages.warning(request, "This lead is currently archived. It must be restored/opened by an admin before modifying admission status.")
+        return redirect(request.META.get('HTTP_REFERER', 'admissions:list'))
+
     if request.method == "POST":
         payment_plan = request.POST.get("payment_plan")
         course_status = request.POST.get("course_status")
@@ -141,6 +145,9 @@ def admission_update_status(request, pk):
 @login_required
 def add_installment(request, pk):
     admission = get_object_or_404(Admission, pk=pk)
+    if admission.lead and getattr(admission.lead, "is_archived", False):
+        messages.warning(request, "This lead is currently archived. It must be restored/opened by an admin before scheduling EMI installments.")
+        return redirect(request.META.get('HTTP_REFERER', 'admissions:list'))
     if request.method == "POST":
         amount = request.POST.get("amount")
         due_date = request.POST.get("due_date")
@@ -166,6 +173,11 @@ def installment_toggle_paid(request, pk):
     inst = get_object_or_404(Installment, pk=pk)
     admission = inst.admission
     lead = admission.lead
+
+    if lead and getattr(lead, "is_archived", False):
+        messages.warning(request, "This lead is currently archived. It must be restored/opened by an admin before updating installment payments.")
+        return redirect(request.META.get('HTTP_REFERER', 'admissions:list'))
+
     ref_tag = f"EMI-INST-{inst.id}"
 
     if not inst.is_paid:

@@ -36,12 +36,16 @@ from leads.forms import (
 def _can_edit_lead(user, lead):
     """
     Business-tenant aware edit permission check.
-    - Global Super Admin (no hospital): can edit any lead.
+    - Archived leads CANNOT be edited. They must be restored/opened first by an admin.
+    - Global Super Admin (no hospital): can edit any active lead.
     - Tenant user: can only edit leads in their own business (hospital).
     - Within-business:
         - Super Admin / Admin / Manager: can edit any lead in their business.
         - Counsellor / HR: can ONLY edit leads assigned to themselves (lead.assigned_to == user) or unassigned leads.
     """
+    if getattr(lead, "is_archived", False):
+        return False
+
     is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
 
     if is_global_admin:
@@ -797,42 +801,77 @@ def lead_list(request):
     paginator = Paginator(leads, 25)
     page = paginator.get_page(request.GET.get("page"))
 
-    for lead_item in page:
-        fus = list(lead_item.followups.all().order_by("-followup_date", "-id"))
-        lead_item.latest_followup_obj = fus[0] if fus else None
+    # Optimized Prefetch: Fetch followups for only the 25 page items in a single query (resolving N+1 query loop)
+    page_lead_ids = [l.id for l in page]
+    if page_lead_ids:
+        from collections import defaultdict
+        page_fus = FollowUp.objects.filter(lead_id__in=page_lead_ids).order_by("-followup_date", "-id")
+        fu_map = defaultdict(list)
+        for fu in page_fus:
+            fu_map[fu.lead_id].append(fu)
+        for lead_item in page:
+            fus = fu_map.get(lead_item.id, [])
+            lead_item.latest_followup_obj = fus[0] if fus else None
+    else:
+        for lead_item in page:
+            lead_item.latest_followup_obj = None
 
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
 
-    # Filter dropdown options scoped to current user's business
-    active_leads = Lead.objects.filter(is_archived=False)
-    if request.user.hospital:
-        active_leads = active_leads.filter(hospital=request.user.hospital)
-        if request.user.role in ('COUNSELLOR', 'HR'):
-            active_leads = active_leads.filter(
-                Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
-            )
-        elif request.user.role == User.Role.DOCTOR:
-            doc_name = (request.user.get_full_name() or request.user.username).strip()
-            active_leads = active_leads.filter(
-                Q(assigned_to=request.user) |
-                Q(appointments__doctor_user=request.user) |
-                Q(appointments__doctor_name__icontains=doc_name) |
-                Q(custom_data__doctor__icontains=doc_name)
-            ).distinct()
-    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
-        active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
-    
-    used_sc_ids = active_leads.values_list("source_category_id", flat=True).distinct()
-    used_ls_ids = active_leads.values_list("lead_source_id", flat=True).distinct()
-    used_camp_ids = active_leads.values_list("campaign_id", flat=True).distinct()
-    used_course_ids = active_leads.values_list("course_id", flat=True).distinct()
-    used_stage_ids = active_leads.values_list("stage_id", flat=True).distinct()
-    used_emp_ids = active_leads.values_list("assigned_to_id", flat=True).distinct()
+    # Filter dropdown options scoped to current user's business (Cached for 60s to avoid full table scans on every click)
+    cache_biz_key = f"filter_opts_biz_{request.user.hospital_id if request.user.hospital else 'global'}_{request.user.role}"
+    from django.core.cache import cache
+    cached_dropdowns = cache.get(cache_biz_key)
+    if cached_dropdowns:
+        used_sc_ids = cached_dropdowns["used_sc_ids"]
+        used_ls_ids = cached_dropdowns["used_ls_ids"]
+        used_camp_ids = cached_dropdowns["used_camp_ids"]
+        used_course_ids = cached_dropdowns["used_course_ids"]
+        used_stage_ids = cached_dropdowns["used_stage_ids"]
+        used_emp_ids = cached_dropdowns["used_emp_ids"]
+        distinct_cities = cached_dropdowns["distinct_cities"]
+        distinct_locations = cached_dropdowns["distinct_locations"]
+    else:
+        active_leads = Lead.objects.filter(is_archived=False)
+        if request.user.hospital:
+            active_leads = active_leads.filter(hospital=request.user.hospital)
+            if request.user.role in ('COUNSELLOR', 'HR'):
+                active_leads = active_leads.filter(
+                    Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
+                )
+            elif request.user.role == User.Role.DOCTOR:
+                doc_name = (request.user.get_full_name() or request.user.username).strip()
+                active_leads = active_leads.filter(
+                    Q(assigned_to=request.user) |
+                    Q(appointments__doctor_user=request.user) |
+                    Q(appointments__doctor_name__icontains=doc_name) |
+                    Q(custom_data__doctor__icontains=doc_name)
+                ).distinct()
+        elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+            active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
+        
+        used_sc_ids = list(active_leads.values_list("source_category_id", flat=True).distinct())
+        used_ls_ids = list(active_leads.values_list("lead_source_id", flat=True).distinct())
+        used_camp_ids = list(active_leads.values_list("campaign_id", flat=True).distinct())
+        used_course_ids = list(active_leads.values_list("course_id", flat=True).distinct())
+        used_stage_ids = list(active_leads.values_list("stage_id", flat=True).distinct())
+        used_emp_ids = list(active_leads.values_list("assigned_to_id", flat=True).distinct())
 
-    distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
-    distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
+        distinct_cities = sorted(list(set(active_leads.exclude(city="").values_list("city", flat=True))))
+        distinct_locations = sorted(list(set(active_leads.exclude(location="").values_list("location", flat=True))))
+
+        cache.set(cache_biz_key, {
+            "used_sc_ids": used_sc_ids,
+            "used_ls_ids": used_ls_ids,
+            "used_camp_ids": used_camp_ids,
+            "used_course_ids": used_course_ids,
+            "used_stage_ids": used_stage_ids,
+            "used_emp_ids": used_emp_ids,
+            "distinct_cities": distinct_cities,
+            "distinct_locations": distinct_locations,
+        }, timeout=60)
     
     # Determine whether current view should show hospital or academy style layout
     target_hospital = None
@@ -2967,6 +3006,10 @@ def lead_edit(request, pk):
             return redirect("dashboard:telecaller_my_leads")
         return redirect("leads:lead_list")
 
+    if getattr(lead, "is_archived", False):
+        messages.warning(request, "This lead is currently archived. It must be opened/restored by an admin before details can be edited.")
+        return redirect("leads:lead_detail", pk=pk)
+
     is_doctor = (request.user.role == User.Role.DOCTOR)
     is_view_only = is_doctor or (not _can_edit_lead(request.user, lead) and _can_access_lead(request.user, lead))
 
@@ -3767,6 +3810,12 @@ def add_followup(request, pk):
             return JsonResponse({"status": "error", "message": "You do not have permission to access this lead."}, status=403)
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
+    if getattr(lead, "is_archived", False):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Lead is archived. Please restore/open the lead first before scheduling follow-ups."}, status=400)
+        messages.warning(request, "This lead is currently archived. It must be restored/opened by an admin before follow-ups can be scheduled.")
+        return redirect("leads:lead_detail", pk=pk)
+
     if request.method == "POST":
         today = timezone.localdate()
         fu_date_raw = request.POST.get("followup_date")
@@ -4542,6 +4591,14 @@ def archived_leads(request):
     if "page" in query_params:
         del query_params["page"]
 
+    # Business Team Members for assignment (strictly scoped to current business)
+    if request.user.hospital:
+        business_users = User.objects.filter(hospital=request.user.hospital, is_active=True).order_by("first_name", "username")
+    elif is_global_admin:
+        business_users = User.objects.filter(is_active=True).order_by("first_name", "username")
+    else:
+        business_users = User.objects.filter(hospital__isnull=True, is_active=True).order_by("first_name", "username")
+
     context = {
         "active": "archived_leads",
         "leads": page_obj,
@@ -4557,9 +4614,127 @@ def archived_leads(request):
         "date_to_val": date_to,
         "current_hospital": current_hospital,
         "is_global_admin": is_global_admin,
+        "business_users": business_users,
         "query_params": query_params.urlencode(),
     }
     return render(request, "leads/archived_leads.html", context)
+
+
+@login_required
+def bulk_archive_action(request):
+    """
+    Dedicated Bulk Actions handler for Archived Leads.
+    Strictly authorized for Business Admins / SuperAdmins:
+    1. 'restore'        -> Restore selected archived leads back to active leads (is_archived=False).
+    2. 'restore_assign' -> Restore selected leads and allocate to a chosen counselor in the same business.
+    3. 'delete_forever' -> Permanently purge selected leads from the database.
+    """
+    if not _can_archive_lead(request.user):
+        messages.error(request, "Only business administrators have permission to manage archived leads.")
+        return redirect("leads:archived_leads")
+
+    if request.method != "POST":
+        return redirect("leads:archived_leads")
+
+    action = request.POST.get("bulk_action", "").strip()
+    selected_ids = request.POST.getlist("selected")
+
+    if not selected_ids:
+        messages.warning(request, "Please select at least one archived lead to perform an action.")
+        return redirect("leads:archived_leads")
+
+    # Business Tenant Isolation: strictly scope leads to current business admin's tenant
+    leads_qs = Lead.objects.filter(pk__in=selected_ids, is_archived=True)
+    if request.user.hospital:
+        leads_qs = leads_qs.filter(hospital=request.user.hospital)
+    elif not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+        leads_qs = leads_qs.none()
+
+    count = leads_qs.count()
+    if count == 0:
+        messages.warning(request, "No matching archived leads found.")
+        return redirect("leads:archived_leads")
+
+    admin_name = request.user.get_full_name() or request.user.username
+
+    if action == "restore":
+        # 1. Restore to active leads
+        for lead in leads_qs:
+            lead.is_archived = False
+            lead.save(update_fields=["is_archived", "updated_at"])
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.STAGE_CHANGE,
+                description=f"Restored from archive back to active leads by {admin_name}.",
+                created_by=request.user,
+            )
+        messages.success(request, f"Successfully restored {count} lead(s) back to active leads.")
+
+    elif action == "restore_assign":
+        # 2. Restore and assign to selected team member within the same business
+        assignee_id = request.POST.get("assign_to", "").strip()
+        if not assignee_id:
+            messages.error(request, "Please select a team member to assign the leads to.")
+            return redirect("leads:archived_leads")
+
+        # Validate that assignee strictly belongs to current business
+        user_qs = User.objects.filter(pk=assignee_id, is_active=True)
+        if request.user.hospital:
+            user_qs = user_qs.filter(hospital=request.user.hospital)
+        assignee = user_qs.first()
+
+        if not assignee:
+            messages.error(request, "Selected team member was not found or does not belong to your business.")
+            return redirect("leads:archived_leads")
+
+        assignee_name = assignee.get_full_name() or assignee.username
+        assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
+
+        for lead in leads_qs:
+            lead.is_archived = False
+            lead.assigned_to = assignee
+            update_flds = ["is_archived", "assigned_to", "updated_at"]
+            if assigned_stage and (not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']):
+                lead.stage = assigned_stage
+                update_flds.append("stage")
+            lead.save(update_fields=update_flds)
+
+            Activity.objects.create(
+                lead=lead,
+                activity_type=ActivityType.ASSIGNMENT,
+                description=f"Restored from archive and assigned to '{assignee_name}' by {admin_name}.",
+                created_by=request.user,
+            )
+
+        # Notify assignee
+        if assignee != request.user:
+            from notifications.models import Notification
+            Notification.objects.create(
+                user=assignee,
+                title=f"{count} Archived Leads Restored & Assigned",
+                message=f"{admin_name} has restored and assigned {count} lead(s) to you.",
+                link="/leads/my-leads/",
+            )
+
+        messages.success(request, f"Successfully restored and assigned {count} lead(s) to {assignee_name}.")
+
+    elif action == "delete_forever":
+        # 3. Completely delete from database
+        from audit.utils import log_action
+        log_action(
+            action="BULK_DELETE_ARCHIVED_LEADS",
+            user=request.user,
+            new_value=f"Permanently purged {count} archived lead(s) from database: IDs {selected_ids[:20]}",
+            ip_address=request.META.get('REMOTE_ADDR', '127.0.0.1')
+        )
+        leads_qs.delete()
+        messages.success(request, f"Permanently deleted {count} lead(s) from database.")
+
+    else:
+        messages.warning(request, "Unknown action requested.")
+
+    return redirect("leads:archived_leads")
+
 
 
 @login_required

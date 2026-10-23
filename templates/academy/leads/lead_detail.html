@@ -200,7 +200,7 @@
       </form>
       {% endif %}
 
-      {% if can_edit %}
+      {% if not lead.is_archived and can_edit %}
         <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
           Edit Details
         </a>
@@ -213,8 +213,8 @@
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-sm border" style="font-size: 0.82rem;">
           <li>
-            <a class="dropdown-item text-danger" href="{% url 'leads:lead_archive' lead.pk %}" onclick="return confirm('{% if lead.is_archived %}Restore{% else %}Archive{% endif %} this lead?')">
-              {% if lead.is_archived %}Restore Lead{% else %}Archive Lead{% endif %}
+            <a class="dropdown-item {% if lead.is_archived %}text-success fw-semibold{% else %}text-danger{% endif %}" href="{% url 'leads:lead_archive' lead.pk %}" onclick="return confirm('{% if lead.is_archived %}Restore / Open this lead back to active leads?{% else %}Archive this lead?{% endif %}')">
+              {% if lead.is_archived %}<i class="fa-solid fa-arrow-rotate-left me-1"></i>Restore Lead{% else %}<i class="fa-solid fa-box-archive me-1"></i>Archive Lead{% endif %}
             </a>
           </li>
         </ul>
@@ -223,8 +223,25 @@
     </div>
   </div>
 
+  <!-- Archived Lead Prominent Alert Banner -->
+  {% if lead.is_archived %}
+  <div class="alert alert-warning py-2.5 px-3 rounded-3 shadow-xs mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2" style="background-color: #fffbeb; border: 1px solid #fef3c7;">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa-solid fa-box-archive text-warning fs-6"></i>
+      <div style="font-size: 0.86rem; color: #92400e;">
+        <strong>Archived Lead (Read-Only Mode):</strong> This lead is currently archived. You can view all information and add internal remarks. To edit lead details, record payments, or schedule follow-ups, an admin must first restore/open this lead.
+      </div>
+    </div>
+    {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.business and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+    <a href="{% url 'leads:lead_archive' lead.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-semibold shadow-xs" onclick="return confirm('Restore / Open lead {{ lead.name }} back to active leads?');" style="font-size: 0.8rem;">
+      Restore / Open Lead
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Team Lead View Notice Banner if assigned to another counselor -->
-  {% if lead.assigned_to and lead.assigned_to != request.user and not can_edit %}
+  {% if not lead.is_archived and lead.assigned_to and lead.assigned_to != request.user and not can_edit %}
   <div class="alert alert-info py-2 px-3 small border-0 shadow-xs rounded-3 mb-2 d-flex align-items-center gap-2">
     <span>
       <strong>Team Lead View:</strong> This lead belongs to <strong>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}</strong>. You can view progress, record follow-ups, and add internal notes. Editing details are reserved for the lead owner.
@@ -438,7 +455,7 @@
       <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>Payment Details &amp; Billing</span>
-          {% if admission %}
+          {% if admission and not lead.is_archived %}
           <a href="{% url 'payments:add' admission.id %}" class="btn btn-sm btn-outline-primary py-0 px-2 fw-medium" style="font-size: 0.75rem;">
             + Record Payment
           </a>
@@ -516,7 +533,9 @@
                   <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fa-solid fa-check me-1"></i>Paid</span>
                   {% else %}
                   <span class="badge bg-danger-subtle text-danger py-1">Pending</span>
+                  {% if not lead.is_archived %}
                   <a href="{% url 'admissions:installment_toggle_paid' inst.id %}" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark Paid"><i class="fa-solid fa-check"></i></a>
+                  {% endif %}
                   {% endif %}
                 </div>
               </li>
@@ -525,6 +544,7 @@
               {% endfor %}
             </ul>
 
+            {% if not lead.is_archived %}
             <!-- Add Installment Form -->
             <form method="post" action="{% url 'admissions:add_installment' admission.id %}" class="bg-light p-2 rounded-3 border">
               {% csrf_token %}
@@ -541,6 +561,7 @@
                 </div>
               </div>
             </form>
+            {% endif %}
           </div>
           {% endif %}
 
@@ -749,9 +770,11 @@
         <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addRemarkCollapse" aria-expanded="false" style="font-size: 0.8rem;">
           + Add Remark / Note
         </button>
+        {% if not lead.is_archived %}
         <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-semibold" data-bs-toggle="collapse" data-bs-target="#addFollowupCollapse" aria-expanded="false" style="font-size: 0.8rem;">
           + Add Follow-up
         </button>
+        {% endif %}
       </div>
 
       <!-- Collapsible Form: Add Remark / Note -->
