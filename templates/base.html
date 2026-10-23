@@ -1095,11 +1095,260 @@
       box-shadow: 0 0 0 2px rgba(5, 32, 66, 0.08) !important;
       outline: none !important;
     }
+
+    /* ==========================================================================
+       MOBILE & TABLET RESPONSIVE SYSTEM (All Devices & Windows Screen Sizes)
+       ========================================================================== */
+
+    /* 1. Global Responsive Typography & Compact Headings */
+    @media (max-width: 767.98px) {
+      /* Global page headings compact on mobile */
+      h1, .h1 { font-size: 1.25rem !important; line-height: 1.25 !important; }
+      h2, .h2 { font-size: 1.15rem !important; line-height: 1.25 !important; }
+      h3, .h3 { font-size: 1.05rem !important; line-height: 1.25 !important; }
+      h4, .h4 { font-size: 0.98rem !important; line-height: 1.25 !important; }
+      h5, .h5 { font-size: 0.90rem !important; line-height: 1.25 !important; }
+      h6, .h6 { font-size: 0.82rem !important; line-height: 1.25 !important; }
+      .page-title { font-size: 1.05rem !important; }
+
+      /* Subtitles & Descriptions: Shorten on mobile or truncate nicely to 1 line */
+      .page-subtitle, .header-subtitle, .lead-subtitle,
+      .content > div > .d-flex p.text-muted.small,
+      .content > .d-flex p.text-muted.small,
+      .nelson-dashboard .d-flex > div > span.text-muted.small,
+      .nelson-dashboard .d-flex > div > p.text-muted.small {
+        font-size: 0.72rem !important;
+        line-height: 1.25 !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 0.15rem !important;
+        margin-bottom: 0 !important;
+      }
+
+      /* Compact content container padding on mobile */
+      .content {
+        padding: 0.65rem 0.65rem !important;
+      }
+
+      /* Compact Topbar & Header */
+      .topbar {
+        padding: 0.4rem 0.65rem !important;
+        gap: 0.5rem !important;
+      }
+      .topbar .search-box {
+        max-width: 100% !important;
+        margin-top: 0.25rem;
+      }
+
+      /* KPI Cards 2-per-row grid on mobile with compact numbers */
+      .kpi-card {
+        padding: 0.5rem 0.65rem !important;
+      }
+      .kpi-card .value {
+        font-size: 1.2rem !important;
+      }
+      .kpi-card .label {
+        font-size: 0.68rem !important;
+      }
+
+      /* Cards and padding */
+      .card {
+        border-radius: 8px !important;
+        margin-bottom: 0.6rem !important;
+      }
+      .card-header {
+        padding: 0.45rem 0.65rem !important;
+      }
+      .card-body {
+        padding: 0.6rem 0.65rem !important;
+      }
+
+      /* Mobile Modals: Clean fit, prevent overflow offscreen */
+      .modal-dialog {
+        margin: 0.5rem !important;
+        max-width: calc(100vw - 1rem) !important;
+      }
+      .modal-content {
+        border-radius: 12px !important;
+      }
+      .modal-header, .modal-footer {
+        padding: 0.65rem 0.85rem !important;
+      }
+      .modal-body {
+        padding: 0.85rem 0.85rem !important;
+        max-height: calc(85vh - 120px);
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Native Date & Time Inputs on Mobile */
+      input[type="date"],
+      input[type="time"],
+      input[type="datetime-local"] {
+        font-size: 0.82rem !important;
+        min-height: 36px !important;
+        padding: 0.35rem 0.5rem !important;
+      }
+
+      /* Form controls & selects touch friendly size without excess */
+      .form-control, .form-select, select.form-select {
+        font-size: 0.84rem !important;
+        min-height: 36px !important;
+      }
+
+      /* Table data cells high density */
+      .table td, .table th {
+        padding: 0.4rem 0.5rem !important;
+        font-size: 0.78rem !important;
+      }
+
+      /* Compact Buttons on Mobile (Prevent oversized buttons and text wrapping) */
+      .btn {
+        font-size: 0.78rem !important;
+        padding: 0.35rem 0.65rem !important;
+        white-space: nowrap !important;
+        line-height: 1.25 !important;
+      }
+      .btn.btn-sm {
+        font-size: 0.72rem !important;
+        padding: 0.25rem 0.55rem !important;
+        min-height: 28px !important;
+      }
+      .btn.rounded-pill {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+      .btn-lg {
+        font-size: 0.85rem !important;
+        padding: 0.45rem 0.85rem !important;
+      }
+    }
+
+    /* 2. Responsive Tables (Smooth Touch Scrolling + Visible Indicators) */
+    .table-responsive {
+      -webkit-overflow-scrolling: touch;
+      overflow-x: auto !important;
+      border-radius: 8px;
+    }
+
+    /* 3. Mobile Backdrop for Sidebar */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(2px);
+      z-index: 1025;
+      transition: opacity 0.25s ease;
+    }
+    .sidebar-backdrop.show {
+      display: block;
+    }
+
+    @media (max-width: 991.98px) {
+      .sidebar {
+        width: 270px !important;
+        max-width: 82vw !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3) !important;
+        z-index: 1040 !important;
+      }
+      .sidebar.show {
+        transform: translateX(0) !important;
+      }
+      /* Force display all labels and titles on mobile sidebar when open */
+      .sidebar .brand-text,
+      .sidebar .section-title,
+      .sidebar .section-arrow,
+      .sidebar .sub-arrow,
+      .sidebar .nav-text,
+      body .sidebar .brand-text,
+      body .sidebar .section-title,
+      body .sidebar .section-arrow,
+      body .sidebar .sub-arrow,
+      body .sidebar .nav-text,
+      body:not(.sidebar-pinned-open) .sidebar.show .brand-text,
+      body:not(.sidebar-pinned-open) .sidebar.show .section-title,
+      body:not(.sidebar-pinned-open) .sidebar.show .section-arrow,
+      body:not(.sidebar-pinned-open) .sidebar.show .sub-arrow,
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-text {
+        display: inline !important;
+      }
+
+      body:not(.sidebar-pinned-open) .sidebar.show .sidebar-brand-header,
+      .sidebar .sidebar-brand-header {
+        padding: 0.9rem 1.15rem !important;
+        justify-content: space-between !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .sidebar-brand-inner,
+      .sidebar .sidebar-brand-inner {
+        justify-content: flex-start !important;
+        gap: 10px !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .sidebar-logo-wrap,
+      .sidebar .sidebar-logo-wrap {
+        margin: 0 !important;
+        width: auto !important;
+        max-width: 90px !important;
+        padding: 3px 8px !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .sidebar-brand-logo,
+      .sidebar .sidebar-brand-logo {
+        max-width: 78px !important;
+        max-height: 32px !important;
+      }
+
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-link,
+      .sidebar .nav-link {
+        justify-content: flex-start !important;
+        padding: .55rem 1.25rem !important;
+        gap: .75rem !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-link i,
+      .sidebar .nav-link i {
+        display: inline-block !important;
+        width: 20px !important;
+        font-size: .9rem !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-section-btn,
+      .sidebar .nav-section-btn {
+        justify-content: space-between !important;
+        padding: .75rem 1.25rem .45rem !important;
+        text-align: left !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-section-btn .section-icon,
+      .sidebar .nav-section-btn .section-icon {
+        display: inline-block !important;
+        margin-right: .65rem !important;
+        font-size: .85rem !important;
+        width: 20px !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-sub-item-btn,
+      .sidebar .nav-sub-item-btn {
+        justify-content: space-between !important;
+        padding: .45rem 1rem .45rem 1.15rem !important;
+        text-align: left !important;
+      }
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-sub-items.collapse.show,
+      body:not(.sidebar-pinned-open) .sidebar.show .nav-sub-sub-items.collapse.show {
+        display: block !important;
+      }
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 
 <body>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleMobileSidebar(false)"></div>
 
   {% include "includes/sidebar.html" %}
 
@@ -1299,6 +1548,34 @@
         input.value = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }, true);
+    });
+
+    // Mobile Sidebar Open/Close with Backdrop Support (Global Function)
+    window.toggleMobileSidebar = function(force) {
+      const sb = document.getElementById('sidebar');
+      const bd = document.getElementById('sidebarBackdrop');
+      if (!sb) return;
+      const willShow = (force !== undefined) ? force : !sb.classList.contains('show');
+      if (willShow) {
+        sb.classList.add('show');
+        if (bd) bd.classList.add('show');
+        document.body.style.overflow = 'hidden';
+      } else {
+        sb.classList.remove('show');
+        if (bd) bd.classList.remove('show');
+        document.body.style.overflow = '';
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Close mobile sidebar on navigation link click
+      if (window.innerWidth < 992) {
+        document.querySelectorAll('#sidebar .nav-link:not([data-bs-toggle])').forEach(function(link) {
+          link.addEventListener('click', function() {
+            window.toggleMobileSidebar(false);
+          });
+        });
+      }
     });
   </script>
 

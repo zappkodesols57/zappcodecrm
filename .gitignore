@@ -91,3 +91,6 @@ scratch/
 celerybeat-schedule*
 
 HOSPITAL_LEAD_LIFECYCLE_FLOWCHART.md
+count_hospital_occurrences.py
+test_mobile_responsiveness.py
+test_*.py

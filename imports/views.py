@@ -402,8 +402,10 @@ def upload(request):
         "date_preset": date_preset,
         "start_date": start_date_str,
         "end_date": end_date_str,
-        "preset_label": preset_label,
         "all_hospitals": all_hospitals,
+        "all_businesses": all_hospitals,
+        "business": effective_hospital or user.business,
+        "business_id": (effective_hospital or user.business).id if (effective_hospital or user.business) else None,
         "current_leads_count": current_leads_count,
     }
     return render(request, "imports/upload.html", context)
@@ -588,15 +590,15 @@ def campaign_import_process(request):
 
     uploaded_file = request.FILES["lead_file"]
     campaign_id = request.POST.get("campaign_id")
-    target_hospital_id = request.POST.get("target_hospital_id")
+    target_hospital_id = request.POST.get("target_business_id") or request.POST.get("target_hospital_id")
     duplicate_strategy = request.POST.get("duplicate_strategy", "preview")
 
-    # Determine target hospital
+    # Determine target hospital / business
     target_hospital = None
     if target_hospital_id:
         target_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
-    elif request.user.hospital:
-        target_hospital = request.user.hospital
+    elif request.user.business:
+        target_hospital = request.user.business
 
     # Parse dataframe first
     try:
@@ -701,11 +703,11 @@ def campaign_import_execute(request):
 
     rows = cached_data.get("rows", [])
     campaign_id = request.POST.get("campaign_id") or cached_data.get("campaign_id")
-    target_hospital_id = request.POST.get("target_hospital_id") or cached_data.get("target_hospital_id")
+    target_hospital_id = request.POST.get("target_business_id") or request.POST.get("target_hospital_id") or cached_data.get("target_business_id") or cached_data.get("target_hospital_id")
     original_filename = cached_data.get("original_filename", "campaign_leads.xml")
 
     campaign = HospitalCampaign.objects.filter(pk=campaign_id).first()
-    target_hospital = Hospital.objects.filter(pk=target_hospital_id).first() if target_hospital_id else request.user.hospital
+    target_hospital = Hospital.objects.filter(pk=target_hospital_id).first() if target_hospital_id else request.user.business
 
     # Apply row-level action decisions from form
     for idx, r in enumerate(rows):
@@ -2082,12 +2084,12 @@ def quick_import(request):
         df.columns = [str(c).strip() for c in df.columns]
         cols = list(df.columns)
         
-        target_hospital_id = request.POST.get("target_hospital_id")
+        target_hospital_id = request.POST.get("target_business_id") or request.POST.get("target_hospital_id")
         user_hospital = None
         if target_hospital_id:
             user_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
-        elif request.user.hospital and "zappcode" not in (request.user.hospital.name or "").lower():
-            user_hospital = request.user.hospital
+        elif request.user.business and "zappcode" not in (request.user.business.name or "").lower():
+            user_hospital = request.user.business
 
         # Optional manual campaign association for historical data
         selected_campaign_id = request.POST.get("campaign_id")
@@ -2734,12 +2736,12 @@ def export_business_master_data(request):
         messages.error(request, "Permission denied. Only Admins and Super Admins can export master data.")
         return redirect("imports:upload")
 
-    target_hospital_id = request.GET.get("target_hospital_id")
+    target_hospital_id = request.GET.get("target_business_id") or request.GET.get("target_hospital_id")
     target_hospital = None
     if user.role == User.Role.SUPER_ADMIN and target_hospital_id:
         target_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
-    elif user.hospital:
-        target_hospital = user.hospital
+    elif user.business:
+        target_hospital = user.business
 
     leads_qs = Lead.objects.select_related(
         "course", "stage", "lead_source", "campaign", "assigned_to", "hospital"
@@ -2849,12 +2851,12 @@ def delete_business_master_data(request):
         messages.error(request, "Permission denied. You do not have authorization to delete master lead data.")
         return redirect("imports:upload")
 
-    target_hospital_id = request.POST.get("target_hospital_id")
+    target_hospital_id = request.POST.get("target_business_id") or request.POST.get("target_hospital_id")
     target_hospital = None
     if user.role == User.Role.SUPER_ADMIN and target_hospital_id:
         target_hospital = Hospital.objects.filter(pk=target_hospital_id).first()
-    elif user.hospital:
-        target_hospital = user.hospital
+    elif user.business:
+        target_hospital = user.business
 
     leads_qs = Lead.objects.filter(is_archived=False)
     if target_hospital:

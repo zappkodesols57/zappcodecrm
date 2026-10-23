@@ -25,6 +25,9 @@ from leads.models import (
 from leads.forms import (
     LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, TrainerForm, BatchForm, LeadStageForm,
 )
+from leads.views.common_views import (
+    _can_edit_lead, _can_access_lead, _get_lead_or_redirect, get_filtered_leads, get_campaign_breakdown_stats,
+)
 
 
 
@@ -831,19 +834,16 @@ def payment_done_list(request):
     if target_hospital:
         is_healthcare_scope = (target_hospital.industry == Hospital.Industry.HOSPITAL)
 
-    if not is_healthcare_scope:
-        base_qs = Lead.objects.none()
-    else:
-        base_qs = Lead.objects.select_related(
-            "hospital", "assigned_to", "stage", "campaign", "lead_source"
-        ).filter(is_archived=False)
+    base_qs = Lead.objects.select_related(
+        "hospital", "assigned_to", "stage", "campaign", "lead_source"
+    ).filter(is_archived=False)
 
-        if target_hospital:
-            base_qs = base_qs.filter(hospital=target_hospital)
-        elif request.user.hospital:
-            base_qs = base_qs.filter(hospital=request.user.hospital)
-        elif not is_global_admin:
-            base_qs = base_qs.filter(hospital__isnull=True)
+    if target_hospital:
+        base_qs = base_qs.filter(hospital=target_hospital)
+    elif request.user.hospital:
+        base_qs = base_qs.filter(hospital=request.user.hospital)
+    elif not is_global_admin:
+        base_qs = base_qs.filter(hospital__isnull=True)
 
         if request.user.role == User.Role.MANAGER:
             mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []

@@ -475,6 +475,37 @@
         background-color: rgba(5, 32, 66, 0.08) !important;
         outline: 2px solid #052042;
     }
+
+    @media (max-width: 767.98px) {
+        .quick-action-microbar {
+            width: calc(100vw - 16px) !important;
+            max-width: calc(100vw - 16px) !important;
+            padding: 8px 10px !important;
+            border-radius: 12px !important;
+            bottom: 8px !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            justify-content: space-between !important;
+        }
+        .microbar-lead-name {
+            max-width: 95px !important;
+            font-size: 0.75rem !important;
+        }
+        .microbar-lead-phone {
+            font-size: 0.68rem !important;
+        }
+        .microbar-input {
+            width: 120px !important;
+            height: 28px !important;
+            font-size: 0.74rem !important;
+            padding: 2px 6px !important;
+        }
+        .microbar-btn {
+            height: 28px !important;
+            padding: 3px 7px !important;
+            font-size: 0.7rem !important;
+        }
+    }
 </style>
 {% endblock %}
 

@@ -439,3 +439,9 @@ class HospitalRolePermission(models.Model):
 
     def __str__(self):
         return f"{self.hospital.name} - {self.get_role_display()} Permissions"
+
+
+# Multi-Tenant Business Aliases for standardization across codebases
+Business = Hospital
+BusinessRolePermission = HospitalRolePermission
+
