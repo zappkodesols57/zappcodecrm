@@ -142,6 +142,29 @@
     color: #ffffff;
     background: rgba(255, 255, 255, 0.1);
   }
+
+  /* Mobile responsiveness for Floating Action Bar */
+  @media (max-width: 640px) {
+    .archive-floating-bar {
+      bottom: 12px;
+      padding: 6px 10px;
+      gap: 8px;
+      border-radius: 16px;
+      max-width: calc(100vw - 16px);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .archive-bar-divider {
+      display: none;
+    }
+    .archive-action-btn {
+      padding: 5px 11px;
+      font-size: 0.74rem;
+    }
+    .archive-count-text {
+      font-size: 0.76rem;
+    }
+  }
 </style>
 <div class="container-fluid px-0 px-md-2">
   <!-- Top Title Bar -->

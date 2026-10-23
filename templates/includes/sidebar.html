@@ -2,16 +2,16 @@
 <nav class="sidebar" id="sidebar">
   <div class="brand sidebar-brand-header">
     <div class="sidebar-brand-inner">
-      {% if user.hospital and user.hospital.logo %}
+      {% if user.business and user.business.logo %}
       <div class="sidebar-logo-wrap">
-        <img src="{{ user.hospital.logo.url }}" alt="{{ user.hospital.name }}" class="sidebar-brand-logo">
+        <img src="{{ user.business.logo.url }}" alt="{{ user.business.name }}" class="sidebar-brand-logo">
       </div>
       <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">CRM</span>
       {% elif user.industry == 'HOSPITAL' %}
       <div class="sidebar-logo-wrap">
         <i class="fa-solid fa-hospital section-icon" style="color: #ffffff; font-size: 1.25rem;"></i>
       </div>
-      <span class="brand-text" style="font-weight: 700; color: #ffffff; font-size: 1rem; white-space: nowrap;">{{ user.hospital.name|truncatechars:14 }}</span>
+      <span class="brand-text" style="font-weight: 700; color: #ffffff; font-size: 1rem; white-space: nowrap;">{{ user.business.name|default:"Hospital CRM"|truncatechars:14 }}</span>
       {% else %}
       <div class="sidebar-logo-wrap">
         <i class="fa-solid fa-bolt" style="color: #60a5fa; font-size: 1.25rem;"></i>
@@ -522,7 +522,7 @@
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
     </a>
 
-    {% elif user.role in 'COUNSELLOR HR' and user.industry != 'HOSPITAL' or user.role == 'LEAD_ATTENDENT' and user.industry != 'HOSPITAL' and not user.hospital.industry == 'HOSPITAL' %}
+    {% elif user.role in 'COUNSELLOR HR' and user.industry != 'HOSPITAL' or user.role == 'LEAD_ATTENDENT' and user.industry != 'HOSPITAL' %}
     {# 🎓 DEDICATED ACADEMY COUNSELOR / TELECALLER SIDEBAR #}
     {% include "academy/dashboard/partials/counselor_sidebar.html" %}
 

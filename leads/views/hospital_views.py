@@ -25,6 +25,9 @@ from leads.models import (
 from leads.forms import (
     LeadForm, HospitalLeadForm, SourceCategoryForm, LeadSourceForm, CampaignForm, CourseForm, TrainerForm, BatchForm, LeadStageForm,
 )
+from leads.views.common_views import (
+    _can_edit_lead, _can_access_lead, get_filtered_leads, get_campaign_breakdown_stats,
+)
 
 
 

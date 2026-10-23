@@ -75,7 +75,7 @@
         Submit New / Edit
       </a>
 
-      {% if user.hospital %}
+      {% if user.business %}
         {% if user.role == 'LEAD_ATTENDENT' %}
           <a href="{% url 'dashboard:telecaller_home' %}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
             Dashboard

@@ -295,16 +295,16 @@
               <!-- Multi-tenant Business Selector (Zappcode Super Admin only) -->
               {% if is_super_admin_no_hospital %}
               <div class="col-md-6">
-                <label class="form-label fw-semibold text-dark small mb-1">Hospital / Business <span class="text-danger">*</span></label>
+                <label class="form-label fw-semibold text-dark small mb-1">Business Organization <span class="text-danger">*</span></label>
                 <select name="target_hospital_id" id="targetHospitalSelect" class="form-select form-select-sm no-tom-select" required onchange="onBusinessChanged(this.value)">
-                  <option value="">Select Hospital / Business</option>
+                  <option value="">Select Business Organization</option>
                   {% for h in all_hospitals %}
                   <option value="{{ h.id }}" data-count="{{ h.leads_count|default:0 }}" {% if forloop.first %}selected{% endif %}>{{ h.name }}</option>
                   {% endfor %}
                 </select>
               </div>
               {% else %}
-              <input type="hidden" name="target_hospital_id" id="targetHospitalSelectHidden" value="{{ user.hospital.id|default:'' }}">
+              <input type="hidden" name="target_hospital_id" id="targetHospitalSelectHidden" value="{{ user.business_id|default:'' }}">
               {% endif %}
 
               <!-- Hospital Mode: Campaign Selection -->
@@ -394,10 +394,10 @@
               {% if is_super_admin_no_hospital %}
               <div class="col-md-6">
                 <div class="d-flex align-items-center mb-1" style="min-height: 28px;">
-                  <label class="form-label fw-semibold text-dark small mb-0">Hospital / Business <span class="text-danger">*</span></label>
+                  <label class="form-label fw-semibold text-dark small mb-0">Business Organization <span class="text-danger">*</span></label>
                 </div>
                 <select name="target_hospital_id" id="masterHospitalSelect" class="form-select form-select-sm no-tom-select" required onchange="onBusinessChanged(this.value)">
-                  <option value="">Select Hospital / Business</option>
+                  <option value="">Select Business Organization</option>
                   {% for h in all_hospitals %}
                   <option value="{{ h.id }}" data-count="{{ h.leads_count|default:0 }}" {% if forloop.first %}selected{% endif %}>
                     {{ h.name }} ({{ h.leads_count|default:0 }} Leads)
@@ -406,7 +406,7 @@
                 </select>
               </div>
               {% else %}
-              <input type="hidden" name="target_hospital_id" value="{{ user.hospital.id|default:'' }}">
+              <input type="hidden" name="target_hospital_id" value="{{ user.business_id|default:'' }}">
               {% endif %}
 
               <!-- Specific Campaign selector for Historical Import -->

@@ -199,7 +199,7 @@
       </a>
       {% endif %}
 
-      {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+      {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.business and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
       <div class="dropdown">
         <button class="btn btn-sm btn-outline-secondary rounded-pill px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; line-height: 1;">
           &#8942;
@@ -225,7 +225,7 @@
         <strong>Archived Lead (Read-Only Mode):</strong> This lead is currently archived. You can view all information and add internal remarks. To edit lead details or schedule follow-ups, an admin must first restore/open this lead.
       </div>
     </div>
-    {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.hospital and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
+    {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.business and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
     <a href="{% url 'leads:lead_archive' lead.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-semibold shadow-xs" onclick="return confirm('Restore / Open lead {{ lead.name }} back to active leads?');" style="font-size: 0.8rem;">
       Restore / Open Lead
     </a>
@@ -309,6 +309,42 @@
           </div>
         </div>
       </div>
+
+      <!-- Telecaller Assignment / Transfer Bar (Hospital Business) -->
+      {% if user.can_assign_leads %}
+      <div class="mt-3 pt-3 border-top">
+        <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="p-2.5 px-3 rounded-3 bg-light border d-flex flex-wrap align-items-center justify-content-between gap-2.5" style="border-color: #cbd5e1 !important;">
+          {% csrf_token %}
+          <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-headset text-primary" style="font-size: 0.95rem;"></i>
+            <span class="fw-bold text-dark text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Assign / Transfer Telecaller:</span>
+          </div>
+          <div class="d-flex align-items-center flex-grow-1 flex-wrap gap-2 justify-content-end">
+            <div style="min-width: 200px; max-width: 280px; flex: 1;">
+              <select name="assigned_to" class="form-select form-select-sm bg-white" title="Telecaller" style="border: 1px solid #cbd5e1; font-size: 0.82rem; height: 34px;">
+                <option value="">Unassigned (Telecaller)</option>
+                {% for emp in employees %}
+                  <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div style="min-width: 170px; max-width: 230px; flex: 1;">
+              <select name="assigned_manager" class="form-select form-select-sm bg-white" title="Reporting Manager" style="border: 1px solid #cbd5e1; font-size: 0.82rem; height: 34px;">
+                <option value="">No Manager</option>
+                {% for mgr in managers %}
+                  <option value="{{ mgr.id }}" {% if lead.assigned_manager_id == mgr.id %}selected{% endif %}>{{ mgr.get_full_name|default:mgr.username }} ({{ mgr.get_role_display }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <button type="submit" class="btn btn-sm btn-primary px-3 fw-semibold shadow-xs" style="height: 34px; font-size: 0.8rem; background-color: var(--brand) !important; border-color: var(--brand) !important;" title="Transfer Lead">
+                <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Transfer
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endif %}
     </div>
   </div>
 

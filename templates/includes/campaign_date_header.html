@@ -8,7 +8,7 @@
         <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
           DATE RANGE
         </label>
-        <div class="d-flex align-items-center gap-1.5 flex-wrap flex-sm-nowrap">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
           <!-- Quick Preset Dropdown -->
           <div class="dropdown">
             <button class="btn btn-sm btn-light border dropdown-toggle fw-semibold rounded-pill px-3 py-1.5 shadow-xs d-flex align-items-center gap-1.5 text-nowrap" type="button" id="topDatePresetDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.80rem; height: 36px;">
@@ -29,11 +29,11 @@
           </div>
 
           <!-- Date Inputs -->
-          <div class="d-flex align-items-center gap-1">
-            <input type="date" id="topDateFromInput" class="form-control form-control-sm rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.78rem; width: 125px; height: 36px;"
+          <div class="d-flex align-items-center gap-1.5 flex-grow-1">
+            <input type="date" id="topDateFromInput" class="form-control form-control-sm rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.78rem; min-width: 110px; max-width: 140px; height: 36px; flex: 1;"
               value="{{ date_from_val|default:'' }}" placeholder="dd-mm-yyyy" onchange="applyCustomDateFilter()">
-            <span class="text-muted small">to</span>
-            <input type="date" id="topDateToInput" class="form-control form-control-sm rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.78rem; width: 125px; height: 36px;"
+            <span class="text-muted small px-0.5">to</span>
+            <input type="date" id="topDateToInput" class="form-control form-control-sm rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.78rem; min-width: 110px; max-width: 140px; height: 36px; flex: 1;"
               value="{{ date_to_val|default:'' }}" placeholder="dd-mm-yyyy" onchange="applyCustomDateFilter()">
           </div>
         </div>

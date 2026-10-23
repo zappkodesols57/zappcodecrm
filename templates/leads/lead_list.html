@@ -154,7 +154,7 @@
               <option value="">-- Select Action --</option>
               <option value="assign">Assign to...</option>
               <option value="stage">Change Stage to...</option>
-              {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.hospital and user.role == 'MANAGER' %}
+              {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.business and user.role == 'MANAGER' %}
               <option value="archive">Archive</option>
               {% endif %}
             </select>
@@ -295,8 +295,8 @@
                 <!-- 1. Lead Name -->
                 <td>
                   <strong class="text-dark">{{ lead.name }}</strong>
-                  {% if lead.hospital %}
-                    <div class="small text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-building me-1"></i>{{ lead.hospital.name }}</div>
+                  {% if lead.business %}
+                    <div class="small text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-building me-1"></i>{{ lead.business.name }}</div>
                   {% endif %}
                 </td>
 

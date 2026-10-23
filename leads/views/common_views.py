@@ -37,8 +37,8 @@ def _can_edit_lead(user, lead):
     """
     Business-tenant aware edit permission check.
     - Archived leads CANNOT be edited. They must be restored/opened first by an admin.
-    - Global Super Admin (no hospital): can edit any active lead.
-    - Tenant user: can only edit leads in their own business (hospital).
+    - Global Super Admin (no business): can edit any active lead.
+    - Tenant user: can only edit leads in their own business.
     - Within-business:
         - Super Admin / Admin / Manager: can edit any lead in their business.
         - Counsellor / HR: can ONLY edit leads assigned to themselves (lead.assigned_to == user) or unassigned leads.
@@ -46,17 +46,17 @@ def _can_edit_lead(user, lead):
     if getattr(lead, "is_archived", False):
         return False
 
-    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
+    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.business_id)
 
     if is_global_admin:
         return True
 
     # Business-tenant check: lead must belong to the same business
-    if user.hospital:
-        if lead.hospital != user.hospital:
+    if user.business_id:
+        if lead.business_id != user.business_id:
             return False
     else:
-        if lead.hospital is not None:
+        if lead.business_id is not None:
             return False
 
     # Within-Business Edit Permission Check
@@ -77,25 +77,25 @@ def _can_edit_lead(user, lead):
 def _can_access_lead(user, lead):
     """
     Business-tenant aware access permission check (VIEW permission).
-    - Global Super Admin (no hospital): can access any lead.
-    - Tenant user: can view leads in their own business (hospital).
+    - Global Super Admin (no business): can access any lead.
+    - Tenant user: can view leads in their own business.
     - Within-business:
         - Admin: Full business access.
         - Manager with branch: Only leads belonging to their assigned branch.
         - Doctor: Only leads / appointments assigned to them.
         - Lead Attendant / Counsellor / HR: Can view tenant leads / assigned leads.
     """
-    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
+    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.business_id)
 
     if is_global_admin:
         return True
 
     # Business-tenant check
-    if user.hospital:
-        if lead.hospital != user.hospital:
+    if user.business_id:
+        if lead.business_id != user.business_id:
             return False
     else:
-        if lead.hospital is not None:
+        if lead.business_id is not None:
             return False
 
     # Doctor within business: can only view leads assigned to them or with appointments booked under them
@@ -1058,6 +1058,9 @@ def lead_list(request):
             ("COMPLETED", "Follow up Completed"),
         ],
         "selected_hospital_id": selected_hospital_id,
+        "selected_business_id": selected_hospital_id,
+        "business": target_hospital,
+        "business_id": target_hospital.id if target_hospital else None,
         "businesses": available_businesses,
         "date_from_val": request.GET.get("date_from", "") or request.GET.get("date", ""),
         "date_to_val": request.GET.get("date_to", ""),
@@ -3596,25 +3599,41 @@ def lead_detail(request, pk):
     followups = lead.followups.select_related("created_by").all()[:50]
     admission = getattr(lead, "admission", None)
     
-    # Retrieve active/approved users for the assignment form
-    if lead.hospital:
-        employees = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER, User.Role.LEAD_ATTENDENT])
-        managers = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
-    else:
-        employees = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', User.Role.MANAGER, User.Role.LEAD_ATTENDENT])
-        managers = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
-    
-    latest_appointment = None
-    custom_field_data = []
-
     # Check lead's own organization business_type (Hospital vs Academy)
     lead_hospital_settings = (lead.hospital.settings or {}) if lead.hospital else {}
     lead_btype = lead_hospital_settings.get("business_type")
     if not lead_btype and lead.hospital:
-        name_lower = (lead.hospital.name or "").lower()
-        lead_btype = "hospital" if any(k in name_lower for k in ["hospital", "clinic", "medical", "nelson"]) else "academy"
+        if getattr(lead.hospital, 'industry', None) == 'HOSPITAL':
+            lead_btype = "hospital"
+        elif getattr(lead.hospital, 'industry', None) == 'ACADEMY':
+            lead_btype = "academy"
+        else:
+            name_lower = (lead.hospital.name or "").lower()
+            lead_btype = "hospital" if any(k in name_lower for k in ["hospital", "clinic", "medical", "nelson"]) else "academy"
     
     is_lead_hospital = bool(lead.hospital and lead_btype == "hospital")
+
+    # Strict multi-tenant filtering: Role-based assignable users strictly belonging to lead's business
+    # Academy: Counselors, HR, and Admins/Managers of that Academy
+    # Hospital: Telecallers (LEAD_ATTENDENT) and Admins/Managers of that Hospital
+    if is_lead_hospital:
+        emp_roles = [User.Role.LEAD_ATTENDENT, 'TELECALLER']
+    else:
+        emp_roles = ['COUNSELLOR', 'HR']
+
+    mgr_roles = [User.Role.MANAGER, User.Role.ADMIN]
+
+    if lead.hospital:
+        employees = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=emp_roles).order_by('first_name', 'username')
+        managers = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=mgr_roles).order_by('first_name', 'username')
+    else:
+        # Fallback for leads not yet linked to a business
+        employees = User.objects.filter(is_active=True, is_approved=True, role__in=emp_roles).order_by('first_name', 'username')
+        managers = User.objects.filter(is_active=True, is_approved=True, role__in=mgr_roles).order_by('first_name', 'username')
+
+    latest_appointment = None
+    appointments_history = []
+    custom_field_data = []
 
     if is_lead_hospital:
         from leads.models import Appointment, LeadCustomField
@@ -3625,8 +3644,6 @@ def lead_detail(request, pk):
         for cf in cfs:
             if cf.name in cd and cd[cf.name] != "":
                 custom_field_data.append({"label": cf.label, "value": cd[cf.name]})
-    else:
-        appointments_history = []
         
     can_edit = _can_edit_lead(request.user, lead)
     is_owner = (lead.assigned_to == request.user or lead.assigned_to is None)
@@ -3727,6 +3744,8 @@ def lead_detail(request, pk):
         "managers": managers,
         "can_edit": can_edit,
         "can_convert": can_convert,
+        "business": lead.business,
+        "business_id": lead.business_id,
     })
 
 
@@ -3735,7 +3754,7 @@ def _can_archive_lead(user):
         return True
     if user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN]:
         return True
-    if user.hospital and user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]:
+    if user.business_id and user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER]:
         return True
     return False
 
@@ -4243,7 +4262,13 @@ def assign_lead(request, pk):
         old_mgr = lead.assigned_manager
 
         if assignee_id:
-            assignee = User.objects.filter(pk=assignee_id, is_active=True).first()
+            assignee_qs = User.objects.filter(pk=assignee_id, is_active=True)
+            if lead.hospital:
+                assignee_qs = assignee_qs.filter(hospital=lead.hospital)
+            assignee = assignee_qs.first()
+            if not assignee:
+                messages.error(request, "Selected assignee is invalid or does not belong to this business.")
+                return redirect("leads:lead_detail", pk=pk)
             lead.assigned_to = assignee
             if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
                 assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
@@ -4253,7 +4278,13 @@ def assign_lead(request, pk):
             lead.assigned_to = None
 
         if manager_id:
-            mgr = User.objects.filter(pk=manager_id, is_active=True).first()
+            mgr_qs = User.objects.filter(pk=manager_id, is_active=True)
+            if lead.hospital:
+                mgr_qs = mgr_qs.filter(hospital=lead.hospital)
+            mgr = mgr_qs.first()
+            if not mgr:
+                messages.error(request, "Selected manager is invalid or does not belong to this business.")
+                return redirect("leads:lead_detail", pk=pk)
             lead.assigned_manager = mgr
         else:
             lead.assigned_manager = None

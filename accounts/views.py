@@ -319,6 +319,8 @@ def user_list(request):
         "biz_industry": biz_industry,
         "has_branches": has_branches,
         "business_branch_count": business_branch_count,
+        "business": active_biz or request.user.business,
+        "business_id": business_id,
     })
 
 

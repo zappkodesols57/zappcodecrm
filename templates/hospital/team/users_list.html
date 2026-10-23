@@ -232,9 +232,9 @@
                 </span>
               {% endif %}
             </div>
-            {% if u.hospital and not request.user.hospital %}
+            {% if u.business and not request.user.business %}
               <div class="text-muted small mt-1" style="font-size: 0.7rem;">
-                {{ u.hospital.name }}
+                {{ u.business.name }}
               </div>
             {% endif %}
           </td>
