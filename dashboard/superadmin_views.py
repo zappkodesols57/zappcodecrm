@@ -1385,19 +1385,15 @@ def nel_card_drilldown_api(request):
     else:
         leads_qs = base_card_qs
 
-    # Determine business mode: 'hospital', 'academy', or 'all'
-    if user.hospital:
-        h_type = (user.hospital.settings or {}).get("business_type", "")
-        h_name_lower = (user.hospital.name or "").lower()
-        business_mode = "hospital" if ("hospital" in str(h_type).lower() or any(k in h_name_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])) else ("academy" if "academy" in str(h_type).lower() or "academy" in h_name_lower or "zappcode" in h_name_lower else "other")
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        h_obj = Hospital.objects.filter(id=int(selected_hospital_id)).first()
-        if h_obj:
-            h_type = (h_obj.settings or {}).get("business_type", "")
-            h_name_lower = (h_obj.name or "").lower()
-            business_mode = "hospital" if ("hospital" in str(h_type).lower() or any(k in h_name_lower for k in ["hospital", "clinic", "medical", "nelson", "health"])) else ("academy" if "academy" in str(h_type).lower() or "academy" in h_name_lower or "zappcode" in h_name_lower else "other")
+    # Determine business mode strictly based on assigned industry: 'hospital', 'academy', or 'all'
+    target_biz_obj = user.hospital or (Hospital.objects.filter(id=int(selected_hospital_id)).first() if selected_hospital_id and selected_hospital_id.isdigit() else None)
+    if target_biz_obj:
+        if getattr(target_biz_obj, "industry", None) == Hospital.Industry.HOSPITAL:
+            business_mode = "hospital"
+        elif getattr(target_biz_obj, "industry", None) == Hospital.Industry.ACADEMY:
+            business_mode = "academy"
         else:
-            business_mode = "all"
+            business_mode = "other"
     elif selected_hospital_id in ("zappcode", "none"):
         business_mode = "academy"
     else:

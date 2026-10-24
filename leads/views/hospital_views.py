@@ -1999,7 +1999,7 @@ def pending_leads(request):
         if biz_id and str(biz_id).isdigit():
             target_hospital = Hospital.objects.filter(id=int(biz_id)).first()
         else:
-            target_hospital = Hospital.objects.filter(name__icontains="nelson").first() or Hospital.objects.first()
+            target_hospital = Hospital.objects.filter(industry=Hospital.Industry.HOSPITAL, is_active=True).first() or Hospital.objects.first()
 
     # Exclude definitively closed/won/lost leads unless they have pending payment/approval
     leads_base = Lead.objects.select_related(

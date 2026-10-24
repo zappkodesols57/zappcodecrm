@@ -13,11 +13,12 @@ from accounts.models import User, Hospital
 from django.db.models import Subquery, OuterRef, Case, When, Value, CharField, DateField
 
 def _filter_by_role(user, leads):
-    # Strict tenant isolation: if user has a hospital/business assigned, only show that hospital's leads
-    if user.hospital:
-        leads = leads.filter(hospital=user.hospital)
-    elif not (user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)):
-        # Default non-superadmin without hospital to academy (hospital__isnull=True)
+    # Strict tenant isolation: if user has a business assigned, only show that business's leads
+    user_biz = getattr(user, 'business', None)
+    if user_biz:
+        leads = leads.filter(hospital=user_biz)
+    elif not (user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user_biz)):
+        # Default non-superadmin without business to academy (hospital__isnull=True)
         leads = leads.filter(hospital__isnull=True)
         
     if not user.can_view_all_leads:
@@ -34,8 +35,9 @@ def _filter_by_role(user, leads):
 def _board(request, leads, active, title, date_info=None):
     # Tenant context detection
     user = request.user
-    hospital = user.hospital
-    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.hospital)
+    user_biz = getattr(user, 'business', None)
+    is_global_admin = user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user_biz)
+    business = user_biz
     
     selected_business_id = (
         request.GET.get("business", "").strip()
@@ -43,13 +45,13 @@ def _board(request, leads, active, title, date_info=None):
         or str(request.session.get("active_business_id", "")).strip()
     )
     if is_global_admin and selected_business_id and selected_business_id.isdigit():
-        hospital = Hospital.objects.filter(id=int(selected_business_id)).first()
-        if hospital:
-            leads = leads.filter(hospital=hospital)
+        business = Hospital.objects.filter(id=int(selected_business_id)).first()
+        if business:
+            leads = leads.filter(hospital=business)
             
     is_hospital_business = False
-    if hospital:
-        is_hospital_business = (getattr(hospital, "industry", None) == Hospital.Industry.HOSPITAL)
+    if business:
+        is_hospital_business = (getattr(business, "industry", None) == Hospital.Industry.HOSPITAL)
     elif user.industry == 'HOSPITAL':
         is_hospital_business = True
 
@@ -193,7 +195,8 @@ def _board(request, leads, active, title, date_info=None):
         "date_to": date_to,
         "date_info": date_info,
         "is_hospital_business": is_hospital_business,
-        "current_hospital": hospital,
+        "current_hospital": business,
+        "current_business": business,
         "team_members": team_members,
         "courses": courses,
         "stages": stages,

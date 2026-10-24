@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from followups.models import FollowUp, Note, Activity, ActivityType, FollowUpMode, FollowUpStatus
 from admissions.models import Admission
-from accounts.models import User, Hospital
+from accounts.models import User, Hospital, Business
 from leads.models import (
     Lead, SourceCategory, LeadSource, Campaign, Course, Trainer, Batch, LeadStage, Tag, 
     MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
@@ -240,22 +240,22 @@ def masters(request):
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def course_master(request):
-    user_hospital = request.user.hospital
+    user_biz = request.user.business
     active_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
     show_archived = request.GET.get("archived") == "1"
 
     target_biz = None
-    if user_hospital:
-        target_biz = user_hospital
+    if user_biz:
+        target_biz = user_biz
     elif active_biz_id and active_biz_id.isdigit():
-        target_biz = Hospital.objects.filter(id=int(active_biz_id), is_active=True).first()
+        target_biz = Business.objects.filter(id=int(active_biz_id), is_active=True).first()
 
     if request.method == "POST":
         form = CourseForm(request.POST)
         if form.is_valid():
             new_course = form.save(commit=False)
-            if not new_course.hospital and target_biz:
-                new_course.hospital = target_biz
+            if not new_course.business and target_biz:
+                new_course.business = target_biz
             new_course.save()
             messages.success(request, f"New course '{new_course.name}' added successfully.")
             return redirect("leads:course_master")
@@ -275,7 +275,7 @@ def course_master(request):
     else:
         courses = courses.filter(is_archived=False)
 
-    all_businesses = Hospital.objects.filter(is_active=True).order_by("name")
+    all_businesses = Business.objects.filter(is_active=True).order_by("name")
     form = CourseForm()
 
     return render(request, "academy/masters/course_master.html", {
@@ -325,17 +325,17 @@ def master_toggle(request, kind, pk):
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def trainer_master(request):
-    user_hospital = request.user.hospital
+    user_biz = request.user.business
     active_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
 
     target_biz = None
-    if user_hospital:
-        target_biz = user_hospital
+    if user_biz:
+        target_biz = user_biz
     elif active_biz_id and active_biz_id.isdigit():
-        target_biz = Hospital.objects.filter(id=int(active_biz_id), is_active=True).first()
+        target_biz = Business.objects.filter(id=int(active_biz_id), is_active=True).first()
     else:
         # Default to first academy business if superadmin
-        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+        target_biz = Business.objects.filter(industry="ACADEMY", is_active=True).first()
 
     if request.method == "POST":
         trainer_id = request.POST.get("trainer_id")
@@ -348,7 +348,7 @@ def trainer_master(request):
         if form.is_valid():
             trainer = form.save(commit=False)
             if target_biz:
-                trainer.hospital = target_biz
+                trainer.business = target_biz
             trainer.save()
             action = "updated" if trainer_id else "created"
             messages.success(request, f"Trainer '{trainer.name}' {action} successfully! 🎓")
@@ -361,7 +361,7 @@ def trainer_master(request):
     if target_biz:
         trainers = trainers.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
 
-    all_businesses = Hospital.objects.filter(is_active=True, industry="ACADEMY").order_by("name")
+    all_businesses = Business.objects.filter(is_active=True, industry="ACADEMY").order_by("name")
     form = TrainerForm()
 
     return render(request, "academy/masters/trainer_master.html", {
@@ -388,16 +388,16 @@ def trainer_delete(request, pk):
 @login_required
 @user_passes_test(lambda u: u.can_manage_masters)
 def batch_master(request):
-    user_hospital = request.user.hospital
+    user_biz = request.user.business
     active_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
 
     target_biz = None
-    if user_hospital:
-        target_biz = user_hospital
+    if user_biz:
+        target_biz = user_biz
     elif active_biz_id and active_biz_id.isdigit():
-        target_biz = Hospital.objects.filter(id=int(active_biz_id), is_active=True).first()
+        target_biz = Business.objects.filter(id=int(active_biz_id), is_active=True).first()
     else:
-        target_biz = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+        target_biz = Business.objects.filter(industry="ACADEMY", is_active=True).first()
 
     if request.method == "POST":
         batch_id = request.POST.get("batch_id")
@@ -410,7 +410,7 @@ def batch_master(request):
         if form.is_valid():
             batch = form.save(commit=False)
             if target_biz:
-                batch.hospital = target_biz
+                batch.business = target_biz
             batch.save()
             action = "updated" if batch_id else "created"
             messages.success(request, f"Batch '{batch.name}' {action} successfully! 📅")
@@ -423,7 +423,7 @@ def batch_master(request):
     if target_biz:
         batches = batches.filter(models.Q(hospital=target_biz) | models.Q(hospital__isnull=True))
 
-    all_businesses = Hospital.objects.filter(is_active=True, industry="ACADEMY").order_by("name")
+    all_businesses = Business.objects.filter(is_active=True, industry="ACADEMY").order_by("name")
     form = BatchForm()
     if target_biz:
         form.fields["course"].queryset = Course.objects.filter(is_active=True, is_archived=False).filter(
@@ -632,7 +632,7 @@ def course_excel_import(request):
         import openpyxl
         import io
         excel_file = request.FILES["course_excel"]
-        hospital = request.user.hospital
+        business = request.user.business
 
         try:
             filename = excel_file.name.lower()
@@ -724,8 +724,8 @@ def course_excel_import(request):
 
                 # Query existing course
                 course_qs = Course.objects.filter(name__iexact=raw_name)
-                if hospital:
-                    course_obj = course_qs.filter(hospital=hospital).first() or course_qs.first()
+                if business:
+                    course_obj = course_qs.filter(hospital=business).first() or course_qs.first()
                 else:
                     course_obj = course_qs.first()
 
@@ -745,7 +745,7 @@ def course_excel_import(request):
                 else:
                     # Create new course
                     Course.objects.create(
-                        hospital=hospital,
+                        hospital=business,
                         name=raw_name,
                         base_price=base_price,
                         max_discount=max_discount,
@@ -818,30 +818,30 @@ def payment_done_list(request):
     is_global_admin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
 
     # Active business determination
-    selected_hospital_id = (
+    selected_business_id = (
         request.GET.get("business", "").strip()
         or request.GET.get("hospital", "").strip()
         or str(request.session.get("active_business_id", "")).strip()
     )
 
-    target_hospital = None
-    if request.user.hospital:
-        target_hospital = request.user.hospital
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
+    target_business = None
+    if request.user.business:
+        target_business = request.user.business
+    elif selected_business_id and selected_business_id.isdigit():
+        target_business = Business.objects.filter(id=int(selected_business_id), is_active=True).first()
 
     is_healthcare_scope = True
-    if target_hospital:
-        is_healthcare_scope = (target_hospital.industry == Hospital.Industry.HOSPITAL)
+    if target_business:
+        is_healthcare_scope = (target_business.industry == Business.Industry.HOSPITAL)
 
     base_qs = Lead.objects.select_related(
         "hospital", "assigned_to", "stage", "campaign", "lead_source"
     ).filter(is_archived=False)
 
-    if target_hospital:
-        base_qs = base_qs.filter(hospital=target_hospital)
-    elif request.user.hospital:
-        base_qs = base_qs.filter(hospital=request.user.hospital)
+    if target_business:
+        base_qs = base_qs.filter(hospital=target_business)
+    elif request.user.business:
+        base_qs = base_qs.filter(hospital=request.user.business)
     elif not is_global_admin:
         base_qs = base_qs.filter(hospital__isnull=True)
 
@@ -1026,7 +1026,8 @@ def payment_done_list(request):
 
     return render(request, "leads/payment_done_list.html", {
         "active": "payments",
-        "target_hospital": target_hospital,
+        "target_hospital": target_business,
+        "target_business": target_business,
         "is_healthcare_scope": is_healthcare_scope,
         "page_obj": page_obj,
         "total_count": payment_done_count,

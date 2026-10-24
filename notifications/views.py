@@ -23,12 +23,12 @@ def get_unread_notifications(request):
         user = request.user
         is_admin_or_mgr = bool(user.is_superuser or user.role in ('SUPER_ADMIN', 'ADMIN', 'MANAGER'))
         is_doctor = (user.role == 'DOCTOR')
-        user_hosp = user.hospital
+        user_biz = getattr(user, 'business', None)
 
-        # 1. NEW UNCAPTURED LEADS ALERT (For Telecallers & Managers/Admins in Hospital)
-        if not is_doctor and user_hosp:
+        # 1. NEW UNCAPTURED LEADS ALERT (For Telecallers & Managers/Admins in Business)
+        if not is_doctor and user_biz:
             fresh_uncaptured = Lead.objects.filter(
-                hospital=user_hosp,
+                hospital=user_biz,
                 assigned_to__isnull=True,
                 is_archived=False,
                 created_at__range=(start_today, end_today)
@@ -55,8 +55,8 @@ def get_unread_notifications(request):
         ).select_related('lead')
         if not is_admin_or_mgr:
             fu_qs = fu_qs.filter(lead__assigned_to=user)
-        elif user_hosp:
-            fu_qs = fu_qs.filter(lead__hospital=user_hosp)
+        elif user_biz:
+            fu_qs = fu_qs.filter(lead__hospital=user_biz)
 
         for fu in fu_qs:
             if not fu.lead:

@@ -105,16 +105,11 @@ def create_or_update_meta_lead(connection, data):
             logger.info(f"Duplicate Meta lead skipped (recent mobile): {clean_10}")
             return None
 
-    # Hospital association -> Check connection or fallback to matching hospital
-    conn_name = (getattr(connection, "name", "") or "").lower()
-    if "nelson" in conn_name:
-        hospital = Hospital.objects.filter(name__icontains="Nelson").first()
-    elif getattr(connection, "hospital", None):
-        hospital = connection.hospital
-    elif "zappcode" in conn_name:
-        hospital = Hospital.objects.filter(name__icontains="Zappcode").first()
-    else:
-        hospital = Hospital.objects.filter(name__icontains="Nelson").first() or Hospital.objects.first()
+    # Business association -> Check connection's assigned business or active business tenant
+    from accounts.models import Business
+    business = getattr(connection, "hospital", None) or getattr(connection, "business", None)
+    if not business:
+        business = Business.objects.filter(is_active=True).first()
 
     # 1. Stage
     stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.filter(is_active=True).order_by("order").first()
@@ -139,7 +134,7 @@ def create_or_update_meta_lead(connection, data):
             name=campaign_name[:150],
             platform="FACEBOOK",
             campaign_id=data.get("campaign_id", "")[:150],
-            hospital=hospital,
+            hospital=business,
             is_active=True
         )
 
@@ -147,7 +142,7 @@ def create_or_update_meta_lead(connection, data):
     course_obj = None
     course_name = data.get("course")
     if course_name:
-        course_obj = Course.objects.filter(name__iexact=course_name, hospital=hospital).first() or \
+        course_obj = Course.objects.filter(name__iexact=course_name, hospital=business).first() or \
                      Course.objects.filter(name__icontains=course_name).first()
 
     # 5. Inquiry date
@@ -177,7 +172,7 @@ def create_or_update_meta_lead(connection, data):
         city=(data.get("city") or "")[:100],
         location=(data.get("city") or "")[:255],
         course=course_obj,
-        hospital=hospital,
+        hospital=business,
         stage=stage,
         temperature=LeadTemperature.HOT,
         source_category=source_cat,
@@ -269,7 +264,7 @@ def justdial_webhook(request):
             notes = payload.get("notes") or payload.get("query") or "Inquiry received via Justdial integration."
 
             clean_phone = "".join(filter(str.isdigit, str(phone)))[-10:] if phone else ""
-            nelson_hosp = Hospital.objects.filter(name__icontains="Nelson").first()
+            hosp_biz = Business.objects.filter(industry=Hospital.Industry.HOSPITAL, is_active=True).first() or Business.objects.first()
             source_obj = LeadSource.objects.filter(name__iexact="Just Dial").first() or LeadSource.objects.filter(name__icontains="Justdial").first()
             cat_obj = SourceCategory.objects.filter(name__icontains="Aggregator").first() or SourceCategory.objects.filter(name__icontains="Digital").first()
 
@@ -277,7 +272,7 @@ def justdial_webhook(request):
                 name=name,
                 mobile=clean_phone,
                 city=city,
-                hospital=nelson_hosp,
+                hospital=hosp_biz,
                 lead_source=source_obj,
                 source_category=cat_obj,
                 temperature=LeadTemperature.HOT,
@@ -319,7 +314,7 @@ def practo_webhook(request):
             notes = payload.get("notes") or f"Practo consultation request for Dr. {doctor}"
 
             clean_phone = "".join(filter(str.isdigit, str(phone)))[-10:] if phone else ""
-            nelson_hosp = Hospital.objects.filter(name__icontains="Nelson").first()
+            hosp_biz = Business.objects.filter(industry=Hospital.Industry.HOSPITAL, is_active=True).first() or Business.objects.first()
             source_obj = LeadSource.objects.filter(name__iexact="PRACTO").first() or LeadSource.objects.filter(name__icontains="Practo").first()
             cat_obj = SourceCategory.objects.filter(name__icontains="Healthcare").first() or SourceCategory.objects.filter(name__icontains="Digital").first()
 
@@ -327,7 +322,7 @@ def practo_webhook(request):
                 name=name,
                 mobile=clean_phone,
                 city="Nagpur",
-                hospital=nelson_hosp,
+                hospital=hosp_biz,
                 lead_source=source_obj,
                 source_category=cat_obj,
                 temperature=LeadTemperature.HOT,
@@ -675,11 +670,8 @@ def recent_leads_json(request):
         lead_filter["hospital"] = user_hospital
     else:
         connection = MetaAdsConnection.objects.filter(is_active=True).first()
-        if connection and "nelson" in (connection.name or "").lower():
-            from accounts.models import Hospital
-            nelson_hosp = Hospital.objects.filter(name__icontains="Nelson").first()
-            if nelson_hosp:
-                lead_filter["hospital"] = nelson_hosp
+        if connection and connection.hospital:
+            lead_filter["hospital"] = connection.hospital
 
     leads = (
         Lead.objects.filter(**lead_filter)
@@ -768,15 +760,28 @@ def update_meta_token(request):
         messages.error(request, "❌ Token cannot be empty.")
         return redirect("meta_ads:dashboard")
 
-    selected_entity = request.POST.get("entity", "").strip().lower()
-    conn_name = "Nelson Hospital" if selected_entity == "nelson" else "Zappcode Academy"
-    default_verify = "nelson_hospital_dhantoli_2026" if selected_entity == "nelson" else "zappcode_academy_verify_2026"
+    from accounts.models import Business
+    biz_id = request.POST.get("business_id") or request.POST.get("entity")
+    target_biz = None
+    if biz_id and str(biz_id).isdigit():
+        target_biz = Business.objects.filter(id=int(biz_id), is_active=True).first()
+    if not target_biz:
+        target_biz = getattr(request.user, "business", None) or Business.objects.filter(is_active=True).first()
 
-    connection = MetaAdsConnection.objects.filter(is_active=True, name__icontains=("Nelson" if selected_entity == "nelson" else "Zappcode")).first()
+    conn_name = f"{target_biz.name} Meta Ads" if target_biz else "Business Meta Ads"
+    default_verify = f"{target_biz.name.lower().replace(' ', '_')}_verify_2026" if target_biz else "crm_meta_verify_2026"
+
+    connection = None
+    if target_biz:
+        connection = MetaAdsConnection.objects.filter(is_active=True, hospital=target_biz).first()
+    if not connection:
+        connection = MetaAdsConnection.objects.filter(is_active=True).first()
+
     if not connection:
         # Create separate connection for this specific business
         connection = MetaAdsConnection.objects.create(
             name=conn_name,
+            hospital=target_biz,
             page_access_token=new_token,
             ad_account_id=ad_account_id.replace("act_", "").strip() if ad_account_id else "",
             page_id=page_id or "",
@@ -1047,8 +1052,7 @@ def academy_sync_meta_now(request):
 
     connection = MetaAdsConnection.objects.filter(hospital=target_biz, is_active=True).first()
     if not connection:
-        connection = MetaAdsConnection.objects.filter(name__icontains="Academy", is_active=True).first() or \
-                     MetaAdsConnection.objects.filter(name__icontains="Zappcode", is_active=True).first()
+        connection = MetaAdsConnection.objects.filter(is_active=True).first()
 
     if not connection or not connection.page_access_token or not connection.ad_account_id:
         messages.error(request, "Please connect your Meta Ad Account ID and Access Token first.")

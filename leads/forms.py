@@ -80,14 +80,15 @@ class LeadForm(forms.ModelForm):
             if "assigned_manager" in self.fields:
                 self.fields.pop("assigned_manager")
         else:
-            # Filter assigned_to and assigned_manager by hospital / entity
+            # Filter assigned_to and assigned_manager by business / entity
+            user_biz = getattr(user, "business", None)
             if "assigned_to" in self.fields:
-                if user and getattr(user, "hospital", None):
-                    # For hospital, only Lead Attendants, Counsellors, and HR should be eligible assignees
+                if user and user_biz:
+                    # For business, only Lead Attendants, Counsellors, and HR should be eligible assignees
                     self.fields["assigned_to"].queryset = User.objects.filter(
                         is_active=True,
                         is_approved=True,
-                        hospital=user.hospital,
+                        hospital=user_biz,
                         role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR]
                     ).order_by("first_name", "username")
                 else:
@@ -98,8 +99,8 @@ class LeadForm(forms.ModelForm):
                         role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT]
                     ).order_by("first_name", "username")
             if "assigned_manager" in self.fields:
-                if user and getattr(user, "hospital", None):
-                    self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user.hospital, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
+                if user and user_biz:
+                    self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, hospital=user_biz, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
                 else:
                     self.fields["assigned_manager"].queryset = User.objects.filter(is_active=True, is_approved=True, role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
 
@@ -832,12 +833,13 @@ class HospitalLeadForm(forms.ModelForm):
 
         # Restrict assignment: Only Admin and Manager can choose Lead Owner / Assignee.
         # Lead Attendants are locked to their own user account.
+        user_biz = getattr(user, "business", None) if user else None
         if "assigned_to" in self.fields:
             self.fields["assigned_to"].label = "Assign To / Lead Owner"
             self.fields["assigned_to"].widget.attrs.update({"class": "form-select"})
-            if user and user.hospital:
+            if user and user_biz:
                 self.fields["assigned_to"].queryset = User.objects.filter(
-                    hospital=user.hospital,
+                    hospital=user_biz,
                     role=User.Role.LEAD_ATTENDENT,
                     is_active=True,
                     is_approved=True
@@ -869,9 +871,9 @@ class HospitalLeadForm(forms.ModelForm):
                 if not group:
                     return []
                 items = group.items.filter(is_active=True)
-                if user and user.hospital:
-                    # Filter by hospital or universal items
-                    items = items.filter(Q(hospital=user.hospital) | Q(hospital__isnull=True))
+                if user and user_biz:
+                    # Filter by business or universal items
+                    items = items.filter(Q(hospital=user_biz) | Q(hospital__isnull=True))
                 return list(items.values_list("name", "name"))
             except Exception as ex:
                 print(f"Error loading {group_name}: {ex}")
@@ -884,8 +886,8 @@ class HospitalLeadForm(forms.ModelForm):
             from leads.models import HospitalDepartment, HospitalDoctor, HospitalBranch, HospitalDisease
             init_branch = cd.get("hospital_branch") or cd.get("branch")
             dept_qs = HospitalDepartment.objects.filter(is_active=True)
-            if user and user.hospital:
-                dept_qs = dept_qs.filter(hospital=user.hospital)
+            if user and user_biz:
+                dept_qs = dept_qs.filter(hospital=user_biz)
             if init_branch:
                 dept_qs = dept_qs.filter(branches__name__iexact=str(init_branch))
 
@@ -907,16 +909,16 @@ class HospitalLeadForm(forms.ModelForm):
             # 2. Doctors from HospitalDoctor model filtered by Department
             init_dept = self.fields.get("department") and self.fields["department"].initial
             hdoc_qs = HospitalDoctor.objects.filter(is_active=True).filter(Q(user__isnull=True) | Q(user__is_active=True))
-            if user and user.hospital:
-                hdoc_qs = hdoc_qs.filter(hospital=user.hospital)
+            if user and user_biz:
+                hdoc_qs = hdoc_qs.filter(hospital=user_biz)
             if init_dept:
                 hdoc_qs = hdoc_qs.filter(models.Q(departments__name__iexact=str(init_dept)) | models.Q(department__name__iexact=str(init_dept)))
             
             model_doctors = [(doc.name, f"Dr. {doc.name}" if not doc.name.lower().startswith("dr") else doc.name) for doc in hdoc_qs]
 
             registered_doctor_qs = User.objects.filter(role=User.Role.DOCTOR, is_active=True)
-            if user and user.hospital:
-                registered_doctor_qs = registered_doctor_qs.filter(hospital=user.hospital)
+            if user and user_biz:
+                registered_doctor_qs = registered_doctor_qs.filter(hospital=user_biz)
             registered_doctors = []
             for doc in registered_doctor_qs:
                 doc_display = doc.get_full_name().strip() or doc.username
@@ -951,11 +953,11 @@ class HospitalLeadForm(forms.ModelForm):
             # -------------------------------------------------------------------
             from leads.models import LeadCustomField, Campaign, LeadSource
             def get_field_options(field_name, master_group_name, fallback_default_prompt):
-                # For Campaign: strictly source from active Campaign model objects for this hospital
+                # For Campaign: strictly source from active Campaign model objects for this business
                 if field_name == "campaign":
                     camp_qs = Campaign.objects.filter(is_active=True)
-                    if user and user.hospital:
-                        camp_qs = camp_qs.filter(Q(hospital=user.hospital) | Q(hospital__isnull=True))
+                    if user and user_biz:
+                        camp_qs = camp_qs.filter(Q(hospital=user_biz) | Q(hospital__isnull=True))
                     results = []
                     seen = set()
                     for c in camp_qs.order_by("name"):
@@ -966,7 +968,7 @@ class HospitalLeadForm(forms.ModelForm):
                     return results
 
                 # 1. If configured in Form Field settings, use strictly configured options
-                cf_obj = LeadCustomField.objects.filter(hospital=user.hospital, name=field_name).first() if (user and user.hospital) else None
+                cf_obj = LeadCustomField.objects.filter(hospital=user_biz, name=field_name).first() if (user and user_biz) else None
                 if cf_obj and cf_obj.get_options_list():
                     results = [(opt.strip(), opt.strip()) for opt in cf_obj.get_options_list() if opt.strip()]
                     return results
@@ -1021,8 +1023,8 @@ class HospitalLeadForm(forms.ModelForm):
 
             # Populate Hospital Branch choices
             b_qs = HospitalBranch.objects.filter(is_active=True)
-            if user and user.hospital:
-                b_qs = b_qs.filter(hospital=user.hospital)
+            if user and user_biz:
+                b_qs = b_qs.filter(hospital=user_biz)
 
             # If user is a telecaller/employee with specific assigned branches, restrict choices to those branches
             user_assigned_branches = []
@@ -1048,8 +1050,8 @@ class HospitalLeadForm(forms.ModelForm):
 
             # Populate Disease choices
             dis_qs = HospitalDisease.objects.filter(is_active=True)
-            if user and user.hospital:
-                dis_qs = dis_qs.filter(hospital=user.hospital)
+            if user and user_biz:
+                dis_qs = dis_qs.filter(hospital=user_biz)
             if init_dept:
                 dis_qs = dis_qs.filter(department__name__iexact=str(init_dept))
                 self.fields["disease"].choices = [("", "-- Select Disease / Condition --")] + [(dis.name, dis.name) for dis in dis_qs]
@@ -1067,9 +1069,9 @@ class HospitalLeadForm(forms.ModelForm):
                 self.fields["assigned_to"].queryset = User.objects.filter(pk=user.pk)
                 self.fields["assigned_to"].empty_label = None
                 self.fields["assigned_to"].initial = user
-            elif user and user.hospital:
+            elif user and user_biz:
                 self.fields["assigned_to"].queryset = User.objects.filter(
-                    hospital=user.hospital,
+                    hospital=user_biz,
                     role=User.Role.LEAD_ATTENDENT,
                     is_active=True,
                     is_approved=True
@@ -1087,8 +1089,8 @@ class HospitalLeadForm(forms.ModelForm):
         # Dynamically load Admin-Configured Custom Form Fields (Non-system only)
         from leads.models import LeadCustomField
         cf_qs = LeadCustomField.objects.filter(is_active=True, is_system=False)
-        if user and user.hospital:
-            cf_qs = cf_qs.filter(hospital=user.hospital)
+        if user and user_biz:
+            cf_qs = cf_qs.filter(hospital=user_biz)
         
         self.dynamic_custom_fields = list(cf_qs.order_by("order", "created_at"))
         for cf in self.dynamic_custom_fields:
@@ -1175,11 +1177,11 @@ class HospitalLeadForm(forms.ModelForm):
         # -----------------------------------------------------------------------
         all_ordered_items = []
         
-        # Load all active fields for this hospital
-        if user and user.hospital:
-            configured_fields = LeadCustomField.objects.filter(hospital=user.hospital, is_active=True).order_by('order', 'id')
+        # Load all active fields for this business
+        if user and user_biz:
+            configured_fields = LeadCustomField.objects.filter(hospital=user_biz, is_active=True).order_by('order', 'id')
         else:
-            # Global Super Admin: show all configured fields (no hospital restriction)
+            # Global Super Admin: show all configured fields (no business restriction)
             configured_fields = LeadCustomField.objects.filter(is_active=True).order_by('order', 'id')
             
         # Note: Hospital Branch, Department, Doctor, and Disease are rendered dynamically in the dedicated Booking Section
@@ -1272,13 +1274,15 @@ class HospitalLeadForm(forms.ModelForm):
     def clean_uhid_id_no(self):
         uhid = (self.cleaned_data.get("uhid_id_no") or "").strip()
         if uhid:
-            # Check duplicate UHID in non-archived leads of the same hospital (or global)
+            # Check duplicate UHID in non-archived leads of the same business (or global)
             from django.db.models import Q
             qs = Lead.objects.filter(is_archived=False)
-            if self.instance and self.instance.hospital:
-                qs = qs.filter(hospital=self.instance.hospital)
-            elif self.current_user and self.current_user.hospital:
-                qs = qs.filter(hospital=self.current_user.hospital)
+            lead_biz = getattr(self.instance, 'business', None) if self.instance else None
+            curr_biz = getattr(self.current_user, 'business', None) if self.current_user else None
+            if lead_biz:
+                qs = qs.filter(hospital=lead_biz)
+            elif curr_biz:
+                qs = qs.filter(hospital=curr_biz)
 
             # Exclude current lead instance if editing
             if self.instance and self.instance.pk:
@@ -1370,8 +1374,9 @@ class HospitalLeadForm(forms.ModelForm):
             elif self.instance and self.instance.pk:
                 cd_inst = self.instance.custom_data or {}
                 b_val = cd_inst.get('hospital_branch') or cd_inst.get('branch') or cd_inst.get('dyn_hospital_branch') or ""
-            if not b_val and self.current_user and getattr(self.current_user, 'hospital', None):
-                first_b = HospitalBranch.objects.filter(hospital=self.current_user.hospital, is_active=True).first()
+            curr_biz = getattr(self.current_user, 'business', None) if self.current_user else None
+            if not b_val and curr_biz:
+                first_b = HospitalBranch.objects.filter(hospital=curr_biz, is_active=True).first()
                 if first_b:
                     b_val = first_b.name
 
@@ -1699,8 +1704,9 @@ class HospitalLeadForm(forms.ModelForm):
                     doc_user = None
                     clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name_val, flags=re.IGNORECASE).strip()
                     user_qs = User.objects.filter(role=User.Role.DOCTOR)
-                    if getattr(self, 'current_user', None) and self.current_user.hospital:
-                        user_qs = user_qs.filter(hospital=self.current_user.hospital)
+                    curr_biz = getattr(self.current_user, 'business', None) if getattr(self, 'current_user', None) else None
+                    if curr_biz:
+                        user_qs = user_qs.filter(hospital=curr_biz)
                         
                     for u in user_qs:
                         full_name = (u.get_full_name() or "").strip().lower()
