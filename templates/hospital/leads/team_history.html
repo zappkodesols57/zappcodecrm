@@ -921,23 +921,37 @@
             <span class="text-muted small">—</span>
             {% endif %}
           </td>
-          <td class="px-3 text-end">
-            <div class="d-inline-flex align-items-center gap-1">
+          <td class="px-3 text-end" onclick="event.stopPropagation();">
+            <div class="d-inline-flex align-items-center justify-content-end gap-1">
+              <!-- View -->
               <a href="{% url 'leads:lead_detail' lead.pk %}"
-                class="btn btn-xs btn-outline-secondary rounded px-2 py-0.5"
-                style="font-size: 0.72rem; border-color: #cbd5e1;" title="View Details">
-                View
+                class="btn btn-sm btn-light border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                style="width: 28px; height: 28px;" title="View Details">
+                <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
               </a>
-              <a href="tel:{{ lead.mobile }}"
-                class="btn btn-xs btn-outline-secondary rounded px-2 py-0.5"
-                style="font-size: 0.72rem; border-color: #cbd5e1;" title="Call">
-                Call
+
+              <!-- Edit -->
+              <a href="{% url 'leads:lead_edit' lead.pk %}"
+                class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                style="width: 28px; height: 28px;" title="Edit Lead">
+                <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
               </a>
-              <a href="https://wa.me/91{{ lead.mobile }}" target="_blank"
-                class="btn btn-xs btn-outline-secondary rounded px-2 py-0.5"
-                style="font-size: 0.72rem; border-color: #cbd5e1;" title="WhatsApp">
-                WA
-              </a>
+
+              {% if lead.mobile %}
+                <!-- WhatsApp -->
+                <a href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}" target="_blank"
+                  class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  style="width: 28px; height: 28px;" title="WhatsApp Patient">
+                  <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
+                </a>
+
+                <!-- Call -->
+                <a href="tel:{{ lead.mobile }}"
+                  class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  style="width: 28px; height: 28px;" title="Call Patient">
+                  <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+                </a>
+              {% endif %}
             </div>
           </td>
         </tr>

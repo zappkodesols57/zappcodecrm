@@ -1458,15 +1458,25 @@
         }
       });
 
-      // 3. Auto-refresh lead tables when returning to tab after lead update
+      // 3. Optional soft-refresh on lead update (only when user actively switches back to the tab, never in the background)
+      let pendingLeadRefresh = false;
       window.addEventListener('storage', function(e) {
         if (e.key === 'crm_lead_updated') {
-          // If on a table/dashboard page, smoothly reload data so changed status leads transfer out
           const path = window.location.pathname;
           if (path.includes('/dashboard/') || path.includes('/leads/') || path.includes('/followups/')) {
-            if (!document.querySelector('.modal.show') && !document.activeElement.matches('input, textarea')) {
-              window.location.reload();
+            if (document.hidden) {
+              pendingLeadRefresh = true;
             }
+          }
+        }
+      });
+
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && pendingLeadRefresh) {
+          pendingLeadRefresh = false;
+          if (!document.querySelector('.modal.show') && !document.activeElement.matches('input, textarea, select')) {
+            // Only refresh if user is not actively editing
+            window.location.reload();
           }
         }
       });

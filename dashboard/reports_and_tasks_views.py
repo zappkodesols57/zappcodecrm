@@ -2040,10 +2040,14 @@ def management_daily_reports(request):
 def task_list_view(request):
     user = request.user
     
-    # Get user's tasks or hospital admin view
-    if user.hospital and (user.role == 'SUPER_ADMIN' or user.role == 'MANAGER'):
-        # Admin can view all hospital tasks or filter
-        tasks = TaskReminder.objects.filter(user__hospital=user.hospital)
+    # Get effective business tenant for multi-tenant isolation
+    from dashboard.helpers import get_effective_business
+    effective_biz = get_effective_business(request)
+    
+    # Get user's tasks or business admin/manager view
+    if effective_biz and (user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or user.is_superuser):
+        # Admin / Manager can view all business tasks
+        tasks = TaskReminder.objects.filter(user__hospital=effective_biz)
     else:
         tasks = TaskReminder.objects.filter(user=user)
         
@@ -2119,23 +2123,35 @@ def task_list_view(request):
         
     # Leads for dropdown search/selection in modal
     user_leads = Lead.objects.filter(is_archived=False)
-    if user.hospital:
-        user_leads = user_leads.filter(hospital=user.hospital)
-    if user.role == 'LEAD_ATTENDENT':
+    if effective_biz:
+        user_leads = user_leads.filter(hospital=effective_biz)
+    if user.role in [User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR] and not user.can_view_all_leads:
         user_leads = user_leads.filter(assigned_to=user)
     user_leads = user_leads.order_by('-updated_at')[:50]
 
-    # Allowed assignment roles for tasks
-    allowed_roles = [User.Role.MANAGER, User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]
+    # Dynamically determine allowed roles scoped to the current business tenant
+    if effective_biz and hasattr(effective_biz, 'get_allowed_roles'):
+        allowed_roles = [r for r in effective_biz.get_allowed_roles() if r != User.Role.SUPER_ADMIN]
+    else:
+        # Fallback based on users present in this business
+        biz_users = User.objects.filter(is_active=True, is_approved=True)
+        if effective_biz:
+            biz_users = biz_users.filter(hospital=effective_biz)
+        active_role_keys = set(biz_users.values_list('role', flat=True).distinct())
+        allowed_roles = [c[0] for c in User.Role.choices if c[0] in active_role_keys and c[0] != User.Role.SUPER_ADMIN]
+        if not allowed_roles:
+            allowed_roles = [User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT]
 
-    # Eligible assignable users for Admin/Manager
+    # Eligible assignable users for Admin/Manager strictly within this business
     assignable_users = User.objects.filter(is_active=True, is_approved=True, role__in=allowed_roles)
-    if user.hospital:
-        assignable_users = assignable_users.filter(hospital=user.hospital)
+    if effective_biz:
+        assignable_users = assignable_users.filter(hospital=effective_biz)
+    if user.role == User.Role.MANAGER and not user.is_superuser:
+        assignable_users = assignable_users.filter(Q(reports_to=user) | Q(pk=user.pk))
     assignable_users = assignable_users.order_by('role', 'first_name', 'username')
 
-    # Available role choices for filter buttons
-    role_choices = [(r.value, r.label) for r in User.Role if r in allowed_roles]
+    # Available role choices for dropdown filter checkboxes
+    role_choices = [(c[0], c[1]) for c in User.Role.choices if c[0] in allowed_roles]
 
     context = {
         'page_obj': page_obj,
@@ -2154,6 +2170,7 @@ def task_list_view(request):
         'role_choices': role_choices,
         'page_size': page_size,
         'active': 'tasks',
+        'current_business': effective_biz,
     }
     return render(request, "dashboard/tasks.html", context)
 

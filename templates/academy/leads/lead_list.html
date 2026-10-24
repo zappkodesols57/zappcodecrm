@@ -555,36 +555,42 @@
                     <!-- Capture Lead Button -->
                     <button type="button"
                       onclick="captureSingleLead('{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}', '{{ lead.name|escapejs }}')"
-                      class="btn btn-xs btn-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-bold"
-                      style="font-size: 0.75rem;" title="Capture & Assign to Me">
+                      class="btn btn-xs btn-primary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-semibold me-1"
+                      style="font-size: 0.72rem; height: 28px;" title="Capture & Assign to Me">
                       <i class="fa-solid fa-hand-holding-hand"></i> Capture
                     </button>
                     {% endif %}
-                    <!-- Direct Call -->
-                    <a href="tel:{{ lead.mobile }}"
-                      class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
-                      <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
-                    </a>
-                    <!-- WhatsApp -->
-                    <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy."
-                      target="_blank"
-                      class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
-                      <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
-                    </a>
-                    <!-- Edit & Quick Followup -->
-                    <a href="{% url 'leads:lead_edit' lead.pk %}"
-                      class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="Edit Lead">
-                      <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
-                    </a>
+
                     <!-- View Detail & Followup Modal -->
                     <a href="{% url 'leads:lead_detail' lead.pk %}"
-                      class="btn btn-xs btn-outline-info rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="View Lead & Follow-ups">
-                      <i class="fa-solid fa-eye" style="font-size: 0.72rem;"></i>
+                      class="btn btn-sm btn-light border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                      style="width: 28px; height: 28px;" title="View Details">
+                      <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
                     </a>
+
+                    <!-- Edit -->
+                    <a href="{% url 'leads:lead_edit' lead.pk %}"
+                      class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                      style="width: 28px; height: 28px;" title="Edit Lead">
+                      <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
+                    </a>
+
+                    {% if lead.mobile %}
+                      <!-- WhatsApp -->
+                      <a href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy."
+                        target="_blank"
+                        class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                        style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
+                      </a>
+
+                      <!-- Direct Call -->
+                      <a href="tel:{{ lead.mobile }}"
+                        class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                        style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
+                        <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+                      </a>
+                    {% endif %}
                   </div>
                 </td>
               </tr>

@@ -1053,12 +1053,6 @@
       });
     }
   })();
-
-  document.addEventListener('DOMContentLoaded', function() {
-    try {
-      localStorage.setItem('crm_lead_updated', '{{ lead.pk }}_' + Date.now());
-    } catch(e) {}
-  });
 </script>
 {% endblock %}
 
