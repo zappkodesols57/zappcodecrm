@@ -28,7 +28,7 @@ def _role_redirect(user):
     """Return a redirect response based on user role."""
     if user.role == User.Role.SUPER_ADMIN:
         return redirect("dashboard:superadmin_home")
-    if user.hospital and user.industry == 'HOSPITAL':
+    if getattr(user, 'business', None) and user.industry == 'HOSPITAL':
         if user.role in (User.Role.ADMIN, User.Role.MANAGER):
             return redirect("dashboard:hospital_admin_home")
         if user.role == User.Role.DOCTOR:
@@ -191,9 +191,9 @@ def user_list(request):
         page_size = 10
 
     if request.method == "POST" and request.POST.get("action") == "generate_temp_profiles":
-        hospital = request.user.hospital
+        business = getattr(request.user, "business", None)
         try:
-            created = auto_generate_master_data_profiles(hospital=hospital)
+            created = auto_generate_master_data_profiles(hospital=business)
             if created:
                 messages.success(request, f"Successfully created {len(created)} temporary user profiles for Telecallers & Doctors from master data! (Default password: <FirstName>@zappcode)")
             else:
@@ -298,8 +298,8 @@ def user_list(request):
     from leads.models import HospitalBranch
     if active_biz:
         business_branch_count = HospitalBranch.objects.filter(hospital=active_biz, is_active=True).count()
-    elif request.user.hospital:
-        business_branch_count = HospitalBranch.objects.filter(hospital=request.user.hospital, is_active=True).count()
+    elif getattr(request.user, "business", None):
+        business_branch_count = HospitalBranch.objects.filter(hospital=request.user.business, is_active=True).count()
     else:
         business_branch_count = HospitalBranch.objects.filter(is_active=True).count()
     has_branches = business_branch_count > 0
@@ -698,8 +698,6 @@ def user_add(request):
     biz_industry = getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', None)
     if not biz_industry and getattr(request.user, 'business', None):
         biz_industry = request.user.business.industry
-    elif not biz_industry and getattr(request.user, 'hospital', None):
-        biz_industry = request.user.hospital.industry
     biz_industry = biz_industry or 'ACADEMY'
 
     return render(request, "accounts/user_form.html", {
@@ -716,7 +714,7 @@ def user_add(request):
 @user_passes_test(_is_admin)
 def user_edit(request, pk):
     obj = get_object_or_404(User, pk=pk)
-    if request.user.role == User.Role.MANAGER and request.user.hospital:
+    if request.user.role == User.Role.MANAGER and getattr(request.user, 'business', None):
         if request.user.pk != obj.pk and obj.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
             messages.error(request, "Managers can only edit Doctors, Lead Attendants, or their own profile.")
             return redirect("accounts:user_list")
@@ -757,11 +755,9 @@ def user_edit(request, pk):
     
     from dashboard.helpers import get_effective_business
     active_biz = get_effective_business(request)
-    biz_industry = getattr(getattr(obj, 'business', None) or obj.hospital, 'industry', None) or getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', None)
+    biz_industry = getattr(getattr(obj, 'business', None), 'industry', None) or getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', None)
     if not biz_industry and getattr(request.user, 'business', None):
         biz_industry = request.user.business.industry
-    elif not biz_industry and getattr(request.user, 'hospital', None):
-        biz_industry = request.user.hospital.industry
     biz_industry = biz_industry or 'ACADEMY'
 
     return render(request, "accounts/user_form.html", {
@@ -979,7 +975,7 @@ def doctor_schedule_manage(request, pk):
 @user_passes_test(_is_admin)
 def user_reset_password(request, pk):
     target_user = get_object_or_404(User, pk=pk)
-    if request.user.role == User.Role.MANAGER and request.user.hospital:
+    if request.user.role == User.Role.MANAGER and getattr(request.user, 'business', None):
         if request.user.pk != target_user.pk and target_user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
             messages.error(request, "Managers can only reset passwords for Doctors, Lead Attendants, or their own account.")
             return redirect("accounts:user_list")
@@ -1007,7 +1003,7 @@ def user_delete(request, pk):
         messages.error(request, "You cannot delete your own account.")
         return redirect("accounts:user_list")
 
-    if request.user.role == User.Role.MANAGER and request.user.hospital:
+    if request.user.role == User.Role.MANAGER and getattr(request.user, 'business', None):
         if target_user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
             messages.error(request, "Managers can only delete Doctor and Lead Attendant accounts.")
             return redirect("accounts:user_list")
@@ -1053,12 +1049,13 @@ def user_delete(request, pk):
 def audit_log(request):
     logs = AuditLog.objects.select_related("user")
     
-    # Scope to current hospital for hospital admin/users
-    selected_hospital_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
-    if request.user.hospital:
-        logs = logs.filter(user__hospital=request.user.hospital)
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        logs = logs.filter(user__hospital_id=int(selected_hospital_id))
+    # Scope to current business for business admin/users
+    selected_business_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
+    user_biz = getattr(request.user, "business", None)
+    if user_biz:
+        logs = logs.filter(user__hospital=user_biz)
+    elif selected_business_id and selected_business_id.isdigit():
+        logs = logs.filter(user__hospital_id=int(selected_business_id))
 
     action = request.GET.get("action", "").strip()
     if action:
@@ -1069,10 +1066,10 @@ def audit_log(request):
     page = paginator.get_page(request.GET.get("page"))
     
     actions_qs = AuditLog.objects.all()
-    if request.user.hospital:
-        actions_qs = actions_qs.filter(user__hospital=request.user.hospital)
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        actions_qs = actions_qs.filter(user__hospital_id=int(selected_hospital_id))
+    if user_biz:
+        actions_qs = actions_qs.filter(user__hospital=user_biz)
+    elif selected_business_id and selected_business_id.isdigit():
+        actions_qs = actions_qs.filter(user__hospital_id=int(selected_business_id))
 
     return render(request, "accounts/audit_log.html", {
         "active": "audit", 
@@ -1109,7 +1106,7 @@ def register(request):
 @user_passes_test(_is_admin)
 def approve_user(request, pk):
     user = get_object_or_404(User, pk=pk)
-    if request.user.role == User.Role.MANAGER and request.user.hospital:
+    if request.user.role == User.Role.MANAGER and getattr(request.user, 'business', None):
         if user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
             messages.error(request, "Managers can only approve Doctor and Lead Attendant accounts.")
             return redirect("accounts:user_list")
@@ -1128,7 +1125,7 @@ def approve_user(request, pk):
 @user_passes_test(_is_admin)
 def reject_user(request, pk):
     user = get_object_or_404(User, pk=pk)
-    if request.user.role == User.Role.MANAGER and request.user.hospital:
+    if request.user.role == User.Role.MANAGER and getattr(request.user, 'business', None):
         if user.role not in [User.Role.DOCTOR, User.Role.LEAD_ATTENDENT]:
             messages.error(request, "Managers can only reject Doctor and Lead Attendant accounts.")
             return redirect("accounts:user_list")
@@ -1373,7 +1370,7 @@ from .forms import BusinessForm
 
 @login_required
 def business_list(request):
-    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+    if request.user.role != User.Role.SUPER_ADMIN or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
     businesses = Hospital.objects.all().order_by('-created_at')
@@ -1381,7 +1378,7 @@ def business_list(request):
 
 @login_required
 def business_add(request):
-    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+    if request.user.role != User.Role.SUPER_ADMIN or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
     from leads.models import HospitalBranch
@@ -1421,7 +1418,7 @@ def business_add(request):
 
 @login_required
 def business_edit(request, pk):
-    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+    if request.user.role != User.Role.SUPER_ADMIN or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
     business = get_object_or_404(Hospital, pk=pk)
@@ -1478,7 +1475,7 @@ def business_edit(request, pk):
 @login_required
 def business_toggle_active(request, pk):
     """Activate or Deactivate a Business/Tenant."""
-    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+    if request.user.role != User.Role.SUPER_ADMIN or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
     if request.method == "POST":
@@ -1492,7 +1489,7 @@ def business_toggle_active(request, pk):
 @login_required
 def business_delete(request, pk):
     """Safely remove a business. Protects from accidental deletion if critical data exists."""
-    if request.user.role != User.Role.SUPER_ADMIN or request.user.hospital:
+    if request.user.role != User.Role.SUPER_ADMIN or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
     if request.method == "POST":
@@ -1563,7 +1560,7 @@ def switch_business(request):
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
     from accounts.models import Hospital
 
-    if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN) or request.user.hospital:
+    if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN) or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied. Only Global Super Admins can switch businesses.")
         return redirect("dashboard:home")
     

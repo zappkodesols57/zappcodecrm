@@ -150,11 +150,12 @@ class LeadViewSet(viewsets.ModelViewSet):
         doctor_id = request.data.get('doctor_id')
         try:
             doctor = User.objects.get(id=doctor_id, role='DOCTOR')
-            # Assign the doctor using the NelsonLeadData model
-            from leads.models import NelsonLeadData
-            nelson, _ = NelsonLeadData.objects.get_or_create(lead=lead)
-            nelson.doctor = doctor.get_full_name()
-            nelson.save()
+            # Assign doctor directly via standard Lead assignment & custom_data
+            lead.assigned_to = doctor
+            if not isinstance(lead.custom_data, dict):
+                lead.custom_data = {}
+            lead.custom_data['doctor'] = doctor.get_full_name()
+            lead.save(update_fields=['assigned_to', 'custom_data', 'updated_at'])
             return Response(self.get_serializer(lead).data)
         except User.DoesNotExist:
             return Response({'error': 'Doctor not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -165,11 +166,13 @@ class DashboardAnalyticsAPIView(views.APIView):
     def get(self, request):
         user = request.user
         qs = Lead.objects.filter(is_archived=False)
-        if user.hospital:
-            qs = qs.filter(hospital=user.hospital)
+        user_biz = getattr(user, 'business', None)
+        if user_biz:
+            qs = qs.filter(hospital=user_biz)
             
         total_leads = qs.count()
-        appointments = qs.filter(nelson_data__appo_book__iexact='YES').count()
+        from leads.models import Appointment
+        appointments = Appointment.objects.filter(lead__in=qs).count()
         
         return Response({
             'total_leads': total_leads,
@@ -183,8 +186,9 @@ class DoctorListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = User.objects.filter(role='DOCTOR', is_active=True)
-        if self.request.user.hospital:
-            qs = qs.filter(hospital=self.request.user.hospital)
+        user_biz = getattr(self.request.user, 'business', None)
+        if user_biz:
+            qs = qs.filter(hospital=user_biz)
         return qs
 
 class FollowUpViewSet(viewsets.ReadOnlyModelViewSet):
@@ -193,8 +197,9 @@ class FollowUpViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = FollowUp.objects.all()
-        if self.request.user.hospital:
-            qs = qs.filter(lead__hospital=self.request.user.hospital)
+        user_biz = getattr(self.request.user, 'business', None)
+        if user_biz:
+            qs = qs.filter(lead__hospital=user_biz)
         
         date_param = self.request.query_params.get('date')
         if date_param:
@@ -208,10 +213,13 @@ class AppointmentListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Lead.objects.filter(is_archived=False, nelson_data__appo_book__iexact='YES')
+        from leads.models import Appointment
+        apt_lead_ids = Appointment.objects.values_list('lead_id', flat=True)
+        qs = Lead.objects.filter(is_archived=False, id__in=apt_lead_ids)
         
-        if user.hospital:
-            qs = qs.filter(hospital=user.hospital)
+        user_biz = getattr(user, 'business', None)
+        if user_biz:
+            qs = qs.filter(hospital=user_biz)
             
         if user.role in ['COUNSELLOR', 'HR', 'DOCTOR']:
             qs = qs.filter(assigned_to=user)

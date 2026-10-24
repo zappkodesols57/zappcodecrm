@@ -192,10 +192,18 @@ class User(AbstractUser):
         """Standardized business tenant object."""
         return self.hospital
 
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
     @property
     def business_id(self):
         """Standardized business ID."""
         return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     @property
     def industry(self):

@@ -82,10 +82,18 @@ class Course(models.Model):
         """Standardized business tenant object."""
         return self.hospital
 
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
     @property
     def business_id(self):
         """Standardized business ID."""
         return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     class Meta:
         ordering = ["name"]
@@ -112,9 +120,17 @@ class Trainer(models.Model):
     def business(self):
         return self.hospital
 
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
     @property
     def business_id(self):
         return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     class Meta:
         ordering = ["name"]
@@ -152,9 +168,17 @@ class Batch(models.Model):
     def business(self):
         return self.hospital
 
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
     @property
     def business_id(self):
         return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     class Meta:
         ordering = ["-id"]
@@ -186,10 +210,18 @@ class LeadStage(models.Model):
         """Standardized business tenant object."""
         return self.hospital
 
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
     @property
     def business_id(self):
         """Standardized business ID."""
         return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     def __str__(self):
         return self.name
@@ -736,11 +768,18 @@ class Lead(models.Model):
         """Standardized business tenant object."""
         return self.hospital
 
+    @business.setter
+    def business(self, value):
+        self.hospital = value
 
     @property
     def business_id(self):
         """Standardized business ID."""
         return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     @property
     def effective_created_date(self):
@@ -844,25 +883,17 @@ class Lead(models.Model):
         )
     @property
     def is_hospital_industry(self):
-        """Returns True ONLY if the lead belongs to a Healthcare/Hospital/Clinic business."""
+        """Returns True ONLY if the business industry assigned by SuperAdmin is HOSPITAL."""
         if not self.hospital_id or not self.hospital:
             return False
-        ind = getattr(self.hospital, 'industry', None)
-        if ind == 'HOSPITAL':
-            return True
-        name = (getattr(self.hospital, 'name', '') or '').lower()
-        return any(k in name for k in ['hospital', 'clinic', 'healthcare', 'nelson', 'medical'])
+        return getattr(self.hospital, 'industry', None) == 'HOSPITAL'
 
     @property
     def is_academy_industry(self):
-        """Returns True ONLY if the lead belongs to an Education/Academy/Coaching business."""
+        """Returns True ONLY if the business industry assigned by SuperAdmin is ACADEMY."""
         if not self.hospital_id or not self.hospital:
             return False
-        ind = getattr(self.hospital, 'industry', None)
-        if ind == 'ACADEMY':
-            return True
-        name = (getattr(self.hospital, 'name', '') or '').lower()
-        return any(k in name for k in ['academy', 'institute', 'school', 'college', 'coaching', 'zappcode'])
+        return getattr(self.hospital, 'industry', None) == 'ACADEMY'
 
     @property
     def custom_reschedule_remark(self):
@@ -1760,8 +1791,10 @@ class Lead(models.Model):
         if self.is_academy_industry:
             student_name = (self.name or "Valued Student").strip()
             biz_name = (self.hospital.name if self.hospital else "Zappcode Academy").strip()
-            branch_name = (cd.get("branch") or cd.get("hospital_branch") or (self.hospital.name if self.hospital else "Main Campus")).strip()
-            biz_address = (self.hospital.address if self.hospital and hasattr(self.hospital, 'address') and self.hospital.address else f"{branch_name}, {biz_name}").strip()
+            # If no branch is explicitly set in custom_data, keep branch_name empty
+            raw_branch = (cd.get("branch") or cd.get("hospital_branch") or "").strip()
+            branch_name = raw_branch if raw_branch.lower() not in (biz_name.lower(), "main campus") else ""
+            biz_address = (self.hospital.address if self.hospital and hasattr(self.hospital, 'address') and self.hospital.address else (f"{branch_name}, {biz_name}" if branch_name else biz_name)).strip()
             course_name = (self.course.name if self.course else cd.get("course") or "our training program").strip()
             
             counselor_user = user or self.assigned_to or self.created_by
@@ -1790,14 +1823,30 @@ class Lead(models.Model):
 
             if not msg_type:
                 st_name = (self.stage.name if self.stage else "").lower()
-                if "payment" in st_name or balance_amt > 0:
+                # 1. PAYMENT_DUE: Only for actual payment pending / payment reminder stage or leads where fee is configured and balance is pending
+                is_payment_stage = "payment pending" in st_name or st_name == "payment" or "fee pending" in st_name
+                has_actual_balance = (
+                    balance_amt > 0 and (
+                        bool(cd.get("total") or cd.get("course_fee") or cd.get("final_fee")) or
+                        self.deal_status == DealStatus.WON or
+                        "admission" in st_name or
+                        "payment" in st_name
+                    )
+                )
+                if is_payment_stage or (has_actual_balance and "payment" in st_name):
                     msg_type = "PAYMENT_DUE"
                 elif self.deal_status == DealStatus.WON or "admission" in st_name:
                     msg_type = "ADMISSION"
                 elif "visit" in st_name or cd.get("visit_date"):
                     msg_type = "VISIT"
+                elif has_actual_balance and self.deal_status == DealStatus.WON:
+                    # Won lead with remaining balance can be payment due
+                    msg_type = "PAYMENT_DUE"
                 else:
                     msg_type = "ENQUIRY"
+
+            # Format branch suffix only if distinct branch actually exists
+            biz_branch_display = f"{biz_name} ({branch_name})" if branch_name else biz_name
 
             # Check for confirmed UserCustomMessage (Default off, Custom on)
             custom_obj = None
@@ -1805,6 +1854,10 @@ class Lead(models.Model):
                 custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
             if not custom_obj and self.assigned_to:
                 custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+            if not custom_obj and self.hospital:
+                custom_obj = UserCustomMessage.objects.filter(hospital=self.hospital, message_type=msg_type, is_confirmed=True).first()
+            if not custom_obj:
+                custom_obj = UserCustomMessage.objects.filter(message_type=msg_type, is_confirmed=True).first()
 
             if custom_obj and custom_obj.custom_text and custom_obj.custom_text.strip():
                 text = custom_obj.custom_text
@@ -1815,7 +1868,7 @@ class Lead(models.Model):
                     "{course_name}": course_name,
                     "{business_name}": biz_name,
                     "{hospital_name}": biz_name,
-                    "{branch_name}": branch_name,
+                    "{branch_name}": branch_name or biz_name,
                     "{business_address}": biz_address,
                     "{hospital_address}": biz_address,
                     "{counselor_name}": counselor_name,
@@ -1839,7 +1892,7 @@ class Lead(models.Model):
             if msg_type in ["PAYMENT_DUE", "BILLING"]:
                 return (
                     f"Hello {student_name},\n\n"
-                    f"This is a gentle payment reminder from {biz_name} ({branch_name}) regarding your {course_name} course.\n\n"
+                    f"This is a gentle payment reminder from {biz_branch_display} regarding your {course_name} course.\n\n"
                     f"📌 Course Fee Details:\n"
                     f"• Total Fee: ₹{total_fee:,.0f}\n"
                     f"• Paid / Token: ₹{token_paid:,.0f}\n"
@@ -1852,7 +1905,7 @@ class Lead(models.Model):
             elif msg_type in ["ADMISSION", "BOOKING"]:
                 return (
                     f"Hello {student_name},\n\n"
-                    f"🎉 Congratulations & Welcome to {biz_name}!\n\n"
+                    f"🎉 Congratulations & Welcome to {biz_branch_display}!\n\n"
                     f"We are delighted to confirm your admission for the {course_name} program.\n\n"
                     f"📌 Enrollment Overview:\n"
                     f"• Admission Date: {admission_date}\n"
@@ -1865,7 +1918,7 @@ class Lead(models.Model):
             elif msg_type == "VISIT":
                 return (
                     f"Hello {student_name},\n\n"
-                    f"Greetings from {biz_name}!\n\n"
+                    f"Greetings from {biz_branch_display}!\n\n"
                     f"Your campus visit & one-on-one career counseling demo session for {course_name} is confirmed:\n\n"
                     f"📅 Date: {visit_date}\n"
                     f"⏰ Slot / Time: {visit_slot}\n"
@@ -1876,7 +1929,7 @@ class Lead(models.Model):
             else:
                 return (
                     f"Hello {student_name},\n\n"
-                    f"Thank you for inquiring about our {course_name} program at {biz_name} ({branch_name})!\n\n"
+                    f"Thank you for inquiring about our {course_name} program at {biz_branch_display}!\n\n"
                     f"We are excited to help you upgrade your technical skills and build a rewarding career.\n\n"
                     f"📍 Campus Address: {biz_address}\n\n"
                     f"Would you prefer a 10-minute online counseling call or a visit to our campus for a free demo session?\n\n"
@@ -2066,12 +2119,23 @@ class Lead(models.Model):
                 bal = float(cd.get('balance_amount') or max(0, tot - paid))
             except Exception:
                 bal = 0.0
-            if "payment" in st_name or bal > 0:
+            is_payment_stage = "payment pending" in st_name or st_name == "payment" or "fee pending" in st_name
+            has_actual_balance = (
+                bal > 0 and (
+                    bool(cd.get("total") or cd.get("course_fee") or cd.get("final_fee")) or
+                    self.deal_status == DealStatus.WON or
+                    "admission" in st_name or
+                    "payment" in st_name
+                )
+            )
+            if is_payment_stage or (has_actual_balance and "payment" in st_name):
                 msg_type = "PAYMENT_DUE"
             elif self.deal_status == DealStatus.WON or "admission" in st_name:
                 msg_type = "ADMISSION"
             elif "visit" in st_name or cd.get("visit_date"):
                 msg_type = "VISIT"
+            elif has_actual_balance and self.deal_status == DealStatus.WON:
+                msg_type = "PAYMENT_DUE"
             else:
                 msg_type = "ENQUIRY"
         elif self.is_billing_done:
@@ -2124,40 +2188,6 @@ class Lead(models.Model):
             return qs.filter(email__iexact=self.email)
         return Lead.objects.none()
 
-class NelsonLeadData(models.Model):
-    lead = models.OneToOneField(Lead, on_delete=models.CASCADE, related_name='nelson_data')
-    nelson_dantoli = models.CharField(max_length=150, blank=True)
-    lead_received_time = models.TimeField(null=True, blank=True)
-    lead_calling_time = models.TimeField(null=True, blank=True)
-    gender = models.CharField(max_length=20, blank=True)
-    age = models.CharField(max_length=10, blank=True)
-    department = models.CharField(max_length=150, blank=True)
-    doctor = models.CharField(max_length=150, blank=True)
-    
-    appo_book = models.CharField(max_length=50, blank=True)
-    appo_booked_date = models.DateField(null=True, blank=True)
-    
-    calling_date_remark_1 = models.DateField(null=True, blank=True)
-    remark_1 = models.TextField(blank=True)
-    calling_time_remark_2 = models.TimeField(null=True, blank=True)
-    calling_date_remark_2 = models.DateField(null=True, blank=True)
-    remark_2 = models.TextField(blank=True)
-    calling_date_remark_3 = models.DateField(null=True, blank=True)
-    remark_3 = models.TextField(blank=True)
-    
-    done = models.CharField(max_length=100, blank=True)
-    visit_date = models.DateField(null=True, blank=True)
-    
-    uhid_id_no = models.CharField(max_length=100, blank=True)
-    pharmacy_bill = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    opd_bill = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    ipd_no = models.CharField(max_length=100, blank=True)
-    investigation = models.CharField(max_length=255, blank=True)
-    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    priority = models.CharField(max_length=50, blank=True)
-
-    def __str__(self):
-        return f"Nelson Data for {self.lead.name}"
 
 
 class AppointmentStatus(models.TextChoices):
@@ -2281,6 +2311,22 @@ class UserCustomMessage(models.Model):
         unique_together = ("user", "message_type")
         verbose_name = "User Custom Message"
         verbose_name_plural = "User Custom Messages"
+
+    @property
+    def business(self):
+        return self.hospital
+
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
+    @property
+    def business_id(self):
+        return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     def __str__(self):
         return f"{self.user.username} - {self.get_message_type_display()} ({'Custom Active' if self.is_confirmed else 'System Default'})"

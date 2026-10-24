@@ -34,10 +34,11 @@ from leads.forms import (
 # ===========================================================================
 
 def _get_business_for_custom_fields(request):
-    """Resolve target hospital for Custom Lead Form view & operations."""
+    """Resolve target business for Custom Lead Form view & operations."""
     user = request.user
-    if user.hospital:
-        return user.hospital
+    user_biz = getattr(user, 'business', None)
+    if user_biz:
+        return user_biz
     # For Super Admin: check GET parameter, session, or default
     biz_val = (
         request.GET.get("business", "").strip()
@@ -50,7 +51,7 @@ def _get_business_for_custom_fields(request):
         target = Hospital.objects.filter(id=int(biz_val), is_active=True).first()
         if target:
             return target
-    # Default to Nelson Hospital or first active hospital
+    # Default to first active business
     return Hospital.objects.filter(is_active=True).order_by("id").first()
 
 
@@ -195,8 +196,9 @@ def universal_master_list(request):
     from leads.models import LeadCustomField
     from accounts.models import Hospital
 
+    user_biz = getattr(request.user, "business", None)
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+        request.user.role == User.Role.SUPER_ADMIN and not user_biz
     )
 
     # Ensure default universal fields are seeded
@@ -207,8 +209,8 @@ def universal_master_list(request):
         _ensure_business_core_fields(h)
 
     available_businesses = list(Hospital.objects.filter(is_active=True).order_by("id")) if is_global_admin else []
-    if request.user.hospital and not available_businesses:
-        available_businesses = [request.user.hospital]
+    if user_biz and not available_businesses:
+        available_businesses = [user_biz]
 
     if h == "default":
         all_fields_qs = LeadCustomField.objects.filter(hospital__isnull=True).order_by('order', 'id')
@@ -355,7 +357,8 @@ def custom_field_edit(request, pk):
     field = get_object_or_404(LeadCustomField, pk=pk)
     
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and field.hospital != request.user.hospital:
+    user_biz = getattr(request.user, "business", None)
+    if not is_superadmin and field.business != user_biz:
         messages.error(request, "Permission denied.")
         return redirect("/leads/universal-masters/?tab=custom_fields")
         
@@ -440,7 +443,8 @@ def custom_field_toggle(request, pk):
     field = get_object_or_404(LeadCustomField, pk=pk)
     
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and field.hospital != request.user.hospital:
+    user_biz = getattr(request.user, "business", None)
+    if not is_superadmin and field.business != user_biz:
         messages.error(request, "Permission denied.")
         return redirect("/leads/universal-masters/?tab=custom_fields")
         
@@ -459,7 +463,8 @@ def custom_field_delete(request, pk):
     field = get_object_or_404(LeadCustomField, pk=pk)
     
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and field.hospital != request.user.hospital:
+    user_biz = getattr(request.user, "business", None)
+    if not is_superadmin and field.business != user_biz:
         messages.error(request, "Permission denied.")
         return redirect("/leads/universal-masters/?tab=custom_fields")
         
@@ -530,12 +535,13 @@ def master_item_add(request):
         
         target_hospital = None
         is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
+        user_biz = getattr(request.user, "business", None)
         if is_superadmin:
             if biz_param and biz_param != "default":
                 from accounts.models import Hospital
                 target_hospital = Hospital.objects.filter(id=biz_param).first()
         else:
-            target_hospital = request.user.hospital
+            target_hospital = user_biz
 
         try:
             order = int(order)
@@ -578,7 +584,8 @@ def master_item_add(request):
 def master_item_edit(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and item.hospital and item.hospital != request.user.hospital:
+    user_biz = getattr(request.user, "business", None)
+    if not is_superadmin and item.hospital and item.hospital != user_biz:
         messages.error(request, "You do not have permission to edit this item.")
         return redirect("leads:temperature_manager")
         
@@ -629,7 +636,8 @@ def master_item_edit(request, pk):
 def master_item_toggle(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and item.hospital and item.hospital != request.user.hospital:
+    user_biz = getattr(request.user, "business", None)
+    if not is_superadmin and item.hospital and item.hospital != user_biz:
         messages.error(request, "You do not have permission to modify this item.")
         return redirect("leads:temperature_manager")
         
@@ -663,7 +671,8 @@ def master_item_toggle(request, pk):
 def master_item_delete(request, pk):
     item = get_object_or_404(MasterItem, pk=pk)
     is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN
-    if not is_superadmin and item.hospital and item.hospital != request.user.hospital:
+    user_biz = getattr(request.user, "business", None)
+    if not is_superadmin and item.hospital and item.hospital != user_biz:
         messages.error(request, "You do not have permission to delete this item.")
         return redirect("leads:temperature_manager")
         
@@ -748,13 +757,14 @@ def temperature_manager(request):
     from leads.models import MasterGroup, MasterItem
     from accounts.models import Hospital
 
+    user_biz = getattr(request.user, "business", None)
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+        request.user.role == User.Role.SUPER_ADMIN and not user_biz
     )
 
     available_businesses = list(Hospital.objects.filter(is_active=True).order_by("id")) if is_global_admin else []
-    if request.user.hospital and not available_businesses:
-        available_businesses = [request.user.hospital]
+    if user_biz and not available_businesses:
+        available_businesses = [user_biz]
 
     biz_param = request.GET.get("business", "").strip()
     if is_global_admin:
@@ -765,10 +775,10 @@ def temperature_manager(request):
             current_hospital = Hospital.objects.filter(id=int(biz_param)).first()
             is_default_tab = False
         else:
-            current_hospital = request.user.hospital
+            current_hospital = user_biz
             is_default_tab = False if current_hospital else True
     else:
-        current_hospital = request.user.hospital
+        current_hospital = user_biz
         is_default_tab = False if current_hospital else True
 
     pos_group, _ = MasterGroup.objects.get_or_create(
@@ -814,9 +824,9 @@ def custom_message_manager(request):
     import urllib.parse
 
     user = request.user
-    biz = user.hospital
+    biz = getattr(user, 'business', None)
     
-    # Determine business domain
+    # Determine business domain strictly from industry
     is_hospital = False
     is_academy = False
     if biz and hasattr(biz, 'industry'):

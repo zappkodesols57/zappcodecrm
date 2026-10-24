@@ -229,7 +229,7 @@
     <div class="d-flex align-items-center gap-2">
       <i class="fa-solid fa-box-archive text-warning fs-6"></i>
       <div style="font-size: 0.86rem; color: #92400e;">
-        <strong>Archived Lead (Read-Only Mode):</strong> This lead is currently archived. You can view all information and add internal remarks. To edit lead details, record payments, or schedule follow-ups, an admin must first restore/open this lead.
+        <strong>Archived Lead:</strong> In read-only mode. Admin must restore to edit details or follow-ups.
       </div>
     </div>
     {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.business and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
@@ -338,34 +338,42 @@
       </div>
 
       <!-- Counselor Assignment / Transfer Bar (Clean compact integrated bar with proper borders) -->
+      <!-- Counselor Assignment / Transfer Bar (Clean compact integrated bar with proper borders) -->
       {% if user.can_assign_leads %}
       <div class="mt-3 pt-3 border-top">
-        <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="p-2.5 px-3 rounded-3 bg-light border d-flex flex-wrap align-items-center justify-content-between gap-2.5" style="border-color: #cbd5e1 !important;">
+        <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="p-2.5 px-3 rounded-3 bg-white border d-flex flex-wrap align-items-center justify-content-between gap-3" style="border: 1px solid #cbd5e1 !important;">
           {% csrf_token %}
-          <div class="d-flex align-items-center gap-2">
-            <i class="fa-solid fa-user-gear text-primary" style="font-size: 0.95rem;"></i>
-            <span class="fw-bold text-dark text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Assign / Transfer Counselor:</span>
+          <div>
+            <span class="fw-bold text-dark d-block text-uppercase" style="font-size: 0.76rem; letter-spacing: 0.5px;">Reassign / Transfer Lead</span>
+            <span class="text-muted" style="font-size: 0.70rem;">Change Lead Owner Counselor or Reporting Manager</span>
           </div>
-          <div class="d-flex align-items-center flex-grow-1 flex-wrap gap-2 justify-content-end">
-            <div style="min-width: 200px; max-width: 280px; flex: 1;">
-              <select name="assigned_to" class="form-select form-select-sm bg-white" title="Counselor" style="border: 1px solid #cbd5e1; font-size: 0.82rem; height: 34px;">
-                <option value="">Unassigned (Counselor)</option>
+          <div class="d-flex align-items-center flex-grow-1 flex-wrap gap-3 justify-content-end">
+            <!-- 1. Counselor Dropdown with Clear Pre-pended Label -->
+            <div class="input-group input-group-sm" style="min-width: 240px; max-width: 320px; flex: 1;">
+              <span class="input-group-text bg-light text-secondary fw-bold" style="border: 1.5px solid #94a3b8; border-right: none; font-size: 0.76rem;">Counselor:</span>
+              <select name="assigned_to" class="form-select form-select-sm bg-white no-tom-select" title="Select Counselor" style="border: 1.5px solid #94a3b8 !important; font-size: 0.82rem; height: 36px;">
+                <option value="">-- Unassigned (Counselor) --</option>
                 {% for emp in employees %}
                   <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
                 {% endfor %}
               </select>
             </div>
-            <div style="min-width: 170px; max-width: 230px; flex: 1;">
-              <select name="assigned_manager" class="form-select form-select-sm bg-white" title="Reporting Manager" style="border: 1px solid #cbd5e1; font-size: 0.82rem; height: 34px;">
-                <option value="">No Manager</option>
+
+            <!-- 2. Manager Dropdown with Clear Pre-pended Label -->
+            <div class="input-group input-group-sm" style="min-width: 220px; max-width: 290px; flex: 1;">
+              <span class="input-group-text bg-light text-secondary fw-bold" style="border: 1.5px solid #94a3b8; border-right: none; font-size: 0.76rem;">Manager:</span>
+              <select name="assigned_manager" class="form-select form-select-sm bg-white no-tom-select" title="Select Reporting Manager" style="border: 1.5px solid #94a3b8 !important; font-size: 0.82rem; height: 36px;">
+                <option value="">-- No Manager --</option>
                 {% for mgr in managers %}
                   <option value="{{ mgr.id }}" {% if lead.assigned_manager_id == mgr.id %}selected{% endif %}>{{ mgr.get_full_name|default:mgr.username }} ({{ mgr.get_role_display }})</option>
                 {% endfor %}
               </select>
             </div>
+
+            <!-- 3. Transfer Action Button -->
             <div>
-              <button type="submit" class="btn btn-sm btn-primary px-3 fw-semibold shadow-xs" style="height: 34px; font-size: 0.8rem; background-color: var(--brand) !important; border-color: var(--brand) !important;" title="Transfer Lead">
-                <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Transfer
+              <button type="submit" class="btn btn-sm btn-primary px-3 fw-semibold shadow-xs" style="height: 36px; font-size: 0.82rem; background-color: var(--brand) !important; border-color: var(--brand) !important;" title="Transfer Lead">
+                Transfer
               </button>
             </div>
           </div>

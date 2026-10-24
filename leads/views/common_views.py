@@ -1346,13 +1346,13 @@ def team_history(request):
     from followups.models import FollowUp, Note, Activity
     from django.db.models import Prefetch
 
-    from accounts.models import Hospital
+    from accounts.models import Hospital, Business
 
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.business_id
     )
 
-    hospital = request.user.hospital
+    business = request.user.business
     selected_business_id = (
         request.GET.get("business", "").strip()
         or request.GET.get("hospital", "").strip()
@@ -1360,10 +1360,10 @@ def team_history(request):
     )
     if is_global_admin:
         if selected_business_id and selected_business_id.isdigit():
-            hospital = Hospital.objects.filter(id=int(selected_business_id)).first()
-        elif not hospital:
-            # Default to Zappcode Academy for Academy views
-            hospital = Hospital.objects.filter(name__icontains="zappcode").first() or Hospital.objects.first()
+            business = Business.objects.filter(id=int(selected_business_id)).first()
+        elif not business:
+            # Default to active Academy business for Academy views
+            business = Business.objects.filter(industry=Business.Industry.ACADEMY, is_active=True).first() or Business.objects.first()
 
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
@@ -1371,8 +1371,8 @@ def team_history(request):
     # Determine team member roles based on business type
     # Hospital businesses use LEAD_ATTENDENT & DOCTOR; academies use COUNSELLOR, HR, MANAGER
     is_hospital_business = False
-    if hospital:
-        is_hospital_business = (getattr(hospital, "industry", None) == Hospital.Industry.HOSPITAL)
+    if business:
+        is_hospital_business = (getattr(business, "industry", None) == Business.Industry.HOSPITAL)
     elif getattr(request.user, "industry", None) == "HOSPITAL":
         is_hospital_business = True
 
@@ -1381,21 +1381,21 @@ def team_history(request):
     else:
         team_roles = [User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
 
-    # Get team members strictly scoped to the current hospital/business
-    if hospital:
+    # Get team members strictly scoped to the current business
+    if business:
         team_members = User.objects.filter(
             is_active=True, is_approved=True,
             role__in=team_roles,
-            hospital=hospital,
+            hospital=business,
         ).order_by("first_name", "username")
     else:
-        # No hospital context — show no one to avoid cross-tenant leakage
+        # No business context — show no one to avoid cross-tenant leakage
         team_members = User.objects.none()
 
     # Base queryset for team leads
     leads = Lead.objects.filter(is_archived=False)
-    if hospital:
-        leads = leads.filter(hospital=hospital)
+    if business:
+        leads = leads.filter(hospital=business)
 
     # Search keyword
     q = request.GET.get("q", "").strip()
@@ -1504,23 +1504,23 @@ def team_history(request):
                 selected_attendant_ids.append(legacy_user_id)
 
     # Scoped Telecallers & Doctors Querysets
-    if hospital and is_hospital_business:
+    if business and is_hospital_business:
         attendants = User.objects.filter(
             is_active=True, is_approved=True,
             role=User.Role.LEAD_ATTENDENT,
-            hospital=hospital,
+            hospital=business,
         ).order_by("first_name", "last_name", "username")
         doctors = User.objects.filter(
             is_active=True, is_approved=True,
             role=User.Role.DOCTOR,
-            hospital=hospital,
+            hospital=business,
         ).order_by("first_name", "last_name", "username")
-    elif hospital:
+    elif business:
         # Non-hospital (e.g. Academy)
         attendants = User.objects.filter(
             is_active=True, is_approved=True,
             role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
-            hospital=hospital,
+            hospital=business,
         ).order_by("first_name", "last_name", "username")
         doctors = User.objects.none()
     else:
@@ -1917,13 +1917,13 @@ def team_history(request):
 
     # Available distinct years and months with data for dropdowns
     available_years_raw = Lead.objects.filter(
-        hospital=hospital if hospital else None, inquiry_date__isnull=False
-    ).dates("inquiry_date", "year", order="DESC") if hospital else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "year", order="DESC")
+        hospital=business if business else None, inquiry_date__isnull=False
+    ).dates("inquiry_date", "year", order="DESC") if business else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "year", order="DESC")
     available_years = [d.year for d in available_years_raw]
 
     available_months_raw = Lead.objects.filter(
-        hospital=hospital if hospital else None, inquiry_date__isnull=False
-    ).dates("inquiry_date", "month", order="DESC") if hospital else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "month", order="DESC")
+        hospital=business if business else None, inquiry_date__isnull=False
+    ).dates("inquiry_date", "month", order="DESC") if business else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "month", order="DESC")
     available_months = [
         {"value": d.strftime("%Y-%m"), "label": d.strftime("%B %Y"), "year": d.year, "month": d.month}
         for d in available_months_raw
@@ -1941,9 +1941,9 @@ def team_history(request):
     ).order_by(sort_by)
 
     # Scoped courses and stages
-    courses = Course.objects.filter(is_active=True, hospital=hospital).order_by("name") if hospital else Course.objects.filter(is_active=True, hospital__isnull=True).order_by("name")
+    courses = Course.objects.filter(is_active=True, hospital=business).order_by("name") if business else Course.objects.filter(is_active=True, hospital__isnull=True).order_by("name")
     if is_hospital_business:
-        stages = LeadStage.objects.filter(is_active=True).filter(Q(hospital=hospital) | Q(business_type=LeadStage.BusinessType.HOSPITAL)).order_by("order", "name")
+        stages = LeadStage.objects.filter(is_active=True).filter(Q(hospital=business) | Q(business_type=LeadStage.BusinessType.HOSPITAL)).order_by("order", "name")
     else:
         stages = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.ACADEMY).order_by("order", "name")
     admission_status_choices = AdmissionStatus.choices
@@ -2103,8 +2103,8 @@ def team_history(request):
         "today_str": today.strftime("%Y-%m-%d"),
         "is_global_admin": is_global_admin,
         "available_businesses": available_businesses,
-        "current_business": hospital,
-        "current_hospital": hospital,
+        "current_business": business,
+        "current_hospital": business,
         "is_hospital_business": is_hospital_business,
     }
     template = "hospital/leads/team_history.html" if is_hospital_business else "academy/leads/team_history.html"
@@ -2118,14 +2118,14 @@ def lost_leads(request):
     Displays all leads with Lost or Cancelled status / Freezed temperature for Academy/Hospital.
     Supports Search, Course Filter, Date Filter, and pagination.
     """
-    hospital = request.user.hospital
+    business = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+        request.user.role == User.Role.SUPER_ADMIN and not business
     )
 
     leads = Lead.objects.filter(is_archived=False)
-    if hospital:
-        leads = leads.filter(hospital=hospital)
+    if business:
+        leads = leads.filter(hospital=business)
 
     # Scoped strictly to Lost / Cancelled / Freeze leads
     lost_q = (
@@ -2164,8 +2164,8 @@ def lost_leads(request):
         leads = leads.filter(inquiry_date__lte=date_to)
 
     courses = Course.objects.filter(is_active=True)
-    if hospital:
-        courses = courses.filter(hospital=hospital)
+    if business:
+        courses = courses.filter(hospital=business)
 
     sort_by = request.GET.get("sort", "-updated_at")
     leads = leads.select_related("course", "stage", "lead_source", "assigned_to").order_by(sort_by)
@@ -2219,8 +2219,9 @@ def user_performance_analysis(request, user_id):
     target_user = get_object_or_404(User, id=user_id)
 
     # Permission check: superadmin, admin, manager, or user viewing own analytics
+    business = getattr(target_user, "business", None) or getattr(request.user, "business", None)
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+        request.user.role == User.Role.SUPER_ADMIN and not getattr(request.user, "business", None)
     )
     if not (
         is_global_admin
@@ -2230,10 +2231,9 @@ def user_performance_analysis(request, user_id):
         messages.error(request, "You do not have permission to view this performance analysis.")
         return redirect("leads:team_history")
 
-    hospital = target_user.hospital or request.user.hospital
     is_hospital_business = False
-    if hospital:
-        is_hospital_business = (getattr(hospital, "industry", None) == Hospital.Industry.HOSPITAL)
+    if business:
+        is_hospital_business = (getattr(business, "industry", None) == Hospital.Industry.HOSPITAL)
     elif getattr(request.user, "industry", None) == "HOSPITAL":
         is_hospital_business = True
 
@@ -2248,8 +2248,8 @@ def user_performance_analysis(request, user_id):
     else:
         leads = Lead.objects.filter(is_archived=False, assigned_to=target_user)
 
-    if hospital:
-        leads = leads.filter(hospital=hospital)
+    if business:
+        leads = leads.filter(hospital=business)
 
     # Date filter preset (Default to 'all' so historical imported data is immediately shown on charts)
     period = request.GET.get("period", "all").strip()
@@ -2444,7 +2444,8 @@ def user_performance_analysis(request, user_id):
     context = {
         "active": "team_history",
         "target_user": target_user,
-        "current_hospital": hospital,
+        "current_hospital": business,
+        "current_business": business,
         "is_hospital_business": is_hospital_business,
         "period": period,
         "period_label": period_label,
@@ -2484,8 +2485,8 @@ def lead_add(request):
     if is_hospital:
         from leads.models import HospitalBranch
         b_qs = HospitalBranch.objects.filter(is_active=True)
-        if request.user.hospital:
-            b_qs = b_qs.filter(hospital=request.user.hospital)
+        if getattr(request.user, "business", None):
+            b_qs = b_qs.filter(hospital=request.user.business)
         available_branches = list(b_qs.order_by("name"))
         
     # Custom WhatsApp message templates for user
@@ -2511,8 +2512,8 @@ def lead_add(request):
                     })
             lead = form.save(commit=False)
             lead.created_by = request.user
-            if request.user.hospital:
-                lead.hospital = request.user.hospital
+            if getattr(request.user, "business", None):
+                lead.business = request.user.business
                 
             # If creator is a Lead Attendant, Counsellor, or employee without can_assign_leads permission, auto-assign to themselves
             if request.user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR) or not request.user.can_assign_leads:
@@ -2847,8 +2848,8 @@ def lead_add(request):
                     Q(is_superuser=True) |
                     Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
                 )
-                if lead.hospital:
-                    admin_qs = admin_qs.filter(hospital=lead.hospital)
+                if lead.business:
+                    admin_qs = admin_qs.filter(hospital=lead.business)
                 for adm in admin_qs.distinct():
                     slot_str = f" [Slot: {visit_slot}]" if visit_slot else ""
                     Notification.objects.create(
@@ -2864,8 +2865,8 @@ def lead_add(request):
                     Q(is_superuser=True) |
                     Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
                 )
-                if lead.hospital:
-                    admin_qs = admin_qs.filter(hospital=lead.hospital)
+                if lead.business:
+                    admin_qs = admin_qs.filter(hospital=lead.business)
                 c_name = lead.course.name if lead.course else "Course"
                 for adm in admin_qs.distinct():
                     Notification.objects.create(
@@ -2890,7 +2891,7 @@ def lead_add(request):
                 elif doc_name:
                     import re
                     clean_doc_name = re.sub(r'^(dr\.?|doctor)\s+', '', doc_name, flags=re.IGNORECASE).strip()
-                    doc_user = User.objects.filter(role=User.Role.DOCTOR, hospital=request.user.hospital).filter(
+                    doc_user = User.objects.filter(role=User.Role.DOCTOR, hospital=getattr(request.user, "business", None)).filter(
                         Q(first_name__icontains=clean_doc_name) | Q(last_name__icontains=clean_doc_name) | Q(username__icontains=clean_doc_name)
                     ).first()
                     if doc_user and doc_user != request.user:
@@ -2909,13 +2910,16 @@ def lead_add(request):
                 apt_st = str(cd.get("appointment_status") or "").upper()
                 deal_st = str(cd.get("deal_status") or "").upper()
                 has_bill_entry = bool(cd.get("total") and str(cd.get("total")).strip() not in ["0", "0.0", "0.00", ""])
-                if lead.is_billing_done or has_bill_entry or 'PAYMENT' in apt_st or 'PAYMENT' in deal_st or 'BILLING' in apt_st:
-                    msg_type = "BILLING"
-                elif any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']):
-                    msg_type = "BOOKING"
+                if lead.is_academy_industry:
+                    msg_text = lead.get_dynamic_whatsapp_message(user=request.user)
                 else:
-                    msg_type = "FOLLOWUP"
-                msg_text = lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
+                    if lead.is_billing_done or has_bill_entry or 'PAYMENT' in apt_st or 'PAYMENT' in deal_st or 'BILLING' in apt_st:
+                        msg_type = "BILLING"
+                    elif any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']):
+                        msg_type = "BOOKING"
+                    else:
+                        msg_type = "FOLLOWUP"
+                    msg_text = lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
                 encoded_msg = urllib.parse.quote(msg_text)
                 wa_url = f"https://wa.me/91{clean_phone}?text={encoded_msg}"
                 request.session['auto_open_whatsapp'] = wa_url
@@ -3022,10 +3026,8 @@ def lead_edit(request, pk):
             return redirect("dashboard:doctor_appointments")
         return redirect("leads:lead_list")
         
-    # Determine form/template based on hospital's business_type (not name string)
-    lead_hospital_settings = (lead.hospital.settings or {}) if lead.hospital else {}
-    lead_btype = lead_hospital_settings.get("business_type", "hospital")
-    is_lead_hospital_type = (lead_btype == "hospital")
+    # Determine form/template based on business industry strictly (not settings or name string)
+    is_lead_hospital_type = (getattr(lead.business, 'industry', None) == 'HOSPITAL') if lead.business else (getattr(request.user, 'industry', None) == 'HOSPITAL')
     FormClass = HospitalLeadForm if is_lead_hospital_type else LeadForm
     template = "hospital/leads/lead_form.html" if is_lead_hospital_type else "academy/leads/lead_form.html"
 
@@ -3034,10 +3036,9 @@ def lead_edit(request, pk):
     if is_lead_hospital_type:
         from leads.models import HospitalBranch
         b_qs = HospitalBranch.objects.filter(is_active=True)
-        if request.user.hospital:
-            b_qs = b_qs.filter(hospital=request.user.hospital)
-        elif lead.hospital:
-            b_qs = b_qs.filter(hospital=lead.hospital)
+        active_lead_biz = getattr(request.user, "business", None) or getattr(lead, "business", None)
+        if active_lead_biz:
+            b_qs = b_qs.filter(hospital=active_lead_biz)
         available_branches = list(b_qs.order_by("name"))
     
     if request.method == "POST":
@@ -3375,8 +3376,8 @@ def lead_edit(request, pk):
                     Q(is_superuser=True) |
                     Q(role__in=[User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER])
                 )
-                if saved_lead.hospital:
-                    admin_qs = admin_qs.filter(hospital=saved_lead.hospital)
+                if saved_lead.business:
+                    admin_qs = admin_qs.filter(hospital=saved_lead.business)
                 for adm in admin_qs.distinct():
                     # Only notify if not already notified
                     tot_amount = cd.get('total') or cd.get('total_paid') or ''
@@ -3406,13 +3407,16 @@ def lead_edit(request, pk):
                 apt_st = str(cd.get("appointment_status") or "").upper()
                 deal_st = str(cd.get("deal_status") or "").upper()
                 has_bill_entry = bool(cd.get("total") and str(cd.get("total")).strip() not in ["0", "0.0", "0.00", ""])
-                if saved_lead.is_billing_done or has_bill_entry or 'PAYMENT' in apt_st or 'PAYMENT' in deal_st or 'BILLING' in apt_st:
-                    msg_type = "BILLING"
-                elif any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']):
-                    msg_type = "BOOKING"
+                if saved_lead.is_academy_industry:
+                    msg_text = saved_lead.get_dynamic_whatsapp_message(user=request.user)
                 else:
-                    msg_type = "FOLLOWUP"
-                msg_text = saved_lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
+                    if saved_lead.is_billing_done or has_bill_entry or 'PAYMENT' in apt_st or 'PAYMENT' in deal_st or 'BILLING' in apt_st:
+                        msg_type = "BILLING"
+                    elif any(k in apt_st for k in ['BOOK', 'CONFIRM', 'SLOT', 'OPD', 'CONSULT']):
+                        msg_type = "BOOKING"
+                    else:
+                        msg_type = "FOLLOWUP"
+                    msg_text = saved_lead.get_dynamic_whatsapp_message(user=request.user, msg_type=msg_type)
                 encoded_msg = urllib.parse.quote(msg_text)
                 wa_url = f"https://wa.me/91{clean_phone}?text={encoded_msg}"
                 request.session['auto_open_whatsapp'] = wa_url
@@ -3501,7 +3505,7 @@ def lead_edit(request, pk):
     custom_billing_tpl = UserCustomMessage.objects.filter(user=request.user, message_type="BILLING", is_confirmed=True).first()
 
     # Academy courses data, batches & trainers for dynamic pricing & batch allocation
-    target_biz = lead.hospital or request.user.hospital
+    target_biz = getattr(lead, "business", None) or getattr(request.user, "business", None)
     courses_qs = Course.objects.filter(is_active=True, is_archived=False)
     if target_biz:
         courses_qs = courses_qs.filter(hospital=target_biz)
@@ -3599,18 +3603,8 @@ def lead_detail(request, pk):
     followups = lead.followups.select_related("created_by").all()[:50]
     admission = getattr(lead, "admission", None)
     
-    # Check lead's own organization business_type (Hospital vs Academy)
-    lead_hospital_settings = (lead.hospital.settings or {}) if lead.hospital else {}
-    lead_btype = lead_hospital_settings.get("business_type")
-    if not lead_btype and lead.hospital:
-        if getattr(lead.hospital, 'industry', None) == 'HOSPITAL':
-            lead_btype = "hospital"
-        elif getattr(lead.hospital, 'industry', None) == 'ACADEMY':
-            lead_btype = "academy"
-        else:
-            name_lower = (lead.hospital.name or "").lower()
-            lead_btype = "hospital" if any(k in name_lower for k in ["hospital", "clinic", "medical", "nelson"]) else "academy"
-    
+    # Check lead's own organization business_type (Hospital vs Academy) strictly by industry
+    lead_btype = "hospital" if getattr(lead.hospital, 'industry', None) == 'HOSPITAL' else "academy"
     is_lead_hospital = bool(lead.hospital and lead_btype == "hospital")
 
     # Strict multi-tenant filtering: Role-based assignable users strictly belonging to lead's business
@@ -3623,9 +3617,9 @@ def lead_detail(request, pk):
 
     mgr_roles = [User.Role.MANAGER, User.Role.ADMIN]
 
-    if lead.hospital:
-        employees = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=emp_roles).order_by('first_name', 'username')
-        managers = User.objects.filter(is_active=True, is_approved=True, hospital=lead.hospital, role__in=mgr_roles).order_by('first_name', 'username')
+    if lead.business:
+        employees = User.objects.filter(is_active=True, is_approved=True, hospital=lead.business, role__in=emp_roles).order_by('first_name', 'username')
+        managers = User.objects.filter(is_active=True, is_approved=True, hospital=lead.business, role__in=mgr_roles).order_by('first_name', 'username')
     else:
         # Fallback for leads not yet linked to a business
         employees = User.objects.filter(is_active=True, is_approved=True, role__in=emp_roles).order_by('first_name', 'username')
@@ -3639,7 +3633,7 @@ def lead_detail(request, pk):
         from leads.models import Appointment, LeadCustomField
         appointments_history = list(Appointment.objects.filter(lead=lead).order_by('-appointment_date', '-id'))
         latest_appointment = appointments_history[0] if appointments_history else None
-        cfs = LeadCustomField.objects.filter(hospital=lead.hospital, is_active=True).order_by("order")
+        cfs = LeadCustomField.objects.filter(hospital=lead.business, is_active=True).order_by("order")
         cd = lead.custom_data or {}
         for cf in cfs:
             if cf.name in cd and cd[cf.name] != "":
@@ -3703,13 +3697,13 @@ def lead_detail(request, pk):
         query_params["return_to"] = return_url
     filter_querystring = query_params.urlencode()
 
-    b_type = LeadStage.BusinessType.HOSPITAL if (lead.hospital or is_lead_hospital) else LeadStage.BusinessType.ACADEMY
+    b_type = LeadStage.BusinessType.HOSPITAL if is_lead_hospital else LeadStage.BusinessType.ACADEMY
     stages = LeadStage.objects.filter(is_active=True, business_type__in=[b_type, LeadStage.BusinessType.ALL]).order_by("order", "name")
     temperatures = LeadTemperature.choices
     deal_statuses = DealStatus.choices
     admission_statuses = AdmissionStatus.choices
 
-    courses_qs = Course.objects.filter(is_active=True, hospital=lead.hospital) if lead.hospital else Course.objects.filter(is_active=True)
+    courses_qs = Course.objects.filter(is_active=True, hospital=lead.business) if lead.business else Course.objects.filter(is_active=True)
     course_data = {
         str(c.id): {
             "name": c.name,
@@ -4263,8 +4257,8 @@ def assign_lead(request, pk):
 
         if assignee_id:
             assignee_qs = User.objects.filter(pk=assignee_id, is_active=True)
-            if lead.hospital:
-                assignee_qs = assignee_qs.filter(hospital=lead.hospital)
+            if lead.business:
+                assignee_qs = assignee_qs.filter(hospital=lead.business)
             assignee = assignee_qs.first()
             if not assignee:
                 messages.error(request, "Selected assignee is invalid or does not belong to this business.")
@@ -4279,8 +4273,8 @@ def assign_lead(request, pk):
 
         if manager_id:
             mgr_qs = User.objects.filter(pk=manager_id, is_active=True)
-            if lead.hospital:
-                mgr_qs = mgr_qs.filter(hospital=lead.hospital)
+            if lead.business:
+                mgr_qs = mgr_qs.filter(hospital=lead.business)
             mgr = mgr_qs.first()
             if not mgr:
                 messages.error(request, "Selected manager is invalid or does not belong to this business.")
@@ -4580,19 +4574,20 @@ def archived_leads(request):
         messages.error(request, "You do not have permission to view archived leads.")
         return redirect("leads:lead_list")
 
+    business = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+        request.user.role == User.Role.SUPER_ADMIN and not business
     )
 
     leads_qs = Lead.objects.filter(is_archived=True).select_related(
         "hospital", "assigned_to", "stage", "campaign"
     ).order_by("-updated_at")
 
-    if request.user.hospital:
-        leads_qs = leads_qs.filter(hospital=request.user.hospital)
-        current_hospital = request.user.hospital
+    if business:
+        leads_qs = leads_qs.filter(hospital=business)
+        current_business = business
     else:
-        current_hospital = None
+        current_business = None
 
     q = request.GET.get("q", "").strip()
     if q:
@@ -4623,8 +4618,8 @@ def archived_leads(request):
         del query_params["page"]
 
     # Business Team Members for assignment (strictly scoped to current business)
-    if request.user.hospital:
-        business_users = User.objects.filter(hospital=request.user.hospital, is_active=True).order_by("first_name", "username")
+    if business:
+        business_users = User.objects.filter(hospital=business, is_active=True).order_by("first_name", "username")
     elif is_global_admin:
         business_users = User.objects.filter(is_active=True).order_by("first_name", "username")
     else:
@@ -4643,7 +4638,8 @@ def archived_leads(request):
         "date_to": date_to,
         "date_from_val": date_from,
         "date_to_val": date_to,
-        "current_hospital": current_hospital,
+        "current_hospital": current_business,
+        "current_business": current_business,
         "is_global_admin": is_global_admin,
         "business_users": business_users,
         "query_params": query_params.urlencode(),
@@ -4676,8 +4672,9 @@ def bulk_archive_action(request):
 
     # Business Tenant Isolation: strictly scope leads to current business admin's tenant
     leads_qs = Lead.objects.filter(pk__in=selected_ids, is_archived=True)
-    if request.user.hospital:
-        leads_qs = leads_qs.filter(hospital=request.user.hospital)
+    user_biz = getattr(request.user, "business", None)
+    if user_biz:
+        leads_qs = leads_qs.filter(hospital=user_biz)
     elif not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
         leads_qs = leads_qs.none()
 
@@ -4710,8 +4707,8 @@ def bulk_archive_action(request):
 
         # Validate that assignee strictly belongs to current business
         user_qs = User.objects.filter(pk=assignee_id, is_active=True)
-        if request.user.hospital:
-            user_qs = user_qs.filter(hospital=request.user.hospital)
+        if user_biz:
+            user_qs = user_qs.filter(hospital=user_biz)
         assignee = user_qs.first()
 
         if not assignee:
@@ -4771,8 +4768,9 @@ def bulk_archive_action(request):
 @login_required
 def duplicates(request):
     leads_qs = Lead.objects.select_related("stage", "assigned_to", "lead_source", "course").filter(is_archived=False)
-    if request.user.hospital:
-        leads_qs = leads_qs.filter(hospital=request.user.hospital)
+    user_biz = getattr(request.user, "business", None)
+    if user_biz:
+        leads_qs = leads_qs.filter(hospital=user_biz)
     elif not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
         leads_qs = leads_qs.none()
     all_leads = list(leads_qs)
@@ -4830,7 +4828,8 @@ def duplicate_leads_merge(request):
             return redirect("leads:duplicates")
 
         # Verify tenant security
-        if request.user.hospital and primary_lead.hospital != request.user.hospital:
+        user_biz = getattr(request.user, "business", None)
+        if user_biz and primary_lead.business != user_biz:
             messages.error(request, "Permission denied.")
             return redirect("leads:duplicates")
 
@@ -4844,7 +4843,7 @@ def duplicate_leads_merge(request):
             if not dup_lead:
                 continue
 
-            if request.user.hospital and dup_lead.hospital != request.user.hospital:
+            if user_biz and dup_lead.business != user_biz:
                 continue
 
             # 1. Transfer notes (related_name is 'lead_notes')
@@ -4896,7 +4895,7 @@ def bulk_lead_transfer(request):
     Preserves all previous follow-up remarks, notes, comments, and timeline history intact.
     Restricted to Lead Attendant, Counsellor, and HR roles for current active business.
     """
-    from accounts.models import User, Hospital
+    from accounts.models import User, Business, Hospital
     from leads.models import Lead, LeadStage, Course
     from followups.models import Activity, ActivityType
     from notifications.models import Notification
@@ -4913,11 +4912,9 @@ def bulk_lead_transfer(request):
 
     # Determine Active Business/Tenant (from session or GET query param for super admin switch)
     active_biz_id = request.GET.get("business") or request.GET.get("hospital") or request.session.get("active_business_id")
-    active_business = None
-    if request.user.hospital:
-        active_business = request.user.hospital
-    elif active_biz_id and str(active_biz_id).isdigit():
-        active_business = Hospital.objects.filter(pk=int(active_biz_id)).first()
+    active_business = getattr(request.user, "business", None)
+    if not active_business and active_biz_id and str(active_biz_id).isdigit():
+        active_business = Business.objects.filter(pk=int(active_biz_id)).first()
 
     # Allowed roles for assignment/transfer: LEAD_ATTENDENT, COUNSELLOR, HR
     allowed_roles = [User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR]
