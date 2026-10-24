@@ -820,6 +820,25 @@ def lead_list(request):
     if 'page' in query_params:
         del query_params['page']
 
+    # Active leads for current user's business
+    active_leads = Lead.objects.filter(is_archived=False)
+    if request.user.hospital:
+        active_leads = active_leads.filter(hospital=request.user.hospital)
+        if request.user.role in ('COUNSELLOR', 'HR'):
+            active_leads = active_leads.filter(
+                Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
+            )
+        elif request.user.role == User.Role.DOCTOR:
+            doc_name = (request.user.get_full_name() or request.user.username).strip()
+            active_leads = active_leads.filter(
+                Q(assigned_to=request.user) |
+                Q(appointments__doctor_user=request.user) |
+                Q(appointments__doctor_name__icontains=doc_name) |
+                Q(custom_data__doctor__icontains=doc_name)
+            ).distinct()
+    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
+
     # Filter dropdown options scoped to current user's business (Cached for 60s to avoid full table scans on every click)
     cache_biz_key = f"filter_opts_biz_{request.user.hospital_id if request.user.hospital else 'global'}_{request.user.role}"
     from django.core.cache import cache
@@ -834,7 +853,6 @@ def lead_list(request):
         distinct_cities = cached_dropdowns["distinct_cities"]
         distinct_locations = cached_dropdowns["distinct_locations"]
     else:
-        active_leads = Lead.objects.filter(is_archived=False)
         if request.user.hospital:
             active_leads = active_leads.filter(hospital=request.user.hospital)
             if request.user.role in ('COUNSELLOR', 'HR'):
@@ -3644,26 +3662,48 @@ def lead_detail(request, pk):
     can_convert = is_owner or request.user.can_edit_any_lead or request.user.role in [User.Role.SUPER_ADMIN, User.Role.MANAGER]
 
     # --- Return URL (Back Button) & Queue Navigation ---
-    return_to = request.GET.get("return_to", "").strip()
+    from urllib.parse import urlparse, parse_qs, urlencode
+    
+    raw_return = request.GET.get("return_to", "").strip()
+    return_to = ""
+    
+    if raw_return:
+        # Sanitize: Strip any recursive return_to from the target return url
+        try:
+            parsed = urlparse(raw_return)
+            q_dict = parse_qs(parsed.query)
+            q_dict.pop("return_to", None)
+            clean_query = urlencode(q_dict, doseq=True)
+            return_to = parsed.path + (f"?{clean_query}" if clean_query else "")
+        except Exception:
+            return_to = ""
+
     if not return_to:
         referer = request.META.get("HTTP_REFERER", "")
         if referer:
-            from urllib.parse import urlparse
-            ref_path = urlparse(referer).path
-            # Only use referer if it's not another lead detail page
-            if "/leads/" in referer and "/lead/" not in ref_path:
-                return_to = referer
-            elif "/dashboard/" in referer or "/followups/" in referer or "/admissions/" in referer or "/payments/" in referer:
-                return_to = referer
+            try:
+                parsed_ref = urlparse(referer)
+                ref_path = parsed_ref.path
+                # Only use referer if it's not a lead detail or edit page
+                if "/leads/" in referer and "/lead/" not in ref_path and not any(part.isdigit() for part in ref_path.strip("/").split("/")):
+                    q_dict = parse_qs(parsed_ref.query)
+                    q_dict.pop("return_to", None)
+                    clean_query = urlencode(q_dict, doseq=True)
+                    return_to = ref_path + (f"?{clean_query}" if clean_query else "")
+                elif any(sec in ref_path for sec in ["/dashboard/", "/followups/", "/admissions/", "/payments/"]):
+                    q_dict = parse_qs(parsed_ref.query)
+                    q_dict.pop("return_to", None)
+                    clean_query = urlencode(q_dict, doseq=True)
+                    return_to = ref_path + (f"?{clean_query}" if clean_query else "")
+            except Exception:
+                return_to = ""
 
-    # Fallback return_url if none provided
+    # Clean fallback return_url to lead_list
     if return_to:
         return_url = return_to
     else:
-        # Default fallback to leads list
         fallback_params = request.GET.copy()
-        if "return_to" in fallback_params:
-            del fallback_params["return_to"]
+        fallback_params.pop("return_to", None)
         qs_str = fallback_params.urlencode()
         return_url = f"/leads/{'?' + qs_str if qs_str else ''}"
 
@@ -3693,7 +3733,7 @@ def lead_detail(request, pk):
         ).order_by('-created_at', '-id').first()
 
     query_params = request.GET.copy()
-    if return_url and "return_to" not in query_params:
+    if return_url:
         query_params["return_to"] = return_url
     filter_querystring = query_params.urlencode()
 

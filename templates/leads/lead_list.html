@@ -1,6 +1,103 @@
 {% extends "base.html" %}
 {% block title %}All Leads · Super Admin{% endblock %}
 {% block content %}
+<style>
+  /* Sleek Quick Action Bar (Bottom Floating) */
+  .counselor-action-microbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(140px);
+    background: #052042;
+    color: #ffffff;
+    border-radius: 50rem;
+    padding: 6px 16px 6px 20px;
+    box-shadow: 0 12px 36px rgba(5, 32, 66, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1050;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+    max-width: calc(100vw - 32px);
+    white-space: nowrap;
+  }
+
+  .counselor-action-microbar.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mb-lead-name {
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #ffffff;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mb-lead-phone {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+
+  .mb-input {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+    padding: 4px 10px !important;
+    height: 32px !important;
+    width: 250px;
+  }
+
+  .mb-input::placeholder {
+    color: #94a3b8 !important;
+  }
+
+  .mb-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    height: 32px;
+  }
+
+  .counselor-table-row {
+    cursor: pointer;
+  }
+
+  .counselor-table-row.active-selected-row {
+    background-color: #f1f5f9 !important;
+    box-shadow: inset 3px 0 0 #052042;
+  }
+
+  @media (max-width: 640px) {
+    .counselor-action-microbar {
+      bottom: 12px;
+      padding: 6px 12px;
+      border-radius: 14px;
+      gap: 6px;
+      max-width: calc(100vw - 16px);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .mb-input {
+      width: 100% !important;
+      max-width: 220px;
+    }
+  }
+</style>
 <!-- Zoho CRM Style Top Title Bar with View Filter Switcher & Action Tools -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div class="d-flex align-items-center gap-3">
@@ -288,7 +385,7 @@
             </thead>
             <tbody>
               {% for lead in page_obj %}
-              <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+              <tr class="counselor-table-row clickable-lead-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
                 <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
                 <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
                 
@@ -406,36 +503,42 @@
                     <!-- Capture Lead Button -->
                     <button type="button"
                       onclick="captureSingleLead('{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}', '{{ lead.name|escapejs }}')"
-                      class="btn btn-xs btn-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-bold"
-                      style="font-size: 0.75rem;" title="Capture & Assign to Me">
+                      class="btn btn-xs btn-primary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-semibold me-1"
+                      style="font-size: 0.72rem; height: 28px;" title="Capture & Assign to Me">
                       <i class="fa-solid fa-hand-holding-hand"></i> Capture
                     </button>
                     {% endif %}
-                    <!-- Direct Call -->
-                    <a href="tel:{{ lead.mobile }}"
-                      class="btn btn-xs btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
-                      <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
-                    </a>
-                    <!-- WhatsApp -->
-                    <a href="https://wa.me/91{{ lead.mobile }}?text=Hello%20{{ lead.name|urlencode }}"
-                      target="_blank"
-                      class="btn btn-xs btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
-                      <i class="fa-brands fa-whatsapp" style="font-size: 0.8rem;"></i>
-                    </a>
-                    <!-- Edit -->
-                    <a href="{% url 'leads:lead_edit' lead.pk %}"
-                      class="btn btn-xs btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="Edit Lead">
-                      <i class="fa-solid fa-pen" style="font-size: 0.72rem;"></i>
-                    </a>
+
                     <!-- View Detail -->
                     <a href="{% url 'leads:lead_detail' lead.pk %}"
-                      class="btn btn-xs btn-outline-info rounded-circle d-inline-flex align-items-center justify-content-center p-0"
-                      style="width: 28px; height: 28px;" title="View Lead Detail">
-                      <i class="fa-solid fa-eye" style="font-size: 0.72rem;"></i>
+                      class="btn btn-sm btn-light border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                      style="width: 28px; height: 28px;" title="View Details">
+                      <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
                     </a>
+
+                    <!-- Edit -->
+                    <a href="{% url 'leads:lead_edit' lead.pk %}"
+                      class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                      style="width: 28px; height: 28px;" title="Edit Lead">
+                      <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
+                    </a>
+
+                    {% if lead.mobile %}
+                      <!-- WhatsApp -->
+                      <a href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}?text=Hello%20{{ lead.name|urlencode }}"
+                        target="_blank"
+                        class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                        style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
+                        <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
+                      </a>
+
+                      <!-- Direct Call -->
+                      <a href="tel:{{ lead.mobile }}"
+                        class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                        style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
+                        <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
+                      </a>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
@@ -505,6 +608,87 @@
     </div>
   </div> <!-- /Right Side Main Content -->
 </div> <!-- /Split View Container -->
+
+<!-- Floating Sleek Action Bar (Bottom Centered) -->
+<div id="counselorMicrobar" class="counselor-action-microbar" aria-live="polite">
+  <div class="d-flex flex-column me-1" style="line-height: 1.15;">
+    <span id="mbLeadName" class="mb-lead-name">Lead Name</span>
+    <span id="mbLeadPhone" class="mb-lead-phone">Contact</span>
+  </div>
+
+  <!-- Inline Quick Remark Input -->
+  <div class="d-flex align-items-center gap-1 ms-1">
+    <input type="text" id="mbRemarkInput" class="mb-input" placeholder="Type quick remark...">
+    <button type="button" id="mbSaveRemarkBtn" class="mb-btn" style="background: #3b82f6; color: #ffffff;" onclick="saveQuickRemark()">
+      Save
+    </button>
+  </div>
+
+  <!-- Quick Add Follow-up Modal Trigger -->
+  <div class="d-flex align-items-center gap-1 ms-1">
+    <button type="button" class="mb-btn" style="background: #f59e0b; color: #ffffff;" onclick="openQuickFollowupModal()">
+      + Follow-up
+    </button>
+  </div>
+
+  <!-- Direct WhatsApp & Call & Close -->
+  <div class="d-flex align-items-center gap-1 ms-1">
+    <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
+      WhatsApp
+    </a>
+    <a id="mbViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #475569; color: #ffffff;">
+      Full Profile
+    </a>
+    <button type="button" class="btn btn-sm text-white ms-1 p-0" onclick="dismissCounselorMicrobar()" style="line-height: 1; opacity: 0.75;" title="Dismiss bar">
+      ✕
+    </button>
+  </div>
+</div>
+
+<!-- Modal: Quick Add Follow-up Form -->
+<div class="modal fade" id="quickFollowupModal" tabindex="-1" aria-labelledby="quickFollowupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 10px; overflow: hidden;">
+      <div class="modal-header py-2 px-3" style="background-color: #052042; color: #ffffff;">
+        <h6 class="modal-title fw-bold mb-0 text-white" id="quickFollowupModalLabel">
+          Schedule Follow-up: <span id="qfuModalLeadName" style="color: #93c5fd;">Lead</span>
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickFollowupForm" onsubmit="submitQuickFollowup(event)">
+        <input type="hidden" id="qfuLeadId" value="">
+        <div class="modal-body p-3">
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label text-muted small fw-bold mb-1">Follow-up Date *</label>
+              <input type="date" id="qfuDate" class="form-control form-control-sm" min="{% now 'Y-m-d' %}" max="2099-12-31" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small fw-bold mb-1">Time Slot (24h)</label>
+              <input type="text" id="qfuTime" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label text-muted small fw-bold mb-1">Status</label>
+            <select id="qfuStatus" class="form-select form-select-sm no-tom-select">
+              <option value="PENDING" selected>Pending</option>
+              <option value="RESCHEDULED">Rescheduled</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+          <div class="mb-1">
+            <label class="form-label text-muted small fw-bold mb-1">Call Agenda / Remarks *</label>
+            <textarea id="qfuComment" rows="2" class="form-control form-control-sm" placeholder="Follow-up notes, discussion commitment..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+          <button type="button" class="btn btn-sm btn-outline-secondary action-btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="qfuSubmitBtn" class="btn btn-sm btn-primary action-btn-sm" style="background: #052042; border-color: #052042;">Save Follow-up</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Hidden Form for Single Lead Capture -->
 <form id="singleLeadCaptureForm" method="post" action="" style="display: none;">
@@ -773,5 +957,198 @@
       }
     });
   }
+
+  // ==========================================
+  // Sleek Action Microbar Logic (Row Click)
+  // ==========================================
+  let activeLeadPk = null;
+  let activeRow = null;
+
+  window.dismissCounselorMicrobar = function() {
+    const microbar = document.getElementById('counselorMicrobar');
+    if (microbar) microbar.classList.remove('visible');
+    if (activeRow) activeRow.classList.remove('active-selected-row');
+    activeLeadPk = null;
+    activeRow = null;
+    const mbInput = document.getElementById('mbRemarkInput');
+    if (mbInput) mbInput.value = '';
+  };
+
+  // Row Click: activates sleek bottom action bar
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input') || e.target.closest('.dropdown') || e.target.closest('select')) {
+      return;
+    }
+
+    const row = e.target.closest('.counselor-table-row');
+    if (!row) {
+      if (!e.target.closest('#counselorMicrobar') && !e.target.closest('#quickFollowupModal') && !e.target.closest('#inWindowActionModal')) {
+        dismissCounselorMicrobar();
+      }
+      return;
+    }
+
+    const leadId = row.getAttribute('data-lead-id');
+    const leadName = row.getAttribute('data-lead-name') || 'Lead';
+    const leadPhone = row.getAttribute('data-lead-phone') || '';
+    const detailUrl = row.getAttribute('data-detail-url') || ('/leads/' + leadId + '/');
+
+    activeLeadPk = leadId;
+    if (activeRow) activeRow.classList.remove('active-selected-row');
+    activeRow = row;
+    activeRow.classList.add('active-selected-row');
+
+    const mbName = document.getElementById('mbLeadName');
+    const mbPhone = document.getElementById('mbLeadPhone');
+    const mbInput = document.getElementById('mbRemarkInput');
+    const mbWaBtn = document.getElementById('mbWaBtn');
+    const mbViewBtn = document.getElementById('mbViewBtn');
+    const microbar = document.getElementById('counselorMicrobar');
+
+    if (mbName) mbName.innerText = leadName;
+    if (mbPhone) mbPhone.innerText = leadPhone;
+    if (mbInput) {
+      mbInput.value = '';
+      mbInput.placeholder = 'Add remark for ' + leadName.split(' ')[0] + '...';
+    }
+    if (mbWaBtn) {
+      mbWaBtn.href = 'https://wa.me/91' + leadPhone.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hello ' + leadName);
+    }
+    if (mbViewBtn) {
+      mbViewBtn.href = detailUrl;
+    }
+
+    if (microbar) microbar.classList.add('visible');
+  });
+
+  // Save Quick Remark via AJAX
+  window.saveQuickRemark = function() {
+    if (!activeLeadPk) {
+      showInWindowAlert('Select Lead', 'Please click on a lead row first.', 'warning');
+      return;
+    }
+    const mbInput = document.getElementById('mbRemarkInput');
+    const mbSaveBtn = document.getElementById('mbSaveRemarkBtn');
+    const noteText = mbInput ? mbInput.value.trim() : '';
+    if (!noteText) {
+      if (mbInput) mbInput.focus();
+      return;
+    }
+
+    if (mbSaveBtn) {
+      mbSaveBtn.disabled = true;
+      mbSaveBtn.innerText = 'Saving...';
+    }
+
+    const formData = new FormData();
+    formData.append('note', noteText);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('/leads/' + activeLeadPk + '/add-note/', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => {
+      if (mbSaveBtn) {
+        mbSaveBtn.disabled = false;
+        mbSaveBtn.innerText = 'Saved!';
+      }
+      setTimeout(() => {
+        if (mbSaveBtn) mbSaveBtn.innerText = 'Save';
+        dismissCounselorMicrobar();
+      }, 700);
+    })
+    .catch(err => {
+      console.error(err);
+      if (mbSaveBtn) {
+        mbSaveBtn.disabled = false;
+        mbSaveBtn.innerText = 'Save';
+      }
+      showInWindowAlert('Error', 'Could not save remark.', 'error');
+    });
+  };
+
+  const mbInputElem = document.getElementById('mbRemarkInput');
+  if (mbInputElem) {
+    mbInputElem.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveQuickRemark();
+      }
+    });
+  }
+
+  // Follow-up modal handlers
+  window.openQuickFollowupModal = function() {
+    if (!activeLeadPk) {
+      showInWindowAlert('Select Lead', 'Please click on a lead row first.', 'warning');
+      return;
+    }
+    const mbName = document.getElementById('mbLeadName');
+    const modalEl = document.getElementById('quickFollowupModal');
+    if (modalEl) {
+      document.getElementById('qfuModalLeadName').innerText = mbName ? mbName.innerText : 'Lead';
+      document.getElementById('qfuLeadId').value = activeLeadPk;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const dateInp = document.getElementById('qfuDate');
+      if (dateInp) {
+        dateInp.value = todayStr;
+        dateInp.min = todayStr;
+      }
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
+  };
+
+  window.submitQuickFollowup = function(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const targetLeadPk = document.getElementById('qfuLeadId').value || activeLeadPk;
+    if (!targetLeadPk) return;
+
+    const fuDate = document.getElementById('qfuDate').value;
+    const fuTime = document.getElementById('qfuTime').value;
+    const fuStatus = document.getElementById('qfuStatus').value;
+    const comment = document.getElementById('qfuComment').value.trim();
+    const submitBtn = document.getElementById('qfuSubmitBtn');
+
+    if (!fuDate || !comment) {
+      showInWindowAlert('Required Fields', 'Follow-up Date and Remarks are required.', 'warning');
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving...';
+    }
+
+    const formData = new FormData();
+    formData.append('followup_date', fuDate);
+    formData.append('followup_time', fuTime);
+    formData.append('followup_status', fuStatus);
+    formData.append('comment', comment);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('/leads/' + targetLeadPk + '/add-followup/', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => {
+      const modalEl = document.getElementById('quickFollowupModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+      dismissCounselorMicrobar();
+      window.location.reload();
+    })
+    .catch(err => {
+      console.error(err);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Save Follow-up';
+      }
+      showInWindowAlert('Error', 'Could not schedule follow-up.', 'error');
+    });
+  };
 </script>
 {% endblock %}
