@@ -375,9 +375,9 @@
           </div>
 
           <!-- 1. Action Dropdown -->
-          <div style="min-width: 170px;">
+          <div style="min-width: 175px;">
             <div class="bulk-field-label">Action</div>
-            <select name="admin_bulk_action" id="adminBulkActionSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none" onchange="handleBulkActionChange()">
+            <select name="admin_bulk_action" id="adminBulkActionSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;" onchange="handleBulkActionChange()">
               <option value="">-- Select Action --</option>
               <option value="assign">Assign to...</option>
               <option value="stage">Change Stage to...</option>
@@ -388,11 +388,11 @@
           </div>
 
           <!-- 2. From Field Container -->
-          <div id="fromFieldContainer" class="d-none" style="min-width: 170px;">
+          <div id="fromFieldContainer" class="d-none" style="min-width: 175px;">
             <div class="bulk-field-label" id="fromFieldLabel">From</div>
             <!-- From User Select Wrapper -->
             <div id="fromUserWrapper" class="d-none">
-              <select name="from_user" id="fromUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+              <select name="from_user" id="fromUserSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">All / Any User</option>
                 <option value="unassigned">Unassigned / Open</option>
                 {% for e in employees %}
@@ -402,7 +402,7 @@
             </div>
             <!-- From Stage Select Wrapper -->
             <div id="fromStageWrapper" class="d-none">
-              <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+              <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">All / Any Stage</option>
                 {% for s in bulk_stages %}
                 <option value="{{ s.id }}">{{ s.name }}</option>
@@ -412,11 +412,11 @@
           </div>
 
           <!-- 3. To Field Container -->
-          <div id="toFieldContainer" class="d-none" style="min-width: 170px;">
+          <div id="toFieldContainer" class="d-none" style="min-width: 175px;">
             <div class="bulk-field-label" id="toFieldLabel">To</div>
             <!-- To User Select Wrapper -->
             <div id="toUserWrapper" class="d-none">
-              <select name="assign_to" id="toUserSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+              <select name="assign_to" id="toUserSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">-- Select Assignee --</option>
                 {% for e in employees %}
                 <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
@@ -425,7 +425,7 @@
             </div>
             <!-- To Stage Select Wrapper -->
             <div id="toStageWrapper" class="d-none">
-              <select name="stage" id="toStageSelect" class="form-select form-select-sm border-secondary-subtle bg-light shadow-none">
+              <select name="stage" id="toStageSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">-- Select Target Stage --</option>
                 {% for s in bulk_stages %}
                 <option value="{{ s.id }}">{{ s.name }}</option>

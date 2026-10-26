@@ -612,13 +612,13 @@
       </div>
 
       <!-- 1. Action Dropdown -->
-      <div style="min-width: 155px;">
-        <label class="form-label fw-bold text-uppercase mb-0 d-block" style="font-size: 0.62rem; letter-spacing: 0.5px; color: #052042;">Action</label>
+      <div style="min-width: 175px;">
+        <label class="form-label fw-bold text-uppercase mb-0.5 d-block" style="font-size: 0.65rem; letter-spacing: 0.5px; color: #475569;">Action</label>
         <select name="admin_bulk_action" id="adminBulkActionSelect"
-          class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
-          style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;"
+          class="form-select form-select-sm no-tom-select shadow-none"
+          style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;"
           onchange="handleBulkActionChange()">
-          <option value="">Select Action</option>
+          <option value="">-- Select Action --</option>
           <option value="assign">Assign to...</option>
           <option value="stage">Change Stage to...</option>
           {% if user.is_superuser or user.role == 'SUPER_ADMIN' or user.business and user.role == 'MANAGER' %}
@@ -628,11 +628,11 @@
       </div>
 
       <!-- 2. From Field Container -->
-      <div id="fromFieldContainer" class="d-none" style="min-width: 155px;">
-        <label class="form-label fw-bold text-uppercase mb-0 d-block" style="font-size: 0.62rem; letter-spacing: 0.5px; color: #052042;"><span id="fromFieldLabel">From</span></label>
+      <div id="fromFieldContainer" class="d-none" style="min-width: 175px;">
+        <label class="form-label fw-bold text-uppercase mb-0.5 d-block" style="font-size: 0.65rem; letter-spacing: 0.5px; color: #475569;"><span id="fromFieldLabel">From</span></label>
         <div id="fromUserWrapper" class="d-none">
-          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
-            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
+          <select name="from_user" id="fromUserSelect" class="form-select form-select-sm no-tom-select shadow-none"
+            style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;">
             <option value="">All / Any User</option>
             <option value="unassigned">Unassigned / Open</option>
             {% for e in employees %}
@@ -641,8 +641,8 @@
           </select>
         </div>
         <div id="fromStageWrapper" class="d-none">
-          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
-            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
+          <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm no-tom-select shadow-none"
+            style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;">
             <option value="">All / Any Stage</option>
             {% for s in bulk_stages %}
             <option value="{{ s.id }}">{{ s.name }}</option>
@@ -652,21 +652,21 @@
       </div>
 
       <!-- 3. To Field Container -->
-      <div id="toFieldContainer" class="d-none" style="min-width: 155px;">
-        <label class="form-label fw-bold text-uppercase mb-0 d-block" style="font-size: 0.62rem; letter-spacing: 0.5px; color: #052042;"><span id="toFieldLabel">To</span></label>
+      <div id="toFieldContainer" class="d-none" style="min-width: 175px;">
+        <label class="form-label fw-bold text-uppercase mb-0.5 d-block" style="font-size: 0.65rem; letter-spacing: 0.5px; color: #475569;"><span id="toFieldLabel">To</span></label>
         <div id="toUserWrapper" class="d-none">
-          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
-            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
-            <option value="">Select Assignee</option>
+          <select name="assign_to" id="toUserSelect" class="form-select form-select-sm no-tom-select shadow-none"
+            style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;">
+            <option value="">-- Select Assignee --</option>
             {% for e in employees %}
             <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
             {% endfor %}
           </select>
         </div>
         <div id="toStageWrapper" class="d-none">
-          <select name="stage" id="toStageSelect" class="form-select form-select-sm rounded-pill no-tom-select px-2.5 py-0.5"
-            style="border: 1px solid #cbd5e1 !important; height: 32px !important; font-size: 0.78rem !important;">
-            <option value="">Select Target Stage</option>
+          <select name="stage" id="toStageSelect" class="form-select form-select-sm no-tom-select shadow-none"
+            style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;">
+            <option value="">-- Select Target Stage --</option>
             {% for s in bulk_stages %}
             <option value="{{ s.id }}">{{ s.name }}</option>
             {% endfor %}
@@ -676,8 +676,8 @@
 
       <!-- Apply Button -->
       <div class="ms-auto pt-1 pt-md-0">
-        <button type="button" id="submitAdminBulkActionBtn" class="btn btn-primary rounded-pill px-3 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1.5"
-          style="font-size: 0.80rem; height: 32px; background-color: #052042 !important; border-color: #052042 !important;"
+        <button type="button" id="submitAdminBulkActionBtn" class="btn btn-primary px-3 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1.5"
+          style="font-size: 0.82rem; height: 35px; border-radius: 6px; background-color: #052042 !important; border-color: #052042 !important;"
           onclick="submitAdminBulkAction()">
           <i class="fa-solid fa-check-double"></i>
           <span>Apply to Selected</span>
