@@ -502,7 +502,7 @@ def campaign_dashboard(request):
     error = None
 
     if connection and connection.page_access_token:
-        campaigns = get_campaign_insights(connection.page_access_token, connection.ad_account_id, date_preset)
+        campaigns, error = get_campaign_insights(connection.page_access_token, connection.ad_account_id, date_preset)
         if campaigns:
             for c in campaigns:
                 MetaCampaignStat.objects.update_or_create(
@@ -542,6 +542,7 @@ def campaign_dashboard(request):
         total_leads = sum(c.get("leads_count", 0) for c in campaigns)
         total_clicks = sum(c.get("clicks", 0) for c in campaigns)
         total_impressions = sum(c.get("impressions", 0) for c in campaigns)
+
 
     # Lead Table Feed
     recent_channel_leads = active_channel_leads.select_related("stage", "assigned_to", "course", "lead_source", "hospital").order_by("-inquiry_date", "-id")[:60]
@@ -998,10 +999,11 @@ def academy_campaign_analytics(request):
 
 @login_required
 def academy_save_meta_credentials(request):
-    """Save or update Meta Ads credentials for the logged-in Academy."""
+    """Save or update Meta Ads credentials for the logged-in Academy with live verification."""
     from accounts.models import Hospital
     from django.contrib import messages
     from django.shortcuts import redirect
+    from .api import test_meta_connection
 
     if request.method != "POST":
         return redirect("meta_ads:academy_campaign_analytics")
@@ -1019,7 +1021,16 @@ def academy_save_meta_credentials(request):
         messages.error(request, "Ad Account ID and Access Token are required.")
         return redirect("meta_ads:academy_campaign_analytics")
 
-    # Update or create connection for this Academy
+    # 1. Live Verify Token & Ad Account with Meta API first
+    is_valid, validation_msg = test_meta_connection(page_access_token, ad_account_id)
+    if not is_valid:
+        messages.error(
+            request,
+            f"❌ Meta Connection Failed: {validation_msg}. Please ensure 'ads_read' & 'ads_management' permissions are granted to Ad Account {ad_account_id}."
+        )
+        return redirect("meta_ads:academy_campaign_analytics")
+
+    # 2. Update or create connection for this Academy
     connection, created = MetaAdsConnection.objects.update_or_create(
         hospital=target_biz,
         defaults={
@@ -1033,7 +1044,7 @@ def academy_save_meta_credentials(request):
     )
 
     action = "connected" if created else "updated"
-    messages.success(request, f"Meta Ads account successfully {action}! Click 'Sync Now' to pull live campaigns.")
+    messages.success(request, f"✅ Meta Ads account verified & {action}! ({validation_msg})")
     return redirect("meta_ads:academy_campaign_analytics")
 
 
@@ -1059,7 +1070,14 @@ def academy_sync_meta_now(request):
         return redirect("meta_ads:academy_campaign_analytics")
 
     date_preset = request.POST.get("date_preset", "last_30d")
-    campaigns = get_campaign_insights(connection.page_access_token, connection.ad_account_id, date_preset)
+    campaigns, error_msg = get_campaign_insights(connection.page_access_token, connection.ad_account_id, date_preset)
+
+    if error_msg:
+        messages.error(
+            request,
+            f"❌ Meta Sync Failed: {error_msg}. (Make sure your Meta System User has 'ads_read' access to Ad Account {connection.ad_account_id})."
+        )
+        return redirect(f"/meta-ads/academy/campaigns/?date_preset={date_preset}")
 
     count = 0
     for c in campaigns:
@@ -1096,5 +1114,6 @@ def academy_sync_meta_now(request):
     lead_msg = f" and imported {leads_imported} new lead(s)" if leads_imported else ""
     messages.success(request, f"Successfully synced {count} campaign(s){lead_msg} from Meta Ads!")
     return redirect(f"/meta-ads/academy/campaigns/?date_preset={date_preset}")
+
 
 

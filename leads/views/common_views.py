@@ -971,10 +971,26 @@ def lead_list(request):
     else:
         campaigns_qs = Campaign.objects.filter(is_active=True).order_by("name")
 
-    # Deduplicated unique stages
+    # Scoped Lead Stages based on current business tenant (Academy vs Hospital)
+    stages_filter_q = Q(is_active=True)
+    if target_hospital:
+        # Check if tenant is Hospital or Academy
+        t_industry = getattr(target_hospital, "industry", "") or ""
+        if t_industry == "HOSPITAL":
+            stages_filter_q &= (Q(hospital=target_hospital) | (Q(hospital__isnull=True) & Q(business_type=LeadStage.BusinessType.HOSPITAL)))
+        elif t_industry == "ACADEMY":
+            stages_filter_q &= (Q(hospital=target_hospital) | (Q(hospital__isnull=True) & Q(business_type=LeadStage.BusinessType.ACADEMY)))
+        else:
+            stages_filter_q &= (Q(hospital=target_hospital) | Q(hospital__isnull=True))
+    elif is_viewing_hospital:
+        stages_filter_q &= (Q(business_type=LeadStage.BusinessType.HOSPITAL) | Q(business_type=LeadStage.BusinessType.ALL))
+    else:
+        # Default Academy scope
+        stages_filter_q &= (Q(business_type=LeadStage.BusinessType.ACADEMY) | Q(business_type=LeadStage.BusinessType.ALL))
+
     seen_stg = set()
     stages_clean = []
-    for stg in LeadStage.objects.filter(is_active=True).order_by("order", "id"):
+    for stg in LeadStage.objects.filter(stages_filter_q).order_by("order", "id"):
         s_name = (stg.name or "").strip()
         if s_name and s_name.lower() not in seen_stg:
             seen_stg.add(s_name.lower())
@@ -4576,14 +4592,22 @@ def bulk_action(request):
             prev_stage = str(lead.stage or lead.deal_status)
             if target_stage:
                 lead.stage = target_stage
-                lead.save(update_fields=["stage", "updated_at"])
+                if target_stage.name.strip().lower() == "archive":
+                    lead.is_archived = True
+                    lead.save(update_fields=["stage", "is_archived", "updated_at"])
+                else:
+                    lead.save(update_fields=["stage", "updated_at"])
             else:
                 # Custom deal status / stage name
                 lead.deal_status = stage_id
                 if not lead.custom_data:
                     lead.custom_data = {}
                 lead.custom_data["deal_status"] = stage_id
-                lead.save(update_fields=["deal_status", "custom_data", "updated_at"])
+                if str(stage_id).strip().lower() == "archive":
+                    lead.is_archived = True
+                    lead.save(update_fields=["deal_status", "custom_data", "is_archived", "updated_at"])
+                else:
+                    lead.save(update_fields=["deal_status", "custom_data", "updated_at"])
             Activity.objects.create(
                 lead=lead,
                 created_by=request.user,
@@ -4597,11 +4621,12 @@ def bulk_action(request):
 
     elif action == "archive":
         if not _can_archive_lead(request.user):
-            messages.error(request, "Only Hospital Admins and Zappcode Super Admins can archive leads.")
+            messages.error(request, "Only Business Admins and Super Admins can archive leads.")
             return redirect("leads:lead_list")
         leads.update(is_archived=True)
-        messages.success(request, f"{leads.count()} lead(s) archived.")
+        messages.success(request, f"{leads.count()} lead(s) archived successfully.")
     return redirect("leads:lead_list")
+
 
 
 @login_required
@@ -4616,8 +4641,14 @@ def archived_leads(request):
 
     business = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
     is_global_admin = request.user.is_superuser or (
-        request.user.role == User.Role.SUPER_ADMIN and not business
+        request.user.role == User.Role.SUPER_ADMIN and not getattr(request.user, "hospital", None)
     )
+
+    req_biz_id = request.GET.get("business", "").strip() or str(request.session.get("active_business_id", "")).strip()
+    if is_global_admin and req_biz_id and req_biz_id.isdigit():
+        target_biz = Hospital.objects.filter(id=int(req_biz_id), is_active=True).first()
+        if target_biz:
+            business = target_biz
 
     leads_qs = Lead.objects.filter(is_archived=True).select_related(
         "hospital", "assigned_to", "stage", "campaign"
@@ -4628,6 +4659,7 @@ def archived_leads(request):
         current_business = business
     else:
         current_business = None
+
 
     q = request.GET.get("q", "").strip()
     if q:

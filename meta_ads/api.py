@@ -141,18 +141,54 @@ def fetch_all_form_leads(access_token, page_id, limit_per_form=100):
     return leads
 
 
-def get_campaign_insights(access_token, ad_account_id, date_preset="last_30d"):
-    """Fetch campaign-level insights from Meta Ads API."""
+def test_meta_connection(access_token, ad_account_id):
+    """
+    Validate the Meta Access Token and Ad Account permissions.
+    Returns (success: bool, message: str)
+    """
+    clean_acc_id = str(ad_account_id).strip().replace("act_", "")
     try:
-        url = f"{META_GRAPH_URL}/act_{ad_account_id}/insights"
+        url = f"{META_GRAPH_URL}/act_{clean_acc_id}"
+        resp = requests.get(
+            url,
+            params={
+                "access_token": access_token,
+                "fields": "id,name,account_status,currency,timezone_name",
+            },
+            timeout=10,
+        )
+        data = resp.json()
+        if resp.status_code != 200 or "error" in data:
+            err_msg = data.get("error", {}).get("message", "Unknown Meta error.")
+            code = data.get("error", {}).get("code", resp.status_code)
+            return False, f"Meta API Error ({code}): {err_msg}"
+        return True, f"Connected to {data.get('name', 'Ad Account')} (ID: {clean_acc_id})"
+    except Exception as e:
+        return False, f"Network or connection error: {str(e)}"
+
+
+def get_campaign_insights(access_token, ad_account_id, date_preset="last_30d"):
+    """
+    Fetch campaign-level insights from Meta Ads API.
+    Returns (results_list, error_message_or_None)
+    """
+    clean_acc_id = str(ad_account_id).strip().replace("act_", "")
+    try:
+        url = f"{META_GRAPH_URL}/act_{clean_acc_id}/insights"
         resp = requests.get(url, params={
             "access_token": access_token,
             "level": "campaign",
             "date_preset": date_preset,
             "fields": "campaign_id,campaign_name,spend,impressions,clicks,reach,actions",
         }, timeout=15)
-        resp.raise_for_status()
         data = resp.json()
+
+        if resp.status_code != 200 or "error" in data:
+            err = data.get("error", {})
+            err_msg = err.get("message", "Permission or Account error from Meta.")
+            logger.error(f"Meta Insights API error: {resp.status_code} - {err_msg}")
+            return [], err_msg
+
         results = []
         for row in data.get("data", []):
             leads_count = 0
@@ -176,7 +212,8 @@ def get_campaign_insights(access_token, ad_account_id, date_preset="last_30d"):
                 "cpc": round(spend / clicks, 2) if clicks else 0,
                 "ctr": round((clicks / impressions) * 100, 2) if impressions else 0,
             })
-        return results
+        return results, None
     except Exception as e:
-        logger.error(f"Meta Insights API error: {e}")
-        return []
+        logger.error(f"Meta Insights API exception: {e}")
+        return [], str(e)
+
