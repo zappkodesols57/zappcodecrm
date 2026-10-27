@@ -739,6 +739,17 @@ def academy_admin_home(request):
     course_labels = [c.name for c in courses_stat]
     course_counts = [c.cnt for c in courses_stat]
 
+    # Campaign vs Leads Count (Strictly filtered leads)
+    campaign_counts_map = {}
+    for l_item in leads.values("campaign__name", "custom_data"):
+        c_name = l_item.get("campaign__name") or (l_item.get("custom_data") or {}).get("campaign") or "Direct / General"
+        c_name = str(c_name).strip()
+        if c_name:
+            campaign_counts_map[c_name] = campaign_counts_map.get(c_name, 0) + 1
+    sorted_campaigns = sorted(campaign_counts_map.items(), key=lambda x: x[1], reverse=True)[:10]
+    campaign_labels = [item[0] for item in sorted_campaigns]
+    campaign_counts = [item[1] for item in sorted_campaigns]
+
     # Monthly Trend (Inquiry Date-based)
     # If a specific date range is filtered, show trend across that range; otherwise show monthly trend across recent months
     from collections import defaultdict
@@ -962,6 +973,7 @@ def academy_admin_home(request):
             "funnel": {"labels": funnel_labels, "counts": funnel_counts},
             "trend": {"labels": trend_labels, "counts": trend_counts},
             "course": {"labels": course_labels, "counts": course_counts},
+            "campaign": {"labels": campaign_labels, "counts": campaign_counts},
         }),
         "source_categories": SourceCategory.objects.all(),
         "lead_sources": lead_sources,
