@@ -405,8 +405,7 @@
 <div class="stats-kpi-grid mb-4">
 
   <!-- 1. Total Leads -->
-  <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}"
-    class="stat-card c-leads text-decoration-none shadow-sm position-relative">
+  <div class="stat-card c-leads shadow-sm position-relative">
     <div class="stat-header mb-1">
       <div class="w-100">
         <div class="stat-title d-flex align-items-center justify-content-between">
@@ -418,11 +417,10 @@
     <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
       <span>All Inquiries</span>
     </div>
-  </a>
+  </div>
 
   <!-- 2. Uncontacted Leads -->
-  <a href="{% url 'leads:lead_list' %}?{{ request.GET.urlencode }}&temperature=UNCONTACTED"
-    class="stat-card c-callnotdone text-decoration-none shadow-sm position-relative">
+  <div class="stat-card c-callnotdone shadow-sm position-relative">
     <div class="stat-header mb-1">
       <div class="w-100">
         <div class="stat-title d-flex align-items-center justify-content-between">
@@ -434,7 +432,7 @@
     <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
       <span>Untouched Leads</span>
     </div>
-  </a>
+  </div>
 
   <!-- 3. Contacted Leads -->
   <div class="stat-card c-appo shadow-sm position-relative">
@@ -467,7 +465,7 @@
   </div>
 
   <!-- 5. Overdue Follow-ups -->
-  <a href="{% url 'followups:overdue' %}" class="stat-card c-followup text-decoration-none shadow-sm position-relative">
+  <div class="stat-card c-followup shadow-sm position-relative">
     <div class="stat-header mb-1">
       <div class="w-100">
         <div class="stat-title d-flex align-items-center justify-content-between">
@@ -479,7 +477,7 @@
     <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
       <span>Pending Action</span>
     </div>
-  </a>
+  </div>
 
 </div>
 
