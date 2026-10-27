@@ -934,6 +934,18 @@ class Lead(models.Model):
         """
         st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
         if not self.is_hospital_industry:
+            adm_st = str(self.admission_status or "").strip().upper()
+            cd = self.custom_data or {}
+            cd_ds = str(cd.get("deal_status") or "").strip().upper()
+            # If lead is marked Lost or Freeze (meets 3 negative + 3 completed followups rule)
+            if (
+                self.deal_status == DealStatus.LOST
+                or adm_st in ("LOST", "CANCELLED", "DROPOUT")
+                or cd_ds in ("LOST", "CANCELLED")
+                or st_name.lower() in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+                or self.custom_temperature == "Freeze"
+            ):
+                return "Lost"
             return st_name or "New"
 
         cd = self.custom_data or {}
@@ -947,14 +959,13 @@ class Lead(models.Model):
         if "DOCTOR CANCELLED" in appt_st or "DOCTOR REJECT" in appt_st or st_name == "appointment cancelled" or "APPOINTMENT CANCELLED" in st_up:
             return "Appointment Cancelled"
 
-        # Check Lost / Cancelled:
-        # If custom_temperature is Freeze (e.g. 3 negative remarks) or explicit lost/cancelled
+        # Check Lost / Cancelled -> Maintain one single unified stage: 'Lost'
         temp_val = self.custom_temperature
         if temp_val == "Freeze":
             return "Lost"
 
         if adm_st in ("LOST", "CANCELLED") or (("CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up) and st_name != "appointment cancelled") or "LOST" in appt_st or ("CANCEL" in appt_st and "DOCTOR" not in appt_st):
-            return "Cancelled" if ("CANCEL" in st_up or "CANCEL" in appt_st or adm_st == "CANCELLED") else "Lost"
+            return "Lost"
 
         if tot > 0 or "PAYMENT" in raw_ds or "PAYMENT" in appt_st or "PAYMENT" in st_up or (st_up == "PAYMENT" and cd.get("payment_status") == "Done"):
             return "Payment Done"
@@ -1075,6 +1086,21 @@ class Lead(models.Model):
                     current_level = max(0, current_level - 1)
                 elif is_pos:
                     current_level = min(3, current_level + 1)
+
+            # Rule: Freeze ONLY if at least 3 completed follow-ups exist; otherwise keep actionable at Cold
+            if current_level == 0:
+                completed_fu_count = 0
+                if self.pk:
+                    if hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
+                        completed_fu_count = sum(1 for fu in self.followups.all() if fu.followup_status in ('COMPLETED', 'DONE'))
+                    else:
+                        try:
+                            from followups.models import FollowUpStatus
+                            completed_fu_count = self.followups.filter(followup_status__in=[FollowUpStatus.COMPLETED, 'DONE']).count()
+                        except Exception:
+                            completed_fu_count = 0
+                if completed_fu_count < 3:
+                    current_level = 1  # Cold
 
             # 3. Visit Planned / Visited / Admission Pending -> Min Warm (level 2)
             if st_name in ("visit planned", "visited", "admission pending", "payment pending"):
@@ -1207,11 +1233,25 @@ class Lead(models.Model):
         current_level = base_level
         min_level = 0
 
+        # Rule: Freeze ONLY if at least 3 completed follow-ups exist; otherwise keep actionable: Cold
+        completed_fu_count = 0
+        if self.pk:
+            if hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
+                completed_fu_count = sum(1 for fu in self.followups.all() if fu.followup_status in ('COMPLETED', 'DONE'))
+            else:
+                try:
+                    from followups.models import FollowUpStatus
+                    completed_fu_count = self.followups.filter(followup_status__in=[FollowUpStatus.COMPLETED, 'DONE']).count()
+                except Exception:
+                    completed_fu_count = 0
+
         # Check explicit 3 remarks first
         r1, r2, r3 = cd.get("remark_1"), cd.get("remark_2"), cd.get("remark_3")
         if is_clean_val(r1) and is_clean_val(r2) and is_clean_val(r3):
             if matches_any(r1, neg_keywords) and matches_any(r2, neg_keywords) and matches_any(r3, neg_keywords):
-                return "Freeze"
+                if completed_fu_count >= 3:
+                    return "Freeze"
+                return "Cold"
 
         neg_count = 0
         pos_count = 0
@@ -1229,9 +1269,11 @@ class Lead(models.Model):
                 else:
                     pos_count += 1
 
-        # User Rule for Hospital: Freeze ONLY if 3 negative remarks exist and no positive interactions
+        # User Rule: Freeze ONLY if 3 negative remarks exist and no positive interactions AND >= 3 completed followups
         if neg_count >= 3 and pos_count == 0:
-            return "Freeze"
+            if completed_fu_count >= 3:
+                return "Freeze"
+            return "Cold"
 
         # If 1 or 2 negative remarks exist, keep actionable: Cold
         if neg_count > 0 and pos_count == 0:
@@ -1624,15 +1666,30 @@ class Lead(models.Model):
             # =================================================================
             # ACADEMY / EDUCATION SPECIFIC LIFECYCLE RESOLUTION
             # =================================================================
-            # 1. Lost / Cancelled
-            if (
+            # 1. Lost / Cancelled (Manual or Automatic Freeze)
+            is_manual_lost = (
                 adm_st in ("LOST", "CANCELLED", "DROPOUT")
                 or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+                or self.deal_status == DealStatus.LOST
                 or cd_ds in ("lost", "cancelled")
-            ):
+            )
+            # Automatic Freeze (e.g. 3 negative remarks + 3 completed followups)
+            is_auto_freeze = (self.temperature == LeadTemperature.FREEZE or self.custom_temperature == "Freeze")
+
+            if is_manual_lost or is_auto_freeze:
                 self.deal_status = DealStatus.LOST
                 self.temperature = LeadTemperature.FREEZE
                 cd["deal_status"] = "Lost"
+                if adm_st != "CANCELLED" and "cancel" not in st_name:
+                    self.admission_status = AdmissionStatus.LOST
+                else:
+                    self.admission_status = AdmissionStatus.CANCELLED
+
+                # Sync stage to 'Lost' if not already set to Lost/Cancelled stage
+                if not st_name or st_name not in ("lost", "cancelled", "not interested", "rejected", "closed lost", "dropped", "dropout"):
+                    lost_stage = LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
+                    if lost_stage:
+                        self.stage = lost_stage
 
             # 2. Payment Done -> Won (HOT)
             elif (
@@ -1684,16 +1741,28 @@ class Lead(models.Model):
             # =================================================================
             # HOSPITAL CLINICAL PIPELINE (EXISTING LOGIC 100% PRESERVED)
             # =================================================================
-            # Condition 1: LOST
-            if not is_doc_cancelled and (
+            # Condition 1: LOST (Manual or Automatic Freeze)
+            is_manual_hosp_lost = not is_doc_cancelled and (
                 adm_st in ("LOST", "CANCELLED", "DROPOUT")
                 or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+                or self.deal_status == DealStatus.LOST
                 or "cancel" in cd_apt
                 or "not int" in cd_apt
                 or (cd_ds in ("lost", "cancelled") and adm_st not in ("OPEN", "HOLD", "WON"))
-            ):
+            )
+            is_auto_hosp_freeze = not is_doc_cancelled and (self.temperature == LeadTemperature.FREEZE or self.custom_temperature == "Freeze")
+
+            if is_manual_hosp_lost or is_auto_hosp_freeze:
                 self.deal_status = DealStatus.LOST
+                self.temperature = LeadTemperature.FREEZE
                 cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
+                if adm_st not in ("CANCELLED", "LOST"):
+                    self.admission_status = AdmissionStatus.LOST
+
+                if not st_name or st_name not in ("lost", "cancelled", "not interested", "rejected", "closed lost", "dropped", "dropout"):
+                    lost_stage = LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
+                    if lost_stage:
+                        self.stage = lost_stage
 
             # Condition 2: WON
             elif (
