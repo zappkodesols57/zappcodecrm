@@ -291,8 +291,7 @@
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Courses</option>
             {% for c in courses %}
-            <option value="{{ c.id }}" {% if request_get.course==c.id|stringformat:'s' or request_get.course==c.name
-              %}selected{% endif %}>{{ c.name }}</option>
+            <option value="{{ c.id }}" {% if request_get.course == c.id|stringformat:'s' or request_get.course == c.name %}selected{% endif %}>{{ c.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -304,7 +303,7 @@
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Trainers</option>
             {% for tr in trainers %}
-            <option value="{{ tr }}" {% if request_get.trainer==tr %}selected{% endif %}>{{ tr }}</option>
+            <option value="{{ tr }}" {% if request_get.trainer == tr %}selected{% endif %}>{{ tr }}</option>
             {% endfor %}
           </select>
         </div>
@@ -315,11 +314,9 @@
           <select name="counselor" class="form-select form-select-sm no-tom-select border"
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Counselors</option>
-            <option value="unassigned" {% if request_get.counselor=='unassigned' or
-              request_get.assigned_to=='unassigned' %}selected{% endif %}>Unassigned Staff</option>
+            <option value="unassigned" {% if request_get.counselor == 'unassigned' or request_get.assigned_to == 'unassigned' %}selected{% endif %}>Unassigned Staff</option>
             {% for emp in counselors %}
-            <option value="{{ emp.id }}" {% if request_get.counselor==emp.id|stringformat:'s' or
-              request_get.assigned_to==emp.id|stringformat:'s' %}selected{% endif %}>
+            <option value="{{ emp.id }}" {% if request_get.counselor == emp.id|stringformat:'s' or request_get.assigned_to == emp.id|stringformat:'s' %}selected{% endif %}>
               {{ emp.get_full_name|default:emp.username }}
             </option>
             {% endfor %}
@@ -333,8 +330,7 @@
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Stages</option>
             {% for s in stages %}
-            <option value="{{ s.id }}" {% if request_get.stage==s.id|stringformat:'s' or request_get.stage==s.name
-              %}selected{% endif %}>{{ s.name }}</option>
+            <option value="{{ s.id }}" {% if request_get.stage == s.id|stringformat:'s' or request_get.stage == s.name %}selected{% endif %}>{{ s.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -346,8 +342,7 @@
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Statuses</option>
             {% for st_val, st_lbl in status_choices %}
-            <option value="{{ st_val }}" {% if request_get.status==st_val or request_get.admission_status==st_val or
-              request_get.deal_status==st_val %}selected{% endif %}>{{ st_lbl }}</option>
+            <option value="{{ st_val }}" {% if request_get.status == st_val or request_get.admission_status == st_val or request_get.deal_status == st_val %}selected{% endif %}>{{ st_lbl }}</option>
             {% endfor %}
           </select>
         </div>
@@ -359,9 +354,7 @@
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Sources</option>
             {% for src in lead_sources %}
-            <option value="{{ src.id }}" {% if request_get.lead_source==src.id|stringformat:'s' or
-              request_get.source==src.id|stringformat:'s' or request_get.lead_source==src.name %}selected{% endif %}>{{
-              src.name }}</option>
+            <option value="{{ src.id }}" {% if request_get.lead_source == src.id|stringformat:'s' or request_get.source == src.id|stringformat:'s' or request_get.lead_source == src.name %}selected{% endif %}>{{ src.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -373,8 +366,7 @@
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Campaigns</option>
             {% for cmp in campaigns %}
-            <option value="{{ cmp.id }}" {% if request_get.campaign==cmp.id|stringformat:'s' or
-              request_get.campaign==cmp.name %}selected{% endif %}>{{ cmp.name }}</option>
+            <option value="{{ cmp.id }}" {% if request_get.campaign == cmp.id|stringformat:'s' or request_get.campaign == cmp.name %}selected{% endif %}>{{ cmp.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -722,8 +714,7 @@
             </span>
           </td>
           <td>
-            {% if lead.admission_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.deal_status ==
-            'WON' %}
+            {% if lead.admission_status == 'WON' or lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' %}
             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
               <i class="fa-solid fa-check me-1"></i>Won / Enrolled
             </span>
@@ -744,8 +735,7 @@
           <td>
             <div class="small fw-medium text-dark">{{ lead.lead_source.name|default:"Direct" }}</div>
             {% if lead.campaign %}
-            <div class="text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-bullseye me-1"></i>{{
-              lead.campaign.name|truncatechars:22 }}</div>
+            <div class="text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-bullseye me-1"></i>{{ lead.campaign.name|truncatechars:22 }}</div>
             {% endif %}
           </td>
           <td class="text-end pe-3" onclick="event.stopPropagation();">
@@ -791,10 +781,10 @@
       {% for p_num in filtered_leads.paginator.page_range %}
       {% if p_num == filtered_leads.number %}
       <li class="page-item active"><span class="page-link bg-brand border-0">{{ p_num }}</span></li>
-      {% elif p_num > filtered_leads.number|add:"-3" and p_num < filtered_leads.number|add:"3" %} <li class="page-item">
-        <a class="page-link text-dark" href="?{{ request_get.urlencode }}&page={{ p_num }}">{{ p_num }}</a></li>
-        {% endif %}
-        {% endfor %}
+      {% elif p_num > filtered_leads.number|add:"-3" and p_num < filtered_leads.number|add:"3" %}
+      <li class="page-item"><a class="page-link text-dark" href="?{{ request_get.urlencode }}&page={{ p_num }}">{{ p_num }}</a></li>
+      {% endif %}
+      {% endfor %}
 
         {% if filtered_leads.has_next %}
         <li class="page-item">
