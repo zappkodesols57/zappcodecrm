@@ -530,7 +530,7 @@
                   </span>
                 </td>
                 <td><span class="small text-muted">{{ lead.lead_source|default:"—" }}</span></td>
-                <td><span class="badge badge-stage">{{ lead.stage }}</span></td>
+                <td><span class="badge badge-stage">{{ lead.display_stage|default:lead.stage }}</span></td>
                 <td>
                   {% if lead.admission_status == 'ADMISSION_DONE' or lead.deal_status == 'WON' %}
                   <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">

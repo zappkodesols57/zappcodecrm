@@ -47,10 +47,33 @@ def _followup_activity(sender, instance, created, **kwargs):
         update_kwargs["temperature"] = new_temp
 
     # Industry-specific follow-up stage progression
-    if lead.is_academy_industry:
+    st_name = (lead.stage.name if lead.stage else "").strip().lower()
+    adm_st = str(lead.admission_status or "").strip().upper()
+    cd = lead.custom_data or {}
+    cd_ds = str(cd.get("deal_status") or "").strip().lower()
+
+    is_manual_lost = (
+        adm_st in ("LOST", "CANCELLED", "DROPOUT")
+        or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+        or lead.deal_status == DealStatus.LOST
+        or cd_ds in ("lost", "cancelled")
+    )
+
+    if is_manual_lost or new_temp == "FREEZE":
+        lost_stage = LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
+        if lost_stage and st_name not in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout"):
+            lead.stage = lost_stage
+            update_kwargs["stage"] = lost_stage
+        lead.deal_status = DealStatus.LOST
+        update_kwargs["deal_status"] = DealStatus.LOST
+        if adm_st not in ("CANCELLED", "LOST"):
+            from leads.models import AdmissionStatus
+            lead.admission_status = AdmissionStatus.LOST
+            update_kwargs["admission_status"] = AdmissionStatus.LOST
+
+    elif lead.is_academy_industry:
         if instance.followup_status == 'COMPLETED':
             adm = getattr(lead, "admission", None)
-            cd = lead.custom_data or {}
             pending_amt = None
             if adm:
                 pending_amt = float(adm.pending)

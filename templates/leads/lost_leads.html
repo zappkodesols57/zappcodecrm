@@ -23,11 +23,10 @@
     <table class="table table-hover align-middle mb-0" style="min-width: 1250px; font-size: 0.86rem;">
       <thead class="bg-light border-bottom">
         <tr>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">Patient Name</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">{% if is_hospital_business %}Patient Name{% else %}Student / Lead Name{% endif %}</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Contact / Location</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Source / Campaign</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Stage</th>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Status</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Deal Status</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Inquiry Date/Time</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Last Update / Last Remark</th>
@@ -39,7 +38,7 @@
         {% for lead in page_obj %}
         <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
           
-          <!-- 1. Patient Name -->
+          <!-- 1. Patient / Student Name -->
           <td class="px-3">
             <strong class="text-dark d-block">{{ lead.name }}</strong>
             {% if lead.gender or lead.age %}
@@ -74,20 +73,15 @@
           <!-- 4. Stage -->
           <td class="px-3">
             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1 font-monospace" style="font-size: 0.74rem;">
-              {{ lead.stage|default:"Lost / Cancelled" }}
+              {{ lead.display_stage|default:lead.stage|default:"Lost" }}
             </span>
           </td>
 
-          <!-- 5. Status -->
+          <!-- 5. Deal Status -->
           <td class="px-3">
             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2 py-1">
-              <i class="fa-solid fa-ban me-1"></i>{{ lead.display_status|default:"Lost" }}
+              <i class="fa-solid fa-ban me-1"></i>{{ lead.get_deal_status_display|default:lead.deal_status|default:"Lost" }}
             </span>
-          </td>
-
-          <!-- 6. Deal Status -->
-          <td class="px-3">
-            <span class="small fw-semibold text-danger">{{ lead.get_deal_status_display|default:lead.deal_status|default:"LOST" }}</span>
           </td>
 
           <!-- 7. Inquiry Date / Time -->
