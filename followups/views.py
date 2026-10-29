@@ -75,18 +75,18 @@ def _board(request, leads, active, title, date_info=None):
     if is_hospital_business:
         team_members = User.objects.filter(
             is_active=True, is_approved=True,
-            hospital=hospital,
+            hospital=business,
             role__in=[User.Role.LEAD_ATTENDENT, User.Role.DOCTOR, User.Role.MANAGER, User.Role.ADMIN]
-        ).order_by("first_name", "last_name", "username") if hospital else User.objects.none()
+        ).order_by("first_name", "last_name", "username") if business else User.objects.none()
         courses = Course.objects.none()
-        stages = LeadStage.objects.filter(is_active=True).filter(Q(hospital=hospital) | Q(business_type=LeadStage.BusinessType.HOSPITAL)).order_by("order", "name")
+        stages = LeadStage.objects.filter(is_active=True).filter(Q(hospital=business) | Q(business_type=LeadStage.BusinessType.HOSPITAL)).order_by("order", "name")
     else:
         team_members = User.objects.filter(
             is_active=True, is_approved=True,
-            hospital=hospital,
+            hospital=business,
             role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
-        ).order_by("first_name", "username") if hospital else User.objects.filter(is_active=True, role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]).order_by("first_name")
-        courses = Course.objects.filter(is_active=True, hospital=hospital).order_by("name") if hospital else Course.objects.filter(is_active=True).order_by("name")
+        ).order_by("first_name", "username") if business else User.objects.filter(is_active=True, role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]).order_by("first_name")
+        courses = Course.objects.filter(is_active=True, hospital=business).order_by("name") if business else Course.objects.filter(is_active=True).order_by("name")
         stages = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.ACADEMY).order_by("order", "name")
 
     # Apply dropdown filters

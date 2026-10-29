@@ -1519,171 +1519,165 @@ def history(request):
 @login_required
 def export_leads(request):
     from django.utils import timezone
-    from accounts.models import Hospital, User
-    from leads.models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage, MasterGroup
+    from accounts.models import Hospital as Business, User
+    from leads.models import Lead, SourceCategory, LeadSource, Campaign, Course, LeadStage
     from django.db.models import Q
     import pandas as pd
     import io
     import re
 
     user = request.user
-    # 1. Determine Effective Business & is_hospital scope
-    raw_biz = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
-    session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
-    selected_hospital_id = raw_biz or session_biz
-
-    effective_hospital = None
-    if user.hospital:
-        effective_hospital = user.hospital
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
-
-    is_hospital = False
-    if effective_hospital:
-        is_hospital = getattr(effective_hospital, "industry", None) == Hospital.Industry.HOSPITAL
-    else:
-        is_hospital = bool(user.industry == 'HOSPITAL')
-
-    is_download = request.GET.get("download") == "1"
-    is_preview = request.GET.get("preview") == "1"
     
+    # ── 1. Determine User Business (Multi-Tenant Isolation) ───────────────────
+    is_global_superadmin = bool(user.is_superuser or (user.role == User.Role.SUPER_ADMIN and not user.business_id))
+    
+    current_business = user.business
+    if is_global_superadmin:
+        raw_biz_id = request.GET.get('business', '').strip() or str(getattr(request, 'session', {}).get('active_business_id', '')).strip()
+        if raw_biz_id and raw_biz_id.isdigit():
+            current_business = Business.objects.filter(id=int(raw_biz_id), is_active=True).first()
+
+    # Determine business industry / type
+    is_hospital_business = False
+    if current_business:
+        is_hospital_business = (getattr(current_business, 'industry', None) == Business.Industry.HOSPITAL)
+    elif getattr(user, 'industry', '') == 'HOSPITAL':
+        is_hospital_business = True
+
+    is_download = request.GET.get('download') == '1'
+    is_preview = request.GET.get('preview') == '1'
+    
+    # ── 2. Populate Dropdowns strictly from current business leads ────────────
+    base_leads = Lead.objects.filter(is_archived=False)
+    if current_business:
+        base_leads = base_leads.filter(hospital=current_business)
+    elif not is_global_superadmin:
+        base_leads = base_leads.none()
+
     if not is_download and not is_preview:
-        base_leads = Lead.objects.filter(is_archived=False)
-        if effective_hospital:
-            base_leads = base_leads.filter(hospital=effective_hospital)
-        elif selected_hospital_id in ("none", "zappcode"):
-            base_leads = base_leads.filter(hospital__isnull=True)
-            
-        used_sc_ids = base_leads.values_list("source_category_id", flat=True).distinct()
-        used_stage_ids = base_leads.values_list("stage_id", flat=True).distinct()
-        used_emp_ids = base_leads.values_list("assigned_to_id", flat=True).distinct()
+        # Fetch dropdown options directly from current business leads
+        used_sc_ids = base_leads.values_list('source_category_id', flat=True).distinct()
+        used_stage_ids = base_leads.values_list('stage_id', flat=True).distinct()
+        used_emp_ids = base_leads.values_list('assigned_to_id', flat=True).distinct()
+        used_ls_ids = base_leads.values_list('lead_source_id', flat=True).distinct()
+        used_camp_ids = base_leads.values_list('campaign_id', flat=True).distinct()
         
         source_categories = SourceCategory.objects.filter(id__in=used_sc_ids)
-        stages = LeadStage.objects.filter(id__in=used_stage_ids)
-        employees = User.objects.filter(id__in=used_emp_ids)
-        
-        nelson_locations = []
-        nelson_campaigns = []
-        nelson_lead_sources = []
-        nelson_deal_statuses = []
-        
-        if is_hospital and effective_hospital:
-            def get_master(name):
-                grp = MasterGroup.objects.filter(name=name).first()
-                if grp:
-                    return grp.items.filter(hospital=effective_hospital, is_active=True).values_list("name", flat=True)
-                return []
-            nelson_locations = get_master("Locations")
-            nelson_campaigns = get_master("Campaigns")
-            nelson_lead_sources = get_master("Lead Sources")
-            nelson_deal_statuses = get_master("Deal Statuses")
-            
-            lead_sources = []
-            campaigns = []
-            distinct_cities = []
-        else:
-            used_ls_ids = base_leads.values_list("lead_source_id", flat=True).distinct()
-            used_camp_ids = base_leads.values_list("campaign_id", flat=True).distinct()
-            lead_sources = LeadSource.objects.filter(id__in=used_ls_ids)
-            campaigns = Campaign.objects.filter(id__in=used_camp_ids)
-            distinct_cities = sorted(list(set(base_leads.exclude(city="").values_list("city", flat=True))))
-        
-        # Only include courses if it's not a hospital tenant
-        courses = Course.objects.all() if not is_hospital else []
-        
+        stages = LeadStage.objects.filter(id__in=used_stage_ids).order_by('order', 'name')
+        employees = User.objects.filter(id__in=used_emp_ids).order_by('first_name', 'last_name', 'username')
+        lead_sources = LeadSource.objects.filter(id__in=used_ls_ids).order_by('name')
+        campaigns = Campaign.objects.filter(id__in=used_camp_ids).order_by('name')
+        courses = Course.objects.filter(hospital=current_business).order_by('name') if not is_hospital_business else []
+
+        # Distinct locations / cities present in this business leads
+        biz_locations = set(base_leads.exclude(location='').values_list('location', flat=True))
+        biz_cities = set(base_leads.exclude(city='').values_list('city', flat=True))
+        distinct_locations = sorted(list(biz_locations | biz_cities))
+
+        # Distinct deal statuses present in this business leads
+        db_deal_statuses = sorted(list(set(base_leads.exclude(deal_status='').values_list('deal_status', flat=True))))
+        if not db_deal_statuses:
+            db_deal_statuses = ['OPEN', 'WON', 'LOST', 'CONTACTED']
+
         context = {
-            "active": "export",
-            "source_categories": source_categories,
-            "lead_sources": lead_sources,
-            "campaigns": campaigns,
-            "courses": courses,
-            "stages": stages,
-            "employees": employees,
-            "cities": distinct_cities,
-            "is_hospital": is_hospital,
-            "nelson_locations": nelson_locations,
-            "nelson_campaigns": nelson_campaigns,
-            "nelson_lead_sources": nelson_lead_sources,
-            "nelson_deal_statuses": nelson_deal_statuses,
-            "effective_hospital": effective_hospital,
+            'active': 'export',
+            'source_categories': source_categories,
+            'lead_sources': lead_sources,
+            'campaigns': campaigns,
+            'courses': courses,
+            'stages': stages,
+            'employees': employees,
+            'cities': distinct_locations,
+            'is_hospital': is_hospital_business,
+            'nelson_locations': distinct_locations,
+            'nelson_campaigns': campaigns,
+            'nelson_lead_sources': lead_sources,
+            'nelson_deal_statuses': db_deal_statuses,
+            'effective_hospital': current_business,
+            'active_business': current_business,
         }
-        return render(request, "imports/export_leads_filter.html", context)
+        return render(request, 'imports/export_leads_filter.html', context)
 
-    from leads.views import FK_FILTER_FIELDS, CHAR_FILTER_FIELDS
-    leads = Lead.objects.select_related("course", "stage", "lead_source", "source_category", "assigned_to", "campaign", "hospital").filter(is_archived=False)
-    
-    if effective_hospital:
-        leads = leads.filter(hospital=effective_hospital)
-    elif selected_hospital_id in ("none", "zappcode"):
-        leads = leads.filter(hospital__isnull=True)
-        
-    q = request.GET.get("q", "").strip()
+    # ── 3. Apply Filters strictly within the user business ────────────────────
+    leads = base_leads.select_related(
+        'course', 'stage', 'lead_source', 'source_category', 'assigned_to', 'campaign', 'hospital'
+    )
+
+    # Search keyword
+    q = request.GET.get('q', '').strip()
     if q:
-        if is_hospital:
-            leads = leads.filter(
-                Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
-                | Q(email__icontains=q) | Q(location__icontains=q)
-                | Q(custom_data__lead_source__icontains=q) | Q(custom_data__campaign__icontains=q)
-            )
+        leads = leads.filter(
+            Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+            | Q(email__icontains=q) | Q(location__icontains=q) | Q(city__icontains=q)
+            | Q(course__name__icontains=q) | Q(lead_source__name__icontains=q)
+            | Q(campaign__name__icontains=q) | Q(custom_data__lead_source__icontains=q)
+            | Q(custom_data__campaign__icontains=q)
+        )
+
+    # Campaign filter
+    camp_val = request.GET.get('campaign', '').strip()
+    if camp_val:
+        if camp_val.isdigit():
+            leads = leads.filter(Q(campaign_id=int(camp_val)) | Q(custom_data__campaign__iexact=camp_val))
         else:
-            leads = leads.filter(
-                Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
-                | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
-                | Q(lead_source__name__icontains=q) | Q(campaign__name__icontains=q)
-            )
-        
-    for field in FK_FILTER_FIELDS:
-        val = request.GET.get(field)
-        if val:
-            if is_hospital and field in ['campaign', 'lead_source']:
-                leads = leads.filter(**{f"custom_data__{field}": val})
-            else:
-                leads = leads.filter(**{f"{field}_id": val})
+            leads = leads.filter(Q(campaign__name__iexact=camp_val) | Q(custom_data__campaign__iexact=camp_val))
 
-    for field in CHAR_FILTER_FIELDS:
-        val = request.GET.get(field)
-        if val:
-            leads = leads.filter(**{field: val})
+    # Lead Source filter
+    ls_val = request.GET.get('lead_source', '').strip()
+    if ls_val:
+        if ls_val.isdigit():
+            leads = leads.filter(Q(lead_source_id=int(ls_val)) | Q(custom_data__lead_source__iexact=ls_val))
+        else:
+            leads = leads.filter(Q(lead_source__name__iexact=ls_val) | Q(custom_data__lead_source__iexact=ls_val))
 
-    if is_hospital:
-        location = request.GET.get("location")
-        if location:
-            leads = leads.filter(location__iexact=location)
-            
-        deal_status = request.GET.get("deal_status")
-        if deal_status:
-            leads = leads.filter(custom_data__deal_status=deal_status)
-    else:
-        city = request.GET.get("city")
-        if city:
-            leads = leads.filter(city__iexact=city)
-        
-        deal_status = request.GET.get("deal_status")
-        if deal_status:
-            leads = leads.filter(deal_status=deal_status)
-            
-        admission_status = request.GET.get("admission_status")
-        if admission_status:
-            leads = leads.filter(admission_status=admission_status)
+    # Stage, Assigned To, Course, Source Category filters
+    for field in ['stage', 'assigned_to', 'course', 'source_category']:
+        val = request.GET.get(field, '').strip()
+        if val and val.isdigit():
+            leads = leads.filter(**{f"{field}_id": int(val)})
 
+    # Temperature filter
+    temp_val = request.GET.get('temperature', '').strip()
+    if temp_val:
+        leads = leads.filter(temperature__iexact=temp_val)
+
+    # Location / City filter
+    loc_val = request.GET.get('location', '').strip() or request.GET.get('city', '').strip()
+    if loc_val:
+        leads = leads.filter(
+            Q(location__iexact=loc_val) | Q(city__iexact=loc_val) | Q(custom_data__location__iexact=loc_val)
+        )
+
+    # Deal Status filter
+    deal_status_val = request.GET.get('deal_status', '').strip()
+    if deal_status_val:
+        leads = leads.filter(
+            Q(deal_status__iexact=deal_status_val) | Q(custom_data__deal_status__iexact=deal_status_val)
+        )
+
+    # Admission Status filter (for Academy businesses)
+    adm_val = request.GET.get('admission_status', '').strip()
+    if adm_val:
+        leads = leads.filter(admission_status__iexact=adm_val)
+
+    # Date range filters (Created Date & Inquiry Date)
     def _parse_date_input(val):
         if not val:
             return None
         from datetime import datetime
-        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+        for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y'):
             try:
                 return datetime.strptime(val.strip(), fmt).date()
             except ValueError:
                 continue
         return None
 
-    date_from = _parse_date_input(request.GET.get("date_from"))
-    date_to = _parse_date_input(request.GET.get("date_to"))
+    date_from = _parse_date_input(request.GET.get('date_from'))
+    date_to = _parse_date_input(request.GET.get('date_to'))
     if date_from or date_to:
         from datetime import datetime, time
         tz = timezone.get_current_timezone()
         
-        # We match on either created_at datetime range or inquiry_date date range for maximum compatibility
         q_date = Q()
         if date_from:
             dt_from = timezone.make_aware(datetime.combine(date_from, time.min), tz)
@@ -1695,108 +1689,104 @@ def export_leads(request):
         leads = leads.filter(q_date)
 
     def build_row(l):
-        if is_hospital:
+        if is_hospital_business:
             cd = l.custom_data or {}
-            doc = cd.get("doctor") or ""
-            dept = cd.get("department") or ""
-            loc = cd.get("location") or l.city or l.location or ""
-            src = cd.get("lead_source") or (l.lead_source.name if l.lead_source else "")
-            camp = cd.get("campaign") or (l.campaign.name if l.campaign else "")
-            apt_st = cd.get("appointment_status") or l.display_status
+            doc = cd.get('doctor') or ''
+            dept = cd.get('department') or ''
+            loc = cd.get('location') or l.city or l.location or ''
+            src = cd.get('lead_source') or (l.lead_source.name if l.lead_source else '')
+            camp = cd.get('campaign') or (l.campaign.name if l.campaign else '')
+            apt_st = cd.get('appointment_status') or l.display_status
             
             return {
-                "Lead ID": l.lead_code,
-                "Patient Name": l.name,
-                "Mobile": l.mobile,
-                "Email": l.email,
-                "Location": loc,
-                "Doctor / Consultant": doc,
-                "Department": dept,
-                "Lead Source": src,
-                "Campaign": camp,
-                "Status": l.display_status,
-                "Appointment Status": apt_st,
-                "Temperature": l.get_temperature_display(),
-                "Inquiry Date": str(l.inquiry_date or ""),
-                "Assigned To": str(l.assigned_to.get_full_name() if l.assigned_to else (cd.get("lead_attendant") or "")),
-                "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
-                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
+                'Lead ID': l.lead_code,
+                'Patient Name': l.name,
+                'Mobile': l.mobile,
+                'Email': l.email,
+                'Location': loc,
+                'Doctor / Consultant': doc,
+                'Department': dept,
+                'Lead Source': src,
+                'Campaign': camp,
+                'Status': l.display_status,
+                'Appointment Status': apt_st,
+                'Temperature': l.get_temperature_display(),
+                'Inquiry Date': str(l.inquiry_date or ''),
+                'Assigned To': str(l.assigned_to.get_full_name() if l.assigned_to else (cd.get('lead_attendant') or '')),
+                'Next Follow-up': str(l.next_followup_date) if l.next_followup_date else '', 
+                'Created At': l.effective_created_formatted or (l.created_at.strftime('%Y-%m-%d %H:%M') if l.created_at else ''),
             }
         else:
             return {
-                "Lead ID": l.lead_code, "Name": l.name, "Mobile": l.mobile, "Email": l.email,
-                "City": l.city, "Course": str(l.course or ""),
-                "Lead Source": str(l.lead_source or ""), "Campaign": str(l.campaign or ""),
-                "Stage": str(l.stage), "Temperature": l.get_temperature_display(),
-                "Deal Status": l.get_deal_status_display(), "Admission Status": l.get_admission_status_display(),
-                "Inquiry Date": str(l.inquiry_date), "Assigned To": str(l.assigned_to or ""),
-                "Next Follow-up": str(l.next_followup_date) if l.next_followup_date else "", 
-                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
+                'Lead ID': l.lead_code, 'Name': l.name, 'Mobile': l.mobile, 'Email': l.email,
+                'City': l.city, 'Course': str(l.course or ''),
+                'Lead Source': str(l.lead_source or ''), 'Campaign': str(l.campaign or ''),
+                'Stage': str(l.stage), 'Temperature': l.get_temperature_display(),
+                'Deal Status': l.get_deal_status_display(), 'Admission Status': l.get_admission_status_display(),
+                'Inquiry Date': str(l.inquiry_date), 'Assigned To': str(l.assigned_to or ''),
+                'Next Follow-up': str(l.next_followup_date) if l.next_followup_date else '', 
+                'Created At': l.effective_created_formatted or (l.created_at.strftime('%Y-%m-%d %H:%M') if l.created_at else ''),
             }
 
     if is_preview:
         total_count = leads.count()
-        preview_leads = leads.order_by("-id")[:10]
+        preview_leads = leads.order_by('-id')[:10]
         rows = [build_row(l) for l in preview_leads]
-        return JsonResponse({"total_count": total_count, "rows": rows})
+        return JsonResponse({'total_count': total_count, 'rows': rows})
 
     # Download with Campaign-wise Multi-sheet Excel workbook
     rows = [build_row(l) for l in leads]
     df_all = pd.DataFrame(rows)
 
-    # Clean sheet name for Excel (max 31 chars, invalid chars removed)
     def clean_sheet_name(name):
-        cleaned = re.sub(r'[\/\\?*:[\]]', '_', str(name or 'Other')).strip()
-        return cleaned[:30] if cleaned else "Sheet"
+        cleaned = re.sub(r'[\\/\\?\\*:\\[\\]]', '_', str(name or 'Other')).strip()
+        return cleaned[:30] if cleaned else 'Sheet'
 
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
         if df_all.empty:
-            pd.DataFrame([{"Message": "No leads found for selected filters"}]).to_excel(writer, sheet_name="All Leads", index=False)
+            pd.DataFrame([{'Message': 'No leads found for selected filters'}]).to_excel(writer, sheet_name='All Leads', index=False)
         else:
-            # Sheet 1: All Leads
-            df_all.to_excel(writer, sheet_name="All Leads", index=False)
+            df_all.to_excel(writer, sheet_name='All Leads', index=False)
             
-            # Group leads by Campaign
             campaign_groups = {}
             for l in leads:
-                camp_name = ""
-                if is_hospital:
+                camp_name = ''
+                if is_hospital_business:
                     cd = l.custom_data or {}
-                    camp_name = cd.get("campaign") or (l.campaign.name if l.campaign else "Direct / Unassigned")
+                    camp_name = cd.get('campaign') or (l.campaign.name if l.campaign else 'Direct / Unassigned')
                 else:
-                    camp_name = l.campaign.name if l.campaign else "Direct / Unassigned"
+                    camp_name = l.campaign.name if l.campaign else 'Direct / Unassigned'
                 
-                camp_name = camp_name.strip() if camp_name else "Direct / Unassigned"
+                camp_name = camp_name.strip() if camp_name else 'Direct / Unassigned'
                 if camp_name not in campaign_groups:
                     campaign_groups[camp_name] = []
                 campaign_groups[camp_name].append(build_row(l))
 
-            used_sheet_names = {"all leads"}
+            used_sheet_names = {'all leads'}
             for camp_name, c_rows in campaign_groups.items():
                 if not c_rows:
                     continue
                 sheet_title = clean_sheet_name(camp_name)
-                # Ensure unique sheet names
                 base_title = sheet_title
                 counter = 1
                 while sheet_title.lower() in used_sheet_names:
                     sheet_title = f"{base_title[:26]}_{counter}"
                     counter += 1
+                pd.DataFrame(c_rows).to_excel(writer, sheet_name=sheet_title, index=False)
                 used_sheet_names.add(sheet_title.lower())
-                
-                df_camp = pd.DataFrame(c_rows)
-                df_camp.to_excel(writer, sheet_name=sheet_title, index=False)
 
     output.seek(0)
-    biz_suffix = f"_{effective_hospital.name.replace(' ', '_')}" if effective_hospital else ""
-    response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = f'attachment; filename="leads_export{biz_suffix}_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+    biz_name = current_business.name.replace(' ', '_') if current_business else 'All_Businesses'
+    today_str = timezone.localdate().strftime('%Y-%m-%d')
+    filename = f"Export_Leads_{biz_name}_{today_str}.xlsx"
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
-
-@login_required
-@user_passes_test(_can_user_access_import)
 def download_template(request):
     """
     Downloads entity-specific Lead Import Template:

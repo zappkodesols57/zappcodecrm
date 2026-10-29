@@ -120,7 +120,7 @@ def _ensure_business_core_fields(h):
             ('lead_source', 'Lead Source', 'DROPDOWN', 17, False, True, 'Select Source', 'Meta Ads, Google Ads, Direct Walk-in, College Visit, JustDial, Website Form, Referral, Student Referral'),
             ('campaign', 'Campaign', 'DROPDOWN', 18, False, True, 'Select Campaign', 'ZA Meta Campaign 2026, Summer Batch Campaign, Python Masters, B2B Zappkode'),
         ]
-    elif is_nelson:
+    elif is_healthcare:
         core_field_defs = [
             ('name', 'Patient Name', 'TEXT', 1, True, True, 'Enter full patient name', ''),
             ('mobile', 'Mobile Number', 'TEXT', 2, True, True, '10-digit mobile number', ''),
@@ -167,7 +167,7 @@ def _ensure_business_core_fields(h):
                 cf_camp.options = ", ".join(academy_camps)
                 cf_camp.save(update_fields=["options"])
 
-    elif is_nelson:
+    elif is_healthcare:
         cf_disease = LeadCustomField.objects.filter(hospital=h, name="disease").first()
         if cf_disease:
             dis_names = list(HospitalDisease.objects.filter(hospital=h, is_active=True).values_list("name", flat=True))

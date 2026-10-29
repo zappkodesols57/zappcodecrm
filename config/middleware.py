@@ -23,6 +23,10 @@ class CRMGlobalExceptionMiddleware:
         return self.get_response(request)
 
     def process_exception(self, request, exception):
+        from django.core.exceptions import PermissionDenied
+        from django.http import Http404
+        if isinstance(exception, (PermissionDenied, Http404)):
+            return None  # Let Django handle 403 / 404 standard handlers
         # 1. Log full exception with path, method, and authenticated user
         user_info = getattr(request, 'user', None)
         username = getattr(user_info, 'username', 'Anonymous')
