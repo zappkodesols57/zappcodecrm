@@ -41,7 +41,7 @@ def telecaller_home(request):
     today_str = today_date.strftime("%Y-%m-%d")
     today_alt_str = today_date.strftime("%d-%m-%Y")
     
-    hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False).select_related('hospital')
+    hospital_leads = Lead.objects.filter(hospital=user.business, is_archived=False).select_related('hospital')
 
     # CARD 1: Today's New Leads Count (Fresh unassigned leads OR leads assigned to this user today)
     todays_new_leads_count = hospital_leads.filter(
@@ -780,7 +780,8 @@ def telecaller_tab_data_api(request):
     Significantly improves performance and eliminates initial dashboard freeze.
     """
     from accounts.models import User
-    from leads.models import Lead, LeadTemperature, DealStatus, Appointment, AppointmentStatus, PaymentStatus
+    from leads.models import Lead, LeadTemperature, DealStatus, Appointment, AppointmentStatus
+    from payments.models import PaymentStatus
     from followups.models import FollowUp
     from datetime import date, datetime
     from django.db.models import Q, Sum
@@ -788,7 +789,7 @@ def telecaller_tab_data_api(request):
     from django.http import JsonResponse
     from django.template.loader import render_to_string
 
-    if not request.user.hospital:
+    if not request.user.business:
         return JsonResponse({"status": "error", "message": "Access Denied"}, status=403)
 
     user = request.user
@@ -796,7 +797,7 @@ def telecaller_tab_data_api(request):
     start_of_today = timezone.make_aware(datetime.combine(today_date, datetime.min.time()))
     end_of_today = timezone.make_aware(datetime.combine(today_date, datetime.max.time()))
     tab = request.GET.get('tab', '').strip()
-    hospital_leads = Lead.objects.filter(hospital=user.hospital, is_archived=False)
+    hospital_leads = Lead.objects.filter(hospital=user.business, is_archived=False)
 
     def safe_format_dt(dt):
         if not dt:

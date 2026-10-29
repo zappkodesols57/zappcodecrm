@@ -47,7 +47,7 @@ def management_home(request):
     if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         raise PermissionDenied("This dashboard is restricted to management accounts.")
 
-    if request.user.hospital is not None:
+    if request.user.business is not None:
         raise PermissionDenied("This dashboard is restricted to Zappcode management only.")
 
     today = timezone.localdate()

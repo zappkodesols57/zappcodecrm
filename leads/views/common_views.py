@@ -1761,9 +1761,9 @@ def team_history(request):
 
     # Upcoming Leaves count & Leaves list for selected doctor(s) or all doctors
     doc_leaves_qs = DoctorLeave.objects.filter(
-        hospital=hospital if hospital else None,
+        hospital=business,
         end_date__gte=today
-    ) if hospital else DoctorLeave.objects.filter(end_date__gte=today)
+    ) if business else DoctorLeave.objects.filter(end_date__gte=today)
 
     if selected_doctor_ids:
         doc_leaves_qs = doc_leaves_qs.filter(doctor_id__in=selected_doctor_ids)
@@ -1777,8 +1777,8 @@ def team_history(request):
 
     # Daily OPD Hours calculation from DoctorSchedule
     doc_schedules_qs = DoctorSchedule.objects.filter(
-        hospital=hospital if hospital else None
-    ) if hospital else DoctorSchedule.objects.all()
+        hospital=business
+    ) if business else DoctorSchedule.objects.all()
 
     if selected_doctor_ids:
         doc_schedules_qs = doc_schedules_qs.filter(doctor_id__in=selected_doctor_ids)
