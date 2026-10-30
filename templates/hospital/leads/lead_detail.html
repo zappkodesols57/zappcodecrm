@@ -856,11 +856,11 @@
                 <div class="col-12">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Patient Intent Level</label>
                   <select name="intent_level" class="form-select form-select-sm no-tom-select" style="font-size: 0.8rem;">
-                    <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>🟢 Highly Interested</option>
-                    <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>🟡 Moderate Interested</option>
-                    <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>🔵 Normal Interested</option>
-                    <option value="BELOW_AVERAGE" {% if lead.intent_level == 'BELOW_AVERAGE' %}selected{% endif %}>🟠 Below Average</option>
-                    <option value="NOT_INTERESTED" {% if lead.intent_level == 'NOT_INTERESTED' %}selected{% endif %}>🔴 Not Interested</option>
+                    <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>&#128994; Highly Interested</option>
+                    <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>&#128993; Moderate Interested</option>
+                    <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>&#128309; Normal Interested</option>
+                    <option value="BELOW_AVERAGE" {% if lead.intent_level == 'BELOW_AVERAGE' %}selected{% endif %}>&#128992; Below Average</option>
+                    <option value="NOT_INTERESTED" {% if lead.intent_level == 'NOT_INTERESTED' %}selected{% endif %}>&#128308; Not Interested</option>
                   </select>
                 </div>
               </div>
@@ -985,11 +985,11 @@
           <div class="mb-3">
             <label class="form-label small fw-semibold text-secondary text-uppercase" style="font-size: 0.72rem;">Update Patient Intent</label>
             <select name="intent_level" class="form-select form-select-sm no-tom-select">
-              <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>🟢 Highly Interested</option>
-              <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>🟡 Moderate Interested</option>
-              <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>🔵 Normal Interested</option>
-              <option value="BELOW_AVERAGE" {% if lead.intent_level == 'BELOW_AVERAGE' %}selected{% endif %}>🟠 Below Average</option>
-              <option value="NOT_INTERESTED" {% if lead.intent_level == 'NOT_INTERESTED' %}selected{% endif %}>🔴 Not Interested</option>
+              <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>&#128994; Highly Interested</option>
+              <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>&#128993; Moderate Interested</option>
+              <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>&#128309; Normal Interested</option>
+              <option value="BELOW_AVERAGE" {% if lead.intent_level == 'BELOW_AVERAGE' %}selected{% endif %}>&#128992; Below Average</option>
+              <option value="NOT_INTERESTED" {% if lead.intent_level == 'NOT_INTERESTED' %}selected{% endif %}>&#128308; Not Interested</option>
             </select>
           </div>
           <div class="mb-2">

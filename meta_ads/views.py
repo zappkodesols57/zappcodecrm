@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime, date, timedelta
 from django.conf import settings
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -892,7 +893,7 @@ def academy_campaign_analytics(request):
     avg_cpl = round(total_spend / effective_leads, 2) if effective_leads else 0
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 📊 Chart 1: Campaign-wise Leads & Budget
+    #  Chart 1: Campaign-wise Leads & Budget
     # ─────────────────────────────────────────────────────────────────────────
     from leads.models import Campaign
     import json
@@ -974,87 +975,147 @@ def academy_campaign_analytics(request):
         curr += timezone.timedelta(days=1)
         loop_count += 1
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # 🎯 Campaign Intent Analytics Matrix Calculation
+        # ─────────────────────────────────────────────────────────────────────────
+    #  Campaign Intent Analytics Matrix Calculation (High Performance & Fail-Safe)
     # ─────────────────────────────────────────────────────────────────────────
     from leads.models import LeadIntent
     campaign_intent_data = []
-    
-    # 1. Group leads by Campaign
-    # We collect all distinct campaigns from lead_qs (Campaign objects + custom_data campaign names)
-    camp_lead_map = {}
-    for l in lead_qs.select_related("campaign"):
-        c_name = ""
-        if l.campaign:
-            c_name = l.campaign.name
-        else:
-            c_name = (l.custom_data or {}).get("campaign") or (l.custom_data or {}).get("campaign_name") or "Direct / Organic"
-        
-        c_name = str(c_name).strip() if c_name else "Direct / Organic"
-        if c_name not in camp_lead_map:
-            camp_lead_map[c_name] = []
-        camp_lead_map[c_name].append(l)
-
-    for c_name, leads_in_camp in camp_lead_map.items():
-        total_c_leads = len(leads_in_camp)
-        if total_c_leads == 0:
-            continue
-        
-        highly_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.HIGHLY_INTERESTED.value)
-        moderate_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.MODERATE_INTERESTED.value)
-        normal_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.NORMAL_INTERESTED.value)
-        below_avg_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.BELOW_AVERAGE.value)
-        not_int_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.NOT_INTERESTED.value)
-
-        # Calculate percentages
-        highly_pct = round((highly_cnt / total_c_leads) * 100, 1)
-        moderate_pct = round((moderate_cnt / total_c_leads) * 100, 1)
-        normal_pct = round((normal_cnt / total_c_leads) * 100, 1)
-        below_avg_pct = round((below_avg_cnt / total_c_leads) * 100, 1)
-        not_int_pct = round((not_int_cnt / total_c_leads) * 100, 1)
-
-        # Quality Score / Rating (0 to 100)
-        # Highly=100, Moderate=75, Normal=50, BelowAvg=25, NotInt=0
-        weighted_score = (highly_cnt * 100 + moderate_cnt * 75 + normal_cnt * 50 + below_avg_cnt * 25) / total_c_leads
-        quality_score = round(weighted_score, 1)
-
-        campaign_intent_data.append({
-            "campaign_name": c_name,
-            "total_leads": total_c_leads,
-            "highly_interested": highly_cnt,
-            "highly_pct": highly_pct,
-            "moderate_interested": moderate_cnt,
-            "moderate_pct": moderate_pct,
-            "normal_interested": normal_cnt,
-            "normal_pct": normal_pct,
-            "below_average": below_avg_cnt,
-            "below_avg_pct": below_avg_pct,
-            "not_interested": not_int_cnt,
-            "not_int_pct": not_int_pct,
-            "quality_score": quality_score,
-        })
-
-    # Sort campaigns by total leads descending
-    campaign_intent_data.sort(key=lambda x: (x["total_leads"], x["quality_score"]), reverse=True)
-
-    # Calculate overall Intent totals for KPI bar
-    overall_total = len(lead_qs)
     overall_intent = {
-        "total": overall_total,
-        "highly": sum(c["highly_interested"] for c in campaign_intent_data),
-        "moderate": sum(c["moderate_interested"] for c in campaign_intent_data),
-        "normal": sum(c["normal_interested"] for c in campaign_intent_data),
-        "below_avg": sum(c["below_average"] for c in campaign_intent_data),
-        "not_int": sum(c["not_interested"] for c in campaign_intent_data),
+        "total": 0,
+        "highly": 0,
+        "moderate": 0,
+        "normal": 0,
+        "below_avg": 0,
+        "not_int": 0,
+        "highly_pct": 0,
+        "moderate_pct": 0,
+        "normal_pct": 0,
+        "below_avg_pct": 0,
+        "not_int_pct": 0,
     }
-    if overall_total > 0:
-        overall_intent["highly_pct"] = round((overall_intent["highly"] / overall_total) * 100, 1)
-        overall_intent["moderate_pct"] = round((overall_intent["moderate"] / overall_total) * 100, 1)
-        overall_intent["normal_pct"] = round((overall_intent["normal"] / overall_total) * 100, 1)
-        overall_intent["below_avg_pct"] = round((overall_intent["below_avg"] / overall_total) * 100, 1)
-        overall_intent["not_int_pct"] = round((overall_intent["not_int"] / overall_total) * 100, 1)
-    else:
-        overall_intent["highly_pct"] = overall_intent["moderate_pct"] = overall_intent["normal_pct"] = overall_intent["below_avg_pct"] = overall_intent["not_int_pct"] = 0
+
+    try:
+        eval_leads = list(lead_qs.select_related("campaign", "stage"))
+        camp_lead_map = {}
+
+        def resolve_intent_fast(l):
+            """Ultra-fast in-memory evaluation without triggering nested child DB queries."""
+            st_name = (l.stage.name if l.stage else "").strip().lower()
+            adm_st = str(l.admission_status or "").strip().upper()
+            cd = l.custom_data or {}
+            raw_ds = str(cd.get("deal_status") or "").strip().lower()
+            appt_st = str(cd.get("appointment_status") or "").strip().lower()
+
+            # 1. Lost Check
+            is_lost = (
+                l.deal_status == "LOST"
+                or adm_st in ("LOST", "CANCELLED", "DROPOUT")
+                or raw_ds in ("lost", "cancelled")
+                or any(k in st_name for k in ["lost", "cancelled", "not int", "rejected", "dropout", "dropped"])
+                or any(k in appt_st for k in ["lost", "cancel", "not int"])
+            )
+            if is_lost:
+                return LeadIntent.NOT_INTERESTED.value
+
+            # 2. Highly Interested Check (Admission / Payment / Confirmed / Won)
+            is_highly = (
+                l.deal_status == "WON"
+                or adm_st in ("WON", "ADMISSION_DONE")
+                or any(k in st_name for k in ["admission done", "admission planned", "payment done", "appointment completed", "booking confirmed", "appointment confirmed", "closed won"])
+                or any(k in raw_ds for k in ["won", "admission done", "payment done"])
+                or any(k in appt_st for k in ["payment done", "appointment completed", "booking confirmed", "appointment confirmed", "booked", "confirm", "complet"])
+            )
+            if is_highly:
+                return LeadIntent.HIGHLY_INTERESTED.value
+
+            # 3. Explicit Intent Level if set and not default
+            stored_intent = str(l.intent_level or "").strip().upper()
+            if stored_intent and stored_intent in LeadIntent.values and stored_intent != LeadIntent.NORMAL_INTERESTED.value:
+                return stored_intent
+
+            # 4. Temperature Fallback
+            stored_temp = str(l.temperature or "").strip().lower()
+            if stored_temp == "hot":
+                return LeadIntent.HIGHLY_INTERESTED.value
+            elif stored_temp == "warm":
+                return LeadIntent.MODERATE_INTERESTED.value
+            elif stored_temp == "cold":
+                return LeadIntent.BELOW_AVERAGE.value
+            elif stored_temp == "freeze":
+                return LeadIntent.NOT_INTERESTED.value
+
+            return LeadIntent.NORMAL_INTERESTED.value
+
+        for l in eval_leads:
+            c_name = ""
+            if l.campaign:
+                c_name = l.campaign.name
+            else:
+                cd = l.custom_data or {}
+                c_name = cd.get("campaign") or cd.get("campaign_name") or "Direct / Organic"
+            c_name = str(c_name).strip() if c_name else "Direct / Organic"
+
+            if c_name not in camp_lead_map:
+                camp_lead_map[c_name] = []
+            camp_lead_map[c_name].append(l)
+
+        for c_name, leads_in_camp in camp_lead_map.items():
+            total_c_leads = len(leads_in_camp)
+            if total_c_leads == 0:
+                continue
+
+            intents = [resolve_intent_fast(l) for l in leads_in_camp]
+            highly_cnt = intents.count(LeadIntent.HIGHLY_INTERESTED.value)
+            moderate_cnt = intents.count(LeadIntent.MODERATE_INTERESTED.value)
+            normal_cnt = intents.count(LeadIntent.NORMAL_INTERESTED.value)
+            below_avg_cnt = intents.count(LeadIntent.BELOW_AVERAGE.value)
+            not_int_cnt = intents.count(LeadIntent.NOT_INTERESTED.value)
+
+            # Calculate percentages
+            highly_pct = round((highly_cnt / total_c_leads) * 100, 1)
+            moderate_pct = round((moderate_cnt / total_c_leads) * 100, 1)
+            normal_pct = round((normal_cnt / total_c_leads) * 100, 1)
+            below_avg_pct = round((below_avg_cnt / total_c_leads) * 100, 1)
+            not_int_pct = round((not_int_cnt / total_c_leads) * 100, 1)
+
+            weighted_score = (highly_cnt * 100 + moderate_cnt * 75 + normal_cnt * 50 + below_avg_cnt * 25) / total_c_leads
+            quality_score = round(weighted_score, 1)
+
+            campaign_intent_data.append({
+                "campaign_name": c_name,
+                "total_leads": total_c_leads,
+                "highly_interested": highly_cnt,
+                "highly_pct": highly_pct,
+                "moderate_interested": moderate_cnt,
+                "moderate_pct": moderate_pct,
+                "normal_interested": normal_cnt,
+                "normal_pct": normal_pct,
+                "below_average": below_avg_cnt,
+                "below_avg_pct": below_avg_pct,
+                "not_interested": not_int_cnt,
+                "not_int_pct": not_int_pct,
+                "quality_score": quality_score,
+            })
+
+        campaign_intent_data.sort(key=lambda x: (x["total_leads"], x["quality_score"]), reverse=True)
+
+        overall_total = len(eval_leads)
+        overall_intent = {
+            "total": overall_total,
+            "highly": sum(c["highly_interested"] for c in campaign_intent_data),
+            "moderate": sum(c["moderate_interested"] for c in campaign_intent_data),
+            "normal": sum(c["normal_interested"] for c in campaign_intent_data),
+            "below_avg": sum(c["below_average"] for c in campaign_intent_data),
+            "not_int": sum(c["not_interested"] for c in campaign_intent_data),
+        }
+        if overall_total > 0:
+            overall_intent["highly_pct"] = round((overall_intent["highly"] / overall_total) * 100, 1)
+            overall_intent["moderate_pct"] = round((overall_intent["moderate"] / overall_total) * 100, 1)
+            overall_intent["normal_pct"] = round((overall_intent["normal"] / overall_total) * 100, 1)
+            overall_intent["below_avg_pct"] = round((overall_intent["below_avg"] / overall_total) * 100, 1)
+            overall_intent["not_int_pct"] = round((overall_intent["not_int"] / overall_total) * 100, 1)
+    except Exception as e:
+        logger.exception(f"Error calculating campaign intent matrix: {e}")
 
     return render(request, "academy/dashboard/campaign_analytics.html", {
         "campaign_intent_data": campaign_intent_data,
