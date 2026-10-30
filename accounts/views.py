@@ -980,7 +980,7 @@ def user_reset_password(request, pk):
             messages.error(request, "Managers can only reset passwords for Doctors, Lead Attendants, or their own account.")
             return redirect("accounts:user_list")
     if request.method == "POST":
-        form = CRMUserPasswordResetForm(request.POST)
+        form = CRMUserPasswordResetForm(request.POST, target_user=target_user)
         if form.is_valid():
             new_pass = form.cleaned_data["new_password"]
             target_user.set_password(new_pass)
@@ -989,7 +989,7 @@ def user_reset_password(request, pk):
             messages.success(request, f"Password for '{target_user.username}' reset successfully.")
             return redirect("accounts:user_list")
     else:
-        form = CRMUserPasswordResetForm()
+        form = CRMUserPasswordResetForm(target_user=target_user)
     return render(request, "accounts/user_reset_password.html", {
         "active": "users", "form": form, "target_user": target_user
     })
@@ -1355,6 +1355,15 @@ def forgot_password(request):
                     "show_password_form": True,
                 })
 
+            if user.check_password(p1):
+                messages.error(request, "New password cannot be identical to your current password. Please choose a different password.")
+                return render(request, "accounts/forgot_password.html", {
+                    "step": 3,
+                    "verified_token": verified_token,
+                    "target_user": user,
+                    "show_password_form": True,
+                })
+
             user.set_password(p1)
             user.save()
             log_action(action="USER_PASSWORD_RESET", obj=user, new_value=f"Password updated for {user.username} via OTP verification", user=user)
@@ -1512,10 +1521,24 @@ def user_profile(request):
 
     if request.method == 'POST':
         if 'update_profile' in request.POST:
+            # Check if user requested to remove/delete profile picture
+            if request.POST.get('delete_profile_picture') == '1':
+                if request.user.profile_picture:
+                    try:
+                        request.user.profile_picture.delete(save=False)
+                    except Exception:
+                        pass
+                    request.user.profile_picture = None
+                    request.user.save(update_fields=['profile_picture'])
+
             profile_form = UserProfileForm(request.POST, request.FILES, instance=request.user)
             password_form = PasswordChangeForm(request.user)
             if profile_form.is_valid():
-                profile_form.save()
+                user_obj = profile_form.save(commit=False)
+                if request.POST.get('delete_profile_picture') == '1' and not request.FILES.get('profile_picture'):
+                    user_obj.profile_picture = None
+                user_obj.save()
+                profile_form.save_m2m()
                 messages.success(request, 'Your profile has been updated successfully!')
                 return redirect('accounts:profile')
             else:

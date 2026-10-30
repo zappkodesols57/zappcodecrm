@@ -528,6 +528,14 @@ class LeadTemperature(models.TextChoices):
     FREEZE = "FREEZE", "Freeze"
 
 
+class LeadIntent(models.TextChoices):
+    HIGHLY_INTERESTED = "HIGHLY_INTERESTED", "Highly Interested"
+    MODERATE_INTERESTED = "MODERATE_INTERESTED", "Moderate Interested"
+    NORMAL_INTERESTED = "NORMAL_INTERESTED", "Normal Interested"
+    BELOW_AVERAGE = "BELOW_AVERAGE", "Below Average"
+    NOT_INTERESTED = "NOT_INTERESTED", "Not Interested"
+
+
 class DealStatus(models.TextChoices):
     OPEN = "OPEN", "Open"
     CONTACTED = "CONTACTED", "Contacted"
@@ -662,6 +670,13 @@ class Lead(models.Model):
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name="leads")
     lead_type = models.CharField(max_length=50, blank=True)
     temperature = models.CharField(max_length=20, choices=LeadTemperature.choices, default=LeadTemperature.HOT, db_index=True)
+    intent_level = models.CharField(
+        max_length=30,
+        choices=LeadIntent.choices,
+        default=LeadIntent.NORMAL_INTERESTED,
+        db_index=True,
+        help_text="Lead intent level (Highly Interested, Moderate, Normal, Below Average, Not Interested)"
+    )
     stage = models.ForeignKey(LeadStage, on_delete=models.PROTECT, related_name="leads")
     deal_status = models.CharField(max_length=20, choices=DealStatus.choices, default=DealStatus.OPEN, db_index=True)
     admission_status = models.CharField(max_length=20, choices=AdmissionStatus.choices, default=AdmissionStatus.OPEN)
@@ -881,7 +896,8 @@ class Lead(models.Model):
             or self.get_custom("doctor_reschedule_remark")
             or ""
         )
-    @property
+
+    @property
     def is_hospital_industry(self):
         """Returns True ONLY if the business industry assigned by SuperAdmin is HOSPITAL."""
         if not self.hospital_id or not self.hospital:
@@ -995,6 +1011,87 @@ class Lead(models.Model):
             return "Follow up"
 
         return "New"
+
+    @property
+    def effective_intent_level(self):
+        """
+        Dynamically calculates intent level taking into account lifecycle state & terminal stages:
+        1. Lost / Cancelled / Dropout leads -> Always NOT_INTERESTED.
+        2. Admission Done / Admission Planned / Won -> Always HIGHLY_INTERESTED.
+        3. Appointment Booked / Confirmed / Completed / Payment Done -> Always HIGHLY_INTERESTED.
+        4. If counsellor manually selected an intent other than default NORMAL_INTERESTED, respect it.
+        5. Fallback based on custom_temperature: Hot -> HIGHLY_INTERESTED, Warm -> MODERATE_INTERESTED, Cold -> BELOW_AVERAGE, Freeze -> NOT_INTERESTED.
+        6. Default -> NORMAL_INTERESTED.
+        """
+        st_name = (self.stage.name if self.stage_id and self.stage else "").strip().lower()
+        adm_st = str(self.admission_status or "").strip().upper()
+        cd = self.custom_data or {}
+        appt_st = str(cd.get("appointment_status") or "").strip().lower()
+        raw_ds = str(cd.get("deal_status") or "").strip().lower()
+        tot = self.total_billed_amount
+
+        # Check Lost Condition
+        disp_st = str(self.display_stage or "").lower()
+        is_lost = (
+            disp_st == "lost"
+            or self.deal_status == DealStatus.LOST
+            or adm_st in ("LOST", "CANCELLED", "DROPOUT")
+            or raw_ds in ("lost", "cancelled")
+            or any(k in st_name for k in ["lost", "cancelled", "not int", "rejected", "dropout", "dropped"])
+            or any(k in appt_st for k in ["lost", "cancel", "not int"])
+            or self.custom_temperature == "Freeze"
+        )
+        if is_lost:
+            return LeadIntent.NOT_INTERESTED.value
+
+        # Check Highly Interested Condition (Admission / Payment / Appointment Done / Won)
+        is_highly = (
+            tot > 0
+            or self.deal_status == DealStatus.WON
+            or adm_st in ("WON", "ADMISSION_DONE")
+            or "payment done" in disp_st
+            or "appointment completed" in disp_st
+            or "appointment confirmed" in disp_st
+            or any(k in st_name for k in ["admission done", "admission planned", "payment done", "appointment completed", "booking confirmed", "appointment confirmed", "appointment booked", "closed won"])
+            or any(k in raw_ds for k in ["won", "admission done", "payment done"])
+            or any(k in appt_st for k in ["payment done", "appointment completed", "booking confirmed", "appointment confirmed", "opd booking", "consultation booking", "booked", "confirm", "complet"])
+        )
+        if is_highly:
+            return LeadIntent.HIGHLY_INTERESTED.value
+
+        # If manually saved intent is not empty and not the default fallback, return stored intent
+        stored_intent = str(self.intent_level or "").strip().upper()
+        if stored_intent and stored_intent in LeadIntent.values and stored_intent != LeadIntent.NORMAL_INTERESTED.value:
+            return stored_intent
+
+        # If stored intent is explicitly set to NORMAL_INTERESTED but custom_temperature is Hot or Cold
+        temp = self.custom_temperature
+        if temp == "Hot":
+            return LeadIntent.HIGHLY_INTERESTED.value
+        elif temp == "Warm":
+            return LeadIntent.MODERATE_INTERESTED.value
+        elif temp == "Cold":
+            return LeadIntent.BELOW_AVERAGE.value
+        elif temp == "Freeze":
+            return LeadIntent.NOT_INTERESTED.value
+
+        return stored_intent or LeadIntent.NORMAL_INTERESTED.value
+
+    @property
+    def intent_badge_color(self):
+        """Returns standard bootstrap/UI badge background and color style for intent_level."""
+        val = str(self.effective_intent_level or "").strip().upper()
+        if val == LeadIntent.HIGHLY_INTERESTED.value:
+            return {"bg": "#dcfce7", "text": "#15803d", "border": "#86efac", "label": "Highly Interested", "dot": "#16a34a"}
+        elif val == LeadIntent.MODERATE_INTERESTED.value:
+            return {"bg": "#fef9c3", "text": "#a16207", "border": "#fde047", "label": "Moderate Interested", "dot": "#eab308"}
+        elif val == LeadIntent.NORMAL_INTERESTED.value:
+            return {"bg": "#e0f2fe", "text": "#0369a1", "border": "#7dd3fc", "label": "Normal Interested", "dot": "#0284c7"}
+        elif val == LeadIntent.BELOW_AVERAGE.value:
+            return {"bg": "#ffedd5", "text": "#c2410c", "border": "#fdba74", "label": "Below Average", "dot": "#f97316"}
+        elif val == LeadIntent.NOT_INTERESTED.value:
+            return {"bg": "#fee2e2", "text": "#b91c1c", "border": "#fca5a5", "label": "Not Interested", "dot": "#dc2626"}
+        return {"bg": "#f1f5f9", "text": "#475569", "border": "#cbd5e1", "label": self.get_intent_level_display() or "Normal Interested", "dot": "#64748b"}
 
     @property
     def custom_temperature(self):
@@ -1679,6 +1776,7 @@ class Lead(models.Model):
             if is_manual_lost or is_auto_freeze:
                 self.deal_status = DealStatus.LOST
                 self.temperature = LeadTemperature.FREEZE
+                self.intent_level = LeadIntent.NOT_INTERESTED
                 cd["deal_status"] = "Lost"
                 if adm_st != "CANCELLED" and "cancel" not in st_name:
                     self.admission_status = AdmissionStatus.LOST
@@ -1691,7 +1789,7 @@ class Lead(models.Model):
                     if lost_stage:
                         self.stage = lost_stage
 
-            # 2. Payment Done -> Won (HOT)
+            # 2. Payment Done -> Won (HOT & HIGHLY_INTERESTED)
             elif (
                 adm_st in ("WON", "ADMISSION_DONE")
                 or tot > 0
@@ -1700,12 +1798,14 @@ class Lead(models.Model):
             ):
                 self.deal_status = DealStatus.WON
                 self.temperature = LeadTemperature.HOT
+                self.intent_level = LeadIntent.HIGHLY_INTERESTED
                 cd["deal_status"] = "Won"
 
-            # 3. Admission Done -> INTERESTED (HOT)
-            elif st_name in ("admission done",) or cd_ds in ("admission done",):
+            # 3. Admission Done / Admission Planned -> INTERESTED (HOT & HIGHLY_INTERESTED)
+            elif st_name in ("admission done", "admission planned") or cd_ds in ("admission done", "admission planned"):
                 self.deal_status = DealStatus.INTERESTED
                 self.temperature = LeadTemperature.HOT
+                self.intent_level = LeadIntent.HIGHLY_INTERESTED
                 cd["deal_status"] = "Interested"
 
             # 4. Visit Planned / Visited / Admission Pending / Payment Pending -> INTERESTED (at least WARM)
@@ -1755,6 +1855,7 @@ class Lead(models.Model):
             if is_manual_hosp_lost or is_auto_hosp_freeze:
                 self.deal_status = DealStatus.LOST
                 self.temperature = LeadTemperature.FREEZE
+                self.intent_level = LeadIntent.NOT_INTERESTED
                 cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
                 if adm_st not in ("CANCELLED", "LOST"):
                     self.admission_status = AdmissionStatus.LOST
@@ -1764,7 +1865,7 @@ class Lead(models.Model):
                     if lost_stage:
                         self.stage = lost_stage
 
-            # Condition 2: WON
+            # Condition 2: WON (Payment Done / Completed Consultation / Appointment Booked -> HIGHLY_INTERESTED)
             elif (
                 adm_st in ("WON", "ADMISSION_DONE")
                 or tot > 0
@@ -1774,6 +1875,7 @@ class Lead(models.Model):
                 or cd_ds in ("won", "won (payment done)", "admission")
             ):
                 self.deal_status = DealStatus.WON
+                self.intent_level = LeadIntent.HIGHLY_INTERESTED
                 cd["deal_status"] = "Won (Payment Done)" if tot > 0 else "Won"
 
             # Condition 3: CONTACTED
@@ -1785,6 +1887,9 @@ class Lead(models.Model):
             ):
                 self.deal_status = DealStatus.CONTACTED
                 cd["deal_status"] = "Contacted"
+                # If appointment is confirmed/booked or visited, set Highly Interested
+                if any(k in st_name for k in ["appointment confirmed", "booking confirmed", "appointment booked", "visited"]) or any(k in cd_apt for k in ["book", "confirm", "visit"]):
+                    self.intent_level = LeadIntent.HIGHLY_INTERESTED
 
             # Condition 4: OPEN
             elif (

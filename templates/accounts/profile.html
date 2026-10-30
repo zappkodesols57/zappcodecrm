@@ -306,10 +306,12 @@
                             </div>
                             <div class="col-12" id="div_id_profile_picture">
                                 <label class="form-label small fw-semibold text-dark mb-1">Profile Picture</label>
+                                <input type="hidden" name="delete_profile_picture" id="delete_profile_picture_input" value="0">
                                 <div class="d-flex align-items-center gap-3">
                                     <div id="avatar_preview_container" style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; border: 1px solid #cbd5e1; flex-shrink: 0; background: #f8fafc; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #64748b;">
                                         {% if request.user.profile_picture %}
                                             <img id="avatar_live_preview" src="{{ request.user.profile_picture.url }}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                                            <span id="avatar_preview_placeholder_icon" style="display: none;">{{ request.user.first_name|first|default:request.user.username|first|upper }}</span>
                                         {% else %}
                                             <img id="avatar_live_preview" src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                                             <span id="avatar_preview_placeholder_icon">{{ request.user.first_name|first|default:request.user.username|first|upper }}</span>
@@ -317,6 +319,18 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         {{ profile_form.profile_picture }}
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <!-- Option 2: Clear Selection (Clears the newly selected file in upload input) -->
+                                        <button type="button" id="btnClearSelection" class="btn btn-sm btn-outline-secondary d-none align-items-center gap-1" style="white-space: nowrap;" title="Clear selected image file">
+                                            <i class="fa-solid fa-xmark"></i>
+                                            <span>Clear Selection</span>
+                                        </button>
+                                        <!-- Option 1: Delete Photo (Removes current saved profile picture and reverts to default avatar) -->
+                                        <button type="button" id="btnDeleteCurrentPic" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" style="white-space: nowrap; {% if not request.user.profile_picture %}display: none !important;{% endif %}" title="Delete current profile photo and reset to default avatar">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                            <span>Delete Photo</span>
+                                        </button>
                                     </div>
                                 </div>
                                 <div id="client_image_error" class="text-danger small mt-1" style="display:none;"></div>
@@ -460,6 +474,13 @@
                     errDiv.innerHTML = '';
                     if (saveBtn) saveBtn.classList.remove('disabled');
 
+                    // Show "Clear Selection" button because user has selected a file
+                    const clearSelectionBtn = document.getElementById('btnClearSelection');
+                    if (clearSelectionBtn) {
+                        clearSelectionBtn.classList.remove('d-none');
+                        clearSelectionBtn.classList.add('d-inline-flex');
+                    }
+
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         if (liveImg) {
@@ -481,8 +502,84 @@
                     errDiv.style.display = 'none';
                     errDiv.innerHTML = '';
                     if (saveBtn) saveBtn.classList.remove('disabled');
+                    const clearSelectionBtn = document.getElementById('btnClearSelection');
+                    if (clearSelectionBtn) {
+                        clearSelectionBtn.classList.add('d-none');
+                        clearSelectionBtn.classList.remove('d-inline-flex');
+                    }
                 }
             });
+
+            // Original saved photo URL and state
+            const originalSavedPhotoUrl = "{% if request.user.profile_picture %}{{ request.user.profile_picture.url }}{% endif %}";
+            const deletePicInput = document.getElementById('delete_profile_picture_input');
+            const clearSelectionBtn = document.getElementById('btnClearSelection');
+            const deleteCurrentBtn = document.getElementById('btnDeleteCurrentPic');
+
+            // Option 2: Clear Selection (reverts upload input and resets preview to current saved state)
+            if (clearSelectionBtn) {
+                clearSelectionBtn.addEventListener('click', function() {
+                    picInput.value = '';
+                    isImageValid = true;
+                    picInput.classList.remove('is-invalid');
+                    errDiv.style.display = 'none';
+                    errDiv.innerHTML = '';
+                    if (saveBtn) saveBtn.classList.remove('disabled');
+                    clearSelectionBtn.classList.add('d-none');
+                    clearSelectionBtn.classList.remove('d-inline-flex');
+
+                    // If user had marked delete, keep deleted state; otherwise revert to saved picture
+                    if (deletePicInput && deletePicInput.value === '1') {
+                        if (liveImg) { liveImg.src = ''; liveImg.style.display = 'none'; }
+                        if (placeholderIcon) { placeholderIcon.style.display = 'block'; }
+                    } else if (originalSavedPhotoUrl) {
+                        if (liveImg) { liveImg.src = originalSavedPhotoUrl; liveImg.style.display = 'block'; }
+                        if (placeholderIcon) { placeholderIcon.style.display = 'none'; }
+                        const topAvatar = document.querySelector('.profile-avatar-img');
+                        if (topAvatar) topAvatar.src = originalSavedPhotoUrl;
+                    } else {
+                        if (liveImg) { liveImg.src = ''; liveImg.style.display = 'none'; }
+                        if (placeholderIcon) { placeholderIcon.style.display = 'block'; }
+                    }
+                });
+            }
+
+            // Option 1: Delete Photo (Clears saved profile photo completely to default avatar)
+            if (deleteCurrentBtn) {
+                deleteCurrentBtn.addEventListener('click', function() {
+                    picInput.value = '';
+                    if (deletePicInput) deletePicInput.value = '1';
+
+                    // Hide clear selection button
+                    if (clearSelectionBtn) {
+                        clearSelectionBtn.classList.add('d-none');
+                        clearSelectionBtn.classList.remove('d-inline-flex');
+                    }
+
+                    // Reset previews to default avatar
+                    if (liveImg) {
+                        liveImg.src = '';
+                        liveImg.style.display = 'none';
+                    }
+                    if (placeholderIcon) {
+                        placeholderIcon.style.display = 'block';
+                    }
+                    const topAvatar = document.querySelector('.profile-avatar-img');
+                    if (topAvatar) {
+                        topAvatar.style.display = 'none';
+                    }
+
+                    // Hide Delete Photo button once clicked
+                    deleteCurrentBtn.style.setProperty('display', 'none', 'important');
+
+                    // Reset validation error state
+                    isImageValid = true;
+                    picInput.classList.remove('is-invalid');
+                    errDiv.style.display = 'none';
+                    errDiv.innerHTML = '';
+                    if (saveBtn) saveBtn.classList.remove('disabled');
+                });
+            }
 
             const profileForm = picInput.closest('form');
             if (profileForm) {

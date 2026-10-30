@@ -7,6 +7,12 @@ from leads.models import HospitalBranch
 
 
 class CRMUserCreateForm(UserCreationForm):
+    is_read_only = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Read-Only Access (View Only)",
+        help_text="Restrict user to view-only access. User can browse leads and reports but cannot add, edit, or delete data."
+    )
     can_import_export = forms.BooleanField(
         required=False, 
         label="Allow Lead Data Import & Export (Excel/CSV)",
@@ -54,7 +60,7 @@ class CRMUserCreateForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "first_name", "last_name", "email", "hospital", "role", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data")
+        fields = ("username", "first_name", "last_name", "email", "hospital", "role", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_read_only")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
@@ -164,10 +170,12 @@ class CRMUserCreateForm(UserCreationForm):
                 "placeholder": "name@example.com",
                 "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
                 "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+                "oninput": "this.value = this.value.toLowerCase();",
+                "style": "text-transform: lowercase;",
             })
 
     def clean_email(self):
-        email = (self.cleaned_data.get("email") or "").strip()
+        email = (self.cleaned_data.get("email") or "").strip().lower()
         if email:
             if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
                 raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
@@ -200,6 +208,8 @@ class CRMUserCreateForm(UserCreationForm):
         user = super().save(commit=False)
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
+        is_read_only = self.cleaned_data.get("is_read_only", False)
+        is_read_only = self.cleaned_data.get("is_read_only", False)
         can_imp = self.cleaned_data.get("can_import_export", False)
         can_del_master = self.cleaned_data.get("can_delete_master_data", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
@@ -216,6 +226,8 @@ class CRMUserCreateForm(UserCreationForm):
 
         if not user.custom_permissions:
             user.custom_permissions = {}
+        user.custom_permissions["read_only"] = bool(is_read_only)
+        user.custom_permissions["read_only"] = bool(is_read_only)
         user.custom_permissions["import_export"] = bool(can_imp)
         user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
@@ -238,6 +250,11 @@ class CRMUserCreateForm(UserCreationForm):
 
 
 class CRMUserEditForm(forms.ModelForm):
+    is_read_only = forms.BooleanField(
+        required=False,
+        label="Read-Only Access (View Only)",
+        help_text="Restrict user to view-only access. User can browse leads and reports but cannot add, edit, or delete data."
+    )
     can_import_export = forms.BooleanField(
         required=False, 
         label="Allow Lead Data Import & Export (Excel/CSV)",
@@ -280,13 +297,14 @@ class CRMUserEditForm(forms.ModelForm):
 
     class Meta(UserCreationForm.Meta if hasattr(UserCreationForm, 'Meta') else object):
         model = User
-        fields = ("first_name", "last_name", "email", "hospital", "role", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_active_employee", "is_active")
+        fields = ("first_name", "last_name", "email", "hospital", "role", "assigned_branches", "department", "speciality", "phone", "reports_to", "daily_call_target", "allow_self_assign", "allow_branch_transfer", "bulk_self_assign_limit", "can_import_export", "can_delete_master_data", "is_read_only", "is_active_employee", "is_active")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         from leads.models import HospitalBranch
         if self.instance and self.instance.pk:
+            self.fields["is_read_only"].initial = self.instance.is_read_only
             self.fields["can_import_export"].initial = self.instance.can_import_export
             self.fields["can_delete_master_data"].initial = self.instance.has_dynamic_permission("delete_master_data", default=False)
             self.fields["daily_call_target"].initial = self.instance.daily_call_target
@@ -389,10 +407,12 @@ class CRMUserEditForm(forms.ModelForm):
                 "placeholder": "name@example.com",
                 "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
                 "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+                "oninput": "this.value = this.value.toLowerCase();",
+                "style": "text-transform: lowercase;",
             })
 
     def clean_email(self):
-        email = (self.cleaned_data.get("email") or "").strip()
+        email = (self.cleaned_data.get("email") or "").strip().lower()
         if email:
             if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
                 raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
@@ -424,6 +444,7 @@ class CRMUserEditForm(forms.ModelForm):
         user = super().save(commit=False)
         if self.user and self.user.hospital:
             user.hospital = self.user.hospital
+        is_read_only = self.cleaned_data.get("is_read_only", False)
         can_imp = self.cleaned_data.get("can_import_export", False)
         can_del_master = self.cleaned_data.get("can_delete_master_data", False)
         daily_target = self.cleaned_data.get("daily_call_target", 100) or 100
@@ -440,6 +461,7 @@ class CRMUserEditForm(forms.ModelForm):
 
         if not user.custom_permissions:
             user.custom_permissions = {}
+        user.custom_permissions["read_only"] = bool(is_read_only)
         user.custom_permissions["import_export"] = bool(can_imp)
         user.custom_permissions["delete_master_data"] = bool(can_del_master)
         user.custom_permissions["daily_call_target"] = int(daily_target)
@@ -476,12 +498,18 @@ class CRMUserPasswordResetForm(forms.Form):
         required=True
     )
 
+    def __init__(self, *args, target_user=None, **kwargs):
+        self.target_user = target_user
+        super().__init__(*args, **kwargs)
+
     def clean(self):
         cleaned_data = super().clean()
         p1 = cleaned_data.get("new_password")
         p2 = cleaned_data.get("confirm_password")
         if p1 and p2 and p1 != p2:
             raise forms.ValidationError("Passwords do not match.")
+        if p1 and self.target_user and self.target_user.check_password(p1):
+            raise forms.ValidationError("New password cannot be identical to the current password. Please choose a different password.")
         return cleaned_data
 
 
@@ -518,10 +546,12 @@ class CRMUserRegisterForm(UserCreationForm):
                 "placeholder": "name@example.com",
                 "pattern": r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
                 "title": "Please enter a valid email address containing '@' (e.g. name@example.com)",
+                "oninput": "this.value = this.value.toLowerCase();",
+                "style": "text-transform: lowercase;",
             })
 
     def clean_email(self):
-        email = (self.cleaned_data.get("email") or "").strip()
+        email = (self.cleaned_data.get("email") or "").strip().lower()
         if email:
             if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
                 raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")
@@ -611,7 +641,7 @@ class BusinessForm(forms.ModelForm):
             })
 
     def clean_contact_email(self):
-        email = (self.cleaned_data.get("contact_email") or "").strip()
+        email = (self.cleaned_data.get("contact_email") or "").strip().lower()
         if email:
             if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
                 raise forms.ValidationError("Please enter a valid contact email with '@' (e.g. contact@business.com).")
@@ -657,7 +687,7 @@ class UserProfileForm(forms.ModelForm):
         }
 
     def clean_email(self):
-        email = (self.cleaned_data.get("email") or "").strip()
+        email = (self.cleaned_data.get("email") or "").strip().lower()
         if email:
             if "@" not in email or not re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", email):
                 raise forms.ValidationError("Please enter a valid email address with '@' (e.g. name@example.com).")

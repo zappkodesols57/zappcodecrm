@@ -278,8 +278,8 @@
         <i class="fa-solid fa-id-card text-primary opacity-75"></i> Student Lead Information
       </div>
 
-      <!-- Top Bar: Assigned Counselor -->
-      <div class="row mb-3 pb-3 border-bottom">
+      <!-- Top Bar: Assigned Counselor & Lead Intent Level -->
+      <div class="row mb-3 pb-3 border-bottom align-items-center">
         <div class="col-md-6">
           <div class="crm-form-row mb-0">
             <label class="crm-form-label">Assign To</label>
@@ -293,6 +293,14 @@
                 </div>
                 <input type="hidden" name="assigned_to" value="{{ user.pk }}">
               {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="crm-form-row mb-0">
+            <label class="crm-form-label fw-semibold text-primary">Lead Intent</label>
+            <div class="crm-form-field">
+              {{ form.intent_level }}
             </div>
           </div>
         </div>

@@ -175,19 +175,19 @@
       {% endif %}
 
       <!-- 3. Permissions & Status Checkboxes (Placed Right Before Save Button) -->
-      <div class="row g-3 mt-1">
+      <div class="row g-2 mt-1">
         {% for field in form %}
           {% if field.field.widget.input_type == 'checkbox' and field.name != 'assigned_branches' %}
-          <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4">
-            <div class="p-3 bg-light rounded-3 border h-100">
-              <div class="form-check m-0">
+          <div id="div_id_{{ field.name }}" class="col-12 col-sm-6 col-lg-4">
+            <div class="p-2 px-3 rounded-2 border h-100 d-flex flex-column justify-content-center" style="background-color: #f8fafc; border-color: #e2e8f0 !important;">
+              <div class="form-check m-0 d-flex align-items-center">
                 {{ field }}
-                <label class="form-check-label small fw-semibold text-dark mb-0 cursor-pointer" for="{{ field.id_for_label }}">
+                <label class="form-check-label fw-semibold text-dark mb-0 ms-1 cursor-pointer" style="font-size: 0.81rem; line-height: 1.25;" for="{{ field.id_for_label }}">
                   {{ field.label }}
                 </label>
               </div>
               {% if field.help_text %}
-                <div class="text-muted mt-1" style="font-size: 0.72rem; margin-left: 1.75rem;">{{ field.help_text|striptags }}</div>
+                <div class="text-muted mt-1" style="font-size: 0.7rem; line-height: 1.25; margin-left: 1.5rem; opacity: 0.85;">{{ field.help_text|striptags }}</div>
               {% endif %}
             </div>
           </div>
@@ -271,6 +271,18 @@
       phoneInput.setAttribute("placeholder", "10-digit mobile number");
       phoneInput.addEventListener("input", function() {
         this.value = this.value.replace(/[^0-9]/g, "").slice(0, 10);
+      });
+    }
+
+    // Auto-convert Email input to lowercase and trim
+    const emailInput = document.getElementById("id_email") || document.querySelector('input[name="email"]');
+    if (emailInput) {
+      emailInput.style.textTransform = "lowercase";
+      emailInput.addEventListener("input", function() {
+        this.value = this.value.toLowerCase();
+      });
+      emailInput.addEventListener("blur", function() {
+        this.value = this.value.trim().toLowerCase();
       });
     }
 

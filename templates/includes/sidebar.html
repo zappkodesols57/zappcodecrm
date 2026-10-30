@@ -312,7 +312,13 @@
       </div>
     </div>
 
-    <!-- 5. Notifications -->
+    <!-- 5. Campaign Analytics -->
+    <a class="nav-link {% if active == 'campaign_analytics' %}active{% endif %}"
+      href="{% url 'meta_ads:academy_campaign_analytics' %}" title="Campaign Analytics">
+      <i class="fa-solid fa-bullhorn"></i> <span class="nav-text">Campaign Analytics</span>
+    </a>
+
+    <!-- 6. Notifications -->
     <a class="nav-link {% if active == 'notifications' %}active{% endif %}" href="{% url 'notifications:list' %}"
       title="Notifications">
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
@@ -380,11 +386,10 @@
           title="Users & Approvals"><i class="fa-regular fa-user"></i> <span class="nav-text">Users & Approvals</span></a>
         <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
           title="Team Performance"><i class="fa-solid fa-arrow-trend-up"></i> <span class="nav-text">Team Performance</span></a>
-        <a class="nav-link {% if active == 'tasks' %}active{% endif %}" href="{% url 'dashboard:tasks' %}"
-          title="Tasks & Reminders"><i class="fa-regular fa-square-check"></i> <span class="nav-text">Tasks & Reminders</span></a>
-        <a class="nav-link {% if active == 'reports_daily' or active == 'reports' or active == 'eod_reports' %}active{% endif %}"
-          href="{% url 'dashboard:management_daily_reports' %}" title="EOD Reports">
-          <i class="fa-regular fa-file-lines"></i> <span class="nav-text">EOD Reports</span>
+        <!-- Subtab 3: Tasks & EOD Reports (Unified for Academy Admin) -->
+        <a class="nav-link {% if active == 'reports_daily' or active == 'reports' or active == 'eod_reports' or active == 'tasks' %}active{% endif %}"
+          href="{% url 'dashboard:management_daily_reports' %}" title="Tasks & EOD Reports">
+          <i class="fa-solid fa-file-signature"></i> <span class="nav-text">Tasks &amp; EOD Reports</span>
         </a>
       </div>
     </div>

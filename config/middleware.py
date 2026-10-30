@@ -1,3 +1,45 @@
+class CRMReadOnlyModeMiddleware:
+    """
+    Middleware that enforces read-only access for users with is_read_only=True.
+    Blocks any state-mutating requests (POST, PUT, PATCH, DELETE) except authentication
+    and password-changing endpoints.
+    """
+    EXEMPT_PATHS = [
+        '/accounts/login/',
+        '/accounts/logout/',
+        '/accounts/users/',  # password reset by user if needed
+    ]
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated and getattr(request.user, 'is_read_only', False):
+            # Block unsafe methods
+            if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+                # Check exemptions (e.g. logging out)
+                path = request.path
+                is_exempt = any(path.startswith(p) for p in self.EXEMPT_PATHS)
+                # Allow logout
+                if not is_exempt or ('logout' not in path and 'login' not in path):
+                    is_ajax = (
+                        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+                        path.startswith('/api/') or
+                        'application/json' in request.headers.get('Accept', '')
+                    )
+                    error_msg = "Read-Only Account: Your account is restricted to view-only access. Creating, updating, or deleting records is not permitted."
+                    if is_ajax:
+                        return JsonResponse({"status": "error", "message": error_msg}, status=403)
+                    
+                    messages.error(request, error_msg)
+                    referer = request.META.get('HTTP_REFERER')
+                    if referer:
+                        return redirect(referer)
+                    return redirect('/')
+
+        return self.get_response(request)
+
+
 import logging
 import traceback
 from django.shortcuts import render, redirect
