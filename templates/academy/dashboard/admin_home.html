@@ -631,9 +631,7 @@
       </span>
       <div>
         <h5 class="card-title mb-0 fw-bold text-dark">Filtered Leads Results</h5>
-        <span class="text-muted small">Showing {{ filtered_leads.start_index|default:0 }}-{{
-          filtered_leads.end_index|default:0 }} of <strong>{{ total_filtered_count }}</strong> leads matching applied
-          filters</span>
+        <span class="text-muted small">Showing {{ filtered_leads.start_index|default:0 }}-{{ filtered_leads.end_index|default:0 }} of <strong>{{ total_filtered_count }}</strong> leads matching applied filters</span>
       </div>
     </div>
 
@@ -668,8 +666,7 @@
             <span class="badge bg-light text-dark border font-monospace">{{ lead.lead_code }}</span>
           </td>
           <td>
-            <span class="text-nowrap small text-muted"><i class="fa-regular fa-calendar me-1"></i>{{
-              lead.inquiry_date|date:"d-m-Y" }}</span>
+            <span class="text-nowrap small text-muted"><i class="fa-regular fa-calendar me-1"></i>{{ lead.inquiry_date|date:"d-m-Y" }}</span>
           </td>
           <td>
             <div class="fw-bold text-dark">{{ lead.name }}</div>
@@ -697,8 +694,7 @@
           <td>
             {% if lead.assigned_to %}
             <span class="small fw-semibold text-dark">
-              <i class="fa-solid fa-user-check text-success me-1"></i>{{
-              lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
+              <i class="fa-solid fa-user-check text-success me-1"></i>{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}
             </span>
             {% else %}
             <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle small">

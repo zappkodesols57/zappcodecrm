@@ -3920,6 +3920,7 @@ def add_followup(request, pk):
             initial_status = FollowUpStatus.PENDING
 
         comment_text = request.POST.get("comment", "").strip()
+        intent_val = request.POST.get("intent_level", "").strip()
 
 
 
@@ -4037,6 +4038,9 @@ def add_followup(request, pk):
             if fu_stage:
                 target_lead.stage = fu_stage
 
+        from leads.models import LeadIntent
+        if intent_val in LeadIntent.values:
+            target_lead.intent_level = intent_val
         new_temp = (target_lead.custom_temperature or "").upper()
         if new_temp in LeadTemperature.values:
             target_lead.temperature = new_temp
@@ -4075,6 +4079,7 @@ def update_followup_status(request, pk, fu_id):
         update_note = request.POST.get("update_note", "").strip()
         next_date_str = request.POST.get("next_followup_date", "").strip()
         next_time_str = request.POST.get("next_followup_time", "").strip()
+        fu_intent_val = request.POST.get("intent_level", "").strip()
 
         # Remarks are mandatory on status update
         if not update_note:
@@ -4094,6 +4099,11 @@ def update_followup_status(request, pk, fu_id):
             note_entry = f"[Completed by {author_name} on {today.strftime('%d-%m-%Y')}]: {update_note}"
             fu.comment = f"{existing_comment}\n{note_entry}".strip() if existing_comment else note_entry
             fu.save()
+
+            # Update Lead intent if passed
+            from leads.models import LeadIntent
+            if fu_intent_val in LeadIntent.values:
+                lead.intent_level = fu_intent_val
 
             # Update Lead's next and last followup dates
             lead.last_followup_date = today
@@ -4217,6 +4227,9 @@ def update_followup_status(request, pk, fu_id):
             )
 
             # Update lead next_followup_date & dynamic temperature
+            from leads.models import LeadIntent
+            if fu_intent_val in LeadIntent.values:
+                lead.intent_level = fu_intent_val
             lead.last_followup_date = today
             lead.next_followup_date = parsed_next_date
             lead.next_followup_time = parsed_next_time
@@ -4414,6 +4427,7 @@ def lead_quick_update_stage(request, pk):
         new_temp = request.POST.get("temperature")
         new_admission_status = request.POST.get("admission_status")
         new_deal_status = request.POST.get("deal_status")
+        new_intent_level = request.POST.get("intent_level")
 
         if new_stage_id and new_stage_id.isdigit():
             stg = LeadStage.objects.filter(id=int(new_stage_id), is_active=True).first()
@@ -4445,6 +4459,10 @@ def lead_quick_update_stage(request, pk):
 
         if new_deal_status in DealStatus.values:
             lead.deal_status = new_deal_status
+
+        from leads.models import LeadIntent
+        if new_intent_level in LeadIntent.values:
+            lead.intent_level = new_intent_level
 
         lead.save()
         messages.success(request, f"Lead stage and status updated successfully!")

@@ -332,6 +332,24 @@
     border: 1px solid #fecaca;
   }
 
+  .alert-success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+
+  .alert-info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  .alert-warning {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
   @media (max-width: 768px) {
     .brand-panel { display: none; }
     .form-panel { padding: 2.5rem 1.75rem; }
@@ -386,10 +404,27 @@
     </div>
 
     {% for message in messages %}
-      <div class="alert-custom alert-error">
-        <i class="fa-solid fa-circle-exclamation"></i>
-        <span>{{ message }}</span>
-      </div>
+      {% if message.tags and "success" in message.tags %}
+        <div class="alert-custom alert-success">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>{{ message }}</span>
+        </div>
+      {% elif message.tags and "warning" in message.tags %}
+        <div class="alert-custom alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>{{ message }}</span>
+        </div>
+      {% elif message.tags and "info" in message.tags %}
+        <div class="alert-custom alert-info">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>{{ message }}</span>
+        </div>
+      {% else %}
+        <div class="alert-custom alert-error">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>{{ message }}</span>
+        </div>
+      {% endif %}
     {% empty %}
       {% if form.errors or form_error %}
         <div class="alert-custom alert-error">

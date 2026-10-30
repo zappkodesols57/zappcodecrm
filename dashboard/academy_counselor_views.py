@@ -731,9 +731,10 @@ def academy_admin_home(request):
     source_labels = [s.name for s in sources]
     source_counts = [s.cnt for s in sources]
 
-    funnels = LeadStage.objects.filter(leads__in=leads).annotate(cnt=Count("leads")).order_by("order", "name")
-    funnel_labels = [st.name for st in funnels]
-    funnel_counts = [st.cnt for st in funnels]
+    # Aggregate Stage Funnel by stage name to eliminate duplicate stage names
+    stage_data = leads.values("stage__name").annotate(cnt=Count("id")).order_by("-cnt")
+    funnel_labels = [r["stage__name"] or "Unassigned" for r in stage_data]
+    funnel_counts = [r["cnt"] for r in stage_data]
 
     courses_stat = Course.objects.filter(leads__in=leads).annotate(cnt=Count("leads")).order_by("-cnt")[:8]
     course_labels = [c.name for c in courses_stat]

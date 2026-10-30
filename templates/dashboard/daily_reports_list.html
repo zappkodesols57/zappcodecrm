@@ -3,6 +3,50 @@
 
 {% block extra_head %}
 <style>
+  .task-status-select {
+    width: 135px !important;
+    min-height: 32px !important;
+    line-height: 1.4 !important;
+    font-size: 0.8rem !important;
+    padding: 0.25rem 1.75rem 0.25rem 0.65rem !important;
+    vertical-align: middle;
+    cursor: pointer;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .task-pagesize-select {
+    width: 75px !important;
+    min-height: 30px !important;
+    line-height: 1.4 !important;
+    font-size: 0.8rem !important;
+    padding: 0.2rem 1.5rem 0.2rem 0.5rem !important;
+    vertical-align: middle;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .task-kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .task-kpi-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+  }
+  .task-kpi-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.1;
+    margin: 0;
+  }
   .reports-table {
     font-size: 0.86rem;
     border: 1px solid #cbd5e1;
@@ -69,23 +113,105 @@
 
 <!-- Tabs Navigation with Clean Borders -->
 <div class="d-flex gap-2 mb-3">
+  <a href="?tab=tasks{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'tasks' %}active{% endif %}">
+    <i class="fa-solid fa-list-check"></i>
+    <span>Tasks &amp; Reminders</span>
+    <span class="badge {% if active_tab == 'tasks' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ total_tasks_count }}</span>
+  </a>
   <a href="?tab=eod{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'eod' %}active{% endif %}">
+    <i class="fa-regular fa-file-lines"></i>
     <span>EOD Reports</span>
     <span class="badge {% if active_tab == 'eod' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ eod_reports_count }}</span>
   </a>
-  <a href="?tab=tasks{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'tasks' %}active{% endif %}">
-    <span>Task Reports</span>
-    <span class="badge {% if active_tab == 'tasks' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ task_reports_count }}</span>
+  <a href="?tab=reported{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}{% if request_get.date_from %}&date_from={{ request_get.date_from }}{% endif %}{% if request_get.date_to %}&date_to={{ request_get.date_to }}{% endif %}{% if current_business %}&business={{ current_business.id }}{% endif %}" class="report-tab-pill {% if active_tab == 'reported' %}active{% endif %}">
+    <i class="fa-solid fa-check-double"></i>
+    <span>Task Reports Log</span>
+    <span class="badge {% if active_tab == 'reported' %}bg-white text-dark{% else %}bg-light text-muted border{% endif %} rounded-pill" style="font-size: 0.7rem;">{{ task_reports_count }}</span>
   </a>
 </div>
 
-<!-- Clean Inline Filter Row (No Outer Card Box) -->
+{% if active_tab == 'tasks' %}
+<!-- KPI Stats Bar for Tasks -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="task-kpi-card" style="border-left: 3px solid #0284c7 !important;">
+            <span class="task-kpi-label">Total Tasks</span>
+            <h3 class="task-kpi-value">{{ total_tasks_count }}</h3>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="task-kpi-card" style="border-left: 3px solid #f59e0b !important;">
+            <span class="task-kpi-label">Pending</span>
+            <h3 class="task-kpi-value" style="color: #d97706;">{{ pending_tasks_count }}</h3>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="task-kpi-card" style="border-left: 3px solid #10b981 !important;">
+            <span class="task-kpi-label">Completed</span>
+            <h3 class="task-kpi-value" style="color: #059669;">{{ completed_tasks_count }}</h3>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="task-kpi-card" style="border-left: 3px solid #ef4444 !important;">
+            <span class="task-kpi-label">Urgent / High</span>
+            <h3 class="task-kpi-value" style="color: #dc2626;">{{ urgent_tasks_count }}</h3>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Clean Inline Filter Row -->
 <form method="get" class="row g-2 align-items-center mb-3">
   <input type="hidden" name="tab" value="{{ active_tab }}">
   {% if current_business %}
     <input type="hidden" name="business" value="{{ current_business.id }}">
   {% endif %}
 
+  {% if active_tab == 'tasks' %}
+  <!-- Search query for tasks -->
+  <div class="col-lg-3 col-md-6 col-12">
+    <input type="text" name="q" class="form-control" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;" placeholder="Search title, details, lead name..." value="{{ search_q }}">
+  </div>
+  <!-- Status Filter -->
+  <div class="col-lg-2 col-md-3 col-6">
+    <select name="status" class="form-select no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+      <option value="">All Statuses</option>
+      <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+      <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+      <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option>
+      <option value="CANCELLED" {% if status_filter == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+    </select>
+  </div>
+  <!-- Priority Filter -->
+  <div class="col-lg-2 col-md-3 col-6">
+    <select name="priority" class="form-select no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+      <option value="">All Priorities</option>
+      <option value="URGENT" {% if priority_filter == 'URGENT' %}selected{% endif %}>Urgent</option>
+      <option value="HIGH" {% if priority_filter == 'HIGH' %}selected{% endif %}>High</option>
+      <option value="MEDIUM" {% if priority_filter == 'MEDIUM' %}selected{% endif %}>Medium</option>
+      <option value="LOW" {% if priority_filter == 'LOW' %}selected{% endif %}>Low</option>
+    </select>
+  </div>
+  <!-- Role-wise Employee -->
+  <div class="col-lg-3 col-md-6 col-12">
+    <select name="employee" id="filterEmployeeSelect" class="form-select no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+      <option value="">All Employees</option>
+      {% for e in employees %}
+        <option value="{{ e.id }}" data-role="{{ e.role }}" {% if selected_employee == e.id|stringformat:'s' %}selected{% endif %}>
+          {{ e.get_full_name|default:e.username }} ({{ e.get_role_display }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-lg-2 col-md-6 col-12 d-flex gap-1">
+    <button class="btn btn-brand text-white flex-fill d-flex align-items-center justify-content-center shadow-sm" style="height: 36px; font-size: 0.82rem;" type="submit">
+      Filter
+    </button>
+    <a href="{% url 'dashboard:management_daily_reports' %}?tab=tasks{% if current_business %}&business={{ current_business.id }}{% endif %}" class="btn btn-light border flex-fill d-flex align-items-center justify-content-center" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+      Clear
+    </a>
+  </div>
+  {% else %}
   <!-- 1. Role Filter -->
   <div class="col-lg-2 col-md-3 col-sm-6">
     <select name="role" id="filterRoleSelect" class="form-select no-tom-select" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;" onchange="filterUserDropdownByRole()">
@@ -133,10 +259,179 @@
       Clear
     </a>
   </div>
+  {% endif %}
 </form>
 
-{% if active_tab == 'eod' %}
-<!-- Tab 1: EOD Reports Table -->
+{% if active_tab == 'tasks' %}
+<!-- Tab 1: All Tasks & Reminders (Real-time Status Update + Pagination) -->
+<div class="card border rounded-2 shadow-none bg-white mb-3" style="border: 1px solid #cbd5e1 !important;">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 reports-table" style="font-size: 0.84rem;">
+      <thead class="bg-light">
+        <tr>
+          <th class="border-bottom px-3 py-2.5">Task / Reminder</th>
+          <th class="border-bottom py-2.5">Assigned To</th>
+          <th class="border-bottom py-2.5">{% if current_business.industry == 'HOSPITAL' %}Linked Patient{% else %}Linked Lead{% endif %}</th>
+          <th class="border-bottom py-2.5">Due Schedule</th>
+          <th class="border-bottom py-2.5">Priority</th>
+          <th class="border-bottom py-2.5">Status (Inline Update)</th>
+          <th class="border-bottom px-3 py-2.5 text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td class="px-3 py-2.5">
+            <div class="fw-semibold text-dark">{{ task.title }}</div>
+            {% if task.description %}
+              <div class="small text-muted text-truncate" style="max-width: 250px; font-size: 0.76rem;">{{ task.description }}</div>
+            {% endif %}
+            {% if task.is_reported_to_admin %}
+              <div class="mt-1">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size: 0.65rem;" title="Reported: {{ task.reported_at|date:'d M, h:i A' }}">
+                  Reported to Admin
+                </span>
+              </div>
+            {% endif %}
+          </td>
+          <td class="py-2.5">
+            <div class="fw-semibold text-dark" style="font-size: 0.82rem;">{{ task.user.get_full_name|default:task.user.username }}</div>
+            <div class="text-muted" style="font-size: 0.7rem;">{{ task.user.get_role_display }}</div>
+            {% if task.assigned_by and task.assigned_by != task.user %}
+              <div class="text-muted" style="font-size: 0.68rem;"><span class="text-secondary">By:</span> {{ task.assigned_by.get_full_name|default:task.assigned_by.username }}</div>
+            {% endif %}
+          </td>
+          <td class="py-2.5">
+            {% if task.lead %}
+              <div><a href="{% url 'leads:lead_detail' task.lead.pk %}" class="fw-semibold text-dark text-decoration-none">{{ task.lead.name }}</a></div>
+              <div class="small mt-0.5"><span class="text-muted" style="font-size: 0.74rem;">{{ task.lead.mobile }}</span></div>
+              {% if task.sync_to_followup %}
+                <span class="badge bg-light text-muted border" style="font-size: 0.62rem; border-color: #cbd5e1 !important;">Synced Followup</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted small" style="font-size: 0.75rem;">General Task</span>
+            {% endif %}
+          </td>
+          <td class="py-2.5">
+            <div class="text-dark fw-medium" style="font-size: 0.8rem;">{{ task.due_date|date:"d M Y" }}</div>
+            {% if task.due_time %}
+              <div class="text-muted" style="font-size: 0.72rem;">{{ task.due_time|time:"h:i A" }}</div>
+            {% endif %}
+          </td>
+          <td class="py-2.5">
+            {% if task.priority == 'URGENT' %}
+              <span class="badge bg-light text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">Urgent</span>
+            {% elif task.priority == 'HIGH' %}
+              <span class="badge bg-light text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 500;">High</span>
+            {% elif task.priority == 'MEDIUM' %}
+              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.7rem; font-weight: 500; border-color: #cbd5e1 !important;">Medium</span>
+            {% else %}
+              <span class="badge bg-light text-muted border px-2 py-1" style="font-size: 0.7rem; font-weight: 500; border-color: #cbd5e1 !important;">Low</span>
+            {% endif %}
+          </td>
+          <td class="py-2.5">
+            <!-- Inline Status Dropdown with Form Postback to current page -->
+            <form method="POST" action="{% url 'dashboard:task_update_status' task.pk %}" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
+              <select name="status" class="form-select form-select-sm task-status-select no-tom-select border rounded-2 fw-medium {% if task.status == 'COMPLETED' %}bg-success-subtle text-success border-success-subtle{% elif task.status == 'IN_PROGRESS' %}bg-info-subtle text-primary border-info-subtle{% elif task.status == 'CANCELLED' %}bg-light text-muted border{% else %}bg-light text-dark border{% endif %}" onchange="this.form.submit()" style="border: 1px solid #cbd5e1 !important;">
+                <option value="PENDING" {% if task.status == 'PENDING' %}selected{% endif %}>Pending</option>
+                <option value="IN_PROGRESS" {% if task.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                <option value="COMPLETED" {% if task.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                <option value="CANCELLED" {% if task.status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+              </select>
+            </form>
+          </td>
+          <td class="px-3 py-2.5 text-end">
+            <div class="d-inline-flex align-items-center gap-1">
+              {% if task.lead %}
+                <a href="{% url 'leads:lead_detail' task.lead.pk %}" class="btn btn-sm btn-light border px-2 py-0 d-inline-flex align-items-center justify-content-center fw-medium text-dark" style="font-size: 0.75rem; height: 30px; border: 1px solid #cbd5e1 !important; border-radius: 5px;" title="View Details">
+                  View
+                </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-4">
+            <div class="text-muted mb-2"><i class="fa-solid fa-list-check fa-2x opacity-25"></i></div>
+            <h6 class="text-dark mb-1">No tasks or reminders found matching filters</h6>
+            <p class="text-muted small mb-0">Click "Create Task / Reminder" above to assign new tasks.</p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Adaptive Pagination with Page Size Options -->
+{% if tasks_page_obj.paginator.count >= 0 %}
+<div class="pagination-container my-3 p-2 bg-white rounded-2 border d-flex flex-column flex-md-row justify-content-between align-items-center gap-2" style="font-size: 0.8rem; border-color: #cbd5e1 !important;">
+    <div class="d-flex align-items-center gap-3 order-2 order-md-1 flex-wrap">
+        <div class="text-muted fw-normal">
+            Showing {{ tasks_page_obj.start_index }} - {{ tasks_page_obj.end_index }} of {{ tasks_page_obj.paginator.count }} task(s)
+        </div>
+        <div class="d-flex align-items-center gap-1">
+            <span class="text-muted small" style="font-size: 0.75rem;">Show:</span>
+            <select class="form-select form-select-sm task-pagesize-select no-tom-select border rounded-1" onchange="location.href='?{{ query_params_tasks }}&page=1&page_size=' + this.value;">
+                <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
+                <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+            </select>
+        </div>
+    </div>
+    
+    {% if tasks_page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-scroll-wrapper order-1 order-md-2" style="max-width: 100%; overflow-x: auto; padding: 2px;">
+        <ul class="pagination pagination-sm flex-nowrap mb-0 align-items-center" style="gap: 2px;">
+            {% if tasks_page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link border bg-white px-2 py-1 text-dark" href="?{{ query_params_tasks }}&page_size={{ page_size }}&page={{ tasks_page_obj.previous_page_number }}">
+                        <i class="fa-solid fa-chevron-left" style="font-size: 0.7rem;"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link border bg-light px-2 py-1 text-muted"><i class="fa-solid fa-chevron-left" style="font-size: 0.7rem;"></i></span>
+                </li>
+            {% endif %}
+
+            {% for num in task_page_range %}
+                {% if num == tasks_page_obj.paginator.ELLIPSIS %}
+                    <li class="page-item disabled"><span class="page-link border-0 bg-transparent px-2 text-muted">...</span></li>
+                {% elif tasks_page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link border-primary bg-primary text-white px-2 py-1">{{ num }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link border bg-white text-dark px-2 py-1" href="?{{ query_params_tasks }}&page_size={{ page_size }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if tasks_page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link border bg-white px-2 py-1 text-dark" href="?{{ query_params_tasks }}&page_size={{ page_size }}&page={{ tasks_page_obj.next_page_number }}">
+                        <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem;"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link border bg-light px-2 py-1 text-muted"><i class="fa-solid fa-chevron-right" style="font-size: 0.7rem;"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% elif active_tab == 'eod' %}
+<!-- Tab 2: EOD Reports Table -->
 <div class="card border rounded-2 shadow-none bg-white">
   <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle reports-table">
@@ -208,7 +503,7 @@
 </div>
 
 {% else %}
-<!-- Tab 2: Task Reports Table -->
+<!-- Tab 3: Task Reports Submitted by Employees Log -->
 <div class="card border rounded-2 shadow-none bg-white">
   <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle reports-table">
@@ -218,7 +513,7 @@
           <th class="py-2">Task Title &amp; Details</th>
           <th class="py-2">Assigned Employee</th>
           <th class="py-2">Assigned By</th>
-          <th class="py-2">Linked Patient</th>
+          <th class="py-2">{% if current_business.industry == 'HOSPITAL' %}Linked Patient{% else %}Linked Lead{% endif %}</th>
           <th class="py-2">Status</th>
           <th class="px-3 py-2">Report Summary / Outcome Notes</th>
         </tr>
@@ -291,7 +586,7 @@
           <td colspan="7">
             <div class="empty-state text-center py-5 text-muted">
               <div class="fw-semibold">No task reports submitted yet matching the selected filters.</div>
-              <p class="small text-muted mb-0">Employees can submit task reports from the Tasks &amp; Reminders page.</p>
+              <p class="small text-muted mb-0">Staff can submit completed task reports from their dashboard.</p>
             </div>
           </td>
         </tr>
@@ -318,6 +613,7 @@
             </div>
             <form method="POST" action="{% url 'dashboard:task_create' %}" id="createTaskForm">
                 {% csrf_token %}
+                <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
                 <div class="modal-body p-3">
                     <!-- Task Title -->
                     <div class="mb-2">

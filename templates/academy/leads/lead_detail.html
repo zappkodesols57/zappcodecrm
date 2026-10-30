@@ -275,6 +275,63 @@
                 {% elif lead.custom_temperature %}
                   <span class="crm-badge-lightblue">{{ lead.custom_temperature }}</span>
                 {% endif %}
+                
+                <!-- Quick Intent Dropdown -->
+                <div class="dropdown d-inline-block">
+                  <button class="btn btn-xs rounded-pill px-2.5 py-0.5 fw-semibold border shadow-none dropdown-toggle d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.74rem; background-color: {{ lead.intent_badge_color.bg }}; color: {{ lead.intent_badge_color.text }}; border-color: {{ lead.intent_badge_color.border }} !important;">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background-color: {{ lead.intent_badge_color.dot }};"></span>
+                    <span>{{ lead.intent_badge_color.label }}</span>
+                  </button>
+                  <ul class="dropdown-menu shadow-sm border py-1" style="font-size: 0.78rem; min-width: 170px;">
+                    <li><h6 class="dropdown-header text-uppercase text-muted py-1" style="font-size: 0.65rem;">Change Lead Intent</h6></li>
+                    <li>
+                      <form method="post" action="{% url 'leads:lead_quick_update_stage' lead.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="intent_level" value="HIGHLY_INTERESTED">
+                        <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center gap-2 {% if lead.intent_level == 'HIGHLY_INTERESTED' %}active fw-bold{% endif %}">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #16a34a;"></span> Highly Interested
+                        </button>
+                      </form>
+                    </li>
+                    <li>
+                      <form method="post" action="{% url 'leads:lead_quick_update_stage' lead.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="intent_level" value="MODERATE_INTERESTED">
+                        <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center gap-2 {% if lead.intent_level == 'MODERATE_INTERESTED' %}active fw-bold{% endif %}">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #eab308;"></span> Moderate Interested
+                        </button>
+                      </form>
+                    </li>
+                    <li>
+                      <form method="post" action="{% url 'leads:lead_quick_update_stage' lead.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="intent_level" value="NORMAL_INTERESTED">
+                        <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center gap-2 {% if lead.intent_level == 'NORMAL_INTERESTED' %}active fw-bold{% endif %}">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #0284c7;"></span> Normal Interested
+                        </button>
+                      </form>
+                    </li>
+                    <li>
+                      <form method="post" action="{% url 'leads:lead_quick_update_stage' lead.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="intent_level" value="BELOW_AVERAGE">
+                        <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center gap-2 {% if lead.intent_level == 'BELOW_AVERAGE' %}active fw-bold{% endif %}">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #f97316;"></span> Below Average
+                        </button>
+                      </form>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li>
+                      <form method="post" action="{% url 'leads:lead_quick_update_stage' lead.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="intent_level" value="NOT_INTERESTED">
+                        <button type="submit" class="dropdown-item py-1.5 d-flex align-items-center gap-2 text-danger {% if lead.intent_level == 'NOT_INTERESTED' %}active fw-bold{% endif %}">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #dc2626;"></span> Not Interested
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
               </div>
               <div class="d-flex align-items-center gap-2 text-muted flex-wrap" style="font-size: 0.8rem;">
                 <span class="text-dark fw-medium">{{ lead.mobile }}</span>
@@ -839,6 +896,18 @@
                   </select>
                 </div>
               </div>
+              <div class="row g-2 mb-2">
+                <div class="col-12">
+                  <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Lead Intent Level</label>
+                  <select name="intent_level" class="form-select form-select-sm no-tom-select" style="font-size: 0.8rem;">
+                    <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>🟢 Highly Interested</option>
+                    <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>🟡 Moderate Interested</option>
+                    <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>🔵 Normal Interested</option>
+                    <option value="BELOW_AVERAGE" {% if lead.intent_level == 'BELOW_AVERAGE' %}selected{% endif %}>🟠 Below Average</option>
+                    <option value="NOT_INTERESTED" {% if lead.intent_level == 'NOT_INTERESTED' %}selected{% endif %}>🔴 Not Interested</option>
+                  </select>
+                </div>
+              </div>
               <!-- Past time validation warning -->
               <div id="timeline_time_error" class="alert alert-danger py-1 px-2 mb-2 small d-none" style="font-size: 0.75rem;">
                 <span id="timeline_time_error_text">Past time cannot be selected. Please choose an upcoming time.</span>
@@ -1131,6 +1200,16 @@
             </div>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Update Lead Intent</label>
+            <select name="intent_level" class="form-select form-select-sm no-tom-select">
+              <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>🟢 Highly Interested</option>
+              <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>🟡 Moderate Interested</option>
+              <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>🔵 Normal Interested</option>
+              <option value="BELOW_AVERAGE" {% if lead.intent_level == 'BELOW_AVERAGE' %}selected{% endif %}>🟠 Below Average</option>
+              <option value="NOT_INTERESTED" {% if lead.intent_level == 'NOT_INTERESTED' %}selected{% endif %}>🔴 Not Interested</option>
+            </select>
+          </div>
           <div class="mb-2">
             <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">Remarks / Interaction Note *</label>
             <textarea name="update_note" class="form-control form-control-sm" rows="3" placeholder="Enter outcome of call/interaction or reason for status update..." required></textarea>

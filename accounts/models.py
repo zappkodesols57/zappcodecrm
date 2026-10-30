@@ -335,6 +335,8 @@ class User(AbstractUser):
 
     @property
     def can_self_assign(self):
+        if self.is_read_only:
+            return False
         # Doctors, Admins, Super Admins, and Managers should never self-assign leads (only telecallers, counsellors, HR, attendants)
         if self.role in (self.Role.DOCTOR, self.Role.ADMIN, self.Role.SUPER_ADMIN, self.Role.MANAGER):
             return False
@@ -362,6 +364,8 @@ class User(AbstractUser):
 
     @property
     def can_import_export(self):
+        if self.is_read_only:
+            return False
         return self.has_dynamic_permission("import_export", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER, self.Role.LEAD_ATTENDENT, self.Role.COUNSELLOR))
 
     @property
@@ -378,18 +382,26 @@ class User(AbstractUser):
 
     @property
     def can_add_leads(self):
+        if self.is_read_only:
+            return False
         return self.has_dynamic_permission("add_leads", default=self.role != self.Role.DOCTOR)
         
     @property
     def can_edit_any_lead(self):
+        if self.is_read_only:
+            return False
         return self.has_dynamic_permission("edit_any_lead", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN, self.Role.MANAGER))
         
     @property
     def can_edit_own_leads(self):
+        if self.is_read_only:
+            return False
         return self.has_dynamic_permission("edit_own_leads", default=True)
         
     @property
     def can_delete_leads(self):
+        if self.is_read_only:
+            return False
         return self.has_dynamic_permission("delete_leads", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
 
     @property

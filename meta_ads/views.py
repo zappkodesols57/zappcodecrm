@@ -974,7 +974,91 @@ def academy_campaign_analytics(request):
         curr += timezone.timedelta(days=1)
         loop_count += 1
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # 🎯 Campaign Intent Analytics Matrix Calculation
+    # ─────────────────────────────────────────────────────────────────────────
+    from leads.models import LeadIntent
+    campaign_intent_data = []
+    
+    # 1. Group leads by Campaign
+    # We collect all distinct campaigns from lead_qs (Campaign objects + custom_data campaign names)
+    camp_lead_map = {}
+    for l in lead_qs.select_related("campaign"):
+        c_name = ""
+        if l.campaign:
+            c_name = l.campaign.name
+        else:
+            c_name = (l.custom_data or {}).get("campaign") or (l.custom_data or {}).get("campaign_name") or "Direct / Organic"
+        
+        c_name = str(c_name).strip() if c_name else "Direct / Organic"
+        if c_name not in camp_lead_map:
+            camp_lead_map[c_name] = []
+        camp_lead_map[c_name].append(l)
+
+    for c_name, leads_in_camp in camp_lead_map.items():
+        total_c_leads = len(leads_in_camp)
+        if total_c_leads == 0:
+            continue
+        
+        highly_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.HIGHLY_INTERESTED.value)
+        moderate_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.MODERATE_INTERESTED.value)
+        normal_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.NORMAL_INTERESTED.value)
+        below_avg_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.BELOW_AVERAGE.value)
+        not_int_cnt = sum(1 for l in leads_in_camp if l.effective_intent_level == LeadIntent.NOT_INTERESTED.value)
+
+        # Calculate percentages
+        highly_pct = round((highly_cnt / total_c_leads) * 100, 1)
+        moderate_pct = round((moderate_cnt / total_c_leads) * 100, 1)
+        normal_pct = round((normal_cnt / total_c_leads) * 100, 1)
+        below_avg_pct = round((below_avg_cnt / total_c_leads) * 100, 1)
+        not_int_pct = round((not_int_cnt / total_c_leads) * 100, 1)
+
+        # Quality Score / Rating (0 to 100)
+        # Highly=100, Moderate=75, Normal=50, BelowAvg=25, NotInt=0
+        weighted_score = (highly_cnt * 100 + moderate_cnt * 75 + normal_cnt * 50 + below_avg_cnt * 25) / total_c_leads
+        quality_score = round(weighted_score, 1)
+
+        campaign_intent_data.append({
+            "campaign_name": c_name,
+            "total_leads": total_c_leads,
+            "highly_interested": highly_cnt,
+            "highly_pct": highly_pct,
+            "moderate_interested": moderate_cnt,
+            "moderate_pct": moderate_pct,
+            "normal_interested": normal_cnt,
+            "normal_pct": normal_pct,
+            "below_average": below_avg_cnt,
+            "below_avg_pct": below_avg_pct,
+            "not_interested": not_int_cnt,
+            "not_int_pct": not_int_pct,
+            "quality_score": quality_score,
+        })
+
+    # Sort campaigns by total leads descending
+    campaign_intent_data.sort(key=lambda x: (x["total_leads"], x["quality_score"]), reverse=True)
+
+    # Calculate overall Intent totals for KPI bar
+    overall_total = len(lead_qs)
+    overall_intent = {
+        "total": overall_total,
+        "highly": sum(c["highly_interested"] for c in campaign_intent_data),
+        "moderate": sum(c["moderate_interested"] for c in campaign_intent_data),
+        "normal": sum(c["normal_interested"] for c in campaign_intent_data),
+        "below_avg": sum(c["below_average"] for c in campaign_intent_data),
+        "not_int": sum(c["not_interested"] for c in campaign_intent_data),
+    }
+    if overall_total > 0:
+        overall_intent["highly_pct"] = round((overall_intent["highly"] / overall_total) * 100, 1)
+        overall_intent["moderate_pct"] = round((overall_intent["moderate"] / overall_total) * 100, 1)
+        overall_intent["normal_pct"] = round((overall_intent["normal"] / overall_total) * 100, 1)
+        overall_intent["below_avg_pct"] = round((overall_intent["below_avg"] / overall_total) * 100, 1)
+        overall_intent["not_int_pct"] = round((overall_intent["not_int"] / overall_total) * 100, 1)
+    else:
+        overall_intent["highly_pct"] = overall_intent["moderate_pct"] = overall_intent["normal_pct"] = overall_intent["below_avg_pct"] = overall_intent["not_int_pct"] = 0
+
     return render(request, "academy/dashboard/campaign_analytics.html", {
+        "campaign_intent_data": campaign_intent_data,
+        "overall_intent": overall_intent,
         "active": "campaign_analytics",
         "target_biz": target_biz,
         "connection": connection,

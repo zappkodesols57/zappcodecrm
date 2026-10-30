@@ -14,7 +14,7 @@ class LeadForm(forms.ModelForm):
         fields = [
             "name", "mobile", "alternate_mobile", "email", "city", "state", "location",
             "education", "qualification", "graduation_year",
-            "course", "lead_type", "temperature", "stage", "deal_status", "admission_status", "inquiry_date",
+            "course", "lead_type", "temperature", "intent_level", "stage", "deal_status", "admission_status", "inquiry_date",
             "source_category", "lead_source", "campaign", "ad_platform", "campaign_id_text",
             "referral_type", "referral_person", "referral_contact", "referral_notes", "landing_page",
             "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -66,6 +66,9 @@ class LeadForm(forms.ModelForm):
         user = kwargs.pop("user", None)
         self.current_user = user
         super().__init__(*args, **kwargs)
+        if "intent_level" in self.fields:
+            self.fields["intent_level"].widget.attrs.update({"class": "form-select"})
+            self.fields["intent_level"].label = "Lead Intent Level"
         
         if user and user.role == User.Role.LEAD_ATTENDENT:
             if "assigned_to" in self.fields:
@@ -740,7 +743,7 @@ class HospitalLeadForm(forms.ModelForm):
         model = Lead
         fields = [
             "name", "mobile", "location", 
-            "source_category", "assigned_to", "notes"
+            "source_category", "assigned_to", "intent_level", "notes"
         ]
         widgets = {
             "mobile": forms.TextInput(attrs={
@@ -834,6 +837,9 @@ class HospitalLeadForm(forms.ModelForm):
         # Restrict assignment: Only Admin and Manager can choose Lead Owner / Assignee.
         # Lead Attendants are locked to their own user account.
         user_biz = getattr(user, "business", None) if user else None
+        if "intent_level" in self.fields:
+            self.fields["intent_level"].widget.attrs.update({"class": "form-select"})
+            self.fields["intent_level"].label = "Lead Intent Level"
         if "assigned_to" in self.fields:
             self.fields["assigned_to"].label = "Assign To / Lead Owner"
             self.fields["assigned_to"].widget.attrs.update({"class": "form-select"})

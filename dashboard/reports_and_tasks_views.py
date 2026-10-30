@@ -1781,10 +1781,10 @@ def management_daily_reports(request):
     if user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER, User.Role.ADMIN) and not user.is_superuser:
         raise PermissionDenied("You do not have permission to view this report log.")
         
-    # Tab handling: 'eod' (default) vs 'tasks'
-    active_tab = request.GET.get("tab", "eod").strip().lower()
-    if active_tab not in ["eod", "tasks"]:
-        active_tab = "eod"
+    # Tab handling: 'tasks' (default) vs 'eod' vs 'reported'
+    active_tab = request.GET.get("tab", "tasks").strip().lower()
+    if active_tab not in ["tasks", "eod", "reported"]:
+        active_tab = "tasks"
 
     # Role and Employee Filters
     role_filter = request.GET.get("role", "").strip()
@@ -1861,6 +1861,96 @@ def management_daily_reports(request):
         except ValueError:
             pass
 
+    # 3. All Tasks Query (for 'tasks' tab with real-time status update & pagination)
+    all_tasks_qs = TaskReminder.objects.select_related('user', 'assigned_by', 'lead')
+    if effective_hospital:
+        all_tasks_qs = all_tasks_qs.filter(user__hospital=effective_hospital)
+    if user.role == User.Role.MANAGER and not user.is_superuser:
+        team_members = User.objects.filter(Q(reports_to=user) | Q(pk=user.pk))
+        all_tasks_qs = all_tasks_qs.filter(user__in=team_members)
+
+    # Status & Priority Filter
+    status_filter = request.GET.get('status', '').strip()
+    if status_filter:
+        all_tasks_qs = all_tasks_qs.filter(status=status_filter)
+    priority_filter = request.GET.get('priority', '').strip()
+    if priority_filter:
+        all_tasks_qs = all_tasks_qs.filter(priority=priority_filter)
+    if role_filter:
+        all_tasks_qs = all_tasks_qs.filter(user__role=role_filter)
+    if emp_id:
+        all_tasks_qs = all_tasks_qs.filter(user_id=emp_id)
+    if date_from_str:
+        try:
+            d_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            all_tasks_qs = all_tasks_qs.filter(due_date__gte=d_from)
+        except ValueError:
+            pass
+    if date_to_str:
+        try:
+            d_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            all_tasks_qs = all_tasks_qs.filter(due_date__lte=d_to)
+        except ValueError:
+            pass
+
+    search_q = request.GET.get('q', '').strip()
+    if search_q:
+        all_tasks_qs = all_tasks_qs.filter(
+            Q(title__icontains=search_q) |
+            Q(description__icontains=search_q) |
+            Q(lead__name__icontains=search_q) |
+            Q(lead__mobile__icontains=search_q)
+        )
+
+    # Task KPI Stats
+    total_tasks_count = all_tasks_qs.count()
+    pending_tasks_count = all_tasks_qs.filter(status=TaskReminder.Status.PENDING).count()
+    completed_tasks_count = all_tasks_qs.filter(status=TaskReminder.Status.COMPLETED).count()
+    urgent_tasks_count = all_tasks_qs.filter(
+        priority__in=[TaskReminder.Priority.HIGH, TaskReminder.Priority.URGENT],
+        status__in=[TaskReminder.Status.PENDING, TaskReminder.Status.IN_PROGRESS]
+    ).count()
+
+    # Ordering for tasks
+    prio_order = Case(
+        When(priority=TaskReminder.Priority.URGENT, then=Value(1)),
+        When(priority=TaskReminder.Priority.HIGH, then=Value(2)),
+        When(priority=TaskReminder.Priority.MEDIUM, then=Value(3)),
+        When(priority=TaskReminder.Priority.LOW, then=Value(4)),
+        default=Value(5),
+        output_field=IntegerField(),
+    )
+    stat_order = Case(
+        When(status=TaskReminder.Status.PENDING, then=Value(1)),
+        When(status=TaskReminder.Status.IN_PROGRESS, then=Value(2)),
+        When(status=TaskReminder.Status.COMPLETED, then=Value(3)),
+        When(status=TaskReminder.Status.CANCELLED, then=Value(4)),
+        default=Value(5),
+        output_field=IntegerField(),
+    )
+    all_tasks_ordered = all_tasks_qs.annotate(
+        prio_order=prio_order,
+        stat_order=stat_order,
+    ).order_by('-due_date', 'prio_order', 'stat_order', 'due_time', '-created_at')
+
+    # Pagination for all_tasks
+    page_size_val = request.GET.get('page_size', '20').strip()
+    try:
+        page_size = int(page_size_val)
+        if page_size not in [10, 20, 50, 100]:
+            page_size = 20
+    except ValueError:
+        page_size = 20
+
+    tasks_paginator = Paginator(all_tasks_ordered, page_size)
+    task_page_number = request.GET.get('page', 1)
+    tasks_page_obj = tasks_paginator.get_page(task_page_number)
+    task_page_range = tasks_paginator.get_elided_page_range(tasks_page_obj.number, on_each_side=2, on_ends=1) if hasattr(tasks_paginator, 'get_elided_page_range') else tasks_paginator.page_range
+
+    query_params_tasks = request.GET.copy()
+    if 'page' in query_params_tasks:
+        del query_params_tasks['page']
+
     # Process reports to accurately attach first login time and last logout time (with 11:59 PM EOD fallback)
     from audit.models import AuditLog
     from datetime import time
@@ -1933,6 +2023,26 @@ def management_daily_reports(request):
 
     if "export" in request.GET:
         if active_tab == "tasks":
+            task_rows = []
+            for tr in all_tasks_ordered:
+                task_rows.append({
+                    "Due Date": tr.due_date.strftime("%d-%m-%Y") if tr.due_date else "—",
+                    "Due Time": tr.due_time.strftime("%I:%M %p") if tr.due_time else "—",
+                    "Task Title": tr.title,
+                    "Assigned Employee": tr.user.get_full_name() or tr.user.username,
+                    "Role": tr.user.get_role_display(),
+                    "Assigned By": (tr.assigned_by.get_full_name() or tr.assigned_by.username) if tr.assigned_by else "Admin / Self",
+                    "Status": tr.get_status_display(),
+                    "Priority": tr.get_priority_display(),
+                    "Linked Patient / Lead": tr.lead.name if tr.lead else "General Task",
+                    "Description": tr.description or "—",
+                })
+            df = pd.DataFrame(task_rows)
+            response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            response["Content-Disposition"] = f'attachment; filename="tasks_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+            df.to_excel(response, index=False, sheet_name="Tasks")
+            return response
+        elif active_tab == "reported":
             task_rows = []
             for tr in task_reports:
                 r_date = tr.reported_at or tr.updated_at
@@ -2024,6 +2134,18 @@ def management_daily_reports(request):
         "task_reports": task_reports,
         "task_reports_count": task_reports.count(),
         "eod_reports_count": len(processed_reports),
+        "tasks_page_obj": tasks_page_obj,
+        "tasks": tasks_page_obj,
+        "task_page_range": task_page_range,
+        "query_params_tasks": query_params_tasks.urlencode(),
+        "total_tasks_count": total_tasks_count,
+        "pending_tasks_count": pending_tasks_count,
+        "completed_tasks_count": completed_tasks_count,
+        "urgent_tasks_count": urgent_tasks_count,
+        "status_filter": status_filter,
+        "priority_filter": priority_filter,
+        "search_q": search_q,
+        "page_size": page_size,
         "employees": employees,
         "assignable_users": assignable_users,
         "role_choices": role_choices,
@@ -2032,6 +2154,7 @@ def management_daily_reports(request):
         "selected_employee": emp_id,
         "request_get": request.GET,
         "current_hospital": effective_hospital,
+        "current_business": effective_hospital,
     })
 
 @login_required
@@ -2040,6 +2163,12 @@ def management_daily_reports(request):
 def task_list_view(request):
     user = request.user
     
+    # For Admins / Managers: seamlessly redirect to unified page with all tabs
+    if user.role in [User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER] or user.is_superuser:
+        query_str = request.GET.urlencode()
+        redirect_url = reverse("dashboard:management_daily_reports") + ("?tab=tasks&" + query_str if query_str else "?tab=tasks")
+        return redirect(redirect_url)
+
     # Get effective business tenant for multi-tenant isolation
     from dashboard.helpers import get_effective_business
     effective_biz = get_effective_business(request)
@@ -2256,7 +2385,10 @@ def task_create_view(request):
             messages.success(request, f"Task '{title}' created and assigned to {created_count} users successfully!")
         else:
             messages.success(request, f"Task '{title}' created successfully!")
-    return redirect("dashboard:tasks")
+    next_url = request.POST.get('next_url') or request.META.get('HTTP_REFERER')
+    if next_url and ('reports/daily' in next_url or 'tasks' in next_url):
+        return redirect(next_url)
+    return redirect(reverse("dashboard:management_daily_reports") + "?tab=tasks")
 
 
 @login_required
@@ -2264,16 +2396,41 @@ def task_create_view(request):
 
 def task_update_status(request, pk):
     task = get_object_or_404(TaskReminder, pk=pk)
-    if task.user != request.user and not (request.user.hospital and request.user.role in ['SUPER_ADMIN', 'MANAGER']):
-        messages.error(request, "Unauthorized action.")
-        return redirect("dashboard:tasks")
+    user = request.user
+    user_biz = getattr(user, 'business', None) or getattr(user, 'hospital', None)
+    task_user_biz = getattr(task.user, 'business', None) or getattr(task.user, 'hospital', None)
+
+    # Permission check:
+    # 1. Superuser or Super Admin
+    # 2. Business Admin or Manager within the same business tenant
+    # 3. Assigned user himself, or task creator/assigner
+    can_update = (
+        user.is_superuser or
+        user.role == User.Role.SUPER_ADMIN or
+        task.user == user or
+        task.assigned_by == user or
+        (user.role in [User.Role.ADMIN, User.Role.MANAGER] and user_biz and task_user_biz and user_biz.id == task_user_biz.id)
+    )
+
+    if not can_update:
+        messages.error(request, "Unauthorized action: You do not have permission to update this task's status.")
+        next_url = request.POST.get('next_url') or request.META.get('HTTP_REFERER')
+        if next_url and ('reports/daily' in next_url or 'tasks' in next_url):
+            return redirect(next_url)
+        return redirect(reverse("dashboard:management_daily_reports") + "?tab=tasks")
         
     new_status = request.POST.get('status')
     if new_status in TaskReminder.Status.values:
         task.status = new_status
         task.save(update_fields=['status'])
-        messages.success(request, f"Task status updated to {task.get_status_display()}.")
-    return redirect("dashboard:tasks")
+        messages.success(request, f"Task '{task.title}' status updated to {task.get_status_display()}.")
+    else:
+        messages.warning(request, f"Invalid status value received: {new_status}")
+
+    next_url = request.POST.get('next_url') or request.META.get('HTTP_REFERER')
+    if next_url and ('reports/daily' in next_url or 'tasks' in next_url):
+        return redirect(next_url)
+    return redirect(reverse("dashboard:management_daily_reports") + "?tab=tasks")
 
 
 @login_required

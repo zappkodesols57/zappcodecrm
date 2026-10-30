@@ -176,6 +176,120 @@
     </div>
   </div>
 
+  <!-- ── 4.1 Lead Intent Quality Matrix (Campaign Intent Analytics Table) ── -->
+  <div class="card border-0 shadow-sm rounded-3 mb-4 bg-white overflow-hidden" style="border: 1px solid #e2e8f0 !important;">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+          <i class="fa-solid fa-bullseye text-primary"></i> Campaign-wise Lead Intent & Quality Analytics
+        </h6>
+        <span class="text-muted small">Real-time intent distribution and audience quality breakdown per campaign</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-light text-secondary border px-2 py-1 small fw-semibold">
+          Total Leads: {{ overall_intent.total }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Overall Intent Ratio Bar -->
+    {% if overall_intent.total > 0 %}
+    <div class="px-4 py-3 bg-light border-bottom">
+      <div class="d-flex justify-content-between align-items-center mb-1 text-muted small fw-semibold">
+        <span>Overall Lead Intent Distribution</span>
+        <span>
+          <strong class="text-success">{{ overall_intent.highly }} Highly</strong> &bull;
+          <strong class="text-warning">{{ overall_intent.moderate }} Moderate</strong> &bull;
+          <strong class="text-primary">{{ overall_intent.normal }} Normal</strong> &bull;
+          <strong class="text-secondary">{{ overall_intent.below_avg }} Below Avg</strong> &bull;
+          <strong class="text-danger">{{ overall_intent.not_int }} Not Int.</strong>
+        </span>
+      </div>
+      <div class="progress" style="height: 10px; border-radius: 6px;">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ overall_intent.highly_pct }}%;" title="Highly Interested: {{ overall_intent.highly }} ({{ overall_intent.highly_pct }}%)"></div>
+        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ overall_intent.moderate_pct }}%;" title="Moderate Interested: {{ overall_intent.moderate }} ({{ overall_intent.moderate_pct }}%)"></div>
+        <div class="progress-bar bg-info" role="progressbar" style="width: {{ overall_intent.normal_pct }}%;" title="Normal Interested: {{ overall_intent.normal }} ({{ overall_intent.normal_pct }}%)"></div>
+        <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ overall_intent.below_avg_pct }}%;" title="Below Average: {{ overall_intent.below_avg }} ({{ overall_intent.below_avg_pct }}%)"></div>
+        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ overall_intent.not_int_pct }}%;" title="Not Interested: {{ overall_intent.not_int }} ({{ overall_intent.not_int_pct }}%)"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.84rem;">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 45px;" class="ps-4">#</th>
+              <th>Campaign Name</th>
+              <th class="text-center">Total Leads</th>
+              <th class="text-center" style="background-color: #f0fdf4; color: #166534;">🟢 Highly Interested</th>
+              <th class="text-center" style="background-color: #fefce8; color: #854d0e;">🟡 Moderate</th>
+              <th class="text-center" style="background-color: #f0f9ff; color: #075985;">🔵 Normal</th>
+              <th class="text-center" style="background-color: #fff7ed; color: #9a3412;">🟠 Below Avg</th>
+              <th class="text-center" style="background-color: #fef2f2; color: #991b1b;">🔴 Not Interested</th>
+              <th class="text-end pe-4">Quality Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in campaign_intent_data %}
+            <tr>
+              <td class="ps-4 text-muted small fw-semibold">{{ forloop.counter }}</td>
+              <td>
+                <div class="fw-bold text-dark">{{ r.campaign_name }}</div>
+              </td>
+              <td class="text-center fw-bold text-dark fs-6">{{ r.total_leads }}</td>
+              
+              <!-- Highly Interested -->
+              <td class="text-center" style="background-color: #f0fdf4;">
+                <span class="fw-bold text-success">{{ r.highly_interested }}</span>
+                <span class="text-muted small">({{ r.highly_pct }}%)</span>
+              </td>
+
+              <!-- Moderate Interested -->
+              <td class="text-center" style="background-color: #fefce8;">
+                <span class="fw-bold text-warning">{{ r.moderate_interested }}</span>
+                <span class="text-muted small">({{ r.moderate_pct }}%)</span>
+              </td>
+
+              <!-- Normal Interested -->
+              <td class="text-center" style="background-color: #f0f9ff;">
+                <span class="fw-bold text-primary">{{ r.normal_interested }}</span>
+                <span class="text-muted small">({{ r.normal_pct }}%)</span>
+              </td>
+
+              <!-- Below Average -->
+              <td class="text-center" style="background-color: #fff7ed;">
+                <span class="fw-bold text-secondary">{{ r.below_average }}</span>
+                <span class="text-muted small">({{ r.below_avg_pct }}%)</span>
+              </td>
+
+              <!-- Not Interested -->
+              <td class="text-center" style="background-color: #fef2f2;">
+                <span class="fw-bold text-danger">{{ r.not_interested }}</span>
+                <span class="text-muted small">({{ r.not_int_pct }}%)</span>
+              </td>
+
+              <!-- Quality Score Rating -->
+              <td class="text-end pe-4">
+                <div class="d-inline-flex align-items-center gap-1.5 px-2.5 py-1 rounded-2 border fw-bold small {% if r.quality_score >= 60 %}bg-success-subtle text-success border-success-subtle{% elif r.quality_score >= 40 %}bg-warning-subtle text-warning border-warning-subtle{% else %}bg-danger-subtle text-danger border-danger-subtle{% endif %}">
+                  <span>{{ r.quality_score }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" class="text-center py-4 text-muted">
+                No campaign leads found in this date range.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ── 5. Dynamic Analytics Charts (Campaign-wise Leads/Budget & Date-wise Volume) ── -->
   <div class="row g-3 mb-4">
     <!-- Chart 1: Campaign-wise Leads & Budget -->
