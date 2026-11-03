@@ -21,12 +21,23 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 
 @csrf_exempt
-def meta_webhook(request):
+def meta_webhook(request, business_id=None):
     """
     GET  → Meta verification handshake (one-time setup)
     POST → Real-time lead notification from Meta
+    Supports dedicated per-business endpoints: /meta-ads/webhook/<business_id>/
+    as well as global fallback endpoint: /meta-ads/webhook/
     """
-    connection = MetaAdsConnection.objects.filter(is_active=True).first()
+    connection = None
+    if business_id:
+        connection = MetaAdsConnection.objects.filter(is_active=True, hospital_id=business_id).first()
+    if not connection:
+        # Fallback to connection matching verify token or active connection
+        v_token = request.GET.get("hub.verify_token")
+        if v_token:
+            connection = MetaAdsConnection.objects.filter(is_active=True, webhook_verify_token=v_token).first()
+    if not connection:
+        connection = MetaAdsConnection.objects.filter(is_active=True).first()
 
     # ── Verification Handshake ──
     if request.method == "GET":
@@ -106,11 +117,26 @@ def create_or_update_meta_lead(connection, data):
             logger.info(f"Duplicate Meta lead skipped (recent mobile): {clean_10}")
             return None
 
-    # Business association -> Check connection's assigned business or active business tenant
-    from accounts.models import Business
+    # Business association -> Strictly bind to connection's assigned business (ID-level tenant isolation)
+    from accounts.models import Business, Hospital
     business = getattr(connection, "hospital", None) or getattr(connection, "business", None)
     if not business:
-        business = Business.objects.filter(is_active=True).first()
+        # If connection has no hospital linked, check connection name or default to Academy
+        if "academy" in (getattr(connection, "name", "") or "").lower():
+            business = Hospital.objects.filter(industry="ACADEMY", is_active=True).first()
+        elif "hospital" in (getattr(connection, "name", "") or "").lower():
+            business = Hospital.objects.filter(industry="HOSPITAL", is_active=True).first()
+        else:
+            business = Hospital.objects.filter(industry="ACADEMY", is_active=True).first() or Business.objects.filter(is_active=True).first()
+        
+        # Auto-heal: bind this connection to the resolved business permanently so it never fluctuates
+        if business and connection and not connection.hospital_id:
+            try:
+                connection.hospital = business
+                connection.save(update_fields=["hospital"])
+                logger.info(f"Auto-bound MetaAdsConnection {connection.id} to business {business.id} ({business.name})")
+            except Exception as e:
+                logger.warning(f"Failed to auto-bind connection to business: {e}")
 
     # 1. Stage
     stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.filter(is_active=True).order_by("order").first()
