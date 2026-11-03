@@ -37,7 +37,12 @@ def meta_webhook(request, business_id=None):
         if v_token:
             connection = MetaAdsConnection.objects.filter(is_active=True, webhook_verify_token=v_token).first()
     if not connection:
-        connection = MetaAdsConnection.objects.filter(is_active=True).first()
+        # Default global webhook is permanently attached to Zappcode Academy (Business ID: 7)
+        connection = (
+            MetaAdsConnection.objects.filter(is_active=True, hospital_id=7).first()
+            or MetaAdsConnection.objects.filter(is_active=True, name__icontains="academy").first()
+            or MetaAdsConnection.objects.filter(is_active=True).first()
+        )
 
     # ── Verification Handshake ──
     if request.method == "GET":
@@ -803,7 +808,12 @@ def update_meta_token(request):
     if target_biz:
         connection = MetaAdsConnection.objects.filter(is_active=True, hospital=target_biz).first()
     if not connection:
-        connection = MetaAdsConnection.objects.filter(is_active=True).first()
+        # Default global webhook is permanently attached to Zappcode Academy (Business ID: 7)
+        connection = (
+            MetaAdsConnection.objects.filter(is_active=True, hospital_id=7).first()
+            or MetaAdsConnection.objects.filter(is_active=True, name__icontains="academy").first()
+            or MetaAdsConnection.objects.filter(is_active=True).first()
+        )
 
     if not connection:
         # Create separate connection for this specific business
@@ -1234,7 +1244,12 @@ def academy_sync_meta_now(request):
 
     connection = MetaAdsConnection.objects.filter(hospital=target_biz, is_active=True).first()
     if not connection:
-        connection = MetaAdsConnection.objects.filter(is_active=True).first()
+        # Default global webhook is permanently attached to Zappcode Academy (Business ID: 7)
+        connection = (
+            MetaAdsConnection.objects.filter(is_active=True, hospital_id=7).first()
+            or MetaAdsConnection.objects.filter(is_active=True, name__icontains="academy").first()
+            or MetaAdsConnection.objects.filter(is_active=True).first()
+        )
 
     if not connection or not connection.page_access_token or not connection.ad_account_id:
         messages.error(request, "Please connect your Meta Ad Account ID and Access Token first.")
