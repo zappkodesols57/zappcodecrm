@@ -821,7 +821,7 @@
                     <small class="text-muted">Configure your standard clinic timing, consultation slot intervals, and weekly off days.</small>
                   </div>
 
-                  <form method="POST">
+                  <form method="POST" id="docScheduleForm">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_schedule">
 
@@ -880,7 +880,7 @@
                     <small class="text-muted">Selected leave dates will be locked so Telecallers cannot book conflicting slots.</small>
                   </div>
 
-                  <form method="POST">
+                  <form method="POST" id="docLeaveForm">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_leave">
 
@@ -903,6 +903,9 @@
                     <div class="mb-3 form-check">
                       <input class="form-check-input" type="checkbox" name="is_full_day" value="1" id="fullDayCheckDoc" checked onchange="document.getElementById('docPartialTimeDiv').style.display = this.checked ? 'none' : 'flex';">
                       <label class="form-check-label small fw-bold text-dark" for="fullDayCheckDoc">Full Day Leave</label>
+                      <div class="form-text text-muted small mt-1" style="font-size: 0.74rem; line-height: 1.4;">
+                        Check for a full day leave. Uncheck to specify partial hours (e.g. afternoon half-day or specific hours off).
+                      </div>
                     </div>
 
                     <div class="row g-3 mb-4" id="docPartialTimeDiv" style="display:none;">
@@ -917,7 +920,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-danger fw-bold rounded-pill px-4 py-2 shadow-sm">
-                      Block Leave Dates
+                      Add Leave Date
                     </button>
                   </form>
                 </div>
@@ -973,7 +976,7 @@
                         <input type="hidden" name="action" value="delete_leave">
                         <input type="hidden" name="leave_id" value="{{ l.pk }}">
                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1">
-                          <i class="fa-solid fa-trash me-1"></i> Remove
+                          Remove
                         </button>
                       </form>
                       {% else %}
@@ -1390,6 +1393,134 @@
     const subtab = urlParams.get('subtab');
     if (tab) {
       switchMainTab(tab, subtab);
+    }
+
+    // Save Working Hours Confirmation Handler
+    const schedForm = document.getElementById("docScheduleForm");
+    if (schedForm) {
+      schedForm.addEventListener("submit", function(e) {
+        if (this.dataset.confirmedByModal === "true") return;
+        e.preventDefault();
+
+        const startTime = (this.querySelector('[name="opd_start_time"]')?.value || '—').trim();
+        const endTime = (this.querySelector('[name="opd_end_time"]')?.value || '—').trim();
+        const slotEl = this.querySelector('[name="slot_duration_minutes"]');
+        const slotText = slotEl ? slotEl.options[slotEl.selectedIndex].text : '30 Minutes';
+        const offDays = (this.querySelector('[name="off_days"]')?.value || 'None').trim() || 'None';
+        const isAvail = this.querySelector('[name="is_available"]')?.checked ? 'Yes (Accepting)' : 'No (Paused)';
+
+        const summaryHtml = `
+          <div class="confirm-summary-card my-2 text-start" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="background: #f8fafc; padding: 7px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b;">
+              Schedule Overview
+            </div>
+            <div style="padding: 10px 14px;">
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">OPD Start Time</span>
+                <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.82rem; padding: 3px 8px; border-radius: 6px;">${startTime}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">OPD End Time</span>
+                <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.82rem; padding: 3px 8px; border-radius: 6px;">${endTime}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Slot Duration</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-bold" style="font-size: 0.82rem; padding: 3px 8px; border-radius: 6px;">${slotText}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Weekly Offs</span>
+                <span style="color: #0f172a; font-size: 0.84rem; font-weight: 600;">${offDays}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Accepting Appointments</span>
+                <span class="badge ${this.querySelector('[name="is_available"]')?.checked ? 'bg-success bg-opacity-10 text-success border-success-subtle' : 'bg-secondary bg-opacity-10 text-secondary border-secondary-subtle'} border fw-bold" style="font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;">${isAvail}</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-secondary small mt-2.5 mb-0 text-center fw-medium" style="font-size: 0.88rem;">Are you sure you want to save these OPD working hours?</p>
+        `;
+
+        const formSelf = this;
+        window.showConfirmDialog({
+          title: 'Confirm Working Hours',
+          message: summaryHtml,
+          confirmText: 'Save Working Hours'
+        }).then(function(ok) {
+          if (ok) {
+            formSelf.dataset.confirmedByModal = "true";
+            formSelf.submit();
+          }
+        });
+      });
+    }
+
+    // Add Leave Date Confirmation Handler
+    const lvForm = document.getElementById("docLeaveForm");
+    if (lvForm) {
+      lvForm.addEventListener("submit", function(e) {
+        if (this.dataset.confirmedByModal === "true") return;
+        e.preventDefault();
+
+        const startDate = (this.querySelector('[name="start_date"]')?.value || '').trim();
+        const endDate = (this.querySelector('[name="end_date"]')?.value || '').trim();
+        const isFullDay = this.querySelector('[name="is_full_day"]')?.checked;
+        const reason = (this.querySelector('[name="reason"]')?.value || 'Personal Leave').trim();
+
+        function formatReadableDate(dStr) {
+          if (!dStr) return '—';
+          try {
+            const parts = dStr.split('-');
+            if (parts.length === 3) {
+              const d = new Date(parts[0], parts[1] - 1, parts[2]);
+              return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+          } catch (e) {}
+          return dStr;
+        }
+
+        const fStart = formatReadableDate(startDate);
+        const fEnd = formatReadableDate(endDate);
+        const dateText = (fStart === fEnd) ? fStart : `${fStart} <span class="text-muted">→</span> ${fEnd}`;
+
+        const durationText = isFullDay ? 'Full Day Off' : (
+          (this.querySelector('[name="start_time"]')?.value || '00:00') + ' to ' + (this.querySelector('[name="end_time"]')?.value || '00:00')
+        );
+
+        const summaryHtml = `
+          <div class="confirm-summary-card my-2 text-start" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="background: #f8fafc; padding: 7px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b;">
+              Leave Details
+            </div>
+            <div style="padding: 10px 14px;">
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Leave Dates</span>
+                <span style="color: #0f172a; font-size: 0.84rem; font-weight: 600;">${dateText}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Duration</span>
+                <span class="badge ${isFullDay ? 'bg-danger bg-opacity-10 text-danger border-danger-subtle' : 'bg-warning bg-opacity-10 text-warning-emphasis border-warning-subtle'} border fw-bold" style="font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;">${durationText}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Reason</span>
+                <span class="text-truncate ms-2 fw-semibold text-dark" style="max-width: 200px; font-size: 0.84rem;">${reason}</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-secondary small mt-2.5 mb-0 text-center fw-medium" style="font-size: 0.88rem;">Are you sure you want to add this leave date?</p>
+        `;
+
+        const formSelf = this;
+        window.showConfirmDialog({
+          title: 'Confirm Add Leave',
+          message: summaryHtml,
+          confirmText: 'Add Leave Date'
+        }).then(function(ok) {
+          if (ok) {
+            formSelf.dataset.confirmedByModal = "true";
+            formSelf.submit();
+          }
+        });
+      });
     }
   });
 </script>

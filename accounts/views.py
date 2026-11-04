@@ -1,4 +1,5 @@
 import re
+from django.db.models import Q
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -114,6 +115,13 @@ def crm_login(request, is_system_login=False):
 
         if not user.is_approved or not user.is_active:
             messages.error(request, "Your account is pending approval or inactive. Please contact an admin.")
+            return render(request, "accounts/login.html", {"form_error": True, "is_system_login": is_system_login})
+
+        # Tenant / Business Active Status Check
+        if user.hospital and not user.hospital.is_active and user.role != User.Role.SUPER_ADMIN:
+            biz_name = getattr(user.hospital, 'name', 'Organization')
+            messages.error(request, f"Your organization account ('{biz_name}') has been deactivated. Please contact your system administrator.")
+            log_action(action="LOGIN_BLOCKED_INACTIVE_BUSINESS", obj=user, new_value=f"Login blocked for '{user.username}': Business '{biz_name}' is deactivated.", user=user, ip_address=client_ip)
             return render(request, "accounts/login.html", {"form_error": True, "is_system_login": is_system_login})
 
         # 4. Strict Role & Gateway Isolation
@@ -1015,32 +1023,93 @@ def user_delete(request, pk):
         full_name = target_user.get_full_name().strip()
         first_name = target_user.first_name.strip()
 
-        log_action("Employee Deleted", target_user, user=request.user)
-
-        # If a doctor user is deleted, also delete or deactivate their HospitalDoctor profile and MasterItem
+        # If a doctor user is being deleted/deactivated, handle their HospitalDoctor profile and MasterItem
         if user_role == User.Role.DOCTOR:
+            from django.db.models import Q
             from leads.models import HospitalDoctor, MasterGroup, MasterItem
-            # 1. Delete linked HospitalDoctor profile(s)
-            hdoc_qs = HospitalDoctor.objects.filter(Q(user=target_user) | (Q(hospital=user_hospital) & (Q(name__iexact=full_name) | Q(name__iexact=username) | Q(name__iexact=first_name)))) if user_hospital else HospitalDoctor.objects.filter(user=target_user)
-            for hdoc in hdoc_qs:
+            
+            # 1. Safely handle linked HospitalDoctor profile(s)
+            try:
+                hdoc_filter = Q(user=target_user)
+                if user_hospital and (full_name or username or first_name):
+                    hdoc_filter = hdoc_filter | (
+                        Q(hospital=user_hospital) & (
+                            (Q(name__iexact=full_name) if full_name else Q()) |
+                            (Q(name__iexact=username) if username else Q()) |
+                            (Q(name__iexact=first_name) if first_name else Q())
+                        )
+                    )
+                hdoc_qs = HospitalDoctor.objects.filter(hdoc_filter)
+                for hdoc in hdoc_qs:
+                    try:
+                        hdoc.delete()
+                    except Exception:
+                        hdoc.is_active = False
+                        hdoc.user = None
+                        hdoc.save(update_fields=["is_active", "user"])
+            except Exception:
+                pass
+
+            # 2. Safely clean or deactivate MasterItem 'Doctors'
+            try:
+                doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
+                if doc_grp:
+                    m_items = MasterItem.objects.filter(group=doc_grp)
+                    if user_hospital:
+                        m_items = m_items.filter(hospital=user_hospital)
+                    name_filter = (
+                        (Q(name__iexact=full_name) if full_name else Q()) |
+                        (Q(name__iexact=username) if username else Q()) |
+                        (Q(name__iexact=first_name) if first_name else Q())
+                    )
+                    m_items = m_items.filter(name_filter)
+                    for mi in m_items:
+                        try:
+                            mi.delete()
+                        except Exception:
+                            mi.is_active = False
+                            mi.save(update_fields=["is_active"])
+            except Exception:
+                pass
+
+        from django.db import transaction, IntegrityError
+        from django.db.models.deletion import ProtectedError
+
+        try:
+            with transaction.atomic():
+                log_action("Employee Deleted", target_user, user=request.user)
+                target_user.delete()
+            messages.success(request, f"User '{username}' deleted successfully.")
+        except (ProtectedError, IntegrityError):
+            # User has active foreign key constraints or linked historical data (appointments, leads, activities, etc.)
+            # Perform soft deletion / deactivation to safeguard database integrity and audit logs
+            target_user.is_active = False
+            target_user.is_active_employee = False
+            target_user.save(update_fields=["is_active", "is_active_employee"])
+
+            if user_role == User.Role.DOCTOR:
                 try:
-                    hdoc.delete()
+                    from leads.models import HospitalDoctor
+                    HospitalDoctor.objects.filter(user=target_user).update(is_active=False)
                 except Exception:
-                    hdoc.is_active = False
-                    hdoc.user = None
-                    hdoc.save(update_fields=["is_active", "user"])
+                    pass
 
-            # 2. Clean MasterItem 'Doctors'
-            doc_grp = MasterGroup.objects.filter(name__iexact='Doctors').first()
-            if doc_grp:
-                m_items = MasterItem.objects.filter(group=doc_grp)
-                if user_hospital:
-                    m_items = m_items.filter(hospital=user_hospital)
-                m_items = m_items.filter(Q(name__iexact=full_name) | Q(name__iexact=username) | Q(name__iexact=first_name))
-                m_items.delete()
+            log_action("Employee Deactivated (Deletion Dependency Protected)", target_user, user=request.user)
+            messages.warning(
+                request,
+                f"User '{username}' has linked historical records (such as appointments, patient leads, or schedules) "
+                f"and cannot be permanently deleted. Their account access and doctor profile have been safely deactivated instead."
+            )
+        except Exception as e:
+            target_user.is_active = False
+            target_user.is_active_employee = False
+            target_user.save(update_fields=["is_active", "is_active_employee"])
+            log_action("Employee Deactivated (Fallback)", target_user, user=request.user)
+            messages.warning(
+                request,
+                f"User '{username}' could not be deleted due to linked data dependencies. Their account access has been deactivated."
+            )
 
-        target_user.delete()
-        messages.success(request, f"Employee user '{username}' deleted successfully.")
     return redirect("accounts:user_list")
 
 

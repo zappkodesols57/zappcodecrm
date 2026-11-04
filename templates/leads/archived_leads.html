@@ -395,21 +395,24 @@
 
   <!-- On-Screen Confirmation Modal 1: Restore Leads -->
   <div class="modal fade" id="confirmRestoreModal" tabindex="-1" aria-labelledby="confirmRestoreModalLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 18px; border: 1px solid #e2e8f0 !important; overflow: hidden;">
         <div class="modal-body p-4 text-center">
-          <h5 class="fw-bold text-dark mb-2" id="confirmRestoreModalLabel" style="font-size: 1.15rem;">Restore Leads</h5>
-          <p class="text-muted small mb-4" id="restoreModalText" style="font-size: 0.9rem; line-height: 1.5;">
+          <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 54px; height: 54px; background: #dcfce7; border: 1px solid #bbf7d0; color: #16a34a;">
+            <i class="fa-solid fa-rotate-left" style="font-size: 1.45rem;"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2" id="confirmRestoreModalLabel" style="font-size: 1.15rem; letter-spacing: -0.01em;">Restore Leads</h5>
+          <p class="text-secondary mb-0" id="restoreModalText" style="font-size: 0.92rem; line-height: 1.55;">
             Are you sure you want to restore the selected lead(s) back to active leads?
           </p>
-          <div class="d-flex justify-content-center gap-2">
-            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.86rem; min-width: 100px;">
-              Cancel
-            </button>
-            <button type="button" class="btn btn-success rounded-pill px-4 py-2 fw-semibold" id="btnExecuteRestore" style="background-color: #10b981; border-color: #10b981; font-size: 0.86rem; min-width: 110px;">
-              Yes, Restore
-            </button>
-          </div>
+        </div>
+        <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-end gap-2" style="background: #f8fafc; border-top: 1px solid #f1f5f9 !important;">
+          <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal" style="height: 38px; min-width: 90px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff; color: #475569; font-size: 0.88rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-success fw-semibold" id="btnExecuteRestore" style="height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; background-color: #16a34a !important; border: 1px solid #15803d !important; color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+            <i class="fa-solid fa-rotate-left me-1.5"></i> Yes, Restore
+          </button>
         </div>
       </div>
     </div>
@@ -417,21 +420,24 @@
 
   <!-- On-Screen Confirmation Modal 2: Delete Forever (Hard Purge) -->
   <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 410px;">
-      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 18px; border: 1px solid #e2e8f0 !important; overflow: hidden;">
         <div class="modal-body p-4 text-center">
-          <h5 class="fw-bold text-danger mb-2" id="confirmDeleteModalLabel" style="font-size: 1.15rem;">Permanently Delete Leads</h5>
-          <p class="text-muted small mb-4" id="deleteModalText" style="font-size: 0.9rem; line-height: 1.5;">
+          <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 54px; height: 54px; background: #fee2e2; border: 1px solid #fecaca; color: #dc2626;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.45rem;"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2" id="confirmDeleteModalLabel" style="font-size: 1.15rem; letter-spacing: -0.01em;">Permanently Delete Leads</h5>
+          <p class="text-secondary mb-0" id="deleteModalText" style="font-size: 0.92rem; line-height: 1.55;">
             Warning: This action cannot be undone. Selected lead(s) will be completely erased from the database.
           </p>
-          <div class="d-flex justify-content-center gap-2">
-            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-2 fw-semibold" data-bs-dismiss="modal" style="font-size: 0.86rem; min-width: 100px;">
-              Cancel
-            </button>
-            <button type="button" class="btn btn-danger rounded-pill px-4 py-2 fw-semibold" id="btnExecuteDeleteForever" style="background-color: #ef4444; border-color: #ef4444; font-size: 0.86rem; min-width: 120px;">
-              Delete Forever
-            </button>
-          </div>
+        </div>
+        <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-end gap-2" style="background: #f8fafc; border-top: 1px solid #f1f5f9 !important;">
+          <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal" style="height: 38px; min-width: 90px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff; color: #475569; font-size: 0.88rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-danger fw-semibold" id="btnExecuteDeleteForever" style="height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; background-color: #dc2626 !important; border: 1px solid #b91c1c !important; color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+            <i class="fa-solid fa-trash-can me-1.5"></i> Delete Forever
+          </button>
         </div>
       </div>
     </div>

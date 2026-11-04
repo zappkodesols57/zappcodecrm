@@ -65,7 +65,7 @@ def get_unread_notifications(request):
             alert_types = []  # ('30m', '5m', 'due')
             
             # Determine person label based on lead industry (student vs patient)
-            is_acad = getattr(fu.lead, 'is_academy_industry', False) or (user_hosp and getattr(user_hosp, 'industry', None) == 'ACADEMY')
+            is_acad = getattr(fu.lead, 'is_academy_industry', False) or (user_biz and getattr(user_biz, 'industry', None) == 'ACADEMY')
             person_label = "student" if is_acad else "patient"
             
             if fu.followup_time:
@@ -106,15 +106,15 @@ def get_unread_notifications(request):
             apt_qs = apt_qs.filter(Q(doctor_user=user) | Q(doctor_name__icontains=user.get_full_name() or user.username))
         elif not is_admin_or_mgr:
             apt_qs = apt_qs.filter(lead__assigned_to=user)
-        elif user_hosp:
-            apt_qs = apt_qs.filter(hospital=user_hosp)
+        elif user_biz:
+            apt_qs = apt_qs.filter(hospital=user_biz)
 
         for apt in apt_qs:
             if not apt.lead:
                 continue
             time_msg = ""
             apt_alerts = []
-            apt_acad = getattr(apt.lead, 'is_academy_industry', False) or (user_hosp and getattr(user_hosp, 'industry', None) == 'ACADEMY')
+            apt_acad = getattr(apt.lead, 'is_academy_industry', False) or (user_biz and getattr(user_biz, 'industry', None) == 'ACADEMY')
             apt_person = "student" if apt_acad else "patient"
             if apt.appointment_time:
                 apt_dt = timezone.datetime.combine(today, apt.appointment_time)

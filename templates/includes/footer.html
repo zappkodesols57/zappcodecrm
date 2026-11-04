@@ -1,19 +1,46 @@
+<style>
+  #appConfirmModal .modal-content,
+  #logoutConfirmModal .modal-content,
+  #deleteLeaveModal .modal-content,
+  div[id^="deleteBizModal"] .modal-content {
+    border-radius: 20px !important;
+    overflow: hidden !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18) !important;
+  }
+  #appConfirmModal .modal-body,
+  #logoutConfirmModal .modal-body,
+  #deleteLeaveModal .modal-body,
+  div[id^="deleteBizModal"] .modal-body {
+    border-top-left-radius: 20px !important;
+    border-top-right-radius: 20px !important;
+  }
+  #appConfirmModal .modal-footer,
+  #logoutConfirmModal .modal-footer,
+  #deleteLeaveModal .modal-footer,
+  div[id^="deleteBizModal"] .modal-footer {
+    border-bottom-left-radius: 20px !important;
+    border-bottom-right-radius: 20px !important;
+    border-top: 1px solid #f1f5f9 !important;
+    background: #f8fafc !important;
+  }
+</style>
 <!-- Global App Confirmation Modal -->
 <div class="modal fade" id="appConfirmModal" tabindex="-1" aria-labelledby="appConfirmModalLabel" aria-hidden="true" style="z-index: 10600;">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
-      <div class="modal-body p-4 text-center">
-        <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" id="appConfirmModalIconWrapper" style="width: 64px; height: 64px; background: rgba(99, 102, 241, 0.1); color: #4f46e5;">
-          <i class="fa-solid fa-circle-question" id="appConfirmModalIcon" style="font-size: 2rem;"></i>
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px !important; border: 1px solid #e2e8f0 !important; overflow: hidden !important; box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18) !important;">
+      <div class="modal-body p-4 text-center" style="border-top-left-radius: 20px !important; border-top-right-radius: 20px !important;">
+        <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" id="appConfirmModalIconWrapper" style="width: 54px; height: 54px; background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb;">
+          <i class="fa-solid fa-circle-question" id="appConfirmModalIcon" style="font-size: 1.45rem;"></i>
         </div>
-        <h5 class="fw-bold text-dark mb-2" id="appConfirmModalTitle">Confirm Action</h5>
-        <p class="text-muted mb-0" id="appConfirmModalMsg" style="font-size: 0.95rem; line-height: 1.5;">Are you sure you want to proceed?</p>
+        <h5 class="fw-bold text-dark mb-2" id="appConfirmModalTitle" style="font-size: 1.15rem; letter-spacing: -0.01em;">Confirm Action</h5>
+        <div class="text-secondary mb-0" id="appConfirmModalMsg" style="font-size: 0.92rem; line-height: 1.55; font-weight: 450;">Are you sure you want to proceed?</div>
       </div>
-      <div class="modal-footer border-0 bg-light p-3 px-4 d-flex justify-content-end gap-2">
-        <button type="button" class="btn btn-light rounded-pill px-4 fw-semibold text-secondary" data-bs-dismiss="modal" id="appConfirmModalCancelBtn">
+      <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-end gap-2" style="background: #f8fafc !important; border-top: 1px solid #f1f5f9 !important; border-bottom-left-radius: 20px !important; border-bottom-right-radius: 20px !important;">
+        <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal" id="appConfirmModalCancelBtn" style="height: 38px; min-width: 90px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff !important; color: #475569 !important; font-size: 0.88rem; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
           Cancel
         </button>
-        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" id="appConfirmModalOkBtn">
+        <button type="button" class="btn fw-semibold text-white" id="appConfirmModalOkBtn" style="height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; background-color: #0f2744 !important; border: 1px solid #0f2744 !important; color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
           Confirm
         </button>
       </div>
@@ -27,7 +54,7 @@
   // Auto-dismiss toasts
   document.querySelectorAll('.toast').forEach(function(t){ setTimeout(function(){ t.classList.remove('show'); }, 4000); });
 
-  // Custom UI-driven Confirmation Dialog Function
+  // Custom UI-driven Confirmation Dialog Function (Standard Unified Design)
   window.showConfirmDialog = function(options) {
     return new Promise(function(resolve) {
       var modalEl = document.getElementById('appConfirmModal');
@@ -37,35 +64,52 @@
       }
 
       var msg = typeof options === 'string' ? options : (options.message || 'Are you sure you want to proceed?');
-      var title = options.title || 'Confirmation Required';
-      var confirmText = options.confirmText || 'Confirm';
+      var isDanger = options.isDanger || /delete|archive|remove|reject|erase/i.test(msg);
+      var isDeactivate = /deactivate|disable|turn off/i.test(msg);
+      var isActivate = /activate|enable|restore|unarchive/i.test(msg);
+
+      var defaultTitle = 'Confirmation Required';
+      if (isDanger) defaultTitle = 'Confirm Delete';
+      else if (isDeactivate) defaultTitle = 'Confirm Deactivation';
+      else if (isActivate) defaultTitle = 'Confirm Activation';
+
+      var title = options.title || defaultTitle;
+      var confirmText = options.confirmText || (isDanger ? 'Delete' : (isDeactivate ? 'Deactivate' : (isActivate ? 'Activate' : 'Confirm')));
       var cancelText = options.cancelText || 'Cancel';
-      var isDanger = options.isDanger || /delete|archive|cancel|remove|reject/i.test(msg);
-      var isRestore = /restore|unarchive/i.test(msg);
 
       document.getElementById('appConfirmModalTitle').innerText = title;
-      document.getElementById('appConfirmModalMsg').innerText = msg;
+      document.getElementById('appConfirmModalMsg').innerHTML = msg;
       
       var okBtn = document.getElementById('appConfirmModalOkBtn');
+      var cancelBtn = document.getElementById('appConfirmModalCancelBtn');
       var iconWrapper = document.getElementById('appConfirmModalIconWrapper');
       var iconEl = document.getElementById('appConfirmModalIcon');
 
       okBtn.innerText = confirmText;
-      if (isRestore) {
-        okBtn.className = 'btn btn-success rounded-pill px-4 fw-bold shadow-sm';
-        iconWrapper.style.background = 'rgba(16, 185, 129, 0.12)';
-        iconWrapper.style.color = '#059669';
-        iconEl.className = 'fa-solid fa-rotate-left';
-      } else if (isDanger) {
-        okBtn.className = 'btn btn-danger rounded-pill px-4 fw-bold shadow-sm';
-        iconWrapper.style.background = 'rgba(239, 68, 68, 0.12)';
-        iconWrapper.style.color = '#dc2626';
+      cancelBtn.innerText = cancelText;
+
+      cancelBtn.style.cssText = 'height: 38px; min-width: 90px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff !important; color: #475569 !important; font-size: 0.88rem; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.03);';
+
+      if (isDanger) {
+        okBtn.style.cssText = 'height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; background-color: #dc2626 !important; border: 1px solid #b91c1c !important; color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08);';
+        iconWrapper.style.cssText = 'width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem; background: #fee2e2 !important; border: 1px solid #fecaca !important; color: #dc2626 !important;';
         iconEl.className = 'fa-solid fa-triangle-exclamation';
+        iconEl.style.fontSize = '1.45rem';
+      } else if (isDeactivate) {
+        okBtn.style.cssText = 'height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; background-color: #ea580c !important; border: 1px solid #c2410c !important; color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08);';
+        iconWrapper.style.cssText = 'width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem; background: #fff7ed !important; border: 1px solid #fed7aa !important; color: #ea580c !important;';
+        iconEl.className = 'fa-solid fa-power-off';
+        iconEl.style.fontSize = '1.45rem';
+      } else if (isActivate) {
+        okBtn.style.cssText = 'height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; background-color: #16a34a !important; border: 1px solid #15803d !important; color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08);';
+        iconWrapper.style.cssText = 'width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem; background: #dcfce7 !important; border: 1px solid #bbf7d0 !important; color: #16a34a !important;';
+        iconEl.className = 'fa-solid fa-circle-check';
+        iconEl.style.fontSize = '1.45rem';
       } else {
-        okBtn.className = 'btn btn-primary rounded-pill px-4 fw-bold shadow-sm';
-        iconWrapper.style.background = 'rgba(99, 102, 241, 0.1)';
-        iconWrapper.style.color = '#4f46e5';
+        okBtn.style.cssText = 'height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; background-color: #0f2744 !important; border: 1px solid #0f2744 !important; color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08);';
+        iconWrapper.style.cssText = 'width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem; background: #eff6ff !important; border: 1px solid #bfdbfe !important; color: #2563eb !important;';
         iconEl.className = 'fa-solid fa-circle-question';
+        iconEl.style.fontSize = '1.45rem';
       }
 
       var bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);

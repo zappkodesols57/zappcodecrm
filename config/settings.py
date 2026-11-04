@@ -70,6 +70,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'audit.middleware.CurrentUserMiddleware',
+    'config.middleware.BusinessActiveStatusMiddleware',
     'config.middleware.CRMReadOnlyModeMiddleware',
     'config.middleware.CRMGlobalExceptionMiddleware',
 ]
