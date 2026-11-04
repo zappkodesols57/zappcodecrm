@@ -875,8 +875,25 @@ def doctor_schedule_manage(request, pk):
 
             try:
                 today = timezone.localdate()
-                s_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-                e_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                def parse_flexible_date(d_str):
+                    if not d_str:
+                        return None
+                    d_str = str(d_str).strip()
+                    # Try YYYY-MM-DD
+                    try:
+                        return datetime.strptime(d_str, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+                    # Try DD Mon YYYY (e.g. 10 Nov 2026 or 10 November 2026)
+                    for fmt in ("%d %b %Y", "%d %B %Y", "%d-%b-%Y", "%d-%m-%Y", "%d/%m/%Y"):
+                        try:
+                            return datetime.strptime(d_str, fmt).date()
+                        except ValueError:
+                            pass
+                    raise ValueError(f"Unknown date format: {d_str}")
+
+                s_date = parse_flexible_date(start_date_str)
+                e_date = parse_flexible_date(end_date_str)
 
                 if s_date < today:
                     messages.error(request, "Leave date cannot be in the past. Please select today or a future date.")
@@ -884,6 +901,24 @@ def doctor_schedule_manage(request, pk):
                 if e_date < s_date:
                     messages.error(request, "End date cannot be earlier than start date.")
                     return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+                # Validation: Cannot add full-day leave for today if already past OPD hours or mid-day
+                # User must add partial leave with start_time > current time
+                now_local = timezone.localtime()
+                now_time = now_local.time()
+                if s_date == today and is_full_day:
+                    messages.error(request, f"Full day leave cannot be added for today at {now_local.strftime('%I:%M %p')}. Please uncheck 'Full Day Off' and specify a time greater than the current time.")
+                    return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+
+                # If partial leave for today, ensure start_time is greater than current time
+                if s_date == today and not is_full_day and start_time:
+                    try:
+                        parsed_st = datetime.strptime(start_time[:5], "%H:%M").time()
+                        if parsed_st <= now_time:
+                            messages.error(request, f"Leave start time ({parsed_st.strftime('%I:%M %p')}) must be greater than the current time ({now_local.strftime('%I:%M %p')}).")
+                            return redirect("accounts:doctor_schedule_manage", pk=doctor.pk)
+                    except Exception:
+                        pass
 
                 # 1. If explicit edit/extend of an existing leave record
                 if leave_id and str(leave_id).isdigit():

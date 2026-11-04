@@ -34,6 +34,100 @@
       letter-spacing: 0.05em;
     }
 
+    /* Global 12-Hour Continuous AM/PM Clock Wheel Picker */
+    .custom-12h-time-picker-popover {
+      position: fixed;
+      z-index: 10600;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.22);
+      padding: 12px;
+      width: 250px;
+      display: none;
+      animation: fadeInQuickPop 0.15s ease-out;
+    }
+    @keyframes fadeInQuickPop {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .custom-12h-time-picker-popover .time-picker-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .custom-12h-time-picker-popover .time-picker-col-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    .custom-12h-time-picker-popover .time-picker-scroll-list {
+      max-height: 180px;
+      overflow-y: auto;
+      width: 100%;
+      scroll-behavior: smooth;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 2px;
+    }
+    .custom-12h-time-picker-popover .time-picker-scroll-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-12h-time-picker-popover .time-picker-scroll-list::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-12h-time-picker-popover .time-picker-cell {
+      padding: 5px 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.84rem;
+      font-weight: 500;
+      color: #1e293b;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      user-select: none;
+    }
+    .custom-12h-time-picker-popover .time-picker-cell:hover {
+      background: #f1f5f9;
+      color: #0f2744;
+    }
+    .custom-12h-time-picker-popover .time-picker-cell.active {
+      background: #0f2744 !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+    }
+    .custom-12h-time-picker-popover .ampm-toggle-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      justify-content: center;
+      padding-left: 8px;
+      border-left: 1px solid #e2e8f0;
+    }
+    .custom-12h-time-picker-popover .ampm-btn {
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .custom-12h-time-picker-popover .ampm-btn.active {
+      background: #0f2744 !important;
+      border-color: #0f2744 !important;
+      color: #ffffff !important;
+    }
+
     :root {
       --sidebar-w: 265px;
       --sidebar-collapsed-w: 70px;
@@ -93,48 +187,237 @@
       font-weight: 700 !important;
     }
 
+    /* ==========================================================================
+       STANDARD CLEAN CRM BUTTON SYSTEM (Enterprise Uniform UI & Micro-Interactions)
+       ========================================================================== */
     .btn {
-      border-width: 1px !important;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      font-family: inherit;
+      font-weight: 600 !important;
+      font-size: 0.84rem;
+      line-height: 1.35;
+      border-radius: 8px !important;
+      border: 1px solid transparent !important;
+      padding: 0.45rem 1rem;
+      letter-spacing: -0.005em;
+      text-decoration: none !important;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      vertical-align: middle;
+      overflow: hidden;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
     }
 
+    /* Elegant Shimmer Hover Micro-Interaction After Effect */
+    .btn::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -120%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.16) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+      transform: skewX(-20deg);
+      transition: none;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .btn:hover::after {
+      left: 140%;
+      transition: left 0.65s ease-in-out;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.15) !important;
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid #3b82f6 !important;
+      outline-offset: 2px !important;
+    }
+
+    /* 1. Primary Action (Brand Navy) */
     .btn-primary,
     .btn-brand {
-      background-color: var(--brand) !important;
-      border-color: var(--brand) !important;
+      background-color: var(--brand, #0f2744) !important;
+      border-color: var(--brand, #0f2744) !important;
       color: #ffffff !important;
-      font-weight: 600;
-      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(15, 39, 68, 0.12), 0 1px 2px rgba(15, 39, 68, 0.08);
     }
 
     .btn-primary:hover,
-    .btn-primary:focus,
-    .btn-primary:active,
-    .btn-brand:hover,
-    .btn-brand:focus,
-    .btn-brand:active {
-      background-color: var(--brand-dark) !important;
-      border-color: var(--brand-dark) !important;
+    .btn-brand:hover {
+      background-color: #1a3860 !important;
+      border-color: #1a3860 !important;
       color: #ffffff !important;
-      box-shadow: 0 4px 12px rgba(0, 0, 102, 0.2) !important;
+      box-shadow: 0 6px 16px -2px rgba(15, 39, 68, 0.22) !important;
     }
 
+    /* 2. Secondary & Light Buttons (Clean White with Crisp Slate Border) */
+    .btn-light,
+    .btn-secondary {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #334155 !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .btn-light:hover,
+    .btn-secondary:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+      color: #0f172a !important;
+      box-shadow: 0 3px 8px -1px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    .btn-light::after,
+    .btn-secondary::after,
+    .btn-outline-primary::after,
+    .btn-outline-secondary::after {
+      background: linear-gradient(
+        90deg,
+        rgba(15, 23, 42, 0) 0%,
+        rgba(15, 23, 42, 0.05) 50%,
+        rgba(15, 23, 42, 0) 100%
+      );
+    }
+
+    /* 3. Outline Primary */
     .btn-outline-primary,
     .btn-outline-brand {
-      color: var(--brand) !important;
-      border-color: var(--brand) !important;
+      color: var(--brand, #0f2744) !important;
+      border-color: #cbd5e1 !important;
       background-color: #ffffff !important;
-      font-weight: 600;
     }
 
     .btn-outline-primary:hover,
-    .btn-outline-primary:focus,
-    .btn-outline-primary:active,
-    .btn-outline-brand:hover,
-    .btn-outline-brand:focus,
-    .btn-outline-brand:active {
-      background-color: var(--brand) !important;
-      border-color: var(--brand) !important;
+    .btn-outline-brand:hover {
+      background-color: #f1f5f9 !important;
+      border-color: var(--brand, #0f2744) !important;
+      color: var(--brand, #0f2744) !important;
+      box-shadow: 0 3px 8px -1px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    /* 4. Outline Secondary */
+    .btn-outline-secondary {
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+      background-color: #ffffff !important;
+    }
+
+    .btn-outline-secondary:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+      color: #0f172a !important;
+    }
+
+    /* 5. Success Action */
+    .btn-success {
+      background-color: #059669 !important;
+      border-color: #059669 !important;
       color: #ffffff !important;
+      box-shadow: 0 1px 3px rgba(5, 150, 105, 0.15);
+    }
+
+    .btn-success:hover {
+      background-color: #047857 !important;
+      border-color: #047857 !important;
+      color: #ffffff !important;
+      box-shadow: 0 6px 14px -2px rgba(5, 150, 105, 0.25) !important;
+    }
+
+    .btn-outline-success {
+      background-color: #ffffff !important;
+      border-color: #a7f3d0 !important;
+      color: #059669 !important;
+    }
+
+    .btn-outline-success:hover {
+      background-color: #ecfdf5 !important;
+      border-color: #059669 !important;
+      color: #047857 !important;
+    }
+
+    /* 6. Destructive / Danger */
+    .btn-danger {
+      background-color: #dc2626 !important;
+      border-color: #dc2626 !important;
+      color: #ffffff !important;
+      box-shadow: 0 1px 3px rgba(220, 38, 38, 0.15);
+    }
+
+    .btn-danger:hover {
+      background-color: #b91c1c !important;
+      border-color: #b91c1c !important;
+      color: #ffffff !important;
+      box-shadow: 0 6px 14px -2px rgba(220, 38, 38, 0.25) !important;
+    }
+
+    .btn-outline-danger {
+      background-color: #ffffff !important;
+      border-color: #fecaca !important;
+      color: #dc2626 !important;
+    }
+
+    .btn-outline-danger:hover {
+      background-color: #fef2f2 !important;
+      border-color: #dc2626 !important;
+      color: #b91c1c !important;
+    }
+
+    /* 7. Standard Sizes (Height & Proportions) */
+    .btn-lg {
+      height: 42px !important;
+      padding: 0.55rem 1.25rem !important;
+      font-size: 0.88rem !important;
+      border-radius: 8px !important;
+    }
+
+    .btn-sm {
+      height: 32px !important;
+      padding: 0.28rem 0.75rem !important;
+      font-size: 0.78rem !important;
+      border-radius: 7px !important;
+      min-height: auto !important;
+    }
+
+    .btn-xs {
+      height: 26px !important;
+      padding: 0.15rem 0.55rem !important;
+      font-size: 0.72rem !important;
+      border-radius: 6px !important;
+      line-height: 1.2 !important;
+    }
+
+    /* Standardize legacy rounded-pill inside general buttons to standard 8px (except circular icon triggers) */
+    .btn.rounded-pill:not(.notif-bell-trigger) {
+      border-radius: 8px !important;
+    }
+
+    .notif-bell-trigger {
+      border-radius: 50% !important;
+      overflow: visible !important;
+      padding: 0 !important;
+    }
+    .notif-bell-trigger::after {
+      display: none !important;
     }
 
     .sidebar {
@@ -1017,26 +1300,59 @@
       overflow-y: visible !important;
     }
 
+    /* ==========================================================================
+       GLOBAL DROPDOWN & SELECT SYSTEM (Clear Chevron Down Arrow Indicator Everywhere)
+       ========================================================================== */
     .ts-wrapper.form-select,
     .ts-wrapper.form-select-sm,
     .ts-wrapper {
+      position: relative !important;
       padding: 0 !important;
       border: none !important;
       background: transparent !important;
       box-shadow: none !important;
     }
 
+    /* Distinct Chevron Down Arrow Indicator for TomSelect Controls */
+    .ts-wrapper::after {
+      content: "" !important;
+      position: absolute !important;
+      top: 50% !important;
+      right: 0.85rem !important;
+      width: 14px !important;
+      height: 14px !important;
+      transform: translateY(-50%) !important;
+      pointer-events: none !important;
+      z-index: 5 !important;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='m3 6 5 5 5-5'/%3e%3c/svg%3e") !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: 12px 12px !important;
+      transition: transform 0.2s ease !important;
+      opacity: 0.85 !important;
+    }
+
+    .ts-wrapper.dropdown-active::after,
+    .ts-wrapper.focus::after {
+      transform: translateY(-50%) rotate(180deg) !important;
+      opacity: 1 !important;
+    }
+
     .ts-control {
+      position: relative !important;
       border: 1px solid #cbd5e1 !important;
-      border-radius: 7px !important;
-      min-height: 38px !important;
-      padding: 0.35rem 0.75rem !important;
+      border-radius: 8px !important;
+      min-height: 42px !important;
+      height: 42px !important;
+      padding: 0.45rem 2.2rem 0.45rem 0.85rem !important;
       background-color: #ffffff !important;
       box-sizing: border-box !important;
       box-shadow: none !important;
       display: flex !important;
-      flex-wrap: wrap !important;
+      flex-wrap: nowrap !important;
       align-items: center !important;
+      cursor: pointer !important;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
 
     .ts-control input {
@@ -1048,6 +1364,7 @@
       background: transparent !important;
       padding: 0 !important;
       margin: 0 !important;
+      cursor: pointer !important;
     }
 
     .ts-control .item {
@@ -1056,44 +1373,55 @@
       line-height: normal !important;
       margin-right: 4px !important;
       color: #0f172a !important;
+      font-weight: 500 !important;
     }
 
     .ts-control.focus,
     .ts-wrapper.focus .ts-control {
-      border-color: var(--brand) !important;
-      box-shadow: 0 0 0 2px rgba(5, 32, 66, 0.08) !important;
+      border-color: var(--brand, #0f2744) !important;
+      box-shadow: 0 0 0 3px rgba(15, 39, 68, 0.1) !important;
       outline: none !important;
+      background-color: #ffffff !important;
     }
 
-    /* Standalone / Modal Native Selects */
+    /* Universal Styling for All Native and Custom Selects Across CRM */
+    select,
+    select.form-select,
     select.form-select.no-tom-select,
     select.modal-select,
-    select.form-select {
+    .custom-select-wrapper select {
+      position: relative !important;
       border: 1px solid #cbd5e1 !important;
-      border-radius: 7px !important;
+      border-radius: 8px !important;
       background-color: #ffffff !important;
       color: #0f172a !important;
       font-size: 0.88rem !important;
       font-weight: 500 !important;
-      padding: 0.45rem 2rem 0.45rem 0.85rem !important;
+      min-height: 42px !important;
+      height: 42px !important;
+      padding: 0.45rem 2.3rem 0.45rem 0.85rem !important;
       line-height: 1.5 !important;
       cursor: pointer !important;
       box-shadow: none !important;
-      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2' d='m3 6 5 5 5-5'/%3e%3c/svg%3e") !important;
       background-repeat: no-repeat !important;
-      background-position: right 0.75rem center !important;
-      background-size: 16px 12px !important;
+      background-position: right 0.85rem center !important;
+      background-size: 13px 13px !important;
       appearance: none !important;
       -webkit-appearance: none !important;
       -moz-appearance: none !important;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
 
+    select:focus,
+    select.form-select:focus,
     select.form-select.no-tom-select:focus,
     select.modal-select:focus,
-    select.form-select:focus {
-      border-color: var(--brand) !important;
-      box-shadow: 0 0 0 2px rgba(5, 32, 66, 0.08) !important;
+    .custom-select-wrapper select:focus {
+      border-color: var(--brand, #0f2744) !important;
+      box-shadow: 0 0 0 3px rgba(15, 39, 68, 0.1) !important;
       outline: none !important;
+      background-color: #ffffff !important;
     }
 
     /* ==========================================================================
@@ -1341,6 +1669,119 @@
         display: block !important;
       }
     }
+
+    /* Universal Custom Date Picker Popover System */
+    .global-date-picker-popover {
+      position: fixed;
+      z-index: 10600;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      box-shadow: 0 14px 34px -4px rgba(15, 23, 42, 0.22);
+      padding: 14px;
+      width: 295px;
+      display: none;
+      animation: fadeInGlobalDate 0.15s ease-out;
+      font-family: inherit;
+    }
+    @keyframes fadeInGlobalDate {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .global-cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .global-cal-month-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .global-cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .global-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .global-cal-day {
+      aspect-ratio: 1;
+      height: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 7px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      color: #1e293b;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      transition: all 0.12s ease;
+    }
+    .global-cal-day:hover:not(.cal-empty):not(.cal-past):not(.cal-blocked) {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+    }
+    .global-cal-day.cal-empty {
+      border: none;
+      background: transparent;
+      cursor: default;
+    }
+    .global-cal-day.cal-past {
+      color: #cbd5e1;
+      background: #f8fafc;
+      border-color: #f1f5f9;
+      cursor: not-allowed;
+    }
+    .global-cal-day.cal-today {
+      font-weight: 800;
+      color: #0f2744;
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+    .global-cal-day.cal-selected {
+      background: #0f2744 !important;
+      border-color: #0f2744 !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 5px rgba(15, 39, 68, 0.25);
+    }
+    .global-cal-day.cal-blocked {
+      border: 2px solid #ef4444 !important;
+      background: #fef2f2 !important;
+      color: #991b1b !important;
+      cursor: not-allowed !important;
+      position: relative;
+    }
+    .global-cal-day.cal-blocked::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #dc2626;
+    }
+    /* Hide native browser datepicker spin/calendar arrow so custom calendar opens cleanly */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      display: none !important;
+      -webkit-appearance: none;
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -1484,83 +1925,648 @@
         }
       });
 
-      // 4. Global Smart Time Masking (Option A: Auto-formats HH:MM, validates 00-23 hrs and 00-59 mins)
-      document.addEventListener('input', function(e) {
-        if (!e.target.matches('.time-mask-input')) return;
-        const input = e.target;
-        let v = input.value.replace(/[^0-9]/g, ''); // strip non-digits
+    // Global 12-Hour Continuous AM/PM Clock Wheel Picker System
+    (function() {
+      let popover = null;
+      let currentActiveInput = null;
+      let selHour = "09";
+      let selMin = "00";
+      let selAmPm = "AM";
 
-        if (v.length === 0) {
-          input.value = '';
-          input.setCustomValidity('');
+      function parseTimeVal(val) {
+        if (!val) return { h: "09", m: "00", p: "AM" };
+        val = val.trim();
+        // Check 12-hr format (e.g. "09:30 AM" or "9:30 PM")
+        const match12 = val.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+        if (match12) {
+          let h = parseInt(match12[1], 10);
+          let m = match12[2];
+          let p = (match12[3] || "AM").toUpperCase();
+          if (h < 1) h = 12;
+          if (h > 12) h = 12;
+          return { h: String(h).padStart(2, '0'), m: m, p: p };
+        }
+        // Check 24-hr format (e.g. "14:00" -> "02:00 PM")
+        const match24 = val.match(/^(\d{1,2}):(\d{2})$/);
+        if (match24) {
+          let h24 = parseInt(match24[1], 10);
+          let m = match24[2];
+          let p = h24 >= 12 ? "PM" : "AM";
+          let h12 = h24 % 12;
+          if (h12 === 0) h12 = 12;
+          return { h: String(h12).padStart(2, '0'), m: m, p: p };
+        }
+        return { h: "09", m: "00", p: "AM" };
+      }
+
+      function ensurePopover() {
+        if (popover) return popover;
+        popover = document.createElement("div");
+        popover.className = "custom-12h-time-picker-popover";
+        popover.id = "global12hTimePicker";
+        popover.innerHTML = `
+          <div class="d-flex align-items-stretch" style="gap: 8px;">
+            <div class="time-picker-col">
+              <div class="time-picker-col-title">Hour</div>
+              <div class="time-picker-scroll-list" id="pickerHoursList">
+                ${Array.from({length: 12}, (_, i) => {
+                  const h = String(i + 1).padStart(2, '0');
+                  return `<div class="time-picker-cell" data-type="hour" data-val="${h}">${h}</div>`;
+                }).join('')}
+              </div>
+            </div>
+            <div class="time-picker-col">
+              <div class="time-picker-col-title">Minute</div>
+              <div class="time-picker-scroll-list" id="pickerMinutesList">
+                ${Array.from({length: 60}, (_, i) => {
+                  const m = String(i).padStart(2, '0');
+                  return `<div class="time-picker-cell" data-type="minute" data-val="${m}">${m}</div>`;
+                }).join('')}
+              </div>
+            </div>
+            <div class="ampm-toggle-col">
+              <button type="button" class="ampm-btn" data-val="AM">AM</button>
+              <button type="button" class="ampm-btn" data-val="PM">PM</button>
+              <button type="button" class="btn btn-sm btn-primary mt-auto py-1 px-2 fw-semibold" id="pickerDoneBtn" style="font-size: 0.72rem; border-radius: 6px;">Done</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(popover);
+
+        popover.addEventListener("click", function(e) {
+          const cell = e.target.closest(".time-picker-cell");
+          if (cell) {
+            if (cell.dataset.type === "hour") {
+              selHour = cell.dataset.val;
+            } else if (cell.dataset.type === "minute") {
+              selMin = cell.dataset.val;
+            }
+            commitSelection();
+            updatePickerUI();
+            return;
+          }
+          const ampmBtn = e.target.closest(".ampm-btn");
+          if (ampmBtn) {
+            selAmPm = ampmBtn.dataset.val;
+            commitSelection();
+            updatePickerUI();
+            return;
+          }
+          if (e.target.id === "pickerDoneBtn") {
+            commitSelection();
+            hidePicker();
+          }
+        });
+
+        document.addEventListener("click", function(e) {
+          if (popover && popover.style.display !== "none") {
+            if (!popover.contains(e.target) && (!currentActiveInput || !currentActiveInput.contains(e.target))) {
+              hidePicker();
+            }
+          }
+        }, true);
+
+        return popover;
+      }
+
+      function updatePickerUI() {
+        if (!popover) return;
+        popover.querySelectorAll("#pickerHoursList .time-picker-cell").forEach(cell => {
+          const isActive = cell.dataset.val === selHour;
+          cell.classList.toggle("active", isActive);
+          if (isActive) {
+            cell.scrollIntoView({ block: "center", behavior: "auto" });
+          }
+        });
+        popover.querySelectorAll("#pickerMinutesList .time-picker-cell").forEach(cell => {
+          const isActive = cell.dataset.val === selMin;
+          cell.classList.toggle("active", isActive);
+          if (isActive) {
+            cell.scrollIntoView({ block: "center", behavior: "auto" });
+          }
+        });
+        popover.querySelectorAll(".ampm-btn").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.val === selAmPm);
+        });
+      }
+
+      function commitSelection() {
+        if (!currentActiveInput) return;
+        currentActiveInput.value = `${selHour}:${selMin} ${selAmPm}`;
+        currentActiveInput.dispatchEvent(new Event('input', { bubbles: true }));
+        currentActiveInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      function repositionPopover() {
+        if (!popover || !currentActiveInput || popover.style.display === "none") return;
+        const rect = currentActiveInput.getBoundingClientRect();
+        // If element is scrolled out of viewport, hide it
+        if (rect.bottom < 0 || rect.top > window.innerHeight) {
+          hidePicker();
           return;
         }
-
-        // Limit to 4 raw digits
-        if (v.length > 4) v = v.substring(0, 4);
-
-        let h = v.substring(0, 2);
-        let m = v.substring(2, 4);
-
-        // Validate hours (00 - 23)
-        if (h.length === 2) {
-          let numH = parseInt(h, 10);
-          if (numH > 23) h = '23';
-        } else if (h.length === 1 && parseInt(h, 10) > 2) {
-          // If user types '3' to '9' as first digit, auto-prefix with 0 (e.g. '03:')
-          h = '0' + h;
+        let topPos = rect.bottom + 6;
+        // If overflowing bottom of screen, show above input
+        if (topPos + 220 > window.innerHeight) {
+          topPos = Math.max(10, rect.top - 230);
         }
+        popover.style.top = `${topPos}px`;
+        popover.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 265))}px`;
+      }
 
-        // Validate minutes (00 - 59)
-        if (m.length > 0) {
-          if (m.length === 1 && parseInt(m, 10) > 5) {
-            m = '5';
-          } else if (m.length === 2) {
-            let numM = parseInt(m, 10);
-            if (numM > 59) m = '59';
-          }
+      function showPicker(input) {
+        currentActiveInput = input;
+        ensurePopover();
+        const parsed = parseTimeVal(input.value);
+        selHour = parsed.h;
+        selMin = parsed.m;
+        selAmPm = parsed.p;
+
+        popover.style.display = "block";
+        repositionPopover();
+        updatePickerUI();
+      }
+
+      function hidePicker() {
+        if (popover) popover.style.display = "none";
+        currentActiveInput = null;
+      }
+
+      // Automatically reposition clock when user scrolls window or any parent scroll container
+      window.addEventListener("scroll", repositionPopover, true);
+      window.addEventListener("resize", repositionPopover);
+
+      // Intercept click on any time input across the entire app
+      document.addEventListener("focus", function(e) {
+        if (e.target && (e.target.matches('.time-mask-input, .custom-12h-time-input') || (e.target.tagName === 'INPUT' && e.target.type === 'time'))) {
+          e.target.setAttribute('autocomplete', 'off');
+          e.target.style.cursor = 'pointer';
+          showPicker(e.target);
         }
+      }, true);
 
-        if (v.length <= 2 && !h.startsWith('0') && parseInt(h, 10) <= 2) {
-          input.value = h;
-        } else if (m.length > 0) {
-          input.value = h + ':' + m;
-        } else if (h.length === 2) {
-          input.value = h + ':';
-        } else {
-          input.value = h;
+      document.addEventListener("click", function(e) {
+        const inp = e.target.closest('.time-mask-input, .custom-12h-time-input, input[type="time"]');
+        if (inp) {
+          e.stopPropagation();
+          showPicker(inp);
+          return;
         }
-
-        if (input.value.length === 5) {
-          input.setCustomValidity('');
-          input.classList.remove('is-invalid');
+        const clockBtn = e.target.closest('.time-picker-trigger-btn');
+        if (clockBtn) {
+          e.stopPropagation();
+          const relatedInp = clockBtn.parentElement ? clockBtn.parentElement.querySelector('input') : null;
+          if (relatedInp) showPicker(relatedInp);
         }
       });
 
-      document.addEventListener('blur', function(e) {
-        if (!e.target.matches('.time-mask-input')) return;
-        const input = e.target;
-        let v = input.value.trim();
-        if (!v) {
-          input.setCustomValidity('');
-          input.classList.remove('is-invalid');
-          return;
-        }
-        // Normalize formats like "9" -> "09:00", "9:3" -> "09:30", "14" -> "14:00"
-        let parts = v.split(':');
-        let h = parseInt(parts[0], 10);
-        let m = parts.length > 1 && parts[1] !== '' ? parseInt(parts[1], 10) : 0;
-
-        if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
-          input.setCustomValidity('Please enter a valid time (00:00 to 23:59)');
-          input.classList.add('is-invalid');
-          return;
-        }
-        input.setCustomValidity('');
-        input.classList.remove('is-invalid');
-        input.value = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+      // Backend compatibility converter: convert 12-hr to 24-hr HH:MM:00 before form submits
+      document.addEventListener("submit", function(e) {
+        const form = e.target;
+        form.querySelectorAll('.time-mask-input, .custom-12h-time-input, input[type="time"]').forEach(inp => {
+          let v = (inp.value || "").trim();
+          if (v && /AM|PM/i.test(v)) {
+            const p = parseTimeVal(v);
+            let h = parseInt(p.h, 10);
+            if (p.p === "PM" && h < 12) h += 12;
+            if (p.p === "AM" && h === 12) h = 0;
+            inp.value = `${String(h).padStart(2, '0')}:${p.m}:00`;
+          }
+        });
       }, true);
+    })();
+
+    // Universal Global Custom Date Picker Engine (Across Entire System)
+    (function() {
+      let popover = null;
+      let activeDateInput = null;
+      let calYear = new Date().getFullYear();
+      let calMonth = new Date().getMonth();
+
+      const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      function formatDateToReadable(isoStr) {
+        if (!isoStr) return "";
+        try {
+          const parts = isoStr.split("-");
+          if (parts.length === 3) {
+            const y = parts[0];
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            return `${String(d).padStart(2, '0')} ${shortMonthNames[m] || ''} ${y}`;
+          }
+        } catch(e) {}
+        return isoStr;
+      }
+
+      function parseReadableToIso(readableStr) {
+        if (!readableStr) return "";
+        readableStr = readableStr.trim();
+        // Check if already YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(readableStr)) return readableStr;
+        // Match DD Mon YYYY (e.g. 10 Nov 2026)
+        const match = readableStr.match(/^(\d{1,2})\s+([A-Za-z]{3,4})\s+(\d{4})$/);
+        if (match) {
+          const d = String(parseInt(match[1], 10)).padStart(2, '0');
+          const mIdx = shortMonthNames.findIndex(mn => mn.toLowerCase() === match[2].substring(0, 3).toLowerCase());
+          if (mIdx !== -1) {
+            const m = String(mIdx + 1).padStart(2, '0');
+            return `${match[3]}-${m}-${d}`;
+          }
+        }
+        return readableStr;
+      }
+
+      function ensureDatePickerPopover() {
+        if (popover) return popover;
+        popover = document.createElement("div");
+        popover.className = "global-date-picker-popover";
+        popover.id = "globalUniversalDatePicker";
+        popover.innerHTML = `
+          <div class="global-cal-header">
+            <span class="global-cal-month-title" id="globalCalMonthTitle">Month Year</span>
+            <div class="d-flex align-items-center gap-1">
+              <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-2 text-secondary" style="font-size: 0.72rem; height: 26px;" id="globalCalPrevBtn">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-2 text-secondary" style="font-size: 0.72rem; height: 26px;" id="globalCalNextBtn">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+          <div class="global-cal-weekdays">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div class="global-cal-grid" id="globalCalDaysGrid"></div>
+          <div class="d-flex justify-content-between align-items-center mt-2.5 pt-2 border-top" id="globalCalLegend" style="font-size: 0.72rem;">
+            <div class="d-flex align-items-center gap-1.5" id="globalCalBlockedLegend">
+              <span style="display:inline-block; width:10px; height:10px; border:2px solid #ef4444; background:#fef2f2; border-radius:2px;"></span>
+              <span class="text-danger fw-semibold">Already Blocked</span>
+            </div>
+            <div class="d-flex align-items-center gap-1.5 ms-auto">
+              <span style="display:inline-block; width:10px; height:10px; background:#0f2744; border-radius:2px;"></span>
+              <span class="text-dark fw-semibold">Selected</span>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(popover);
+
+        popover.querySelector("#globalCalPrevBtn").addEventListener("click", function(e) {
+          e.stopPropagation();
+          shiftMonth(-1);
+        });
+
+        popover.querySelector("#globalCalNextBtn").addEventListener("click", function(e) {
+          e.stopPropagation();
+          shiftMonth(1);
+        });
+
+        document.addEventListener("click", function(e) {
+          const cell = e.target.closest(".global-cal-day");
+          if (!cell || cell.classList.contains("cal-empty") || cell.classList.contains("cal-past")) return;
+          const dateStr = cell.dataset.date;
+          if (!dateStr) return;
+
+          // If blocked in leave system
+          if (cell.classList.contains("cal-blocked")) {
+            alert(`Date ${formatDateToReadable(dateStr)} is already blocked for a scheduled leave! You cannot select it for fresh leave.`);
+            return;
+          }
+
+          if (activeDateInput) {
+            // Check if input is standard input[type="date"] or custom display input
+            if (activeDateInput.type === "date") {
+              activeDateInput.value = dateStr;
+            } else {
+              activeDateInput.value = formatDateToReadable(dateStr);
+              // If there's an associated hidden or ISO data attribute/input
+              activeDateInput.dataset.isoDate = dateStr;
+              const hiddenIso = activeDateInput.parentElement ? activeDateInput.parentElement.querySelector('input[type="hidden"]') : null;
+              if (hiddenIso) hiddenIso.value = dateStr;
+            }
+
+            // Automatic date range constraint: If this input is a "From" date, automatically update paired "To" date's min attribute
+            const form = activeDateInput.closest("form") || activeDateInput.closest(".date-range-pill, .filter-item, .row");
+            if (form) {
+              const name = (activeDateInput.name || activeDateInput.id || "").toLowerCase();
+              if (name.includes("from") || name.includes("start")) {
+                const toInput = form.querySelector('input[name*="to" i], input[name*="end" i], input[id*="to" i], input[id*="end" i]');
+                if (toInput && toInput !== activeDateInput) {
+                  toInput.setAttribute("min", dateStr);
+                  const currentToVal = toInput.value ? parseReadableToIso(toInput.value) : "";
+                  if (currentToVal && currentToVal < dateStr) {
+                    if (toInput.type === "date") {
+                      toInput.value = dateStr;
+                    } else {
+                      toInput.value = formatDateToReadable(dateStr);
+                    }
+                    toInput.dispatchEvent(new Event("input", { bubbles: true }));
+                    toInput.dispatchEvent(new Event("change", { bubbles: true }));
+                  }
+                }
+              }
+            }
+
+            activeDateInput.dispatchEvent(new Event("input", { bubbles: true }));
+            activeDateInput.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+          hideDatePicker();
+        });
+
+        document.addEventListener("click", function(e) {
+          if (popover && popover.style.display !== "none") {
+            if (!popover.contains(e.target) && (!activeDateInput || !activeDateInput.contains(e.target)) && !e.target.closest(".custom-leave-date-wrapper, .custom-doc-leave-date-wrapper, .date-picker-trigger-btn")) {
+              hideDatePicker();
+            }
+          }
+        }, true);
+
+        return popover;
+      }
+
+      function shiftMonth(offset) {
+        calMonth += offset;
+        if (calMonth > 11) {
+          calMonth = 0;
+          calYear++;
+        } else if (calMonth < 0) {
+          calMonth = 11;
+          calYear--;
+        }
+        renderCalendarGrid();
+      }
+
+      function repositionDatePicker() {
+        if (!popover || !activeDateInput || popover.style.display === "none") return;
+        const rect = activeDateInput.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) {
+          hideDatePicker();
+          return;
+        }
+        let topPos = rect.bottom + 6;
+        if (topPos + 320 > window.innerHeight) {
+          topPos = Math.max(10, rect.top - 325);
+        }
+        popover.style.top = `${topPos}px`;
+        popover.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 310))}px`;
+      }
+
+      function showDatePicker(input) {
+        activeDateInput = input;
+        ensureDatePickerPopover();
+
+        let val = (input.value || "").trim();
+        let isoVal = parseReadableToIso(val);
+        if (isoVal) {
+          const parts = isoVal.split("-");
+          if (parts.length === 3) {
+            calYear = parseInt(parts[0], 10);
+            calMonth = parseInt(parts[1], 10) - 1;
+          }
+        } else {
+          const now = new Date();
+          calYear = now.getFullYear();
+          calMonth = now.getMonth();
+        }
+
+        popover.style.display = "block";
+        repositionDatePicker();
+        renderCalendarGrid();
+      }
+
+      function hideDatePicker() {
+        if (popover) popover.style.display = "none";
+        activeDateInput = null;
+      }
+
+      function renderCalendarGrid() {
+        if (!popover) return;
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        popover.querySelector("#globalCalMonthTitle").innerText = `${monthNames[calMonth]} ${calYear}`;
+
+        const grid = popover.querySelector("#globalCalDaysGrid");
+        const legendBlocked = popover.querySelector("#globalCalBlockedLegend");
+
+        // Blocked dates are ONLY applicable to doctor leave fields, not general follow-up or lead date pickers
+        const isDoctorLeaveField = activeDateInput && (
+          activeDateInput.matches('.custom-leave-date-input, .custom-doc-leave-date-input') ||
+          activeDateInput.id === 'leave_start_date' || activeDateInput.id === 'leave_end_date' ||
+          activeDateInput.id === 'doc_leave_start_date' || activeDateInput.id === 'doc_leave_end_date' ||
+          activeDateInput.name === 'start_date' || activeDateInput.name === 'end_date'
+        );
+
+        let blockedSet = new Set();
+        if (isDoctorLeaveField) {
+          if (typeof window.getGlobalBlockedLeaveDates === "function") {
+            blockedSet = window.getGlobalBlockedLeaveDates() || new Set();
+          } else if (typeof window.getBlockedDatesSet === "function") {
+            const actionEl = document.getElementById("leave_form_action");
+            const curAction = actionEl ? actionEl.value : "";
+            const curId = document.getElementById("leave_id_input")?.value || null;
+            blockedSet = window.getBlockedDatesSet(curAction === "edit_leave" ? curId : null) || new Set();
+          } else if (typeof window.getDocBlockedDatesSet === "function") {
+            blockedSet = window.getDocBlockedDatesSet(null) || new Set();
+          }
+        }
+
+        if (isDoctorLeaveField && blockedSet.size > 0) {
+          if (legendBlocked) legendBlocked.style.setProperty("display", "flex", "important");
+        } else {
+          if (legendBlocked) legendBlocked.style.setProperty("display", "none", "important");
+        }
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const inputVal = activeDateInput ? activeDateInput.value.trim() : "";
+        const inputIso = parseReadableToIso(inputVal);
+        let minVal = activeDateInput ? parseReadableToIso(activeDateInput.getAttribute("min") || "") : "";
+        const maxVal = activeDateInput ? parseReadableToIso(activeDateInput.getAttribute("max") || "") : "";
+
+        // Condition for follow-ups, appointments, visit planned: date must always be today or greater
+        const fieldIdentifier = (activeDateInput ? (activeDateInput.name + " " + activeDateInput.id + " " + activeDateInput.className) : "").toLowerCase();
+        const isFuturePlanningField = fieldIdentifier.includes("followup") ||
+                                      fieldIdentifier.includes("follow_up") ||
+                                      fieldIdentifier.includes("qfu") ||
+                                      fieldIdentifier.includes("appointment") ||
+                                      fieldIdentifier.includes("appo") ||
+                                      fieldIdentifier.includes("visit");
+        if (isFuturePlanningField) {
+          if (!minVal || minVal < todayStr) {
+            minVal = todayStr;
+          }
+        }
+
+        // Automatic filter range constraint: If active field is a "To" date, check if form has a paired "From" date and enforce min
+        const form = activeDateInput ? (activeDateInput.closest("form") || activeDateInput.closest(".date-range-pill, .filter-item, .row")) : null;
+        if (form) {
+          const name = (activeDateInput.name || activeDateInput.id || "").toLowerCase();
+          if (name.includes("to") || name.includes("end")) {
+            const fromInput = form.querySelector('input[name*="from" i], input[name*="start" i], input[id*="from" i], input[id*="start" i]');
+            if (fromInput && fromInput !== activeDateInput && fromInput.value) {
+              const fromIso = parseReadableToIso(fromInput.value);
+              if (fromIso && (!minVal || minVal < fromIso)) {
+                minVal = fromIso;
+              }
+            }
+          }
+        }
+
+        const firstDayIndex = new Date(calYear, calMonth, 1).getDay();
+        const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
+
+        let html = "";
+        for (let i = 0; i < firstDayIndex; i++) {
+          html += `<div class="global-cal-day cal-empty"></div>`;
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+          const dayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const isPast = minVal ? (dayStr < minVal) : false;
+          const isFutureExceeded = maxVal ? (dayStr > maxVal) : false;
+          const isDisabled = isPast || isFutureExceeded;
+          const isToday = dayStr === todayStr;
+          const isBlocked = blockedSet.has(dayStr);
+          const isSelected = inputIso && (dayStr === inputIso);
+
+          let classes = ["global-cal-day"];
+          let title = dayStr;
+
+          if (isDisabled) {
+            classes.push("cal-past");
+          } else if (isBlocked) {
+            classes.push("cal-blocked");
+            title += " (Already blocked leave)";
+          } else if (isSelected) {
+            classes.push("cal-selected");
+          } else if (isToday) {
+            classes.push("cal-today");
+          }
+
+          html += `
+            <div class="${classes.join(' ')}" title="${title}" data-date="${dayStr}">
+              <span>${day}</span>
+            </div>
+          `;
+        }
+        grid.innerHTML = html;
+      }
+
+      window.addEventListener("scroll", repositionDatePicker, true);
+      window.addEventListener("resize", repositionDatePicker);
+
+      // Bind all date inputs globally
+      document.addEventListener("focus", function(e) {
+        if (e.target && (e.target.matches('.custom-leave-date-input, .custom-doc-leave-date-input') || (e.target.tagName === 'INPUT' && e.target.type === 'date'))) {
+          e.target.setAttribute('autocomplete', 'off');
+          e.target.style.cursor = 'pointer';
+          showDatePicker(e.target);
+        }
+      }, true);
+
+      document.addEventListener("click", function(e) {
+        const inp = e.target.closest('.custom-leave-date-input, .custom-doc-leave-date-input, input[type="date"]');
+        if (inp) {
+          e.stopPropagation();
+          showDatePicker(inp);
+          return;
+        }
+        const trigBtn = e.target.closest('.leave-date-trigger-btn, .doc-leave-date-trigger-btn, .date-picker-trigger-btn');
+        if (trigBtn) {
+          e.stopPropagation();
+          const relatedInp = trigBtn.parentElement ? trigBtn.parentElement.querySelector('input') : null;
+          if (relatedInp) showDatePicker(relatedInp);
+        }
+      });
+      // Global form validation: Enforce filter From <= To and Future Planning Date/Time constraints
+      document.addEventListener("submit", function(e) {
+        const form = e.target;
+
+        // 1. Check Date Range Filters (From Date must be <= To Date)
+        const fromInps = form.querySelectorAll('input[name*="from" i], input[name*="start" i], input[id*="from" i], input[id*="start" i]');
+        for (const fInp of fromInps) {
+          if (!fInp.value) continue;
+          const fIso = parseReadableToIso(fInp.value);
+          if (!fIso) continue;
+          const container = fInp.closest(".date-range-pill, .filter-item, .row") || form;
+          const toInp = container.querySelector('input[name*="to" i], input[name*="end" i], input[id*="to" i], input[id*="end" i]');
+          if (toInp && toInp !== fInp && toInp.value) {
+            const tIso = parseReadableToIso(toInp.value);
+            if (tIso && fIso > tIso) {
+              e.preventDefault();
+              e.stopPropagation();
+              alert(`From Date (${formatDateToReadable(fIso)}) cannot be later than To Date (${formatDateToReadable(tIso)}). Please correct the date range.`);
+              toInp.focus();
+              return false;
+            }
+          }
+        }
+
+        // 2. Check Future Planning fields: Follow-up, Appointment, Visit planned (Date >= Today, Time > Current Time if Date == Today)
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const curHours = now.getHours();
+        const curMins = now.getMinutes();
+        const curTotalMins = curHours * 60 + curMins;
+
+        const dateInputs = form.querySelectorAll('input[type="date"], .custom-leave-date-input, .custom-doc-leave-date-input, input[name*="date" i], input[id*="date" i]');
+        for (const dInp of dateInputs) {
+          const idName = ((dInp.name || '') + ' ' + (dInp.id || '')).toLowerCase();
+          const isPlanField = idName.includes("followup") || idName.includes("follow_up") || idName.includes("qfu") ||
+                              idName.includes("appointment") || idName.includes("appo") || idName.includes("visit");
+          if (isPlanField && dInp.value) {
+            const dIso = parseReadableToIso(dInp.value);
+            if (dIso && dIso < todayStr) {
+              e.preventDefault();
+              e.stopPropagation();
+              alert(`Date (${formatDateToReadable(dIso)}) cannot be in the past. Please select today or a future date.`);
+              dInp.focus();
+              return false;
+            }
+
+            // If date is today, check time slot
+            if (dIso === todayStr) {
+              const container = dInp.closest("form, .modal, .card, .row") || form;
+              const tInp = container.querySelector('input[type="time"], .time-mask-input, .custom-12h-time-input, input[name*="time" i], input[id*="time" i]');
+              if (tInp && tInp.value && tInp.value.trim()) {
+                const tVal = tInp.value.trim();
+                let timeTotalMins = null;
+                const match12 = tVal.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+                if (match12) {
+                  let h = parseInt(match12[1], 10);
+                  let m = parseInt(match12[2], 10);
+                  const p = (match12[3] || 'AM').toUpperCase();
+                  if (p === 'PM' && h < 12) h += 12;
+                  if (p === 'AM' && h === 12) h = 0;
+                  timeTotalMins = h * 60 + m;
+                } else {
+                  const match24 = tVal.match(/^(\d{1,2}):(\d{2})/);
+                  if (match24) {
+                    timeTotalMins = parseInt(match24[1], 10) * 60 + parseInt(match24[2], 10);
+                  }
+                }
+
+                if (timeTotalMins !== null && timeTotalMins <= curTotalMins) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  alert(`For today's schedule, time (${tVal}) must be greater than current time (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}).`);
+                  tInp.focus();
+                  return false;
+                }
+              }
+            }
+          }
+        }
+
+        // Backend compatibility converter: convert readable "DD Mon YYYY" to "YYYY-MM-DD" before form submits
+        form.querySelectorAll('.custom-leave-date-input, .custom-doc-leave-date-input, input[type="text"]').forEach(inp => {
+          let v = (inp.value || "").trim();
+          if (v && /^\d{1,2}\s+[A-Za-z]{3,4}\s+\d{4}$/.test(v)) {
+            const iso = parseReadableToIso(v);
+            if (iso) inp.value = iso;
+          }
+        });
+      }, true);
+    })();
     });
 
     // Mobile Sidebar Open/Close with Backdrop Support (Global Function)

@@ -5,9 +5,7 @@
   /* Enforce exact uniform height, border, font-size and alignment for ALL form fields */
   .nelson-dashboard .form-control,
   .nelson-dashboard .form-select,
-  .nelson-dashboard .custom-select-wrapper select,
-  .nelson-dashboard .ts-control,
-  .nelson-dashboard .input-group .form-control {
+  .nelson-dashboard select {
     border: 1px solid rgba(79, 70, 229, 0.2) !important;
     border-radius: 0.6rem !important;
     background-color: rgba(255, 255, 255, 0.8) !important;
@@ -21,34 +19,65 @@
     color: #1e293b !important;
     box-shadow: none !important;
     transition: all 0.3s ease !important;
-    display: flex !important;
-    align-items: center !important;
   }
-  .nelson-dashboard .input-group .form-control {
-    border-top-right-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-  }
-  .nelson-dashboard .input-group .btn {
-    height: 42px !important;
-    border: 1px solid rgba(79, 70, 229, 0.2) !important;
-    border-left: none !important;
-    border-top-right-radius: 0.6rem !important;
-    border-bottom-right-radius: 0.6rem !important;
-  }
+
+  /* Consistent Indigo Glowing Effect on ALL Focused Inputs & Dropdowns */
   .nelson-dashboard .form-control:focus,
   .nelson-dashboard .form-select:focus,
-  .nelson-dashboard .custom-select-wrapper select:focus,
-  .nelson-dashboard .ts-control.focus {
+  .nelson-dashboard select:focus,
+  .nelson-dashboard select.no-tom-select:focus {
     background-color: #ffffff !important;
     border-color: #818cf8 !important;
     box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15) !important;
+    outline: none !important;
   }
-  .nelson-dashboard .ts-dropdown {
-    border: 1px solid rgba(79, 70, 229, 0.2) !important;
-    border-radius: 0.6rem !important;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
-    z-index: 1050 !important;
-    background: #ffffff !important;
+
+  .nelson-dashboard .form-label {
+    margin-bottom: 0.25rem !important;
+    display: inline-block !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Password field container: eye icon and match indicator cleanly inside */
+  .password-field-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+  .password-field-container .form-control {
+    padding-right: 4rem !important;
+    background-image: none !important; /* Hide Bootstrap default validate icons */
+  }
+  .password-icons-wrapper {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+  }
+  .password-match-icon {
+    font-size: 0.95rem;
+    display: none;
+    line-height: 1;
+  }
+  .password-toggle-btn {
+    background: transparent !important;
+    border: none !important;
+    padding: 2px 4px !important;
+    color: #94a3b8 !important;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .password-toggle-btn:hover {
+    color: #475569 !important;
   }
 </style>
 {% endblock %}
@@ -82,13 +111,7 @@
             <label class="form-label small fw-semibold text-dark mb-1">
               {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
             </label>
-            {% if field.name == 'role' or field.name == 'reports_to' or field.name == 'department' or field.name == 'speciality' %}
-              <div class="custom-select-wrapper">
-                {{ field }}
-              </div>
-            {% else %}
-              {{ field }}
-            {% endif %}
+            {{ field }}
             {% if field.name == 'username' %}
               <div id="username_feedback_box" class="mt-1" style="display: none;"></div>
             {% endif %}
@@ -137,7 +160,7 @@
       </div>
       {% endif %}
 
-      <!-- 2. Password & Confirm Password (Side-by-Side in 2 Equal Columns with Eye Toggle) -->
+      <!-- 2. Password & Confirm Password (Side-by-Side in 2 Equal Columns with Eye Toggle & Match Icon) -->
       {% if form.password1 or form.password2 %}
       <div class="row g-3 mt-1">
         {% if form.password1 %}
@@ -145,11 +168,13 @@
           <label class="form-label small fw-semibold text-dark mb-1">
             {{ form.password1.label }} <span class="text-danger">*</span>
           </label>
-          <div class="input-group">
+          <div class="password-field-container">
             {{ form.password1 }}
-            <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('id_password1', this)" title="Show / Hide Password" tabindex="-1">
-              <i class="fa-regular fa-eye text-secondary"></i>
-            </button>
+            <div class="password-icons-wrapper">
+              <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('id_password1', this)" title="Show / Hide Password" tabindex="-1">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
           </div>
           {% if form.password1.errors %}<div id="password1_server_error" class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password1.errors|striptags }}</div>{% endif %}
           {% if form.password1.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password1.help_text|striptags }}</div>{% endif %}
@@ -160,11 +185,14 @@
           <label class="form-label small fw-semibold text-dark mb-1">
             {{ form.password2.label }} <span class="text-danger">*</span>
           </label>
-          <div class="input-group">
+          <div class="password-field-container">
             {{ form.password2 }}
-            <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('id_password2', this)" title="Show / Hide Password" tabindex="-1">
-              <i class="fa-regular fa-eye text-secondary"></i>
-            </button>
+            <div class="password-icons-wrapper">
+              <span id="password2_match_icon" class="password-match-icon"></span>
+              <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('id_password2', this)" title="Show / Hide Password" tabindex="-1">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
           </div>
           <div id="password_match_feedback" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;"></div>
           {% if form.password2.errors %}<div id="password2_server_error" class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password2.errors|striptags }}</div>{% endif %}
@@ -293,6 +321,20 @@
         text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Reporting Manager" : opt.text,
         selected: opt.selected
       }));
+    }
+
+    // Clean up empty placeholder options for department & speciality
+    const deptSelectEl = document.getElementById("id_department");
+    if (deptSelectEl && deptSelectEl.options.length > 0) {
+      if (deptSelectEl.options[0].value === "" && (deptSelectEl.options[0].text.includes("---") || !deptSelectEl.options[0].text.trim())) {
+        deptSelectEl.options[0].text = "Select Department";
+      }
+    }
+    const specSelectEl = document.getElementById("id_speciality");
+    if (specSelectEl && specSelectEl.options.length > 0) {
+      if (specSelectEl.options[0].value === "" && (specSelectEl.options[0].text.includes("---") || !specSelectEl.options[0].text.trim())) {
+        specSelectEl.options[0].text = "Select Speciality";
+      }
     }
 
     const dailyCallDiv = document.getElementById("div_id_daily_call_target");
@@ -625,29 +667,47 @@
       });
     }
 
+    const matchIcon = document.getElementById("password2_match_icon");
+
     function checkPasswordMatch() {
       clearOldServerPasswordErrors();
-      if (!p1 || !p2 || !matchFeedback) return;
+      if (!p1 || !p2) return;
       const v1 = p1.value;
       const v2 = p2.value;
 
       if (!v2) {
-        matchFeedback.style.display = "none";
+        if (matchFeedback) matchFeedback.style.display = "none";
+        if (matchIcon) matchIcon.style.display = "none";
         p2.classList.remove("is-valid", "is-invalid");
         return;
       }
 
-      matchFeedback.style.display = "block";
       if (v1 === v2) {
         p2.classList.remove("is-invalid");
         p2.classList.add("is-valid");
-        matchFeedback.className = "mt-1 small fw-semibold text-success";
-        matchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+        if (matchIcon) {
+          matchIcon.style.display = "inline-flex";
+          matchIcon.className = "password-match-icon text-success";
+          matchIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        }
+        if (matchFeedback) {
+          matchFeedback.style.display = "block";
+          matchFeedback.className = "mt-1 small fw-semibold text-success";
+          matchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+        }
       } else {
         p2.classList.remove("is-valid");
         p2.classList.add("is-invalid");
-        matchFeedback.className = "mt-1 small fw-semibold text-danger";
-        matchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+        if (matchIcon) {
+          matchIcon.style.display = "inline-flex";
+          matchIcon.className = "password-match-icon text-danger";
+          matchIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+        }
+        if (matchFeedback) {
+          matchFeedback.style.display = "block";
+          matchFeedback.className = "mt-1 small fw-semibold text-danger";
+          matchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+        }
       }
     }
 

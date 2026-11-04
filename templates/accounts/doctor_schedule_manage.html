@@ -57,6 +57,199 @@
     font-size: 0.83rem !important;
   }
 
+  /* 12-Hour Continuous Circular Wheel Picker */
+  .custom-12h-time-picker-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 1050;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.2);
+    padding: 12px;
+    width: 250px;
+    display: none;
+    animation: fadeInQuick 0.15s ease-out;
+  }
+  @keyframes fadeInQuick {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .time-picker-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .time-picker-col-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .time-picker-scroll-list {
+    max-height: 180px;
+    overflow-y: auto;
+    width: 100%;
+    scroll-behavior: smooth;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px;
+  }
+  .time-picker-scroll-list::-webkit-scrollbar {
+    width: 4px;
+  }
+  .time-picker-scroll-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .time-picker-cell {
+    padding: 5px 0;
+    width: 100%;
+    text-align: center;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: #1e293b;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+  }
+  .time-picker-cell:hover {
+    background: #f1f5f9;
+    color: #0f2744;
+  }
+  .time-picker-cell.active {
+    background: #0f2744 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+  }
+  .ampm-toggle-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+    padding-left: 8px;
+    border-left: 1px solid #e2e8f0;
+  }
+  .ampm-btn {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ampm-btn.active {
+    background: #0f2744 !important;
+    border-color: #0f2744 !important;
+    color: #ffffff !important;
+  }
+
+  /* Date Picker Popover styling for From & To leave dates */
+  .leave-date-picker-popover {
+    position: fixed;
+    z-index: 10600;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.22);
+    padding: 12px;
+    width: 290px;
+    display: none;
+    animation: fadeInQuickPop 0.15s ease-out;
+  }
+  .leave-cal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .leave-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .leave-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .leave-cal-day {
+    aspect-ratio: 1;
+    height: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #1e293b;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: all 0.15s ease;
+  }
+  .leave-cal-day:hover:not(.cal-empty):not(.cal-past):not(.cal-blocked) {
+    background: #eff6ff;
+    border-color: #3b82f6;
+  }
+  .leave-cal-day.cal-empty {
+    border: none;
+    background: transparent;
+    cursor: default;
+  }
+  .leave-cal-day.cal-past {
+    color: #cbd5e1;
+    background: #f8fafc;
+    border-color: #f1f5f9;
+    cursor: not-allowed;
+  }
+  .leave-cal-day.cal-today {
+    font-weight: 800;
+    color: #0f2744;
+    background: #f1f5f9;
+  }
+  .leave-cal-day.cal-selected {
+    background: #0f2744 !important;
+    border-color: #0f2744 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(15, 39, 68, 0.25);
+  }
+  /* Blocked Leave Dates: Strict Red Border + Warning tint */
+  .leave-cal-day.cal-blocked {
+    border: 2px solid #ef4444 !important;
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+    cursor: not-allowed !important;
+    position: relative;
+  }
+  .leave-cal-day.cal-blocked::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #dc2626;
+  }
+
   .btn-doc-primary {
     height: 38px !important;
     background: #052042 !important;
@@ -169,16 +362,26 @@
 
             <div class="row g-2.5 mb-2.5">
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">OPD Start Time (24h)</label>
-                <input type="text" name="opd_start_time" class="form-control doc-sched-input time-mask-input"
-                  placeholder="HH:MM" maxlength="5" inputmode="numeric"
-                  value="{{ schedule.opd_start_time|time:'H:i' }}" required>
+                <label class="form-label doc-field-label">OPD Start Time (12-Hr AM/PM)</label>
+                <div class="input-group custom-12h-picker-wrapper position-relative">
+                  <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 time-picker-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;" title="Open Clock Selector">
+                    <i class="fa-regular fa-clock"></i>
+                  </button>
+                  <input type="text" name="opd_start_time" class="form-control doc-sched-input custom-12h-time-input border-start-0"
+                    placeholder="hh:mm AM/PM" autocomplete="off" readonly
+                    value="{{ schedule.opd_start_time|time:'h:i A' }}" required style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;">
+                </div>
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">OPD End Time (24h)</label>
-                <input type="text" name="opd_end_time" class="form-control doc-sched-input time-mask-input"
-                  placeholder="HH:MM" maxlength="5" inputmode="numeric"
-                  value="{{ schedule.opd_end_time|time:'H:i' }}" required>
+                <label class="form-label doc-field-label">OPD End Time (12-Hr AM/PM)</label>
+                <div class="input-group custom-12h-picker-wrapper position-relative">
+                  <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 time-picker-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;" title="Open Clock Selector">
+                    <i class="fa-regular fa-clock"></i>
+                  </button>
+                  <input type="text" name="opd_end_time" class="form-control doc-sched-input custom-12h-time-input border-start-0"
+                    placeholder="hh:mm AM/PM" autocomplete="off" readonly
+                    value="{{ schedule.opd_end_time|time:'h:i A' }}" required style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;">
+                </div>
               </div>
             </div>
 
@@ -241,16 +444,25 @@
             <div class="row g-2.5 mb-2.5">
               <div class="col-12 col-sm-6">
                 <label class="form-label doc-field-label">From Date <span class="text-danger">*</span></label>
-                <input type="date" name="start_date" id="leave_start_date" class="form-control doc-sched-input"
-                  min="{% now 'Y-m-d' %}" required
-                  onchange="updateLeaveEndDateMin(this.value); checkLeaveDateConflicts();"
-                  oninput="checkLeaveDateConflicts();">
+                <div class="input-group custom-leave-date-wrapper position-relative">
+                  <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 leave-date-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;" title="Select From Date">
+                    <i class="fa-regular fa-calendar"></i>
+                  </button>
+                  <input type="text" name="start_date" id="leave_start_date" class="form-control doc-sched-input custom-leave-date-input border-start-0"
+                    placeholder="DD Mon YYYY" readonly required style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;"
+                    onchange="updateLeaveEndDateMin(this.value); checkLeaveDateConflicts();">
+                </div>
               </div>
               <div class="col-12 col-sm-6">
                 <label class="form-label doc-field-label">To Date <span class="text-danger">*</span></label>
-                <input type="date" name="end_date" id="leave_end_date" class="form-control doc-sched-input"
-                  min="{% now 'Y-m-d' %}" required onchange="checkLeaveDateConflicts();"
-                  oninput="checkLeaveDateConflicts();">
+                <div class="input-group custom-leave-date-wrapper position-relative">
+                  <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 leave-date-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;" title="Select To Date">
+                    <i class="fa-regular fa-calendar"></i>
+                  </button>
+                  <input type="text" name="end_date" id="leave_end_date" class="form-control doc-sched-input custom-leave-date-input border-start-0"
+                    placeholder="DD Mon YYYY" readonly required style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;"
+                    onchange="checkLeaveDateConflicts();">
+                </div>
               </div>
             </div>
 
@@ -334,12 +546,24 @@
 
             <div class="row g-2.5 mb-2.5" id="partialTimeDiv" style="display:none;">
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">From Time (24h)</label>
-                <input type="text" name="start_time" id="leave_start_time" class="form-control doc-sched-input time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
+                <label class="form-label doc-field-label">From Time (12-Hr AM/PM)</label>
+                <div class="input-group custom-12h-picker-wrapper position-relative">
+                  <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 time-picker-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;" title="Open Clock Selector">
+                    <i class="fa-regular fa-clock"></i>
+                  </button>
+                  <input type="text" name="start_time" id="leave_start_time" class="form-control doc-sched-input custom-12h-time-input border-start-0"
+                    placeholder="hh:mm AM/PM" autocomplete="off" readonly style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;">
+                </div>
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-label doc-field-label">To Time (24h)</label>
-                <input type="text" name="end_time" id="leave_end_time" class="form-control doc-sched-input time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
+                <label class="form-label doc-field-label">To Time (12-Hr AM/PM)</label>
+                <div class="input-group custom-12h-picker-wrapper position-relative">
+                  <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 time-picker-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;" title="Open Clock Selector">
+                    <i class="fa-regular fa-clock"></i>
+                  </button>
+                  <input type="text" name="end_time" id="leave_end_time" class="form-control doc-sched-input custom-12h-time-input border-start-0"
+                    placeholder="hh:mm AM/PM" autocomplete="off" readonly style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;">
+                </div>
               </div>
             </div>
           </div>
@@ -542,6 +766,264 @@
     {% endfor %}
   ];
 
+  // Helper to extract all blocked date strings (YYYY-MM-DD)
+  function getBlockedDatesSet(excludeLeaveId) {
+    const set = new Set();
+    existingLeaves.forEach(l => {
+      if (excludeLeaveId && String(l.id) === String(excludeLeaveId)) return;
+      try {
+        let cur = new Date(l.startDate + "T00:00:00");
+        const end = new Date(l.endDate + "T00:00:00");
+        while (cur <= end) {
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, '0');
+          const d = String(cur.getDate()).padStart(2, '0');
+          set.add(`${y}-${m}-${d}`);
+          cur.setDate(cur.getDate() + 1);
+        }
+      } catch (e) {}
+    });
+    return set;
+  }
+
+  // Popover Calendar Engine for Admin Doctor Leave
+  let adminCalPopYear = new Date().getFullYear();
+  let adminCalPopMonth = new Date().getMonth();
+  let activeLeaveDateInput = null;
+  let adminLeavePopoverEl = null;
+
+  function initAdminLeaveDatePopovers() {
+    if (adminLeavePopoverEl) return;
+    adminLeavePopoverEl = document.createElement("div");
+    adminLeavePopoverEl.className = "leave-date-picker-popover";
+    adminLeavePopoverEl.id = "adminLeaveDatePopover";
+    adminLeavePopoverEl.innerHTML = `
+      <div class="leave-cal-header">
+        <span class="fw-bold text-dark small" id="adminPopMonthLabel" style="font-size: 0.95rem;">Month Year</span>
+        <div class="d-flex align-items-center gap-1">
+          <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-2 text-secondary" style="font-size: 0.72rem; height: 26px;" onclick="shiftAdminLeavePopMonth(-1)">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-2 text-secondary" style="font-size: 0.72rem; height: 26px;" onclick="shiftAdminLeavePopMonth(1)">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="leave-cal-weekdays">
+        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+      </div>
+      <div class="leave-cal-grid" id="adminLeavePopGrid"></div>
+      <div class="d-flex justify-content-between align-items-center mt-2.5 pt-2 border-top" style="font-size: 0.72rem;">
+        <div class="d-flex align-items-center gap-1.5">
+          <span style="display:inline-block; width:10px; height:10px; border:2px solid #ef4444; background:#fef2f2; border-radius:2px;"></span>
+          <span class="text-danger fw-semibold">Already Blocked</span>
+        </div>
+        <div class="d-flex align-items-center gap-1.5 ms-auto">
+          <span style="display:inline-block; width:10px; height:10px; background:#0f2744; border-radius:2px;"></span>
+          <span class="text-dark fw-semibold">Selected</span>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(adminLeavePopoverEl);
+
+    // Bind triggers & inputs
+    document.querySelectorAll(".custom-leave-date-input").forEach(input => {
+      input.addEventListener("click", function(e) {
+        e.stopPropagation();
+        openAdminLeavePop(this);
+      });
+      const wrapper = input.closest(".custom-leave-date-wrapper");
+      if (wrapper) {
+        const btn = wrapper.querySelector(".leave-date-trigger-btn");
+        if (btn) {
+          btn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            openAdminLeavePop(input);
+          });
+        }
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener("click", function(e) {
+      if (adminLeavePopoverEl && !adminLeavePopoverEl.contains(e.target) && !e.target.closest(".custom-leave-date-wrapper")) {
+        adminLeavePopoverEl.style.display = "none";
+      }
+    });
+  }
+
+  function shiftAdminLeavePopMonth(offset) {
+    adminCalPopMonth += offset;
+    if (adminCalPopMonth > 11) {
+      adminCalPopMonth = 0;
+      adminCalPopYear++;
+    } else if (adminCalPopMonth < 0) {
+      adminCalPopMonth = 11;
+      adminCalPopYear--;
+    }
+    renderAdminLeavePopGrid();
+  }
+
+  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function formatIsoToReadableDate(isoStr) {
+    if (!isoStr) return "";
+    try {
+      const parts = isoStr.split("-");
+      if (parts.length === 3) {
+        const y = parts[0];
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return `${String(d).padStart(2, '0')} ${shortMonthNames[m] || ''} ${y}`;
+      }
+    } catch(e) {}
+    return isoStr;
+  }
+
+  function parseReadableDateToIso(readableStr) {
+    if (!readableStr) return "";
+    readableStr = readableStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(readableStr)) return readableStr;
+    const match = readableStr.match(/^(\d{1,2})\s+([A-Za-z]{3,4})\s+(\d{4})$/);
+    if (match) {
+      const d = String(parseInt(match[1], 10)).padStart(2, '0');
+      const mIdx = shortMonthNames.findIndex(mn => mn.toLowerCase() === match[2].substring(0, 3).toLowerCase());
+      if (mIdx !== -1) {
+        const m = String(mIdx + 1).padStart(2, '0');
+        return `${match[3]}-${m}-${d}`;
+      }
+    }
+    return readableStr;
+  }
+
+  function openAdminLeavePop(input) {
+    activeLeaveDateInput = input;
+    const isoVal = parseReadableDateToIso(input.value);
+    if (isoVal) {
+      const parts = isoVal.split("-");
+      if (parts.length === 3) {
+        adminCalPopYear = parseInt(parts[0], 10);
+        adminCalPopMonth = parseInt(parts[1], 10) - 1;
+      }
+    }
+    const rect = input.getBoundingClientRect();
+    adminLeavePopoverEl.style.position = "fixed";
+    adminLeavePopoverEl.style.top = `${rect.bottom + 6}px`;
+    adminLeavePopoverEl.style.left = `${Math.min(rect.left, window.innerWidth - 305)}px`;
+    adminLeavePopoverEl.style.display = "block";
+    renderAdminLeavePopGrid();
+  }
+
+  function renderAdminLeavePopGrid() {
+    const grid = document.getElementById("adminLeavePopGrid");
+    const label = document.getElementById("adminPopMonthLabel");
+    if (!grid || !label) return;
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    label.innerText = `${monthNames[adminCalPopMonth]} ${adminCalPopYear}`;
+
+    const currentAction = document.getElementById("leave_form_action")?.value || "add_leave";
+    const currentLeaveId = document.getElementById("leave_id_input")?.value || "";
+    const excludeId = (currentAction === "edit_leave") ? currentLeaveId : null;
+    const blockedSet = getBlockedDatesSet(excludeId);
+
+    const startVal = parseReadableDateToIso(document.getElementById("leave_start_date")?.value || "");
+    const endVal = parseReadableDateToIso(document.getElementById("leave_end_date")?.value || "") || startVal;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+    const firstDayIndex = new Date(adminCalPopYear, adminCalPopMonth, 1).getDay();
+    const totalDays = new Date(adminCalPopYear, adminCalPopMonth + 1, 0).getDate();
+
+    let html = "";
+    for (let i = 0; i < firstDayIndex; i++) {
+      html += `<div class="leave-cal-day cal-empty"></div>`;
+    }
+
+    for (let day = 1; day <= totalDays; day++) {
+      const dayStr = `${adminCalPopYear}-${String(adminCalPopMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const isPast = dayStr < todayStr;
+      const isToday = dayStr === todayStr;
+      const isBlocked = blockedSet.has(dayStr);
+      const isSelected = (startVal && dayStr === startVal) || (endVal && dayStr === endVal);
+      const isInRange = (startVal && endVal && dayStr > startVal && dayStr < endVal);
+
+      let classes = ["leave-cal-day"];
+      let title = dayStr;
+
+      if (isPast) {
+        classes.push("cal-past");
+        title += " (Past date)";
+      } else if (isBlocked) {
+        classes.push("cal-blocked");
+        title += " (Already blocked leave)";
+      } else if (isSelected) {
+        classes.push("cal-selected");
+      } else if (isInRange) {
+        classes.push("cal-in-range");
+      } else if (isToday) {
+        classes.push("cal-today");
+      }
+
+      html += `
+        <div class="${classes.join(' ')}" title="${title}" data-date="${dayStr}" onclick="onAdminPopDateSelect('${dayStr}', ${isBlocked}, ${isPast})">
+          <span>${day}</span>
+        </div>
+      `;
+    }
+    grid.innerHTML = html;
+  }
+
+  function onAdminPopDateSelect(dStr, isBlocked, isPast) {
+    if (isPast) return;
+    const currentAction = document.getElementById("leave_form_action")?.value || "add_leave";
+    
+    // If date is blocked and NOT editing, alert and prevent selection
+    if (isBlocked && currentAction !== "edit_leave") {
+      const match = existingLeaves.find(l => dStr >= l.startDate && dStr <= l.endDate);
+      if (match) {
+        matchedConflictLeave = match;
+        const suggestionBox = document.getElementById("leave_conflict_suggestion");
+        if (suggestionBox) {
+          document.getElementById("conflictDatesText").innerText = (match.startDate === match.endDate) ? match.startFormatted : `${match.startFormatted} to ${match.endFormatted}`;
+          document.getElementById("conflictReasonText").innerText = match.reason || "Leave";
+          document.getElementById("conflictMessageTitle").innerText = `Date ${dStr} is already blocked!`;
+          suggestionBox.style.display = "block";
+        }
+      }
+      alert(`Date ${dStr} is already blocked for a scheduled leave! You cannot select it for fresh leave.`);
+      return;
+    }
+
+    const startInput = document.getElementById("leave_start_date");
+    const endInput = document.getElementById("leave_end_date");
+    if (!startInput || !endInput) return;
+
+    const readableSelected = formatIsoToReadableDate(dStr);
+
+    if (activeLeaveDateInput === endInput) {
+      const startIso = parseReadableDateToIso(startInput.value);
+      if (startIso && dStr < startIso) {
+        alert("To Date cannot be earlier than From Date.");
+        return;
+      }
+      endInput.value = readableSelected;
+    } else {
+      startInput.value = readableSelected;
+      const endIso = parseReadableDateToIso(endInput.value);
+      if (!endIso || endIso < dStr) {
+        endInput.value = readableSelected;
+      }
+    }
+
+    if (adminLeavePopoverEl) {
+      adminLeavePopoverEl.style.display = "none";
+    }
+
+    checkLeaveDateConflicts();
+  }
+
   const existingConfirmedApts = [
     {% for apt in appointments %}
   {% if apt.status == 'APPROVED' or apt.status == 'SCHEDULED' or apt.status == 'PENDING_APPROVAL' %}
@@ -566,8 +1048,10 @@
   function checkLeaveDateConflicts() {
     const currentAction = document.getElementById("leave_form_action").value;
     const currentLeaveId = document.getElementById("leave_id_input").value;
-    const startVal = document.getElementById("leave_start_date").value;
-    const endVal = document.getElementById("leave_end_date").value || startVal;
+    const rawStart = document.getElementById("leave_start_date").value;
+    const rawEnd = document.getElementById("leave_end_date").value || rawStart;
+    const startVal = parseReadableDateToIso(rawStart);
+    const endVal = parseReadableDateToIso(rawEnd) || startVal;
     const suggestionBox = document.getElementById("leave_conflict_suggestion");
     const aptConflictBox = document.getElementById("confirmed_apt_conflict_box");
     const overrideCheck = document.getElementById("overrideAptConflictCheck");
@@ -747,10 +1231,10 @@
     const startTimeInput = document.getElementById("leave_start_time");
     const endTimeInput = document.getElementById("leave_end_time");
 
-    if (startInput) startInput.value = startDate;
+    if (startInput) startInput.value = formatIsoToReadableDate(startDate);
     if (endInput) {
       endInput.min = startDate;
-      endInput.value = endDate;
+      endInput.value = formatIsoToReadableDate(endDate);
     }
     if (reasonInput) reasonInput.value = reason;
     if (fullDayCheck) {
@@ -811,6 +1295,8 @@
     const todayStr = new Date().toISOString().split("T")[0];
     if (startInput && !startInput.min) startInput.min = todayStr;
     if (endInput && !endInput.min) endInput.min = todayStr;
+
+    initAdminLeaveDatePopovers();
 
     // Save Working Hours Confirmation Handler
     const schedForm = document.getElementById("scheduleForm");
@@ -878,11 +1364,87 @@
         if (this.dataset.confirmedByModal === "true") return;
         e.preventDefault();
 
-        const startDate = (this.querySelector('[name="start_date"]')?.value || '').trim();
-        const endDate = (this.querySelector('[name="end_date"]')?.value || '').trim();
+        const rawStartDate = (this.querySelector('[name="start_date"]')?.value || '').trim();
+        const rawEndDate = (this.querySelector('[name="end_date"]')?.value || '').trim();
+        const startDate = parseReadableDateToIso(rawStartDate);
+        const endDate = parseReadableDateToIso(rawEndDate) || startDate;
         const isFullDay = this.querySelector('[name="is_full_day"]')?.checked;
         const reason = (this.querySelector('[name="reason"]')?.value || 'Personal Leave').trim();
         const isEditing = document.getElementById("leave_form_action")?.value === "edit_leave";
+        const currentLeaveId = document.getElementById("leave_id_input")?.value || "";
+
+        // Client-side validation: Check if leave date is already blocked in calendar
+        if (!isEditing) {
+          const blockedSet = getBlockedDatesSet(null);
+          let checkCur = new Date(startDate + "T00:00:00");
+          const checkEnd = new Date(endDate + "T00:00:00");
+          let conflictFound = false;
+          let conflictDate = "";
+          while (checkCur <= checkEnd) {
+            const y = checkCur.getFullYear();
+            const m = String(checkCur.getMonth() + 1).padStart(2, '0');
+            const d = String(checkCur.getDate()).padStart(2, '0');
+            const ds = `${y}-${m}-${d}`;
+            if (blockedSet.has(ds)) {
+              conflictFound = true;
+              conflictDate = ds;
+              break;
+            }
+            checkCur.setDate(checkCur.getDate() + 1);
+          }
+          if (conflictFound) {
+            alert(`Date ${conflictDate} is already blocked for leave. Please pick another date or edit the existing leave record.`);
+            return;
+          }
+        }
+
+        // Client-side validation: Today's leave time validations
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const curHours = now.getHours();
+        const curMins = now.getMinutes();
+        const curTotalMins = curHours * 60 + curMins;
+
+        if (startDate === todayStr) {
+          if (isFullDay) {
+            alert("Full day leave cannot be added for today with past time. Please uncheck 'Full Day Off' and specify hours greater than the current time.");
+            const fdCheck = document.getElementById("fullDayCheck");
+            if (fdCheck) {
+              fdCheck.checked = false;
+              document.getElementById('partialTimeDiv').style.display = 'flex';
+            }
+            return;
+          }
+
+          // Check partial time
+          const startTimeVal = (this.querySelector('[name="start_time"]')?.value || '').trim();
+          if (!startTimeVal) {
+            alert("Please specify a From Time for today's leave.");
+            return;
+          }
+
+          // Parse start time to minutes
+          let stTotalMins = null;
+          const match12 = startTimeVal.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+          if (match12) {
+            let h = parseInt(match12[1], 10);
+            let m = parseInt(match12[2], 10);
+            const p = (match12[3] || 'AM').toUpperCase();
+            if (p === 'PM' && h < 12) h += 12;
+            if (p === 'AM' && h === 12) h = 0;
+            stTotalMins = h * 60 + m;
+          } else {
+            const match24 = startTimeVal.match(/^(\d{1,2}):(\d{2})/);
+            if (match24) {
+              stTotalMins = parseInt(match24[1], 10) * 60 + parseInt(match24[2], 10);
+            }
+          }
+
+          if (stTotalMins !== null && stTotalMins <= curTotalMins) {
+            alert(`For today's leave, From Time (${startTimeVal}) must be greater than current time (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}).`);
+            return;
+          }
+        }
 
         function formatReadableDate(dStr) {
           if (!dStr) return '—';
@@ -940,6 +1502,198 @@
         });
       });
     }
+
+    // ==========================================
+    // 12-Hour Continuous AM/PM Clock Wheel Picker
+    // ==========================================
+    function init12HourClockPickers() {
+      const popover = document.createElement("div");
+      popover.className = "custom-12h-time-picker-popover";
+      popover.id = "global12hTimePicker";
+      popover.innerHTML = `
+        <div class="d-flex align-items-stretch" style="gap: 8px;">
+          <!-- Hours Column (01 to 12 continuous) -->
+          <div class="time-picker-col">
+            <div class="time-picker-col-title">Hour</div>
+            <div class="time-picker-scroll-list" id="pickerHoursList">
+              ${Array.from({length: 12}, (_, i) => {
+                const h = String(i + 1).padStart(2, '0');
+                return `<div class="time-picker-cell" data-type="hour" data-val="${h}">${h}</div>`;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Minutes Column (00 to 59 continuous, no gaps) -->
+          <div class="time-picker-col">
+            <div class="time-picker-col-title">Minute</div>
+            <div class="time-picker-scroll-list" id="pickerMinutesList">
+              ${Array.from({length: 60}, (_, i) => {
+                const m = String(i).padStart(2, '0');
+                return `<div class="time-picker-cell" data-type="minute" data-val="${m}">${m}</div>`;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- AM / PM Selector -->
+          <div class="ampm-toggle-col">
+            <button type="button" class="ampm-btn" data-val="AM">AM</button>
+            <button type="button" class="ampm-btn" data-val="PM">PM</button>
+            <button type="button" class="btn btn-sm btn-primary mt-auto py-1 px-2 fw-semibold" id="pickerDoneBtn" style="font-size: 0.72rem; border-radius: 6px;">Done</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(popover);
+
+      let currentActiveInput = null;
+      let selHour = "09";
+      let selMin = "00";
+      let selAmPm = "AM";
+
+      function parseTimeVal(val) {
+        if (!val) return { h: "09", m: "00", p: "AM" };
+        val = val.trim();
+        // Check 12-hr format (e.g. "09:30 AM" or "9:30 PM")
+        const match12 = val.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+        if (match12) {
+          let h = parseInt(match12[1], 10);
+          let m = match12[2];
+          let p = (match12[3] || "AM").toUpperCase();
+          if (h < 1) h = 12;
+          if (h > 12) h = 12;
+          return { h: String(h).padStart(2, '0'), m: m, p: p };
+        }
+        // Check 24-hr format (e.g. "14:00" -> "02:00 PM")
+        const match24 = val.match(/^(\d{1,2}):(\d{2})$/);
+        if (match24) {
+          let h24 = parseInt(match24[1], 10);
+          let m = match24[2];
+          let p = h24 >= 12 ? "PM" : "AM";
+          let h12 = h24 % 12;
+          if (h12 === 0) h12 = 12;
+          return { h: String(h12).padStart(2, '0'), m: m, p: p };
+        }
+        return { h: "09", m: "00", p: "AM" };
+      }
+
+      function updatePickerUI() {
+        popover.querySelectorAll("#pickerHoursList .time-picker-cell").forEach(cell => {
+          const isActive = cell.dataset.val === selHour;
+          cell.classList.toggle("active", isActive);
+          if (isActive) {
+            cell.scrollIntoView({ block: "center", behavior: "auto" });
+          }
+        });
+        popover.querySelectorAll("#pickerMinutesList .time-picker-cell").forEach(cell => {
+          const isActive = cell.dataset.val === selMin;
+          cell.classList.toggle("active", isActive);
+          if (isActive) {
+            cell.scrollIntoView({ block: "center", behavior: "auto" });
+          }
+        });
+        popover.querySelectorAll(".ampm-btn").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.val === selAmPm);
+        });
+      }
+
+      function commitSelection() {
+        if (!currentActiveInput) return;
+        currentActiveInput.value = `${selHour}:${selMin} ${selAmPm}`;
+        currentActiveInput.dispatchEvent(new Event('input', { bubbles: true }));
+        currentActiveInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      function showPicker(input) {
+        currentActiveInput = input;
+        const parsed = parseTimeVal(input.value);
+        selHour = parsed.h;
+        selMin = parsed.m;
+        selAmPm = parsed.p;
+
+        const rect = input.getBoundingClientRect();
+        popover.style.position = "fixed";
+        popover.style.top = `${rect.bottom + 6}px`;
+        popover.style.left = `${Math.min(rect.left, window.innerWidth - 265)}px`;
+        popover.style.display = "block";
+
+        updatePickerUI();
+      }
+
+      function hidePicker() {
+        popover.style.display = "none";
+        currentActiveInput = null;
+      }
+
+      // Bind Hours & Minutes Click
+      popover.addEventListener("click", function(e) {
+        const cell = e.target.closest(".time-picker-cell");
+        if (cell) {
+          if (cell.dataset.type === "hour") {
+            selHour = cell.dataset.val;
+          } else if (cell.dataset.type === "minute") {
+            selMin = cell.dataset.val;
+          }
+          commitSelection();
+          updatePickerUI();
+          return;
+        }
+
+        const ampmBtn = e.target.closest(".ampm-btn");
+        if (ampmBtn) {
+          selAmPm = ampmBtn.dataset.val;
+          commitSelection();
+          updatePickerUI();
+          return;
+        }
+
+        if (e.target.id === "pickerDoneBtn") {
+          commitSelection();
+          hidePicker();
+        }
+      });
+
+      // Bind Inputs and Clock Buttons
+      document.querySelectorAll(".custom-12h-time-input").forEach(input => {
+        input.addEventListener("click", function(e) {
+          e.stopPropagation();
+          showPicker(this);
+        });
+        const wrapper = input.closest(".custom-12h-picker-wrapper");
+        if (wrapper) {
+          const btn = wrapper.querySelector(".time-picker-trigger-btn");
+          if (btn) {
+            btn.addEventListener("click", function(e) {
+              e.stopPropagation();
+              showPicker(input);
+            });
+          }
+        }
+      });
+
+      // Close on Outside Click
+      document.addEventListener("click", function(e) {
+        if (!popover.contains(e.target) && !e.target.closest(".custom-12h-picker-wrapper")) {
+          hidePicker();
+        }
+      });
+
+      // Auto-convert 12-hr "hh:mm AM/PM" to 24-hr "HH:MM:SS" on Form Submit for Backend Compatibility
+      document.querySelectorAll("form").forEach(form => {
+        form.addEventListener("submit", function() {
+          form.querySelectorAll(".custom-12h-time-input").forEach(inp => {
+            let v = (inp.value || "").trim();
+            if (v) {
+              const p = parseTimeVal(v);
+              let h = parseInt(p.h, 10);
+              if (p.p === "PM" && h < 12) h += 12;
+              if (p.p === "AM" && h === 12) h = 0;
+              inp.value = `${String(h).padStart(2, '0')}:${p.m}:00`;
+            }
+          });
+        });
+      });
+    }
+
+    init12HourClockPickers();
   });
 </script>
 {% endblock %}
