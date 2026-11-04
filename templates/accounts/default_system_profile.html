@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Default Profile & Branding{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0 fw-bold text-dark">Default Profile</h4>
+    <p class="text-muted small mb-0">Platform branding and fallback logo</p>
+  </div>
+  <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+    Back
+  </a>
+</div>
+
+<div class="card shadow-sm border-0 rounded-3 w-100">
+  <div class="card-body p-4">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <div class="row g-3">
+        <!-- Platform Name -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold text-dark">Platform Name <span class="text-danger">*</span></label>
+          <input type="text" name="system_name" class="form-control" value="{{ system_profile.system_name }}" placeholder="e.g. CRM" required style="height: 42px; border-radius: 0.6rem; border: 1px solid #cbd5e1;">
+          <div class="text-muted small mt-1" style="font-size: 0.75rem;">Appears on top sidebar when no business logo is set.</div>
+        </div>
+
+        <!-- Default Logo -->
+        <div class="col-md-6">
+          <label class="form-label small fw-bold text-dark">Default Logo</label>
+          <input type="file" name="default_logo" id="defaultLogoInput" class="form-control" accept="image/*" onchange="previewDefaultLogo(this)" style="height: 42px; border-radius: 0.6rem; border: 1px solid #cbd5e1; padding: 0.45rem 0.85rem;">
+          <div class="text-muted small mt-1" style="font-size: 0.75rem;">Fallback logo for businesses without custom logos.</div>
+        </div>
+
+        <!-- Logo Preview & Actions -->
+        <div class="col-12 mt-2">
+          <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3" style="border: 1px solid #e2e8f0;">
+            <div class="bg-white border rounded-2 d-flex align-items-center justify-content-center p-1" style="width: 58px; height: 58px; flex-shrink: 0; border-color: #e2e8f0 !important;">
+              <img id="defaultLogoImg" src="{{ system_profile.get_active_logo_url }}" alt="Logo" style="max-height: 100%; max-width: 100%; object-fit: contain;">
+            </div>
+            
+            <div class="flex-grow-1">
+              <div class="fw-semibold text-dark small" id="defaultLogoStatus">
+                {% if system_profile.default_logo %}Custom Logo Active{% else %}Default Logo Active{% endif %}
+              </div>
+              
+              <div class="d-flex align-items-center gap-3 mt-1">
+                {% if system_profile.default_logo %}
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" name="clear_default_logo" id="clearDefaultLogoCheck" value="true" onchange="toggleClearDefaultLogo(this)">
+                  <label class="form-check-label text-danger small fw-semibold" for="clearDefaultLogoCheck" style="font-size: 0.8rem; cursor: pointer;">
+                    Reset to Default
+                  </label>
+                </div>
+                {% endif %}
+
+                <button type="button" class="btn btn-sm btn-link text-secondary p-0 text-decoration-none small d-none" id="cancelDefaultLogoBtn" onclick="cancelDefaultLogoSelection()" style="font-size: 0.8rem;">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top" style="border-color: #f1f5f9 !important;">
+        <a href="{% url 'dashboard:superadmin_home' %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+          Cancel
+        </a>
+        <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-semibold" style="background-color: var(--brand) !important; border-color: var(--brand) !important;">
+          Save Changes
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewDefaultLogo(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('defaultLogoImg').src = e.target.result;
+      document.getElementById('defaultLogoStatus').innerHTML = '<span class="text-primary fw-semibold">New file selected</span>';
+      const cancelBtn = document.getElementById('cancelDefaultLogoBtn');
+      if (cancelBtn) cancelBtn.classList.remove('d-none');
+      const clearCheck = document.getElementById('clearDefaultLogoCheck');
+      if (clearCheck) clearCheck.checked = false;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function cancelDefaultLogoSelection() {
+  const input = document.getElementById('defaultLogoInput');
+  input.value = '';
+  document.getElementById('defaultLogoImg').src = '{{ system_profile.get_active_logo_url }}';
+  document.getElementById('defaultLogoStatus').textContent = '{% if system_profile.default_logo %}Custom Logo Active{% else %}Default Logo Active{% endif %}';
+  const cancelBtn = document.getElementById('cancelDefaultLogoBtn');
+  if (cancelBtn) cancelBtn.classList.add('d-none');
+}
+
+function toggleClearDefaultLogo(checkbox) {
+  const input = document.getElementById('defaultLogoInput');
+  if (checkbox.checked) {
+    input.value = '';
+    const cancelBtn = document.getElementById('cancelDefaultLogoBtn');
+    if (cancelBtn) cancelBtn.classList.add('d-none');
+    document.getElementById('defaultLogoStatus').innerHTML = '<span class="text-danger fw-semibold">Will reset on save</span>';
+  } else {
+    document.getElementById('defaultLogoStatus').textContent = '{% if system_profile.default_logo %}Custom Logo Active{% else %}Default Logo Active{% endif %}';
+  }
+}
+</script>
+{% endblock %}

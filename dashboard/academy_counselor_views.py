@@ -731,8 +731,19 @@ def academy_admin_home(request):
     source_labels = [s.name for s in sources]
     source_counts = [s.cnt for s in sources]
 
-    # Aggregate Stage Funnel by stage name to eliminate duplicate stage names
-    stage_data = leads.values("stage__name").annotate(cnt=Count("id")).order_by("-cnt")
+    # Aggregate Stage Funnel by stage name (strictly Academy pipeline, exclude hospital-specific terms)
+    stage_data = (
+        leads.exclude(
+            Q(stage__name__icontains="Appointment") |
+            Q(stage__name__icontains="Doctor") |
+            Q(stage__name__icontains="OPD") |
+            Q(stage__name__icontains="Consultation") |
+            Q(stage__name__icontains="Patient")
+        )
+        .values("stage__name")
+        .annotate(cnt=Count("id"))
+        .order_by("-cnt")
+    )
     funnel_labels = [r["stage__name"] or "Unassigned" for r in stage_data]
     funnel_counts = [r["cnt"] for r in stage_data]
 

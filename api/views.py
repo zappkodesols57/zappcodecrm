@@ -34,6 +34,8 @@ class LoginAPIView(views.APIView):
             # Authenticate using the username found for this phone
             user = authenticate(username=user_obj.username, password=password)
             if user:
+                if user.hospital and not user.hospital.is_active and getattr(user, 'role', '') != 'SUPER_ADMIN':
+                    return Response({'error': f"Your organization account ('{user.hospital.name}') has been deactivated. Please contact administrator."}, status=status.HTTP_403_FORBIDDEN)
                 refresh = RefreshToken.for_user(user)
                 return Response({
                     'access_token': str(refresh.access_token),
@@ -55,6 +57,8 @@ class VerifyOTPAPIView(views.APIView):
         if otp == "1234":  # Dummy check
             user = User.objects.filter(phone=phone, is_active=True).first()
             if user:
+                if user.hospital and not user.hospital.is_active and getattr(user, 'role', '') != 'SUPER_ADMIN':
+                    return Response({'error': f"Your organization account ('{user.hospital.name}') has been deactivated. Please contact administrator."}, status=status.HTTP_403_FORBIDDEN)
                 refresh = RefreshToken.for_user(user)
                 return Response({
                     'access_token': str(refresh.access_token),

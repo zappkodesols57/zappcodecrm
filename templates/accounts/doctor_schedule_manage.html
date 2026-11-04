@@ -158,11 +158,11 @@
     <div class="card doc-sched-card h-100">
       <div class="card-header doc-sched-header">
         <h6 class="mb-0 fw-bold text-dark small" style="font-size: 0.88rem;">
-          <i class="fa-regular fa-clock text-primary me-1.5"></i> Regular OPD Working Hours
+          Regular OPD Working Hours
         </h6>
       </div>
       <div class="card-body d-flex flex-column justify-content-between p-3">
-        <form method="POST" class="d-flex flex-column flex-grow-1 justify-content-between">
+        <form method="POST" id="scheduleForm" class="d-flex flex-column flex-grow-1 justify-content-between">
           <div>
             {% csrf_token %}
             <input type="hidden" name="action" value="update_schedule">
@@ -222,7 +222,6 @@
     <div class="card doc-sched-card h-100" id="leaveFormCard">
       <div class="card-header doc-sched-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-dark small d-flex align-items-center gap-2" style="font-size: 0.88rem;">
-          <i class="fa-solid fa-calendar-xmark text-danger"></i>
           <span id="leaveCardTitle">Add Leave / Time Off</span>
           <span id="leaveEditBadge" class="badge bg-danger text-white rounded-pill px-2 d-none"
             style="font-size: 0.68rem;">Editing</span>
@@ -328,6 +327,9 @@
                 onchange="document.getElementById('partialTimeDiv').style.display = this.checked ? 'none' : 'flex';">
               <label class="form-check-label small fw-semibold text-dark" for="fullDayCheck"
                 style="font-size: 0.8rem;">Full Day Off</label>
+              <div class="form-text text-muted small mt-1" style="font-size: 0.74rem; line-height: 1.4;">
+                Check for a full day leave. Uncheck to specify partial hours (e.g. afternoon half-day or specific hours off).
+              </div>
             </div>
 
             <div class="row g-2.5 mb-2.5" id="partialTimeDiv" style="display:none;">
@@ -344,7 +346,7 @@
 
           <div class="pt-2">
             <button type="submit" id="leaveSubmitBtn" class="btn btn-doc-danger w-100">
-              <span id="leaveSubmitText">Block Leave Dates</span>
+              <span id="leaveSubmitText">Add Leave Date</span>
             </button>
           </div>
         </form>
@@ -362,7 +364,6 @@
     <div class="card doc-sched-card h-100">
       <div class="card-header doc-sched-header d-flex justify-content-between align-items-center py-2.5 px-3">
         <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 0.86rem;">
-          <i class="fa-solid fa-calendar-days text-primary"></i>
           Upcoming &amp; Recorded Leaves
         </h6>
         <span class="badge bg-light text-secondary border border-secondary-subtle px-2 py-1"
@@ -402,10 +403,10 @@
                 {% else %}
                   <div class="d-inline-flex gap-1.5 align-items-center">
                     <button type="button" class="btn btn-sm btn-outline-primary py-0.5 px-2" style="font-size: 0.74rem; border-radius: 6px;" title="Extend / Edit Leave Dates" onclick="editLeave('{{ l.pk }}', '{{ l.start_date|date:'Y-m-d' }}', '{{ l.end_date|date:'Y-m-d' }}', '{{ l.reason|default:''|escapejs }}', {{ l.is_full_day|yesno:'true,false' }}, '{{ l.start_time|time:'H:i'|default:'' }}', '{{ l.end_time|time:'H:i'|default:'' }}')">
-                      <i class="fa-solid fa-pen-to-square me-1"></i>Edit
+                      Edit
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-danger py-0.5 px-2" style="font-size: 0.74rem; border-radius: 6px;" title="Remove Leave" onclick="confirmDeleteLeave('{{ l.pk }}', '{{ l.start_date|date:'d M Y' }}', '{{ l.end_date|date:'d M Y' }}')">
-                      <i class="fa-solid fa-trash-can me-1"></i>Remove
+                      Remove
                     </button>
                   </div>
                 {% endif %}
@@ -430,7 +431,6 @@
     <div class="card doc-sched-card h-100">
       <div class="card-header doc-sched-header d-flex justify-content-between align-items-center py-2.5 px-3">
         <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 0.86rem;">
-          <i class="fa-solid fa-clipboard-user text-primary"></i>
           Recent Appointments
         </h6>
         <span class="badge bg-light text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.72rem; font-weight: 600;">{{ appointments|length }} Bookings</span>
@@ -485,23 +485,27 @@
 
 <!-- In-Page Leave Removal Confirmation Modal -->
 <div class="modal fade" id="deleteLeaveModal" tabindex="-1" aria-labelledby="deleteLeaveModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-    <div class="modal-content border-0 shadow-lg rounded-4">
-      <div class="modal-header border-0 pb-0 pt-4 px-4">
-        <h5 class="modal-title fw-bold text-dark" id="deleteLeaveModalLabel">Remove Leave</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 18px; border: 1px solid #e2e8f0 !important; overflow: hidden;">
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 54px; height: 54px; background: #fee2e2; border: 1px solid #fecaca; color: #dc2626;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.45rem;"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-2" id="deleteLeaveModalLabel" style="font-size: 1.15rem; letter-spacing: -0.01em;">Remove Leave</h5>
+        <p class="text-secondary mb-2" style="font-size: 0.92rem; line-height: 1.55;">Are you sure you want to remove this leave record?</p>
+        <div class="p-2.5 bg-light rounded-3 border small fw-semibold text-dark" id="deleteLeaveDatesText" style="border-radius: 10px !important;"></div>
       </div>
-      <div class="modal-body px-4 py-3">
-        <p class="text-muted mb-1">Are you sure you want to remove this leave record?</p>
-        <p class="fw-semibold text-dark mb-0" id="deleteLeaveDatesText"></p>
-      </div>
-      <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
-        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+      <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-end gap-2" style="background: #f8fafc; border-top: 1px solid #f1f5f9 !important;">
+        <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal" style="height: 38px; min-width: 90px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff; color: #475569; font-size: 0.88rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+          Cancel
+        </button>
         <form method="POST" id="deleteLeaveForm" class="d-inline m-0">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_leave">
           <input type="hidden" name="leave_id" id="modal_delete_leave_id" value="">
-          <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Remove</button>
+          <button type="submit" class="btn btn-danger fw-semibold" style="height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; background-color: #dc2626 !important; border: 1px solid #b91c1c !important; color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+            <i class="fa-solid fa-trash-can me-1.5"></i> Remove
+          </button>
         </form>
       </div>
     </div>
@@ -672,10 +676,10 @@
     submitBtn.disabled = false;
     if (isEditing) {
       submitBtn.className = "btn btn-primary w-100 fw-bold";
-      submitText.innerText = 'Update / Extend Leave Dates';
+      submitText.innerText = 'Update Leave Date';
     } else {
       submitBtn.className = "btn btn-doc-danger w-100";
-      submitText.innerText = 'Block Leave Dates';
+      submitText.innerText = 'Add Leave Date';
     }
   }
 
@@ -759,7 +763,7 @@
     const submitBtn = document.getElementById("leaveSubmitBtn");
     const submitText = document.getElementById("leaveSubmitText");
     if (submitBtn) submitBtn.className = "btn btn-primary w-100 fw-bold";
-    if (submitText) submitText.innerText = "Update / Extend Leave Dates";
+    if (submitText) submitText.innerText = "Update Leave Date";
 
     // Hide suggestion box when in edit mode
     const suggestionBox = document.getElementById("leave_conflict_suggestion");
@@ -795,7 +799,7 @@
     const submitBtn = document.getElementById("leaveSubmitBtn");
     const submitText = document.getElementById("leaveSubmitText");
     if (submitBtn) submitBtn.className = "btn btn-doc-danger w-100";
-    if (submitText) submitText.innerText = "Block Leave Dates";
+    if (submitText) submitText.innerText = "Add Leave Date";
 
     const suggestionBox = document.getElementById("leave_conflict_suggestion");
     if (suggestionBox) suggestionBox.style.display = "none";
@@ -807,6 +811,135 @@
     const todayStr = new Date().toISOString().split("T")[0];
     if (startInput && !startInput.min) startInput.min = todayStr;
     if (endInput && !endInput.min) endInput.min = todayStr;
+
+    // Save Working Hours Confirmation Handler
+    const schedForm = document.getElementById("scheduleForm");
+    if (schedForm) {
+      schedForm.addEventListener("submit", function(e) {
+        if (this.dataset.confirmedByModal === "true") return;
+        e.preventDefault();
+
+        const startTime = (this.querySelector('[name="opd_start_time"]')?.value || '—').trim();
+        const endTime = (this.querySelector('[name="opd_end_time"]')?.value || '—').trim();
+        const slotEl = this.querySelector('[name="slot_duration_minutes"]');
+        const slotText = slotEl ? slotEl.options[slotEl.selectedIndex].text : '30 Minutes';
+        const offDays = (this.querySelector('[name="off_days"]')?.value || 'None').trim() || 'None';
+        const isAvail = this.querySelector('[name="is_available"]')?.checked ? 'Yes (Accepting)' : 'No (Paused)';
+
+        const summaryHtml = `
+          <div class="confirm-summary-card my-2 text-start" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="background: #f8fafc; padding: 7px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b;">
+              Schedule Overview
+            </div>
+            <div style="padding: 10px 14px;">
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">OPD Start Time</span>
+                <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.82rem; padding: 3px 8px; border-radius: 6px;">${startTime}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">OPD End Time</span>
+                <span class="badge bg-light text-dark border fw-bold" style="font-size: 0.82rem; padding: 3px 8px; border-radius: 6px;">${endTime}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Slot Duration</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-bold" style="font-size: 0.82rem; padding: 3px 8px; border-radius: 6px;">${slotText}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Weekly Offs</span>
+                <span style="color: #0f172a; font-size: 0.84rem; font-weight: 600;">${offDays}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Accepting Appointments</span>
+                <span class="badge ${this.querySelector('[name="is_available"]')?.checked ? 'bg-success bg-opacity-10 text-success border-success-subtle' : 'bg-secondary bg-opacity-10 text-secondary border-secondary-subtle'} border fw-bold" style="font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;">${isAvail}</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-secondary small mt-2.5 mb-0 text-center fw-medium" style="font-size: 0.88rem;">Are you sure you want to save these OPD working hours?</p>
+        `;
+
+        const formSelf = this;
+        window.showConfirmDialog({
+          title: 'Confirm Working Hours',
+          message: summaryHtml,
+          confirmText: 'Save Working Hours'
+        }).then(function(ok) {
+          if (ok) {
+            formSelf.dataset.confirmedByModal = "true";
+            formSelf.submit();
+          }
+        });
+      });
+    }
+
+    // Add / Update Leave Date Confirmation Handler
+    const lvForm = document.getElementById("leaveForm");
+    if (lvForm) {
+      lvForm.addEventListener("submit", function(e) {
+        if (this.dataset.confirmedByModal === "true") return;
+        e.preventDefault();
+
+        const startDate = (this.querySelector('[name="start_date"]')?.value || '').trim();
+        const endDate = (this.querySelector('[name="end_date"]')?.value || '').trim();
+        const isFullDay = this.querySelector('[name="is_full_day"]')?.checked;
+        const reason = (this.querySelector('[name="reason"]')?.value || 'Personal Leave').trim();
+        const isEditing = document.getElementById("leave_form_action")?.value === "edit_leave";
+
+        function formatReadableDate(dStr) {
+          if (!dStr) return '—';
+          try {
+            const parts = dStr.split('-');
+            if (parts.length === 3) {
+              const d = new Date(parts[0], parts[1] - 1, parts[2]);
+              return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+          } catch (e) {}
+          return dStr;
+        }
+
+        const fStart = formatReadableDate(startDate);
+        const fEnd = formatReadableDate(endDate);
+        const dateText = (fStart === fEnd) ? fStart : `${fStart} <span class="text-muted">→</span> ${fEnd}`;
+
+        const durationText = isFullDay ? 'Full Day Off' : (
+          (this.querySelector('[name="start_time"]')?.value || '00:00') + ' to ' + (this.querySelector('[name="end_time"]')?.value || '00:00')
+        );
+
+        const summaryHtml = `
+          <div class="confirm-summary-card my-2 text-start" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="background: #f8fafc; padding: 7px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b;">
+              Leave Details
+            </div>
+            <div style="padding: 10px 14px;">
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Leave Dates</span>
+                <span style="color: #0f172a; font-size: 0.84rem; font-weight: 600;">${dateText}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5 border-bottom" style="border-color: #f1f5f9 !important;">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Duration</span>
+                <span class="badge ${isFullDay ? 'bg-danger bg-opacity-10 text-danger border-danger-subtle' : 'bg-warning bg-opacity-10 text-warning-emphasis border-warning-subtle'} border fw-bold" style="font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;">${durationText}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center py-1.5">
+                <span style="color: #64748b; font-size: 0.82rem; font-weight: 500;">Reason</span>
+                <span class="text-truncate ms-2 fw-semibold text-dark" style="max-width: 200px; font-size: 0.84rem;">${reason}</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-secondary small mt-2.5 mb-0 text-center fw-medium" style="font-size: 0.88rem;">Are you sure you want to ${isEditing ? 'update' : 'add'} this leave date?</p>
+        `;
+
+        const formSelf = this;
+        window.showConfirmDialog({
+          title: isEditing ? 'Confirm Update Leave' : 'Confirm Add Leave',
+          message: summaryHtml,
+          confirmText: isEditing ? 'Update Leave' : 'Add Leave Date'
+        }).then(function(ok) {
+          if (ok) {
+            formSelf.dataset.confirmedByModal = "true";
+            formSelf.submit();
+          }
+        });
+      });
+    }
   });
 </script>
 {% endblock %}

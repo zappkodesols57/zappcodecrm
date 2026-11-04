@@ -99,6 +99,16 @@ class Hospital(models.Model):
             ]
             return [r for r in academy_default_roles if r in [c[0] for c in User.Role.choices]]
 
+    @property
+    def get_logo_url(self):
+        """Returns custom business logo URL if uploaded; otherwise returns Global Default System Logo."""
+        if self.logo and hasattr(self.logo, 'url'):
+            try:
+                return self.logo.url
+            except Exception:
+                pass
+        return SystemDefaultProfile.get_active_logo_url()
+
     def __str__(self):
         code_prefix = f"[{self.business_code}] " if self.business_code else ""
         return f"{code_prefix}{self.name}"
@@ -465,3 +475,45 @@ class HospitalRolePermission(models.Model):
 Business = Hospital
 BusinessRolePermission = HospitalRolePermission
 
+
+
+class SystemDefaultProfile(models.Model):
+    """
+    Global default branding and profile configuration managed exclusively by SuperAdmin.
+    When a tenant/business does not have its own custom logo or clears it, this logo is used.
+    """
+    system_name = models.CharField(max_length=150, default="Zappcode CRM")
+    default_logo = models.ImageField(upload_to="system_defaults/", null=True, blank=True, help_text="Global Default CRM Logo")
+    updated_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "System Default Profile"
+        verbose_name_plural = "System Default Profiles"
+
+    def __str__(self):
+        return f"{self.system_name} - Default Profile"
+
+    @classmethod
+    def get_instance(cls):
+        inst = cls.objects.first()
+        if not inst:
+            inst = cls.objects.create(system_name="Zappcode CRM")
+        return inst
+
+    @classmethod
+    def get_active_logo_url(cls):
+        try:
+            inst = cls.objects.first()
+            if inst and inst.default_logo and hasattr(inst.default_logo, 'url'):
+                return inst.default_logo.url
+        except Exception:
+            pass
+        from django.conf import settings
+        import os
+        # Fallback to existing static/media logo
+        if os.path.exists(os.path.join(settings.MEDIA_ROOT, "zappkode_logo.png")):
+            return f"{settings.MEDIA_URL}zappkode_logo.png"
+        elif os.path.exists(os.path.join(settings.MEDIA_ROOT, "zappcode_logo.png")):
+            return f"{settings.MEDIA_URL}zappcode_logo.png"
+        return "/static/images/default_logo.png"

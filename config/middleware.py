@@ -1,3 +1,70 @@
+from django.contrib.auth import logout as auth_logout
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.contrib import messages
+from django.urls import reverse
+import logging
+import traceback
+
+logger = logging.getLogger('django.request')
+
+
+class BusinessActiveStatusMiddleware:
+    """
+    Ensures that if a business/tenant is deactivated (is_active=False):
+    - All users belonging to that business are blocked from accessing the system.
+    - No operations or form submissions (POST, PUT, DELETE, PATCH, etc.) can be performed.
+    - Active sessions are immediately invalidated and logged out.
+    - All database data remains 100% safe without any deletion.
+    - Global SuperAdmin remains unaffected so they can reactivate the business.
+    """
+    EXEMPT_PATHS = [
+        '/accounts/login/',
+        '/accounts/system/login/',
+        '/accounts/logout/',
+        '/static/',
+        '/media/',
+    ]
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            # Superadmin without a tenant binding is global and immune
+            is_global_superadmin = (user.is_superuser or getattr(user, 'role', '') == 'SUPER_ADMIN') and not bool(getattr(user, 'hospital', None))
+            
+            if not is_global_superadmin:
+                hospital = getattr(user, 'hospital', None)
+                if hospital and not hospital.is_active:
+                    path = request.path
+                    is_exempt = any(path.startswith(p) for p in self.EXEMPT_PATHS)
+                    if not is_exempt:
+                        is_ajax = (
+                            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+                            path.startswith('/api/') or
+                            'application/json' in request.headers.get('Accept', '') or
+                            getattr(request, 'content_type', '') == 'application/json'
+                        )
+                        error_msg = f"Your organization account ('{hospital.name}') has been deactivated. Access and operations are currently suspended. Please contact system administrator."
+                        
+                        # Terminate session immediately to prevent any state changes
+                        auth_logout(request)
+
+                        if is_ajax:
+                            return JsonResponse({
+                                "status": "error",
+                                "code": 403,
+                                "message": error_msg
+                            }, status=403)
+
+                        messages.error(request, error_msg)
+                        return redirect('accounts:login')
+
+        return self.get_response(request)
+
+
 class CRMReadOnlyModeMiddleware:
     """
     Middleware that enforces read-only access for users with is_read_only=True.

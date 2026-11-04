@@ -108,26 +108,30 @@
 <!-- ─── Modals Placed Outside Table to Prevent Overlay / Backdrop Z-Index Issues ─── -->
 {% for b in businesses %}
 <div class="modal fade" id="deleteBizModal{{ b.pk }}" tabindex="-1" aria-labelledby="modalLabel{{ b.pk }}" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold text-danger" id="modalLabel{{ b.pk }}">
-          <i class="fa-solid fa-triangle-exclamation me-2"></i> Delete Business
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 18px; border: 1px solid #e2e8f0 !important; overflow: hidden;">
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 54px; height: 54px; background: #fee2e2; border: 1px solid #fecaca; color: #dc2626;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.45rem;"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-2" id="modalLabel{{ b.pk }}" style="font-size: 1.15rem; letter-spacing: -0.01em;">
+          Delete Business
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body py-3 text-start">
-        <p class="mb-2">Are you sure you want to remove <strong>{{ b.name }}</strong>?</p>
-        <div class="alert alert-warning small mb-0">
-          <i class="fa-solid fa-info-circle me-1"></i> Removing a business will detach its associated users and configurations. If you only want to temporarily stop access, consider <strong>Deactivating</strong> it instead.
+        <p class="text-secondary mb-0" style="font-size: 0.92rem; line-height: 1.55;">
+          Are you sure you want to remove <strong>{{ b.name }}</strong>?
+        </p>
+        <div class="alert small mb-0 mt-3 text-start" style="border-radius: 10px; background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; font-size: 0.82rem; line-height: 1.45;">
+          <i class="fa-solid fa-circle-info me-1"></i> Removing a business will detach its associated users and configurations. If you only want to temporarily stop access, consider <strong>Deactivating</strong> it instead.
         </div>
       </div>
-      <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+      <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-end gap-2" style="background: #f8fafc; border-top: 1px solid #f1f5f9 !important;">
+        <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal" style="height: 38px; min-width: 90px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff; color: #475569; font-size: 0.88rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+          Cancel
+        </button>
         <form method="post" action="{% url 'accounts:business_delete' b.pk %}" class="d-inline m-0">
           {% csrf_token %}
-          <button type="submit" class="btn btn-sm btn-danger px-3">
-            <i class="fa-solid fa-trash-can me-1"></i> Yes, Delete Business
+          <button type="submit" class="btn btn-danger fw-semibold" style="height: 38px; min-width: 105px; border-radius: 10px; font-size: 0.88rem; background-color: #dc2626 !important; border: 1px solid #b91c1c !important; color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+            <i class="fa-solid fa-trash-can me-1.5"></i> Yes, Delete
           </button>
         </form>
       </div>

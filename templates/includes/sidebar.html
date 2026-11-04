@@ -2,22 +2,23 @@
 <nav class="sidebar" id="sidebar">
   <div class="brand sidebar-brand-header">
     <div class="sidebar-brand-inner">
-      {% if user.business and user.business.logo %}
+      {% if user.business and user.business.get_logo_url %}
       <div class="sidebar-logo-wrap">
-        <img src="{{ user.business.logo.url }}" alt="{{ user.business.name }}" class="sidebar-brand-logo">
+        <img src="{{ user.business.get_logo_url }}" alt="{{ user.business.name }}" class="sidebar-brand-logo">
       </div>
-      <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">CRM</span>
-      {% elif user.industry == 'HOSPITAL' %}
+      <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">{{ user.business.name|default:"CRM"|truncatechars:14 }}</span>
+      {% elif effective_hospital and effective_hospital.get_logo_url %}
       <div class="sidebar-logo-wrap">
-        <i class="fa-solid fa-hospital section-icon" style="color: #ffffff; font-size: 1.25rem;"></i>
+        <img src="{{ effective_hospital.get_logo_url }}" alt="{{ effective_hospital.name }}" class="sidebar-brand-logo">
       </div>
-      <span class="brand-text" style="font-weight: 700; color: #ffffff; font-size: 1rem; white-space: nowrap;">{{ user.business.name|default:"Hospital CRM"|truncatechars:14 }}</span>
+      <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">{{ effective_hospital.name|default:"CRM"|truncatechars:14 }}</span>
       {% else %}
       <div class="sidebar-logo-wrap">
-        <i class="fa-solid fa-bolt" style="color: #60a5fa; font-size: 1.25rem;"></i>
+        <img src="{{ system_logo_url }}" alt="{{ system_name|default:'CRM' }}" class="sidebar-brand-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+        <i class="fa-solid fa-bolt text-primary" style="display:none; font-size: 1.25rem;"></i>
       </div>
       <span class="brand-text" style="font-weight: 800; font-size: 1.15rem; color: #ffffff; letter-spacing: 0.5px; white-space: nowrap;">
-        ZAPPCODE <span style="font-weight: 400; opacity: 0.85;">CRM</span>
+        {{ system_name|default:"Zapp CRM" }}
       </span>
       {% endif %}
     </div>
@@ -39,8 +40,8 @@
       <button class="nav-section-btn {% if active not in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' and request.GET.deal_status != 'WON' and request.GET.deal_status != 'PAYMENT DONE' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_leads"
         aria-expanded="{% if active in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}true{% else %}false{% endif %}"
-        title="Leads">
-        <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Leads</span></span>
+        title="Lead Management">
+        <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}show{% endif %} nav-sub-items"
@@ -82,8 +83,8 @@
       <button class="nav-section-btn {% if active not in 'team_history bulk_transfer' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_team"
         aria-expanded="{% if active in 'team_history bulk_transfer' %}true{% else %}false{% endif %}"
-        title="Team">
-        <span><i class="fa-solid fa-users-gear section-icon"></i><span class="section-title">Team</span></span>
+        title="Team Management">
+        <span><i class="fa-solid fa-users-gear section-icon"></i><span class="section-title">Team Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'team_history bulk_transfer' %}show{% endif %} nav-sub-items"
@@ -104,14 +105,14 @@
 
     <!-- 4. Master (Import/Export, Users & Approvals, Manage Business) -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'import export import_history users user_logs business_list' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'import export import_history users user_logs business_list default_profile' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_master"
         aria-expanded="{% if active in 'import export import_history' or active in 'users user_logs business_list' %}true{% else %}false{% endif %}"
         title="Master">
         <span><i class="fa-solid fa-sliders section-icon"></i><span class="section-title">Master</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'import export import_history users user_logs business_list' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'import export import_history users user_logs business_list default_profile' %}show{% endif %} nav-sub-items"
         id="sec_super_master">
         <!-- Submodule: Import/Export -->
         <div class="nav-sub-item-group">
@@ -151,6 +152,12 @@
           href="{% url 'accounts:business_list' %}" title="Manage Business">
           <i class="fa-solid fa-building-circle-check"></i> <span class="nav-text">Manage Business</span>
         </a>
+
+        <!-- Default Profile & Logo (SuperAdmin Master) -->
+        <a class="nav-link {% if active == 'default_profile' %}active{% endif %}"
+          href="{% url 'accounts:default_system_profile' %}" title="Default Profile & Logo">
+          <i class="fa-solid fa-image"></i> <span class="nav-text">Default Profile</span>
+        </a>
       </div>
     </div>
 
@@ -181,13 +188,13 @@
       <i class="fa-solid fa-gauge-high"></i> <span class="nav-text">Dashboard</span>
     </a>
 
-    <!-- 2. Leads -->
+    <!-- 2. Lead Management -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'leads_all appointments payments pending_leads lost_leads archived_leads' and request.GET.deal_status != 'PAYMENT DONE' and request.GET.view != 'pending' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_hosp_leads"
         aria-expanded="{% if active in 'leads_all appointments payments pending_leads lost_leads archived_leads' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.view == 'pending' %}true{% else %}false{% endif %}"
-        title="Leads">
-        <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Leads</span></span>
+        title="Lead Management">
+        <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'leads_all appointments payments pending_leads lost_leads archived_leads' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.view == 'pending' %}show{% endif %} nav-sub-items"
@@ -230,13 +237,13 @@
       </div>
     </div>
 
-    <!-- 3. Team -->
+    <!-- 3. Team Management -->
     <div class="nav-section-group">
       <button class="nav-section-btn {% if active not in 'users team_history reports eod_reports user_logs tasks' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_hosp_team"
         aria-expanded="{% if active in 'users team_history reports eod_reports user_logs tasks' %}true{% else %}false{% endif %}"
-        title="Team">
-        <span><i class="fa-solid fa-user-shield section-icon"></i><span class="section-title">Team</span></span>
+        title="Team Management">
+        <span><i class="fa-solid fa-user-shield section-icon"></i><span class="section-title">Team Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'users team_history reports eod_reports user_logs tasks' %}show{% endif %} nav-sub-items"
@@ -376,8 +383,8 @@
       <button class="nav-section-btn {% if active not in 'users tasks team_history reports eod_reports reports_daily' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_acad_team"
         aria-expanded="{% if active in 'users tasks team_history reports eod_reports reports_daily' %}true{% else %}false{% endif %}"
-        title="Team">
-        <span><i class="fa-regular fa-id-card section-icon"></i><span class="section-title">Team</span></span>
+        title="Team Management">
+        <span><i class="fa-regular fa-id-card section-icon"></i><span class="section-title">Team Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div class="collapse {% if active in 'users tasks team_history reports eod_reports reports_daily' %}show{% endif %} nav-sub-items"

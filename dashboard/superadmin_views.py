@@ -2045,7 +2045,12 @@ def nelson_module_view(request, module_name):
             hospital.address = request.POST.get('address', hospital.address)
             hospital.registration_no = request.POST.get('registration_no', hospital.registration_no)
             
-            if 'logo' in request.FILES:
+            if request.POST.get('clear_logo') == 'true':
+                # Remove custom logo so business falls back to global default logo
+                if hospital.logo:
+                    hospital.logo.delete(save=False)
+                hospital.logo = None
+            elif 'logo' in request.FILES:
                 hospital.logo = request.FILES['logo']
                 
             wa_num = request.POST.get('whatsapp_number', '').strip()

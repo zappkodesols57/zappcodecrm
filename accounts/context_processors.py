@@ -1,4 +1,4 @@
-from accounts.models import Hospital
+from accounts.models import Hospital, SystemDefaultProfile
 
 def global_business_context(request):
     if not request.user.is_authenticated:
@@ -23,10 +23,16 @@ def global_business_context(request):
     # Effective hospital for the session: user's own hospital, or selected active_business for global superadmin
     effective_hospital = request.user.hospital or (active_business if is_superadmin else None)
 
+    system_default = SystemDefaultProfile.get_instance()
+    system_logo_url = SystemDefaultProfile.get_active_logo_url()
+
     return {
         'is_superadmin_user': is_superadmin,
         'global_businesses': all_businesses,
         'active_business_id': active_business_id,
         'active_business': active_business,
         'effective_hospital': effective_hospital,
+        'system_profile': system_default,
+        'system_name': system_default.system_name if system_default else 'Zappcode CRM',
+        'system_logo_url': system_logo_url,
     }
