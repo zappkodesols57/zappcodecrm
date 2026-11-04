@@ -12,6 +12,111 @@
     --doc-bg: #f8fafc;
   }
 
+  /* Date Picker Popover styling for Doctor Leave Dates */
+  .leave-date-picker-popover {
+    position: fixed;
+    z-index: 10600;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.22);
+    padding: 12px;
+    width: 290px;
+    display: none;
+    animation: fadeInQuickPop 0.15s ease-out;
+  }
+  @keyframes fadeInQuickPop {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .leave-cal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .leave-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .leave-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .leave-cal-day {
+    aspect-ratio: 1;
+    min-height: 34px;
+    max-height: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #1e293b;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: all 0.15s ease;
+  }
+  .leave-cal-day:hover:not(.cal-empty):not(.cal-past):not(.cal-blocked) {
+    background: #eff6ff;
+    border-color: #3b82f6;
+  }
+  .leave-cal-day.cal-empty {
+    border: none;
+    background: transparent;
+    cursor: default;
+  }
+  .leave-cal-day.cal-past {
+    color: #cbd5e1;
+    background: #f8fafc;
+    border-color: #f1f5f9;
+    cursor: not-allowed;
+  }
+  .leave-cal-day.cal-today {
+    font-weight: 800;
+    color: #0f2744;
+    background: #f1f5f9;
+  }
+  .leave-cal-day.cal-selected {
+    background: #0f2744 !important;
+    border-color: #0f2744 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(15, 39, 68, 0.25);
+  }
+  .leave-cal-day.cal-in-range {
+    background: #e0e7ff !important;
+    border-color: #c7d2fe !important;
+    color: #1e1b4b !important;
+  }
+  .leave-cal-day.cal-blocked {
+    border: 2px solid #ef4444 !important;
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+    cursor: not-allowed;
+  }
+  .leave-cal-day.cal-blocked::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #dc2626;
+  }
+
   .doctor-dashboard-wrap {
     font-family: 'Outfit', sans-serif;
     color: #0f2744;
@@ -827,12 +932,12 @@
 
                     <div class="row g-3 mb-3">
                       <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">OPD Start Time (24h) <span class="text-danger">*</span></label>
-                        <input type="text" name="opd_start_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
+                        <label class="form-label small fw-bold text-dark mb-1">OPD Start Time <span class="text-danger">*</span></label>
+                        <input type="time" name="opd_start_time" class="form-control" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">OPD End Time (24h) <span class="text-danger">*</span></label>
-                        <input type="text" name="opd_end_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
+                        <label class="form-label small fw-bold text-dark mb-1">OPD End Time <span class="text-danger">*</span></label>
+                        <input type="time" name="opd_end_time" class="form-control" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
                       </div>
                     </div>
 
@@ -882,16 +987,31 @@
 
                   <form method="POST" id="docLeaveForm">
                     {% csrf_token %}
-                    <input type="hidden" name="action" value="add_leave">
+                    <input type="hidden" name="action" id="doc_leave_form_action" value="add_leave">
+                    <input type="hidden" name="leave_id" id="doc_leave_id_input" value="">
 
                     <div class="row g-3 mb-3">
                       <div class="col-md-6">
                         <label class="form-label small fw-bold text-dark mb-1">From Date <span class="text-danger">*</span></label>
-                        <input type="date" name="start_date" class="form-control" min="{{ today|date:'Y-m-d' }}" value="{{ today|date:'Y-m-d' }}" required>
+                        <div class="input-group custom-doc-leave-date-wrapper position-relative">
+                          <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 doc-leave-date-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.82rem;" title="Select From Date">
+                            <i class="fa-regular fa-calendar"></i>
+                          </button>
+                          <input type="text" name="start_date" id="doc_leave_start_date" class="form-control custom-doc-leave-date-input border-start-0"
+                            placeholder="DD Mon YYYY" value="{{ today|date:'d M Y' }}" readonly required style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;"
+                            onchange="onDocDateInputChange()">
+                        </div>
                       </div>
                       <div class="col-md-6">
                         <label class="form-label small fw-bold text-dark mb-1">To Date <span class="text-danger">*</span></label>
-                        <input type="date" name="end_date" class="form-control" min="{{ today|date:'Y-m-d' }}" value="{{ today|date:'Y-m-d' }}" required>
+                        <div class="input-group custom-doc-leave-date-wrapper position-relative">
+                          <button type="button" class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5 doc-leave-date-trigger-btn" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.82rem;" title="Select To Date">
+                            <i class="fa-regular fa-calendar"></i>
+                          </button>
+                          <input type="text" name="end_date" id="doc_leave_end_date" class="form-control custom-doc-leave-date-input border-start-0"
+                            placeholder="DD Mon YYYY" value="{{ today|date:'d M Y' }}" readonly required style="border-radius: 0 7px 7px 0 !important; cursor: pointer; background-color: #ffffff !important;"
+                            onchange="onDocDateInputChange()">
+                        </div>
                       </div>
                     </div>
 
@@ -910,12 +1030,22 @@
 
                     <div class="row g-3 mb-4" id="docPartialTimeDiv" style="display:none;">
                       <div class="col-md-6">
-                        <label class="form-label small text-muted">From Time (24h)</label>
-                        <input type="text" name="start_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
+                        <label class="form-label small text-muted">From Time (HH:MM)</label>
+                        <div class="input-group">
+                          <span class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;">
+                            <i class="fa-regular fa-clock"></i>
+                          </span>
+                          <input type="text" name="start_time" class="form-control time-mask-input border-start-0" placeholder="HH:MM (e.g. 14:00)" maxlength="5" autocomplete="off" style="border-radius: 0 7px 7px 0 !important;">
+                        </div>
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label small text-muted">To Time (24h)</label>
-                        <input type="text" name="end_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric">
+                        <label class="form-label small text-muted">To Time (HH:MM)</label>
+                        <div class="input-group">
+                          <span class="input-group-text bg-light text-muted border-end-0 py-1 px-2.5" style="border-radius: 7px 0 0 7px; border-color: #cbd5e1; font-size: 0.8rem;">
+                            <i class="fa-regular fa-clock"></i>
+                          </span>
+                          <input type="text" name="end_time" class="form-control time-mask-input border-start-0" placeholder="HH:MM (e.g. 17:00)" maxlength="5" autocomplete="off" style="border-radius: 0 7px 7px 0 !important;">
+                        </div>
                       </div>
                     </div>
 
@@ -1386,8 +1516,272 @@
     }
   }
 
+  const existingDoctorLeaves = [
+    {% for l in leaves %}
+    {
+      id: "{{ l.pk }}",
+      startDate: "{{ l.start_date|date:'Y-m-d' }}",
+      endDate: "{{ l.end_date|date:'Y-m-d' }}",
+      isFullDay: {{ l.is_full_day|yesno:'true,false' }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function getDocBlockedDatesSet(excludeLeaveId) {
+    const set = new Set();
+    existingDoctorLeaves.forEach(l => {
+      if (excludeLeaveId && String(l.id) === String(excludeLeaveId)) return;
+      try {
+        let cur = new Date(l.startDate + "T00:00:00");
+        const end = new Date(l.endDate + "T00:00:00");
+        while (cur <= end) {
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, '0');
+          const d = String(cur.getDate()).padStart(2, '0');
+          set.add(`${y}-${m}-${d}`);
+          cur.setDate(cur.getDate() + 1);
+        }
+      } catch (e) {}
+    });
+    return set;
+  }
+
+  // Popover Calendar Engine for Doctor Panel Leave Dates
+  let docCalPopYear = new Date().getFullYear();
+  let docCalPopMonth = new Date().getMonth();
+  let activeDocLeaveInput = null;
+  let docLeavePopoverEl = null;
+
+  function initDocLeaveDatePopovers() {
+    if (docLeavePopoverEl) return;
+    docLeavePopoverEl = document.createElement("div");
+    docLeavePopoverEl.className = "leave-date-picker-popover";
+    docLeavePopoverEl.id = "docLeaveDatePopover";
+    docLeavePopoverEl.innerHTML = `
+      <div class="leave-cal-header">
+        <span class="fw-bold text-dark small" id="docPopMonthLabel" style="font-size: 0.95rem;">Month Year</span>
+        <div class="d-flex align-items-center gap-1">
+          <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-2 text-secondary" style="font-size: 0.72rem; height: 26px;" onclick="shiftDocLeavePopMonth(-1)">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-light border py-0 px-2 rounded-2 text-secondary" style="font-size: 0.72rem; height: 26px;" onclick="shiftDocLeavePopMonth(1)">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="leave-cal-weekdays">
+        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+      </div>
+      <div class="leave-cal-grid" id="docLeavePopGrid"></div>
+      <div class="d-flex justify-content-between align-items-center mt-2.5 pt-2 border-top" style="font-size: 0.72rem;">
+        <div class="d-flex align-items-center gap-1.5">
+          <span style="display:inline-block; width:10px; height:10px; border:2px solid #ef4444; background:#fef2f2; border-radius:2px;"></span>
+          <span class="text-danger fw-semibold">Already Blocked</span>
+        </div>
+        <div class="d-flex align-items-center gap-1.5 ms-auto">
+          <span style="display:inline-block; width:10px; height:10px; background:#0f2744; border-radius:2px;"></span>
+          <span class="text-dark fw-semibold">Selected</span>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(docLeavePopoverEl);
+
+    // Bind triggers & inputs
+    document.querySelectorAll(".custom-doc-leave-date-input").forEach(input => {
+      input.addEventListener("click", function(e) {
+        e.stopPropagation();
+        openDocLeavePop(this);
+      });
+      const wrapper = input.closest(".custom-doc-leave-date-wrapper");
+      if (wrapper) {
+        const btn = wrapper.querySelector(".doc-leave-date-trigger-btn");
+        if (btn) {
+          btn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            openDocLeavePop(input);
+          });
+        }
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener("click", function(e) {
+      if (docLeavePopoverEl && !docLeavePopoverEl.contains(e.target) && !e.target.closest(".custom-doc-leave-date-wrapper")) {
+        docLeavePopoverEl.style.display = "none";
+      }
+    });
+  }
+
+  function shiftDocLeavePopMonth(offset) {
+    docCalPopMonth += offset;
+    if (docCalPopMonth > 11) {
+      docCalPopMonth = 0;
+      docCalPopYear++;
+    } else if (docCalPopMonth < 0) {
+      docCalPopMonth = 11;
+      docCalPopYear--;
+    }
+    renderDocLeavePopGrid();
+  }
+
+  const docShortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function formatDocIsoToReadableDate(isoStr) {
+    if (!isoStr) return "";
+    try {
+      const parts = isoStr.split("-");
+      if (parts.length === 3) {
+        const y = parts[0];
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return `${String(d).padStart(2, '0')} ${docShortMonthNames[m] || ''} ${y}`;
+      }
+    } catch(e) {}
+    return isoStr;
+  }
+
+  function parseDocReadableDateToIso(readableStr) {
+    if (!readableStr) return "";
+    readableStr = readableStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(readableStr)) return readableStr;
+    const match = readableStr.match(/^(\d{1,2})\s+([A-Za-z]{3,4})\s+(\d{4})$/);
+    if (match) {
+      const d = String(parseInt(match[1], 10)).padStart(2, '0');
+      const mIdx = docShortMonthNames.findIndex(mn => mn.toLowerCase() === match[2].substring(0, 3).toLowerCase());
+      if (mIdx !== -1) {
+        const m = String(mIdx + 1).padStart(2, '0');
+        return `${match[3]}-${m}-${d}`;
+      }
+    }
+    return readableStr;
+  }
+
+  function openDocLeavePop(input) {
+    activeDocLeaveInput = input;
+    const isoVal = parseDocReadableDateToIso(input.value);
+    if (isoVal) {
+      const parts = isoVal.split("-");
+      if (parts.length === 3) {
+        docCalPopYear = parseInt(parts[0], 10);
+        docCalPopMonth = parseInt(parts[1], 10) - 1;
+      }
+    }
+    const rect = input.getBoundingClientRect();
+    docLeavePopoverEl.style.position = "fixed";
+    docLeavePopoverEl.style.top = `${rect.bottom + 6}px`;
+    docLeavePopoverEl.style.left = `${Math.min(rect.left, window.innerWidth - 305)}px`;
+    docLeavePopoverEl.style.display = "block";
+    renderDocLeavePopGrid();
+  }
+
+  function renderDocLeavePopGrid() {
+    const grid = document.getElementById("docLeavePopGrid");
+    const label = document.getElementById("docPopMonthLabel");
+    if (!grid || !label) return;
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    label.innerText = `${monthNames[docCalPopMonth]} ${docCalPopYear}`;
+
+    const blockedSet = getDocBlockedDatesSet(null);
+    const startVal = parseDocReadableDateToIso(document.getElementById("doc_leave_start_date")?.value || "");
+    const endVal = parseDocReadableDateToIso(document.getElementById("doc_leave_end_date")?.value || "") || startVal;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+    const firstDayIndex = new Date(docCalPopYear, docCalPopMonth, 1).getDay();
+    const totalDays = new Date(docCalPopYear, docCalPopMonth + 1, 0).getDate();
+
+    let html = "";
+    for (let i = 0; i < firstDayIndex; i++) {
+      html += `<div class="leave-cal-day cal-empty"></div>`;
+    }
+
+    for (let day = 1; day <= totalDays; day++) {
+      const dayStr = `${docCalPopYear}-${String(docCalPopMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const isPast = dayStr < todayStr;
+      const isToday = dayStr === todayStr;
+      const isBlocked = blockedSet.has(dayStr);
+      const isSelected = (startVal && dayStr === startVal) || (endVal && dayStr === endVal);
+      const isInRange = (startVal && endVal && dayStr > startVal && dayStr < endVal);
+
+      let classes = ["leave-cal-day"];
+      let title = dayStr;
+
+      if (isPast) {
+        classes.push("cal-past");
+        title += " (Past date)";
+      } else if (isBlocked) {
+        classes.push("cal-blocked");
+        title += " (Already blocked leave date)";
+      } else if (isSelected) {
+        classes.push("cal-selected");
+      } else if (isInRange) {
+        classes.push("cal-in-range");
+      } else if (isToday) {
+        classes.push("cal-today");
+      }
+
+      html += `
+        <div class="${classes.join(' ')}" title="${title}" data-date="${dayStr}" onclick="onDocPopDateSelect('${dayStr}', ${isBlocked}, ${isPast})">
+          <span>${day}</span>
+        </div>
+      `;
+    }
+
+    grid.innerHTML = html;
+  }
+
+  function onDocPopDateSelect(dStr, isBlocked, isPast) {
+    if (isPast) return;
+    if (isBlocked) {
+      alert(`Date ${dStr} is already blocked for a scheduled leave! You cannot select it for fresh leave.`);
+      return;
+    }
+
+    const startInput = document.getElementById("doc_leave_start_date");
+    const endInput = document.getElementById("doc_leave_end_date");
+    if (!startInput || !endInput) return;
+
+    const readableSelected = formatDocIsoToReadableDate(dStr);
+
+    if (activeDocLeaveInput === endInput) {
+      const startIso = parseDocReadableDateToIso(startInput.value);
+      if (startIso && dStr < startIso) {
+        alert("To Date cannot be earlier than From Date.");
+        return;
+      }
+      endInput.value = readableSelected;
+    } else {
+      startInput.value = readableSelected;
+      const endIso = parseDocReadableDateToIso(endInput.value);
+      if (!endIso || endIso < dStr) {
+        endInput.value = readableSelected;
+      }
+    }
+
+    if (docLeavePopoverEl) {
+      docLeavePopoverEl.style.display = "none";
+    }
+
+    onDocDateInputChange();
+  }
+
+  function onDocDateInputChange() {
+    const startInput = document.getElementById("doc_leave_start_date");
+    const endInput = document.getElementById("doc_leave_end_date");
+    if (startInput && endInput && startInput.value) {
+      endInput.min = startInput.value;
+      if (endInput.value < startInput.value) {
+        endInput.value = startInput.value;
+      }
+    }
+  }
+
   // Handle URL query parameters tab & subtab on initial page load
   document.addEventListener("DOMContentLoaded", function() {
+    initDocLeaveDatePopovers();
+
     const urlParams = new URLSearchParams(window.location.search);
     const tab = urlParams.get('tab');
     const subtab = urlParams.get('subtab');
@@ -1461,10 +1855,70 @@
         if (this.dataset.confirmedByModal === "true") return;
         e.preventDefault();
 
-        const startDate = (this.querySelector('[name="start_date"]')?.value || '').trim();
-        const endDate = (this.querySelector('[name="end_date"]')?.value || '').trim();
+        const rawStartDate = (this.querySelector('[name="start_date"]')?.value || '').trim();
+        const rawEndDate = (this.querySelector('[name="end_date"]')?.value || '').trim();
+        const startDate = parseDocReadableDateToIso(rawStartDate);
+        const endDate = parseDocReadableDateToIso(rawEndDate) || startDate;
         const isFullDay = this.querySelector('[name="is_full_day"]')?.checked;
         const reason = (this.querySelector('[name="reason"]')?.value || 'Personal Leave').trim();
+
+        // Check if date is already blocked
+        const blockedSet = getDocBlockedDatesSet(null);
+        let checkCur = new Date(startDate + "T00:00:00");
+        const checkEnd = new Date(endDate + "T00:00:00");
+        let conflictFound = false;
+        let conflictDate = "";
+        while (checkCur <= checkEnd) {
+          const y = checkCur.getFullYear();
+          const m = String(checkCur.getMonth() + 1).padStart(2, '0');
+          const d = String(checkCur.getDate()).padStart(2, '0');
+          const ds = `${y}-${m}-${d}`;
+          if (blockedSet.has(ds)) {
+            conflictFound = true;
+            conflictDate = ds;
+            break;
+          }
+          checkCur.setDate(checkCur.getDate() + 1);
+        }
+        if (conflictFound) {
+          alert(`Date ${conflictDate} is already blocked for leave. Please pick another date.`);
+          return;
+        }
+
+        // Today's leave time validations
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const curHours = now.getHours();
+        const curMins = now.getMinutes();
+        const curTotalMins = curHours * 60 + curMins;
+
+        if (startDate === todayStr) {
+          if (isFullDay) {
+            alert("Full day leave cannot be added for today with past time. Please uncheck 'Full Day Leave' and specify hours greater than the current time.");
+            const fdCheck = document.getElementById("fullDayCheckDoc");
+            if (fdCheck) {
+              fdCheck.checked = false;
+              document.getElementById('docPartialTimeDiv').style.display = 'flex';
+            }
+            return;
+          }
+
+          const startTimeVal = (this.querySelector('[name="start_time"]')?.value || '').trim();
+          if (!startTimeVal) {
+            alert("Please specify a From Time for today's leave.");
+            return;
+          }
+
+          let stTotalMins = null;
+          const match24 = startTimeVal.match(/^(\d{1,2}):(\d{2})/);
+          if (match24) {
+            stTotalMins = parseInt(match24[1], 10) * 60 + parseInt(match24[2], 10);
+          }
+          if (stTotalMins !== null && stTotalMins <= curTotalMins) {
+            alert(`For today's leave, From Time (${startTimeVal}) must be greater than current time (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}).`);
+            return;
+          }
+        }
 
         function formatReadableDate(dStr) {
           if (!dStr) return '—';

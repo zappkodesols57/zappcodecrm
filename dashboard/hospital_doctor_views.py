@@ -412,8 +412,23 @@ def doctor_home(request):
                 return redirect(f"{reverse('dashboard:home')}?tab=calendar&subtab=add_leave")
 
             try:
-                s_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-                e_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                def parse_flexible_date(d_str):
+                    if not d_str:
+                        return None
+                    d_str = str(d_str).strip()
+                    try:
+                        return datetime.strptime(d_str, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+                    for fmt in ("%d %b %Y", "%d %B %Y", "%d-%b-%Y", "%d-%m-%Y", "%d/%m/%Y"):
+                        try:
+                            return datetime.strptime(d_str, fmt).date()
+                        except ValueError:
+                            pass
+                    raise ValueError(f"Unknown date format: {d_str}")
+
+                s_date = parse_flexible_date(start_date_str)
+                e_date = parse_flexible_date(end_date_str)
 
                 if s_date < today:
                     messages.error(request, "Leave date cannot be in the past.")
@@ -421,6 +436,23 @@ def doctor_home(request):
                 if e_date < s_date:
                     messages.error(request, "End date cannot be earlier than start date.")
                     return redirect(f"{reverse('dashboard:home')}?tab=calendar&subtab=add_leave")
+
+                # Validation: Cannot add full-day leave for today with past time
+                # User must add partial leave with start_time > current time
+                now_local = timezone.localtime()
+                now_time = now_local.time()
+                if s_date == today and is_full_day:
+                    messages.error(request, f"Full day leave cannot be added for today at {now_local.strftime('%I:%M %p')}. Please uncheck 'Full Day Leave' and specify a time greater than current time.")
+                    return redirect(f"{reverse('dashboard:home')}?tab=calendar&subtab=add_leave")
+
+                if s_date == today and not is_full_day and start_time:
+                    try:
+                        parsed_st = datetime.strptime(start_time[:5], "%H:%M").time()
+                        if parsed_st <= now_time:
+                            messages.error(request, f"Leave start time ({parsed_st.strftime('%I:%M %p')}) must be greater than current time ({now_local.strftime('%I:%M %p')}).")
+                            return redirect(f"{reverse('dashboard:home')}?tab=calendar&subtab=add_leave")
+                    except Exception:
+                        pass
 
                 if leave_id and str(leave_id).isdigit():
                     existing_leave = DoctorLeave.objects.filter(pk=int(leave_id), doctor=doctor).first()

@@ -117,6 +117,28 @@ class CRMUserCreateForm(UserCreationForm):
             self.fields["role"].error_messages = {
                 "required": "Please select an employee role."
             }
+
+        if "department" in self.fields:
+            self.fields["department"].empty_label = "Select Department"
+            self.fields["department"].widget.attrs.update({
+                "placeholder": "Select Department",
+                "data-placeholder": "Select Department",
+            })
+            if self.fields["department"].choices and self.fields["department"].choices[0][0] == "":
+                dept_choices = list(self.fields["department"].choices)
+                dept_choices[0] = ("", "Select Department")
+                self.fields["department"].choices = dept_choices
+
+        if "speciality" in self.fields:
+            self.fields["speciality"].empty_label = "Select Speciality"
+            self.fields["speciality"].widget.attrs.update({
+                "placeholder": "Select Speciality",
+                "data-placeholder": "Select Speciality",
+            })
+            if self.fields["speciality"].choices and self.fields["speciality"].choices[0][0] == "":
+                spec_choices = list(self.fields["speciality"].choices)
+                spec_choices[0] = ("", "Select Speciality")
+                self.fields["speciality"].choices = spec_choices
         
         if "first_name" in self.fields:
             self.fields["first_name"].required = True
@@ -153,7 +175,7 @@ class CRMUserCreateForm(UserCreationForm):
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", "form-check-input")
             else:
-                css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+                css = "form-select no-tom-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
                 field.widget.attrs.setdefault("class", css)
 
         if "phone" in self.fields:
@@ -162,6 +184,16 @@ class CRMUserCreateForm(UserCreationForm):
                 "inputmode": "numeric",
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+        if "password1" in self.fields:
+            self.fields["password1"].widget.attrs.update({
+                "placeholder": "Enter password",
+            })
+
+        if "password2" in self.fields:
+            self.fields["password2"].widget.attrs.update({
+                "placeholder": "Confirm password",
             })
 
         if "email" in self.fields:
@@ -364,6 +396,28 @@ class CRMUserEditForm(forms.ModelForm):
             self.fields["role"].error_messages = {
                 "required": "Please select an employee role."
             }
+
+        if "department" in self.fields:
+            self.fields["department"].empty_label = "Select Department"
+            self.fields["department"].widget.attrs.update({
+                "placeholder": "Select Department",
+                "data-placeholder": "Select Department",
+            })
+            if self.fields["department"].choices and self.fields["department"].choices[0][0] == "":
+                dept_choices = list(self.fields["department"].choices)
+                dept_choices[0] = ("", "Select Department")
+                self.fields["department"].choices = dept_choices
+
+        if "speciality" in self.fields:
+            self.fields["speciality"].empty_label = "Select Speciality"
+            self.fields["speciality"].widget.attrs.update({
+                "placeholder": "Select Speciality",
+                "data-placeholder": "Select Speciality",
+            })
+            if self.fields["speciality"].choices and self.fields["speciality"].choices[0][0] == "":
+                spec_choices = list(self.fields["speciality"].choices)
+                spec_choices[0] = ("", "Select Speciality")
+                self.fields["speciality"].choices = spec_choices
                 
         if "branch" in self.fields:
             self.fields["branch"].widget.attrs.update({
@@ -390,7 +444,7 @@ class CRMUserEditForm(forms.ModelForm):
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", "form-check-input")
             else:
-                css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+                css = "form-select no-tom-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
                 field.widget.attrs.setdefault("class", css)
 
         if "phone" in self.fields:
@@ -399,6 +453,16 @@ class CRMUserEditForm(forms.ModelForm):
                 "inputmode": "numeric",
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
+            })
+
+        if "password1" in self.fields:
+            self.fields["password1"].widget.attrs.update({
+                "placeholder": "Enter password",
+            })
+
+        if "password2" in self.fields:
+            self.fields["password2"].widget.attrs.update({
+                "placeholder": "Confirm password",
             })
 
         if "email" in self.fields:
@@ -528,7 +592,7 @@ class CRMUserRegisterForm(UserCreationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
-            css = "form-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
+            css = "form-select no-tom-select" if isinstance(field.widget, (forms.Select, forms.SelectMultiple)) else "form-control"
             field.widget.attrs.setdefault("class", css)
         if "phone" in self.fields:
             self.fields["phone"].widget.attrs.update({
@@ -539,6 +603,38 @@ class CRMUserRegisterForm(UserCreationForm):
                 "placeholder": "10-digit mobile number",
                 "oninput": "this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)",
             })
+
+        if "password1" in self.fields:
+            self.fields["password1"].widget.attrs.update({
+                "placeholder": "Enter password",
+            })
+
+        if "password2" in self.fields:
+            self.fields["password2"].widget.attrs.update({
+                "placeholder": "Confirm password",
+            })
+
+        if "department" in self.fields:
+            self.fields["department"].empty_label = "Select Department"
+            self.fields["department"].widget.attrs.update({
+                "placeholder": "Select Department",
+                "data-placeholder": "Select Department",
+            })
+            if self.fields["department"].choices and self.fields["department"].choices[0][0] == "":
+                dept_choices = list(self.fields["department"].choices)
+                dept_choices[0] = ("", "Select Department")
+                self.fields["department"].choices = dept_choices
+
+        if "speciality" in self.fields:
+            self.fields["speciality"].empty_label = "Select Speciality"
+            self.fields["speciality"].widget.attrs.update({
+                "placeholder": "Select Speciality",
+                "data-placeholder": "Select Speciality",
+            })
+            if self.fields["speciality"].choices and self.fields["speciality"].choices[0][0] == "":
+                spec_choices = list(self.fields["speciality"].choices)
+                spec_choices[0] = ("", "Select Speciality")
+                self.fields["speciality"].choices = spec_choices
 
         if "email" in self.fields:
             self.fields["email"].widget = forms.EmailInput(attrs={
