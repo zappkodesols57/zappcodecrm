@@ -1184,7 +1184,8 @@ def handle_academy_lead_save(request, saved_lead, cd):
     if "follow" in stage_name and custom_fup:
         try:
             p_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
-            p_time = datetime.strptime(custom_fup_time, "%H:%M").time() if custom_fup_time else None
+            from leads.views.common_views import _parse_flexible_time
+            p_time = _parse_flexible_time(custom_fup_time)
             FollowUp.objects.create(
                 lead=saved_lead,
                 followup_date=p_date,

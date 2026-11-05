@@ -1075,6 +1075,25 @@
     const errText = document.getElementById('hosp_detail_time_error_text');
     const submitBtn = document.getElementById('hosp_detail_fu_submit');
 
+    function parseTimeToMinutes(tStr) {
+      if (!tStr) return null;
+      tStr = tStr.trim();
+      const m12 = tStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (m12) {
+        let h = parseInt(m12[1], 10);
+        const m = parseInt(m12[2], 10);
+        const p = (m12[3] || 'AM').toUpperCase();
+        if (p === 'PM' && h < 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+      }
+      const m24 = tStr.match(/^(\d{1,2}):(\d{2})/);
+      if (m24) {
+        return parseInt(m24[1], 10) * 60 + parseInt(m24[2], 10);
+      }
+      return null;
+    }
+
     function syncMinTime() {
       if (!dInput || !tInput) return;
       const now = new Date();
@@ -1084,20 +1103,30 @@
       const todayStr = `${year}-${month}-${day}`;
       dInput.min = todayStr;
 
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const curTime = `${hours}:${minutes}`;
+      const curHours = now.getHours();
+      const curMinutes = now.getMinutes();
+      const curTotalMins = curHours * 60 + curMinutes;
+      const curTimeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      if (dInput.value === todayStr) {
-        tInput.min = curTime;
-        if (tInput.value && tInput.value < curTime) {
+      let selDateIso = dInput.value;
+      if (/^\d{1,2}\s+[A-Za-z]{3,4}\s+\d{4}$/.test(selDateIso)) {
+        const parts = selDateIso.split(/\s+/);
+        const monthIdx = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(parts[1].substring(0,3).toLowerCase());
+        if (monthIdx !== -1) {
+          selDateIso = `${parts[2]}-${String(monthIdx+1).padStart(2,'0')}-${String(parts[0]).padStart(2,'0')}`;
+        }
+      }
+
+      if (selDateIso === todayStr) {
+        const selMins = parseTimeToMinutes(tInput.value);
+        if (selMins !== null && selMins <= curTotalMins) {
           tInput.classList.add('is-invalid');
           if (errBox) {
             errBox.classList.remove('d-none');
-            if (errText) errText.textContent = `Invalid Time: Selected time (${tInput.value}) has already passed. Please select a time after ${curTime}.`;
+            if (errText) errText.textContent = `Invalid Time: Selected time (${tInput.value}) has already passed. Please select a time after ${curTimeFormatted}.`;
           }
           if (submitBtn) submitBtn.disabled = true;
-          tInput.setCustomValidity(`Please select an upcoming time after ${curTime}`);
+          tInput.setCustomValidity(`Please select an upcoming time after ${curTimeFormatted}`);
         } else {
           tInput.classList.remove('is-invalid');
           if (errBox) errBox.classList.add('d-none');
