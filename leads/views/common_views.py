@@ -33,6 +33,23 @@ from leads.forms import (
 # 📋 CORE CRM LEADS (LIFECYCLE, LISTING, BULK ACTIONS, DUPLICATES)
 # ===========================================================================
 
+def _parse_flexible_time(time_str):
+    """
+    Parses a time string in multiple formats (12-hour AM/PM, 24-hour, with/without seconds).
+    Returns a datetime.time object or None if invalid/empty.
+    """
+    if not time_str:
+        return None
+    cleaned = str(time_str).strip()
+    if not cleaned or cleaned == "--:--":
+        return None
+    for fmt in ("%I:%M %p", "%I:%M%p", "%I:%M %P", "%I:%M%P", "%H:%M", "%H:%M:%S"):
+        try:
+            return datetime.strptime(cleaned, fmt).time()
+        except ValueError:
+            pass
+    return None
+
 def _can_edit_lead(user, lead):
     """
     Business-tenant aware edit permission check.
@@ -2728,7 +2745,7 @@ def lead_add(request):
                 if "follow" in stage_name and custom_fup:
                     try:
                         p_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
-                        p_time = datetime.strptime(custom_fup_time, "%H:%M").time() if custom_fup_time else None
+                        p_time = _parse_flexible_time(custom_fup_time)
                         FollowUp.objects.create(
                             lead=lead,
                             followup_date=p_date,
@@ -3901,19 +3918,14 @@ def add_followup(request, pk):
                 fu_date = today
 
         fu_time_raw = request.POST.get("followup_time") or None
-        fu_time = None
-        if fu_time_raw:
-            try:
-                fu_time = datetime.strptime(fu_time_raw, "%H:%M").time()
-                if fu_date == today:
-                    now_time = timezone.localtime().time()
-                    if fu_time < now_time:
-                        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                            return JsonResponse({"status": "error", "message": f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time."}, status=400)
-                        messages.error(request, f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
-                        return redirect("leads:lead_detail", pk=pk)
-            except ValueError:
-                fu_time = None
+        fu_time = _parse_flexible_time(fu_time_raw)
+        if fu_time and fu_date == today:
+            now_time = timezone.localtime().time()
+            if fu_time < now_time:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({"status": "error", "message": f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time."}, status=400)
+                messages.error(request, f"Follow-up time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}). Please select an upcoming time.")
+                return redirect("leads:lead_detail", pk=pk)
 
         initial_status = request.POST.get("followup_status", FollowUpStatus.PENDING)
         if not initial_status or initial_status not in FollowUpStatus.values:
@@ -4192,17 +4204,12 @@ def update_followup_status(request, pk, fu_id):
                 messages.error(request, "Invalid date format for rescheduling.")
                 return redirect("leads:lead_detail", pk=pk)
 
-            parsed_next_time = None
-            if next_time_str:
-                try:
-                    parsed_next_time = datetime.strptime(next_time_str, "%H:%M").time()
-                    if parsed_next_date == today:
-                        now_time = timezone.localtime().time()
-                        if parsed_next_time < now_time:
-                            messages.error(request, f"Reschedule time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}).")
-                            return redirect("leads:lead_detail", pk=pk)
-                except (ValueError, TypeError):
-                    parsed_next_time = None
+            parsed_next_time = _parse_flexible_time(next_time_str)
+            if parsed_next_time and parsed_next_date == today:
+                now_time = timezone.localtime().time()
+                if parsed_next_time < now_time:
+                    messages.error(request, f"Reschedule time cannot be in the past (Current time is {now_time.strftime('%I:%M %p')}).")
+                    return redirect("leads:lead_detail", pk=pk)
 
             # Mark current followup as COMPLETED (or closed interaction)
             existing_comment = (fu.comment or "").strip()
