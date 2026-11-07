@@ -265,7 +265,7 @@ def create_or_update_meta_lead(connection, data):
             Q(is_superuser=True) |
             Q(role__in=['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'COUNSELLOR', 'LEAD_ATTENDENT'])
         ).filter(
-            Q(hospital=hospital) | Q(hospital__isnull=True) | Q(is_superuser=True)
+            Q(hospital=business) | Q(hospital__isnull=True) | Q(is_superuser=True)
         ).distinct()
 
         link = reverse('leads:lead_detail', args=[lead.pk])
