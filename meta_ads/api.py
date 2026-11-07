@@ -100,9 +100,10 @@ def get_lead_details(access_token, lead_id):
         return None
 
 
-def fetch_all_form_leads(access_token, page_id, limit_per_form=100):
+def fetch_all_form_leads(access_token, page_id, limit_per_form=50, max_forms=10):
     """
-    Fetch all recent leads across all active leadgen forms for a Meta Page.
+    Fetch recent leads across active leadgen forms for a Meta Page.
+    Optimized with max_forms limit (active forms first) to prevent timeout in background sync.
     Returns a list of parsed lead dicts.
     """
     leads = []
@@ -111,19 +112,29 @@ def fetch_all_form_leads(access_token, page_id, limit_per_form=100):
         forms_res = requests.get(forms_url, params={"access_token": access_token, "limit": 100}, timeout=15)
         forms_res.raise_for_status()
         forms = forms_res.json().get("data", [])
-        logger.info(f"Checking {len(forms)} leadgen forms on Meta Page {page_id}...")
+        
+        # Filter for ACTIVE forms first; if status is absent or few active, take up to max_forms
+        active_forms = [f for f in forms if f.get("status") == "ACTIVE"]
+        forms_to_check = active_forms if active_forms else forms
+        if max_forms and len(forms_to_check) > max_forms:
+            forms_to_check = forms_to_check[:max_forms]
 
-        for f in forms:
+        logger.info(f"Checking {len(forms_to_check)} forms (of {len(forms)} total) on Meta Page {page_id}...")
+
+        for f in forms_to_check:
             fid = f.get("id")
             fname = f.get("name", "Form")
             url = f"{META_GRAPH_URL}/{fid}/leads"
             params = {"access_token": access_token, "limit": limit_per_form}
 
-            # Fetch first page (or more if needed)
-            l_res = requests.get(url, params=params, timeout=15)
-            if l_res.status_code != 200:
+            # Fetch first page with 5s timeout
+            try:
+                l_res = requests.get(url, params=params, timeout=5)
+                if l_res.status_code != 200:
+                    continue
+                ldata = l_res.json().get("data", [])
+            except Exception:
                 continue
-            ldata = l_res.json().get("data", [])
 
             for item in ldata:
                 lead_dict = parse_lead_field_data(item)
