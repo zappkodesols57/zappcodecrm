@@ -18,40 +18,47 @@ def sync_meta_leads_task(limit=50):
     """
     logger.info("Starting Celery Meta Leads Sync task...")
     
-    connection = MetaAdsConnection.objects.filter(is_active=True).first()
-    if not connection or not connection.page_access_token or not connection.page_id:
-        logger.warning("[!] Celery Meta Sync skipped: No active MetaAdsConnection or missing token/page_id.")
+    # Iterate over all active MetaAdsConnections to sync leads business-wise
+    active_conns = MetaAdsConnection.objects.filter(is_active=True).exclude(page_access_token="").exclude(page_id="")
+    if not active_conns.exists():
+        logger.warning("[!] Celery Meta Sync skipped: No active MetaAdsConnection with valid token and page_id.")
         return {"status": "skipped", "reason": "no_active_connection"}
 
-    try:
-        leads_data = fetch_all_form_leads(connection.page_access_token, connection.page_id, limit_per_form=limit)
-    except Exception as e:
-        logger.error(f"[!] Failed to fetch leads from Meta API in Celery task: {e}")
-        return {"status": "error", "error": str(e)}
+    total_created = 0
+    total_skipped = 0
 
-    created_count = 0
-    skipped_count = 0
-
-    for item in leads_data:
-        meta_id = item.get("meta_lead_id")
-        if Lead.objects.filter(Q(external_lead_id=meta_id) | Q(notes__contains=meta_id)).exists():
-            skipped_count += 1
+    for connection in active_conns:
+        try:
+            leads_data = fetch_all_form_leads(connection.page_access_token, connection.page_id, limit_per_form=limit, max_forms=10)
+        except Exception as e:
+            logger.error(f"[!] Failed to fetch leads for connection {connection.id} ({connection.name}): {e}")
             continue
 
-        try:
-            lead = create_or_update_meta_lead(connection, item)
-            if lead:
-                created_count += 1
-            else:
+        created_count = 0
+        skipped_count = 0
+
+        for item in leads_data:
+            meta_id = item.get("meta_lead_id")
+            if Lead.objects.filter(Q(external_lead_id=meta_id) | Q(notes__contains=meta_id)).exists():
                 skipped_count += 1
-        except Exception as err:
-            logger.error(f"Error creating lead from Meta item {meta_id}: {err}")
-            skipped_count += 1
+                continue
 
-    connection.last_synced_at = timezone.now()
-    connection.save(update_fields=["last_synced_at"])
+            try:
+                lead = create_or_update_meta_lead(connection, item)
+                if lead:
+                    created_count += 1
+                else:
+                    skipped_count += 1
+            except Exception as err:
+                logger.error(f"Error creating lead from Meta item {meta_id}: {err}")
+                skipped_count += 1
 
-    result_msg = f"[OK] Celery Meta Sync Complete: {created_count} created, {skipped_count} existing/skipped."
+        connection.last_synced_at = timezone.now()
+        connection.save(update_fields=["last_synced_at"])
+        total_created += created_count
+        total_skipped += skipped_count
+
+    result_msg = f"[OK] Celery Meta Sync Complete: {total_created} created, {total_skipped} existing/skipped across {active_conns.count()} connection(s)."
     logger.info(result_msg)
-    return {"status": "ok", "created": created_count, "skipped": skipped_count}
+    return {"status": "ok", "created": total_created, "skipped": total_skipped}
 

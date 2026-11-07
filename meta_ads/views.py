@@ -69,19 +69,46 @@ def meta_webhook(request, business_id=None):
 
     # ── Real-time Lead Notification ──
     if request.method == "POST":
-        if not connection:
-            logger.warning("Meta webhook POST received, but no active MetaAdsConnection found in DB.")
-            return JsonResponse({"status": "ignored_no_connection"}, status=200)
-
         try:
             payload = json.loads(request.body)
             logger.info(f"Meta webhook received: {payload}")
             for entry in payload.get("entry", []):
+                # Detect page_id from entry level (standard Meta webhook payload)
+                entry_page_id = str(entry.get("id", "")).strip()
+
                 for change in entry.get("changes", []):
                     if change.get("field") == "leadgen":
-                        lead_gen_id = change["value"].get("leadgen_id")
-                        if lead_gen_id:
-                            _create_lead_from_meta(connection, lead_gen_id)
+                        val = change.get("value", {})
+                        lead_gen_id = val.get("leadgen_id")
+                        if not lead_gen_id:
+                            continue
+
+                        # Precise connection resolution:
+                        # 1. By payload page_id (from value or entry)
+                        val_page_id = str(val.get("page_id") or entry_page_id).strip()
+                        target_conn = None
+                        if val_page_id:
+                            target_conn = MetaAdsConnection.objects.filter(is_active=True, page_id=val_page_id).first()
+
+                        # 2. If business_id is in webhook URL path (/meta-ads/webhook/<business_id>/)
+                        if not target_conn and business_id:
+                            target_conn = MetaAdsConnection.objects.filter(is_active=True, hospital_id=business_id).first()
+
+                        # 3. By form_id from MetaLeadForm table
+                        val_form_id = str(val.get("form_id", "")).strip()
+                        if not target_conn and val_form_id:
+                            form_rec = MetaLeadForm.objects.filter(form_id=val_form_id, connection__is_active=True).select_related('connection').first()
+                            if form_rec:
+                                target_conn = form_rec.connection
+
+                        # 4. Fallback to default active connection
+                        if not target_conn:
+                            target_conn = connection or MetaAdsConnection.objects.filter(is_active=True).first()
+
+                        if target_conn:
+                            _create_lead_from_meta(target_conn, lead_gen_id)
+                        else:
+                            logger.warning(f"Could not resolve active MetaAdsConnection for lead {lead_gen_id} (Page: {val_page_id})")
         except Exception as e:
             logger.error(f"Meta webhook processing error: {e}")
         # Always return 200 to Meta or it will retry
