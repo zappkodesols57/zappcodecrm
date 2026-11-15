@@ -1211,7 +1211,7 @@ def all_business_leads(request):
     is_viewing_hospital = False
     if target_hospital:
         is_viewing_hospital = getattr(target_hospital, "is_hospital", False) or (
-            target_hospital.business_type == Hospital.BusinessType.HOSPITAL
+            getattr(target_hospital, "industry", None) == Hospital.Industry.HOSPITAL
         )
     elif request.user.role == User.Role.DOCTOR:
         is_viewing_hospital = True
