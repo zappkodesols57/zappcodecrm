@@ -142,17 +142,36 @@
   {% csrf_token %}
   
   <!-- Bulk Action Bar -->
-  <div class="d-flex justify-content-between align-items-center mb-3 p-2.5 bg-white rounded-3 border shadow-sm" style="border-color: #cbd5e1 !important;">
-    <div class="d-flex align-items-center gap-2">
-      <span class="small text-muted fw-semibold ms-2"><span id="selected-count" class="badge bg-primary rounded-pill px-2 py-1">0</span> students selected</span>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-      <select name="bulk_action" class="form-select form-select-sm border" style="border-color: #cbd5e1 !important; min-width: 250px; height: 35px;" required>
-        <option value="">-- Select Bulk Action --</option>
-        <option value="mark_ongoing">Mark Course as Ongoing</option>
-        <option value="mark_completed">Mark Course as Completed</option>
-      </select>
-      <button type="submit" class="btn btn-sm btn-brand text-white text-nowrap px-3 shadow-sm" style="height: 35px; border-radius: 6px; font-weight: 500;">Apply Action</button>
+  <div class="card shadow-sm border bg-white mb-3 p-3" style="border-color: #cbd5e1 !important; border-radius: 0.85rem;">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <!-- Left: Counter & Label -->
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-3 me-1">
+          <i class="fa-solid fa-layer-group fa-lg"></i>
+        </span>
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="selected-count" class="badge bg-primary rounded-pill px-2.5 py-1 fw-bold">0</span>
+            <span class="fw-bold text-dark" style="font-size: 0.88rem;">Students Selected</span>
+          </div>
+          <div class="text-muted" style="font-size: 0.72rem;">Apply bulk status changes to selected students</div>
+        </div>
+      </div>
+
+      <!-- Right: Action Dropdown & Apply Button -->
+      <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+        <div style="min-width: 240px;">
+          <select name="bulk_action" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 38px; border-radius: 6px; font-size: 0.85rem; background-color: #ffffff;" required>
+            <option value="">-- Select Bulk Action --</option>
+            <option value="mark_ongoing">Mark Course as Ongoing</option>
+            <option value="mark_completed">Mark Course as Completed</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary px-4 fw-semibold shadow-sm d-flex align-items-center gap-2" style="height: 38px; border-radius: 6px;">
+          <i class="fa-solid fa-check-double"></i>
+          <span>Apply Action</span>
+        </button>
+      </div>
     </div>
   </div>
 
