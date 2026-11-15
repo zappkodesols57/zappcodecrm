@@ -175,8 +175,12 @@ def welcome_view(request):
     businesses_data = []
     role_metrics = {}
 
+    # Timezone-aware today range for exact MySQL datetime matching
+    start_of_day = timezone.make_aware(timezone.datetime.combine(today_date, timezone.datetime.min.time()))
+    end_of_day = timezone.make_aware(timezone.datetime.combine(today_date, timezone.datetime.max.time()))
+
     all_active_leads_today = Lead.objects.filter(is_archived=False).filter(
-        Q(inquiry_date=today_date) | (Q(inquiry_date__isnull=True) & Q(created_at__date=today_date))
+        Q(inquiry_date=today_date) | Q(created_at__range=(start_of_day, end_of_day))
     ).distinct()
 
     if is_super_admin:
@@ -218,12 +222,9 @@ def welcome_view(request):
         # Tenant specific leads for Lead Attendants / Counsellors
         user_h_leads = all_active_leads_today.filter(hospital=user.hospital) if user.hospital else all_active_leads_today
 
-        fresh_leads_qs = user_h_leads.filter(assigned_to__isnull=True)
+        fresh_stats = extract_campaign_and_walkin_stats(user_h_leads)
         my_assigned_leads_qs = user_h_leads.filter(assigned_to=user)
-
-        fresh_stats = extract_campaign_and_walkin_stats(fresh_leads_qs)
         assigned_stats = extract_campaign_and_walkin_stats(my_assigned_leads_qs)
-        combined_stats = extract_campaign_and_walkin_stats(user_h_leads.filter(Q(assigned_to=user) | Q(assigned_to__isnull=True)))
 
         # Pending Follow-ups for this user today
         pending_fu_count = FollowUp.objects.filter(
@@ -235,9 +236,10 @@ def welcome_view(request):
         role_metrics = {
             "fresh_leads_count": fresh_stats["total_count"],
             "assigned_leads_count": assigned_stats["total_count"],
-            "total_relevant_count": fresh_stats["total_count"] + assigned_stats["total_count"],
-            "campaign_stats": combined_stats["campaign_stats"],
-            "walkin_count": combined_stats["walkin_count"],
+            "total_relevant_count": fresh_stats["total_count"],
+            "campaign_stats": fresh_stats["campaign_stats"],
+            "walkin_count": fresh_stats["walkin_count"],
+            "meta_count": fresh_stats["meta_count"],
             "pending_followups_count": pending_fu_count,
         }
 

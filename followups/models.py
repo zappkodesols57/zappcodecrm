@@ -80,6 +80,26 @@ class Note(models.Model):
     def business_id(self):
         return self.lead.hospital_id if self.lead else None
 
+    @property
+    def is_editable(self):
+        """Returns True if Note was created within the last 30 minutes."""
+        from django.utils import timezone
+        from datetime import timedelta
+        if not self.created_at:
+            return False
+        return (timezone.now() - self.created_at) < timedelta(minutes=30)
+
+    @property
+    def remaining_edit_seconds(self):
+        """Returns remaining seconds within the 30-minute edit window (0 if expired)."""
+        from django.utils import timezone
+        from datetime import timedelta
+        if not self.created_at:
+            return 0
+        diff = timedelta(minutes=30) - (timezone.now() - self.created_at)
+        secs = int(diff.total_seconds())
+        return max(0, secs)
+
     class Meta:
         ordering = ["-created_at"]
 
@@ -112,6 +132,26 @@ class Activity(models.Model):
     @property
     def business_id(self):
         return self.lead.hospital_id if self.lead else None
+
+    @property
+    def is_editable(self):
+        """Returns True if Activity is of type NOTE and was created within the last 30 minutes."""
+        from django.utils import timezone
+        from datetime import timedelta
+        if self.activity_type != ActivityType.NOTE or not self.created_at:
+            return False
+        return (timezone.now() - self.created_at) < timedelta(minutes=30)
+
+    @property
+    def remaining_edit_seconds(self):
+        """Returns remaining seconds within the 30-minute edit window (0 if expired)."""
+        from django.utils import timezone
+        from datetime import timedelta
+        if self.activity_type != ActivityType.NOTE or not self.created_at:
+            return 0
+        diff = timedelta(minutes=30) - (timezone.now() - self.created_at)
+        secs = int(diff.total_seconds())
+        return max(0, secs)
 
     class Meta:
         ordering = ["-created_at"]

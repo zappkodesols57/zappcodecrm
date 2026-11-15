@@ -1,0 +1,134 @@
+{% load humanize %}
+
+<div class="academy-dashboard-card">
+  <div class="table-responsive custom-table-scrollbar">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="bg-light">
+        <tr style="font-size: 0.78rem;" class="text-muted text-uppercase fw-bold">
+          <th style="width: 38px;" class="text-center">
+            <input type="checkbox" class="form-check-input" style="cursor: pointer;">
+          </th>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Course</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Assigned to</th>
+          <th>Intent</th>
+          <th>Created</th>
+          <th>Last contact</th>
+          <th>Next follow-up</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in page_obj.object_list %}
+          <tr data-lead-id="{{ l.pk }}" data-lead-name="{{ l.name }}" data-lead-phone="{{ l.mobile }}" data-detail-url="{% url 'leads:lead_detail' l.pk %}" class="counselor-table-row">
+            <td class="text-center" onclick="event.stopPropagation();">
+              <input type="checkbox" class="form-check-input lead-select-chk" value="{{ l.pk }}" style="cursor: pointer;">
+            </td>
+            <td>
+              <div class="fw-bold text-dark">
+                <a href="{% url 'leads:lead_detail' l.pk %}" class="text-decoration-none text-dark hover-primary">
+                  {{ l.name }}
+                </a>
+              </div>
+              <div class="text-muted small">
+                #{{ l.id }}{% if l.city %} &bull; {{ l.city }}{% endif %}
+              </div>
+            </td>
+            <td>
+              <span class="fw-semibold text-dark">{{ l.mobile }}</span>
+            </td>
+            <td>
+              <span class="text-dark">{{ l.course.name|default:"—" }}</span>
+            </td>
+            <td>
+              <span class="badge bg-light text-secondary border">{{ l.lead_source.name|default:"—" }}</span>
+            </td>
+            <td>
+              {% if l.deal_status == 'WON' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Won</span>
+              {% elif l.deal_status == 'LOST' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Lost</span>
+              {% else %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ l.display_stage|default:l.stage.name|default:"Open" }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if l.assigned_to %}
+                <span class="small fw-semibold text-dark">{{ l.assigned_to.get_full_name|default:l.assigned_to.username }}</span>
+              {% else %}
+                <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle">Unassigned</span>
+              {% endif %}
+            </td>
+            <td>
+              {% with badge=l.intent_badge_color %}
+                <span class="badge d-inline-flex align-items-center gap-1" style="background-color: {{ badge.bg }}; color: {{ badge.text }}; border: 1px solid {{ badge.border }}; font-size: 0.75rem;">
+                  <span style="width: 6px; height: 6px; border-radius: 50%; background-color: {{ badge.dot }};"></span>
+                  {{ badge.label }}
+                </span>
+              {% endwith %}
+            </td>
+            <td class="small text-nowrap">
+              {{ l.created_at|date:"d M Y" }}
+            </td>
+            <td class="small text-nowrap">
+              {% with last_fu=l.followups.last %}
+                {% if last_fu %}
+                  {{ last_fu.created_at|date:"d M Y" }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+            <td class="small text-nowrap">
+              {% if l.next_followup_date %}
+                {% if l.next_followup_date < today_date %}
+                  <span class="text-danger fw-bold">
+                    {{ l.next_followup_date|date:"d M" }} (Overdue)
+                  </span>
+                {% elif l.next_followup_date == today_date %}
+                  <span class="text-warning fw-bold">Today</span>
+                {% else %}
+                  <span class="text-dark">{{ l.next_followup_date|date:"d M" }}</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end text-nowrap">
+              <div class="d-inline-flex gap-1 align-items-center">
+                <a href="tel:{{ l.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
+                  <i class="fa-solid fa-phone"></i>
+                </a>
+                <a href="https://wa.me/91{{ l.clean_phone_number|default:l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                <a href="{% url 'leads:lead_edit' l.pk %}" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit Lead">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </a>
+                <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-dark action-btn-icon" title="View Lead">
+                  <i class="fa-solid fa-eye"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="12" class="text-center py-5 text-muted">
+              <div class="py-3">
+                <i class="fa-regular fa-folder-open fa-2x mb-2 text-secondary opacity-50"></i>
+                <div class="fw-semibold">No leads found matching current criteria.</div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination (Strictly 20 per page) -->
+  {% include "academy/dashboard/partials/pagination.html" with page_obj=page_obj total_count=total_count cur_tab=cur_tab cur_subtab=cur_subtab %}
+</div>
+

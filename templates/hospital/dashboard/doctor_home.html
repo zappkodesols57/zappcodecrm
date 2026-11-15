@@ -510,10 +510,23 @@
                     </td>
                     <td>
                       <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"General Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"General Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
                       <div class="small text-dark fw-semibold">{{ apt.appointment_time|time:"h:i A"|default:"Slot not fixed" }}</div>
+                      {% if apt.is_rescheduled %}
+                        <div class="mt-1" style="font-size: 0.72rem;">
+                          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
+                            <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i>Slot Updated
+                          </span>
+                          {% if apt.rescheduled_from_date %}
+                            <div class="text-muted text-decoration-line-through mt-0.5" style="font-size: 0.7rem;">
+                              Prev: {{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endif %}
                     </td>
                     <td style="max-width: 220px;">
                       <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.notes|default:apt.lead.notes|default:'Appointment requested' }}">
@@ -613,10 +626,23 @@
                     </td>
                     <td>
                       <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"OPD Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"OPD Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-success">{{ apt.appointment_date|date:"d M Y" }}</div>
                       <div class="small text-dark fw-bold">{{ apt.appointment_time|time:"h:i A"|default:"Today Slot" }}</div>
+                      {% if apt.is_rescheduled %}
+                        <div class="mt-1" style="font-size: 0.72rem;">
+                          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
+                            <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i>Slot Updated
+                          </span>
+                          {% if apt.rescheduled_from_date %}
+                            <div class="text-muted text-decoration-line-through mt-0.5" style="font-size: 0.7rem;">
+                              Prev: {{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endif %}
                     </td>
                     <td style="max-width: 220px;">
                       <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.notes|default:'Scheduled for today' }}">
@@ -717,10 +743,23 @@
                     </td>
                     <td>
                       <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
                       <div class="small text-muted">{{ apt.appointment_time|time:"h:i A"|default:"Slot Booked" }}</div>
+                      {% if apt.is_rescheduled %}
+                        <div class="mt-1" style="font-size: 0.72rem;">
+                          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
+                            <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i>Slot Updated
+                          </span>
+                          {% if apt.rescheduled_from_date %}
+                            <div class="text-muted text-decoration-line-through mt-0.5" style="font-size: 0.7rem;">
+                              Prev: {{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endif %}
                     </td>
                     <td style="max-width: 220px;">
                       <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.notes|default:'Confirmed upcoming booking' }}">
@@ -821,6 +860,7 @@
                     </td>
                     <td>
                       <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Admitted / IPD" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Admitted / IPD" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-success">{{ apt.appointment_date|date:"d M Y" }}</div>
@@ -1178,6 +1218,7 @@
                 </td>
                 <td>
                   <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
                 </td>
                 <td>
                   <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
@@ -1289,6 +1330,7 @@
                 </td>
                 <td>
                   <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
                 </td>
                 <td>
                   <div class="fw-bold text-danger">{{ apt.appointment_date|date:"d M Y" }}</div>

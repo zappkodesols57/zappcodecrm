@@ -693,6 +693,118 @@ def telecaller_home(request):
         payment_pending_page = payment_pending_paginator.page(1)
     payment_pending_list = list(payment_pending_page.object_list)
 
+    # Multi-select Filter parameters for My All Leads and Overall Leads
+    filter_q = request.GET.get('q', '').strip()
+    filter_status = request.GET.getlist('status')
+    filter_assigned = request.GET.getlist('assigned_to')
+    filter_source = request.GET.getlist('source')
+    filter_dept = request.GET.getlist('dept')
+    filter_intent = request.GET.getlist('intent')
+    filter_lead_date = request.GET.get('lead_date', '').strip()
+    filter_followup = request.GET.get('followup', '').strip()
+    filter_last_contact = request.GET.get('last_contact', '').strip()
+
+    def apply_hospital_lead_filters(base_qs):
+        filtered = base_qs
+        if filter_q:
+            filtered = filtered.filter(
+                Q(name__icontains=filter_q) |
+                Q(mobile__icontains=filter_q) |
+                Q(email__icontains=filter_q) |
+                Q(lead_code__icontains=filter_q) |
+                Q(city__icontains=filter_q)
+            )
+        if filter_status:
+            status_q = Q()
+            for s in filter_status:
+                s_clean = s.strip()
+                if s_clean:
+                    status_q |= Q(deal_status__iexact=s_clean) | Q(stage__name__icontains=s_clean)
+            if status_q:
+                filtered = filtered.filter(status_q)
+        if filter_assigned:
+            assigned_ids = [int(a) for a in filter_assigned if a.isdigit()]
+            if assigned_ids:
+                filtered = filtered.filter(assigned_to_id__in=assigned_ids)
+        if filter_source:
+            source_ids = [int(s) for s in filter_source if s.isdigit()]
+            if source_ids:
+                filtered = filtered.filter(lead_source_id__in=source_ids)
+        if filter_dept:
+            dept_q = Q()
+            for d in filter_dept:
+                d_clean = d.strip()
+                if d_clean:
+                    dept_q |= Q(course__name__icontains=d_clean) | Q(custom_data__department__icontains=d_clean)
+            if dept_q:
+                filtered = filtered.filter(dept_q)
+        if filter_intent:
+            intent_q = Q()
+            for int_val in filter_intent:
+                iv = int_val.strip().upper()
+                if iv:
+                    intent_q |= Q(intent_level__iexact=iv)
+            if intent_q:
+                filtered = filtered.filter(intent_q)
+        if filter_lead_date:
+            if filter_lead_date == 'today':
+                filtered = filtered.filter(Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date))
+            elif filter_lead_date == 'yesterday':
+                yest = today_date - timedelta(days=1)
+                yest_start = timezone.make_aware(datetime.combine(yest, datetime.min.time()))
+                yest_end = timezone.make_aware(datetime.combine(yest, datetime.max.time()))
+                filtered = filtered.filter(Q(created_at__range=(yest_start, yest_end)) | Q(inquiry_date=yest))
+            elif filter_lead_date == 'last_7_days':
+                week_ago = today_date - timedelta(days=7)
+                filtered = filtered.filter(Q(created_at__date__gte=week_ago) | Q(inquiry_date__gte=week_ago))
+            elif filter_lead_date == 'this_month':
+                first_of_month = today_date.replace(day=1)
+                filtered = filtered.filter(Q(created_at__date__gte=first_of_month) | Q(inquiry_date__gte=first_of_month))
+        if filter_followup:
+            if filter_followup == 'today':
+                filtered = filtered.filter(next_followup_date=today_date)
+            elif filter_followup == 'overdue':
+                filtered = filtered.filter(next_followup_date__lt=today_date)
+            elif filter_followup == 'upcoming':
+                filtered = filtered.filter(next_followup_date__gt=today_date)
+            elif filter_followup == 'none':
+                filtered = filtered.filter(next_followup_date__isnull=True)
+        if filter_last_contact:
+            if filter_last_contact == 'today':
+                filtered = filtered.filter(followups__created_at__range=(start_of_today, end_of_today)).distinct()
+            elif filter_last_contact == 'yesterday':
+                yest = today_date - timedelta(days=1)
+                yest_start = timezone.make_aware(datetime.combine(yest, datetime.min.time()))
+                yest_end = timezone.make_aware(datetime.combine(yest, datetime.max.time()))
+                filtered = filtered.filter(followups__created_at__range=(yest_start, yest_end)).distinct()
+            elif filter_last_contact == 'never':
+                filtered = filtered.filter(followups__isnull=True)
+        return filtered
+
+    # My All Leads (All leads assigned to logged in telecaller, strictly 20 per page)
+    tele_my_all_base = hospital_leads.filter(assigned_to=user).select_related(
+        'stage', 'campaign', 'lead_source', 'course', 'assigned_to'
+    ).order_by('-created_at')
+    tele_my_all_qs = apply_hospital_lead_filters(tele_my_all_base)
+    tele_my_all_count = tele_my_all_base.count()
+    tele_my_all_paginator = Paginator(tele_my_all_qs, 20)
+    try:
+        tele_my_all_page = tele_my_all_paginator.page(req_page if (cur_tab == 'myleads' and cur_subtab == 'my_all') else 1)
+    except (EmptyPage, PageNotAnInteger):
+        tele_my_all_page = tele_my_all_paginator.page(1)
+
+    # Overall Leads (All leads of this hospital business including active, lost, archived)
+    tele_overall_base = Lead.objects.filter(hospital=user.business).select_related(
+        'stage', 'campaign', 'lead_source', 'course', 'assigned_to'
+    ).order_by('-created_at')
+    tele_overall_qs = apply_hospital_lead_filters(tele_overall_base)
+    tele_overall_count = tele_overall_base.count()
+    tele_overall_paginator = Paginator(tele_overall_qs, 20)
+    try:
+        tele_overall_page = tele_overall_paginator.page(req_page if (cur_tab == 'overall') else 1)
+    except (EmptyPage, PageNotAnInteger):
+        tele_overall_page = tele_overall_paginator.page(1)
+
     payment_done_paginator = Paginator(payment_done_list, 25)
     try:
         payment_done_page = payment_done_paginator.page(req_page if (cur_tab == 'billings' and cur_subtab == 'done') else 1)
@@ -770,6 +882,39 @@ def telecaller_home(request):
         'pending_and_upcoming_followups': pending_and_upcoming_followups,
         'pending_and_upcoming_followups_count': pending_and_upcoming_followups_count,
         'today_date': today_date,
+        'cur_tab': cur_tab,
+        'cur_subtab': cur_subtab,
+
+        # New Tab: My All Leads
+        'tele_my_all_count': tele_my_all_count,
+        'tele_my_all_page': tele_my_all_page,
+
+        # New Tab: Overall Leads
+        'tele_overall_count': tele_overall_count,
+        'tele_overall_page': tele_overall_page,
+
+        # Hospital Filter Choices
+        'filter_depts': Course.objects.filter(is_active=True, hospital=user.business) if user.business else Course.objects.filter(is_active=True),
+        'filter_sources': LeadSource.objects.filter(is_active=True),
+        'filter_telecallers': User.objects.filter(business_id=user.business_id, is_active=True) if user.business_id else User.objects.filter(is_active=True),
+        'filter_stages': LeadStage.objects.filter(is_active=True, hospital=user.business).order_by('order', 'name') if user.business else LeadStage.objects.filter(is_active=True).order_by('order', 'name'),
+        'filter_intents': [
+            ('HIGHLY_INTERESTED', 'Highly Interested'),
+            ('MODERATE_INTERESTED', 'Moderate Interested'),
+            ('NORMAL_INTERESTED', 'Normal Interested'),
+            ('BELOW_AVERAGE', 'Below Average'),
+            ('NOT_INTERESTED', 'Not Interested'),
+        ],
+        'request_get': request.GET,
+        'filter_q': filter_q,
+        'filter_status': filter_status,
+        'filter_assigned': filter_assigned,
+        'filter_source': filter_source,
+        'filter_dept': filter_dept,
+        'filter_intent': filter_intent,
+        'filter_lead_date': filter_lead_date,
+        'filter_followup': filter_followup,
+        'filter_last_contact': filter_last_contact,
     }
     return render(request, "hospital/dashboard/telecaller_home.html", context)
 
@@ -1321,7 +1466,8 @@ def telecaller_search(request):
     order_field = sort_mapping.get(sort_by, "-created_at")
     leads = leads.order_by(order_field)
 
-    paginator = Paginator(leads, 25)
+    # Strictly 20 leads per page
+    paginator = Paginator(leads, 20)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range
@@ -1611,7 +1757,8 @@ def telecaller_my_leads(request):
             "active_filters_count": len(selected_campaigns) + len(selected_sources) + (1 if (date_from or date_to) else 0),
         })
 
-    paginator = Paginator(leads, 25)
+    # Strictly 20 leads per page
+    paginator = Paginator(leads, 20)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     page_range = paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1) if hasattr(paginator, 'get_elided_page_range') else paginator.page_range

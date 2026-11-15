@@ -1,0 +1,357 @@
+{% load humanize %}
+
+<style>
+  /* Lead Filter Bar Unified Design System */
+  .lead-filter-bar-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .lead-filter-bar-card .filter-field-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.35rem;
+    display: block;
+  }
+
+  .lead-filter-bar-card .filter-input-unified {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 0.83rem !important;
+    font-weight: 500;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .lead-filter-bar-card .filter-input-unified:focus {
+    border-color: #0f2744 !important;
+    box-shadow: 0 0 0 3px rgba(15, 39, 68, 0.12) !important;
+    outline: none !important;
+  }
+
+  /* Dropdown Buttons */
+  .lead-filter-bar-card .filter-dropdown-btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 0.83rem !important;
+    font-weight: 500;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    padding: 0.375rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .lead-filter-bar-card .filter-dropdown-btn:hover {
+    background-color: #f8fafc !important;
+    border-color: #94a3b8 !important;
+  }
+
+  .lead-filter-bar-card .filter-dropdown-btn.has-value {
+    border-color: #0f2744 !important;
+    background-color: #f1f5f9 !important;
+    font-weight: 600;
+    color: #0f2744 !important;
+  }
+
+  /* Filter Select Controls (Native) */
+  .lead-filter-bar-card select.filter-input-unified {
+    padding: 0.375rem 2.2rem 0.375rem 0.75rem !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m3 6 5 5 5-5'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 12px 12px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    cursor: pointer;
+  }
+
+  .lead-filter-bar-card .filter-search-group .input-group-text {
+    border-color: #cbd5e1 !important;
+    border-radius: 8px 0 0 8px !important;
+    background-color: #f8fafc !important;
+    color: #64748b !important;
+    height: 38px !important;
+  }
+
+  .lead-filter-bar-card .filter-search-group .form-control {
+    border-radius: 0 8px 8px 0 !important;
+    border-color: #cbd5e1 !important;
+    height: 38px !important;
+  }
+
+  .lead-filter-bar-card .filter-search-group .clear-btn {
+    border-color: #cbd5e1 !important;
+    border-radius: 0 8px 8px 0 !important;
+    height: 38px !important;
+    background: #f8fafc;
+    color: #64748b;
+  }
+
+  .lead-filter-bar-card .filter-apply-btn {
+    height: 38px !important;
+    background-color: #052042 !important;
+    border-color: #052042 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    font-size: 0.83rem !important;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .lead-filter-bar-card .filter-apply-btn:hover {
+    background-color: #0a2d5c !important;
+    border-color: #0a2d5c !important;
+  }
+
+  .lead-filter-bar-card .filter-reset-btn {
+    height: 38px !important;
+    border-radius: 8px !important;
+    font-size: 0.83rem !important;
+    font-weight: 600;
+    border: 1px solid #cbd5e1 !important;
+    color: #dc2626 !important;
+    background-color: #ffffff !important;
+  }
+
+  .lead-filter-bar-card .filter-reset-btn:hover {
+    background-color: #fef2f2 !important;
+    border-color: #fca5a5 !important;
+  }
+</style>
+
+<div class="lead-filter-bar-card">
+  <form method="get" id="{{ filter_prefix }}FilterForm">
+    <input type="hidden" name="tab" value="{{ cur_tab }}">
+    {% if cur_subtab %}
+      <input type="hidden" name="subtab" value="{{ cur_subtab }}">
+    {% endif %}
+
+    <!-- 1st ROW: Search, Status, Assigned To, Source, Lead Date -->
+    <div class="row g-2 align-items-end mb-2">
+      <!-- Search Input -->
+      <div class="col-12 col-md-4 col-xl-3">
+        <label class="filter-field-label">Search</label>
+        <div class="input-group filter-search-group">
+          <span class="input-group-text border-end-0">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <input type="text" name="q" value="{{ filter_q|default:'' }}"
+            class="form-control border-start-0 filter-input-unified ps-1"
+            placeholder="Search by name, phone or email">
+          {% if filter_q %}
+            <button class="btn clear-btn border-start-0" type="button" onclick="this.form.q.value=''; this.form.submit();">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Status Dropdown (Multi-select) -->
+      <div class="col-6 col-md-4 col-xl-2">
+        <label class="filter-field-label">Status</label>
+        <div class="dropdown w-100">
+          <button class="btn filter-dropdown-btn dropdown-toggle {% if filter_status %}has-value{% endif %}"
+            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span class="text-truncate">
+              Status {% if filter_status %}<span class="badge bg-primary ms-1">{{ filter_status|length }}</span>{% endif %}
+            </span>
+          </button>
+          <div class="dropdown-menu p-2 shadow-sm" style="min-width: 220px; max-height: 280px; overflow-y: auto;">
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="status" value="OPEN" id="{{ filter_prefix }}_st_open" {% if 'OPEN' in filter_status %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ filter_prefix }}_st_open">Open / In Progress</label>
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="status" value="WON" id="{{ filter_prefix }}_st_won" {% if 'WON' in filter_status %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ filter_prefix }}_st_won">Won / In Progress</label>
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="status" value="LOST" id="{{ filter_prefix }}_st_lost" {% if 'LOST' in filter_status %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ filter_prefix }}_st_lost">Lost</label>
+            </div>
+            <div class="d-grid mt-2">
+              <button type="submit" class="btn btn-sm btn-primary py-1" style="font-size: 0.76rem;">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assigned To Dropdown (Multi-select) -->
+      <div class="col-6 col-md-4 col-xl-2">
+        <label class="filter-field-label">Assigned To</label>
+        <div class="dropdown w-100">
+          <button class="btn filter-dropdown-btn dropdown-toggle {% if filter_assigned %}has-value{% endif %}"
+            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span class="text-truncate">
+              Assigned to {% if filter_assigned %}<span class="badge bg-primary ms-1">{{ filter_assigned|length }}</span>{% endif %}
+            </span>
+          </button>
+          <div class="dropdown-menu p-2 shadow-sm" style="min-width: 220px; max-height: 280px; overflow-y: auto;">
+            {% for u in filter_counselors %}
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="assigned_to" value="{{ u.id }}" id="{{ filter_prefix }}_as_{{ u.id }}" {% if u.id|stringformat:'s' in filter_assigned %}checked{% endif %}>
+                <label class="form-check-label small" for="{{ filter_prefix }}_as_{{ u.id }}">{{ u.get_full_name|default:u.username }}</label>
+              </div>
+            {% endfor %}
+            <div class="d-grid mt-2">
+              <button type="submit" class="btn btn-sm btn-primary py-1" style="font-size: 0.76rem;">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Source Dropdown (Multi-select) -->
+      <div class="col-6 col-md-4 col-xl-2">
+        <label class="filter-field-label">Lead Source</label>
+        <div class="dropdown w-100">
+          <button class="btn filter-dropdown-btn dropdown-toggle {% if filter_source %}has-value{% endif %}"
+            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span class="text-truncate">
+              Source {% if filter_source %}<span class="badge bg-primary ms-1">{{ filter_source|length }}</span>{% endif %}
+            </span>
+          </button>
+          <div class="dropdown-menu p-2 shadow-sm" style="min-width: 200px; max-height: 280px; overflow-y: auto;">
+            {% for s in filter_sources %}
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="source" value="{{ s.id }}" id="{{ filter_prefix }}_src_{{ s.id }}" {% if s.id|stringformat:'s' in filter_source %}checked{% endif %}>
+                <label class="form-check-label small" for="{{ filter_prefix }}_src_{{ s.id }}">{{ s.name }}</label>
+              </div>
+            {% endfor %}
+            <div class="d-grid mt-2">
+              <button type="submit" class="btn btn-sm btn-primary py-1" style="font-size: 0.76rem;">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lead Date Dropdown (Single select) -->
+      <div class="col-6 col-md-4 col-xl-3">
+        <label class="filter-field-label">Lead Date</label>
+        <select name="lead_date" class="form-select filter-input-unified no-tom-select" onchange="this.form.submit()">
+          <option value="" {% if not filter_lead_date %}selected{% endif %}>Lead date: All</option>
+          <option value="today" {% if filter_lead_date == 'today' %}selected{% endif %}>Today</option>
+          <option value="yesterday" {% if filter_lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
+          <option value="last_7_days" {% if filter_lead_date == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+          <option value="this_month" {% if filter_lead_date == 'this_month' %}selected{% endif %}>This Month</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 2nd ROW: Course/Department, Intent, Follow-up, Last Contact, Filter Actions -->
+    <div class="row g-2 align-items-end">
+      <!-- Course/Department Dropdown (Multi-select) -->
+      <div class="col-6 col-md-3 col-xl-3">
+        <label class="filter-field-label">Specialization / Department</label>
+        <div class="dropdown w-100">
+          <button class="btn filter-dropdown-btn dropdown-toggle {% if filter_course %}has-value{% endif %}"
+            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span class="text-truncate">
+              Department {% if filter_course %}<span class="badge bg-primary ms-1">{{ filter_course|length }}</span>{% endif %}
+            </span>
+          </button>
+          <div class="dropdown-menu p-2 shadow-sm" style="min-width: 220px; max-height: 280px; overflow-y: auto;">
+            {% for c in filter_courses %}
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="course" value="{{ c.id }}" id="{{ filter_prefix }}_cr_{{ c.id }}" {% if c.id|stringformat:'s' in filter_course %}checked{% endif %}>
+                <label class="form-check-label small" for="{{ filter_prefix }}_cr_{{ c.id }}">{{ c.name }}</label>
+              </div>
+            {% endfor %}
+            <div class="d-grid mt-2">
+              <button type="submit" class="btn btn-sm btn-primary py-1" style="font-size: 0.76rem;">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Intent Dropdown (Multi-select) -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="filter-field-label">Intent</label>
+        <div class="dropdown w-100">
+          <button class="btn filter-dropdown-btn dropdown-toggle {% if filter_intent %}has-value{% endif %}"
+            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span class="text-truncate">
+              Intent {% if filter_intent %}<span class="badge bg-primary ms-1">{{ filter_intent|length }}</span>{% endif %}
+            </span>
+          </button>
+          <div class="dropdown-menu p-2 shadow-sm" style="min-width: 220px;">
+            {% for code, label in filter_intents %}
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="intent" value="{{ code }}" id="{{ filter_prefix }}_int_{{ code }}" {% if code in filter_intent %}checked{% endif %}>
+                <label class="form-check-label small" for="{{ filter_prefix }}_int_{{ code }}">{{ label }}</label>
+              </div>
+            {% endfor %}
+            <div class="d-grid mt-2">
+              <button type="submit" class="btn btn-sm btn-primary py-1" style="font-size: 0.76rem;">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Follow-up: All Dropdown -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="filter-field-label">Follow-up</label>
+        <select name="followup" class="form-select filter-input-unified no-tom-select" onchange="this.form.submit()">
+          <option value="" {% if not filter_followup %}selected{% endif %}>Follow-up: All</option>
+          <option value="today" {% if filter_followup == 'today' %}selected{% endif %}>Follow-up: Today</option>
+          <option value="overdue" {% if filter_followup == 'overdue' %}selected{% endif %}>Follow-up: Overdue</option>
+          <option value="upcoming" {% if filter_followup == 'upcoming' %}selected{% endif %}>Follow-up: Upcoming</option>
+          <option value="none" {% if filter_followup == 'none' %}selected{% endif %}>Follow-up: None</option>
+        </select>
+      </div>
+
+      <!-- Last contact: All Dropdown -->
+      <div class="col-6 col-md-3 col-xl-2">
+        <label class="filter-field-label">Last Contact</label>
+        <select name="last_contact" class="form-select filter-input-unified no-tom-select" onchange="this.form.submit()">
+          <option value="" {% if not filter_last_contact %}selected{% endif %}>Last contact: All</option>
+          <option value="today" {% if filter_last_contact == 'today' %}selected{% endif %}>Last contact: Today</option>
+          <option value="yesterday" {% if filter_last_contact == 'yesterday' %}selected{% endif %}>Last contact: Yesterday</option>
+          <option value="never" {% if filter_last_contact == 'never' %}selected{% endif %}>Last contact: Never</option>
+        </select>
+      </div>
+
+      <!-- Actions: Search Button & Clear Filters -->
+      <div class="col-12 col-xl-3 d-flex align-items-end justify-content-end gap-2">
+        <button type="submit" class="btn filter-apply-btn flex-fill px-3 shadow-sm d-flex align-items-center justify-content-center">
+          <i class="fa-solid fa-filter me-1.5"></i> Filter
+        </button>
+        {% if filter_q or filter_status or filter_assigned or filter_source or filter_course or filter_intent or filter_lead_date or filter_followup or filter_last_contact %}
+          <a href="?tab={{ cur_tab }}{% if cur_subtab %}&subtab={{ cur_subtab }}{% endif %}" class="btn filter-reset-btn flex-fill px-3 d-flex align-items-center justify-content-center" title="Reset all filters">
+            <i class="fa-solid fa-rotate-left me-1.5"></i> Reset
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  <!-- Filter Status Indicator Bar -->
+  <div class="mt-2.5 pt-2.5 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.78rem;">
+    <div>
+      {% if filter_q or filter_status or filter_assigned or filter_source or filter_course or filter_intent or filter_lead_date or filter_followup or filter_last_contact %}
+        <span class="text-dark fw-bold"><i class="fa-solid fa-circle-check text-success me-1"></i> Active filters applied</span>
+      {% else %}
+        <span>No filters applied</span>
+      {% endif %}
+    </div>
+    <div class="fw-bold text-dark">
+      Total Records: {{ total_count|default:page_obj.paginator.count|default:0 }} (20 per page)
+    </div>
+  </div>
+</div>

@@ -437,13 +437,17 @@
       border-right: 1px solid #E5E7EB;
     }
 
-    .sidebar::-webkit-scrollbar {
-      width: 4px;
+    /* Hide scrollbars cleanly across browsers while keeping scroll functionality */
+    .sidebar,
+    .sidebar-nav-container {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE / Edge */
     }
-
-    .sidebar::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
+    .sidebar::-webkit-scrollbar,
+    .sidebar-nav-container::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
     }
 
     .sidebar .brand {
@@ -773,51 +777,78 @@
       max-height: 32px !important;
     }
 
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-section-btn {
-      justify-content: center !important;
-      padding: .85rem 0 !important;
+    /* Constant Icon Size across both Minimized and Maximized states */
+    .sidebar .nav-link i,
+    .sidebar .section-icon,
+    .sidebar .nav-section-btn i,
+    .sidebar .nav-sub-item-btn i,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-section-btn .section-icon,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-item-btn .section-icon,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-link i,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-items .nav-link i,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-sub-items .nav-link i,
+    .sidebar:hover .nav-link i,
+    body.sidebar-pinned-open .sidebar .nav-link i,
+    .sidebar:hover .nav-section-btn .section-icon,
+    body.sidebar-pinned-open .sidebar .nav-section-btn .section-icon,
+    .sidebar:hover .nav-sub-item-btn .section-icon,
+    body.sidebar-pinned-open .sidebar .nav-sub-item-btn .section-icon {
+      font-size: 1rem !important;
+      width: 22px !important;
+      min-width: 22px !important;
       text-align: center !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: none !important;
     }
 
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-section-btn .section-icon {
-      display: inline-block !important;
-      margin-right: 0 !important;
-      font-size: 1.15rem !important;
-      width: auto !important;
-      color: #ffffff !important;
-    }
-
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-item-btn {
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-section-btn {
       justify-content: center !important;
       padding: .65rem 0 !important;
       text-align: center !important;
     }
 
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-item-btn .section-icon {
-      display: inline-block !important;
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-section-btn .section-icon {
       margin-right: 0 !important;
-      font-size: 1.05rem !important;
-      width: auto !important;
       color: #ffffff !important;
     }
 
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-items,
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-sub-items {
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-item-btn {
+      justify-content: center !important;
+      padding: .5rem 0 !important;
+      text-align: center !important;
+    }
+
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-item-btn .section-icon {
+      margin-right: 0 !important;
+      color: #ffffff !important;
+    }
+
+    /* In minimized state, show subtab icons ONLY for open/active accordion sections */
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-items.collapse:not(.show),
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-sub-items.collapse:not(.show) {
       display: none !important;
+    }
+
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-items.collapse.show,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-sub-items.collapse.show {
+      display: block !important;
+      background: transparent !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-items .nav-link,
+    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-sub-sub-items .nav-link {
+      padding: .5rem 0 !important;
+      justify-content: center !important;
     }
 
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-link {
       justify-content: center !important;
       padding: .65rem 0 !important;
       gap: 0 !important;
-    }
-
-    body:not(.sidebar-pinned-open) .sidebar:not(:hover) .nav-link i {
-      display: inline-block !important;
-      width: auto !important;
-      font-size: 1.05rem !important;
-      margin: 0 !important;
-      color: #ffffff !important;
     }
 
     /* On Hover (when not pinned): Expands floating overlay */
@@ -2596,6 +2627,128 @@
         });
       }
     });
+
+    // =========================================================================
+    // GLOBAL PAGE STATE & NAVIGATION PRESERVATION ENGINE
+    // Automatically remembers and restores:
+    // 1. Scroll position on back/forward
+    // 2. Active Bootstrap tab or pill
+    // 3. Tab URL sync via history.replaceState
+    // =========================================================================
+    (function() {
+      const pagePath = window.location.pathname;
+      const storageKey = 'crm_page_state_' + pagePath;
+
+      // Enable native browser scroll restoration when supported
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'auto';
+      }
+
+      // Save page state before leaving or navigating to another page
+      function savePageState() {
+        const scrollData = {
+          x: window.scrollX || window.pageXOffset || 0,
+          y: window.scrollY || window.pageYOffset || 0
+        };
+
+        const activeTabs = [];
+        document.querySelectorAll('[data-bs-toggle="tab"].active, [data-bs-toggle="pill"].active').forEach(function(el) {
+          if (el.id) {
+            activeTabs.push(el.id);
+          } else if (el.getAttribute('data-bs-target')) {
+            activeTabs.push(el.getAttribute('data-bs-target'));
+          }
+        });
+
+        const stateObj = {
+          fullUrl: window.location.href,
+          search: window.location.search,
+          scroll: scrollData,
+          activeTabs: activeTabs,
+          savedAt: Date.now()
+        };
+
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(stateObj));
+        } catch(e) {}
+      }
+
+      window.addEventListener('beforeunload', savePageState);
+      window.addEventListener('pagehide', savePageState);
+
+      // Listen to tab clicks to update URL & state seamlessly
+      document.addEventListener('shown.bs.tab', function(event) {
+        const targetTab = event.target;
+        if (!targetTab) return;
+
+        // If tab specifies a query param data attribute or URL param
+        const tabParam = targetTab.getAttribute('data-tab-name') || targetTab.id;
+        if (tabParam && window.history && window.history.replaceState) {
+          try {
+            const currentUrl = new URL(window.location);
+            // Sync with tab param if defined
+            if (targetTab.getAttribute('data-tab-param')) {
+              currentUrl.searchParams.set('tab', targetTab.getAttribute('data-tab-param'));
+              window.history.replaceState({}, '', currentUrl);
+            }
+          } catch(e) {}
+        }
+        savePageState();
+      });
+
+      // Restore page state on page load / back navigation
+      function restorePageState() {
+        let rawState = null;
+        try {
+          rawState = sessionStorage.getItem(storageKey);
+        } catch(e) {}
+
+        if (!rawState) return;
+
+        try {
+          const state = JSON.parse(rawState);
+
+          // Restore Active Tabs
+          if (state.activeTabs && state.activeTabs.length > 0) {
+            state.activeTabs.forEach(function(tabIdentifier) {
+              let tabBtn = document.getElementById(tabIdentifier);
+              if (!tabBtn && tabIdentifier.startsWith('#')) {
+                tabBtn = document.querySelector(`[data-bs-target="${tabIdentifier}"]`);
+              }
+              if (tabBtn && window.bootstrap && window.bootstrap.Tab) {
+                const bsTab = bootstrap.Tab.getInstance(tabBtn) || new bootstrap.Tab(tabBtn);
+                bsTab.show();
+              }
+            });
+          }
+
+          // Restore Scroll Position
+          if (state.scroll && (state.scroll.y > 0 || state.scroll.x > 0)) {
+            // First attempt quickly
+            window.scrollTo({
+              left: state.scroll.x,
+              top: state.scroll.y,
+              behavior: 'instant'
+            });
+            // Second attempt after DOM & images settle
+            setTimeout(function() {
+              window.scrollTo({
+                left: state.scroll.x,
+                top: state.scroll.y,
+                behavior: 'instant'
+              });
+            }, 120);
+          }
+        } catch(e) {}
+      }
+
+      window.addEventListener('pageshow', function(e) {
+        restorePageState();
+      });
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(restorePageState, 60);
+      });
+    })();
   </script>
 
   {% load static %}

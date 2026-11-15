@@ -5,7 +5,7 @@
     </td>
   {% endif %}
   <td class="fw-semibold">
-    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark">{{ lead.name }}</a>
+    <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-decoration-none text-dark">{{ lead.name }}</a>
   </td>
   <td>{{ lead.mobile }}</td>
   <td>{{ lead.course.name|default:"—" }}</td>
@@ -39,10 +39,10 @@
       <a href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
         <i class="fa-brands fa-whatsapp"></i>
       </a>
-      <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit Lead">
         <i class="fa-solid fa-pen-to-square"></i>
       </a>
-      <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+      <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-outline-dark action-btn-icon" title="View Lead">
         <i class="fa-solid fa-eye"></i>
       </a>
     </div>

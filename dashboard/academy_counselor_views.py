@@ -66,6 +66,117 @@ def academy_counselor_home(request):
     cur_subtab = request.GET.get('subtab', '').strip().lower()
     req_page = request.GET.get('page') or 1
 
+    # Filter parameters for My All Leads and Overall Leads
+    filter_q = request.GET.get('q', '').strip()
+    filter_status = request.GET.getlist('status')
+    filter_assigned = request.GET.getlist('assigned_to')
+    filter_source = request.GET.getlist('source')
+    filter_course = request.GET.getlist('course')
+    filter_intent = request.GET.getlist('intent')
+    filter_lead_date = request.GET.get('lead_date', '').strip()
+    filter_followup = request.GET.get('followup', '').strip()
+    filter_last_contact = request.GET.get('last_contact', '').strip()
+
+    def apply_advanced_lead_filters(base_qs):
+        filtered = base_qs
+        if filter_q:
+            filtered = filtered.filter(
+                Q(name__icontains=filter_q) |
+                Q(mobile__icontains=filter_q) |
+                Q(email__icontains=filter_q) |
+                Q(lead_code__icontains=filter_q) |
+                Q(city__icontains=filter_q)
+            )
+        if filter_status:
+            status_q = Q()
+            for s in filter_status:
+                s_clean = s.strip()
+                if s_clean:
+                    status_q |= Q(deal_status__iexact=s_clean) | Q(stage__name__icontains=s_clean)
+            if status_q:
+                filtered = filtered.filter(status_q)
+        if filter_assigned:
+            assigned_ids = [int(a) for a in filter_assigned if a.isdigit()]
+            if assigned_ids:
+                filtered = filtered.filter(assigned_to_id__in=assigned_ids)
+        if filter_source:
+            source_ids = [int(s) for s in filter_source if s.isdigit()]
+            if source_ids:
+                filtered = filtered.filter(lead_source_id__in=source_ids)
+        if filter_course:
+            course_ids = [int(c) for c in filter_course if c.isdigit()]
+            if course_ids:
+                filtered = filtered.filter(course_id__in=course_ids)
+        if filter_intent:
+            intent_q = Q()
+            for int_val in filter_intent:
+                iv = int_val.strip().upper()
+                if iv:
+                    intent_q |= Q(intent_level__iexact=iv)
+            if intent_q:
+                filtered = filtered.filter(intent_q)
+        if filter_lead_date:
+            if filter_lead_date == 'today':
+                filtered = filtered.filter(Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date))
+            elif filter_lead_date == 'yesterday':
+                yest = today_date - timedelta(days=1)
+                yest_start = timezone.make_aware(datetime.combine(yest, datetime.min.time()))
+                yest_end = timezone.make_aware(datetime.combine(yest, datetime.max.time()))
+                filtered = filtered.filter(Q(created_at__range=(yest_start, yest_end)) | Q(inquiry_date=yest))
+            elif filter_lead_date == 'last_7_days':
+                week_ago = today_date - timedelta(days=7)
+                filtered = filtered.filter(Q(created_at__date__gte=week_ago) | Q(inquiry_date__gte=week_ago))
+            elif filter_lead_date == 'this_month':
+                first_of_month = today_date.replace(day=1)
+                filtered = filtered.filter(Q(created_at__date__gte=first_of_month) | Q(inquiry_date__gte=first_of_month))
+        if filter_followup:
+            if filter_followup == 'today':
+                filtered = filtered.filter(next_followup_date=today_date)
+            elif filter_followup == 'overdue':
+                filtered = filtered.filter(next_followup_date__lt=today_date)
+            elif filter_followup == 'upcoming':
+                filtered = filtered.filter(next_followup_date__gt=today_date)
+            elif filter_followup == 'none':
+                filtered = filtered.filter(next_followup_date__isnull=True)
+        if filter_last_contact:
+            if filter_last_contact == 'today':
+                filtered = filtered.filter(followups__created_at__range=(start_of_today, end_of_today)).distinct()
+            elif filter_last_contact == 'yesterday':
+                yest = today_date - timedelta(days=1)
+                yest_start = timezone.make_aware(datetime.combine(yest, datetime.min.time()))
+                yest_end = timezone.make_aware(datetime.combine(yest, datetime.max.time()))
+                filtered = filtered.filter(followups__created_at__range=(yest_start, yest_end)).distinct()
+            elif filter_last_contact == 'never':
+                filtered = filtered.filter(followups__isnull=True)
+        return filtered
+
+    # 1.5 My All Leads (Main Tab: All leads assigned to current user, filtered & paginated strictly 20/page)
+    my_all_leads_base = leads_qs.filter(assigned_to=user).select_related(
+        'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
+    ).order_by('-created_at')
+    my_all_leads_qs = apply_advanced_lead_filters(my_all_leads_base)
+    my_all_leads_count = my_all_leads_base.count()
+
+    # =========================================================================
+    # TAB 8: OVERALL LEADS (Main Tab: All business leads active + lost + archived)
+    # Strictly 20 per page pagination with database filters
+    # =========================================================================
+    overall_leads_base = Lead.objects.all()
+    if business_id:
+        overall_leads_base = overall_leads_base.filter(hospital_id=business_id)
+    else:
+        overall_leads_base = overall_leads_base.none()
+    overall_leads_base = overall_leads_base.select_related(
+        'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
+    ).order_by('-created_at')
+    overall_leads_qs = apply_advanced_lead_filters(overall_leads_base)
+    overall_leads_count = overall_leads_base.count()
+
+    # Filter Counselors for dropdown
+    counselors_qs = User.objects.filter(is_active=True)
+    if business_id:
+        counselors_qs = counselors_qs.filter(hospital_id=business_id)
+
     # =========================================================================
     # TAB 1: MY LEADS (Fresh, Uncontacted, Walk-in, Today's Inquiry)
     # =========================================================================
@@ -351,6 +462,28 @@ def academy_counselor_home(request):
         lost_leads_list.append(l)
     lost_leads_count = lost_qs.count()
 
+    # 1.5 My All Leads (All leads assigned to current user, filtered & paginated strictly 20/page)
+    my_all_leads_base = leads_qs.filter(assigned_to=user).select_related(
+        'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
+    ).order_by('-created_at')
+    my_all_leads_qs = apply_advanced_lead_filters(my_all_leads_base)
+    my_all_leads_count = my_all_leads_base.count()
+
+    # =========================================================================
+    # TAB 7: OVERALL LEADS (All business leads: active + lost + archived)
+    # Strictly 20 per page pagination with database filters
+    # =========================================================================
+    overall_leads_base = Lead.objects.all()
+    if business_id:
+        overall_leads_base = overall_leads_base.filter(hospital_id=business_id)
+    else:
+        overall_leads_base = overall_leads_base.none()
+    overall_leads_base = overall_leads_base.select_related(
+        'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
+    ).order_by('-created_at')
+    overall_leads_qs = apply_advanced_lead_filters(overall_leads_base)
+    overall_leads_count = overall_leads_base.count()
+
     # Pagination Helper (20 leads per page as requested)
     def paginate_dataset(dataset, page_num, per_page=20):
         if hasattr(dataset, 'count'):
@@ -367,6 +500,8 @@ def academy_counselor_home(request):
     p_uncontacted = paginate_dataset(uncontacted_leads_qs, req_page if (cur_tab == 'myleads' and cur_subtab == 'uncontacted') else 1)
     p_walkin = paginate_dataset(walkin_leads_qs, req_page if (cur_tab == 'myleads' and cur_subtab == 'walkin') else 1)
     p_todays_inquiry = paginate_dataset(todays_inquiry_qs, req_page if (cur_tab == 'myleads' and cur_subtab == 'todays_inquiry') else 1)
+    p_my_all = paginate_dataset(my_all_leads_qs, req_page if (cur_tab in ('my_all_leads', 'my_all')) else 1)
+    p_overall = paginate_dataset(overall_leads_qs, req_page if (cur_tab == 'overall') else 1)
 
     p_todays_fu = paginate_dataset(todays_fu_list, req_page if (cur_tab == 'followups' and cur_subtab in ('today_fu', '')) else 1)
     p_overdue_fu = paginate_dataset(overdue_fu_list, req_page if (cur_tab == 'followups' and cur_subtab == 'overdue_fu') else 1)
@@ -461,6 +596,37 @@ def academy_counselor_home(request):
         # Tab 6: Lost
         'lost_leads_count': lost_leads_count,
         'p_lost': p_lost,
+
+        # New Tab: My All Leads
+        'my_all_leads_count': my_all_leads_count,
+        'p_my_all': p_my_all,
+
+        # New Tab: Overall Leads
+        'overall_leads_count': overall_leads_count,
+        'p_overall': p_overall,
+
+        # Filter Dropdown Options (CRM Database Values)
+        'filter_courses': Course.objects.filter(is_active=True, hospital_id=business_id) if business_id else Course.objects.filter(is_active=True),
+        'filter_sources': LeadSource.objects.filter(is_active=True),
+        'filter_counselors': counselors_qs,
+        'filter_stages': LeadStage.objects.filter(is_active=True, hospital_id=business_id).order_by('order', 'name') if business_id else LeadStage.objects.filter(is_active=True).order_by('order', 'name'),
+        'filter_intents': [
+            ('HIGHLY_INTERESTED', 'Highly Interested'),
+            ('MODERATE_INTERESTED', 'Moderate Interested'),
+            ('NORMAL_INTERESTED', 'Normal Interested'),
+            ('BELOW_AVERAGE', 'Below Average'),
+            ('NOT_INTERESTED', 'Not Interested'),
+        ],
+        'request_get': request.GET,
+        'filter_q': filter_q,
+        'filter_status': filter_status,
+        'filter_assigned': filter_assigned,
+        'filter_source': filter_source,
+        'filter_course': filter_course,
+        'filter_intent': filter_intent,
+        'filter_lead_date': filter_lead_date,
+        'filter_followup': filter_followup,
+        'filter_last_contact': filter_last_contact,
     }
 
     return render(request, "academy/dashboard/counselor_home.html", context)

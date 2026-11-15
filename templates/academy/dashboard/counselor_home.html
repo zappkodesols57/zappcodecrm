@@ -200,6 +200,50 @@
     transition: all 0.15s ease;
   }
 
+  /* Ensure uniform subtle border styling across all action buttons */
+  .action-btn-icon.btn-outline-primary {
+    border-color: #cbd5e1 !important;
+    color: #1e293b !important;
+    background-color: #ffffff;
+  }
+  .action-btn-icon.btn-outline-primary:hover {
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+    background-color: #eff6ff !important;
+  }
+  .action-btn-icon.btn-outline-success {
+    border-color: #86efac !important;
+    color: #16a34a !important;
+    background-color: #ffffff;
+  }
+  .action-btn-icon.btn-outline-success:hover {
+    border-color: #22c55e !important;
+    color: #ffffff !important;
+    background-color: #22c55e !important;
+  }
+  .action-btn-icon.btn-outline-secondary {
+    border-color: #cbd5e1 !important;
+    color: #475569 !important;
+    background-color: #ffffff;
+  }
+  .action-btn-icon.btn-outline-secondary:hover {
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+    background-color: #eff6ff !important;
+  }
+  .action-btn-icon.btn-outline-dark,
+  .action-btn-icon.btn-view-lead {
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+    background-color: #ffffff;
+  }
+  .action-btn-icon.btn-outline-dark:hover,
+  .action-btn-icon.btn-view-lead:hover {
+    border-color: #0f172a !important;
+    color: #ffffff !important;
+    background-color: #0f172a !important;
+  }
+
   /* Sleek Quick Action Bar (Bottom Floating) */
   .counselor-action-microbar {
     position: fixed;
@@ -321,7 +365,7 @@
     </div>
   </div>
 
-  <!-- PRIMARY 6 CONNECTED TABS -->
+  <!-- PRIMARY 8 CONNECTED MAIN TABS -->
   <div class="d-flex flex-wrap align-items-center">
     <ul class="nav academy-tabs-nav" id="academyMainTabs">
       <li class="nav-item">
@@ -352,6 +396,16 @@
       <li class="nav-item">
         <a class="nav-link {% if cur_tab == 'lost' %}active{% endif %}" href="?tab=lost">
           Lost Leads <span class="badge">{{ lost_leads_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'my_all_leads' or cur_tab == 'my_all' %}active{% endif %}" href="?tab=my_all_leads">
+          My All Leads <span class="badge">{{ my_all_leads_count }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if cur_tab == 'overall' %}active{% endif %}" href="?tab=overall">
+          Overall Leads <span class="badge">{{ overall_leads_count }}</span>
         </a>
       </li>
     </ul>
@@ -465,6 +519,14 @@
           {% include "academy/dashboard/partials/pagination.html" with page_obj=p_fresh total_count=fresh_leads_count %}
         {% endif %}
       </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- MAIN TAB 2: MY ALL LEADS (All leads assigned to user)             -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'my_all_leads' or cur_tab == 'my_all' %}
+      {% include "academy/dashboard/partials/lead_table_filter_bar.html" with filter_prefix="myall" page_obj=p_my_all total_count=my_all_leads_count %}
+      {% include "academy/dashboard/partials/lead_table_full.html" with page_obj=p_my_all total_count=my_all_leads_count cur_tab=cur_tab cur_subtab=cur_subtab %}
     {% endif %}
 
     <!-- ================================================================= -->
@@ -811,10 +873,10 @@
                       <a href="https://wa.me/91{{ l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
                         <i class="fa-brands fa-whatsapp"></i>
                       </a>
-                      <a href="{% url 'leads:lead_edit' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit in new tab">
+                      <a href="{% url 'leads:lead_edit' l.pk %}" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit Lead">
                         <i class="fa-solid fa-pen-to-square"></i>
                       </a>
-                      <a href="{% url 'leads:lead_detail' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-dark action-btn-icon" title="View in new tab">
+                      <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-dark action-btn-icon" title="View Lead">
                         <i class="fa-solid fa-eye"></i>
                       </a>
                     </div>
@@ -830,6 +892,14 @@
         <!-- Pagination for Lost Leads Tab -->
         {% include "academy/dashboard/partials/pagination.html" with page_obj=p_lost total_count=lost_leads_count %}
       </div>
+    {% endif %}
+
+    <!-- ================================================================= -->
+    <!-- TAB 7: OVERALL LEADS (Active + Lost + Archived)                   -->
+    <!-- ================================================================= -->
+    {% if cur_tab == 'overall' %}
+      {% include "academy/dashboard/partials/lead_table_filter_bar.html" with filter_prefix="overall" page_obj=p_overall total_count=overall_leads_count %}
+      {% include "academy/dashboard/partials/lead_table_full.html" with page_obj=p_overall total_count=overall_leads_count cur_tab=cur_tab cur_subtab=cur_subtab %}
     {% endif %}
 
   </div>
@@ -862,7 +932,7 @@
     <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
       WhatsApp
     </a>
-    <a id="mbViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #475569; color: #ffffff;">
+    <a id="mbViewBtn" href="#" class="mb-btn" style="background: #475569; color: #ffffff;">
       Full Profile
     </a>
     <button type="button" class="btn btn-sm text-white ms-1 p-0" onclick="dismissCounselorMicrobar()" style="line-height: 1; opacity: 0.75;" title="Dismiss bar">
@@ -1371,6 +1441,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   };
+
+  // Auto-Save active tab / query state to sessionStorage for seamless back navigation
+  (function() {
+    try {
+      const currentQuery = window.location.search;
+      if (currentQuery) {
+        sessionStorage.setItem('counselor_dashboard_active_url', window.location.href);
+      }
+    } catch(e) {}
+  })();
 });
 </script>
 {% endblock %}

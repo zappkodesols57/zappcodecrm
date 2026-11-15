@@ -150,6 +150,18 @@
               &nbsp;·&nbsp;
               <i class="fa-solid fa-clock text-success me-1"></i> {{ current_time_display }}
             </span>
+            {% if appointment.is_rescheduled %}
+              <div class="mt-1 d-flex align-items-center gap-2">
+                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle fw-semibold" style="font-size: 0.75rem;">
+                  <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i> Rescheduled Slot
+                </span>
+                {% if appointment.rescheduled_from_date %}
+                  <span class="small text-muted" style="font-size: 0.78rem;">
+                    Previous Slot: <span class="text-decoration-line-through text-muted fw-semibold">{{ appointment.rescheduled_from_date|date:"d M Y" }}{% if appointment.rescheduled_from_time %} ({{ appointment.rescheduled_from_time|time:"h:i A" }}){% endif %}</span>
+                  </span>
+                {% endif %}
+              </div>
+            {% endif %}
           </div>
           {% if appointment.status != 'COMPLETED' %}
           <div>
@@ -200,6 +212,15 @@
               <label class="form-label small fw-bold text-dark">Doctor's Reschedule Remark for Telecaller / Patient</label>
               <input type="text" name="doctor_remark" id="inputDoctorRemark" class="form-control" placeholder="e.g. Rescheduled to evening OPD due to morning surgery.">
               <small class="text-muted" style="font-size: 0.72rem;">Telecaller will be notified to confirm this new slot with the patient.</small>
+            </div>
+
+            <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top">
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="cancelSlotEditMode()">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 fw-bold shadow-sm" style="background: #0f2744; border-color: #0f2744;">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Save &amp; Reschedule Slot
+              </button>
             </div>
           </div>
         </div>
@@ -296,6 +317,9 @@
 
         <!-- If APPROVED / CONFIRMED: Show Mark Done (Complete Consultation & Schedule Next Follow-up) -->
         {% elif appointment.status == 'APPROVED' or appointment.status == 'SCHEDULED' %}
+          <button type="submit" id="btnConfirmSubmit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" style="display: none;">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> Save &amp; Reschedule Slot
+          </button>
           <button type="button" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#markDoneModal">
             <i class="fa-solid fa-circle-check me-1"></i> Mark Consultation Done
           </button>
@@ -505,6 +529,8 @@
     handleSlotInputChange();
   }
 
+  const currentAptStatus = "{{ appointment.status }}";
+
   function handleSlotInputChange() {
     const curDate = document.getElementById('inputNewDate').value;
     const curTime = document.getElementById('inputNewTime').value;
@@ -517,10 +543,24 @@
       slotModInput.value = "1";
       btnSubmit.className = "btn btn-primary rounded-pill px-4 fw-bold shadow-sm";
       btnSubmit.innerHTML = '<i class="fa-solid fa-clock-rotate-left me-1"></i> Confirm Slot Change';
+      if (btnSubmit) {
+        btnSubmit.style.display = "inline-flex";
+        btnSubmit.className = "btn btn-primary rounded-pill px-4 fw-bold shadow-sm";
+        btnSubmit.innerHTML = '<i class="fa-solid fa-clock-rotate-left me-1"></i> Save &amp; Reschedule Slot';
+      }
     } else {
       slotModInput.value = "0";
       btnSubmit.className = "btn btn-success rounded-pill px-4 fw-bold shadow-sm";
       btnSubmit.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Confirm Appointment';
+      if (btnSubmit) {
+        if (currentAptStatus === 'APPROVED' || currentAptStatus === 'SCHEDULED') {
+          btnSubmit.style.display = "none";
+        } else {
+          btnSubmit.style.display = "inline-flex";
+          btnSubmit.className = "btn btn-success rounded-pill px-4 fw-bold shadow-sm";
+          btnSubmit.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Confirm Appointment';
+        }
+      }
     }
   }
 

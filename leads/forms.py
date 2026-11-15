@@ -67,7 +67,7 @@ class LeadForm(forms.ModelForm):
         self.current_user = user
         super().__init__(*args, **kwargs)
         if "intent_level" in self.fields:
-            self.fields["intent_level"].widget.attrs.update({"class": "form-select"})
+            self.fields["intent_level"].widget.attrs.update({"class": "form-select no-tom-select"})
             self.fields["intent_level"].label = "Lead Intent Level"
         
         if user and user.role == User.Role.LEAD_ATTENDENT:
@@ -838,7 +838,7 @@ class HospitalLeadForm(forms.ModelForm):
         # Lead Attendants are locked to their own user account.
         user_biz = getattr(user, "business", None) if user else None
         if "intent_level" in self.fields:
-            self.fields["intent_level"].widget.attrs.update({"class": "form-select"})
+            self.fields["intent_level"].widget.attrs.update({"class": "form-select no-tom-select"})
             self.fields["intent_level"].label = "Lead Intent Level"
         if "assigned_to" in self.fields:
             self.fields["assigned_to"].label = "Assign To / Lead Owner"
@@ -1451,6 +1451,7 @@ class HospitalLeadForm(forms.ModelForm):
             
         # Extract custom fields
         custom_fields = ['location', 'gender', 'age', 'department', 'doctor', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'payment_remarks', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments']
+        custom_fields = ['location', 'gender', 'age', 'department', 'doctor', 'hospital_branch', 'disease', 'appointment_status', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'investigation', 'total', 'payment_remarks', 'remark_1', 'remark_2', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'cancellation_reason']
         date_time_fields = ['appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'visit_date', 'calling_date_remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'calling_date_remark_3']
         
         # Save comments into instance.notes as well
@@ -1466,6 +1467,16 @@ class HospitalLeadForm(forms.ModelForm):
                 cd[field] = str(val) if isinstance(val, (int, float)) or hasattr(val, 'quantize') else val
             else:
                 cd.pop(field, None)
+
+        # Explicitly ensure hospital_branch and disease are saved to custom_data (supporting synonyms)
+        dis_val = self.cleaned_data.get('disease') or self.cleaned_data.get('dyn_disease') or self.data.get('disease') or self.data.get('dyn_disease')
+        if dis_val and str(dis_val).strip():
+            cd['disease'] = str(dis_val).strip()
+
+        branch_val = self.cleaned_data.get('hospital_branch') or self.cleaned_data.get('dyn_hospital_branch') or self.cleaned_data.get('dyn_branch') or self.data.get('hospital_branch') or self.data.get('dyn_hospital_branch') or self.data.get('dyn_branch')
+        if branch_val and str(branch_val).strip():
+            cd['hospital_branch'] = str(branch_val).strip()
+            cd['branch'] = str(branch_val).strip()
 
         # Sync payment_remarks with remark_1
         pay_rem = self.cleaned_data.get('payment_remarks') or self.cleaned_data.get('remark_1') or ''
