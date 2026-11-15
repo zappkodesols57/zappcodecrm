@@ -2562,10 +2562,10 @@
                 const tVal = tInp.value.trim();
                 let timeTotalMins = null;
                 const match12 = tVal.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-                if (match12) {
+                if (match12 && match12[3]) {
                   let h = parseInt(match12[1], 10);
                   let m = parseInt(match12[2], 10);
-                  const p = (match12[3] || 'AM').toUpperCase();
+                  const p = match12[3].toUpperCase();
                   if (p === 'PM' && h < 12) h += 12;
                   if (p === 'AM' && h === 12) h = 0;
                   timeTotalMins = h * 60 + m;
@@ -2579,7 +2579,16 @@
                 if (timeTotalMins !== null && timeTotalMins <= curTotalMins) {
                   e.preventDefault();
                   e.stopPropagation();
-                  alert(`For today's schedule, time (${tVal}) must be greater than current time (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}).`);
+                  let displayVal = tVal;
+                  if (match12 && match12[3]) {
+                    displayVal = `${match12[1].padStart(2, '0')}:${match12[2]} ${match12[3].toUpperCase()}`;
+                  } else if (match12) {
+                    let h24 = parseInt(match12[1], 10);
+                    let ampm = h24 >= 12 ? 'PM' : 'AM';
+                    let h12 = h24 % 12 || 12;
+                    displayVal = `${String(h12).padStart(2, '0')}:${match12[2]} ${ampm}`;
+                  }
+                  alert(`For today's schedule, time (${displayVal}) must be greater than current time (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}).`);
                   tInp.focus();
                   return false;
                 }
