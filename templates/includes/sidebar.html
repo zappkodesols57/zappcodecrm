@@ -37,16 +37,28 @@
 
     <!-- 2. Leads (All Leads, Pending Leads, Won Leads, Lost Leads, Archive Leads) -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' and request.GET.deal_status != 'WON' and request.GET.deal_status != 'PAYMENT DONE' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all all_business_leads my_leads pending_leads won_leads payments lost_leads archived_leads leads_dup' and request.GET.deal_status != 'WON' and request.GET.deal_status != 'PAYMENT DONE' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_super_leads"
-        aria-expanded="{% if active in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active in 'leads_all all_business_leads my_leads pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}true{% else %}false{% endif %}"
         title="Lead Management">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all all_business_leads my_leads pending_leads won_leads payments lost_leads archived_leads leads_dup' or request.GET.deal_status == 'WON' or request.GET.deal_status == 'PAYMENT DONE' %}show{% endif %} nav-sub-items"
         id="sec_super_leads">
-        <!-- All Leads -->
+        <!-- All Business Leads (All including lost & archived) -->
+        <a class="nav-link {% if active == 'all_business_leads' %}active{% endif %}"
+          href="{% url 'leads:all_business_leads' %}" title="All Business Leads">
+          <i class="fa-solid fa-boxes-stacked"></i> <span class="nav-text">All Business Leads</span>
+        </a>
+
+        <!-- My Leads (Assigned to User) -->
+        <a class="nav-link {% if active == 'my_leads' %}active{% endif %}"
+          href="{% url 'leads:my_leads' %}" title="My Assigned Leads">
+          <i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span>
+        </a>
+
+        <!-- Active Leads -->
         <a class="nav-link {% if active == 'leads_all' and request.GET.deal_status != 'WON' and request.GET.deal_status != 'PAYMENT DONE' %}active{% endif %}"
           href="{% url 'leads:lead_list' %}" title="All Leads">
           <i class="fa-solid fa-list"></i> <span class="nav-text">All Leads</span>
@@ -190,16 +202,28 @@
 
     <!-- 2. Lead Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all appointments payments pending_leads lost_leads archived_leads' and request.GET.deal_status != 'PAYMENT DONE' and request.GET.view != 'pending' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all all_business_leads my_leads appointments payments pending_leads lost_leads archived_leads' and request.GET.deal_status != 'PAYMENT DONE' and request.GET.view != 'pending' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_hosp_leads"
-        aria-expanded="{% if active in 'leads_all appointments payments pending_leads lost_leads archived_leads' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.view == 'pending' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active in 'leads_all all_business_leads my_leads appointments payments pending_leads lost_leads archived_leads' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.view == 'pending' %}true{% else %}false{% endif %}"
         title="Lead Management">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all appointments payments pending_leads lost_leads archived_leads' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.view == 'pending' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all all_business_leads my_leads appointments payments pending_leads lost_leads archived_leads' or request.GET.deal_status == 'PAYMENT DONE' or request.GET.view == 'pending' %}show{% endif %} nav-sub-items"
         id="sec_hosp_leads">
-        <!-- Subtab 1: All Leads -->
+        <!-- Subtab 0: All Business Leads (Unified all active + lost + archived) -->
+        <a class="nav-link {% if active == 'all_business_leads' %}active{% endif %}"
+          href="{% url 'leads:all_business_leads' %}" title="All Business Leads">
+          <i class="fa-solid fa-boxes-stacked"></i> <span class="nav-text">All Business Leads</span>
+        </a>
+
+        <!-- Subtab 0.5: My Assigned Leads -->
+        <a class="nav-link {% if active == 'my_leads' %}active{% endif %}"
+          href="{% url 'leads:my_leads' %}" title="My Assigned Leads">
+          <i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span>
+        </a>
+
+        <!-- Subtab 1: All Active Leads -->
         <a class="nav-link {% if active == 'leads_all' and not request.GET.deal_status and not request.GET.view %}active{% endif %}"
           href="{% url 'leads:lead_list' %}" title="All Leads">
           <i class="fa-solid fa-list"></i> <span class="nav-text">All Leads</span>
@@ -342,17 +366,21 @@
 
     <!-- 2. Lead Management -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if active not in 'leads_all import export archived_leads leads_dup my_leads lost_leads' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if active not in 'leads_all all_business_leads my_leads import export archived_leads leads_dup lost_leads' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_acad_leads"
-        aria-expanded="{% if active in 'leads_all import export archived_leads leads_dup my_leads lost_leads' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active in 'leads_all all_business_leads my_leads import export archived_leads leads_dup lost_leads' %}true{% else %}false{% endif %}"
         title="Lead Management">
         <span><i class="fa-solid fa-user-group section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if active in 'leads_all import export archived_leads leads_dup my_leads lost_leads' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if active in 'leads_all all_business_leads my_leads import export archived_leads leads_dup lost_leads' %}show{% endif %} nav-sub-items"
         id="sec_acad_leads">
+        <a class="nav-link {% if active == 'all_business_leads' %}active{% endif %}" href="{% url 'leads:all_business_leads' %}"
+          title="All Business Leads"><i class="fa-solid fa-boxes-stacked"></i> <span class="nav-text">All Business Leads</span></a>
+        <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
+          title="My Assigned Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
         <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
-          title="All Leads"><i class="fa-regular fa-folder-open"></i> <span class="nav-text">All Leads</span></a>
+          title="Active Leads"><i class="fa-regular fa-folder-open"></i> <span class="nav-text">All Leads</span></a>
         <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
           title="Lost Leads"><i class="fa-regular fa-circle-xmark"></i> <span class="nav-text">Lost Leads</span></a>
         <a class="nav-link {% if active == 'archived_leads' %}active{% endif %}" href="{% url 'leads:archived_leads' %}"
@@ -550,27 +578,28 @@
     <!-- 2. Section: Lead Management -->
     <div class="nav-section-group">
       <button
-        class="nav-section-btn {% if active not in 'leads_all my_leads lost_leads team_history leads_add leads_dup' and request.GET.tab not in 'myleads lost' %}collapsed{% endif %}"
+        class="nav-section-btn {% if active not in 'leads_all all_business_leads my_leads lost_leads team_history leads_add leads_dup' and request.GET.tab not in 'myleads lost' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_emp_leads"
-        aria-expanded="{% if active in 'leads_all my_leads lost_leads team_history leads_add leads_dup' or request.GET.tab in 'myleads lost' %}true{% else %}false{% endif %}">
+        aria-expanded="{% if active in 'leads_all all_business_leads my_leads lost_leads team_history leads_add leads_dup' or request.GET.tab in 'myleads lost' %}true{% else %}false{% endif %}">
         <span><i class="fa-solid fa-users section-icon"></i><span class="section-title">Lead Management</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
       <div
-        class="collapse {% if active in 'leads_all my_leads lost_leads team_history leads_add leads_dup' or request.GET.tab in 'myleads lost' %}show{% endif %} nav-sub-items"
+        class="collapse {% if active in 'leads_all all_business_leads my_leads lost_leads team_history leads_add leads_dup' or request.GET.tab in 'myleads lost' %}show{% endif %} nav-sub-items"
         id="sec_emp_leads">
-        <a class="nav-link {% if active == 'leads_all' %}active{% endif %}" href="{% url 'leads:lead_list' %}"
-          title="All Leads"><i class="fa-solid fa-users"></i> <span class="nav-text">All Leads</span></a>
-        
         {% if user.role == 'LEAD_ATTENDENT' or user.industry == 'HOSPITAL' %}
-          <a class="nav-link {% if active == 'my_leads' or request.GET.tab == 'myleads' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=myleads&subtab=assigned"
-            title="My Leads (Assigned)"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
+          <a class="nav-link {% if active == 'my_leads' or request.GET.tab == 'myleads' and request.GET.subtab == 'my_all' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=myleads&subtab=my_all"
+            title="My All Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My All Leads</span></a>
+          <a class="nav-link {% if active == 'leads_all' or request.GET.tab == 'overall' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=overall"
+            title="Overall Leads"><i class="fa-solid fa-list-ul"></i> <span class="nav-text">Overall Leads</span></a>
           <a class="nav-link {% if active == 'lost_leads' or request.GET.tab == 'lost' %}active{% endif %}" href="{% url 'dashboard:telecaller_home' %}?tab=lost"
             title="Lost Leads"><i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span></a>
         {% else %}
-          <a class="nav-link {% if active == 'my_leads' %}active{% endif %}" href="{% url 'leads:my_leads' %}"
-            title="My Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My Leads</span></a>
-          <a class="nav-link {% if active == 'lost_leads' %}active{% endif %}" href="{% url 'leads:lost_leads' %}"
+          <a class="nav-link {% if active == 'my_leads' or request.GET.tab == 'myleads' and request.GET.subtab == 'my_all' %}active{% endif %}" href="{% url 'dashboard:academy_counselor_home' %}?tab=myleads&subtab=my_all"
+            title="My All Leads"><i class="fa-solid fa-user-check"></i> <span class="nav-text">My All Leads</span></a>
+          <a class="nav-link {% if active == 'leads_all' or request.GET.tab == 'overall' %}active{% endif %}" href="{% url 'dashboard:academy_counselor_home' %}?tab=overall"
+            title="Overall Leads"><i class="fa-solid fa-list-ul"></i> <span class="nav-text">Overall Leads</span></a>
+          <a class="nav-link {% if active == 'lost_leads' or request.GET.tab == 'lost' %}active{% endif %}" href="{% url 'dashboard:academy_counselor_home' %}?tab=lost"
             title="Lost Leads"><i class="fa-solid fa-user-xmark"></i> <span class="nav-text">Lost Leads</span></a>
         {% endif %}
 

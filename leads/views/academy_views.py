@@ -1169,8 +1169,26 @@ def handle_academy_lead_save(request, saved_lead, cd):
                 pass
 
     # 6. Follow up
-    elif "follow" in stage_name:
+    elif "follow" in stage_name or custom_fup:
         saved_lead.deal_status = DealStatus.OPEN
+        saved_lead.admission_status = AdmissionStatus.OPEN
+        if not saved_lead.stage or "lost" in (saved_lead.stage.name or "").lower() or "cancel" in (saved_lead.stage.name or "").lower():
+            fu_stg = (
+                LeadStage.objects.filter(name__iexact="Follow up", is_active=True).first()
+                or LeadStage.objects.filter(name__iexact="Follow-up", is_active=True).first()
+            )
+            if fu_stg:
+                saved_lead.stage = fu_stg
+
+        # Clean any leftover lost/cancellation flags from custom_data
+        cd.pop("cancellation_reason", None)
+        cd.pop("lost_reason", None)
+        cd.pop("deal_status", None)
+
+        # Assign to current user if previously unassigned or reviving from lost
+        if not saved_lead.assigned_to:
+            saved_lead.assigned_to = request.user
+
         if custom_fup:
             try:
                 saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()

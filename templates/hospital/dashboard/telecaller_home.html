@@ -639,6 +639,16 @@
                         Lost <span class="badge ms-1.5">{{ lost_leads_count|default:0 }}</span>
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="myall-main-tab" data-bs-toggle="pill" data-bs-target="#myall-main-pane" type="button" role="tab" aria-controls="myall-main-pane" aria-selected="false">
+                        My All Leads <span class="badge ms-1.5">{{ tele_my_all_count|default:0 }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="overall-main-tab" data-bs-toggle="pill" data-bs-target="#overall-main-pane" type="button" role="tab" aria-controls="overall-main-pane" aria-selected="false">
+                        Overall Leads <span class="badge ms-1.5">{{ tele_overall_count|default:0 }}</span>
+                    </button>
+                </li>
             </ul>
         </div>
 
@@ -989,12 +999,27 @@
                             </div>
                             {% endif %}
                         </div>
-
                     </div>
                 </div>
 
                 <!-- ========================================== -->
-                <!-- MAIN TAB 2: FOLLOW-UPS                     -->
+                <!-- MAIN TAB 2: MY ALL LEADS                   -->
+                <!-- ========================================== -->
+                <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="myall-main-pane" role="tabpanel" aria-labelledby="myall-main-tab" tabindex="0">
+                    {% include "hospital/dashboard/partials/lead_table_filter_bar.html" with filter_prefix="h_myall" page_obj=tele_my_all_page total_count=tele_my_all_count cur_tab="my_all_leads" %}
+                    {% include "hospital/dashboard/partials/lead_table_full.html" with page_obj=tele_my_all_page total_count=tele_my_all_count cur_tab="my_all_leads" %}
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MAIN TAB 3: OVERALL LEADS                  -->
+                <!-- ========================================== -->
+                <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="overall-main-pane" role="tabpanel" aria-labelledby="overall-main-tab" tabindex="0">
+                    {% include "hospital/dashboard/partials/lead_table_filter_bar.html" with filter_prefix="h_overall" page_obj=tele_overall_page total_count=tele_overall_count cur_tab="overall" %}
+                    {% include "hospital/dashboard/partials/lead_table_full.html" with page_obj=tele_overall_page total_count=tele_overall_count cur_tab="overall" %}
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MAIN TAB 4: FOLLOW-UPS                     -->
                 <!-- ========================================== -->
                 <div class="tab-pane fade px-3 px-md-4 pt-2.5 pb-3" id="followups-main-pane" role="tabpanel" aria-labelledby="followups-main-tab" tabindex="0">
                     

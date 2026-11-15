@@ -153,7 +153,7 @@
   <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
     <!-- Left: Navigation (Back, Prev Lead, Next Lead) -->
     <div class="d-flex align-items-center gap-2">
-      <a href="{{ return_url }}" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
+      <a href="{{ return_url }}" onclick="if (window.history.length > 1 && !document.referrer.includes('/leads/{{ lead.pk }}/')) { window.history.back(); return false; }" class="btn btn-sm btn-outline-secondary px-3 rounded-pill fw-medium" style="font-size: 0.8rem;">
         &larr; Back
       </a>
       {% if prev_lead %}
@@ -765,8 +765,25 @@
                       {% else %}{{ item.get_activity_type_display }}
                       {% endif %}
                     </strong>
+                    {% if item.activity_type == 'NOTE' and item.is_editable and item.created_by == request.user %}
+                    <div class="note-edit-wrapper d-inline-flex align-items-center" id="note-edit-wrap-{{ item.pk }}" data-activity-id="{{ item.pk }}" data-remaining="{{ item.remaining_edit_seconds }}">
+                      <span class="custom-tooltip-wrap position-relative d-inline-flex align-items-center">
+                        <span class="badge rounded-pill bg-light text-primary border border-primary-subtle py-1 px-2 d-inline-flex align-items-center gap-1" style="cursor: pointer;">
+                          <i class="fa-solid fa-circle-info text-primary"></i>
+                          <span class="countdown-text font-monospace fw-bold" style="font-size: 0.7rem;">--:--</span>
+                        </span>
+                        <span class="custom-tooltip-box position-absolute bg-dark text-white rounded py-1 px-2 shadow" style="top: calc(100% + 6px); right: 0; white-space: nowrap; font-size: 0.72rem; z-index: 1050; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.15s ease-in-out;">
+                          Remark can be edited within 30 mins
+                          <span class="position-absolute" style="bottom: 100%; right: 18px; border-width: 5px; border-style: solid; border-color: transparent transparent #212529 transparent;"></span>
+                        </span>
+                      </span>
+                      <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 ms-1 rounded-pill edit-note-btn" style="font-size: 0.7rem; height: 22px;" onclick="openEditNoteModal('{{ item.pk }}', 'activity', this)">
+                        <i class="fa-solid fa-pen-to-square"></i> Edit
+                      </button>
+                    </div>
+                    {% endif %}
                   </div>
-                  <div class="text-secondary text-break mb-1" style="font-size: 0.78rem; line-height: 1.35; white-space: pre-wrap;">{{ item.description }}</div>
+                  <div class="text-secondary text-break mb-1 note-content-text" id="note-text-activity-{{ item.pk }}" style="font-size: 0.78rem; line-height: 1.35; white-space: pre-wrap;">{{ item.description }}</div>
                   <div class="timeline-author">
                     {% if item.created_by %}
                       <span class="timeline-author-badge">
@@ -1160,6 +1177,208 @@
         }
       });
     }
+  })();
+</script>
+
+<!-- Reusable Modal for Editing Remark / Note within 30 minutes -->
+<style>
+  .custom-tooltip-wrap:hover .custom-tooltip-box {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+</style>
+<div class="modal fade" id="editNoteModal" tabindex="-1" aria-labelledby="editNoteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header py-2 bg-light border-bottom">
+        <h6 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="editNoteModalLabel" style="font-size: 0.95rem;">
+          <i class="fa-solid fa-pen-to-square text-primary"></i> Edit Remark / Note
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editNoteForm" onsubmit="submitEditNote(event)">
+        {% csrf_token %}
+        <div class="modal-body py-3">
+          <input type="hidden" id="editNoteTargetId" name="target_id" value="">
+          <input type="hidden" id="editNoteTargetType" name="target_type" value="activity">
+          <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center gap-2" style="font-size: 0.78rem;">
+            <i class="fa-solid fa-clock-rotate-left text-info fs-6"></i>
+            <div>
+              <strong>Time Remaining:</strong> <span id="modalCountdownBadge" class="badge bg-primary font-monospace ms-1">--:--</span>
+              <div class="text-muted" style="font-size: 0.72rem;">Notes can only be edited within 30 minutes of creation.</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="editNoteTextarea" class="form-label fw-semibold text-secondary" style="font-size: 0.8rem;">Remark / Note Content <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="editNoteTextarea" name="note" rows="4" required style="font-size: 0.85rem;" placeholder="Update remark..."></textarea>
+          </div>
+          <div id="editNoteErrorAlert" class="alert alert-danger py-2 small d-none"></div>
+        </div>
+        <div class="modal-footer py-2 bg-light border-top">
+          <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="saveEditNoteBtn" class="btn btn-sm btn-primary px-3 fw-semibold">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Countdown Timer & Edit Handler for Remarks
+  (function() {
+    function formatTime(totalSeconds) {
+      if (totalSeconds <= 0) return '00:00';
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function updateTimers() {
+      const wrappers = document.querySelectorAll('.note-edit-wrapper');
+      wrappers.forEach(wrap => {
+        let remaining = parseInt(wrap.getAttribute('data-remaining'), 10);
+        if (isNaN(remaining)) return;
+
+        if (remaining <= 0) {
+          wrap.remove(); // auto hide icon & edit button after 30 mins
+        } else {
+          remaining -= 1;
+          wrap.setAttribute('data-remaining', remaining);
+          const txtEl = wrap.querySelector('.countdown-text');
+          if (txtEl) {
+            txtEl.textContent = formatTime(remaining);
+          }
+        }
+      });
+
+      // Update modal countdown if open
+      const modal = document.getElementById('editNoteModal');
+      if (modal && modal.classList.contains('show')) {
+        const targetId = document.getElementById('editNoteTargetId').value;
+        const wrap = document.getElementById(`note-edit-wrap-${targetId}`);
+        const badge = document.getElementById('modalCountdownBadge');
+        if (wrap && badge) {
+          let rem = parseInt(wrap.getAttribute('data-remaining'), 10);
+          if (rem <= 0) {
+            badge.textContent = 'Expired';
+            badge.classList.remove('bg-primary');
+            badge.classList.add('bg-danger');
+            const saveBtn = document.getElementById('saveEditNoteBtn');
+            if (saveBtn) saveBtn.disabled = true;
+          } else {
+            badge.textContent = formatTime(rem);
+          }
+        }
+      }
+    }
+
+    setInterval(updateTimers, 1000);
+    document.addEventListener('DOMContentLoaded', updateTimers);
+    setTimeout(updateTimers, 100);
+
+    window.openEditNoteModal = function(targetId, targetType, triggerBtn) {
+      const wrap = document.getElementById(`note-edit-wrap-${targetId}`);
+      if (!wrap) return;
+
+      const remaining = parseInt(wrap.getAttribute('data-remaining'), 10);
+      if (remaining <= 0) {
+        alert('Edit window has expired (30 minutes passed).');
+        wrap.remove();
+        return;
+      }
+
+      const textEl = document.getElementById(`note-text-${targetType}-${targetId}`);
+      const initialText = textEl ? textEl.innerText.trim() : '';
+
+      document.getElementById('editNoteTargetId').value = targetId;
+      document.getElementById('editNoteTargetType').value = targetType;
+      document.getElementById('editNoteTextarea').value = initialText;
+      document.getElementById('editNoteErrorAlert').classList.add('d-none');
+      document.getElementById('modalCountdownBadge').textContent = formatTime(remaining);
+
+      const modalEl = document.getElementById('editNoteModal');
+      const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      bsModal.show();
+    };
+
+    window.submitEditNote = function(e) {
+      e.preventDefault();
+      const targetId = document.getElementById('editNoteTargetId').value;
+      const targetType = document.getElementById('editNoteTargetType').value;
+      const noteVal = document.getElementById('editNoteTextarea').value.trim();
+      const errorBox = document.getElementById('editNoteErrorAlert');
+      const saveBtn = document.getElementById('saveEditNoteBtn');
+
+      if (!noteVal) {
+        errorBox.textContent = 'Note cannot be empty.';
+        errorBox.classList.remove('d-none');
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+
+      const leadId = "{{ lead.pk }}";
+      let postUrl = "";
+      if (targetType === 'activity') {
+        postUrl = `/leads/${leadId}/activity/${targetId}/edit/`;
+      } else {
+        postUrl = `/leads/${leadId}/note/${targetId}/edit/`;
+      }
+
+      const formData = new FormData();
+      formData.append('note', noteVal);
+      const csrfToken = document.querySelector('#editNoteForm input[name="csrfmiddlewaretoken"]').value;
+
+      fetch(postUrl, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
+        },
+        body: formData
+      })
+      .then(res => res.json().then(data => ({ status: res.status, ok: res.ok, data })))
+      .then(res => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save Changes';
+
+        if (!res.ok || res.data.status !== 'success') {
+          errorBox.textContent = res.data.message || 'Error updating note.';
+          errorBox.classList.remove('d-none');
+          if (res.data.expired) {
+            const wrap = document.getElementById(`note-edit-wrap-${targetId}`);
+            if (wrap) wrap.remove();
+          }
+          return;
+        }
+
+        // Success: update UI
+        const textEl = document.getElementById(`note-text-${targetType}-${targetId}`);
+        if (textEl) textEl.textContent = res.data.note_text;
+
+        const modalEl = document.getElementById('editNoteModal');
+        const bsModal = bootstrap.Modal.getInstance(modalEl);
+        if (bsModal) bsModal.hide();
+
+        if (window.showAppNotification) {
+          window.showAppNotification('Remark updated successfully', 'success');
+        } else {
+          const alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3 shadow';
+          alertDiv.style.zIndex = '9999';
+          alertDiv.innerHTML = `<strong>Success!</strong> Note updated. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+          document.body.appendChild(alertDiv);
+          setTimeout(() => alertDiv.remove(), 3000);
+        }
+      })
+      .catch(err => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save Changes';
+        errorBox.textContent = 'Server communication error. Please try again.';
+        errorBox.classList.remove('d-none');
+      });
+    };
   })();
 </script>
 {% endblock %}

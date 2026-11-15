@@ -815,7 +815,8 @@ def lead_list(request):
             "active_filters_count": active_filters_count,
         })
 
-    paginator = Paginator(leads, 25)
+    # Pagination (Strictly 20 leads per page)
+    paginator = Paginator(leads, 20)
     page = paginator.get_page(request.GET.get("page"))
 
     # Optimized Prefetch: Fetch followups for only the 25 page items in a single query (resolving N+1 query loop)
@@ -1139,6 +1140,125 @@ def lead_list(request):
 
 
 @login_required
+def all_business_leads(request):
+    """
+    Shows all leads of the current user's business in one unified list,
+    including active, lost, and archived leads, with pagination strictly 20 leads per page.
+    Respects strict multi-tenant business isolation (business_id).
+    """
+    leads = Lead.objects.select_related(
+        "course", "stage", "lead_source", "source_category", "campaign", "assigned_to"
+    )
+
+    is_global_admin = request.user.is_superuser or (
+        request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
+    )
+
+    selected_hospital_id = (
+        request.GET.get("business", "").strip()
+        or request.GET.get("hospital", "").strip()
+        or str(request.session.get("active_business_id", "")).strip()
+    )
+
+    # Multi-tenant business isolation
+    if request.user.hospital:
+        leads = leads.filter(hospital=request.user.hospital)
+    elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        leads = leads.filter(hospital_id=int(selected_hospital_id))
+    elif not is_global_admin:
+        leads = leads.filter(hospital__isnull=True)
+
+    # Search keyword
+    q = request.GET.get("q", "").strip()
+    if q:
+        leads = leads.filter(
+            Q(lead_code__icontains=q) | Q(name__icontains=q) | Q(mobile__icontains=q)
+            | Q(email__icontains=q) | Q(city__icontains=q) | Q(course__name__icontains=q)
+            | Q(lead_source__name__icontains=q) | Q(campaign__name__icontains=q)
+        )
+
+    # Sort
+    sort_by = request.GET.get("sort", "-created_at")
+    leads = leads.order_by(sort_by)
+
+    # Pagination: strictly 20 per page
+    paginator = Paginator(leads, 20)
+    page_number = request.GET.get("page", 1)
+    page = paginator.get_page(page_number)
+
+    # Prefetch followups for page items
+    page_lead_ids = [l.id for l in page]
+    if page_lead_ids:
+        from collections import defaultdict
+        page_fus = FollowUp.objects.filter(lead_id__in=page_lead_ids).order_by("-followup_date", "-id")
+        fu_map = defaultdict(list)
+        for fu in page_fus:
+            fu_map[fu.lead_id].append(fu)
+        for lead_item in page:
+            fus = fu_map.get(lead_item.id, [])
+            lead_item.latest_followup_obj = fus[0] if fus else None
+    else:
+        for lead_item in page:
+            lead_item.latest_followup_obj = None
+
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+
+    target_hospital = request.user.hospital
+    if not target_hospital and is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
+        target_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
+
+    is_viewing_hospital = False
+    if target_hospital:
+        is_viewing_hospital = getattr(target_hospital, "is_hospital", False) or (
+            target_hospital.business_type == Hospital.BusinessType.HOSPITAL
+        )
+    elif request.user.role == User.Role.DOCTOR:
+        is_viewing_hospital = True
+
+    # Dropdowns scoped
+    if target_hospital:
+        courses_qs = Course.objects.filter(is_active=True, hospital=target_hospital).order_by("name")
+        stages_qs = LeadStage.objects.filter(is_active=True, hospital=target_hospital).order_by("order", "name")
+        if not stages_qs.exists():
+            stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+        employees_qs = User.objects.filter(
+            hospital=target_hospital, is_active=True, is_approved=True
+        ).order_by("first_name", "last_name", "username")
+    else:
+        courses_qs = Course.objects.filter(is_active=True).order_by("name")
+        stages_qs = LeadStage.objects.filter(is_active=True).order_by("order", "name")
+        employees_qs = User.objects.filter(is_active=True, is_approved=True).order_by("first_name", "last_name", "username")
+
+    context = {
+        "query_params": query_params.urlencode(),
+        "active": "all_business_leads",
+        "page_obj": page,
+        "total_count": paginator.count,
+        "q": q,
+        "courses": courses_qs,
+        "stages": stages_qs,
+        "employees": employees_qs,
+        "business": target_hospital,
+        "business_id": target_hospital.id if target_hospital else None,
+        "selected_hospital_id": selected_hospital_id,
+        "current_sort": sort_by,
+        "deal_status_choices": DealStatus.choices,
+        "admission_status_choices": AdmissionStatus.choices,
+        "request_get": request.GET,
+    }
+
+    if not selected_hospital_id and is_global_admin and not is_viewing_hospital:
+        template_name = "leads/lead_list.html"
+    elif is_viewing_hospital:
+        template_name = "hospital/leads/lead_list.html"
+    else:
+        template_name = "academy/leads/lead_list.html"
+
+    return render(request, template_name, context)
+
+
+@login_required
 def my_leads(request):
     """
     My Leads View for Zappcode Academy:
@@ -1339,8 +1459,8 @@ def my_leads(request):
         + (1 if q else 0)
     )
 
-    # Pagination
-    paginator = Paginator(leads, 25)
+    # Pagination (Strictly 20 leads per page)
+    paginator = Paginator(leads, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -3226,6 +3346,24 @@ def lead_edit(request, pk):
                 from .academy_views import handle_academy_lead_save
                 handle_academy_lead_save(request, saved_lead, cd)
             else:
+                # Hospital Lead Save: If Follow-up scheduled or Stage moved to Follow-up, revive from Lost
+                if "follow" in stage_name or custom_fup:
+                    saved_lead.deal_status = DealStatus.OPEN
+                    saved_lead.admission_status = AdmissionStatus.OPEN
+                    if not saved_lead.stage or "lost" in (saved_lead.stage.name or "").lower() or "cancel" in (saved_lead.stage.name or "").lower():
+                        fu_stg = (
+                            LeadStage.objects.filter(name__iexact="Follow up", is_active=True).first()
+                            or LeadStage.objects.filter(name__iexact="Follow-up", is_active=True).first()
+                        )
+                        if fu_stg:
+                            saved_lead.stage = fu_stg
+                    cd.pop("cancellation_reason", None)
+                    cd.pop("lost_reason", None)
+                    cd.pop("deal_status", None)
+                    cd.pop("appointment_status", None)
+                    if not saved_lead.assigned_to:
+                        saved_lead.assigned_to = request.user
+
                 if custom_fup:
                     from datetime import datetime
                     try:
@@ -3728,14 +3866,25 @@ def lead_detail(request, pk):
             except Exception:
                 return_to = ""
 
-    # Clean fallback return_url to lead_list
+    # Clean fallback return_url to lead_list or appropriate dashboard
     if return_to:
         return_url = return_to
     else:
         fallback_params = request.GET.copy()
         fallback_params.pop("return_to", None)
         qs_str = fallback_params.urlencode()
-        return_url = f"/leads/{'?' + qs_str if qs_str else ''}"
+        # Intelligent role-based fallback when no referer exists
+        if request.user.is_authenticated:
+            if request.user.role in (getattr(User.Role, 'COUNSELLOR', 'COUNSELLOR'), getattr(User.Role, 'COUNSELOR', 'COUNSELLOR')):
+                return_url = f"/dashboard/counselor/{'?' + qs_str if qs_str else ''}"
+            elif request.user.role in (getattr(User.Role, 'TELECALLER', 'TELECALLER'),):
+                return_url = f"/dashboard/telecaller/{'?' + qs_str if qs_str else ''}"
+            elif request.user.role in (getattr(User.Role, 'DOCTOR', 'DOCTOR'),):
+                return_url = f"/dashboard/doctor/{'?' + qs_str if qs_str else ''}"
+            else:
+                return_url = f"/leads/{'?' + qs_str if qs_str else ''}"
+        else:
+            return_url = f"/leads/{'?' + qs_str if qs_str else ''}"
 
     # --- Queue Navigation (Prev / Next Lead) ---
     # Retrieve the leads list scoped to all current request filters (or tenant defaults if no filter applied)
@@ -3847,13 +3996,17 @@ def lead_archive(request, pk):
 def add_note(request, pk):
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Lead not found."}, status=404)
         return redirect("leads:lead_list")
     if not _can_access_lead(request.user, lead):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "You do not have permission to access this lead."}, status=403)
         messages.error(request, "You do not have permission to access this lead.")
         return redirect("leads:lead_list")
     if request.method == "POST" and request.POST.get("note", "").strip():
         note_text = request.POST["note"].strip()
-        Note.objects.create(lead=lead, note=note_text, created_by=request.user)
+        new_note = Note.objects.create(lead=lead, note=note_text, created_by=request.user)
         if lead.assigned_to is None:
             lead.assigned_to = request.user
         if lead.is_academy_industry:
@@ -3877,8 +4030,188 @@ def add_note(request, pk):
             lead.custom_data = cd
 
         lead.save()
+
+        # Find the activity created for this note
+        act = Activity.objects.filter(lead=lead, activity_type=ActivityType.NOTE, created_by=request.user).order_by('-id').first()
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                "status": "success",
+                "message": "Note added successfully.",
+                "note_id": new_note.pk,
+                "activity_id": act.pk if act else None,
+                "note_text": new_note.note,
+                "created_at": new_note.created_at.strftime("%d %b %Y, %I:%M %p"),
+                "remaining_seconds": new_note.remaining_edit_seconds,
+                "is_editable": True,
+            })
+
         messages.success(request, "Note added.")
     return redirect("leads:lead_detail", pk=pk)
+
+
+@login_required
+def edit_note(request, pk, note_id):
+    """
+    Allow telecaller, counsellor or creator/admin to edit note within 30 minutes of creation.
+    After 30 minutes, edit is strictly locked and rejected.
+    """
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Lead not found."}, status=404)
+        return redirect("leads:lead_list")
+    if not _can_access_lead(request.user, lead):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Permission denied."}, status=403)
+        messages.error(request, "Permission denied.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    note_obj = get_object_or_404(Note, pk=note_id, lead=lead)
+
+    # Permission check: ONLY the author who created this note can edit it
+    is_author = (note_obj.created_by == request.user)
+    if not is_author:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "You can only edit your own remarks/notes."}, status=403)
+        messages.error(request, "You can only edit your own remarks/notes.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    # 30-Minute strict time window verification
+    if not note_obj.is_editable:
+        msg = "Edit window expired. Remarks/notes can only be edited within 30 minutes of creation."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": msg, "expired": True}, status=400)
+        messages.error(request, msg)
+        return redirect("leads:lead_detail", pk=pk)
+
+    if request.method == "POST":
+        new_text = request.POST.get("note", "").strip()
+        if not new_text:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({"status": "error", "message": "Note text cannot be empty."}, status=400)
+            messages.error(request, "Note text cannot be empty.")
+            return redirect("leads:lead_detail", pk=pk)
+
+        old_text = note_obj.note
+        note_obj.note = new_text
+        note_obj.save(update_fields=["note", "updated_at"])
+
+        # Also update corresponding Activity description if it matches old text
+        matching_acts = Activity.objects.filter(
+            lead=lead,
+            activity_type=ActivityType.NOTE,
+            created_by=note_obj.created_by,
+            description=old_text
+        )
+        for act in matching_acts:
+            act.description = new_text
+            act.save(update_fields=["description"])
+
+        # Recalculate dynamic temperature and sync priority with new remark
+        new_temp = lead.custom_temperature
+        if new_temp:
+            lead.temperature = new_temp.upper()
+            cd = lead.custom_data or {}
+            cd['priority'] = new_temp
+            lead.custom_data = cd
+            lead.save(update_fields=["temperature", "custom_data"])
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                "status": "success",
+                "message": "Note updated successfully.",
+                "note_id": note_obj.pk,
+                "note_text": note_obj.note,
+                "remaining_seconds": note_obj.remaining_edit_seconds,
+                "is_editable": note_obj.is_editable,
+            })
+
+        messages.success(request, "Note updated successfully.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    return JsonResponse({"status": "error", "message": "Method not allowed."}, status=405)
+
+
+@login_required
+def edit_activity_note(request, pk, act_id):
+    """
+    Allow editing of Activity of type NOTE directly within 30 minutes of creation.
+    Also syncs with any matching Note object.
+    """
+    lead = _get_lead_or_redirect(request, pk)
+    if not lead:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Lead not found."}, status=404)
+        return redirect("leads:lead_list")
+    if not _can_access_lead(request.user, lead):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "Permission denied."}, status=403)
+        messages.error(request, "Permission denied.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    act_obj = get_object_or_404(Activity, pk=act_id, lead=lead, activity_type=ActivityType.NOTE)
+
+    # Permission check: ONLY the author who created this activity note can edit it
+    is_author = (act_obj.created_by == request.user)
+    if not is_author:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": "You can only edit your own remarks/notes."}, status=403)
+        messages.error(request, "You can only edit your own remarks/notes.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    if not act_obj.is_editable:
+        msg = "Edit window expired. Remarks/notes can only be edited within 30 minutes of creation."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"status": "error", "message": msg, "expired": True}, status=400)
+        messages.error(request, msg)
+        return redirect("leads:lead_detail", pk=pk)
+
+    if request.method == "POST":
+        new_text = request.POST.get("note", "").strip()
+        if not new_text:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({"status": "error", "message": "Note text cannot be empty."}, status=400)
+            messages.error(request, "Note text cannot be empty.")
+            return redirect("leads:lead_detail", pk=pk)
+
+        old_text = act_obj.description
+        act_obj.description = new_text
+        act_obj.save(update_fields=["description"])
+
+        # Sync Note object if exists
+        matching_notes = Note.objects.filter(
+            lead=lead,
+            created_by=act_obj.created_by,
+            note=old_text
+        )
+        for n in matching_notes:
+            n.note = new_text
+            n.save(update_fields=["note", "updated_at"])
+
+        # Recalculate dynamic temperature and sync priority
+        new_temp = lead.custom_temperature
+        if new_temp:
+            lead.temperature = new_temp.upper()
+            cd = lead.custom_data or {}
+            cd['priority'] = new_temp
+            lead.custom_data = cd
+            lead.save(update_fields=["temperature", "custom_data"])
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                "status": "success",
+                "message": "Note updated successfully.",
+                "activity_id": act_obj.pk,
+                "note_text": act_obj.description,
+                "remaining_seconds": act_obj.remaining_edit_seconds,
+                "is_editable": act_obj.is_editable,
+            })
+
+        messages.success(request, "Note updated successfully.")
+        return redirect("leads:lead_detail", pk=pk)
+
+    return JsonResponse({"status": "error", "message": "Method not allowed."}, status=405)
 
 
 @login_required
@@ -3956,18 +4289,18 @@ def add_followup(request, pk):
         )
 
         target_lead = lead
-        was_cloned = False
+        was_revived_from_lost = False
 
-        if is_lost_or_cancelled or is_payment_done:
-            # Clone lead so the terminal count in Lost / Payment Done is never duplicated,
-            # while a fresh lead life cycle begins with this scheduled follow-up.
+        if is_lost_or_cancelled:
+            # OPTION 2: Re-open the same lead directly into a new active lifecycle (no cloning)
+            # Re-assign to current user, set deal_status=OPEN, admission_status=OPEN, stage=Follow up,
+            # clear cancellation/lost flags so it drops out of Lost tab and enters active Follow-up count.
             fu_stage = (
-                LeadStage.objects.filter(name__iexact='Follow up').first()
-                or LeadStage.objects.filter(name__iexact='Follow-up').first()
-                or LeadStage.objects.filter(name__iexact='New').first()
+                LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='Follow-up', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='New', is_active=True).first()
             )
 
-            # Deep clean custom_data so terminal status flags don't leak into cloned lead
             clean_custom_data = dict(lead.custom_data or {})
             clean_custom_data.pop('deal_status', None)
             clean_custom_data.pop('appointment_status', None)
@@ -3975,53 +4308,22 @@ def add_followup(request, pk):
             clean_custom_data.pop('lost_reason', None)
             clean_custom_data.pop('cancellation_reason', None)
 
-            cloned_lead = Lead.objects.create(
-                name=lead.name,
-                mobile=lead.mobile,
-                alternate_mobile=lead.alternate_mobile,
-                email=lead.email,
-                city=lead.city,
-                state=lead.state,
-                location=lead.location,
-                education=lead.education,
-                qualification=lead.qualification,
-                course=lead.course,
-                lead_type=lead.lead_type,
-                temperature=LeadTemperature.HOT if is_lost_or_cancelled else LeadTemperature.WARM,
-                stage=fu_stage or lead.stage,
-                deal_status=DealStatus.OPEN,
-                admission_status=AdmissionStatus.OPEN,
-                inquiry_date=today,
-                hospital=lead.hospital,
-                lead_source=lead.lead_source,
-                source_category=lead.source_category,
-                campaign=lead.campaign,
-                ad_platform=lead.ad_platform,
-                custom_data=clean_custom_data,
-                assigned_to=request.user,
-                assigned_manager=lead.assigned_manager,
-                parent_lead=lead,
-                notes=f"Re-engaged from previous lead #{lead.lead_code or lead.pk} ({'Lost' if is_lost_or_cancelled else 'Payment Done'}).",
-                created_by=request.user,
-            )
+            lead.custom_data = clean_custom_data
+            lead.deal_status = DealStatus.OPEN
+            lead.admission_status = AdmissionStatus.OPEN
+            if fu_stage:
+                lead.stage = fu_stage
+            lead.assigned_to = request.user
+            lead.temperature = LeadTemperature.HOT
+            lead.save()
 
-            # Log activity on both leads to preserve timeline
             Activity.objects.create(
                 lead=lead,
-                activity_type=ActivityType.NOTE,
-                description=f"Re-engaged! New lead cycle initiated with #{cloned_lead.lead_code or cloned_lead.pk} by {request.user.get_full_name() or request.user.username}.",
+                activity_type=ActivityType.STAGE_CHANGE,
+                description=f"Lead revived from Lost! Assigned to {request.user.get_full_name() or request.user.username} with fresh Follow-up cycle.",
                 created_by=request.user,
             )
-
-            Activity.objects.create(
-                lead=cloned_lead,
-                activity_type=ActivityType.LEAD_CREATED,
-                description=f"Cloned for re-engagement from original lead #{lead.lead_code or lead.pk} with linked timeline.",
-                created_by=request.user,
-            )
-
-            target_lead = cloned_lead
-            was_cloned = True
+            was_revived_from_lost = True
 
         FollowUp.objects.create(
             lead=target_lead,
@@ -4045,8 +4347,11 @@ def add_followup(request, pk):
 
         if target_lead.assigned_to is None:
             target_lead.assigned_to = request.user
-        if not target_lead.stage or target_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned']:
-            fu_stage = LeadStage.objects.filter(name__iexact='Follow up').first() or LeadStage.objects.filter(name__iexact='Follow-up').first()
+        if not target_lead.stage or target_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned', 'lost', 'cancelled']:
+            fu_stage = (
+                LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='Follow-up', is_active=True).first()
+            )
             if fu_stage:
                 target_lead.stage = fu_stage
 
@@ -4058,18 +4363,18 @@ def add_followup(request, pk):
             target_lead.temperature = new_temp
         target_lead.save()
 
-        success_msg = f"Follow-up scheduled successfully. (New Lead #{target_lead.lead_code} created for re-engagement)" if was_cloned else "Follow-up scheduled successfully."
+        success_msg = f"Lead #{target_lead.lead_code or target_lead.pk} revived from Lost and assigned to you with new follow-up." if was_revived_from_lost else "Follow-up scheduled successfully."
         messages.success(request, success_msg)
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({
                 "status": "success",
                 "message": success_msg,
                 "fu_date": str(fu_date),
-                "was_cloned": was_cloned,
-                "cloned_lead_id": target_lead.id,
-                "cloned_lead_code": target_lead.lead_code,
+                "was_revived": was_revived_from_lost,
+                "lead_id": target_lead.id,
+                "lead_code": target_lead.lead_code,
             })
-    return redirect("leads:lead_detail", pk=target_lead.pk if was_cloned else pk)
+    return redirect("leads:lead_detail", pk=target_lead.pk)
 
 
 @login_required

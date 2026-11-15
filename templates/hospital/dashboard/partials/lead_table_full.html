@@ -1,0 +1,180 @@
+{% load humanize %}
+
+<div class="card border-0 shadow-sm rounded-3 bg-white overflow-hidden" style="border: 1px solid #e2e8f0 !important;">
+  <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="bg-light sticky-top" style="z-index: 1;">
+        <tr style="font-size: 0.76rem;" class="text-muted text-uppercase fw-bold">
+          <th style="width: 38px;" class="border-0 px-3 py-3 text-center">
+            <input type="checkbox" class="form-check-input" style="cursor: pointer;">
+          </th>
+          <th class="border-0 px-3 py-3">Patient Name</th>
+          <th class="border-0 py-3">Contact</th>
+          <th class="border-0 py-3">Department</th>
+          <th class="border-0 py-3">Source</th>
+          <th class="border-0 py-3">Status</th>
+          <th class="border-0 py-3">Assigned to</th>
+          <th class="border-0 py-3">Intent</th>
+          <th class="border-0 py-3">Created</th>
+          <th class="border-0 py-3">Last contact</th>
+          <th class="border-0 py-3">Next follow-up</th>
+          <th class="border-0 px-3 py-3 text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in page_obj.object_list %}
+          <tr id="h-lead-row-{{ l.pk }}">
+            <td class="px-3 text-center">
+              <input type="checkbox" class="form-check-input" value="{{ l.pk }}" style="cursor: pointer;">
+            </td>
+            <td class="px-3">
+              <div class="fw-bold text-dark">
+                <a href="{% url 'leads:lead_detail' l.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark hover-primary">
+                  {{ l.name }}
+                </a>
+              </div>
+              <div class="text-muted small">
+                #{{ l.id }}{% if l.city %} &bull; {{ l.city }}{% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="fw-semibold text-dark">{{ l.mobile }}</div>
+              {% if l.email and l.email != '-' %}
+                <div class="small text-muted">{{ l.email }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="text-dark">{{ l.course.name|default:l.custom_data.department|default:"General OPD" }}</span>
+            </td>
+            <td>
+              <span class="badge bg-light text-secondary border">{{ l.custom_source|default:l.lead_source.name|default:"—" }}</span>
+            </td>
+            <td>
+              {% if l.deal_status == 'WON' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Won</span>
+              {% elif l.deal_status == 'LOST' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Lost</span>
+              {% else %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ l.display_stage|default:l.stage.name|default:"Open" }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if l.assigned_to %}
+                <span class="small fw-semibold text-dark">{{ l.assigned_to.get_full_name|default:l.assigned_to.username }}</span>
+              {% else %}
+                <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle">Unassigned</span>
+              {% endif %}
+            </td>
+            <td>
+              {% with badge=l.intent_badge_color %}
+                <span class="badge d-inline-flex align-items-center gap-1" style="background-color: {{ badge.bg }}; color: {{ badge.text }}; border: 1px solid {{ badge.border }}; font-size: 0.74rem;">
+                  <span style="width: 6px; height: 6px; border-radius: 50%; background-color: {{ badge.dot }};"></span>
+                  {{ badge.label }}
+                </span>
+              {% endwith %}
+            </td>
+            <td class="small text-nowrap">
+              {{ l.created_at|date:"d M Y" }}
+            </td>
+            <td class="small text-nowrap">
+              {% with last_fu=l.followups.last %}
+                {% if last_fu %}
+                  {{ last_fu.created_at|date:"d M Y" }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+            <td class="small text-nowrap">
+              {% if l.next_followup_date %}
+                {% if l.next_followup_date < today_date %}
+                  <span class="text-danger fw-bold">
+                    {{ l.next_followup_date|date:"d M" }} (Overdue)
+                  </span>
+                {% elif l.next_followup_date == today_date %}
+                  <span class="text-warning fw-bold">Today</span>
+                {% else %}
+                  <span class="text-dark">{{ l.next_followup_date|date:"d M" }}</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="px-3 text-end text-nowrap">
+              <div class="d-inline-flex gap-1 align-items-center">
+                <a href="tel:{{ l.mobile }}" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1" title="Call">
+                  <i class="fa-solid fa-phone"></i>
+                </a>
+                <a href="https://wa.me/91{{ l.clean_phone_number|default:l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1" title="WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                <a href="{% url 'leads:lead_edit' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </a>
+                <a href="{% url 'leads:lead_detail' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" title="View Details">
+                  <i class="fa-solid fa-eye"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="12" class="text-center py-5 text-muted">
+              <div class="py-3">
+                <i class="fa-regular fa-folder-open fa-2x mb-2 text-secondary opacity-50"></i>
+                <div class="fw-semibold">No patient records found.</div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination (Strictly 20 leads per page) -->
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3 border-top bg-light">
+      <div class="text-muted small">
+        Showing <span class="fw-semibold text-dark">{{ page_obj.start_index }}</span> to <span class="fw-semibold text-dark">{{ page_obj.end_index }}</span> of <span class="fw-semibold text-dark">{{ total_count|default:page_obj.paginator.count }}</span> leads (20 per page)
+      </div>
+      <nav aria-label="Hospital Leads Pagination">
+        <ul class="pagination pagination-sm mb-0 gap-1">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab={{ cur_tab|default:'myleads' }}{% if cur_subtab %}&subtab={{ cur_subtab }}{% endif %}&page={{ page_obj.previous_page_number }}">
+                <i class="fa-solid fa-angle-left me-1"></i> Prev
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                <i class="fa-solid fa-angle-left me-1"></i> Prev
+              </span>
+            </li>
+          {% endif %}
+
+          <li class="page-item active">
+            <span class="page-link rounded-pill px-3 py-1 fw-bold">
+              Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+          </li>
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link rounded-pill px-3 py-1 border text-dark" href="?tab={{ cur_tab|default:'myleads' }}{% if cur_subtab %}&subtab={{ cur_subtab }}{% endif %}&page={{ page_obj.next_page_number }}">
+                Next <i class="fa-solid fa-angle-right ms-1"></i>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link rounded-pill px-3 py-1 border text-muted">
+                Next <i class="fa-solid fa-angle-right ms-1"></i>
+              </span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  {% endif %}
+</div>
+
