@@ -157,10 +157,11 @@ class CRMUserCreateForm(UserCreationForm):
             })
 
         if "reports_to" in self.fields:
-            self.fields["reports_to"].empty_label = "Select Reporting Manager"
+            self.fields["reports_to"].label = "Reporting"
+            self.fields["reports_to"].empty_label = "Select Reporting"
             self.fields["reports_to"].widget.attrs.update({
-                "placeholder": "Select Reporting Manager",
-                "data-placeholder": "Select Reporting Manager",
+                "placeholder": "Select Reporting",
+                "data-placeholder": "Select Reporting",
             })
 
         if "hospital" in self.fields:
@@ -426,10 +427,11 @@ class CRMUserEditForm(forms.ModelForm):
             })
                 
         if "reports_to" in self.fields:
-            self.fields["reports_to"].empty_label = "Select Reporting Manager"
+            self.fields["reports_to"].label = "Reporting"
+            self.fields["reports_to"].empty_label = "Select Reporting"
             self.fields["reports_to"].widget.attrs.update({
-                "placeholder": "Select Reporting Manager",
-                "data-placeholder": "Select Reporting Manager",
+                "placeholder": "Select Reporting",
+                "data-placeholder": "Select Reporting",
             })
 
         if "hospital" in self.fields:

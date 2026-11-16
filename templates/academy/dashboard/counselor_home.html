@@ -1442,6 +1442,75 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
+  // Seamless AJAX Pagination without full page reload
+  document.addEventListener('click', function(e) {
+    const pageLink = e.target.closest('.pagination .page-link[href]');
+    if (!pageLink) return;
+
+    const targetUrl = pageLink.getAttribute('href');
+    if (!targetUrl || targetUrl.startsWith('#') || targetUrl.startsWith('javascript:')) return;
+
+    e.preventDefault();
+
+    const tableContainer = pageLink.closest('.academy-dashboard-card') || document.querySelector('.academy-dashboard-card');
+    if (tableContainer) {
+      tableContainer.style.opacity = '0.5';
+      tableContainer.style.pointerEvents = 'none';
+    }
+
+    fetch(targetUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.text())
+    .then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // Update the active table card
+      if (tableContainer) {
+        const newCard = doc.querySelector('.academy-dashboard-card');
+        if (newCard) {
+          tableContainer.innerHTML = newCard.innerHTML;
+          tableContainer.style.opacity = '1';
+          tableContainer.style.pointerEvents = 'auto';
+        } else {
+          window.location.href = targetUrl;
+          return;
+        }
+      }
+
+      // Update KPI metrics bar
+      const curKpi = document.querySelector('.counselor-kpi-bar');
+      const newKpi = doc.querySelector('.counselor-kpi-bar');
+      if (curKpi && newKpi) {
+        curKpi.innerHTML = newKpi.innerHTML;
+      }
+
+      // Update active tab badges
+      const curTabs = document.getElementById('academyMainTabs');
+      const newTabs = doc.getElementById('academyMainTabs');
+      if (curTabs && newTabs) {
+        curTabs.innerHTML = newTabs.innerHTML;
+      }
+
+      // Update browser URL seamlessly without reload
+      window.history.pushState({ path: targetUrl }, '', targetUrl);
+
+      // Smooth scroll back to top of table
+      if (tableContainer) {
+        tableContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    })
+    .catch(err => {
+      console.error("AJAX pagination failed, falling back to full navigation:", err);
+      window.location.href = targetUrl;
+    });
+  });
+
+  window.addEventListener('popstate', function() {
+    window.location.reload();
+  });
+
   // Auto-Save active tab / query state to sessionStorage for seamless back navigation
   (function() {
     try {

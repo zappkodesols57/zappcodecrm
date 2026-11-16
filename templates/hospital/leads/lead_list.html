@@ -354,7 +354,7 @@
 
       {% if date_from_val or date_to_val %}
       <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Date Range:</strong> {{ date_from_val|default:'Start' }} to {{ date_to_val|default:'Today' }}
+        <strong class="text-muted">Date Range:</strong> {% if date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} to {% if date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
       </span>
       {% endif %}
 

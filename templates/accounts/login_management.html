@@ -418,7 +418,7 @@
         <div class="input-wrap">
           <i class="fa-solid fa-lock input-icon"></i>
           <input type="password" name="password" id="mgmtPassword" class="form-control" placeholder="" required>
-          <i class="fa-regular fa-eye toggle-pwd" onclick="togglePasswordVisibility('mgmtPassword', this)" title="Show/Hide Password"></i>
+          <i class="fa-regular fa-eye-slash toggle-pwd" onclick="togglePasswordVisibility('mgmtPassword', this)" title="Show/Hide Password"></i>
         </div>
       </div>
 
@@ -435,13 +435,15 @@
 function togglePasswordVisibility(inputId, icon) {
   const input = document.getElementById(inputId);
   if (input.type === 'password') {
+    // Unmask: visible password -> open eye
     input.type = 'text';
-    icon.classList.remove('fa-eye', 'fa-regular');
-    icon.classList.add('fa-eye-slash', 'fa-solid');
-  } else {
-    input.type = 'password';
-    icon.classList.remove('fa-eye-slash', 'fa-solid');
+    icon.classList.remove('fa-eye-slash', 'fa-solid', 'fa-regular');
     icon.classList.add('fa-eye', 'fa-regular');
+  } else {
+    // Mask: hidden password -> eye off / slash
+    input.type = 'password';
+    icon.classList.remove('fa-eye', 'fa-regular');
+    icon.classList.add('fa-eye-slash', 'fa-regular');
   }
 }
 </script>

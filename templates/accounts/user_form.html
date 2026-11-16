@@ -172,7 +172,7 @@
             {{ form.password1 }}
             <div class="password-icons-wrapper">
               <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('id_password1', this)" title="Show / Hide Password" tabindex="-1">
-                <i class="fa-regular fa-eye"></i>
+                <i class="fa-regular fa-eye-slash"></i>
               </button>
             </div>
           </div>
@@ -190,7 +190,7 @@
             <div class="password-icons-wrapper">
               <span id="password2_match_icon" class="password-match-icon"></span>
               <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('id_password2', this)" title="Show / Hide Password" tabindex="-1">
-                <i class="fa-regular fa-eye"></i>
+                <i class="fa-regular fa-eye-slash"></i>
               </button>
             </div>
           </div>
@@ -318,7 +318,7 @@
     if (reportsToSelect) {
       originalReportsToOptions = Array.from(reportsToSelect.options).map(opt => ({
         value: opt.value,
-        text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Reporting Manager" : opt.text,
+        text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Reporting" : opt.text,
         selected: opt.selected
       }));
     }
@@ -453,7 +453,7 @@
         // Re-populate native select with allowed options
         originalReportsToOptions.forEach(optData => {
             if (optData.value === "") {
-                const opt = new Option(optData.text || "Select Reporting Manager", optData.value);
+                const opt = new Option(optData.text || "Select Reporting", optData.value);
                 reportsToSelect.add(opt);
                 return;
             }
@@ -478,7 +478,7 @@
                 create: false,
                 maxOptions: 100,
                 allowEmptyOption: true,
-                placeholder: 'Select Reporting Manager'
+                placeholder: 'Select Reporting'
             });
         }
       }
@@ -766,16 +766,18 @@
     if (!input) return;
     const icon = btn ? btn.querySelector('i') : null;
     if (input.type === 'password') {
+      // Unmask: password is now visible, eye icon is open
       input.type = 'text';
-      if (icon) {
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-      }
-    } else {
-      input.type = 'password';
       if (icon) {
         icon.classList.remove('fa-eye-slash');
         icon.classList.add('fa-eye');
+      }
+    } else {
+      // Mask: password is now hidden, eye icon is off/slashed
+      input.type = 'password';
+      if (icon) {
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
       }
     }
   };

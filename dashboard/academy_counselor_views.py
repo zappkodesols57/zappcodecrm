@@ -87,6 +87,81 @@ def academy_counselor_home(request):
     if eff_date_from and not eff_date_to:
         eff_date_to = today_date.strftime('%Y-%m-%d')
 
+    has_active_filters = bool(
+        filter_q or filter_status or filter_assigned or filter_source or
+        filter_course or filter_intent or filter_lead_date or
+        filter_date_from or filter_date_to or filter_followup or filter_last_contact
+    )
+
+    from leads.models import LeadIntent
+    def build_intent_q(intent_values):
+        lost_q = (
+            Q(deal_status=DealStatus.LOST)
+            | Q(admission_status__in=['LOST', 'CANCELLED', 'DROPOUT'])
+            | Q(temperature=LeadTemperature.FREEZE)
+            | Q(stage__name__icontains='cancel')
+            | Q(stage__name__icontains='lost')
+            | Q(stage__name__icontains='not int')
+            | Q(stage__name__icontains='reject')
+            | Q(stage__name__icontains='dropout')
+        )
+
+        pos_q = (
+            Q(deal_status=DealStatus.WON)
+            | Q(admission_status__in=['WON', 'ADMISSION_DONE'])
+            | Q(temperature=LeadTemperature.HOT)
+            | Q(stage__name__icontains='admission done')
+            | Q(stage__name__icontains='admission planned')
+            | Q(stage__name__icontains='payment done')
+            | Q(stage__name__icontains='closed won')
+        )
+
+        full_q = Q()
+        for int_val in intent_values:
+            iv = int_val.strip().upper()
+            if not iv:
+                continue
+            if iv == LeadIntent.NOT_INTERESTED.value:
+                full_q |= (Q(intent_level__iexact=iv) | lost_q)
+            elif iv == LeadIntent.HIGHLY_INTERESTED.value:
+                # Highly Interested leads match explicit intent_level or positive/won/hot temperature & stages, excluding lost
+                full_q |= ((Q(intent_level__iexact=iv) | pos_q) & ~lost_q)
+            elif iv == LeadIntent.MODERATE_INTERESTED.value:
+                full_q |= (
+                    (
+                        Q(intent_level__iexact=iv)
+                        | Q(temperature=LeadTemperature.WARM)
+                        | Q(stage__name__icontains='visit planned')
+                        | Q(stage__name__icontains='visited')
+                    )
+                    & ~lost_q
+                    & ~pos_q
+                )
+            elif iv == LeadIntent.BELOW_AVERAGE.value:
+                full_q |= (
+                    (
+                        Q(intent_level__iexact=iv)
+                        | Q(temperature=LeadTemperature.COLD)
+                    )
+                    & ~lost_q
+                    & ~pos_q
+                )
+            elif iv == LeadIntent.NORMAL_INTERESTED.value:
+                full_q |= (
+                    (
+                        Q(intent_level__iexact=iv)
+                        | (
+                            (Q(intent_level__isnull=True) | Q(intent_level=''))
+                            & ~Q(temperature__in=[LeadTemperature.HOT, LeadTemperature.WARM, LeadTemperature.COLD, LeadTemperature.FREEZE])
+                        )
+                    )
+                    & ~lost_q
+                    & ~pos_q
+                )
+            else:
+                full_q |= Q(intent_level__iexact=iv)
+        return full_q
+
     def apply_advanced_lead_filters(base_qs):
         filtered = base_qs
         if filter_q:
@@ -118,11 +193,7 @@ def academy_counselor_home(request):
             if course_ids:
                 filtered = filtered.filter(course_id__in=course_ids)
         if filter_intent:
-            intent_q = Q()
-            for int_val in filter_intent:
-                iv = int_val.strip().upper()
-                if iv:
-                    intent_q |= Q(intent_level__iexact=iv)
+            intent_q = build_intent_q(filter_intent)
             if intent_q:
                 filtered = filtered.filter(intent_q)
         if filter_lead_date:
@@ -175,7 +246,7 @@ def academy_counselor_home(request):
         'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
     ).order_by('-created_at')
     my_all_leads_qs = apply_advanced_lead_filters(my_all_leads_base)
-    my_all_leads_count = my_all_leads_base.count()
+    my_all_leads_count = my_all_leads_qs.count()
 
     # =========================================================================
     # TAB 8: OVERALL LEADS (Main Tab: All business leads active + lost + archived)
@@ -190,7 +261,7 @@ def academy_counselor_home(request):
         'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
     ).order_by('-created_at')
     overall_leads_qs = apply_advanced_lead_filters(overall_leads_base)
-    overall_leads_count = overall_leads_base.count()
+    overall_leads_count = overall_leads_qs.count()
 
     # Filter Counselors for dropdown
     counselors_qs = User.objects.filter(is_active=True)
@@ -201,7 +272,7 @@ def academy_counselor_home(request):
     # TAB 1: MY LEADS (Fresh, Uncontacted, Walk-in, Today's Inquiry)
     # =========================================================================
     # 1.1 Fresh Leads: Unassigned leads, meta ads, imports without counselor assignment
-    fresh_leads_qs = leads_qs.filter(
+    fresh_leads_base = leads_qs.filter(
         assigned_to__isnull=True
     ).exclude(
         deal_status=DealStatus.LOST
@@ -210,18 +281,21 @@ def academy_counselor_home(request):
     ).exclude(
         stage__name__icontains='lost'
     ).select_related('course', 'campaign', 'lead_source', 'stage').order_by('-created_at')
+    fresh_leads_qs = apply_advanced_lead_filters(fresh_leads_base) if has_active_filters else fresh_leads_base
     fresh_leads_count = fresh_leads_qs.count()
 
     # 1.2 Uncontacted Leads: Assigned to user, but NO user remarks/follow-ups added yet
     cnd_candidates = user_scoped_leads.filter(assigned_to__isnull=False)
     if not is_management:
         cnd_candidates = cnd_candidates.filter(assigned_to=user)
+    if has_active_filters:
+        cnd_candidates = apply_advanced_lead_filters(cnd_candidates)
     uncontacted_ids = filter_uncontacted_leads_ids(cnd_candidates, today=today_date)
     uncontacted_leads_qs = leads_qs.filter(id__in=uncontacted_ids).select_related('course', 'campaign', 'lead_source', 'stage', 'assigned_to').order_by('-created_at')
     uncontacted_leads_count = len(uncontacted_ids)
 
     # 1.3 Walk-in Leads: Originating from direct campus walk-in source
-    walkin_leads_qs = user_scoped_leads.filter(
+    walkin_leads_base = user_scoped_leads.filter(
         Q(lead_source__name__icontains='walk-in') |
         Q(lead_source__name__icontains='walk in') |
         Q(custom_data__lead_source__icontains='walk') |
@@ -231,12 +305,15 @@ def academy_counselor_home(request):
     ).exclude(
         stage__name__icontains='cancel'
     ).select_related('course', 'campaign', 'lead_source', 'stage', 'assigned_to').order_by('-created_at')
+    walkin_leads_qs = apply_advanced_lead_filters(walkin_leads_base) if has_active_filters else walkin_leads_base
     walkin_leads_count = walkin_leads_qs.count()
 
     # 1.4 Today's Inquiry: Total inquiries received or created today
-    todays_inquiry_qs = user_scoped_leads.filter(
+    todays_inquiry_base = user_scoped_leads.filter(
         Q(created_at__range=(start_of_today, end_of_today)) | Q(inquiry_date=today_date)
     ).select_related('course', 'campaign', 'lead_source', 'stage', 'assigned_to').order_by('-created_at')
+    todays_inquiry_qs = apply_advanced_lead_filters(todays_inquiry_base) if has_active_filters else todays_inquiry_base
+    todays_inquiry_count = todays_inquiry_qs.count()
     todays_inquiry_count = todays_inquiry_qs.count()
 
     total_myleads_count = uncontacted_leads_count + fresh_leads_count + walkin_leads_count
@@ -264,6 +341,8 @@ def academy_counselor_home(request):
         Q(next_followup_date__isnull=False) |
         Q(followups__next_followup_date__isnull=False)
     ).distinct().select_related('course', 'stage', 'assigned_to', 'lead_source').prefetch_related('followups')
+    if has_active_filters:
+        fu_base_qs = apply_advanced_lead_filters(fu_base_qs)
 
     todays_fu_list = []
     overdue_fu_list = []
@@ -296,6 +375,8 @@ def academy_counselor_home(request):
     ).exclude(
         stage__name__icontains='cancel'
     ).distinct().select_related('course', 'stage', 'assigned_to').order_by('-updated_at')
+    if has_active_filters:
+        completed_fu_qs = apply_advanced_lead_filters(completed_fu_qs)
     completed_fu_count = completed_fu_qs.count()
 
     total_followups_count = todays_fu_count + overdue_fu_count + upcoming_fu_count
@@ -314,6 +395,8 @@ def academy_counselor_home(request):
         Q(stage__name__icontains='visit planned') |
         Q(custom_data__visit_date__isnull=False)
     ).distinct().select_related('course', 'stage', 'assigned_to', 'lead_source').order_by('-updated_at')
+    if has_active_filters:
+        visit_base_qs = apply_advanced_lead_filters(visit_base_qs)
 
     todays_visits_list = []
     upcoming_visits_list = []
@@ -377,6 +460,8 @@ def academy_counselor_home(request):
     ).exclude(
         stage__name__icontains='admission & payment'
     ).distinct().select_related('course', 'stage', 'assigned_to', 'lead_source').order_by('-updated_at')
+    if has_active_filters:
+        adm_planned_base = apply_advanced_lead_filters(adm_planned_base)
 
     adm_planned_list = []
     for l in list(adm_planned_base[:150]):
@@ -394,6 +479,8 @@ def academy_counselor_home(request):
         Q(stage__name__icontains='admission done') |
         Q(custom_data__deal_status__iexact='WON')
     ).distinct().select_related('course', 'stage', 'assigned_to', 'lead_source').order_by('-updated_at')
+    if has_active_filters:
+        adm_done_base = apply_advanced_lead_filters(adm_done_base)
 
     adm_done_list = []
     for l in list(adm_done_base[:150]):
@@ -421,6 +508,8 @@ def academy_counselor_home(request):
     ).exclude(
         stage__name__icontains='cancel'
     ).distinct().select_related('course', 'stage', 'assigned_to').order_by('-updated_at')
+    if has_active_filters:
+        billing_candidates = apply_advanced_lead_filters(billing_candidates)
 
     payment_pending_list = []
     partial_payment_list = []
@@ -473,6 +562,8 @@ def academy_counselor_home(request):
         Q(stage__name__icontains='cancel') |
         Q(stage__name__icontains='lost')
     ).distinct().select_related('course', 'stage', 'assigned_to', 'lead_source').order_by('-updated_at')
+    if has_active_filters:
+        lost_qs = apply_advanced_lead_filters(lost_qs)
 
     lost_leads_list = []
     for l in list(lost_qs[:150]):
@@ -482,27 +573,9 @@ def academy_counselor_home(request):
         lost_leads_list.append(l)
     lost_leads_count = lost_qs.count()
 
-    # 1.5 My All Leads (All leads assigned to current user, filtered & paginated strictly 20/page)
-    my_all_leads_base = leads_qs.filter(assigned_to=user).select_related(
-        'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
-    ).order_by('-created_at')
-    my_all_leads_qs = apply_advanced_lead_filters(my_all_leads_base)
-    my_all_leads_count = my_all_leads_base.count()
-
-    # =========================================================================
-    # TAB 7: OVERALL LEADS (All business leads: active + lost + archived)
-    # Strictly 20 per page pagination with database filters
-    # =========================================================================
-    overall_leads_base = Lead.objects.all()
-    if business_id:
-        overall_leads_base = overall_leads_base.filter(hospital_id=business_id)
-    else:
-        overall_leads_base = overall_leads_base.none()
-    overall_leads_base = overall_leads_base.select_related(
-        'course', 'campaign', 'lead_source', 'stage', 'assigned_to'
-    ).order_by('-created_at')
-    overall_leads_qs = apply_advanced_lead_filters(overall_leads_base)
-    overall_leads_count = overall_leads_base.count()
+    # Re-sync My All Leads & Overall Leads strictly to filtered counts
+    my_all_leads_count = my_all_leads_qs.count()
+    overall_leads_count = overall_leads_qs.count()
 
     # Pagination Helper (20 leads per page as requested)
     def paginate_dataset(dataset, page_num, per_page=20):
@@ -550,6 +623,12 @@ def academy_counselor_home(request):
     ).values_list('lead_id', flat=True))
     calls_completed_today = len(user_today_fu_lead_ids)
     target_remaining = max(0, daily_target - calls_completed_today)
+
+    # Preserve active filter parameters across pagination
+    req_params = request.GET.copy()
+    if 'page' in req_params:
+        del req_params['page']
+    filter_query_string = req_params.urlencode()
 
     context = {
         'active': 'counselor_dashboard',
@@ -651,6 +730,7 @@ def academy_counselor_home(request):
         'eff_date_to': eff_date_to,
         'filter_followup': filter_followup,
         'filter_last_contact': filter_last_contact,
+        'filter_query_string': filter_query_string,
     }
 
     return render(request, "academy/dashboard/counselor_home.html", context)
@@ -1147,6 +1227,12 @@ def academy_admin_home(request):
     for l in filtered_leads_page:
         cd = l.custom_data or {}
         l.display_trainer = cd.get("trainer") or cd.get("selected_tutor") or cd.get("tutor") or (l.course.tutor if l.course else "") or "—"
+
+    # Preserve active filter parameters across pagination
+    req_params = request.GET.copy()
+    if 'page' in req_params:
+        del req_params['page']
+    filter_query_string = req_params.urlencode()
 
     context = {
         "active": "dashboard",

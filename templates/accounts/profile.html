@@ -103,6 +103,7 @@
         width: 100% !important;
         display: flex !important;
         flex-wrap: nowrap !important;
+        align-items: stretch !important;
     }
     #profilePasswordForm .input-group input,
     #profilePasswordForm input[type="password"],
@@ -110,19 +111,29 @@
         flex: 1 1 auto !important;
         width: 1% !important;
         min-width: 0 !important;
+        height: 38px !important;
+        font-size: 0.85rem !important;
         border-top-right-radius: 0 !important;
         border-bottom-right-radius: 0 !important;
     }
     #profilePasswordForm .input-group .btn {
+        height: 38px !important;
+        width: 42px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         border-top-left-radius: 0 !important;
         border-bottom-left-radius: 0 !important;
         border: 1.5px solid #cbd5e1 !important;
         border-left: 0 !important;
-        background: #f8fafc;
-        color: #475569;
-        font-size: 0.8rem;
-        font-weight: 600;
-        padding: 0 0.85rem;
+        background: #f8fafc !important;
+        color: #64748b !important;
+        font-size: 0.95rem !important;
+    }
+    #profilePasswordForm .input-group .btn:hover {
+        background: #f1f5f9 !important;
+        color: #334155 !important;
     }
 </style>
 
@@ -374,8 +385,8 @@
                                         </label>
                                         <div class="input-group">
                                             {{ field }}
-                                            <button class="btn btn-sm" type="button" onclick="togglePasswordVisibility('{{ field.id_for_label }}', this)" title="Show / Hide Password" tabindex="-1">
-                                                Show
+                                            <button class="btn btn-sm btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('{{ field.id_for_label }}', this)" title="Show / Hide Password" tabindex="-1">
+                                                <i class="fa-regular fa-eye-slash text-secondary"></i>
                                             </button>
                                         </div>
 
@@ -712,12 +723,21 @@
         if (!input && btn) input = btn.closest('.input-group') ? btn.closest('.input-group').querySelector('input') : null;
         if (!input) return;
 
+        const icon = btn ? btn.querySelector('i') : null;
         if (input.type === 'password') {
+            // Unmask: password is now visible, eye icon is open
             input.type = 'text';
-            if (btn) btn.innerText = 'Hide';
+            if (icon) {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
         } else {
+            // Mask: password is now hidden, eye icon is off/slashed
             input.type = 'password';
-            if (btn) btn.innerText = 'Show';
+            if (icon) {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
         }
     }
 </script>
