@@ -364,6 +364,7 @@
             <div class="crm-form-field">
               <select name="education" id="id_education" class="form-select no-tom-select">
                 <option value="">Select Education</option>
+                <option value="Computer Applications / IT">Computer Applications / IT (BCA / MCA / B.Sc IT)</option>
                 <option value="Engineering">Engineering</option>
                 <option value="Medical">Medical</option>
                 <option value="Management">Management</option>
@@ -408,7 +409,14 @@
         <div class="col-md-6">
           <div class="crm-form-row mb-0">
             <label class="crm-form-label" for="id_lead_source">Lead Source</label>
-            <div class="crm-form-field">{{ form.lead_source }}</div>
+            <div class="crm-form-field">
+              {{ form.lead_source }}
+              <!-- Dynamic Custom Lead Source input for 'Other' -->
+              <div id="otherLeadSourceContainer" class="mt-2" style="display: none;">
+                <input type="text" name="custom_lead_source" id="custom_lead_source" class="form-control" placeholder="Specify Lead Source name..." value="{{ form.instance.custom_data.custom_lead_source|default:'' }}">
+                <small class="text-muted" style="font-size: 0.72rem;">Enter your custom lead source name</small>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -976,9 +984,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // ─── 2. Education & Qualification Dependent Data ───
   const eduQualData = {
+    "Computer Applications / IT": [
+      "BCA 1st Year", "BCA 2nd Year", "BCA 3rd Year (Final)", "BCA Passout",
+      "MCA 1st Year", "MCA 2nd Year (Final)", "MCA Passout",
+      "B.Sc IT / CS 1st Year", "B.Sc IT / CS Final Year", "B.Sc IT / CS Passout",
+      "M.Sc IT / CS"
+    ],
     "Engineering": [
       "B.Tech 1st Year", "B.Tech 2nd Year", "B.Tech 3rd Year", "B.Tech 4th Year (Final Year)",
-      "B.Tech Passout", "M.Tech 1st Year", "M.Tech 2nd Year", "M.Tech Passout", "B.E. Student"
+      "B.Tech Passout", "M.Tech 1st Year", "M.Tech 2nd Year", "M.Tech Passout", "B.E. Student",
+      "BCA Student", "MCA Student"
     ],
     "Medical": [
       "MBBS", "BAMS", "BHMS", "BDS", "B.Pharm 1st/2nd Year", "B.Pharm Final Year",
@@ -1045,6 +1060,28 @@ document.addEventListener("DOMContentLoaded", function() {
   eduSelect.addEventListener("change", function() {
     updateQualifications(this.value, "");
   });
+
+  // ─── 2.5 Dynamic 'Other' Lead Source Custom Input ───
+  const leadSourceSelect = document.getElementById("id_lead_source");
+  const otherSourceContainer = document.getElementById("otherLeadSourceContainer");
+  const customLeadSourceInput = document.getElementById("custom_lead_source");
+
+  function handleLeadSourceChange() {
+    if (!leadSourceSelect || !otherSourceContainer) return;
+    const selectedOpt = leadSourceSelect.options[leadSourceSelect.selectedIndex];
+    const sourceText = selectedOpt ? selectedOpt.textContent.trim().toLowerCase() : "";
+    if (sourceText === "other" || sourceText.includes("other")) {
+      otherSourceContainer.style.display = "block";
+      if (customLeadSourceInput) customLeadSourceInput.focus();
+    } else {
+      otherSourceContainer.style.display = "none";
+    }
+  }
+
+  if (leadSourceSelect) {
+    leadSourceSelect.addEventListener("change", handleLeadSourceChange);
+    handleLeadSourceChange();
+  }
 
   // ─── 3. Dynamic Conditional Containers & Stages ───
   const stageSelect = document.getElementById("id_stage");
@@ -1576,8 +1613,14 @@ document.addEventListener("DOMContentLoaded", function() {
     // 1. Follow up pending
     if (stageName.includes("follow up pending") || stageName.includes("follow up needed") || (stageName.includes("follow up") && !stageName.includes("completed"))) {
       containerFollowup.style.display = "block";
-      inputFollowupDate.required = true;
-      inputFollowupRemark.required = true;
+      if (inputFollowupDate) {
+        inputFollowupDate.disabled = false;
+        inputFollowupDate.required = true;
+      }
+      if (inputFollowupRemark) {
+        inputFollowupRemark.disabled = false;
+        inputFollowupRemark.required = true;
+      }
       if (dealStatusInput) dealStatusInput.value = "OPEN";
       if (admissionStatusInput) admissionStatusInput.value = "HOLD";
     }
@@ -1585,8 +1628,14 @@ document.addEventListener("DOMContentLoaded", function() {
     else if (stageName.includes("follow up completed") || stageName.includes("followup completed")) {
       // Completed call: keep followup container optional or allow note taking
       containerFollowup.style.display = "block";
-      inputFollowupDate.required = false;
-      inputFollowupRemark.required = false;
+      if (inputFollowupDate) {
+        inputFollowupDate.disabled = false;
+        inputFollowupDate.required = false;
+      }
+      if (inputFollowupRemark) {
+        inputFollowupRemark.disabled = false;
+        inputFollowupRemark.required = false;
+      }
       if (dealStatusInput) dealStatusInput.value = "OPEN";
       if (admissionStatusInput) admissionStatusInput.value = "HOLD";
     }

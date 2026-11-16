@@ -2541,6 +2541,10 @@
 
         const dateInputs = form.querySelectorAll('input[type="date"], .custom-leave-date-input, .custom-doc-leave-date-input, input[name*="date" i], input[id*="date" i]');
         for (const dInp of dateInputs) {
+          // Skip if input is disabled or part of a hidden container (e.g. stage changed and container was hidden)
+          if (dInp.disabled || dInp.offsetParent === null || dInp.closest('[style*="display: none"]') || dInp.closest('.d-none')) {
+            continue;
+          }
           const idName = ((dInp.name || '') + ' ' + (dInp.id || '')).toLowerCase();
           const isPlanField = idName.includes("followup") || idName.includes("follow_up") || idName.includes("qfu") ||
                               idName.includes("appointment") || idName.includes("appo") || idName.includes("visit");

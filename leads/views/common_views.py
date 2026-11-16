@@ -2732,7 +2732,10 @@ def lead_add(request):
                 from datetime import datetime
 
                 # 1. Cancelled / Lost
-                if stage_name in ("cancelled", "lost") or custom_reason:
+                if "archive" in stage_name:
+                    lead.is_archived = True
+                    custom_dict["deal_status"] = "Archived"
+                elif stage_name in ("cancelled", "lost") or custom_reason:
                     lead.deal_status = DealStatus.LOST
                     lead.temperature = LeadTemperature.FREEZE
                     if custom_reason:
@@ -3283,7 +3286,10 @@ def lead_edit(request, pk):
                             saved_lead.stage = assigned_stage
                 else:
                     # --- ACADEMY / OTHER BUSINESS LEAD STAGE RESOLUTION ---
-                    if is_won:
+                    if "archive" in (saved_lead.stage.name if saved_lead.stage else "").lower():
+                        saved_lead.is_archived = True
+                        cd['deal_status'] = 'Archived'
+                    elif is_won:
                         won_stage = LeadStage.objects.filter(name__iexact='Admission Done').first() or \
                                     LeadStage.objects.filter(name__iexact='Admission').first() or \
                                     LeadStage.objects.filter(name__iexact='Payment Done').first()

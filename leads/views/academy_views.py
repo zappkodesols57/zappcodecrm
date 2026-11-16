@@ -1092,8 +1092,19 @@ def handle_academy_lead_save(request, saved_lead, cd):
 
     stage_name = (saved_lead.stage.name if saved_lead.stage_id and saved_lead.stage else "").strip().lower()
 
+    # 0. Archive Lead if stage is Archive
+    if "archive" in stage_name:
+        saved_lead.is_archived = True
+        cd["deal_status"] = "Archived"
+        Activity.objects.create(
+            lead=saved_lead,
+            activity_type=ActivityType.STAGE_CHANGE,
+            description=f"Lead archived by {request.user.get_full_name() or request.user.username}.",
+            created_by=request.user,
+        )
+
     # 1. Cancelled / Lost
-    if stage_name in ("cancelled", "lost") or custom_reason:
+    elif stage_name in ("cancelled", "lost") or custom_reason:
         saved_lead.deal_status = DealStatus.LOST
         saved_lead.temperature = LeadTemperature.FREEZE
         saved_lead.admission_status = AdmissionStatus.LOST
@@ -1212,6 +1223,17 @@ def handle_academy_lead_save(request, saved_lead, cd):
                 saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
             except ValueError:
                 pass
+
+    # Custom lead source for 'Other'
+    custom_source_val = request.POST.get("custom_lead_source", "").strip()
+    if custom_source_val:
+        cd["custom_lead_source"] = custom_source_val
+        # Also ensure or link to LeadSource if user specifies
+        from leads.models import LeadSource, SourceCategory
+        other_cat = SourceCategory.objects.filter(name__icontains="Other").first() or SourceCategory.objects.first()
+        if other_cat:
+            src_obj, _ = LeadSource.objects.get_or_create(name=custom_source_val, category=other_cat)
+            saved_lead.lead_source = src_obj
 
     saved_lead.custom_data = cd
     saved_lead.save()
