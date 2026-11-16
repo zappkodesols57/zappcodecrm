@@ -175,14 +175,13 @@ class LeadForm(forms.ModelForm):
 
         if "stage" in self.fields:
             if is_academy_tenant:
-                # Explicit Academy Tenant: strictly the 5 defined lifecycle stages
-                stage_names_5 = ["Follow up needed", "Visit planned", "Admission planned", "Admission & Payment", "Cancelled"]
+                # Explicit Academy Tenant: show all active academy stages
                 if target_business:
                     qs = LeadStage.objects.filter(is_active=True).filter(
                         Q(hospital=target_business) | (Q(business_type=LeadStage.BusinessType.ACADEMY) & Q(hospital__isnull=True))
-                    ).filter(name__in=stage_names_5)
+                    )
                 else:
-                    qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]).filter(name__in=stage_names_5)
+                    qs = LeadStage.objects.filter(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL])
             elif is_hospital_tenant:
                 # Explicit Hospital Tenant
                 if target_business:

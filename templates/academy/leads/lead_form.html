@@ -364,6 +364,7 @@
             <div class="crm-form-field">
               <select name="education" id="id_education" class="form-select no-tom-select">
                 <option value="">Select Education</option>
+                <option value="Computer Applications / IT">Computer Applications / IT (BCA / MCA / B.Sc IT)</option>
                 <option value="Engineering">Engineering</option>
                 <option value="Medical">Medical</option>
                 <option value="Management">Management</option>
@@ -408,7 +409,14 @@
         <div class="col-md-6">
           <div class="crm-form-row mb-0">
             <label class="crm-form-label" for="id_lead_source">Lead Source</label>
-            <div class="crm-form-field">{{ form.lead_source }}</div>
+            <div class="crm-form-field">
+              {{ form.lead_source }}
+              <!-- Dynamic Custom Lead Source input for 'Other' -->
+              <div id="otherLeadSourceContainer" class="mt-2" style="display: none;">
+                <input type="text" name="custom_lead_source" id="custom_lead_source" class="form-control" placeholder="Specify Lead Source name..." value="{{ form.instance.custom_data.custom_lead_source|default:'' }}">
+                <small class="text-muted" style="font-size: 0.72rem;">Enter your custom lead source name</small>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -423,7 +431,7 @@
         </div>
         <div class="col-md-6">
           <div class="crm-form-row mb-0">
-            <label class="crm-form-label" for="id_stage">Admission Status</label>
+            <label class="crm-form-label" for="id_stage">Stage</label>
             <div class="crm-form-field">
               {{ form.stage }}
             </div>
@@ -502,6 +510,67 @@
               <label class="crm-form-label" style="width: 30%;">Notes</label>
               <div class="crm-form-field" style="width: 70%;">
                 <input type="text" name="custom_visit_remark" id="custom_visit_remark" class="form-control" placeholder="Visiting with parents, demo...">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.1 Visit Done Container -->
+      <div id="visitDoneContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-success-subtle shadow-xs">
+        <div class="mb-3 pb-2 border-bottom">
+          <h6 class="fw-bold text-success mb-0"><i class="fa-solid fa-location-dot me-1"></i> Visit Completed / Outcome</h6>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 38%;">Visit Outcome</label>
+              <div class="crm-form-field" style="width: 62%;">
+                <select name="custom_visit_done_outcome" id="custom_visit_done_outcome" class="form-select no-tom-select">
+                  <option value="POSITIVE">Positive / Interested in Joining</option>
+                  <option value="CONSIDERING">Need Time to Decide / Discuss with Family</option>
+                  <option value="NEEDS_DEMO">Requested Demo Lecture</option>
+                  <option value="FEE_ISSUE">Fee Concern / Discount Requested</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label" style="width: 25%;">Feedback</label>
+              <div class="crm-form-field" style="width: 75%;">
+                <input type="text" name="custom_visit_done_remark" id="custom_visit_done_remark" class="form-control" placeholder="Counseling feedback, student response...">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.2 Visit Cancelled Container -->
+      <div id="visitCancelledContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-danger-subtle shadow-xs">
+        <div class="mb-3 pb-2 border-bottom">
+          <h6 class="fw-bold text-danger mb-0"><i class="fa-solid fa-calendar-xmark me-1"></i> Visit Cancelled</h6>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label required" style="width: 38%;">Cancel Reason</label>
+              <div class="crm-form-field" style="width: 62%;">
+                <select name="custom_visit_cancel_reason" id="custom_visit_cancel_reason" class="form-select no-tom-select">
+                  <option value="STUDENT_BUSY">Student Busy / Exams</option>
+                  <option value="RESCHEDULE_REQUESTED">Student Requested Reschedule</option>
+                  <option value="LOCATION_DISTANCE">Location Too Far</option>
+                  <option value="NOT_INTERESTED">Not Interested Anymore</option>
+                  <option value="OTHER">Other Reason</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="crm-form-row mb-0">
+              <label class="crm-form-label" style="width: 25%;">Remarks</label>
+              <div class="crm-form-field" style="width: 75%;">
+                <input type="text" name="custom_visit_cancel_remark" id="custom_visit_cancel_remark" class="form-control" placeholder="Details on why the visit was cancelled...">
               </div>
             </div>
           </div>
@@ -915,9 +984,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // ─── 2. Education & Qualification Dependent Data ───
   const eduQualData = {
+    "Computer Applications / IT": [
+      "BCA 1st Year", "BCA 2nd Year", "BCA 3rd Year (Final)", "BCA Passout",
+      "MCA 1st Year", "MCA 2nd Year (Final)", "MCA Passout",
+      "B.Sc IT / CS 1st Year", "B.Sc IT / CS Final Year", "B.Sc IT / CS Passout",
+      "M.Sc IT / CS"
+    ],
     "Engineering": [
       "B.Tech 1st Year", "B.Tech 2nd Year", "B.Tech 3rd Year", "B.Tech 4th Year (Final Year)",
-      "B.Tech Passout", "M.Tech 1st Year", "M.Tech 2nd Year", "M.Tech Passout", "B.E. Student"
+      "B.Tech Passout", "M.Tech 1st Year", "M.Tech 2nd Year", "M.Tech Passout", "B.E. Student",
+      "BCA Student", "MCA Student"
     ],
     "Medical": [
       "MBBS", "BAMS", "BHMS", "BDS", "B.Pharm 1st/2nd Year", "B.Pharm Final Year",
@@ -985,6 +1061,28 @@ document.addEventListener("DOMContentLoaded", function() {
     updateQualifications(this.value, "");
   });
 
+  // ─── 2.5 Dynamic 'Other' Lead Source Custom Input ───
+  const leadSourceSelect = document.getElementById("id_lead_source");
+  const otherSourceContainer = document.getElementById("otherLeadSourceContainer");
+  const customLeadSourceInput = document.getElementById("custom_lead_source");
+
+  function handleLeadSourceChange() {
+    if (!leadSourceSelect || !otherSourceContainer) return;
+    const selectedOpt = leadSourceSelect.options[leadSourceSelect.selectedIndex];
+    const sourceText = selectedOpt ? selectedOpt.textContent.trim().toLowerCase() : "";
+    if (sourceText === "other" || sourceText.includes("other")) {
+      otherSourceContainer.style.display = "block";
+      if (customLeadSourceInput) customLeadSourceInput.focus();
+    } else {
+      otherSourceContainer.style.display = "none";
+    }
+  }
+
+  if (leadSourceSelect) {
+    leadSourceSelect.addEventListener("change", handleLeadSourceChange);
+    handleLeadSourceChange();
+  }
+
   // ─── 3. Dynamic Conditional Containers & Stages ───
   const stageSelect = document.getElementById("id_stage");
   const dealStatusInput = document.getElementById("id_deal_status");
@@ -994,6 +1092,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const containerFollowup = document.getElementById("followupContainer");
   const containerVisit = document.getElementById("visitContainer");
+  const containerVisitDone = document.getElementById("visitDoneContainer");
+  const containerVisitCancelled = document.getElementById("visitCancelledContainer");
   const containerAdmPlan = document.getElementById("admissionPlannedContainer");
   const containerBilling = document.getElementById("billingFieldsContainer");
   const containerCancelled = document.getElementById("cancelledContainer");
@@ -1002,6 +1102,8 @@ document.addEventListener("DOMContentLoaded", function() {
   const inputFollowupRemark = document.getElementById("custom_followup_remark");
   const inputVisitDate = document.getElementById("custom_visit_date");
   const selectVisitSlot = document.getElementById("custom_visit_slot");
+  const selectVisitDoneOutcome = document.getElementById("custom_visit_done_outcome");
+  const selectVisitCancelReason = document.getElementById("custom_visit_cancel_reason");
   const inputAdmDate = document.getElementById("custom_admission_date");
   const inputReason = document.getElementById("custom_cancellation_reason");
   const billingAdmissionDate = document.getElementById("billing_admission_date");
@@ -1500,21 +1602,44 @@ document.addEventListener("DOMContentLoaded", function() {
     // Hide all first
     containerFollowup.style.display = "none";
     containerVisit.style.display = "none";
+    if (containerVisitDone) containerVisitDone.style.display = "none";
+    if (containerVisitCancelled) containerVisitCancelled.style.display = "none";
     containerAdmPlan.style.display = "none";
     containerBilling.style.display = "none";
     containerCancelled.style.display = "none";
 
-    [inputFollowupDate, inputFollowupRemark, inputVisitDate, selectVisitSlot, inputAdmDate, inputReason].forEach(i => { if (i) i.required = false; });
+    [inputFollowupDate, inputFollowupRemark, inputVisitDate, selectVisitSlot, selectVisitDoneOutcome, selectVisitCancelReason, inputAdmDate, inputReason].forEach(i => { if (i) i.required = false; });
 
-    // 1. Follow up needed
-    if (stageName.includes("follow up") || stageName.includes("followup")) {
+    // 1. Follow up pending
+    if (stageName.includes("follow up pending") || stageName.includes("follow up needed") || (stageName.includes("follow up") && !stageName.includes("completed"))) {
       containerFollowup.style.display = "block";
-      inputFollowupDate.required = true;
-      inputFollowupRemark.required = true;
+      if (inputFollowupDate) {
+        inputFollowupDate.disabled = false;
+        inputFollowupDate.required = true;
+      }
+      if (inputFollowupRemark) {
+        inputFollowupRemark.disabled = false;
+        inputFollowupRemark.required = true;
+      }
       if (dealStatusInput) dealStatusInput.value = "OPEN";
       if (admissionStatusInput) admissionStatusInput.value = "HOLD";
     }
-    // 2. Visit planned
+    // 2. Follow up completed
+    else if (stageName.includes("follow up completed") || stageName.includes("followup completed")) {
+      // Completed call: keep followup container optional or allow note taking
+      containerFollowup.style.display = "block";
+      if (inputFollowupDate) {
+        inputFollowupDate.disabled = false;
+        inputFollowupDate.required = false;
+      }
+      if (inputFollowupRemark) {
+        inputFollowupRemark.disabled = false;
+        inputFollowupRemark.required = false;
+      }
+      if (dealStatusInput) dealStatusInput.value = "OPEN";
+      if (admissionStatusInput) admissionStatusInput.value = "HOLD";
+    }
+    // 3. Visit planned
     else if (stageName.includes("visit planned")) {
       containerVisit.style.display = "block";
       inputVisitDate.required = true;
@@ -1525,7 +1650,28 @@ document.addEventListener("DOMContentLoaded", function() {
         tempInput.value = "WARM";
       }
     }
-    // 3. Admission planned
+    // 4. Visit done
+    else if (stageName.includes("visit done") || stageName.includes("visited")) {
+      if (containerVisitDone) {
+        containerVisitDone.style.display = "block";
+        if (selectVisitDoneOutcome) selectVisitDoneOutcome.required = true;
+      }
+      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
+      if (admissionStatusInput) admissionStatusInput.value = "OPEN";
+      if (tempInput && (tempInput.value === "COLD" || tempInput.value === "FREEZE")) {
+        tempInput.value = "WARM";
+      }
+    }
+    // 5. Visit cancelled
+    else if (stageName.includes("visit cancelled") || stageName.includes("visit cancel")) {
+      if (containerVisitCancelled) {
+        containerVisitCancelled.style.display = "block";
+        if (selectVisitCancelReason) selectVisitCancelReason.required = true;
+      }
+      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
+      if (admissionStatusInput) admissionStatusInput.value = "OPEN";
+    }
+    // 6. Admission planned
     else if (stageName.includes("admission planned") || stageName.includes("admission pending")) {
       containerAdmPlan.style.display = "block";
       inputAdmDate.required = true;
@@ -1535,15 +1681,15 @@ document.addEventListener("DOMContentLoaded", function() {
         tempInput.value = "WARM";
       }
     }
-    // 4. Admission & Payment (Won)
-    else if (stageName.includes("admission & payment") || stageName.includes("admission done") || stageName.includes("payment done")) {
+    // 7. Admission and payment (Won)
+    else if (stageName.includes("admission and payment") || stageName.includes("admission & payment") || stageName.includes("admission done") || stageName.includes("payment done")) {
       containerBilling.style.display = "block";
       if (dealStatusInput) dealStatusInput.value = "WON";
       if (admissionStatusInput) admissionStatusInput.value = "WON";
       if (tempInput) tempInput.value = "HOT";
       updateCoursePricing();
     }
-    // 5. Cancelled (Lost)
+    // 8. Cancelled (Lost)
     else if (stageName.includes("cancel") || stageName.includes("lost")) {
       containerCancelled.style.display = "block";
       inputReason.required = true;

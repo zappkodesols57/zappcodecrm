@@ -267,8 +267,8 @@
                     {{ lead.course }}
                   </span>
                 {% endif %}
-                <span class="crm-badge-lightblue">
-                  {{ lead.display_stage|default:lead.stage.name|default:lead.stage|default:"New" }}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle fw-semibold" style="font-size: 0.76rem;">
+                  {{ lead.stage.name|default:lead.display_stage|default:"New" }}
                 </span>
                 {% if lead.temperature %}
                   <span class="badge badge-{{ lead.temperature|lower }}">{{ lead.get_temperature_display }}</span>

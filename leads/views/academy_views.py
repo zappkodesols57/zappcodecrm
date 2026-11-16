@@ -1092,8 +1092,19 @@ def handle_academy_lead_save(request, saved_lead, cd):
 
     stage_name = (saved_lead.stage.name if saved_lead.stage_id and saved_lead.stage else "").strip().lower()
 
+    # 0. Archive Lead if stage is Archive
+    if "archive" in stage_name:
+        saved_lead.is_archived = True
+        cd["deal_status"] = "Archived"
+        Activity.objects.create(
+            lead=saved_lead,
+            activity_type=ActivityType.STAGE_CHANGE,
+            description=f"Lead archived by {request.user.get_full_name() or request.user.username}.",
+            created_by=request.user,
+        )
+
     # 1. Cancelled / Lost
-    if stage_name in ("cancelled", "lost") or custom_reason:
+    elif stage_name in ("cancelled", "lost") or custom_reason:
         saved_lead.deal_status = DealStatus.LOST
         saved_lead.temperature = LeadTemperature.FREEZE
         saved_lead.admission_status = AdmissionStatus.LOST
@@ -1147,14 +1158,32 @@ def handle_academy_lead_save(request, saved_lead, cd):
                 saved_lead.next_followup_date = datetime.strptime(visit_date, "%Y-%m-%d").date()
                 cd["visit_date"] = visit_date
                 cd["visit_slot"] = visit_slot
+                if visit_remark:
+                    cd["visit_remark"] = visit_remark
             except ValueError:
                 pass
 
-    # 4. Visited
-    elif stage_name in ("visited",):
+    # 4. Visit Done / Visited
+    elif stage_name in ("visit done", "visited"):
         saved_lead.deal_status = DealStatus.INTERESTED
         if saved_lead.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
             saved_lead.temperature = LeadTemperature.WARM
+        visit_outcome = request.POST.get("custom_visit_done_outcome", "").strip()
+        visit_done_remark = request.POST.get("custom_visit_done_remark", "").strip()
+        if visit_outcome:
+            cd["visit_outcome"] = visit_outcome
+        if visit_done_remark:
+            cd["visit_done_remark"] = visit_done_remark
+
+    # 4.1 Visit Cancelled
+    elif stage_name in ("visit cancelled", "visit cancel"):
+        saved_lead.deal_status = DealStatus.INTERESTED
+        visit_cancel_reason = request.POST.get("custom_visit_cancel_reason", "").strip()
+        visit_cancel_remark = request.POST.get("custom_visit_cancel_remark", "").strip()
+        if visit_cancel_reason:
+            cd["visit_cancel_reason"] = visit_cancel_reason
+        if visit_cancel_remark:
+            cd["visit_cancel_remark"] = visit_cancel_remark
 
     # 5. Admission Planned / Pending
     elif stage_name in ("admission planned", "admission pending"):
@@ -1194,6 +1223,17 @@ def handle_academy_lead_save(request, saved_lead, cd):
                 saved_lead.next_followup_date = datetime.strptime(custom_fup, "%Y-%m-%d").date()
             except ValueError:
                 pass
+
+    # Custom lead source for 'Other'
+    custom_source_val = request.POST.get("custom_lead_source", "").strip()
+    if custom_source_val:
+        cd["custom_lead_source"] = custom_source_val
+        # Also ensure or link to LeadSource if user specifies
+        from leads.models import LeadSource, SourceCategory
+        other_cat = SourceCategory.objects.filter(name__icontains="Other").first() or SourceCategory.objects.first()
+        if other_cat:
+            src_obj, _ = LeadSource.objects.get_or_create(name=custom_source_val, category=other_cat)
+            saved_lead.lead_source = src_obj
 
     saved_lead.custom_data = cd
     saved_lead.save()
