@@ -593,6 +593,8 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
                 Q(import_source_file__iexact=selected_import_job.original_filename)
             )
 
+    today = timezone.localdate()
+
     def _parse_date_input(val):
         if not val:
             return None
@@ -603,23 +605,35 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
                 continue
         return None
 
+    lead_date_preset = request.GET.get("lead_date", "").strip()
     date_from = _parse_date_input(request.GET.get("date_from") or request.GET.get("date"))
     date_to = _parse_date_input(request.GET.get("date_to"))
 
-    # Smart fallback rule for custom date range:
-    # 1. If only date_from selected -> date_to defaults to today
-    # 2. If only date_to selected -> date_from remains open (oldest lead up to date_to)
-    if date_from and not date_to:
-        date_to = today
+    if lead_date_preset == "today":
+        leads = leads.filter(Q(inquiry_date=today) | Q(created_at__date=today))
+    elif lead_date_preset == "yesterday":
+        yest = today - timedelta(days=1)
+        leads = leads.filter(Q(inquiry_date=yest) | Q(created_at__date=yest))
+    elif lead_date_preset == "last_7_days":
+        week_ago = today - timedelta(days=7)
+        leads = leads.filter(Q(inquiry_date__gte=week_ago) | Q(created_at__date__gte=week_ago))
+    elif lead_date_preset == "this_month":
+        first_of_month = today.replace(day=1)
+        leads = leads.filter(Q(inquiry_date__gte=first_of_month) | Q(created_at__date__gte=first_of_month))
+    elif lead_date_preset == "custom" or date_from or date_to:
+        # Smart fallback rule for custom date range:
+        # 1. If only date_from selected -> date_to defaults to today
+        # 2. If only date_to selected -> date_from remains open (oldest lead up to date_to)
+        if date_from and not date_to:
+            date_to = today
 
-    if date_from:
-        leads = leads.filter(inquiry_date__gte=date_from)
-    if date_to:
-        leads = leads.filter(inquiry_date__lte=date_to)
+        if date_from:
+            leads = leads.filter(Q(inquiry_date__gte=date_from) | Q(created_at__date__gte=date_from))
+        if date_to:
+            leads = leads.filter(Q(inquiry_date__lte=date_to) | Q(created_at__date__lte=date_to))
 
     followup_filter = request.GET.get("followup")
     quick_filter = request.GET.get("filter")
-    today = timezone.localdate()
     
     if quick_filter == "todays_new":
         leads = leads.filter(

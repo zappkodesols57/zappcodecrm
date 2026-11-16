@@ -224,68 +224,33 @@
     <form method="get" id="academyLeadsFilterForm" action="{% url 'leads:lead_list' %}">
       <div class="row g-2 align-items-end">
         
-        <!-- 1. Smart Date Range Picker Dropdown (From & To in One Picker) -->
+        <!-- 1. Smart Date Range Picker (Standard Interactive Popup Calendar) -->
         <div class="col-12 col-md-4 col-xl-3">
           <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Inquiry Date Range</label>
-          <div class="dropdown w-100">
-            <button class="btn btn-sm btn-white border dropdown-toggle w-100 d-flex align-items-center justify-content-between text-truncate {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}border-primary text-primary fw-semibold{% endif %}"
-              type="button" id="adminDateDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
-              <span>
+          <div class="input-group">
+            <select name="lead_date" id="admin_leadDateSelect" class="form-select filter-input-unified no-tom-select border" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;" onchange="handleLeadDateDropdownChange('admin', this.value)">
+              <option value="" {% if not request_get.lead_date and not request_get.date_from and not request_get.date_to and not date_from_val and not date_to_val %}selected{% endif %}>Date range: All</option>
+              <option value="today" {% if request_get.lead_date == 'today' %}selected{% endif %}>Today</option>
+              <option value="yesterday" {% if request_get.lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
+              <option value="last_7_days" {% if request_get.lead_date == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+              <option value="this_month" {% if request_get.lead_date == 'this_month' %}selected{% endif %}>This Month</option>
+              <option value="custom" {% if request_get.lead_date == 'custom' or request_get.date_from or request_get.date_to or date_from_val or date_to_val %}selected{% endif %}>
                 {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
-                  📅 {{ request_get.date_from|default:date_from_val|default:"Start" }} → {{ request_get.date_to|default:date_to_val|default:"Today" }}
+                  📅 {% if request_get.date_from %}{{ request_get.date_from|slice:"8:10" }}-{{ request_get.date_from|slice:"5:7" }}-{{ request_get.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} → {% if request_get.date_to %}{{ request_get.date_to|slice:"8:10" }}-{{ request_get.date_to|slice:"5:7" }}-{{ request_get.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
                 {% else %}
-                  📅 Select Date Range
+                  Custom Date Range...
                 {% endif %}
-              </span>
-            </button>
-            <div class="dropdown-menu p-3 shadow-sm" style="min-width: 290px; border-radius: 10px;">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <label class="text-muted fw-bold small text-uppercase mb-0" style="font-size: 0.68rem;">Custom Range</label>
-                <span class="badge bg-light text-secondary border py-0.5" id="admPickerModeBadge" style="font-size: 0.65rem;">Step 1: Pick From</span>
-              </div>
-              
-              <!-- Tab Mode Toggles to manually switch between From or To -->
-              <div class="btn-group w-100 mb-2" role="group">
-                <input type="radio" class="btn-check" name="adm_active_pick" id="adm_pick_from" value="from" checked onchange="updateAdmDatePickMode('from')">
-                <label class="btn btn-outline-primary btn-xs py-1" for="adm_pick_from" style="font-size: 0.72rem;">1. From Date</label>
-
-                <input type="radio" class="btn-check" name="adm_active_pick" id="adm_pick_to" value="to" onchange="updateAdmDatePickMode('to')">
-                <label class="btn btn-outline-primary btn-xs py-1" for="adm_pick_to" style="font-size: 0.72rem;">2. To Date</label>
-              </div>
-
-              <!-- Shared Interactive Calendar Input -->
-              <div class="mb-2">
-                <input type="date" id="admSingleCalendarInput" class="form-control form-control-sm text-center fw-semibold border"
-                  max="{% now 'Y-m-d' %}"
-                  value="{{ request_get.date_from|default:date_from_val|default:'' }}"
-                  onchange="handleAdmSingleCalendarClick(this.value)">
-                <small class="text-muted d-block mt-1" style="font-size: 0.70rem;" id="admPickerHelperText">
-                  Click date to set <strong>From</strong>. Next click sets <strong>To</strong>.
-                </small>
-              </div>
-
-              <!-- Display selected inputs -->
-              <div class="p-1.5 rounded-2 bg-light border mb-2 d-flex align-items-center justify-content-between" style="font-size: 0.75rem;">
-                <div>
-                  <span class="text-muted">From:</span>
-                  <strong class="text-dark" id="admDispFrom">{{ request_get.date_from|default:date_from_val|default:"(Open)" }}</strong>
-                </div>
-                <div>
-                  <span class="text-muted">To:</span>
-                  <strong class="text-dark" id="admDispTo">{{ request_get.date_to|default:date_to_val|default:"Today" }}</strong>
-                </div>
-              </div>
-
-              <!-- Hidden Form Fields for Form Submit -->
-              <input type="hidden" name="date_from" id="admInputDateFrom" value="{{ request_get.date_from|default:date_from_val }}">
-              <input type="hidden" name="date_to" id="admInputDateTo" value="{{ request_get.date_to|default:date_to_val }}">
-
-              <div class="d-flex gap-1.5 mt-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary py-1 flex-fill" style="font-size: 0.76rem;" onclick="clearAdmDateFilter()">Clear</button>
-                <button type="submit" class="btn btn-sm btn-primary py-1 flex-fill" style="font-size: 0.76rem; background: #0f2744; border-color: #0f2744;">Apply Range</button>
-              </div>
-            </div>
+              </option>
+            </select>
+            {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
+              <button class="btn btn-outline-secondary border-start-0 py-0 px-2" type="button" title="Edit Date Range" onclick="handleLeadDateDropdownChange('admin', 'custom')">
+                <i class="fa-solid fa-pen-to-square text-primary" style="font-size: 0.78rem;"></i>
+              </button>
+            {% endif %}
           </div>
+          <!-- Hidden inputs for custom date submission -->
+          <input type="hidden" name="date_from" id="admin_inputDateFrom" value="{{ request_get.date_from|default:date_from_val|default:'' }}">
+          <input type="hidden" name="date_to" id="admin_inputDateTo" value="{{ request_get.date_to|default:date_to_val|default:'' }}">
         </div>
 
         <!-- 3. Course Filter -->
@@ -1313,78 +1278,459 @@
     });
   };
 
-  // Admin Single-Calendar Range Picker Controller
-  let admDatePickMode = 'from';
+<!-- Interactive Custom Date Range Modal (Matching Dashboard Calendar) -->
+<style>
+  .cal-picker-wrap {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .cal-nav-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+  }
+  .cal-nav-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+  .cal-day-cell {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.82rem;
+    color: #1e293b;
+    border-radius: 6px;
+    margin: 1px 0;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .cal-day-cell:hover:not(.cal-day-future):not(.cal-day-start):not(.cal-day-end) {
+    background-color: #f1f5f9;
+  }
+  .cal-day-empty {
+    height: 34px;
+    visibility: hidden;
+  }
+  .cal-day-future {
+    color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+    background: transparent !important;
+  }
+  .cal-day-start {
+    background-color: #052042 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  .cal-day-end {
+    background-color: #052042 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+  .cal-day-start.cal-day-end {
+    border-radius: 6px !important;
+  }
+  .cal-day-in-range {
+    background-color: #dbeafe !important;
+    color: #1e3a8a !important;
+    font-weight: 600 !important;
+    border-radius: 0 !important;
+  }
+  .cal-day-hover-range {
+    background-color: #eff6ff !important;
+    color: #1e40af !important;
+    border-radius: 0 !important;
+  }
+</style>
 
-  function updateAdmDatePickMode(mode) {
-    admDatePickMode = mode;
-    const badge = document.getElementById('admPickerModeBadge');
-    const helper = document.getElementById('admPickerHelperText');
-    const calInput = document.getElementById('admSingleCalendarInput');
-    const hiddenFrom = document.getElementById('admInputDateFrom');
-    const hiddenTo = document.getElementById('admInputDateTo');
+<div class="modal fade" id="admin_customDateModal" tabindex="-1" aria-labelledby="admin_customDateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+      <div class="modal-header py-2.5 px-3" style="background-color: #052042; color: #ffffff;">
+        <h6 class="modal-title fw-bold mb-0 text-white" id="admin_customDateModalLabel" style="font-size: 0.9rem;">
+          📅 Select Date Range
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <!-- 2 Selection Mode Tabs: From Date & To Date -->
+        <div class="btn-group w-100 mb-2.5" role="group">
+          <input type="radio" class="btn-check" name="admin_modal_mode" id="admin_modal_pick_from" value="from" checked onchange="setCalPickMode('admin', 'from')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="admin_modal_pick_from" style="font-size: 0.78rem;">
+            1. From Date
+          </label>
 
-    if (mode === 'from') {
-      if (badge) badge.innerText = 'Step 1: Pick From';
-      if (helper) helper.innerHTML = 'Click date to set <strong>From</strong>. Next click sets <strong>To</strong>.';
-      if (calInput) calInput.value = hiddenFrom ? hiddenFrom.value : '';
-    } else {
-      if (badge) badge.innerText = 'Step 2: Pick To';
-      if (helper) helper.innerHTML = 'Click date to set <strong>To Date</strong>.';
-      if (calInput) calInput.value = hiddenTo ? hiddenTo.value : '';
+          <input type="radio" class="btn-check" name="admin_modal_mode" id="admin_modal_pick_to" value="to" onchange="setCalPickMode('admin', 'to')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="admin_modal_pick_to" style="font-size: 0.78rem;">
+            2. To Date
+          </label>
+        </div>
+
+        <!-- Inline Interactive Range Calendar -->
+        <div class="cal-picker-wrap mb-2">
+          <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+            <button type="button" class="cal-nav-btn" onclick="navCalMonth('admin', -1)" title="Previous Month">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="fw-bold text-dark fs-6" id="admin_calMonthYear">November 2026</div>
+            <button type="button" class="cal-nav-btn" onclick="navCalMonth('admin', 1)" title="Next Month">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="d-grid text-center text-muted fw-semibold mb-1" style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem;">
+            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+          </div>
+
+          <div class="d-grid text-center" id="admin_calDaysGrid" style="grid-template-columns: repeat(7, 1fr);" onmouseleave="handleCalMouseLeave('admin')">
+          </div>
+        </div>
+
+        <small class="text-muted d-block text-center mb-2" style="font-size: 0.72rem;" id="admin_modalHelper">
+          Click 1st date for <strong>From</strong>, then click 2nd date for <strong>To</strong>.
+        </small>
+
+        <!-- Selected Range Preview Box -->
+        <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-1">
+          <div>
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">From Date</span>
+            <strong class="text-dark" id="admin_modalDispFrom" style="font-size: 0.85rem;">
+              {% if request_get.date_from %}{{ request_get.date_from|slice:"8:10" }}-{{ request_get.date_from|slice:"5:7" }}-{{ request_get.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}(Open / Oldest){% endif %}
+            </strong>
+          </div>
+          <div class="text-muted">➔</div>
+          <div class="text-end">
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">To Date</span>
+            <strong class="text-dark" id="admin_modalDispTo" style="font-size: 0.85rem;">
+              {% if request_get.date_to %}{{ request_get.date_to|slice:"8:10" }}-{{ request_get.date_to|slice:"5:7" }}-{{ request_get.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
+            </strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" onclick="clearModalDateRange('admin')">Clear</button>
+        <button type="button" class="btn btn-sm btn-primary px-3 py-1 fw-semibold" style="background-color: #052042; border-color: #052042;" onclick="applyModalDateRange('admin')">Apply Range</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Unified Interactive Calendar Logic for Lead List
+  let calStates = {};
+
+  function formatIsoToDdMmYyyy(isoDateStr) {
+    if (!isoDateStr) return '';
+    const parts = isoDateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return parts[2] + '-' + parts[1] + '-' + parts[0];
     }
+    return isoDateStr;
   }
 
-  function handleAdmSingleCalendarClick(selectedDate) {
-    if (!selectedDate) return;
-    const hiddenFrom = document.getElementById('admInputDateFrom');
-    const hiddenTo = document.getElementById('admInputDateTo');
-    const dispFrom = document.getElementById('admDispFrom');
-    const dispTo = document.getElementById('admDispTo');
+  function getFilterForm(prefix) {
+    return document.getElementById('academyLeadsFilterForm') ||
+           document.getElementById('lead_filter_form') ||
+           document.querySelector('form[action*="leads"]');
+  }
 
-    if (admDatePickMode === 'from') {
-      if (hiddenFrom) hiddenFrom.value = selectedDate;
-      if (dispFrom) dispFrom.innerText = selectedDate;
+  function initCalState(prefix, fromIso, toIso) {
+    const today = new Date();
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth();
 
-      // Advance to step 2 for To Date
-      const radioTo = document.getElementById('adm_pick_to');
-      if (radioTo) radioTo.checked = true;
-      updateAdmDatePickMode('to');
-    } else {
-      let fromVal = hiddenFrom ? hiddenFrom.value : '';
-      if (fromVal && selectedDate < fromVal) {
-        const temp = fromVal;
-        fromVal = selectedDate;
-        selectedDate = temp;
-        if (hiddenFrom) hiddenFrom.value = fromVal;
-        if (dispFrom) dispFrom.innerText = fromVal;
+    if (toIso) {
+      const p = toIso.split('-');
+      if (p.length === 3 && p[0].length === 4) {
+        viewYear = parseInt(p[0], 10);
+        viewMonth = parseInt(p[1], 10) - 1;
       }
-      if (hiddenTo) hiddenTo.value = selectedDate;
-      if (dispTo) dispTo.innerText = selectedDate;
+    } else if (fromIso) {
+      const p = fromIso.split('-');
+      if (p.length === 3 && p[0].length === 4) {
+        viewYear = parseInt(p[0], 10);
+        viewMonth = parseInt(p[1], 10) - 1;
+      }
+    }
 
-      const badge = document.getElementById('admPickerModeBadge');
-      if (badge) badge.innerText = '✓ Range Ready';
-      const helper = document.getElementById('admPickerHelperText');
-      if (helper) helper.innerHTML = '<span class="text-success fw-bold">✓ Ready! Click "Apply Range" to filter.</span>';
+    calStates[prefix] = {
+      from: fromIso || '',
+      to: toIso || '',
+      mode: (fromIso && !toIso) ? 'to' : 'from',
+      viewYear: viewYear,
+      viewMonth: viewMonth,
+      hoverDate: null
+    };
+  }
+
+  function setCalPickMode(prefix, mode) {
+    if (!calStates[prefix]) {
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+      initCalState(prefix, hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+    }
+    calStates[prefix].mode = mode;
+    const helper = document.getElementById(prefix + '_modalHelper');
+    if (helper) {
+      if (mode === 'from') {
+        helper.innerHTML = 'Click calendar date to set <strong>From Date</strong>.';
+      } else {
+        helper.innerHTML = 'Click calendar date to set <strong>To Date</strong>.';
+      }
+    }
+    renderCalendar(prefix);
+  }
+
+  function renderCalendar(prefix) {
+    const state = calStates[prefix];
+    if (!state) return;
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const headerEl = document.getElementById(prefix + '_calMonthYear');
+    if (headerEl) {
+      headerEl.innerText = `${monthNames[state.viewMonth]} ${state.viewYear}`;
+    }
+
+    const gridEl = document.getElementById(prefix + '_calDaysGrid');
+    if (!gridEl) return;
+    gridEl.innerHTML = '';
+
+    const firstDayIndex = new Date(state.viewYear, state.viewMonth, 1).getDay();
+    const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
+    const today = new Date();
+    const todayIso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    for (let i = 0; i < firstDayIndex; i++) {
+      const emptyCell = document.createElement('div');
+      emptyCell.className = 'cal-day-empty';
+      gridEl.appendChild(emptyCell);
+    }
+
+    const fromVal = state.from;
+    const toVal = state.to;
+    const hoverVal = state.hoverDate;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dStr = String(d).padStart(2, '0');
+      const mStr = String(state.viewMonth + 1).padStart(2, '0');
+      const isoDate = `${state.viewYear}-${mStr}-${dStr}`;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-day-cell';
+      cell.innerText = d;
+
+      if (isoDate > todayIso) {
+        cell.classList.add('cal-day-future');
+      } else {
+        cell.onclick = (e) => {
+          e.stopPropagation();
+          handleCalDateClick(prefix, isoDate);
+        };
+        cell.onmouseenter = () => {
+          handleCalDateHover(prefix, isoDate);
+        };
+      }
+
+      if (fromVal && toVal) {
+        if (isoDate === fromVal && isoDate === toVal) {
+          cell.classList.add('cal-day-start', 'cal-day-end');
+        } else if (isoDate === fromVal) {
+          cell.classList.add('cal-day-start');
+        } else if (isoDate === toVal) {
+          cell.classList.add('cal-day-end');
+        } else if (isoDate > fromVal && isoDate < toVal) {
+          cell.classList.add('cal-day-in-range');
+        }
+      } else if (fromVal && !toVal) {
+        if (isoDate === fromVal) {
+          cell.classList.add('cal-day-start', 'cal-day-end');
+        } else if (hoverVal && isoDate > fromVal && isoDate <= hoverVal) {
+          cell.classList.add('cal-day-hover-range');
+        }
+      } else if (!fromVal && toVal) {
+        if (isoDate === toVal) {
+          cell.classList.add('cal-day-start', 'cal-day-end');
+        }
+      }
+
+      gridEl.appendChild(cell);
+    }
+
+    const dispFrom = document.getElementById(prefix + '_modalDispFrom');
+    const dispTo = document.getElementById(prefix + '_modalDispTo');
+    if (dispFrom) {
+      dispFrom.innerText = state.from ? formatIsoToDdMmYyyy(state.from) : '(Open / Oldest)';
+    }
+    if (dispTo) {
+      dispTo.innerText = state.to ? formatIsoToDdMmYyyy(state.to) : 'Today';
+    }
+
+    const rFrom = document.getElementById(prefix + '_modal_pick_from');
+    const rTo = document.getElementById(prefix + '_modal_pick_to');
+    if (state.mode === 'from') {
+      if (rFrom) rFrom.checked = true;
+    } else {
+      if (rTo) rTo.checked = true;
     }
   }
 
-  function clearAdmDateFilter() {
-    const hiddenFrom = document.getElementById('admInputDateFrom');
-    const hiddenTo = document.getElementById('admInputDateTo');
-    const dispFrom = document.getElementById('admDispFrom');
-    const dispTo = document.getElementById('admDispTo');
-    const calInput = document.getElementById('admSingleCalendarInput');
+  function handleCalDateClick(prefix, isoDate) {
+    const state = calStates[prefix];
+    if (!state) return;
+
+    if (state.mode === 'from') {
+      state.from = isoDate;
+      state.to = '';
+      state.mode = 'to';
+    } else {
+      if (!state.from) {
+        state.from = isoDate;
+        state.mode = 'to';
+      } else {
+        if (isoDate < state.from) {
+          state.to = state.from;
+          state.from = isoDate;
+        } else {
+          state.to = isoDate;
+        }
+        state.mode = 'from';
+      }
+    }
+
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+    if (hiddenFrom) hiddenFrom.value = state.from;
+    if (hiddenTo) hiddenTo.value = state.to;
+
+    const helper = document.getElementById(prefix + '_modalHelper');
+    if (helper) {
+      if (state.from && state.to) {
+        helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
+      } else {
+        helper.innerHTML = 'Now click calendar date for <strong>To Date</strong>.';
+      }
+    }
+
+    renderCalendar(prefix);
+  }
+
+  function handleCalDateHover(prefix, isoDate) {
+    const state = calStates[prefix];
+    if (!state || (state.from && state.to)) return;
+    if (state.hoverDate !== isoDate) {
+      state.hoverDate = isoDate;
+      renderCalendar(prefix);
+    }
+  }
+
+  function handleCalMouseLeave(prefix) {
+    const state = calStates[prefix];
+    if (!state || (state.from && state.to)) return;
+    state.hoverDate = null;
+    renderCalendar(prefix);
+  }
+
+  function navCalMonth(prefix, delta) {
+    const state = calStates[prefix];
+    if (!state) return;
+    state.viewMonth += delta;
+    if (state.viewMonth < 0) {
+      state.viewMonth = 11;
+      state.viewYear -= 1;
+    } else if (state.viewMonth > 11) {
+      state.viewMonth = 0;
+      state.viewYear += 1;
+    }
+    renderCalendar(prefix);
+  }
+
+  function handleLeadDateDropdownChange(prefix, selectedVal) {
+    if (selectedVal === 'custom') {
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+      initCalState(prefix, hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+      renderCalendar(prefix);
+
+      const modalEl = document.getElementById(prefix + '_customDateModal');
+      if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      }
+    } else {
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+      if (hiddenFrom) hiddenFrom.value = '';
+      if (hiddenTo) hiddenTo.value = '';
+      const form = getFilterForm(prefix);
+      if (form) form.submit();
+    }
+  }
+
+  function clearModalDateRange(prefix) {
+    const state = calStates[prefix];
+    if (state) {
+      state.from = '';
+      state.to = '';
+      state.mode = 'from';
+      state.hoverDate = null;
+      renderCalendar(prefix);
+    }
+
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+    const select = document.getElementById(prefix + '_leadDateSelect');
 
     if (hiddenFrom) hiddenFrom.value = '';
     if (hiddenTo) hiddenTo.value = '';
-    if (dispFrom) dispFrom.innerText = '(Open)';
-    if (dispTo) dispTo.innerText = 'Today';
-    if (calInput) calInput.value = '';
+    if (select) select.value = '';
 
-    const radioFrom = document.getElementById('adm_pick_from');
-    if (radioFrom) radioFrom.checked = true;
-    updateAdmDatePickMode('from');
+    const form = getFilterForm(prefix);
+    if (form) form.submit();
   }
+
+  function applyModalDateRange(prefix) {
+    const state = calStates[prefix];
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+
+    if (state) {
+      if (hiddenFrom) hiddenFrom.value = state.from || '';
+      if (hiddenTo) hiddenTo.value = state.to || '';
+    }
+
+    const select = document.getElementById(prefix + '_leadDateSelect');
+    if (select) select.value = 'custom';
+
+    const form = getFilterForm(prefix);
+    if (form) {
+      form.submit();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const hiddenFrom = document.getElementById('admin_inputDateFrom');
+    const hiddenTo = document.getElementById('admin_inputDateTo');
+    initCalState('admin', hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+    renderCalendar('admin');
+  });
 </script>
 {% endblock %}
