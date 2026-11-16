@@ -249,16 +249,93 @@
         </div>
       </div>
 
-      <!-- Lead Date Dropdown (Single select) -->
+      <!-- Lead Date Dropdown (Single select with Custom Date Range Picker) -->
       <div class="col-6 col-md-4 col-xl-3">
         <label class="filter-field-label">Lead Date</label>
-        <select name="lead_date" class="form-select filter-input-unified no-tom-select" onchange="this.form.submit()">
-          <option value="" {% if not filter_lead_date %}selected{% endif %}>Lead date: All</option>
-          <option value="today" {% if filter_lead_date == 'today' %}selected{% endif %}>Today</option>
-          <option value="yesterday" {% if filter_lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
-          <option value="last_7_days" {% if filter_lead_date == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
-          <option value="this_month" {% if filter_lead_date == 'this_month' %}selected{% endif %}>This Month</option>
-        </select>
+        <div class="dropdown w-100">
+          <button class="btn filter-dropdown-btn dropdown-toggle {% if filter_lead_date or filter_date_from or filter_date_to %}has-value{% endif %}"
+            type="button" id="{{ filter_prefix }}_dateDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <span class="text-truncate">
+              {% if filter_date_from or filter_date_to %}
+                📅 {{ filter_date_from|default:"Start" }} → {{ filter_date_to|default:"Today" }}
+              {% elif filter_lead_date == 'today' %}
+                Today
+              {% elif filter_lead_date == 'yesterday' %}
+                Yesterday
+              {% elif filter_lead_date == 'last_7_days' %}
+                Last 7 Days
+              {% elif filter_lead_date == 'this_month' %}
+                This Month
+              {% else %}
+                Lead date: All
+              {% endif %}
+            </span>
+          </button>
+          <div class="dropdown-menu p-3 shadow-sm" style="min-width: 290px; border-radius: 10px;">
+            <div class="mb-2">
+              <label class="text-muted fw-bold small text-uppercase" style="font-size: 0.68rem;">Quick Presets</label>
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded-pill {% if not filter_lead_date and not filter_date_from and not filter_date_to %}active fw-bold{% endif %}" onclick="setDashboardQuickDate('{{ filter_prefix }}', '')">All</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded-pill {% if filter_lead_date == 'today' %}active fw-bold{% endif %}" onclick="setDashboardQuickDate('{{ filter_prefix }}', 'today')">Today</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded-pill {% if filter_lead_date == 'yesterday' %}active fw-bold{% endif %}" onclick="setDashboardQuickDate('{{ filter_prefix }}', 'yesterday')">Yesterday</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded-pill {% if filter_lead_date == 'last_7_days' %}active fw-bold{% endif %}" onclick="setDashboardQuickDate('{{ filter_prefix }}', 'last_7_days')">7 Days</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded-pill {% if filter_lead_date == 'this_month' %}active fw-bold{% endif %}" onclick="setDashboardQuickDate('{{ filter_prefix }}', 'this_month')">This Month</button>
+              </div>
+            </div>
+
+            <hr class="my-2">
+
+            <!-- Smart Single-Picker Interactive Range (Click 1: From, Click 2: To) -->
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="text-muted fw-bold small text-uppercase mb-0" style="font-size: 0.68rem;">Custom Range</label>
+                <span class="badge bg-light text-secondary border py-0.5" id="{{ filter_prefix }}_pickerModeBadge" style="font-size: 0.65rem;">Step 1: Pick From</span>
+              </div>
+              
+              <!-- Tab Mode Toggles to manually switch between From or To -->
+              <div class="btn-group w-100 mb-2" role="group">
+                <input type="radio" class="btn-check" name="{{ filter_prefix }}_active_pick" id="{{ filter_prefix }}_pick_from" value="from" checked onchange="updateDatePickMode('{{ filter_prefix }}', 'from')">
+                <label class="btn btn-outline-primary btn-xs py-1" for="{{ filter_prefix }}_pick_from" style="font-size: 0.72rem;">1. From Date</label>
+
+                <input type="radio" class="btn-check" name="{{ filter_prefix }}_active_pick" id="{{ filter_prefix }}_pick_to" value="to" onchange="updateDatePickMode('{{ filter_prefix }}', 'to')">
+                <label class="btn btn-outline-primary btn-xs py-1" for="{{ filter_prefix }}_pick_to" style="font-size: 0.72rem;">2. To Date</label>
+              </div>
+
+              <!-- Shared Interactive Calendar Input -->
+              <div class="mb-2">
+                <input type="date" id="{{ filter_prefix }}_singleCalendarInput" class="form-control form-control-sm text-center fw-semibold border"
+                  max="{% now 'Y-m-d' %}"
+                  value="{{ filter_date_from|default:'' }}"
+                  onchange="handleSingleCalendarClick('{{ filter_prefix }}', this.value)">
+                <small class="text-muted d-block mt-1" style="font-size: 0.70rem;" id="{{ filter_prefix }}_pickerHelperText">
+                  Click date to set <strong>From</strong>. Next click sets <strong>To</strong>.
+                </small>
+              </div>
+
+              <!-- Display selected inputs (bound to form submission) -->
+              <div class="p-1.5 rounded-2 bg-light border mb-2 d-flex align-items-center justify-content-between" style="font-size: 0.75rem;">
+                <div>
+                  <span class="text-muted">From:</span>
+                  <strong class="text-dark" id="{{ filter_prefix }}_dispFrom">{{ filter_date_from|default:"(Open)" }}</strong>
+                </div>
+                <div>
+                  <span class="text-muted">To:</span>
+                  <strong class="text-dark" id="{{ filter_prefix }}_dispTo">{{ filter_date_to|default:"Today" }}</strong>
+                </div>
+              </div>
+
+              <!-- Hidden Form Fields for Form Submit -->
+              <input type="hidden" name="lead_date" id="{{ filter_prefix }}_inputLeadDate" value="{{ filter_lead_date }}">
+              <input type="hidden" name="date_from" id="{{ filter_prefix }}_inputDateFrom" value="{{ filter_date_from }}">
+              <input type="hidden" name="date_to" id="{{ filter_prefix }}_inputDateTo" value="{{ filter_date_to }}">
+
+              <div class="d-flex gap-1.5 mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 flex-fill" style="font-size: 0.76rem;" onclick="clearDateFilter('{{ filter_prefix }}')">Clear</button>
+                <button type="submit" class="btn btn-sm btn-primary py-1 flex-fill" style="font-size: 0.76rem; background: #0f2744; border-color: #0f2744;">Apply Range</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -340,7 +417,7 @@
         <button type="submit" class="btn filter-apply-btn flex-fill px-3 shadow-sm d-flex align-items-center justify-content-center">
           <i class="fa-solid fa-filter me-1.5"></i> Filter
         </button>
-        {% if filter_q or filter_status or filter_assigned or filter_source or filter_course or filter_intent or filter_lead_date or filter_followup or filter_last_contact %}
+        {% if filter_q or filter_status or filter_assigned or filter_source or filter_course or filter_intent or filter_lead_date or filter_date_from or filter_date_to or filter_followup or filter_last_contact %}
           <a href="?tab={{ cur_tab }}{% if cur_subtab %}&subtab={{ cur_subtab }}{% endif %}" class="btn filter-reset-btn flex-fill px-3 d-flex align-items-center justify-content-center" title="Reset all filters">
             <i class="fa-solid fa-rotate-left me-1.5"></i> Reset
           </a>
@@ -352,7 +429,7 @@
   <!-- Filter Status Indicator Bar -->
   <div class="mt-2.5 pt-2.5 border-top d-flex align-items-center justify-content-between text-muted" style="font-size: 0.78rem;">
     <div>
-      {% if filter_q or filter_status or filter_assigned or filter_source or filter_course or filter_intent or filter_lead_date or filter_followup or filter_last_contact %}
+      {% if filter_q or filter_status or filter_assigned or filter_source or filter_course or filter_intent or filter_lead_date or filter_date_from or filter_date_to or filter_followup or filter_last_contact %}
         <span class="text-dark fw-bold"><i class="fa-solid fa-circle-check text-success me-1"></i> Active filters applied</span>
       {% else %}
         <span>No filters applied</span>
@@ -363,3 +440,102 @@
     </div>
   </div>
 </div>
+
+<script>
+  // Smart Single-Calendar Range Picker Controller
+  window.currentDatePickSteps = window.currentDatePickSteps || {};
+
+  function updateDatePickMode(prefix, mode) {
+    window.currentDatePickSteps[prefix] = mode;
+    const badge = document.getElementById(prefix + '_pickerModeBadge');
+    const helper = document.getElementById(prefix + '_pickerHelperText');
+    const calInput = document.getElementById(prefix + '_singleCalendarInput');
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+
+    if (mode === 'from') {
+      if (badge) badge.innerText = 'Step 1: Pick From';
+      if (helper) helper.innerHTML = 'Click date to set <strong>From</strong>. Next click sets <strong>To</strong>.';
+      if (calInput) calInput.value = hiddenFrom ? hiddenFrom.value : '';
+    } else {
+      if (badge) badge.innerText = 'Step 2: Pick To';
+      if (helper) helper.innerHTML = 'Click date to set <strong>To Date</strong>.';
+      if (calInput) calInput.value = hiddenTo ? hiddenTo.value : '';
+    }
+  }
+
+  function handleSingleCalendarClick(prefix, selectedDate) {
+    if (!selectedDate) return;
+    const currentStep = window.currentDatePickSteps[prefix] || 'from';
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+    const dispFrom = document.getElementById(prefix + '_dispFrom');
+    const dispTo = document.getElementById(prefix + '_dispTo');
+    const leadDateInput = document.getElementById(prefix + '_inputLeadDate');
+
+    if (leadDateInput) leadDateInput.value = '';
+
+    if (currentStep === 'from') {
+      // Step 1: Set From date
+      if (hiddenFrom) hiddenFrom.value = selectedDate;
+      if (dispFrom) dispFrom.innerText = selectedDate;
+
+      // Automatically advance to Step 2 for To Date
+      const radioTo = document.getElementById(prefix + '_pick_to');
+      if (radioTo) radioTo.checked = true;
+      updateDatePickMode(prefix, 'to');
+    } else {
+      // Step 2: Set To date
+      // Validate order: if To date is before From date, swap them
+      let fromVal = hiddenFrom ? hiddenFrom.value : '';
+      if (fromVal && selectedDate < fromVal) {
+        // Swap
+        const temp = fromVal;
+        fromVal = selectedDate;
+        selectedDate = temp;
+        if (hiddenFrom) hiddenFrom.value = fromVal;
+        if (dispFrom) dispFrom.innerText = fromVal;
+      }
+      if (hiddenTo) hiddenTo.value = selectedDate;
+      if (dispTo) dispTo.innerText = selectedDate;
+
+      const badge = document.getElementById(prefix + '_pickerModeBadge');
+      if (badge) badge.innerText = '✓ Range Ready';
+      const helper = document.getElementById(prefix + '_pickerHelperText');
+      if (helper) helper.innerHTML = '<span class="text-success fw-bold">✓ Ready! Click "Apply Range" to filter.</span>';
+    }
+  }
+
+  function setDashboardQuickDate(prefix, presetVal) {
+    const leadDateInput = document.getElementById(prefix + '_inputLeadDate');
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+    if (leadDateInput) leadDateInput.value = presetVal;
+    if (hiddenFrom) hiddenFrom.value = '';
+    if (hiddenTo) hiddenTo.value = '';
+
+    // Auto-submit form on quick preset click
+    const form = document.getElementById(prefix + '_filter_form') || document.querySelector('form[action*="counselor"]');
+    if (form) form.submit();
+  }
+
+  function clearDateFilter(prefix) {
+    const leadDateInput = document.getElementById(prefix + '_inputLeadDate');
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+    const dispFrom = document.getElementById(prefix + '_dispFrom');
+    const dispTo = document.getElementById(prefix + '_dispTo');
+    const calInput = document.getElementById(prefix + '_singleCalendarInput');
+
+    if (leadDateInput) leadDateInput.value = '';
+    if (hiddenFrom) hiddenFrom.value = '';
+    if (hiddenTo) hiddenTo.value = '';
+    if (dispFrom) dispFrom.innerText = '(Open)';
+    if (dispTo) dispTo.innerText = 'Today';
+    if (calInput) calInput.value = '';
+
+    const radioFrom = document.getElementById(prefix + '_pick_from');
+    if (radioFrom) radioFrom.checked = true;
+    updateDatePickMode(prefix, 'from');
+  }
+</script>

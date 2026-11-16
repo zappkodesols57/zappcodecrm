@@ -605,6 +605,13 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
 
     date_from = _parse_date_input(request.GET.get("date_from") or request.GET.get("date"))
     date_to = _parse_date_input(request.GET.get("date_to"))
+
+    # Smart fallback rule for custom date range:
+    # 1. If only date_from selected -> date_to defaults to today
+    # 2. If only date_to selected -> date_from remains open (oldest lead up to date_to)
+    if date_from and not date_to:
+        date_to = today
+
     if date_from:
         leads = leads.filter(inquiry_date__gte=date_from)
     if date_to:
