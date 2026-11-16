@@ -773,6 +773,8 @@ def lead_list(request):
         
         def _build_lead_export_row(l):
             cd = l.custom_data or {}
+            inquiry_d_str = l.inquiry_date.strftime("%d-%m-%Y") if l.inquiry_date else ""
+            created_d_str = l.effective_created_formatted or (timezone.localtime(l.created_at).strftime("%d-%m-%Y %H:%M") if l.created_at else "")
             if is_hospital:
                 return {
                     "Lead ID": l.lead_code,
@@ -786,9 +788,9 @@ def lead_list(request):
                     "Campaign": cd.get("campaign", "") or (l.campaign.name if l.campaign else ""),
                     "Lead Status": cd.get("deal_status", "") or (l.stage.name if l.stage else ""),
                     "Appointment Status": cd.get("appointment_status", ""),
-                    "Inquiry Date": str(l.inquiry_date) if l.inquiry_date else "",
+                    "Inquiry Date": inquiry_d_str,
                     "Assigned Staff": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
-                    "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
+                    "Created At": created_d_str,
                 }
             else:
                 return {
@@ -802,9 +804,9 @@ def lead_list(request):
                     "Campaign": l.campaign.name if l.campaign else "",
                     "Stage": l.stage.name if l.stage else "",
                     "Deal Status": l.get_deal_status_display(),
-                    "Inquiry Date": str(l.inquiry_date) if l.inquiry_date else "",
+                    "Inquiry Date": inquiry_d_str,
                     "Assigned To": l.assigned_to.get_full_name() if l.assigned_to else "Unassigned",
-                    "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
+                    "Created At": created_d_str,
                 }
 
         rows = [_build_lead_export_row(l) for l in leads]
@@ -2169,7 +2171,7 @@ def team_history(request):
             cd = lead.custom_data or {}
             row_dict = {
                 "Lead ID": lead.lead_code,
-                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else "",
+                "Inquiry Date": lead.inquiry_date.strftime("%d-%m-%Y") if lead.inquiry_date else "",
                 "Patient / Student Name": lead.name,
                 "Mobile": lead.mobile,
                 "Course": lead.course.name if lead.course else "",

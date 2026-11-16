@@ -807,18 +807,18 @@ class Lead(models.Model):
 
     @property
     def effective_created_formatted(self):
-        """Returns standardized YYYY-MM-DD HH:MM or YYYY-MM-DD string of creation/receive time."""
+        """Returns standardized DD-MM-YYYY HH:MM or DD-MM-YYYY string of creation/receive time."""
         cd = self.custom_data or {}
         time_str = cd.get('lead_received_time') or cd.get('time')
         if self.import_job_id or self.import_source_file or (self.inquiry_date and self.created_at and self.inquiry_date < self.created_at.date()):
-            d_str = str(self.inquiry_date) if self.inquiry_date else (self.created_at.strftime('%Y-%m-%d') if self.created_at else '')
+            d_str = self.inquiry_date.strftime('%d-%m-%Y') if self.inquiry_date else (timezone.localtime(self.created_at).strftime('%d-%m-%Y') if self.created_at else '')
             if time_str and str(time_str).strip().lower() not in ('none', 'nan', ''):
                 return f"{d_str} {time_str}"
             return d_str
         if self.created_at:
-            return timezone.localtime(self.created_at).strftime('%Y-%m-%d %H:%M')
+            return timezone.localtime(self.created_at).strftime('%d-%m-%Y %H:%M')
         if self.inquiry_date:
-            return str(self.inquiry_date)
+            return self.inquiry_date.strftime('%d-%m-%Y')
         return ""
 
     @property

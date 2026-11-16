@@ -7,12 +7,12 @@
     <ul class="pagination pagination-sm mb-0 gap-1 align-items-center">
       {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link rounded px-2 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page=1" title="First Page">
+          <a class="page-link rounded px-2 py-1 text-dark border" href="?{% if filter_query_string %}{{ filter_query_string }}&{% else %}tab={{ cur_tab }}&subtab={{ cur_subtab }}&{% endif %}page=1" title="First Page">
             <i class="fa-solid fa-angles-left"></i>
           </a>
         </li>
         <li class="page-item">
-          <a class="page-link rounded px-2.5 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page={{ page_obj.previous_page_number }}">
+          <a class="page-link rounded px-2.5 py-1 text-dark border" href="?{% if filter_query_string %}{{ filter_query_string }}&{% else %}tab={{ cur_tab }}&subtab={{ cur_subtab }}&{% endif %}page={{ page_obj.previous_page_number }}">
             <i class="fa-solid fa-angle-left me-1"></i> Prev
           </a>
         </li>
@@ -32,12 +32,12 @@
 
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link rounded px-2.5 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page={{ page_obj.next_page_number }}">
+          <a class="page-link rounded px-2.5 py-1 text-dark border" href="?{% if filter_query_string %}{{ filter_query_string }}&{% else %}tab={{ cur_tab }}&subtab={{ cur_subtab }}&{% endif %}page={{ page_obj.next_page_number }}">
             Next <i class="fa-solid fa-angle-right ms-1"></i>
           </a>
         </li>
         <li class="page-item">
-          <a class="page-link rounded px-2 py-1 text-dark border" href="?tab={{ cur_tab }}&subtab={{ cur_subtab }}&page={{ page_obj.paginator.num_pages }}" title="Last Page">
+          <a class="page-link rounded px-2 py-1 text-dark border" href="?{% if filter_query_string %}{{ filter_query_string }}&{% else %}tab={{ cur_tab }}&subtab={{ cur_subtab }}&{% endif %}page={{ page_obj.paginator.num_pages }}" title="Last Page">
             <i class="fa-solid fa-angles-right"></i>
           </a>
         </li>

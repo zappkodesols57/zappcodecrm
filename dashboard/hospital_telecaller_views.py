@@ -701,6 +701,8 @@ def telecaller_home(request):
     filter_dept = request.GET.getlist('dept')
     filter_intent = request.GET.getlist('intent')
     filter_lead_date = request.GET.get('lead_date', '').strip()
+    filter_date_from = request.GET.get('date_from', '').strip()
+    filter_date_to = request.GET.get('date_to', '').strip()
     filter_followup = request.GET.get('followup', '').strip()
     filter_last_contact = request.GET.get('last_contact', '').strip()
 
@@ -739,10 +741,67 @@ def telecaller_home(request):
             if dept_q:
                 filtered = filtered.filter(dept_q)
         if filter_intent:
+            from leads.models import LeadIntent
+            lost_q = (
+                Q(deal_status=DealStatus.LOST)
+                | Q(admission_status__in=['LOST', 'CANCELLED', 'DROPOUT'])
+                | Q(temperature=LeadTemperature.FREEZE)
+                | Q(stage__name__icontains='cancel')
+                | Q(stage__name__icontains='lost')
+                | Q(stage__name__icontains='not int')
+                | Q(stage__name__icontains='reject')
+            )
+            pos_q = (
+                Q(deal_status=DealStatus.WON)
+                | Q(admission_status__in=['WON', 'ADMISSION_DONE'])
+                | Q(temperature=LeadTemperature.HOT)
+                | Q(stage__name__icontains='admission done')
+                | Q(stage__name__icontains='appointment completed')
+                | Q(stage__name__icontains='appointment confirmed')
+                | Q(stage__name__icontains='payment done')
+                | Q(stage__name__icontains='closed won')
+            )
             intent_q = Q()
             for int_val in filter_intent:
                 iv = int_val.strip().upper()
-                if iv:
+                if not iv:
+                    continue
+                if iv == LeadIntent.NOT_INTERESTED.value:
+                    intent_q |= (Q(intent_level__iexact=iv) | lost_q)
+                elif iv == LeadIntent.HIGHLY_INTERESTED.value:
+                    intent_q |= ((Q(intent_level__iexact=iv) | pos_q) & ~lost_q)
+                elif iv == LeadIntent.MODERATE_INTERESTED.value:
+                    intent_q |= (
+                        (
+                            Q(intent_level__iexact=iv)
+                            | Q(temperature=LeadTemperature.WARM)
+                            | Q(stage__name__icontains='appointment')
+                        )
+                        & ~lost_q
+                        & ~pos_q
+                    )
+                elif iv == LeadIntent.BELOW_AVERAGE.value:
+                    intent_q |= (
+                        (
+                            Q(intent_level__iexact=iv)
+                            | Q(temperature=LeadTemperature.COLD)
+                        )
+                        & ~lost_q
+                        & ~pos_q
+                    )
+                elif iv == LeadIntent.NORMAL_INTERESTED.value:
+                    intent_q |= (
+                        (
+                            Q(intent_level__iexact=iv)
+                            | (
+                                (Q(intent_level__isnull=True) | Q(intent_level=''))
+                                & ~Q(temperature__in=[LeadTemperature.HOT, LeadTemperature.WARM, LeadTemperature.COLD, LeadTemperature.FREEZE])
+                            )
+                        )
+                        & ~lost_q
+                        & ~pos_q
+                    )
+                else:
                     intent_q |= Q(intent_level__iexact=iv)
             if intent_q:
                 filtered = filtered.filter(intent_q)
@@ -760,6 +819,16 @@ def telecaller_home(request):
             elif filter_lead_date == 'this_month':
                 first_of_month = today_date.replace(day=1)
                 filtered = filtered.filter(Q(created_at__date__gte=first_of_month) | Q(inquiry_date__gte=first_of_month))
+            elif filter_lead_date == 'custom' or (filter_date_from or filter_date_to):
+                if filter_date_from:
+                    filtered = filtered.filter(Q(inquiry_date__gte=filter_date_from) | Q(created_at__date__gte=filter_date_from))
+                if filter_date_to:
+                    filtered = filtered.filter(Q(inquiry_date__lte=filter_date_to) | Q(created_at__date__lte=filter_date_to))
+        elif filter_date_from or filter_date_to:
+            if filter_date_from:
+                filtered = filtered.filter(Q(inquiry_date__gte=filter_date_from) | Q(created_at__date__gte=filter_date_from))
+            if filter_date_to:
+                filtered = filtered.filter(Q(inquiry_date__lte=filter_date_to) | Q(created_at__date__lte=filter_date_to))
         if filter_followup:
             if filter_followup == 'today':
                 filtered = filtered.filter(next_followup_date=today_date)
@@ -913,6 +982,8 @@ def telecaller_home(request):
         'filter_dept': filter_dept,
         'filter_intent': filter_intent,
         'filter_lead_date': filter_lead_date,
+        'filter_date_from': filter_date_from,
+        'filter_date_to': filter_date_to,
         'filter_followup': filter_followup,
         'filter_last_contact': filter_last_contact,
     }
@@ -1434,7 +1505,7 @@ def telecaller_search(request):
             row_dict.update({
                 "Lead Status": cd.get('deal_status', '') or lead.get_deal_status_display(),
                 "Appointment Status": cd.get('appointment_status', ''),
-                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
+                "Inquiry Date": lead.inquiry_date.strftime("%d-%m-%Y") if lead.inquiry_date else '',
                 "Assigned Staff": lead.assigned_to.get_full_name() if lead.assigned_to else 'Unassigned',
                 "Location": lead.location or lead.city or '',
             })
@@ -1741,7 +1812,7 @@ def telecaller_my_leads(request):
                 "Priority": cd.get('priority', '') or lead.get_temperature_display(),
                 "Lead Status": cd.get('deal_status', '') or lead.get_deal_status_display(),
                 "Appointment Status": cd.get('appointment_status', ''),
-                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
+                "Inquiry Date": lead.inquiry_date.strftime("%d-%m-%Y") if lead.inquiry_date else '',
                 "Location": lead.location or lead.city or '',
             })
         df = pd.DataFrame(rows)
@@ -1976,7 +2047,7 @@ def telecaller_new_enquiries(request):
                 "Campaign": cd.get('campaign', '') or (lead.campaign.name if lead.campaign else '-'),
                 "Lead Status": lead_stat,
                 "Appointment Status": cd.get('appointment_status', '') or '-',
-                "Inquiry Date": str(lead.inquiry_date) if lead.inquiry_date else '',
+                "Inquiry Date": lead.inquiry_date.strftime("%d-%m-%Y") if lead.inquiry_date else '',
                 "City / Location": lead.location or lead.city or '',
                 "Assigned Staff": lead.assigned_to.get_full_name() if lead.assigned_to else "Unassigned",
             })

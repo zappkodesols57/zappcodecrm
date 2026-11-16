@@ -232,7 +232,7 @@
               type="button" id="adminDateDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
               <span>
                 {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
-                  📅 {{ request_get.date_from|default:date_from_val|default:"Start" }} → {{ request_get.date_to|default:date_to_val|default:"Today" }}
+                  📅 {% if request_get.date_from %}{{ request_get.date_from|slice:"8:10" }}-{{ request_get.date_from|slice:"5:7" }}-{{ request_get.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} → {% if request_get.date_to %}{{ request_get.date_to|slice:"8:10" }}-{{ request_get.date_to|slice:"5:7" }}-{{ request_get.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
                 {% else %}
                   📅 Select Date Range
                 {% endif %}
@@ -268,11 +268,11 @@
               <div class="p-1.5 rounded-2 bg-light border mb-2 d-flex align-items-center justify-content-between" style="font-size: 0.75rem;">
                 <div>
                   <span class="text-muted">From:</span>
-                  <strong class="text-dark" id="admDispFrom">{{ request_get.date_from|default:date_from_val|default:"(Open)" }}</strong>
+                  <strong class="text-dark" id="admDispFrom">{% if request_get.date_from %}{{ request_get.date_from|slice:"8:10" }}-{{ request_get.date_from|slice:"5:7" }}-{{ request_get.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}(Open){% endif %}</strong>
                 </div>
                 <div>
                   <span class="text-muted">To:</span>
-                  <strong class="text-dark" id="admDispTo">{{ request_get.date_to|default:date_to_val|default:"Today" }}</strong>
+                  <strong class="text-dark" id="admDispTo">{% if request_get.date_to %}{{ request_get.date_to|slice:"8:10" }}-{{ request_get.date_to|slice:"5:7" }}-{{ request_get.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}</strong>
                 </div>
               </div>
 
@@ -1335,6 +1335,15 @@
     }
   }
 
+  function formatAdmIsoToDdMmYyyy(isoDateStr) {
+    if (!isoDateStr) return '';
+    const parts = isoDateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return parts[2] + '-' + parts[1] + '-' + parts[0];
+    }
+    return isoDateStr;
+  }
+
   function handleAdmSingleCalendarClick(selectedDate) {
     if (!selectedDate) return;
     const hiddenFrom = document.getElementById('admInputDateFrom');
@@ -1344,7 +1353,7 @@
 
     if (admDatePickMode === 'from') {
       if (hiddenFrom) hiddenFrom.value = selectedDate;
-      if (dispFrom) dispFrom.innerText = selectedDate;
+      if (dispFrom) dispFrom.innerText = formatAdmIsoToDdMmYyyy(selectedDate);
 
       // Advance to step 2 for To Date
       const radioTo = document.getElementById('adm_pick_to');
@@ -1357,10 +1366,10 @@
         fromVal = selectedDate;
         selectedDate = temp;
         if (hiddenFrom) hiddenFrom.value = fromVal;
-        if (dispFrom) dispFrom.innerText = fromVal;
+        if (dispFrom) dispFrom.innerText = formatAdmIsoToDdMmYyyy(fromVal);
       }
       if (hiddenTo) hiddenTo.value = selectedDate;
-      if (dispTo) dispTo.innerText = selectedDate;
+      if (dispTo) dispTo.innerText = formatAdmIsoToDdMmYyyy(selectedDate);
 
       const badge = document.getElementById('admPickerModeBadge');
       if (badge) badge.innerText = '✓ Range Ready';

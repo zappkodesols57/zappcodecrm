@@ -1711,10 +1711,10 @@ def export_leads(request):
                 'Status': l.display_status,
                 'Appointment Status': apt_st,
                 'Temperature': l.get_temperature_display(),
-                'Inquiry Date': str(l.inquiry_date or ''),
+                'Inquiry Date': l.inquiry_date.strftime('%d-%m-%Y') if l.inquiry_date else '',
                 'Assigned To': str(l.assigned_to.get_full_name() if l.assigned_to else (cd.get('lead_attendant') or '')),
-                'Next Follow-up': str(l.next_followup_date) if l.next_followup_date else '', 
-                'Created At': l.effective_created_formatted or (l.created_at.strftime('%Y-%m-%d %H:%M') if l.created_at else ''),
+                'Next Follow-up': l.next_followup_date.strftime('%d-%m-%Y') if l.next_followup_date else '', 
+                'Created At': l.effective_created_formatted or (timezone.localtime(l.created_at).strftime('%d-%m-%Y %H:%M') if l.created_at else ''),
             }
         else:
             return {
@@ -1723,9 +1723,9 @@ def export_leads(request):
                 'Lead Source': str(l.lead_source or ''), 'Campaign': str(l.campaign or ''),
                 'Stage': str(l.stage), 'Temperature': l.get_temperature_display(),
                 'Deal Status': l.get_deal_status_display(), 'Admission Status': l.get_admission_status_display(),
-                'Inquiry Date': str(l.inquiry_date), 'Assigned To': str(l.assigned_to or ''),
-                'Next Follow-up': str(l.next_followup_date) if l.next_followup_date else '', 
-                'Created At': l.effective_created_formatted or (l.created_at.strftime('%Y-%m-%d %H:%M') if l.created_at else ''),
+                'Inquiry Date': l.inquiry_date.strftime('%d-%m-%Y') if l.inquiry_date else '', 'Assigned To': str(l.assigned_to or ''),
+                'Next Follow-up': l.next_followup_date.strftime('%d-%m-%Y') if l.next_followup_date else '', 
+                'Created At': l.effective_created_formatted or (timezone.localtime(l.created_at).strftime('%d-%m-%Y %H:%M') if l.created_at else ''),
             }
 
     if is_preview:
@@ -2794,12 +2794,12 @@ def export_business_master_data(request):
                 "Year": cd.get("year", ""),
                 "Weekdays": cd.get("weekdays", ""),
                 "Remarks": l.notes or "",
-                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
+                "Created At": l.effective_created_formatted or (timezone.localtime(l.created_at).strftime("%d-%m-%Y %H:%M") if l.created_at else ""),
             })
         else:
             rows.append({
                 "Lead Code": l.lead_code,
-                "Inquiry Date": str(l.inquiry_date or ""),
+                "Inquiry Date": l.inquiry_date.strftime("%d-%m-%Y") if l.inquiry_date else "",
                 "Student Name": l.name,
                 "Mobile / Phone": l.mobile,
                 "Email": l.email,
@@ -2812,7 +2812,7 @@ def export_business_master_data(request):
                 "Deal Status": l.get_deal_status_display(),
                 "Admission Status": l.get_admission_status_display(),
                 "Notes / Query": l.notes or "",
-                "Created At": l.effective_created_formatted or (l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else ""),
+                "Created At": l.effective_created_formatted or (timezone.localtime(l.created_at).strftime("%d-%m-%Y %H:%M") if l.created_at else ""),
             })
 
     df = pd.DataFrame(rows)

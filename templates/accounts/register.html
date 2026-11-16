@@ -59,7 +59,7 @@
             <div class="input-group">
               {{ field }}
               <button class="btn btn-outline-secondary border bg-light" type="button" onclick="togglePasswordVisibility('{{ field.id_for_label }}', this)" title="Show / Hide Password" tabindex="-1">
-                <i class="fa-regular fa-eye text-secondary"></i>
+                <i class="fa-regular fa-eye-slash text-secondary"></i>
               </button>
             </div>
             {% if field.name == 'password2' or field.name == 'confirm_password' %}
@@ -235,16 +235,18 @@
     if (!input) return;
     const icon = btn ? btn.querySelector('i') : null;
     if (input.type === 'password') {
+      // Unmask: password is now visible, eye icon is open
       input.type = 'text';
-      if (icon) {
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-      }
-    } else {
-      input.type = 'password';
       if (icon) {
         icon.classList.remove('fa-eye-slash');
         icon.classList.add('fa-eye');
+      }
+    } else {
+      // Mask: password is now hidden, eye icon is off/slashed
+      input.type = 'password';
+      if (icon) {
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
       }
     }
   };
