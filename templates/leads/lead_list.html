@@ -385,13 +385,15 @@
             </thead>
             <tbody>
               {% for lead in page_obj %}
-              <tr class="counselor-table-row clickable-lead-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+              <tr class="counselor-table-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
                 <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
                 <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"d-m-Y" }}</span></td>
                 
                 <!-- 1. Lead Name -->
                 <td>
-                  <strong class="text-dark">{{ lead.name }}</strong>
+                  <a href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" class="text-decoration-none text-dark fw-bold hover-underline" title="View Lead Profile">
+                    {{ lead.name }}
+                  </a>
                   {% if lead.business %}
                     <div class="small text-muted" style="font-size: 0.72rem;"><i class="fa-solid fa-building me-1"></i>{{ lead.business.name }}</div>
                   {% endif %}
@@ -636,7 +638,7 @@
     <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
       WhatsApp
     </a>
-    <a id="mbViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #475569; color: #ffffff;">
+    <a id="mbViewBtn" href="#" class="mb-btn" style="background: #475569; color: #ffffff;">
       Full Profile
     </a>
     <button type="button" class="btn btn-sm text-white ms-1 p-0" onclick="dismissCounselorMicrobar()" style="line-height: 1; opacity: 0.75;" title="Dismiss bar">
