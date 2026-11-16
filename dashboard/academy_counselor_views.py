@@ -74,8 +74,18 @@ def academy_counselor_home(request):
     filter_course = request.GET.getlist('course')
     filter_intent = request.GET.getlist('intent')
     filter_lead_date = request.GET.get('lead_date', '').strip()
+    filter_date_from = request.GET.get('date_from', '').strip()
+    filter_date_to = request.GET.get('date_to', '').strip()
     filter_followup = request.GET.get('followup', '').strip()
     filter_last_contact = request.GET.get('last_contact', '').strip()
+
+    # Smart fallback rule for custom date range:
+    # 1. If only date_from selected -> date_to defaults to today_date
+    # 2. If only date_to selected -> date_from remains open (filters from oldest lead up to date_to)
+    eff_date_from = filter_date_from
+    eff_date_to = filter_date_to
+    if eff_date_from and not eff_date_to:
+        eff_date_to = today_date.strftime('%Y-%m-%d')
 
     def apply_advanced_lead_filters(base_qs):
         filtered = base_qs
@@ -129,6 +139,16 @@ def academy_counselor_home(request):
             elif filter_lead_date == 'this_month':
                 first_of_month = today_date.replace(day=1)
                 filtered = filtered.filter(Q(created_at__date__gte=first_of_month) | Q(inquiry_date__gte=first_of_month))
+            elif filter_lead_date == 'custom' or (eff_date_from or eff_date_to):
+                if eff_date_from:
+                    filtered = filtered.filter(Q(inquiry_date__gte=eff_date_from) | Q(created_at__date__gte=eff_date_from))
+                if eff_date_to:
+                    filtered = filtered.filter(Q(inquiry_date__lte=eff_date_to) | Q(created_at__date__lte=eff_date_to))
+        elif eff_date_from or eff_date_to:
+            if eff_date_from:
+                filtered = filtered.filter(Q(inquiry_date__gte=eff_date_from) | Q(created_at__date__gte=eff_date_from))
+            if eff_date_to:
+                filtered = filtered.filter(Q(inquiry_date__lte=eff_date_to) | Q(created_at__date__lte=eff_date_to))
         if filter_followup:
             if filter_followup == 'today':
                 filtered = filtered.filter(next_followup_date=today_date)
@@ -625,6 +645,10 @@ def academy_counselor_home(request):
         'filter_course': filter_course,
         'filter_intent': filter_intent,
         'filter_lead_date': filter_lead_date,
+        'filter_date_from': filter_date_from,
+        'filter_date_to': filter_date_to,
+        'eff_date_from': eff_date_from,
+        'eff_date_to': eff_date_to,
         'filter_followup': filter_followup,
         'filter_last_contact': filter_last_contact,
     }

@@ -224,16 +224,68 @@
     <form method="get" id="academyLeadsFilterForm" action="{% url 'leads:lead_list' %}">
       <div class="row g-2 align-items-end">
         
-        <!-- 1. Date Range: From -->
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">From Date</label>
-          <input type="date" name="date_from" class="form-control form-control-sm border" style="border-color: #cbd5e1 !important; height: 35px;" value="{{ request_get.date_from|default:date_from_val }}">
-        </div>
+        <!-- 1. Smart Date Range Picker Dropdown (From & To in One Picker) -->
+        <div class="col-12 col-md-4 col-xl-3">
+          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Inquiry Date Range</label>
+          <div class="dropdown w-100">
+            <button class="btn btn-sm btn-white border dropdown-toggle w-100 d-flex align-items-center justify-content-between text-truncate {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}border-primary text-primary fw-semibold{% endif %}"
+              type="button" id="adminDateDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;">
+              <span>
+                {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
+                  📅 {{ request_get.date_from|default:date_from_val|default:"Start" }} → {{ request_get.date_to|default:date_to_val|default:"Today" }}
+                {% else %}
+                  📅 Select Date Range
+                {% endif %}
+              </span>
+            </button>
+            <div class="dropdown-menu p-3 shadow-sm" style="min-width: 290px; border-radius: 10px;">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="text-muted fw-bold small text-uppercase mb-0" style="font-size: 0.68rem;">Custom Range</label>
+                <span class="badge bg-light text-secondary border py-0.5" id="admPickerModeBadge" style="font-size: 0.65rem;">Step 1: Pick From</span>
+              </div>
+              
+              <!-- Tab Mode Toggles to manually switch between From or To -->
+              <div class="btn-group w-100 mb-2" role="group">
+                <input type="radio" class="btn-check" name="adm_active_pick" id="adm_pick_from" value="from" checked onchange="updateAdmDatePickMode('from')">
+                <label class="btn btn-outline-primary btn-xs py-1" for="adm_pick_from" style="font-size: 0.72rem;">1. From Date</label>
 
-        <!-- 2. Date Range: To -->
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">To Date</label>
-          <input type="date" name="date_to" class="form-control form-control-sm border" style="border-color: #cbd5e1 !important; height: 35px;" value="{{ request_get.date_to|default:date_to_val }}">
+                <input type="radio" class="btn-check" name="adm_active_pick" id="adm_pick_to" value="to" onchange="updateAdmDatePickMode('to')">
+                <label class="btn btn-outline-primary btn-xs py-1" for="adm_pick_to" style="font-size: 0.72rem;">2. To Date</label>
+              </div>
+
+              <!-- Shared Interactive Calendar Input -->
+              <div class="mb-2">
+                <input type="date" id="admSingleCalendarInput" class="form-control form-control-sm text-center fw-semibold border"
+                  max="{% now 'Y-m-d' %}"
+                  value="{{ request_get.date_from|default:date_from_val|default:'' }}"
+                  onchange="handleAdmSingleCalendarClick(this.value)">
+                <small class="text-muted d-block mt-1" style="font-size: 0.70rem;" id="admPickerHelperText">
+                  Click date to set <strong>From</strong>. Next click sets <strong>To</strong>.
+                </small>
+              </div>
+
+              <!-- Display selected inputs -->
+              <div class="p-1.5 rounded-2 bg-light border mb-2 d-flex align-items-center justify-content-between" style="font-size: 0.75rem;">
+                <div>
+                  <span class="text-muted">From:</span>
+                  <strong class="text-dark" id="admDispFrom">{{ request_get.date_from|default:date_from_val|default:"(Open)" }}</strong>
+                </div>
+                <div>
+                  <span class="text-muted">To:</span>
+                  <strong class="text-dark" id="admDispTo">{{ request_get.date_to|default:date_to_val|default:"Today" }}</strong>
+                </div>
+              </div>
+
+              <!-- Hidden Form Fields for Form Submit -->
+              <input type="hidden" name="date_from" id="admInputDateFrom" value="{{ request_get.date_from|default:date_from_val }}">
+              <input type="hidden" name="date_to" id="admInputDateTo" value="{{ request_get.date_to|default:date_to_val }}">
+
+              <div class="d-flex gap-1.5 mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 flex-fill" style="font-size: 0.76rem;" onclick="clearAdmDateFilter()">Clear</button>
+                <button type="submit" class="btn btn-sm btn-primary py-1 flex-fill" style="font-size: 0.76rem; background: #0f2744; border-color: #0f2744;">Apply Range</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 3. Course Filter -->
@@ -1260,5 +1312,79 @@
       showInWindowAlert('Error', 'Could not schedule follow-up.', 'error');
     });
   };
+
+  // Admin Single-Calendar Range Picker Controller
+  let admDatePickMode = 'from';
+
+  function updateAdmDatePickMode(mode) {
+    admDatePickMode = mode;
+    const badge = document.getElementById('admPickerModeBadge');
+    const helper = document.getElementById('admPickerHelperText');
+    const calInput = document.getElementById('admSingleCalendarInput');
+    const hiddenFrom = document.getElementById('admInputDateFrom');
+    const hiddenTo = document.getElementById('admInputDateTo');
+
+    if (mode === 'from') {
+      if (badge) badge.innerText = 'Step 1: Pick From';
+      if (helper) helper.innerHTML = 'Click date to set <strong>From</strong>. Next click sets <strong>To</strong>.';
+      if (calInput) calInput.value = hiddenFrom ? hiddenFrom.value : '';
+    } else {
+      if (badge) badge.innerText = 'Step 2: Pick To';
+      if (helper) helper.innerHTML = 'Click date to set <strong>To Date</strong>.';
+      if (calInput) calInput.value = hiddenTo ? hiddenTo.value : '';
+    }
+  }
+
+  function handleAdmSingleCalendarClick(selectedDate) {
+    if (!selectedDate) return;
+    const hiddenFrom = document.getElementById('admInputDateFrom');
+    const hiddenTo = document.getElementById('admInputDateTo');
+    const dispFrom = document.getElementById('admDispFrom');
+    const dispTo = document.getElementById('admDispTo');
+
+    if (admDatePickMode === 'from') {
+      if (hiddenFrom) hiddenFrom.value = selectedDate;
+      if (dispFrom) dispFrom.innerText = selectedDate;
+
+      // Advance to step 2 for To Date
+      const radioTo = document.getElementById('adm_pick_to');
+      if (radioTo) radioTo.checked = true;
+      updateAdmDatePickMode('to');
+    } else {
+      let fromVal = hiddenFrom ? hiddenFrom.value : '';
+      if (fromVal && selectedDate < fromVal) {
+        const temp = fromVal;
+        fromVal = selectedDate;
+        selectedDate = temp;
+        if (hiddenFrom) hiddenFrom.value = fromVal;
+        if (dispFrom) dispFrom.innerText = fromVal;
+      }
+      if (hiddenTo) hiddenTo.value = selectedDate;
+      if (dispTo) dispTo.innerText = selectedDate;
+
+      const badge = document.getElementById('admPickerModeBadge');
+      if (badge) badge.innerText = '✓ Range Ready';
+      const helper = document.getElementById('admPickerHelperText');
+      if (helper) helper.innerHTML = '<span class="text-success fw-bold">✓ Ready! Click "Apply Range" to filter.</span>';
+    }
+  }
+
+  function clearAdmDateFilter() {
+    const hiddenFrom = document.getElementById('admInputDateFrom');
+    const hiddenTo = document.getElementById('admInputDateTo');
+    const dispFrom = document.getElementById('admDispFrom');
+    const dispTo = document.getElementById('admDispTo');
+    const calInput = document.getElementById('admSingleCalendarInput');
+
+    if (hiddenFrom) hiddenFrom.value = '';
+    if (hiddenTo) hiddenTo.value = '';
+    if (dispFrom) dispFrom.innerText = '(Open)';
+    if (dispTo) dispTo.innerText = 'Today';
+    if (calInput) calInput.value = '';
+
+    const radioFrom = document.getElementById('adm_pick_from');
+    if (radioFrom) radioFrom.checked = true;
+    updateAdmDatePickMode('from');
+  }
 </script>
 {% endblock %}
