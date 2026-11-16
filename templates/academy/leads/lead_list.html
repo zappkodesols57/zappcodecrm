@@ -520,7 +520,12 @@
               <tr class="counselor-table-row" data-lead-id="{{ lead.pk }}" data-lead-name="{{ lead.name }}" data-lead-phone="{{ lead.mobile }}" data-detail-url="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
                 <td onclick="event.stopPropagation();"><input type="checkbox" name="selected" value="{{ lead.id }}" class="row-check"></td>
                 <td><span class="text-nowrap small text-muted">{{ lead.inquiry_date|date:"j F Y" }}</span></td>
-                <td><strong class="text-dark">{{ lead.name }}</strong></td>
+                <!-- 2. Student Name -->
+                <td>
+                  <a href="{% url 'leads:lead_detail' lead.pk %}" class="text-decoration-none text-dark fw-bold hover-underline" title="View Lead Profile">
+                    {{ lead.name }}
+                  </a>
+                </td>
                 <td>
                   <span class="fw-semibold">{{ lead.mobile }}</span>
                 </td>
@@ -693,7 +698,7 @@
     <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
       WhatsApp
     </a>
-    <a id="mbViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #475569; color: #ffffff;">
+    <a id="mbViewBtn" href="#" class="mb-btn" style="background: #475569; color: #ffffff;">
       Full Profile
     </a>
     <button type="button" class="btn btn-sm text-white ms-1 p-0" onclick="dismissCounselorMicrobar()" style="line-height: 1; opacity: 0.75;" title="Dismiss bar">

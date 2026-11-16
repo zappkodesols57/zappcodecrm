@@ -1883,31 +1883,32 @@
           return;
         }
 
-        // If an <a> tag was clicked inside a table, check if it's a lead detail link
+        // If an <a> tag was clicked inside a table, allow normal same-page navigation (NEVER force target="_blank")
         const clickedAnchor = e.target.closest('a');
         if (clickedAnchor) {
-          // Strictly ensure table lead links open in new tab, but never sidebar
-          if (clickedAnchor.closest('.main-wrap table')) {
+          // Keep all CRM links in same page unless explicitly set to _blank in template (like external WhatsApp links)
+          if (!clickedAnchor.hasAttribute('target') || clickedAnchor.getAttribute('target') === '_blank' && clickedAnchor.closest('.main-wrap table')) {
             const aHref = clickedAnchor.getAttribute('href') || '';
-            if (aHref.includes('/leads/') && (aHref.match(/\/leads\/\d+\//) || aHref.includes('/detail/'))) {
-              clickedAnchor.setAttribute('target', '_blank');
-              clickedAnchor.setAttribute('rel', 'noopener noreferrer');
+            // Only external links (like WhatsApp or tel) should be _blank; CRM lead links navigate in same window
+            if (!aHref.startsWith('https://wa.me') && !aHref.startsWith('http')) {
+              clickedAnchor.removeAttribute('target');
+              clickedAnchor.setAttribute('target', '_self');
             }
           }
           return;
         }
 
-        // Row Click: Check data-href or find lead link (unless on interactive dashboard with sleek microbar)
+        // Row Click: If row is an interactive table row with sleek microbar (counselor-table-row, lead-row, etc.)
         const tr = e.target.closest('tr');
         if (!tr) return;
-        if ((tr.closest('.tab-content') && document.getElementById('quickActionMicrobar')) || document.getElementById('counselorMicrobar') || tr.classList.contains('counselor-table-row')) {
-          // On counselor/telecaller dashboard, row click activates sleek in-page Quick Action Microbar
+        if (tr.classList.contains('counselor-table-row') || tr.classList.contains('lead-row') || document.getElementById('counselorMicrobar') || document.getElementById('quickActionMicrobar')) {
+          // Sleek bar click handler owns this interaction — do not open new tab
           return;
         }
 
         const href = tr.getAttribute('data-href');
         if (href) {
-          window.open(href, '_blank', 'noopener,noreferrer');
+          window.location.href = href;
           return;
         }
 
@@ -1915,21 +1916,8 @@
         if (tr.classList.contains('clickable-lead-row')) {
           const detailLink = tr.querySelector('a[href*="/leads/"][href$="/"], a[href*="/leads/detail/"]');
           if (detailLink && detailLink.href) {
-            window.open(detailLink.href, '_blank', 'noopener,noreferrer');
+            window.location.href = detailLink.href;
           }
-        }
-      });
-
-      // 3. Ensure ONLY lead detail/view form links in main-wrap tables open in new tab
-      document.querySelectorAll('.main-wrap table a[href*="/leads/"]').forEach(function(link) {
-        if (link.closest('.sidebar, #sidebar')) {
-          link.setAttribute('target', '_self');
-          return;
-        }
-        const href = link.getAttribute('href') || '';
-        if (href.match(/\/leads\/\d+\/(\?|$)/) || href.includes('/leads/detail/')) {
-          link.setAttribute('target', '_blank');
-          link.setAttribute('rel', 'noopener noreferrer');
         }
       });
 
