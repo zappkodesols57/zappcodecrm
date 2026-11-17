@@ -258,10 +258,10 @@
           </div>
 
           <!-- 2. From Field Container -->
-          <div id="fromFieldContainer" class="d-none" style="min-width: 175px;">
+          <div id="fromFieldContainer" style="min-width: 175px; display: none;">
             <div class="bulk-field-label" id="fromFieldLabel">From</div>
             <!-- From User Select Wrapper -->
-            <div id="fromUserWrapper" class="d-none">
+            <div id="fromUserWrapper" style="display: none;">
               <select name="from_user" id="fromUserSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">All / Any User</option>
                 <option value="unassigned">Unassigned / Open</option>
@@ -271,7 +271,7 @@
               </select>
             </div>
             <!-- From Stage Select Wrapper -->
-            <div id="fromStageWrapper" class="d-none">
+            <div id="fromStageWrapper" style="display: none;">
               <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">All / Any Stage</option>
                 {% for s in bulk_stages %}
@@ -282,10 +282,10 @@
           </div>
 
           <!-- 3. To Field Container -->
-          <div id="toFieldContainer" class="d-none" style="min-width: 175px;">
+          <div id="toFieldContainer" style="min-width: 175px; display: none;">
             <div class="bulk-field-label" id="toFieldLabel">To</div>
             <!-- To User Select Wrapper -->
-            <div id="toUserWrapper" class="d-none">
+            <div id="toUserWrapper" style="display: none;">
               <select name="assign_to" id="toUserSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">-- Select Assignee --</option>
                 {% for e in employees %}
@@ -294,7 +294,7 @@
               </select>
             </div>
             <!-- To Stage Select Wrapper -->
-            <div id="toStageWrapper" class="d-none">
+            <div id="toStageWrapper" style="display: none;">
               <select name="stage" id="toStageSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">-- Select Target Stage --</option>
                 {% for s in bulk_stages %}
@@ -812,6 +812,8 @@
 
     const fromContainer = document.getElementById('fromFieldContainer');
     const toContainer = document.getElementById('toFieldContainer');
+    const fromFieldLabel = document.getElementById('fromFieldLabel');
+    const toFieldLabel = document.getElementById('toFieldLabel');
     const fromUserWrapper = document.getElementById('fromUserWrapper');
     const fromStageWrapper = document.getElementById('fromStageWrapper');
     const toUserWrapper = document.getElementById('toUserWrapper');
@@ -825,6 +827,9 @@
       fromContainer.style.display = 'block';
       toContainer.style.display = 'block';
 
+      if (fromFieldLabel) fromFieldLabel.textContent = 'From User';
+      if (toFieldLabel) toFieldLabel.textContent = 'To User';
+
       if (fromUserWrapper) { fromUserWrapper.classList.remove('d-none'); fromUserWrapper.style.display = 'block'; }
       if (fromStageWrapper) { fromStageWrapper.classList.add('d-none'); fromStageWrapper.style.display = 'none'; }
       if (toUserWrapper) { toUserWrapper.classList.remove('d-none'); toUserWrapper.style.display = 'block'; }
@@ -834,6 +839,9 @@
       toContainer.classList.remove('d-none');
       fromContainer.style.display = 'block';
       toContainer.style.display = 'block';
+
+      if (fromFieldLabel) fromFieldLabel.textContent = 'From Stage';
+      if (toFieldLabel) toFieldLabel.textContent = 'Target Stage';
 
       if (fromUserWrapper) { fromUserWrapper.classList.add('d-none'); fromUserWrapper.style.display = 'none'; }
       if (fromStageWrapper) { fromStageWrapper.classList.remove('d-none'); fromStageWrapper.style.display = 'block'; }
@@ -938,6 +946,11 @@
       c.addEventListener('change', updateSelectedCount);
     });
     updateSelectedCount();
+
+    const adminSelect = document.getElementById('adminBulkActionSelect');
+    if (adminSelect) {
+      adminSelect.addEventListener('change', handleBulkActionChange);
+    }
     handleBulkActionChange();
   });
 
