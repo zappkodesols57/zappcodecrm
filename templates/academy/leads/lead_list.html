@@ -106,7 +106,7 @@
       <button class="btn btn-link text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2"
         type="button" id="listViewFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false"
         style="font-size: 1.25rem;">
-        <span><i class="fa-solid fa-graduation-cap me-2 text-primary"></i>All Student Leads</span>
+        <span>All Student Leads</span>
         <i class="fa-solid fa-chevron-down text-muted" style="font-size: 0.8rem;"></i>
       </button>
       <ul class="dropdown-menu shadow border-0 py-2" aria-labelledby="listViewFilterDropdown"
@@ -227,27 +227,21 @@
         <!-- 1. Smart Date Range Picker (Standard Interactive Popup Calendar) -->
         <div class="col-12 col-md-4 col-xl-3">
           <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.8rem;">Inquiry Date Range</label>
-          <div class="input-group">
-            <select name="lead_date" id="admin_leadDateSelect" class="form-select filter-input-unified no-tom-select border" style="height: 36px; border-color: #cbd5e1 !important; font-size: 0.82rem;" onchange="handleLeadDateDropdownChange('admin', this.value)">
-              <option value="" {% if not request_get.lead_date and not request_get.date_from and not request_get.date_to and not date_from_val and not date_to_val %}selected{% endif %}>Date range: All</option>
-              <option value="today" {% if request_get.lead_date == 'today' %}selected{% endif %}>Today</option>
-              <option value="yesterday" {% if request_get.lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
-              <option value="last_7_days" {% if request_get.lead_date == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
-              <option value="this_month" {% if request_get.lead_date == 'this_month' %}selected{% endif %}>This Month</option>
-              <option value="custom" {% if request_get.lead_date == 'custom' or request_get.date_from or request_get.date_to or date_from_val or date_to_val %}selected{% endif %}>
-                {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
-                  📅 {% if request_get.date_from %}{{ request_get.date_from|slice:"8:10" }}-{{ request_get.date_from|slice:"5:7" }}-{{ request_get.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} → {% if request_get.date_to %}{{ request_get.date_to|slice:"8:10" }}-{{ request_get.date_to|slice:"5:7" }}-{{ request_get.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
-                {% else %}
-                  Custom Date Range...
-                {% endif %}
-              </option>
-            </select>
-            {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
-              <button class="btn btn-outline-secondary border-start-0 py-0 px-2" type="button" title="Edit Date Range" onclick="handleLeadDateDropdownChange('admin', 'custom')">
-                <i class="fa-solid fa-pen-to-square text-primary" style="font-size: 0.78rem;"></i>
-              </button>
-            {% endif %}
-          </div>
+          <select name="lead_date" id="admin_leadDateSelect" class="form-select form-select-sm no-tom-select border" style="border-color: #cbd5e1 !important; height: 36px; font-size: 0.82rem;" onchange="handleLeadDateDropdownChange('admin', this.value)">
+            <option value="" {% if not request_get.lead_date and not request_get.date_from and not request_get.date_to and not date_from_val and not date_to_val %}selected{% endif %}>Date range: All</option>
+            <option value="today" {% if request_get.lead_date == 'today' %}selected{% endif %}>Today</option>
+            <option value="yesterday" {% if request_get.lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
+            <option value="last_7_days" {% if request_get.lead_date == 'last_7_days' %}selected{% endif %}>7 Days</option>
+            <option value="30_days" {% if request_get.lead_date == '30_days' %}selected{% endif %}>30 Days</option>
+            <option value="this_month" {% if request_get.lead_date == 'this_month' %}selected{% endif %}>This Month</option>
+            <option value="custom" {% if request_get.lead_date == 'custom' or request_get.date_from or request_get.date_to or date_from_val or date_to_val %}selected{% endif %}>
+              {% if request_get.date_from or request_get.date_to or date_from_val or date_to_val %}
+                📅 {% if request_get.date_from %}{{ request_get.date_from|slice:"8:10" }}-{{ request_get.date_from|slice:"5:7" }}-{{ request_get.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} → {% if request_get.date_to %}{{ request_get.date_to|slice:"8:10" }}-{{ request_get.date_to|slice:"5:7" }}-{{ request_get.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
+              {% else %}
+                Custom Date Range...
+              {% endif %}
+            </option>
+          </select>
           <!-- Hidden inputs for custom date submission -->
           <input type="hidden" name="date_from" id="admin_inputDateFrom" value="{{ request_get.date_from|default:date_from_val|default:'' }}">
           <input type="hidden" name="date_to" id="admin_inputDateTo" value="{{ request_get.date_to|default:date_to_val|default:'' }}">
@@ -382,9 +376,6 @@
       <div class="card bulk-action-bar mb-3 p-3">
         <div class="d-flex flex-wrap align-items-center gap-3">
           <div class="d-flex align-items-center me-1">
-            <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-3 me-2">
-              <i class="fa-solid fa-layer-group fa-lg"></i>
-            </span>
             <div>
               <div class="fw-bold text-dark" style="font-size: 0.88rem;">Bulk Action</div>
               <div class="text-muted" style="font-size: 0.72rem;">Apply changes to selected leads</div>
@@ -405,10 +396,10 @@
           </div>
 
           <!-- 2. From Field Container -->
-          <div id="fromFieldContainer" class="d-none" style="min-width: 175px;">
+          <div id="fromFieldContainer" style="min-width: 175px; display: none;">
             <div class="bulk-field-label" id="fromFieldLabel">From</div>
             <!-- From User Select Wrapper -->
-            <div id="fromUserWrapper" class="d-none">
+            <div id="fromUserWrapper" style="display: none;">
               <select name="from_user" id="fromUserSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">All / Any User</option>
                 <option value="unassigned">Unassigned / Open</option>
@@ -418,7 +409,7 @@
               </select>
             </div>
             <!-- From Stage Select Wrapper -->
-            <div id="fromStageWrapper" class="d-none">
+            <div id="fromStageWrapper" style="display: none;">
               <select name="from_stage" id="fromStageSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">All / Any Stage</option>
                 {% for s in bulk_stages %}
@@ -429,10 +420,10 @@
           </div>
 
           <!-- 3. To Field Container -->
-          <div id="toFieldContainer" class="d-none" style="min-width: 175px;">
+          <div id="toFieldContainer" style="min-width: 175px; display: none;">
             <div class="bulk-field-label" id="toFieldLabel">To</div>
             <!-- To User Select Wrapper -->
-            <div id="toUserWrapper" class="d-none">
+            <div id="toUserWrapper" style="display: none;">
               <select name="assign_to" id="toUserSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">-- Select Assignee --</option>
                 {% for e in employees %}
@@ -441,7 +432,7 @@
               </select>
             </div>
             <!-- To Stage Select Wrapper -->
-            <div id="toStageWrapper" class="d-none">
+            <div id="toStageWrapper" style="display: none;">
               <select name="stage" id="toStageSelect" class="form-select form-select-sm no-tom-select shadow-none" style="border: 1px solid #cbd5e1 !important; height: 35px; border-radius: 6px; background-color: #ffffff; font-size: 0.82rem;">
                 <option value="">-- Select Target Stage --</option>
                 {% for s in bulk_stages %}
@@ -888,6 +879,8 @@
 
     const fromContainer = document.getElementById('fromFieldContainer');
     const toContainer = document.getElementById('toFieldContainer');
+    const fromFieldLabel = document.getElementById('fromFieldLabel');
+    const toFieldLabel = document.getElementById('toFieldLabel');
     const fromUserWrapper = document.getElementById('fromUserWrapper');
     const fromStageWrapper = document.getElementById('fromStageWrapper');
     const toUserWrapper = document.getElementById('toUserWrapper');
@@ -901,6 +894,9 @@
       fromContainer.style.display = 'block';
       toContainer.style.display = 'block';
 
+      if (fromFieldLabel) fromFieldLabel.textContent = 'From User';
+      if (toFieldLabel) toFieldLabel.textContent = 'To User';
+
       if (fromUserWrapper) { fromUserWrapper.classList.remove('d-none'); fromUserWrapper.style.display = 'block'; }
       if (fromStageWrapper) { fromStageWrapper.classList.add('d-none'); fromStageWrapper.style.display = 'none'; }
       if (toUserWrapper) { toUserWrapper.classList.remove('d-none'); toUserWrapper.style.display = 'block'; }
@@ -910,6 +906,9 @@
       toContainer.classList.remove('d-none');
       fromContainer.style.display = 'block';
       toContainer.style.display = 'block';
+
+      if (fromFieldLabel) fromFieldLabel.textContent = 'From Stage';
+      if (toFieldLabel) toFieldLabel.textContent = 'Target Stage';
 
       if (fromUserWrapper) { fromUserWrapper.classList.add('d-none'); fromUserWrapper.style.display = 'none'; }
       if (fromStageWrapper) { fromStageWrapper.classList.remove('d-none'); fromStageWrapper.style.display = 'block'; }
@@ -1063,6 +1062,11 @@
       c.addEventListener('change', updateSelectedCount);
     });
     updateSelectedCount();
+
+    const adminSelect = document.getElementById('adminBulkActionSelect');
+    if (adminSelect) {
+      adminSelect.addEventListener('change', handleBulkActionChange);
+    }
     handleBulkActionChange();
   });
 
@@ -1277,6 +1281,7 @@
       showInWindowAlert('Error', 'Could not schedule follow-up.', 'error');
     });
   };
+</script>
 
 <!-- Interactive Custom Date Range Modal (Matching Dashboard Calendar) -->
 <style>
@@ -1599,8 +1604,8 @@
 
     if (state.mode === 'from') {
       state.from = isoDate;
-      state.to = '';
-      state.mode = 'to';
+      // Do not clear state.to immediately if user wants 1 date
+      state.mode = 'to'; // advance to 2nd click for To date
     } else {
       if (!state.from) {
         state.from = isoDate;
@@ -1616,17 +1621,20 @@
       }
     }
 
+    // Sync to hidden form inputs
     const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
     const hiddenTo = document.getElementById(prefix + '_inputDateTo');
-    if (hiddenFrom) hiddenFrom.value = state.from;
-    if (hiddenTo) hiddenTo.value = state.to;
+    if (hiddenFrom) hiddenFrom.value = state.from || '';
+    if (hiddenTo) hiddenTo.value = state.to || '';
 
     const helper = document.getElementById(prefix + '_modalHelper');
     if (helper) {
       if (state.from && state.to) {
         helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
-      } else {
-        helper.innerHTML = 'Now click calendar date for <strong>To Date</strong>.';
+      } else if (state.from && !state.to) {
+        helper.innerHTML = 'From date set! Now pick <strong>To Date</strong>, or click <strong>Apply Range</strong> to filter till Today.';
+      } else if (!state.from && state.to) {
+        helper.innerHTML = 'To date set! Click <strong>Apply Range</strong> to filter all leads up to this date.';
       }
     }
 
@@ -1672,8 +1680,15 @@
 
       const modalEl = document.getElementById(prefix + '_customDateModal');
       if (modalEl) {
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+          modal.show();
+        } else if (typeof $ !== 'undefined') {
+          $(modalEl).modal('show');
+        } else {
+          modalEl.classList.add('show');
+          modalEl.style.display = 'block';
+        }
       }
     } else {
       const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
@@ -1726,11 +1741,21 @@
     }
   }
 
+  // Bind change event to select element directly
   document.addEventListener('DOMContentLoaded', () => {
     const hiddenFrom = document.getElementById('admin_inputDateFrom');
     const hiddenTo = document.getElementById('admin_inputDateTo');
     initCalState('admin', hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
     renderCalendar('admin');
+
+    const selectEl = document.getElementById('admin_leadDateSelect');
+    if (selectEl) {
+      selectEl.addEventListener('change', function(e) {
+        if (this.value === 'custom') {
+          handleLeadDateDropdownChange('admin', 'custom');
+        }
+      });
+    }
   });
 </script>
 {% endblock %}
