@@ -429,7 +429,7 @@ def superadmin_home(request):
 
     # 4. Quick Date Filter & Date Range Logic
     is_hospital_dashboard = bool(user.hospital or (effective_hospital and user.role != User.Role.SUPER_ADMIN))
-    default_time_filter = 'last_7_days' if is_hospital_dashboard else 'today'
+    default_time_filter = 'all_time'
 
     if custom_start or custom_end:
         time_filter = 'custom'

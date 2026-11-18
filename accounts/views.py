@@ -1601,20 +1601,60 @@ def business_toggle_active(request, pk):
 
 @login_required
 def business_delete(request, pk):
-    """Safely remove a business. Protects from accidental deletion if critical data exists."""
+    """
+    Safely and completely remove a business and cascade delete all its associated data
+    (leads, followups, appointments, stages, courses, campaigns, etc.).
+    Only accessible by Super Admin.
+    """
     if request.user.role != User.Role.SUPER_ADMIN or getattr(request.user, 'business', None):
         messages.error(request, "Permission denied.")
         return redirect("dashboard:home")
+
     if request.method == "POST":
+        from django.db import transaction
+        from leads.models import Lead, LeadStage, Course, Campaign, Appointment, LeadSource, DoctorSchedule, DoctorLeave
+        from followups.models import FollowUp, Note, Activity
+        from admissions.models import Admission
+        from payments.models import Payment
+
         business = get_object_or_404(Hospital, pk=pk)
         name = business.name
         try:
-            # Delete associated users or unassign them first if any
-            User.objects.filter(hospital=business).update(hospital=None, is_active=False)
-            business.delete()
-            messages.success(request, f"Business '{name}' and associated configuration have been removed.")
+            with transaction.atomic():
+                # 1. Unassign and deactivate users belonging exclusively to this business
+                User.objects.filter(hospital=business).update(hospital=None, is_active=False)
+
+                # 2. Find all leads associated with this business
+                leads_qs = Lead.objects.filter(hospital=business)
+
+                # 3. Clean up child records linked to leads of this business
+                Appointment.objects.filter(lead__in=leads_qs).delete()
+                FollowUp.objects.filter(lead__in=leads_qs).delete()
+                Note.objects.filter(lead__in=leads_qs).delete()
+                Activity.objects.filter(lead__in=leads_qs).delete()
+                Payment.objects.filter(admission__lead__in=leads_qs).delete()
+                Admission.objects.filter(lead__in=leads_qs).delete()
+
+                # 4. Delete the leads themselves
+                leads_qs.delete()
+
+                # 5. Clean up doctor schedules and leaves for this business
+                DoctorSchedule.objects.filter(hospital=business).delete()
+                DoctorLeave.objects.filter(hospital=business).delete()
+
+                # 6. Delete business-scoped stages, courses, campaigns, and sources
+                LeadStage.objects.filter(hospital=business).delete()
+                Course.objects.filter(hospital=business).delete()
+                Campaign.objects.filter(hospital=business).delete()
+                LeadSource.objects.filter(hospital=business).delete()
+
+                # 7. Delete the business instance
+                business.delete()
+
+            messages.success(request, f"Business '{name}' and all its associated data have been permanently removed.")
         except Exception as e:
-            messages.error(request, f"Could not delete business '{name}': {e}. You can deactivate it instead.")
+            messages.error(request, f"Could not delete business '{name}': {e}")
+
     return redirect("accounts:business_list")
 
 @login_required

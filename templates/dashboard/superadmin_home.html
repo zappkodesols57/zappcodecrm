@@ -200,10 +200,10 @@
         <div class="col-12 col-sm-6 col-md-2">
           <label class="dash-label">Date Filter</label>
           <select name="time_filter" class="form-select no-tom-select dash-select" id="timeFilterSelect" onchange="toggleCustomDates(this.value)" style="border: 1.5px solid #94a3b8 !important; border-radius: 6px !important; background-color: #ffffff !important; box-shadow: none !important;">
+            <option value="all_time" {% if not time_filter or time_filter == 'all_time' or time_filter == 'all' %}selected{% endif %}>All Time</option>
             <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
             <option value="last_7_days" {% if time_filter == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
             <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
-            <option value="all_time" {% if time_filter == 'all_time' or time_filter == 'all' %}selected{% endif %}>All Time</option>
             <option value="custom" {% if time_filter == 'custom' or custom_start or custom_end %}selected{% endif %}>Custom</option>
           </select>
         </div>
