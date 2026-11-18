@@ -1606,10 +1606,8 @@ def team_history(request):
             | Q(created_by__last_name__icontains=q) | Q(created_by__username__icontains=q)
         )
 
-    # Date preset (Default to "all" (All Time) so team leads are immediately visible)
+    # Date preset
     date_preset = request.GET.get("date_preset", "").strip()
-    selected_month = request.GET.get("month", "").strip()
-    selected_year = request.GET.get("year", "").strip()
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
 
@@ -1629,33 +1627,30 @@ def team_history(request):
             | Q(lead_notes__created_at__date=yesterday) | Q(activities__created_at__date=yesterday)
         )
         active_date_label = f"Yesterday ({yesterday.strftime('%d %b %Y')})"
-    elif selected_month:
-        try:
-            parts = selected_month.split("-")
-            y, m = int(parts[0]), int(parts[1])
-            leads = leads.filter(
-                Q(inquiry_date__year=y, inquiry_date__month=m)
-                | Q(created_at__year=y, created_at__month=m)
-                | Q(updated_at__year=y, updated_at__month=m)
-                | Q(followups__followup_date__year=y, followups__followup_date__month=m)
-                | Q(followups__created_at__year=y, followups__created_at__month=m)
-                | Q(lead_notes__created_at__year=y, lead_notes__created_at__month=m)
-                | Q(activities__created_at__year=y, activities__created_at__month=m)
-            )
-            active_date_label = datetime(y, m, 1).strftime("%B %Y")
-        except Exception:
-            pass
-    elif selected_year:
-        try:
-            y = int(selected_year)
-            leads = leads.filter(
-                Q(inquiry_date__year=y) | Q(created_at__year=y) | Q(updated_at__year=y)
-                | Q(followups__followup_date__year=y) | Q(followups__created_at__year=y)
-                | Q(lead_notes__created_at__year=y) | Q(activities__created_at__year=y)
-            )
-            active_date_label = f"Year {y}"
-        except Exception:
-            pass
+    elif date_preset == "last_7_days":
+        d7 = today - timedelta(days=7)
+        leads = leads.filter(
+            Q(inquiry_date__gte=d7, inquiry_date__lte=today)
+            | Q(created_at__date__gte=d7, created_at__date__lte=today)
+            | Q(updated_at__date__gte=d7, updated_at__date__lte=today)
+            | Q(followups__followup_date__gte=d7, followups__followup_date__lte=today)
+            | Q(followups__created_at__date__gte=d7, followups__created_at__date__lte=today)
+            | Q(lead_notes__created_at__date__gte=d7, lead_notes__created_at__date__lte=today)
+            | Q(activities__created_at__date__gte=d7, activities__created_at__date__lte=today)
+        )
+        active_date_label = f"Last 7 Days ({d7.strftime('%d %b')} - {today.strftime('%d %b')})"
+    elif date_preset == "last_30_days":
+        d30 = today - timedelta(days=30)
+        leads = leads.filter(
+            Q(inquiry_date__gte=d30, inquiry_date__lte=today)
+            | Q(created_at__date__gte=d30, created_at__date__lte=today)
+            | Q(updated_at__date__gte=d30, updated_at__date__lte=today)
+            | Q(followups__followup_date__gte=d30, followups__followup_date__lte=today)
+            | Q(followups__created_at__date__gte=d30, followups__created_at__date__lte=today)
+            | Q(lead_notes__created_at__date__gte=d30, lead_notes__created_at__date__lte=today)
+            | Q(activities__created_at__date__gte=d30, activities__created_at__date__lte=today)
+        )
+        active_date_label = f"Last 30 Days ({d30.strftime('%d %b')} - {today.strftime('%d %b')})"
     elif date_from or date_to:
         if date_from:
             try:
@@ -1677,7 +1672,7 @@ def team_history(request):
                 )
             except ValueError:
                 pass
-        active_date_label = f"Custom: {date_from or 'Start'} to {date_to or 'End'}"
+        active_date_label = f"{date_from or 'Start'} to {date_to or 'End'}"
 
     # Apply distinct to avoid inflated cartesian product counts from multi-table joins (followups, notes, activities)
     leads = leads.distinct()
@@ -1967,17 +1962,34 @@ def team_history(request):
     # Charts Calculation:
     # -------------------------------------------------------------
 
-    # Chart 1: Lead Stages Breakdown (Group unique stage names without duplicate bars)
-    stage_counts_dict = {}
-    for lead_stg_name in tab_leads_base.exclude(stage__isnull=True).values_list('stage__name', flat=True):
-        clean_stg = lead_stg_name.strip()
-        stage_counts_dict[clean_stg] = stage_counts_dict.get(clean_stg, 0) + 1
+    # Chart 1: Lead Stages Breakdown ordered by actual lifecycle order
+    if is_hospital_business:
+        active_stages = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.HOSPITAL)
+        if business and active_stages.filter(hospital=business).exists():
+            active_stages = active_stages.filter(hospital=business)
+        else:
+            active_stages = active_stages.filter(hospital__isnull=True)
+        active_stages = active_stages.order_by("order", "name")
+    else:
+        active_stages = LeadStage.objects.filter(
+            is_active=True, business_type=LeadStage.BusinessType.ACADEMY
+        ).order_by("order", "name")
 
-    if not stage_counts_dict:
-        stage_counts_dict = {'New': 0, 'Assigned': 0, 'Follow Up': 0, 'Payment Done': 0}
+    stage_chart_labels = []
+    stage_chart_counts = []
+    seen_stg_names = set()
+    for stg in active_stages:
+        s_name = stg.name.strip()
+        s_norm = s_name.lower()
+        if s_norm not in seen_stg_names:
+            seen_stg_names.add(s_norm)
+            cnt = tab_leads_base.filter(Q(stage=stg) | Q(stage__name__iexact=s_name)).count()
+            stage_chart_labels.append(s_name)
+            stage_chart_counts.append(cnt)
 
-    stage_chart_labels = list(stage_counts_dict.keys())[:8]
-    stage_chart_counts = [stage_counts_dict[k] for k in stage_chart_labels]
+    if not stage_chart_labels:
+        stage_chart_labels = ['New', 'Assigned', 'Follow Up', 'Payment Done']
+        stage_chart_counts = [0, 0, 0, 0]
 
     # Chart 2: Deal Status Breakdown (Pie Chart: New, Open, Follow ups, Won, Lost)
     won_leads_qs = tab_leads_base.filter(Q(deal_status=DealStatus.WON) | Q(deal_status='PAYMENT DONE') | Q(stage__name__icontains='Payment Done') | Q(admission_status=AdmissionStatus.WON))
@@ -2081,12 +2093,14 @@ def team_history(request):
         if valid_course_ids:
             leads = leads.filter(course_id__in=valid_course_ids)
 
-    # Stage filter (Zappcode Academy)
+    # Stage filter
     selected_stages = request.GET.getlist("stage")
     if selected_stages:
         valid_stage_ids = [int(s) for s in selected_stages if str(s).isdigit()]
         if valid_stage_ids:
-            leads = leads.filter(stage_id__in=valid_stage_ids)
+            # Match by stage ID or equivalent stage name to catch historical leads across stage migrations
+            matched_stage_names = list(LeadStage.objects.filter(id__in=valid_stage_ids).values_list("name", flat=True))
+            leads = leads.filter(Q(stage_id__in=valid_stage_ids) | Q(stage__name__in=matched_stage_names))
 
     # Admission status filter (Zappcode Academy)
     selected_admission_statuses = request.GET.getlist("admission_status")
@@ -2113,20 +2127,6 @@ def team_history(request):
                 fu_status_q |= Q(followups__followup_status=fst_up)
         leads = leads.filter(fu_status_q).distinct()
 
-    # Available distinct years and months with data for dropdowns
-    available_years_raw = Lead.objects.filter(
-        hospital=business if business else None, inquiry_date__isnull=False
-    ).dates("inquiry_date", "year", order="DESC") if business else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "year", order="DESC")
-    available_years = [d.year for d in available_years_raw]
-
-    available_months_raw = Lead.objects.filter(
-        hospital=business if business else None, inquiry_date__isnull=False
-    ).dates("inquiry_date", "month", order="DESC") if business else Lead.objects.filter(inquiry_date__isnull=False).dates("inquiry_date", "month", order="DESC")
-    available_months = [
-        {"value": d.strftime("%Y-%m"), "label": d.strftime("%B %Y"), "year": d.year, "month": d.month}
-        for d in available_months_raw
-    ]
-
     # Sort & Prefetch for complete update insights
     sort_by = request.GET.get("sort", "-updated_at")
     leads = leads.distinct().select_related(
@@ -2141,21 +2141,47 @@ def team_history(request):
     # Scoped courses and stages
     courses = Course.objects.filter(is_active=True, hospital=business).order_by("name") if business else Course.objects.filter(is_active=True, hospital__isnull=True).order_by("name")
     if is_hospital_business:
-        stages = LeadStage.objects.filter(is_active=True).filter(Q(hospital=business) | Q(business_type=LeadStage.BusinessType.HOSPITAL)).order_by("order", "name")
+        stages_qs = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.HOSPITAL)
+        if business and stages_qs.filter(hospital=business).exists():
+            stages_qs = stages_qs.filter(hospital=business)
+        else:
+            stages_qs = stages_qs.filter(hospital__isnull=True)
+        stages_qs = stages_qs.order_by("order", "name")
     else:
-        stages = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.ACADEMY).order_by("order", "name")
+        stages_qs = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.ACADEMY).order_by("order", "name")
+
+    # Deduplicate stages by normalized name so options don't repeat in dropdown
+    stages = []
+    seen_stage_titles = set()
+    for stg in stages_qs:
+        stg_norm = stg.name.strip().lower()
+        if stg_norm not in seen_stage_titles:
+            seen_stage_titles.add(stg_norm)
+            stages.append(stg)
     admission_status_choices = AdmissionStatus.choices
+
+    # Academy Top Cards: user_counts and all_members_count
+    all_members_count = tab_leads_base.count() if not is_hospital_business else 0
+    user_counts = []
+    selected_user = None
+    if not is_hospital_business:
+        for m in team_members:
+            m_cnt = tab_leads_base.filter(assigned_to=m).count()
+            user_counts.append({
+                "user": m,
+                "count": m_cnt,
+                "is_self": m == request.user,
+            })
+        user_counts.sort(key=lambda x: x["count"], reverse=True)
+        if legacy_user_id and legacy_user_id.isdigit():
+            selected_user = team_members.filter(id=int(legacy_user_id)).first()
 
     # Active filter items list for UI filter badges
     active_filter_items = []
     if date_preset and date_preset != "all":
         active_filter_items.append({"key": "date_preset", "label": f"Period: {active_date_label}", "value": date_preset})
-    elif selected_month:
-        active_filter_items.append({"key": "month", "label": f"Month: {active_date_label}", "value": selected_month})
-    elif selected_year:
-        active_filter_items.append({"key": "year", "label": f"Year: {active_date_label}", "value": selected_year})
     elif date_from or date_to:
-        active_filter_items.append({"key": "custom_date", "label": f"Date: {date_from or 'Start'} to {date_to or 'End'}", "value": "date"})
+        active_filter_items.append({"key": "custom_date", "label": f"Date: {active_date_label}", "value": "date"})
 
     if q:
         active_filter_items.append({"key": "q", "label": f"Search: '{q}'", "value": q})
@@ -2283,11 +2309,7 @@ def team_history(request):
         "admission_status_choices": admission_status_choices,
         "followup_status_choices": followup_status_choices,
         "selected_followup_statuses": selected_followup_statuses,
-        "available_years": available_years,
-        "available_months": available_months,
         "date_preset": date_preset,
-        "selected_month": selected_month,
-        "selected_year": selected_year,
         "date_from": date_from,
         "date_to": date_to,
         "active_date_label": active_date_label,
@@ -2296,6 +2318,11 @@ def team_history(request):
         "selected_admission_statuses": selected_admission_statuses,
         "active_filter_items": active_filter_items,
         "active_filters_count": len(active_filter_items),
+        # Academy specific header cards & user filter
+        "team_members": team_members,
+        "user_counts": user_counts,
+        "all_members_count": all_members_count,
+        "selected_user": selected_user,
         "current_sort": sort_by,
         "query_params": query_params.urlencode(),
         "today_str": today.strftime("%Y-%m-%d"),
@@ -2305,7 +2332,7 @@ def team_history(request):
         "current_hospital": business,
         "is_hospital_business": is_hospital_business,
     }
-    template = "hospital/leads/team_history.html" if is_hospital_business else "academy/leads/team_history.html"
+    template = "leads/team_history.html"
     return render(request, template, context)
 
 
