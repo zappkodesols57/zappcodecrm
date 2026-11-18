@@ -7,6 +7,8 @@ class AcademyDailyReportForm(forms.ModelForm):
     # Dynamic fields stored in custom_data
     todays_total_leads = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
     walk_ins = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    leads_interested = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
+    leads_cold = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
     follow_ups_pending = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
     visit_done = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
     visit_pending = forms.IntegerField(min_value=0, required=False, widget=forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}))
@@ -33,7 +35,7 @@ class AcademyDailyReportForm(forms.ModelForm):
             "payments_done":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
             "pending_leads":      forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
             "tomorrow_followups": forms.NumberInput(attrs={"class": "form-control", "min": "0", "step": "1", "placeholder": "0"}),
-            "mood":               forms.Select(attrs={"class": "form-select"}),
+            "mood":               forms.Select(attrs={"class": "form-select no-tom-select"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -44,7 +46,7 @@ class AcademyDailyReportForm(forms.ModelForm):
 
         if self.instance and self.instance.pk and self.instance.custom_data:
             cd = self.instance.custom_data or {}
-            for f in ["todays_total_leads", "walk_ins", "follow_ups_pending", "visit_done", "visit_pending", "admission_pending", "payment_pending", "overdues", "upcoming"]:
+            for f in ["todays_total_leads", "walk_ins", "leads_interested", "leads_cold", "follow_ups_pending", "visit_done", "visit_pending", "admission_pending", "payment_pending", "overdues", "upcoming"]:
                 if f in cd:
                     self.fields[f].initial = cd[f]
 
@@ -53,7 +55,7 @@ class AcademyDailyReportForm(forms.ModelForm):
         int_fields = [
             "leads_assigned", "calls_attended", "admissions_done",
             "payments_done", "pending_leads", "tomorrow_followups",
-            "todays_total_leads", "walk_ins", "follow_ups_pending",
+            "todays_total_leads", "walk_ins", "leads_interested", "leads_cold", "follow_ups_pending",
             "visit_done", "visit_pending", "admission_pending",
             "payment_pending", "overdues", "upcoming",
         ]

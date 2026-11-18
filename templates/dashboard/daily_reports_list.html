@@ -438,14 +438,23 @@
       <thead>
         <tr>
           <th class="px-3 py-2">Date &amp; Employee</th>
-          <th class="text-center py-2">Assigned</th>
-          <th class="text-center py-2">Completed</th>
-          <th class="text-center py-2">Pending</th>
-          <th class="text-center py-2">Upcoming</th>
-          <th class="text-center py-2">Tomorrow</th>
-          <th class="text-center py-2">Login</th>
-          <th class="text-center py-2">Logout</th>
+          <th class="text-center py-2" title="Fresh leads assigned today">Assigned</th>
+          <th class="text-center py-2" title="Calls / Follow-ups handled">Calls / Touches</th>
+          <th class="text-center py-2 text-success" title="Positive Intent / Hot Leads">Hot / Interested</th>
+          <th class="text-center py-2 text-muted" title="Negative Intent / Cold Leads">Cold / Lost</th>
+          {% if current_business.industry == 'HOSPITAL' %}
+          <th class="text-center py-2" title="Doctor appointments booked">Appt Booked</th>
+          <th class="text-center py-2" title="OPD visits / Walk-ins">Walk-in Visits</th>
+          {% else %}
+          <th class="text-center py-2" title="Admissions completed today">Admissions</th>
+          <th class="text-center py-2" title="Campus / Demo visits completed">Visits Done</th>
+          {% endif %}
+          <th class="text-center py-2" title="Pending follow-ups in queue">Pending</th>
+          <th class="text-center py-2" title="Scheduled for tomorrow">Tomorrow</th>
+          <th class="text-center py-2">Login / Logout</th>
           <th class="text-center py-2">Mood</th>
+          <th class="text-center py-2">EOD Status</th>
+          <th class="text-center py-2">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -461,36 +470,57 @@
           <td class="text-center fw-bold text-dark fs-6">
             {{ report.calls_attended }}
           </td>
-          <td class="text-center fw-bold text-dark fs-6">
-            {{ report.pending_leads }}
+          <td class="text-center fw-bold text-success fs-6">
+            {{ report.leads_interested|default:"0" }}
+          </td>
+          <td class="text-center fw-bold text-muted fs-6">
+            {{ report.leads_cold|default:"0" }}
+          </td>
+          {% if current_business.industry == 'HOSPITAL' %}
+          <td class="text-center fw-bold text-primary fs-6">
+            {{ report.appointments_booked|default:"0" }}
           </td>
           <td class="text-center fw-bold text-dark fs-6">
-            {{ report.follow_ups_taken|default:"0" }}
+            {{ report.visit_done|default:report.walk_ins|default:"0" }}
+          </td>
+          {% else %}
+          <td class="text-center fw-bold text-success fs-6">
+            {{ report.admissions_done|default:"0" }}
+          </td>
+          <td class="text-center fw-bold text-dark fs-6">
+            {{ report.visit_done|default:"0" }}
+          </td>
+          {% endif %}
+          <td class="text-center fw-bold text-warning fs-6">
+            {{ report.pending_leads }}
           </td>
           <td class="text-center fw-bold text-dark fs-6">
             {{ report.tomorrow_followups }}
           </td>
           <td class="text-center text-nowrap">
-            {% if report.display_login and report.display_login != "—" %}
-              <span class="small fw-semibold text-success">{{ report.display_login }}</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center text-nowrap">
-            {% if report.display_logout and report.display_logout != "—" %}
-              <span class="small fw-semibold text-secondary">{{ report.display_logout }}</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
+            <div>
+              <span class="small fw-semibold text-success">{{ report.display_login|default:"—" }}</span>
+              <span class="text-muted mx-0.5">/</span>
+              <span class="small fw-semibold text-secondary">{{ report.display_logout|default:"—" }}</span>
+            </div>
           </td>
           <td class="text-center">
             <span class="small text-dark">{{ report.mood|default:"Good" }}</span>
           </td>
+          <td class="text-center">
+            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2.5 py-1 small fw-semibold">
+              Submitted
+            </span>
+          </td>
+          <td class="text-center text-nowrap">
+            <a href="{% url 'dashboard:view_eod_report_detail' %}?date={{ report.report_date|date:'Y-m-d' }}&user_id={{ report.user.id }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm" title="View Full Executive EOD Report">
+              <i class="bi bi-eye"></i> View
+            </a>
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="9">
+          <td colspan="14">
             <div class="empty-state text-center py-5 text-muted">
               <div class="fw-semibold">No daily EOD reports found matching the selected filters.</div>
             </div>

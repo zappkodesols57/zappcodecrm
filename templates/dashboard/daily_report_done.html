@@ -67,8 +67,16 @@
 
     <!-- Action Options: Download PDF, Submit New / Edit, Dashboard -->
     <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
-      <a href="{% url 'dashboard:download_eod_report_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary rounded-2 px-3 py-2 fw-semibold">
+      <a href="{% url 'dashboard:view_eod_report_detail' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-primary rounded-2 px-3 py-2 fw-semibold" style="background: var(--primary); border-color: var(--primary);">
+        View Full EOD Report
+      </a>
+
+      <a href="{% url 'dashboard:download_eod_report_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-danger rounded-2 px-3 py-2 fw-semibold">
         Download PDF
+      </a>
+
+      <a href="{% url 'dashboard:export_eod_report_excel' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-success rounded-2 px-3 py-2 fw-semibold">
+        Download Excel
       </a>
 
       <a href="{% url 'dashboard:submit_daily_report' %}?edit=1" class="btn btn-sm btn-outline-secondary rounded-2 px-3 py-2 fw-semibold">
