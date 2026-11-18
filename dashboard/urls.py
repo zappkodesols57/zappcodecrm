@@ -29,10 +29,12 @@ urlpatterns = [
     path("reports/employee/", views.employee_report, name="employee_report"),
     path("employee/<int:emp_id>/", views.employee_detail_activity, name="employee_detail_activity"),
     path("daily-report/", views.submit_daily_report, name="submit_daily_report"),
+    path("daily-report/detail/", views.view_eod_report_detail, name="view_eod_report_detail"),
     path("daily-report/leads/", views.view_daily_activity_leads, name="view_daily_activity_leads"),
     path("daily-report/export/", views.export_daily_activity_leads, name="export_daily_activity_leads"),
     path("daily-report/export-pdf/", views.export_daily_activity_pdf, name="export_daily_activity_pdf"),
     path("daily-report/pdf/", views.download_eod_report_pdf, name="download_eod_report_pdf"),
+    path("daily-report/export-excel/", views.export_eod_report_excel, name="export_eod_report_excel"),
     path("reports/daily/", views.management_daily_reports, name="management_daily_reports"),
 
     path("hospital/admin/", views.superadmin_home, name="hospital_admin_home"),

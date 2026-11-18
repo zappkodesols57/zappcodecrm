@@ -198,48 +198,20 @@ def employee_detail_activity(request, emp_id):
     })
 
 
-@login_required
-
-
-def submit_daily_report(request):
-    from .forms import AcademyDailyReportForm, HospitalDailyReportForm, DailyReportForm
-    from .models import DailyReport
-    from followups.models import FollowUp
-    from datetime import datetime, timedelta
+def _compute_eod_report_metrics(user, report_date):
+    """
+    Helper function to calculate today's real-time suggested metrics for a given user & date.
+    Returns a dictionary of all calculated count values and timestamps.
+    """
+    from followups.models import FollowUp, Note, Activity, ActivityType, FollowUpMode, FollowUpStatus
     from admissions.models import Admission
     from payments.models import Payment, PaymentStatus
     from audit.models import AuditLog
-
-    date_str = request.GET.get("date")
-    if date_str:
-        try:
-            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
-        except ValueError:
-            report_date = timezone.localdate()
-    else:
-        report_date = timezone.localdate()
-
-    # ── Check if already submitted today ──────────────────────────────────────
-    report_instance = DailyReport.objects.filter(user=request.user, report_date=report_date).first()
-    is_editing = request.GET.get('edit') == '1'
-
-    if report_instance and not is_editing and request.method != "POST":
-        # Already submitted → show confirmation page with option to edit
-        user_biz = getattr(request.user, 'business_type', '')
-        if user_biz == 'hospital':
-            done_tpl = "dashboard/daily_report_done.html"
-        else:
-            done_tpl = "academy/dashboard/daily_report_done.html"
-
-        return render(request, done_tpl, {
-            "active": "daily_report_submit",
-            "report": report_instance,
-            "report_date": report_date,
-        })
-
-    # ── Compute suggestions from today's actions ─────────────
-    from followups.models import FollowUp, Note, Activity, ActivityType, FollowUpMode, FollowUpStatus
+    from datetime import datetime, timedelta
     import datetime as dt_module
+
+    # Appointment model is located in leads.models
+    from leads.models import Appointment, AppointmentStatus
 
     tz = timezone.get_current_timezone()
     start_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.min), tz)
@@ -247,10 +219,10 @@ def submit_daily_report(request):
 
     # 1. Total Leads Assigned (Captured + Assigned + Bulk Self Assigned + Created today)
     assigned_leads_qs = Lead.objects.filter(
-        Q(assigned_to=request.user, inquiry_date=report_date) |
-        Q(assigned_to=request.user, created_at__range=(start_dt, end_dt)) |
-        Q(created_by=request.user, created_at__range=(start_dt, end_dt)) |
-        Q(created_by=request.user, inquiry_date=report_date)
+        Q(assigned_to=user, inquiry_date=report_date) |
+        Q(assigned_to=user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=user, created_at__range=(start_dt, end_dt)) |
+        Q(created_by=user, inquiry_date=report_date)
     )
     assigned_leads_ids = set(assigned_leads_qs.values_list('id', flat=True))
 
@@ -258,15 +230,15 @@ def submit_daily_report(request):
         activity_type=ActivityType.ASSIGNMENT,
         created_at__range=(start_dt, end_dt)
     ).filter(
-        Q(description__icontains=str(request.user.get_full_name() or request.user.username)) |
-        Q(created_by=request.user)
+        Q(description__icontains=str(user.get_full_name() or user.username)) |
+        Q(created_by=user)
     ).values_list('lead_id', flat=True))
 
     assignment_audit_lead_ids = set()
     for obj_id in AuditLog.objects.filter(
         action="ASSIGNMENT",
         created_at__range=(start_dt, end_dt),
-        new_value__icontains=str(request.user.get_full_name() or request.user.username)
+        new_value__icontains=str(user.get_full_name() or user.username)
     ).values_list('object_id', flat=True):
         if obj_id and str(obj_id).isdigit():
             assignment_audit_lead_ids.add(int(obj_id))
@@ -274,12 +246,12 @@ def submit_daily_report(request):
     all_assigned_today_lead_ids = assigned_leads_ids | assignment_activities_lead_ids | assignment_audit_lead_ids
     leads_assigned_cnt = len(all_assigned_today_lead_ids)
 
-    # 2. Appointments Booked (Confirmed / Scheduled / Completed appointments for today or created today)
+    # 2. Appointments Booked
     report_date_str = report_date.strftime("%Y-%m-%d")
     report_date_alt_str = report_date.strftime("%d-%m-%Y")
     
     appts_model_lead_ids = set(Appointment.objects.filter(
-        Q(lead__assigned_to=request.user) | Q(created_by=request.user),
+        Q(lead__assigned_to=user) | Q(created_by=user),
     ).filter(
         Q(appointment_date=report_date) | Q(created_at__range=(start_dt, end_dt))
     ).filter(
@@ -287,7 +259,7 @@ def submit_daily_report(request):
     ).values_list('lead_id', flat=True))
 
     appts_leads_table_ids = set(Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False,
     ).filter(
         Q(custom_data__appo_booked_date=report_date_str) |
@@ -305,15 +277,15 @@ def submit_daily_report(request):
     all_appts_lead_ids = appts_model_lead_ids | appts_leads_table_ids
     appointments_booked_cnt = len(all_appts_lead_ids)
 
-    # 3. Payments Done Today (Leads whose stage became Payment Done or payment was received today)
+    # 3. Payments Done Today
     today_payment_lead_ids = set(Payment.objects.filter(
-        Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user) | Q(admission__lead__created_by=request.user),
+        Q(admission__lead__assigned_to=user) | Q(admission__assigned_counselor=user) | Q(admission__lead__created_by=user),
         payment_date=report_date,
         payment_status=PaymentStatus.SUCCESS
     ).values_list('admission__lead_id', flat=True))
 
     today_payment_stage_lead_ids = set(Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         updated_at__range=(start_dt, end_dt),
     ).filter(
         Q(stage__name__icontains="Payment") |
@@ -324,25 +296,25 @@ def submit_daily_report(request):
     all_payment_done_lead_ids = today_payment_lead_ids | today_payment_stage_lead_ids
     payments_done_cnt = len(all_payment_done_lead_ids)
 
-    # 4. Follow-ups Taken Today (Unique leads with follow-up updates, remarks added, follow-ups added, stage updates today)
+    # 4. Follow-ups Taken Today
     user_fu_lead_ids = set(FollowUp.objects.filter(
-        Q(created_by=request.user, followup_date=report_date) |
-        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
+        Q(created_by=user, followup_date=report_date) |
+        Q(created_by=user, created_at__range=(start_dt, end_dt))
     ).values_list('lead_id', flat=True))
 
     user_note_lead_ids = set(Note.objects.filter(
-        created_by=request.user,
+        created_by=user,
         created_at__range=(start_dt, end_dt)
     ).values_list('lead_id', flat=True))
 
     user_activity_lead_ids = set(Activity.objects.filter(
-        created_by=request.user,
+        created_by=user,
         created_at__range=(start_dt, end_dt)
     ).values_list('lead_id', flat=True))
 
     user_audit_lead_ids = set()
     for obj_id in AuditLog.objects.filter(
-        user=request.user,
+        user=user,
         created_at__range=(start_dt, end_dt),
         model_name__iexact='Lead'
     ).values_list('object_id', flat=True):
@@ -355,30 +327,30 @@ def submit_daily_report(request):
 
     # 5. Calls Breakdown
     day_followups = FollowUp.objects.filter(
-        Q(created_by=request.user, followup_date=report_date) |
-        Q(created_by=request.user, created_at__range=(start_dt, end_dt))
+        Q(created_by=user, followup_date=report_date) |
+        Q(created_by=user, created_at__range=(start_dt, end_dt))
     )
     outgoing_calls_cnt = day_followups.filter(followup_mode=FollowUpMode.CALL_OUTGOING).count()
     incoming_calls_cnt = day_followups.filter(followup_mode=FollowUpMode.CALL_INCOMING).count()
     calls_not_connected_cnt = day_followups.filter(followup_status="NOT_CONNECTED").count()
 
-    # 6. Interested Leads (Positive keywords added or temperature Hot/Warm updated today)
+    # 6. Interested Leads
     leads_interested_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         temperature__in=["WARM", "HOT"],
         updated_at__range=(start_dt, end_dt)
     ).count()
 
-    # 7. Not Interested Leads (Negative remarks added or temperature Cold updated today)
+    # 7. Not Interested Leads
     leads_cold_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         temperature="COLD",
         updated_at__range=(start_dt, end_dt)
     ).count()
 
     # 8. Today's Lost / Cancelled Leads
     freeze_leads_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         updated_at__range=(start_dt, end_dt)
     ).filter(
         Q(deal_status=DealStatus.LOST) |
@@ -390,7 +362,7 @@ def submit_daily_report(request):
 
     # 9. Today's Walk-in Leads
     leads_visited_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         Q(inquiry_date=report_date) | Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt))
     ).filter(
         Q(lead_source__name__icontains="walk") |
@@ -401,9 +373,8 @@ def submit_daily_report(request):
         Q(custom_data__appointment_status__icontains="Visit")
     ).distinct().count()
 
-    # Walk-in leads created today
     walk_ins_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         Q(inquiry_date=report_date) | Q(created_at__range=(start_dt, end_dt))
     ).filter(
         Q(lead_source__name__icontains="walk") |
@@ -415,13 +386,13 @@ def submit_daily_report(request):
 
     # Pending and Admissions calculations
     pending_followups_lead_ids = set(FollowUp.objects.filter(
-        lead__assigned_to=request.user,
+        lead__assigned_to=user,
         followup_date__lte=report_date,
         followup_status=FollowUpStatus.PENDING
     ).values_list('lead_id', flat=True))
 
     pending_leads_table_ids = set(Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False,
         next_followup_date__lte=report_date
     ).exclude(
@@ -434,13 +405,13 @@ def submit_daily_report(request):
 
     tomorrow_date = report_date + timedelta(days=1)
     tomorrow_fu_lead_ids = set(FollowUp.objects.filter(
-        Q(lead__assigned_to=request.user) | Q(created_by=request.user),
+        Q(lead__assigned_to=user) | Q(created_by=user),
         followup_date=tomorrow_date,
         followup_status=FollowUpStatus.PENDING
     ).values_list('lead_id', flat=True))
 
     tomorrow_leads_table_ids = set(Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False,
         next_followup_date=tomorrow_date
     ).exclude(
@@ -451,9 +422,8 @@ def submit_daily_report(request):
     tomorrow_followups_cnt = len(all_tomorrow_scheduled_lead_ids) + pending_leads_cnt
 
     # Visits Calculation
-    # Visit Done today: Leads visited or marked visited today
     visit_done_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         updated_at__range=(start_dt, end_dt)
     ).filter(
         Q(stage__name__icontains="visited") |
@@ -462,9 +432,8 @@ def submit_daily_report(request):
         Q(custom_data__appointment_status__icontains="visited")
     ).distinct().count()
 
-    # Visit Pending today: Scheduled for today but not visited yet
     visit_pending_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         is_archived=False
     ).exclude(
         deal_status__in=["WON", "LOST"]
@@ -481,12 +450,12 @@ def submit_daily_report(request):
 
     # Admissions Calculation
     today_adm_record_lead_ids = set(Admission.objects.filter(
-        Q(lead__assigned_to=request.user) | Q(assigned_counselor=request.user),
+        Q(lead__assigned_to=user) | Q(assigned_counselor=user),
         Q(admission_date=report_date) | Q(created_at__range=(start_dt, end_dt))
     ).values_list('lead_id', flat=True))
 
     today_adm_stage_lead_ids = set(Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         updated_at__range=(start_dt, end_dt)
     ).filter(
         Q(stage__name__icontains="Admission") |
@@ -496,9 +465,8 @@ def submit_daily_report(request):
 
     admissions_today_cnt = len(today_adm_record_lead_ids | today_adm_stage_lead_ids)
 
-    # Admission Pending today: Scheduled or planned for today but pending
     admission_pending_cnt = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         is_archived=False
     ).exclude(
         deal_status="WON"
@@ -514,15 +482,14 @@ def submit_daily_report(request):
     ).distinct().count()
 
     fees_today_sum = Payment.objects.filter(
-        Q(admission__lead__assigned_to=request.user) | Q(admission__assigned_counselor=request.user),
+        Q(admission__lead__assigned_to=user) | Q(admission__assigned_counselor=user),
         payment_date=report_date,
         payment_status=PaymentStatus.SUCCESS
     ).aggregate(s=Sum("amount"))["s"] or 0
 
-    # Payment Pending today: leads with admission/billing candidates having balance_due > 0 or payment pending
     payment_pending_cnt = 0
     billing_candidates_qs = Lead.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user),
+        Q(assigned_to=user) | Q(created_by=user),
         is_archived=False
     ).filter(
         Q(deal_status=DealStatus.WON) |
@@ -546,15 +513,14 @@ def submit_daily_report(request):
         if t_fee > 0 and (p_paid == 0 or bal > 0):
             payment_pending_cnt += 1
 
-    # Overdues: Total overdue follow-ups + overdue visits + overdue admissions planned (< report_date)
     overdue_fu_cnt = Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False,
         next_followup_date__lt=report_date
     ).exclude(deal_status__in=["WON", "LOST"]).count()
 
     overdue_visits_cnt = Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False
     ).exclude(deal_status__in=["WON", "LOST"]).filter(
         Q(stage__name__icontains='visit planned', next_followup_date__lt=report_date) |
@@ -562,7 +528,7 @@ def submit_daily_report(request):
     ).count()
 
     overdue_adm_cnt = Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False
     ).exclude(deal_status__in=["WON", "LOST"]).filter(
         Q(stage__name__icontains='admission planned', next_followup_date__lt=report_date) |
@@ -571,15 +537,14 @@ def submit_daily_report(request):
 
     overdues_total_cnt = overdue_fu_cnt + overdue_visits_cnt + overdue_adm_cnt
 
-    # Upcoming: Total upcoming follow-ups + visits + admissions (> report_date)
     upcoming_fu_cnt = Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False,
         next_followup_date__gt=report_date
     ).exclude(deal_status__in=["WON", "LOST"]).count()
 
     upcoming_visits_cnt = Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False
     ).exclude(deal_status__in=["WON", "LOST"]).filter(
         Q(stage__name__icontains='visit planned', next_followup_date__gt=report_date) |
@@ -587,7 +552,7 @@ def submit_daily_report(request):
     ).count()
 
     upcoming_adm_cnt = Lead.objects.filter(
-        assigned_to=request.user,
+        assigned_to=user,
         is_archived=False
     ).exclude(deal_status__in=["WON", "LOST"]).filter(
         Q(stage__name__icontains='admission planned', next_followup_date__gt=report_date) |
@@ -596,89 +561,83 @@ def submit_daily_report(request):
 
     upcoming_total_cnt = upcoming_fu_cnt + upcoming_visits_cnt + upcoming_adm_cnt
 
-    # Login / Logout times from AuditLog
-    first_login_log = AuditLog.objects.filter(
-        user=request.user, 
-        action="USER_LOGIN", 
-        created_at__date=report_date
-    ).order_by("created_at").first()
-    
-    if first_login_log:
-        first_login_time = first_login_log.created_at
-    elif request.user.last_login and request.user.last_login.date() == report_date:
-        first_login_time = request.user.last_login
-    else:
-        earliest_log = AuditLog.objects.filter(user=request.user, created_at__date=report_date).order_by("created_at").first()
-        first_login_time = earliest_log.created_at if earliest_log else timezone.now()
+    # ── Accurate Login / Logout Computation ──────────────────
+    # Range for report_date in local timezone
+    login_logs_qs = AuditLog.objects.filter(
+        user=user, 
+        action__in=["USER_LOGIN", "USER_LOGIN_VIA_OTP"], 
+        created_at__range=(start_dt, end_dt)
+    ).order_by("created_at")
 
-    last_logout_log = AuditLog.objects.filter(
-        user=request.user, 
-        action="USER_LOGOUT", 
-        created_at__date=report_date
-    ).order_by("-created_at").first()
-    last_logout_time = last_logout_log.created_at if last_logout_log else None
-
-    # ── Determine who this report will be sent to ─────────────
-    reports_to_user = request.user.reports_to
-    recipients = []
-    if reports_to_user and reports_to_user.is_active:
-        recipients.append(reports_to_user)
+    first_login_time = None
+    if login_logs_qs.exists():
+        first_login_time = login_logs_qs.first().created_at
+    elif user.last_login and start_dt <= user.last_login <= end_dt:
+        first_login_time = user.last_login
     else:
-        super_admins = User.objects.filter(role=User.Role.SUPER_ADMIN, is_active=True)
-        if request.user.hospital:
-            super_admins = super_admins.filter(hospital=request.user.hospital)
+        # Fallback to user's first recorded activity on report_date
+        first_act = Activity.objects.filter(created_by=user, created_at__range=(start_dt, end_dt)).order_by("created_at").first()
+        if first_act:
+            first_login_time = first_act.created_at
         else:
-            super_admins = super_admins.filter(hospital__isnull=True)
-            if not super_admins.exists():
-                super_admins = User.objects.filter(role=User.Role.SUPER_ADMIN, is_active=True)
-        for sa in super_admins:
-            if sa != request.user and sa not in recipients:
-                recipients.append(sa)
+            first_audit = AuditLog.objects.filter(user=user, created_at__range=(start_dt, end_dt)).order_by("created_at").first()
+            if first_audit:
+                first_login_time = first_audit.created_at
 
-    # If user is a DOCTOR, calculate Doctor-specific appointment metrics
-    if request.user.role == User.Role.DOCTOR:
-        doctor_user = request.user
+    # Find last logout and check active state
+    last_logout_log = AuditLog.objects.filter(
+        user=user, 
+        action="USER_LOGOUT", 
+        created_at__range=(start_dt, end_dt)
+    ).order_by("-created_at").first()
+
+    today_date = timezone.localdate()
+    is_today = (report_date == today_date)
+
+    last_logout_time = None
+    if last_logout_log:
+        # Check Condition 4: User logged out but later logged in again and is currently active
+        latest_login = login_logs_qs.last()
+        if latest_login and latest_login.created_at > last_logout_log.created_at and is_today:
+            # User logged in again after logout and session is currently active today -> no logout shown
+            last_logout_time = None
+        else:
+            last_logout_time = last_logout_log.created_at
+    elif not is_today and first_login_time:
+        # Condition 2: Past date and user never explicitly logged out -> auto logout at midnight 11:59:59 PM
+        last_logout_time = end_dt
+
+    # If user is a DOCTOR
+    if user.role == User.Role.DOCTOR:
         doc_apts_qs = Appointment.objects.filter(
-            Q(doctor_user=doctor_user) | 
-            Q(doctor_name__icontains=doctor_user.get_full_name() or doctor_user.username)
+            Q(doctor_user=user) | 
+            Q(doctor_name__icontains=user.get_full_name() or user.username)
         )
-        if doctor_user.hospital:
-            doc_apts_qs = doc_apts_qs.filter(hospital=doctor_user.hospital)
+        if user.hospital:
+            doc_apts_qs = doc_apts_qs.filter(hospital=user.hospital)
 
-        # 1. Appointment requests received today (created_at on report_date)
         doc_req_received_cnt = doc_apts_qs.filter(created_at__date=report_date).count()
-
-        # 2. Appointment accepted/approved today
         doc_accepted_cnt = doc_apts_qs.filter(
             Q(status__in=[AppointmentStatus.APPROVED, AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED]),
             Q(updated_at__date=report_date) | Q(created_at__date=report_date)
         ).count()
-
-        # 3. Today's scheduled appointments
         doc_today_scheduled_cnt = doc_apts_qs.filter(
             appointment_date=report_date
         ).exclude(status=AppointmentStatus.CANCELLED).count()
-
-        # 4. Appointments cancelled (booked/requested but cancelled/rejected on report_date or for report_date)
         doc_cancelled_cnt = doc_apts_qs.filter(
             status=AppointmentStatus.CANCELLED
         ).filter(
             Q(appointment_date=report_date) | Q(updated_at__date=report_date)
         ).count()
-
-        # 5. Appointments completed today
         doc_completed_cnt = doc_apts_qs.filter(
             status=AppointmentStatus.COMPLETED,
             appointment_date=report_date
         ).count()
-
-        # 6. Tomorrow appointment scheduled
         tomorrow_date = report_date + timedelta(days=1)
         doc_tomorrow_scheduled_cnt = doc_apts_qs.filter(
             appointment_date=tomorrow_date
         ).exclude(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.PENDING_APPROVAL]).count()
 
-        # Override counts for doctor suggestions
         leads_assigned_cnt = doc_req_received_cnt
         appointments_booked_cnt = doc_accepted_cnt
         pending_leads_cnt = doc_today_scheduled_cnt
@@ -686,7 +645,7 @@ def submit_daily_report(request):
         admissions_today_cnt = doc_completed_cnt
         tomorrow_followups_cnt = doc_tomorrow_scheduled_cnt
 
-    suggestions = {
+    return {
         "todays_total_leads": follow_ups_taken_cnt,
         "leads_assigned": leads_assigned_cnt,
         "walk_ins": walk_ins_cnt,
@@ -712,10 +671,84 @@ def submit_daily_report(request):
         "leads_cold": leads_cold_cnt,
         "leads_visited": leads_visited_cnt,
         "fees_collected": fees_today_sum,
-        "mood": "Good",
         "first_login_time": first_login_time,
         "last_logout_time": last_logout_time,
     }
+
+
+@login_required
+def submit_daily_report(request):
+    from .forms import AcademyDailyReportForm, HospitalDailyReportForm, DailyReportForm
+    from .models import DailyReport
+    from followups.models import FollowUp
+    from datetime import datetime, timedelta
+    from admissions.models import Admission
+    from payments.models import Payment, PaymentStatus
+    from audit.models import AuditLog
+
+    date_str = request.GET.get("date")
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    # ── Check if already submitted today ──────────────────────────────────────
+    report_instance = DailyReport.objects.filter(user=request.user, report_date=report_date).first()
+
+    # ── Compute suggestions from today's actions ─────────────
+    suggestions = _compute_eod_report_metrics(request.user, report_date)
+    suggestions["mood"] = "Good"
+
+    # Shortcuts for form submission logic
+    follow_ups_taken_cnt = suggestions["follow_ups_taken"]
+    walk_ins_cnt = suggestions["walk_ins"]
+    leads_interested_cnt = suggestions["leads_interested"]
+    leads_cold_cnt = suggestions["leads_cold"]
+    follow_ups_pending_cnt = suggestions["follow_ups_pending"]
+    visit_done_cnt = suggestions["visit_done"]
+    visit_pending_cnt = suggestions["visit_pending"]
+    admission_pending_cnt = suggestions["admission_pending"]
+    payment_pending_cnt = suggestions["payment_pending"]
+    overdues_total_cnt = suggestions["overdues"]
+    upcoming_total_cnt = suggestions["upcoming"]
+    leads_assigned_cnt = suggestions["leads_assigned"]
+    appointments_booked_cnt = suggestions["appointments_booked"]
+    freeze_leads_cnt = suggestions["freeze_leads"]
+    calls_attended_cnt = suggestions["calls_attended"]
+    outgoing_calls_cnt = suggestions["outgoing_calls"]
+    incoming_calls_cnt = suggestions["incoming_calls"]
+    calls_not_connected_cnt = suggestions["calls_not_connected"]
+    pending_leads_cnt = suggestions["pending_leads"]
+    tomorrow_followups_cnt = suggestions["tomorrow_followups"]
+    leads_visited_cnt = suggestions["leads_visited"]
+    admissions_today_cnt = suggestions["admissions_done"]
+    payments_done_cnt = suggestions["payments_done"]
+    fees_today_sum = suggestions["fees_collected"]
+    first_login_time = suggestions["first_login_time"]
+    last_logout_time = suggestions["last_logout_time"]
+
+    # ── Determine who this report will be sent to ─────────────
+    # Notification strictly goes to reporting manager/admin (user.reports_to).
+    # If reports_to is not configured, fall back to the tenant's primary admin/manager.
+    reports_to_user = request.user.reports_to
+    recipients = []
+    if reports_to_user and reports_to_user.is_active and reports_to_user != request.user:
+        recipients.append(reports_to_user)
+    else:
+        # Fallback only when reports_to is not set: notify the organization's admin/manager
+        tenant_qs = User.objects.filter(is_active=True).exclude(pk=request.user.pk)
+        if request.user.hospital:
+            tenant_admins = tenant_qs.filter(hospital=request.user.hospital, role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.SUPER_ADMIN])
+        else:
+            tenant_admins = tenant_qs.filter(hospital__isnull=True, role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.SUPER_ADMIN])
+        
+        # Take the most relevant reporting admin/manager (first match)
+        first_admin = tenant_admins.order_by('id').first()
+        if first_admin:
+            recipients.append(first_admin)
 
     # ── 1. BUSINESS TENANT CHECK & 2. ROLE CHECK ──────────────────────────────
     user_business_type = request.user.business_type  # 'hospital' or 'academy'
@@ -757,6 +790,8 @@ def submit_daily_report(request):
                     custom_report_data = {
                         "todays_total_leads": cleaned.get("todays_total_leads") if cleaned.get("todays_total_leads") is not None else follow_ups_taken_cnt,
                         "walk_ins": cleaned.get("walk_ins") if cleaned.get("walk_ins") is not None else walk_ins_cnt,
+                        "leads_interested": cleaned.get("leads_interested") if cleaned.get("leads_interested") is not None else leads_interested_cnt,
+                        "leads_cold": cleaned.get("leads_cold") if cleaned.get("leads_cold") is not None else leads_cold_cnt,
                         "follow_ups_pending": cleaned.get("follow_ups_pending") if cleaned.get("follow_ups_pending") is not None else follow_ups_pending_cnt,
                         "visit_done": cleaned.get("visit_done") if cleaned.get("visit_done") is not None else visit_done_cnt,
                         "visit_pending": cleaned.get("visit_pending") if cleaned.get("visit_pending") is not None else visit_pending_cnt,
@@ -834,7 +869,7 @@ def submit_daily_report(request):
                                 f"{summary_text}\n"
                                 f"Mood: {report.mood_display}"
                             ),
-                            link="/dashboard/reports/daily/",
+                            link=f"/dashboard/daily-report/detail/?date={report_date.strftime('%Y-%m-%d')}&user_id={request.user.id}",
                         )
 
                 messages.success(request, f"Daily EOD report for {report_date.strftime('%d-%m-%Y')} {'submitted' if created else 'updated'} successfully! ✅")
@@ -1557,9 +1592,135 @@ def export_daily_activity_pdf(request):
 
 
 @login_required
+def view_eod_report_detail(request):
+    """
+    Detailed executive EOD Report view for Admin/Manager or the employee themselves.
+    Displays clear KPI tiles, breakdown by quality/pipeline, login timing and qualitative notes.
+    """
+    from accounts.models import User
+    from dashboard.models import DailyReport
+    from audit.models import AuditLog
+    from datetime import datetime
+    from django.shortcuts import get_object_or_404
+
+    date_str = request.GET.get("date")
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    target_user_id = request.GET.get("user_id")
+    if target_user_id and request.user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER, User.Role.ADMIN):
+        report_user = get_object_or_404(User, pk=target_user_id)
+    else:
+        report_user = request.user
+
+    report = DailyReport.objects.filter(user=report_user, report_date=report_date).first()
+    if not report:
+        messages.error(request, f"No EOD report submitted by {report_user.get_full_name() or report_user.username} on {report_date.strftime('%d-%m-%Y')}.")
+        if request.user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER, User.Role.ADMIN):
+            return redirect(reverse("dashboard:management_daily_reports") + "?tab=eod")
+        return redirect("dashboard:submit_daily_report")
+
+    # Business type detection
+    is_hospital = False
+    if report_user.hospital and hasattr(report_user.hospital, 'industry'):
+        is_hospital = (report_user.hospital.industry == 'HOSPITAL')
+    elif getattr(report_user, 'business_type', '') == 'hospital':
+        is_hospital = True
+
+    # Audit login/logout times with accurate real-time & multi-session logic
+    today = timezone.localdate()
+    is_today = (report_date == today)
+    tz = timezone.get_current_timezone()
+    import datetime as dt_module
+    r_start_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.min), tz)
+    r_end_dt = timezone.make_aware(dt_module.datetime.combine(report_date, dt_module.time.max), tz)
+
+    login_logs_qs = AuditLog.objects.filter(
+        user=report_user,
+        action__in=['USER_LOGIN', 'USER_LOGIN_VIA_OTP'],
+        created_at__range=(r_start_dt, r_end_dt)
+    ).order_by('created_at')
+
+    first_login_time = report.first_login_at
+    if not first_login_time:
+        if login_logs_qs.exists():
+            first_login_time = login_logs_qs.first().created_at
+        elif report_user.last_login and r_start_dt <= report_user.last_login <= r_end_dt:
+            first_login_time = report_user.last_login
+        elif report.created_at and r_start_dt <= report.created_at <= r_end_dt:
+            first_login_time = report.created_at
+        else:
+            first_act = Activity.objects.filter(created_by=report_user, created_at__range=(r_start_dt, r_end_dt)).order_by("created_at").first()
+            if first_act:
+                first_login_time = first_act.created_at
+
+    last_logout_log = AuditLog.objects.filter(
+        user=report_user,
+        action='USER_LOGOUT',
+        created_at__range=(r_start_dt, r_end_dt)
+    ).order_by('-created_at').first()
+
+    last_logout_time = report.last_logout_at
+    if not last_logout_time:
+        if last_logout_log:
+            latest_login = login_logs_qs.last()
+            if latest_login and latest_login.created_at > last_logout_log.created_at and is_today:
+                last_logout_time = None
+            else:
+                last_logout_time = last_logout_log.created_at
+        elif not is_today and first_login_time:
+            last_logout_time = r_end_dt
+
+    display_logout = timezone.localtime(last_logout_time).strftime("%I:%M %p") if last_logout_time else ("Active" if is_today else "11:59 PM")
+    display_login = timezone.localtime(first_login_time).strftime("%I:%M %p") if first_login_time else "—"
+
+    cd = report.custom_data or {}
+    todays_total_leads = cd.get("todays_total_leads", report.follow_ups_taken or report.calls_attended)
+    walk_ins = cd.get("walk_ins", 0)
+    leads_interested = cd.get("leads_interested", report.leads_interested)
+    leads_cold = cd.get("leads_cold", report.leads_cold)
+    visit_done = cd.get("visit_done", report.leads_visited)
+    visit_pending = cd.get("visit_pending", 0)
+    admission_pending = cd.get("admission_pending", 0)
+    payment_pending = cd.get("payment_pending", 0)
+    overdues = cd.get("overdues", 0)
+    upcoming = cd.get("upcoming", 0)
+
+    is_admin = request.user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN)
+    is_manager = request.user.role == User.Role.MANAGER
+
+    return render(request, "dashboard/daily_report_detail.html", {
+        "report": report,
+        "report_user": report_user,
+        "report_date": report_date,
+        "is_hospital": is_hospital,
+        "display_login": display_login,
+        "display_logout": display_logout,
+        "todays_total_leads": todays_total_leads,
+        "walk_ins": walk_ins,
+        "leads_interested": leads_interested,
+        "leads_cold": leads_cold,
+        "visit_done": visit_done,
+        "visit_pending": visit_pending,
+        "admission_pending": admission_pending,
+        "payment_pending": payment_pending,
+        "overdues": overdues,
+        "upcoming": upcoming,
+        "is_admin": is_admin,
+        "is_manager": is_manager,
+    })
+
+
+@login_required
 def download_eod_report_pdf(request):
     """
-    Download EOD Report as a clean, professionally formatted PDF.
+    Download EOD Report as a clean, professionally formatted PDF matching page layout.
+    Supports viewing staff reports when requested by Admin/Manager.
     """
     import io
     try:
@@ -1573,7 +1734,9 @@ def download_eod_report_pdf(request):
         return redirect("dashboard:submit_daily_report")
 
     from dashboard.models import DailyReport
+    from accounts.models import User
     from datetime import datetime
+    from django.shortcuts import get_object_or_404
 
     date_str = request.GET.get("date")
     if date_str:
@@ -1584,10 +1747,65 @@ def download_eod_report_pdf(request):
     else:
         report_date = timezone.localdate()
 
-    report = DailyReport.objects.filter(user=request.user, report_date=report_date).first()
+    target_user_id = request.GET.get("user_id")
+    if target_user_id and request.user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER, User.Role.ADMIN):
+        report_user = get_object_or_404(User, pk=target_user_id)
+    else:
+        report_user = request.user
+
+    report = DailyReport.objects.filter(user=report_user, report_date=report_date).first()
     if not report:
-        messages.error(request, "No EOD report found for the selected date.")
-        return redirect("dashboard:submit_daily_report")
+        # If user hasn't submitted an EOD report yet today, compute real-time suggested metrics so PDF displays actual activity!
+        metrics = _compute_eod_report_metrics(report_user, report_date)
+        cd_data = {
+            "todays_total_leads": metrics["todays_total_leads"],
+            "walk_ins": metrics["walk_ins"],
+            "leads_interested": metrics["leads_interested"],
+            "leads_cold": metrics["leads_cold"],
+            "follow_ups_pending": metrics["follow_ups_pending"],
+            "visit_done": metrics["visit_done"],
+            "visit_pending": metrics["visit_pending"],
+            "admission_pending": metrics["admission_pending"],
+            "payment_pending": metrics["payment_pending"],
+            "overdues": metrics["overdues"],
+            "upcoming": metrics["upcoming"],
+        }
+        report = DailyReport(
+            user=report_user,
+            report_date=report_date,
+            leads_assigned=metrics["leads_assigned"],
+            calls_attended=metrics["calls_attended"],
+            follow_ups_taken=metrics["follow_ups_taken"],
+            follow_ups_pending=metrics["follow_ups_pending"],
+            admissions_done=metrics["admissions_done"],
+            payments_done=metrics["payments_done"],
+            pending_leads=metrics["pending_leads"],
+            tomorrow_followups=metrics["tomorrow_followups"],
+            leads_interested=metrics["leads_interested"],
+            leads_cold=metrics["leads_cold"],
+            leads_visited=metrics["leads_visited"],
+            fees_collected=metrics["fees_collected"],
+            mood="Good",
+            custom_data=cd_data
+        )
+
+    is_hospital = False
+    if report_user.hospital and hasattr(report_user.hospital, 'industry'):
+        is_hospital = (report_user.hospital.industry == 'HOSPITAL')
+    elif getattr(report_user, 'business_type', '') == 'hospital':
+        is_hospital = True
+
+    cd = report.custom_data or {}
+    todays_total_leads = cd.get("todays_total_leads", report.follow_ups_taken or report.calls_attended)
+    walk_ins = cd.get("walk_ins", 0)
+    leads_interested = cd.get("leads_interested", report.leads_interested)
+    leads_cold = cd.get("leads_cold", report.leads_cold)
+    visit_done = cd.get("visit_done", report.leads_visited)
+    visit_pending = cd.get("visit_pending", 0)
+    admission_pending = cd.get("admission_pending", 0)
+    payment_pending = cd.get("payment_pending", 0)
+    overdues = cd.get("overdues", 0)
+    upcoming = cd.get("upcoming", 0)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -1607,8 +1825,10 @@ def download_eod_report_pdf(request):
     DARK_BLUE = colors.HexColor("#1e3a8a")
     TEXT_DARK = colors.HexColor("#1e293b")
     TEXT_MUTED = colors.HexColor("#64748b")
-    BORDER_COLOR = colors.HexColor("#e2e8f0")
+    BORDER_COLOR = colors.HexColor("#cbd5e1")
     BG_LIGHT = colors.HexColor("#f8fafc")
+    SUCCESS_COLOR = colors.HexColor("#15803d")
+    ACCENT_PURPLE = colors.HexColor("#6b21a8")
 
     title_style = ParagraphStyle(
         'DocTitle',
@@ -1623,8 +1843,8 @@ def download_eod_report_pdf(request):
         'DocSub',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=10,
-        leading=14,
+        fontSize=9,
+        leading=13,
         textColor=TEXT_MUTED,
     )
 
@@ -1632,17 +1852,37 @@ def download_eod_report_pdf(request):
         'SecHeader',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=11,
+        fontSize=10,
         leading=14,
         textColor=NAVY,
+    )
+
+    kpi_val_style = ParagraphStyle(
+        'KpiVal',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        leading=18,
+        alignment=TA_CENTER,
+        textColor=NAVY,
+    )
+
+    kpi_lbl_style = ParagraphStyle(
+        'KpiLbl',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        alignment=TA_CENTER,
+        textColor=TEXT_MUTED,
     )
 
     cell_label_style = ParagraphStyle(
         'CellLabel',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=8,
-        leading=10,
+        fontSize=8.5,
+        leading=11,
         textColor=TEXT_MUTED,
     )
 
@@ -1650,8 +1890,9 @@ def download_eod_report_pdf(request):
         'CellVal',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=12,
-        leading=15,
+        fontSize=10,
+        leading=13,
+        alignment=TA_RIGHT,
         textColor=TEXT_DARK,
     )
 
@@ -1659,100 +1900,137 @@ def download_eod_report_pdf(request):
         'BodyText',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=9,
-        leading=13,
+        fontSize=8.5,
+        leading=12,
         textColor=TEXT_DARK,
     )
 
     # Header section
-    user_name = request.user.get_full_name() or request.user.username
-    biz_name = request.user.hospital.name if request.user.hospital else "Hospital CRM"
+    user_name = report_user.get_full_name() or report_user.username
+    biz_name = report_user.hospital.name if report_user.hospital else ("Nelson Hospital" if is_hospital else "Zappcode Academy")
     date_display = report_date.strftime("%A, %d %B %Y")
 
     header_table_data = [
         [
-            Paragraph(f"<b>{biz_name}</b><br/><font size='14'>Daily EOD Report</font>", title_style),
-            Paragraph(f"<b>Date:</b> {date_display}<br/><b>Staff:</b> {user_name} ({request.user.get_role_display()})", sub_style)
+            Paragraph(f"<b>{biz_name}</b><br/><font size='14'>Daily EOD Executive Report</font>", title_style),
+            Paragraph(f"<b>Staff:</b> {user_name} ({report_user.get_role_display()})<br/><b>Date:</b> {date_display}<br/><b>Status:</b> Submitted", sub_style)
         ]
     ]
-    header_table = Table(header_table_data, colWidths=[300, 220])
+    header_table = Table(header_table_data, colWidths=[290, 233])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
     ]))
     story.append(header_table)
-    story.append(Spacer(1, 10))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=NAVY, spaceBefore=4, spaceAfter=14))
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=NAVY, spaceBefore=4, spaceAfter=12))
 
-    # Metric Table (3 fields per row)
-    metrics = [
-        ("Total Leads Assigned", str(report.leads_assigned)),
-        ("Appointments Booked", str(report.appointments_booked)),
-        ("Payments Done", str(report.payments_done)),
-        ("Follow-ups Taken", str(report.follow_ups_taken)),
-        ("Interested Leads", str(report.leads_interested)),
-        ("Not Interested Leads", str(report.leads_cold)),
-        ("Today's Lost Leads", str(report.freeze_leads)),
-        ("Today's Walk-in Leads", str(report.leads_visited)),
-        ("Total Calls Attended", str(report.calls_attended)),
-        ("Incoming Calls", str(report.incoming_calls)),
-        ("Outgoing Calls", str(report.outgoing_calls)),
-        ("Calls Not Connected", str(report.calls_not_connected)),
-    ]
+    # 1. Effort KPIs (4 Highlight Boxes in a row)
+    story.append(Paragraph("<b>1. TODAY'S EFFORT &amp; TOUCHES</b>", sec_header_style))
+    story.append(Spacer(1, 6))
 
-    grid_data = []
-    for i in range(0, len(metrics), 3):
-        row_cells = []
-        for j in range(3):
-            if i + j < len(metrics):
-                lbl, val = metrics[i + j]
-                content = [
-                    Paragraph(lbl, cell_label_style),
-                    Spacer(1, 2),
-                    Paragraph(val, cell_val_style)
-                ]
-                row_cells.append(content)
-            else:
-                row_cells.append("")
-        grid_data.append(row_cells)
+    if is_hospital:
+        kpi_cells = [
+            [Paragraph(str(report.calls_attended), kpi_val_style), Paragraph(str(report.follow_ups_taken), kpi_val_style), Paragraph(str(report.leads_visited or walk_ins), kpi_val_style), Paragraph(str(report.leads_assigned), kpi_val_style)],
+            [Paragraph("Calls Attended", kpi_lbl_style), Paragraph("Follow-ups Taken", kpi_lbl_style), Paragraph("Patient Visits", kpi_lbl_style), Paragraph("Assigned Today", kpi_lbl_style)],
+        ]
+    else:
+        kpi_cells = [
+            [Paragraph(str(todays_total_leads), kpi_val_style), Paragraph(str(report.leads_assigned), kpi_val_style), Paragraph(str(walk_ins), kpi_val_style), Paragraph(str(report.calls_attended), kpi_val_style)],
+            [Paragraph("Leads Touched", kpi_lbl_style), Paragraph("Assigned Leads", kpi_lbl_style), Paragraph("Walk-ins Attended", kpi_lbl_style), Paragraph("Follow-ups Done", kpi_lbl_style)],
+        ]
 
-    metric_table = Table(grid_data, colWidths=[173, 173, 174])
-    metric_table.setStyle(TableStyle([
+    kpi_table = Table(kpi_cells, colWidths=[130, 130, 131, 132])
+    kpi_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), BG_LIGHT),
         ('BOX', (0, 0), (-1, -1), 1, BORDER_COLOR),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 2),
+        ('TOPPADDING', (0, 1), (-1, 1), 2),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 8),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
     ]))
-    story.append(metric_table)
+    story.append(kpi_table)
     story.append(Spacer(1, 14))
 
-    # Notes & Summary Section
+    # 2. Performance & Pipeline Breakdown (2-Column Tables)
+    story.append(Paragraph("<b>2. PERFORMANCE, CONVERSION &amp; PIPELINE BREAKDOWN</b>", sec_header_style))
+    story.append(Spacer(1, 6))
+
+    if is_hospital:
+        breakdown_rows = [
+            ("Hot / Interested Leads", str(leads_interested), "Pending Leads in Queue", str(report.pending_leads)),
+            ("Cold / Not Interested", str(leads_cold), "Calls Not Connected", str(report.calls_not_connected)),
+            ("Appointments Booked", str(report.appointments_booked), "Incoming Calls", str(report.incoming_calls)),
+            ("Freeze / Lost Leads", str(report.freeze_leads), "Outgoing Calls", str(report.outgoing_calls)),
+            ("Payments Done", str(report.payments_done), "Tomorrow's Follow-ups", str(report.tomorrow_followups)),
+        ]
+    else:
+        breakdown_rows = [
+            ("Hot / Interested Leads", str(leads_interested), "Pending Leads in Queue", str(report.pending_leads)),
+            ("Cold / Not Interested", str(leads_cold), "Visits Pending", str(visit_pending)),
+            ("Visits Completed", str(visit_done), "Overdue Follow-ups", str(overdues)),
+            ("Admissions Done", str(report.admissions_done), "Upcoming Scheduled", str(upcoming)),
+            ("Admission Pending", str(admission_pending), "Tomorrow's Follow-ups", str(report.tomorrow_followups)),
+            ("Payments Done", str(report.payments_done), "Payment Pending", str(payment_pending)),
+        ]
+
+    b_table_data = []
+    # Header of columns
+    b_table_data.append([
+        Paragraph("<b>Lead Quality &amp; Conversion</b>", sec_header_style), "",
+        Paragraph("<b>Pipeline Health &amp; Forecast</b>", sec_header_style), ""
+    ])
+    for r in breakdown_rows:
+        b_table_data.append([
+            Paragraph(r[0], cell_label_style), Paragraph(f"<b>{r[1]}</b>", cell_val_style),
+            Paragraph(r[2], cell_label_style), Paragraph(f"<b>{r[3]}</b>", cell_val_style),
+        ])
+
+    breakdown_table = Table(b_table_data, colWidths=[180, 80, 183, 80])
+    breakdown_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (1, 0), BG_LIGHT),
+        ('BACKGROUND', (2, 0), (3, 0), BG_LIGHT),
+        ('BOX', (0, 0), (1, -1), 1, BORDER_COLOR),
+        ('BOX', (2, 0), (3, -1), 1, BORDER_COLOR),
+        ('INNERGRID', (0, 0), (1, -1), 0.5, colors.HexColor("#f1f5f9")),
+        ('INNERGRID', (2, 0), (3, -1), 0.5, colors.HexColor("#f1f5f9")),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(breakdown_table)
+    story.append(Spacer(1, 14))
+
+    # 3. Qualitative Section
+    story.append(Paragraph("<b>3. NOTES, REMARKS &amp; MOOD</b>", sec_header_style))
+    story.append(Spacer(1, 6))
+
     notes_data = [
-        [Paragraph("<b>Today's Mood:</b>", cell_label_style), Paragraph(report.mood_display, body_text_style)],
-        [Paragraph("<b>Remarks / Notes:</b>", cell_label_style), Paragraph(report.challenges_faced or "—", body_text_style)],
-        [Paragraph("<b>Tomorrow's Plan:</b>", cell_label_style), Paragraph(report.tomorrow_priority or "—", body_text_style)],
+        [Paragraph("<b>Today's Mood:</b>", cell_label_style), Paragraph(report.mood_display or report.mood or "Good", body_text_style)],
+        [Paragraph("<b>Remarks / Notes:</b>", cell_label_style), Paragraph(report.challenges_faced or report.key_highlight or "None logged", body_text_style)],
+        [Paragraph("<b>Tomorrow's Plan:</b>", cell_label_style), Paragraph(report.tomorrow_priority or report.other_updates or "None logged", body_text_style)],
     ]
-    notes_table = Table(notes_data, colWidths=[130, 390])
+    notes_table = Table(notes_data, colWidths=[120, 403])
     notes_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('BOX', (0, 0), (-1, -1), 1, BORDER_COLOR),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     story.append(notes_table)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 16))
 
     # Footer note
     footer_text = Paragraph(
-        f"<font size='8' color='#94a3b8'>Generated automatically by CRM System on {timezone.now().strftime('%d-%b-%Y %I:%M %p')}</font>",
+        f"<font size='8' color='#94a3b8'>Generated automatically by Zappcode CRM System on {timezone.now().strftime('%d-%b-%Y %I:%M %p')}</font>",
         ParagraphStyle('Footer', parent=styles['Normal'], alignment=TA_CENTER)
     )
     story.append(footer_text)
@@ -1760,9 +2038,333 @@ def download_eod_report_pdf(request):
     doc.build(story)
     buffer.seek(0)
 
-    pdf_filename = f"EOD_Report_{request.user.username}_{report_date.strftime('%Y%m%d')}.pdf"
+    pdf_filename = f"EOD_Report_{report_user.username}_{report_date.strftime('%Y%m%d')}.pdf"
     response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{pdf_filename}"'
+    return response
+
+
+@login_required
+def export_eod_report_excel(request):
+    """
+    Export single user's detailed EOD report as a visually styled Excel (.xlsx) file
+    with Title banner, KPI visual cards, breakdown tables, and an embedded native BarChart.
+    """
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.chart import BarChart, Reference
+    from dashboard.models import DailyReport
+    from accounts.models import User
+    from datetime import datetime
+    from django.shortcuts import get_object_or_404
+
+    date_str = request.GET.get("date")
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    target_user_id = request.GET.get("user_id")
+    if target_user_id and request.user.role in (User.Role.SUPER_ADMIN, User.Role.MANAGER, User.Role.ADMIN):
+        report_user = get_object_or_404(User, pk=target_user_id)
+    else:
+        report_user = request.user
+
+    report = DailyReport.objects.filter(user=report_user, report_date=report_date).first()
+    if not report:
+        # If user hasn't submitted an EOD report yet today, compute real-time suggested metrics so PDF displays actual activity!
+        metrics = _compute_eod_report_metrics(report_user, report_date)
+        cd_data = {
+            "todays_total_leads": metrics["todays_total_leads"],
+            "walk_ins": metrics["walk_ins"],
+            "leads_interested": metrics["leads_interested"],
+            "leads_cold": metrics["leads_cold"],
+            "follow_ups_pending": metrics["follow_ups_pending"],
+            "visit_done": metrics["visit_done"],
+            "visit_pending": metrics["visit_pending"],
+            "admission_pending": metrics["admission_pending"],
+            "payment_pending": metrics["payment_pending"],
+            "overdues": metrics["overdues"],
+            "upcoming": metrics["upcoming"],
+        }
+        report = DailyReport(
+            user=report_user,
+            report_date=report_date,
+            leads_assigned=metrics["leads_assigned"],
+            calls_attended=metrics["calls_attended"],
+            follow_ups_taken=metrics["follow_ups_taken"],
+            follow_ups_pending=metrics["follow_ups_pending"],
+            admissions_done=metrics["admissions_done"],
+            payments_done=metrics["payments_done"],
+            pending_leads=metrics["pending_leads"],
+            tomorrow_followups=metrics["tomorrow_followups"],
+            leads_interested=metrics["leads_interested"],
+            leads_cold=metrics["leads_cold"],
+            leads_visited=metrics["leads_visited"],
+            fees_collected=metrics["fees_collected"],
+            mood="Good",
+            custom_data=cd_data
+        )
+
+    is_hospital = False
+    if report_user.hospital and hasattr(report_user.hospital, 'industry'):
+        is_hospital = (report_user.hospital.industry == 'HOSPITAL')
+    elif getattr(report_user, 'business_type', '') == 'hospital':
+        is_hospital = True
+
+    cd = report.custom_data or {}
+    todays_total_leads = cd.get("todays_total_leads", report.follow_ups_taken or report.calls_attended)
+    walk_ins = cd.get("walk_ins", 0)
+    leads_interested = cd.get("leads_interested", report.leads_interested)
+    leads_cold = cd.get("leads_cold", report.leads_cold)
+    visit_done = cd.get("visit_done", report.leads_visited)
+    visit_pending = cd.get("visit_pending", 0)
+    admission_pending = cd.get("admission_pending", 0)
+    payment_pending = cd.get("payment_pending", 0)
+    overdues = cd.get("overdues", 0)
+    upcoming = cd.get("upcoming", 0)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "EOD Executive Summary"
+    ws.views.sheetView[0].showGridLines = True
+
+    # Styling Palettes
+    navy_fill = PatternFill(start_color="0F2744", end_color="0F2744", fill_type="solid")
+    light_blue_fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+    light_green_fill = PatternFill(start_color="F0FDF4", end_color="F0FDF4", fill_type="solid")
+    light_purple_fill = PatternFill(start_color="FAF5FF", end_color="FAF5FF", fill_type="solid")
+    light_amber_fill = PatternFill(start_color="FFFBEB", end_color="FFFBEB", fill_type="solid")
+    gray_header_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+
+    font_title = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+    font_sub = Font(name="Calibri", size=10, bold=False, color="94A3B8")
+    font_sec = Font(name="Calibri", size=11, bold=True, color="0F2744")
+    font_kpi_num = Font(name="Calibri", size=20, bold=True, color="0F2744")
+    font_kpi_lbl = Font(name="Calibri", size=9, bold=True, color="64748B")
+    font_bold = Font(name="Calibri", size=10, bold=True, color="0F172A")
+    font_normal = Font(name="Calibri", size=10, bold=False, color="334155")
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    align_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    align_left = Alignment(horizontal="left", vertical="center")
+    align_right = Alignment(horizontal="right", vertical="center")
+
+    # 1. Header Banner (Rows 1-2)
+    biz_name = report_user.hospital.name if report_user.hospital else ("Nelson Hospital" if is_hospital else "Zappcode Academy")
+    ws.merge_cells("A1:G1")
+    ws["A1"] = f"{biz_name.upper()} - DAILY EOD EXECUTIVE REPORT"
+    ws["A1"].font = font_title
+    ws["A1"].fill = navy_fill
+    ws["A1"].alignment = align_center
+
+    ws.merge_cells("A2:G2")
+    user_name = report_user.get_full_name() or report_user.username
+    ws["A2"] = f"Staff: {user_name} ({report_user.get_role_display()})   |   Date: {report_date.strftime('%d-%b-%Y')}   |   Status: Submitted"
+    ws["A2"].font = font_sub
+    ws["A2"].fill = navy_fill
+    ws["A2"].alignment = align_center
+
+    ws.row_dimensions[1].height = 32
+    ws.row_dimensions[2].height = 20
+
+    # 2. Section: 4 KPI Cards (Rows 4-6)
+    ws["A4"] = "1. TODAY'S EFFORT & TOUCHES"
+    ws["A4"].font = font_sec
+    ws.row_dimensions[4].height = 22
+
+    if is_hospital:
+        kpis = [
+            ("Calls Attended", report.calls_attended, "A", "B", light_blue_fill),
+            ("Follow-ups Taken", report.follow_ups_taken, "C", "D", light_green_fill),
+            ("Patient Visits", report.leads_visited or walk_ins, "E", "F", light_purple_fill),
+            ("Assigned Today", report.leads_assigned, "G", "G", light_amber_fill),
+        ]
+    else:
+        kpis = [
+            ("Leads Touched", todays_total_leads, "A", "B", light_blue_fill),
+            ("Assigned Leads", report.leads_assigned, "C", "D", light_green_fill),
+            ("Walk-ins Attended", walk_ins, "E", "F", light_purple_fill),
+            ("Follow-ups Handled", report.calls_attended, "G", "G", light_amber_fill),
+        ]
+
+    for label, val, c_start, c_end, fill in kpis:
+        if c_start != c_end:
+            ws.merge_cells(f"{c_start}5:{c_end}5")
+            ws.merge_cells(f"{c_start}6:{c_end}6")
+        
+        top_cell = ws[f"{c_start}5"]
+        top_cell.value = label.upper()
+        top_cell.font = font_kpi_lbl
+        top_cell.fill = fill
+        top_cell.alignment = align_center
+        top_cell.border = thin_border
+
+        num_cell = ws[f"{c_start}6"]
+        num_cell.value = val
+        num_cell.font = font_kpi_num
+        num_cell.fill = fill
+        num_cell.alignment = align_center
+        num_cell.border = thin_border
+
+        # Border for merged end cell if applicable
+        if c_start != c_end:
+            ws[f"{c_end}5"].border = thin_border
+            ws[f"{c_end}6"].border = thin_border
+
+    ws.row_dimensions[5].height = 18
+    ws.row_dimensions[6].height = 32
+
+    # 3. Section: Performance & Pipeline Breakdown (Rows 8+)
+    ws["A8"] = "2. PERFORMANCE, QUALITY & PIPELINE BREAKDOWN"
+    ws["A8"].font = font_sec
+    ws.row_dimensions[8].height = 22
+
+    # Column Headers
+    ws.merge_cells("A9:B9")
+    ws["A9"] = "Lead Quality & Conversion"
+    ws["A9"].font = font_sec
+    ws["A9"].fill = gray_header_fill
+    ws["A9"].border = thin_border
+    ws["B9"].border = thin_border
+
+    ws["C9"] = "Count"
+    ws["C9"].font = font_sec
+    ws["C9"].fill = gray_header_fill
+    ws["C9"].alignment = align_center
+    ws["C9"].border = thin_border
+
+    ws.merge_cells("E9:F9")
+    ws["E9"] = "Pipeline & Tomorrow's Forecast"
+    ws["E9"].font = font_sec
+    ws["E9"].fill = gray_header_fill
+    ws["E9"].border = thin_border
+    ws["F9"].border = thin_border
+
+    ws["G9"] = "Count"
+    ws["G9"].font = font_sec
+    ws["G9"].fill = gray_header_fill
+    ws["G9"].alignment = align_center
+    ws["G9"].border = thin_border
+
+    if is_hospital:
+        table_rows = [
+            ("Hot / Interested Leads", leads_interested, "Pending Leads in Queue", report.pending_leads),
+            ("Cold / Not Interested", leads_cold, "Calls Not Connected", report.calls_not_connected),
+            ("Appointments Booked", report.appointments_booked, "Incoming Calls", report.incoming_calls),
+            ("Freeze / Lost Leads", report.freeze_leads, "Outgoing Calls", report.outgoing_calls),
+            ("Payments Done", report.payments_done, "Tomorrow's Follow-ups", report.tomorrow_followups),
+        ]
+    else:
+        table_rows = [
+            ("Hot / Interested Leads", leads_interested, "Pending Leads in Queue", report.pending_leads),
+            ("Cold / Not Interested", leads_cold, "Visits Pending", visit_pending),
+            ("Visits Completed", visit_done, "Overdue Follow-ups", overdues),
+            ("Admissions Done", report.admissions_done, "Upcoming Scheduled", upcoming),
+            ("Admission Pending", admission_pending, "Tomorrow's Follow-ups", report.tomorrow_followups),
+            ("Payments Done", report.payments_done, "Payment Pending", payment_pending),
+        ]
+
+    curr_row = 10
+    for l_label, l_val, r_label, r_val in table_rows:
+        ws.merge_cells(f"A{curr_row}:B{curr_row}")
+        ws[f"A{curr_row}"] = l_label
+        ws[f"A{curr_row}"].font = font_normal
+        ws[f"A{curr_row}"].border = thin_border
+        ws[f"B{curr_row}"].border = thin_border
+
+        ws[f"C{curr_row}"] = l_val
+        ws[f"C{curr_row}"].font = font_bold
+        ws[f"C{curr_row}"].alignment = align_center
+        ws[f"C{curr_row}"].border = thin_border
+
+        ws.merge_cells(f"E{curr_row}:F{curr_row}")
+        ws[f"E{curr_row}"] = r_label
+        ws[f"E{curr_row}"].font = font_normal
+        ws[f"E{curr_row}"].border = thin_border
+        ws[f"F{curr_row}"].border = thin_border
+
+        ws[f"G{curr_row}"] = r_val
+        ws[f"G{curr_row}"].font = font_bold
+        ws[f"G{curr_row}"].alignment = align_center
+        ws[f"G{curr_row}"].border = thin_border
+
+        ws.row_dimensions[curr_row].height = 20
+        curr_row += 1
+
+    # 4. Embedded OpenPyXL Native Chart
+    chart = BarChart()
+    chart.type = "col"
+    chart.style = 10
+    chart.title = "Performance & Quality Metrics"
+    chart.y_axis.title = "Count"
+    chart.x_axis.title = "Category"
+
+    data = Reference(ws, min_col=3, min_row=9, max_row=curr_row - 1)
+    cats = Reference(ws, min_col=1, min_row=10, max_row=curr_row - 1)
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(cats)
+    chart.legend = None
+    chart.width = 16
+    chart.height = 9
+    ws.add_chart(chart, f"A{curr_row + 2}")
+
+    # 5. Notes & Mood Block (below chart or right side)
+    notes_start = curr_row + 2
+    ws.merge_cells(f"E{notes_start}:G{notes_start}")
+    ws[f"E{notes_start}"] = "3. NOTES & REMARKS"
+    ws[f"E{notes_start}"].font = font_sec
+    ws[f"E{notes_start}"].fill = gray_header_fill
+    ws[f"E{notes_start}"].border = thin_border
+    ws[f"F{notes_start}"].border = thin_border
+    ws[f"G{notes_start}"].border = thin_border
+
+    notes_items = [
+        ("Today's Mood", report.mood_display or report.mood or "Good"),
+        ("Remarks / Notes", report.challenges_faced or report.key_highlight or "None logged"),
+        ("Tomorrow's Priority", report.tomorrow_priority or report.other_updates or "None logged"),
+    ]
+
+    n_row = notes_start + 1
+    for k, v in notes_items:
+        ws[f"E{n_row}"] = k
+        ws[f"E{n_row}"].font = font_bold
+        ws[f"E{n_row}"].border = thin_border
+
+        ws.merge_cells(f"F{n_row}:G{n_row}")
+        ws[f"F{n_row}"] = v
+        ws[f"F{n_row}"].font = font_normal
+        ws[f"F{n_row}"].border = thin_border
+        ws[f"G{n_row}"].border = thin_border
+        ws.row_dimensions[n_row].height = 24
+        n_row += 1
+
+    # Adjust Column Widths
+    ws.column_dimensions["A"].width = 24
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 6
+    ws.column_dimensions["E"].width = 24
+    ws.column_dimensions["F"].width = 20
+    ws.column_dimensions["G"].width = 16
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    filename = f"EOD_Report_{report_user.username}_{report_date.strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(buffer.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -1958,59 +2560,85 @@ def management_daily_reports(request):
     processed_reports = []
     today = timezone.localdate()
 
+    tz = timezone.get_current_timezone()
+    import datetime as dt_module
+
     for r in reports:
         r_date = r.report_date
-        # 1. Earliest Login on report_date
+        r_start_dt = timezone.make_aware(dt_module.datetime.combine(r_date, dt_module.time.min), tz)
+        r_end_dt = timezone.make_aware(dt_module.datetime.combine(r_date, dt_module.time.max), tz)
+        is_r_today = (r_date == today)
+
+        # 1. Login Query using timezone range
+        login_logs_qs = AuditLog.objects.filter(
+            user=r.user,
+            action__in=['USER_LOGIN', 'USER_LOGIN_VIA_OTP'],
+            created_at__range=(r_start_dt, r_end_dt)
+        ).order_by('created_at')
+
         first_login_time = r.first_login_at
         if not first_login_time:
-            first_log = AuditLog.objects.filter(
-                user=r.user,
-                created_at__date=r_date,
-                action='USER_LOGIN'
-            ).order_by('created_at').first()
-            if first_log:
-                first_login_time = first_log.created_at
-            elif r.created_at and r.created_at.date() == r_date:
+            if login_logs_qs.exists():
+                first_login_time = login_logs_qs.first().created_at
+            elif r.user.last_login and r_start_dt <= r.user.last_login <= r_end_dt:
+                first_login_time = r.user.last_login
+            elif r.created_at and r_start_dt <= r.created_at <= r_end_dt:
                 first_login_time = r.created_at
             else:
-                earliest_audit = AuditLog.objects.filter(
-                    user=r.user,
-                    created_at__date=r_date
-                ).order_by('created_at').first()
-                if earliest_audit:
-                    first_login_time = earliest_audit.created_at
+                first_act = Activity.objects.filter(created_by=r.user, created_at__range=(r_start_dt, r_end_dt)).order_by("created_at").first()
+                if first_act:
+                    first_login_time = first_act.created_at
+                else:
+                    first_audit = AuditLog.objects.filter(user=r.user, created_at__range=(r_start_dt, r_end_dt)).order_by("created_at").first()
+                    if first_audit:
+                        first_login_time = first_audit.created_at
 
-        # 2. Latest Logout on report_date
+        # 2. Logout Query & Status Logic (Conditions 1, 2, 3, 4)
+        last_logout_log = AuditLog.objects.filter(
+            user=r.user,
+            action='USER_LOGOUT',
+            created_at__range=(r_start_dt, r_end_dt)
+        ).order_by('-created_at').first()
+
         last_logout_time = r.last_logout_at
         if not last_logout_time:
-            last_log = AuditLog.objects.filter(
-                user=r.user,
-                created_at__date=r_date,
-                action='USER_LOGOUT'
-            ).order_by('-created_at').first()
-            if last_log:
-                last_logout_time = last_log.created_at
-
-        # Logout Display string logic:
-        # If user explicitly logged out, show formatted time (e.g. 06:30 PM).
-        # If not logged out by end of day (past date or current date after shift/EOD), show 11:59 PM.
-        if last_logout_time:
-            display_logout = timezone.localtime(last_logout_time).strftime("%I:%M %p")
-        else:
-            if r_date < today:
-                display_logout = "11:59 PM"
-            else:
-                # For today: if EOD report is already submitted, day's reporting is done -> 11:59 PM EOD
-                display_logout = "11:59 PM"
+            if last_logout_log:
+                latest_login = login_logs_qs.last()
+                # Condition 4: user logged in again after logout and is active today
+                if latest_login and latest_login.created_at > last_logout_log.created_at and is_r_today:
+                    last_logout_time = None
+                else:
+                    last_logout_time = last_logout_log.created_at
+            elif not is_r_today and first_login_time:
+                # Condition 2: user logged in but didn't logout by end of day -> 11:59:59 PM
+                last_logout_time = r_end_dt
 
         display_login = timezone.localtime(first_login_time).strftime("%I:%M %p") if first_login_time else "—"
+        if last_logout_time:
+            display_logout = timezone.localtime(last_logout_time).strftime("%I:%M %p")
+        elif is_r_today and first_login_time:
+            # Condition 4 & 1: currently logged in session active
+            display_logout = "Active"
+        else:
+            display_logout = "11:59 PM" if not is_r_today and first_login_time else "—"
 
+        cd_r = r.custom_data or {}
         processed_reports.append({
             'report': r,
             'user': r.user,
             'report_date': r.report_date,
             'leads_assigned': r.leads_assigned,
             'calls_attended': r.calls_attended,
+            'appointments_booked': r.appointments_booked,
+            'admissions_done': r.admissions_done,
+            'payments_done': r.payments_done,
+            'fees_collected': r.fees_collected,
+            'leads_interested': cd_r.get('leads_interested', r.leads_interested),
+            'leads_cold': cd_r.get('leads_cold', r.leads_cold),
+            'freeze_leads': r.freeze_leads,
+            'visit_done': cd_r.get('visit_done', r.leads_visited),
+            'visit_pending': cd_r.get('visit_pending', 0),
+            'walk_ins': cd_r.get('walk_ins', 0),
             'pending_leads': r.pending_leads,
             'follow_ups_taken': r.follow_ups_taken,
             'tomorrow_followups': r.tomorrow_followups,

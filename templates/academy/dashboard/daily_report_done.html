@@ -182,19 +182,22 @@
 
       <!-- Actions -->
       <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap pt-2 border-top">
+        <a href="{% url 'dashboard:view_eod_report_detail' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-primary rounded-pill px-3 py-2 fw-semibold" style="background: var(--brand, #0f2744); border-color: var(--brand, #0f2744);">
+          View Full EOD Report
+        </a>
+        <a href="{% url 'dashboard:download_eod_report_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 fw-semibold">
+          Download PDF
+        </a>
+        <a href="{% url 'dashboard:export_eod_report_excel' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-success rounded-pill px-3 py-2 fw-semibold">
+          Download Excel
+        </a>
         <a href="{% url 'dashboard:view_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-2 fw-semibold">
           View Today's Leads
-        </a>
-        <a href="{% url 'dashboard:export_daily_activity_leads' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
-          Export Excel
-        </a>
-        <a href="{% url 'dashboard:export_daily_activity_pdf' %}?date={{ report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
-          Export PDF
         </a>
         <a href="{% url 'dashboard:submit_daily_report' %}?edit=1" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
           Edit Report
         </a>
-        <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-primary rounded-pill px-4 py-2 fw-semibold" style="background: var(--brand, #0f2744); border-color: var(--brand, #0f2744);">
+        <a href="{% url 'dashboard:home' %}" class="btn btn-sm btn-light border rounded-pill px-4 py-2 fw-semibold">
           Dashboard
         </a>
       </div>
