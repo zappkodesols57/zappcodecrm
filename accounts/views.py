@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.urls import reverse
 from django.core.paginator import Paginator
 
@@ -189,6 +190,7 @@ def user_list(request):
     q = request.GET.get("q", "").strip()
     role_filter = request.GET.get("role", "").strip()
     status_filter = request.GET.get("status", "").strip()
+    business_filter = request.GET.get("business", "").strip()
     page_number = request.GET.get("page", 1)
     
     try:
@@ -199,13 +201,25 @@ def user_list(request):
         page_size = 10
 
     if request.method == "POST" and request.POST.get("action") == "generate_temp_profiles":
-        business = getattr(request.user, "business", None)
+        from dashboard.helpers import get_effective_business
+        active_biz = get_effective_business(request)
+        business = active_biz or getattr(request.user, "business", None)
+
+        # If superadmin has no active_biz selected in session, look up from business_filter or default active business
+        if not business and (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+            from accounts.models import Hospital
+            target_biz_id = request.POST.get("business_id") or request.GET.get("business")
+            if target_biz_id and str(target_biz_id).isdigit():
+                business = Hospital.objects.filter(id=int(target_biz_id)).first()
+            if not business:
+                business = Hospital.objects.filter(is_active=True).first()
+
         try:
             created = auto_generate_master_data_profiles(hospital=business)
             if created:
-                messages.success(request, f"Successfully created {len(created)} temporary user profiles for Telecallers & Doctors from master data! (Default password: <FirstName>@zappcode)")
+                messages.success(request, f"Successfully created {len(created)} temporary user profiles for Telecallers & Doctors and linked directly to '{business.name if business else 'Business'}'! (Default password: <FirstName>@zappcode)")
             else:
-                messages.info(request, "All Telecallers and Doctors in master data already have matching user profiles.")
+                messages.info(request, f"All Telecallers and Doctors for '{business.name if business else 'selected business'}' already have matching user profiles.")
         except Exception as e:
             messages.warning(request, f"Profile scan completed with skipped duplicates: {str(e)}")
         return redirect("accounts:user_list")
@@ -265,12 +279,62 @@ def user_list(request):
     elif status_filter == "inactive":
         users_qs = users_qs.filter(is_active=False)
 
+    # Super Admin Business filter
+    all_businesses = []
+    selected_business_obj = None
+    if request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN:
+        from accounts.models import Hospital
+        all_businesses = Hospital.objects.all().order_by("name")
+        if business_filter:
+            if business_filter == "unassigned":
+                users_qs = users_qs.filter(hospital__isnull=True)
+            elif business_filter.isdigit():
+                selected_business_obj = Hospital.objects.filter(id=int(business_filter)).first()
+                if selected_business_obj:
+                    users_qs = users_qs.filter(hospital_id=selected_business_obj.id)
+
     total_count = users_qs.count()
 
     # Roles for dropdown filter - Scoped strictly to Business Industry
-    biz_industry = getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', 'ACADEMY')
+    if selected_business_obj:
+        biz_industry = selected_business_obj.industry
+    else:
+        biz_industry = getattr(active_biz, 'industry', None) or getattr(request.user, 'industry', 'ACADEMY')
 
-    if biz_industry == 'ACADEMY':
+    if selected_business_obj:
+        # If a specific business is selected in filter, strictly show its industry roles
+        if selected_business_obj.industry == 'HOSPITAL':
+            available_roles = [
+                (User.Role.ADMIN, "Admin"),
+                (User.Role.MANAGER, "Manager"),
+                (User.Role.DOCTOR, "Doctor"),
+                (User.Role.LEAD_ATTENDENT, "Telecaller"),
+            ]
+        elif selected_business_obj.industry == 'ACADEMY':
+            available_roles = [
+                (User.Role.ADMIN, "Admin"),
+                (User.Role.MANAGER, "Manager"),
+                (User.Role.HR, "HR"),
+                (User.Role.COUNSELLOR, "Counsellor"),
+            ]
+        else:
+            available_roles = [
+                (User.Role.ADMIN, "Admin"),
+                (User.Role.MANAGER, "Manager"),
+                (User.Role.HR, "HR"),
+            ]
+    elif request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN:
+        # Superadmin with All Businesses selected: full visibility of all system roles
+        available_roles = [
+            (User.Role.SUPER_ADMIN, "Super Admin"),
+            (User.Role.ADMIN, "Admin"),
+            (User.Role.MANAGER, "Manager"),
+            (User.Role.LEAD_ATTENDENT, "Telecaller"),
+            (User.Role.DOCTOR, "Doctor"),
+            (User.Role.HR, "HR"),
+            (User.Role.COUNSELLOR, "Counsellor"),
+        ]
+    elif biz_industry == 'ACADEMY':
         if request.user.role == User.Role.MANAGER:
             available_roles = [
                 (User.Role.COUNSELLOR, "Counsellor"),
@@ -279,6 +343,7 @@ def user_list(request):
             available_roles = [
                 (User.Role.ADMIN, "Admin"),
                 (User.Role.MANAGER, "Manager"),
+                (User.Role.HR, "HR"),
                 (User.Role.COUNSELLOR, "Counsellor"),
             ]
     elif biz_industry == 'HOSPITAL':
@@ -299,6 +364,19 @@ def user_list(request):
 
     paginator = Paginator(users_qs, page_size)
     page_obj = paginator.get_page(page_number)
+
+    # Attach strictly active assigned branches to each user for accurate tooltip and display
+    for u in page_obj:
+        assigned_active = [b.name for b in u.assigned_branches.all() if b.is_active]
+        hosp_active = [b.name for b in u.hospital.branches.all() if b.is_active] if u.hospital else []
+        if assigned_active:
+            u.active_branches_list = assigned_active
+        elif u.branch and u.branch.is_active:
+            u.active_branches_list = [u.branch.name]
+        else:
+            u.active_branches_list = hosp_active
+        u.has_all_branches = len(u.active_branches_list) > 1 or (not assigned_active and not u.branch and len(hosp_active) > 0)
+        u.active_branches_display = ", ".join(u.active_branches_list)
 
     template_name = "hospital/team/users_list.html" if biz_industry == "HOSPITAL" else "accounts/user_list.html"
 
@@ -322,6 +400,8 @@ def user_list(request):
         "q": q,
         "role_filter": role_filter,
         "status_filter": status_filter,
+        "business_filter": business_filter,
+        "all_businesses": all_businesses,
         "page_size": page_size,
         "available_roles": available_roles,
         "biz_industry": biz_industry,
@@ -351,6 +431,12 @@ def auto_generate_master_data_profiles(hospital=None):
     lead_qs = Lead.objects.all()
     if hospital:
         lead_qs = lead_qs.filter(hospital=hospital)
+    else:
+        # If no hospital specified, default to first active hospital or do not create businessless users
+        from accounts.models import Hospital
+        hospital = Hospital.objects.filter(is_active=True).first()
+        if hospital:
+            lead_qs = lead_qs.filter(hospital=hospital)
 
     lead_rows = lead_qs.values_list('custom_data', 'raw_source_metadata')
     for cd, raw in lead_rows.iterator(chunk_size=1000):
@@ -1109,43 +1195,167 @@ def user_delete(request, pk):
 
         from django.db import transaction, IntegrityError
         from django.db.models.deletion import ProtectedError
+        from leads.models import Lead, HospitalDoctor
+
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or request.headers.get("accept") == "application/json"
+            or "application/json" in request.headers.get("accept", "")
+        )
 
         try:
             with transaction.atomic():
+                # Unassign any leads currently assigned to this user
+                Lead.objects.filter(assigned_to=target_user).update(assigned_to=None)
+                Lead.objects.filter(assigned_manager=target_user).update(assigned_manager=None)
+
+                # Unassign team members reporting to this user
+                User.objects.filter(reports_to=target_user).update(reports_to=None)
+
+                # Unlink doctor profile if exists
+                HospitalDoctor.objects.filter(user=target_user).update(user=None, is_active=False)
+
                 log_action("Employee Deleted", target_user, user=request.user)
                 target_user.delete()
+
+            if is_ajax:
+                return JsonResponse({"status": "success", "message": f"User '{username}' deleted successfully."})
             messages.success(request, f"User '{username}' deleted successfully.")
-        except (ProtectedError, IntegrityError):
-            # User has active foreign key constraints or linked historical data (appointments, leads, activities, etc.)
-            # Perform soft deletion / deactivation to safeguard database integrity and audit logs
-            target_user.is_active = False
-            target_user.is_active_employee = False
-            target_user.save(update_fields=["is_active", "is_active_employee"])
-
-            if user_role == User.Role.DOCTOR:
-                try:
-                    from leads.models import HospitalDoctor
-                    HospitalDoctor.objects.filter(user=target_user).update(is_active=False)
-                except Exception:
-                    pass
-
-            log_action("Employee Deactivated (Deletion Dependency Protected)", target_user, user=request.user)
-            messages.warning(
-                request,
-                f"User '{username}' has linked historical records (such as appointments, patient leads, or schedules) "
-                f"and cannot be permanently deleted. Their account access and doctor profile have been safely deactivated instead."
-            )
         except Exception as e:
+            # Fallback safe deactivation if any hard foreign-key block occurs
             target_user.is_active = False
             target_user.is_active_employee = False
             target_user.save(update_fields=["is_active", "is_active_employee"])
             log_action("Employee Deactivated (Fallback)", target_user, user=request.user)
+            if is_ajax:
+                return JsonResponse({"status": "warning", "message": f"User '{username}' has dependencies and was deactivated."})
             messages.warning(
                 request,
                 f"User '{username}' could not be deleted due to linked data dependencies. Their account access has been deactivated."
             )
 
     return redirect("accounts:user_list")
+
+
+@login_required
+def bulk_user_action(request):
+    """
+    Super Admin bulk actions for users:
+    - 'delete': Permanently deletes selected users. Unassigns their assigned leads, while keeping timeline/footprints (followups, notes, activities, audit logs) intact.
+    - 'deactivate': Disables login access and marks profile inactive (is_active=False). Leads remain assigned, and other admins/users can still add notes/followups/transfers.
+    """
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("accept", "")
+        or request.content_type == "application/json"
+    )
+
+    if not (request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN):
+        if is_ajax:
+            return JsonResponse({"status": "error", "message": "Permission denied. Only Super Admin can perform bulk user actions."}, status=403)
+        messages.error(request, "Permission denied. Only Super Admin can perform bulk user actions.")
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    if request.method != "POST":
+        if is_ajax:
+            return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    import json
+    action = request.POST.get("bulk_action")
+    user_ids = request.POST.getlist("selected_users")
+
+    if not user_ids and request.body:
+        try:
+            data = json.loads(request.body.decode("utf-8") or "{}")
+            action = data.get("bulk_action") or action
+            user_ids = data.get("selected_users") or []
+        except Exception:
+            pass
+
+    try:
+        user_ids = [int(uid) for uid in user_ids if str(uid).isdigit()]
+    except Exception:
+        user_ids = []
+
+    if not user_ids:
+        if is_ajax:
+            return JsonResponse({"status": "warning", "message": "No users selected for bulk action."})
+        messages.warning(request, "No users selected for bulk action.")
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    # Cannot delete or deactivate oneself
+    if request.user.pk in user_ids:
+        user_ids = [uid for uid in user_ids if uid != request.user.pk]
+        if not user_ids:
+            if is_ajax:
+                return JsonResponse({"status": "error", "message": "You cannot perform bulk actions on your own superadmin account."})
+            messages.error(request, "You cannot perform bulk actions on your own superadmin account.")
+            return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    from django.db import transaction
+    from leads.models import Lead, HospitalDoctor
+
+    users_qs = User.objects.filter(id__in=user_ids)
+    target_count = users_qs.count()
+
+    if target_count == 0:
+        if is_ajax:
+            return JsonResponse({"status": "warning", "message": "No matching user accounts found."})
+        messages.warning(request, "No matching user accounts found.")
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    if action == "deactivate":
+        # Deactivate users: is_active=False, is_active_employee=False
+        # Leads remain assigned as per user requirement!
+        updated_count = users_qs.update(is_active=False, is_active_employee=False)
+        # Also deactivate any linked doctor profiles
+        HospitalDoctor.objects.filter(user_id__in=user_ids).update(is_active=False)
+
+        for u in users_qs:
+            log_action("Bulk Employee Deactivated", u, user=request.user)
+
+        msg = f"Successfully deactivated {updated_count} user(s). Their login access is disabled, while leads remain assigned."
+        if is_ajax:
+            return JsonResponse({"status": "success", "message": msg, "count": updated_count})
+        messages.success(request, msg)
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    elif action == "delete":
+        deleted_names = list(users_qs.values_list("username", flat=True))
+        with transaction.atomic():
+            # 1. Unassign leads currently assigned to these users (created_by footprints remain intact via SET_NULL)
+            Lead.objects.filter(assigned_to_id__in=user_ids).update(assigned_to=None)
+            Lead.objects.filter(assigned_manager_id__in=user_ids).update(assigned_manager=None)
+
+            # 2. Unassign reports_to hierarchy
+            User.objects.filter(reports_to_id__in=user_ids).update(reports_to=None)
+
+            # 3. Doctor profiles unlink
+            HospitalDoctor.objects.filter(user_id__in=user_ids).update(user=None, is_active=False)
+
+            # 4. Clean up any Doctor schedules/leaves
+            from leads.models import DoctorSchedule, DoctorLeave
+            DoctorSchedule.objects.filter(doctor_id__in=user_ids).delete()
+            DoctorLeave.objects.filter(doctor_id__in=user_ids).delete()
+
+            # 5. Delete users (Footprints: FollowUps, Notes, Activities, AuditLogs have on_delete=SET_NULL and are preserved!)
+            for u in users_qs:
+                log_action("Bulk Employee Deleted", u, user=request.user)
+
+            users_qs.delete()
+
+        msg = f"Permanently deleted {len(deleted_names)} user(s). Assigned leads were unassigned, and timeline history/footprints remain safely preserved."
+        if is_ajax:
+            return JsonResponse({"status": "success", "message": msg, "count": len(deleted_names)})
+        messages.success(request, msg)
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
+
+    else:
+        if is_ajax:
+            return JsonResponse({"status": "error", "message": f"Unsupported bulk action '{action}'."}, status=400)
+        messages.error(request, f"Unsupported bulk action '{action}'.")
+        return redirect(request.META.get("HTTP_REFERER") or "accounts:user_list")
 
 
 @login_required
@@ -1657,21 +1867,24 @@ def business_delete(request, pk):
                         getattr(business, rel_attr).all().delete()
 
                 # 5. Clean up users associated with this business (excluding superadmins)
-                business_users = User.objects.filter(hospital=business, is_superuser=False)
-                
-                # Delete user-specific footprints
-                DailyReport.objects.filter(user__in=business_users).delete()
-                TaskReminder.objects.filter(user__in=business_users).delete()
-                TaskReminder.objects.filter(assigned_by__in=business_users).delete()
-                Notification.objects.filter(user__in=business_users).delete()
-                ImportJob.objects.filter(created_by__in=business_users).delete()
-                UserCustomMessage.objects.filter(user__in=business_users).delete()
+                business_user_ids = list(
+                    User.objects.filter(hospital=business, is_superuser=False).values_list('id', flat=True)
+                )
 
-                # Unlink reports_to for any team members
-                User.objects.filter(reports_to__in=business_users).update(reports_to=None)
+                if business_user_ids:
+                    # Delete user-specific footprints
+                    DailyReport.objects.filter(user_id__in=business_user_ids).delete()
+                    TaskReminder.objects.filter(user_id__in=business_user_ids).delete()
+                    TaskReminder.objects.filter(assigned_by_id__in=business_user_ids).delete()
+                    Notification.objects.filter(user_id__in=business_user_ids).delete()
+                    ImportJob.objects.filter(created_by_id__in=business_user_ids).delete()
+                    UserCustomMessage.objects.filter(user_id__in=business_user_ids).delete()
 
-                # Delete the business users
-                business_users.delete()
+                    # Unlink reports_to for any team members using explicit ID list (prevents MySQL 1093 subquery update error)
+                    User.objects.filter(reports_to_id__in=business_user_ids).update(reports_to=None)
+
+                    # Delete the business users
+                    User.objects.filter(id__in=business_user_ids).delete()
 
                 # In case any superuser was assigned to this hospital, just unlink
                 User.objects.filter(hospital=business, is_superuser=True).update(hospital=None)

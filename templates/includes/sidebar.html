@@ -153,10 +153,10 @@
           </div>
         </div>
 
-        <!-- Users & Approvals -->
+        <!-- Users Management -->
         <a class="nav-link {% if active == 'users' or active == 'user_logs' %}active{% endif %}"
-          href="{% url 'accounts:user_list' %}" title="Users and Approvals">
-          <i class="fa-solid fa-user-shield"></i> <span class="nav-text">Users & Approvals</span>
+          href="{% url 'accounts:user_list' %}" title="User Management">
+          <i class="fa-solid fa-user-shield"></i> <span class="nav-text">User Management</span>
         </a>
 
         <!-- Manage Business -->
@@ -242,10 +242,10 @@
       </button>
       <div class="collapse {% if active in 'users team_history reports eod_reports user_logs tasks' %}show{% endif %} nav-sub-items"
         id="sec_hosp_team">
-        <!-- Subtab 1: Users & Approvals -->
+        <!-- Subtab 1: User Management -->
         <a class="nav-link {% if active == 'users' %}active{% endif %}"
-          href="{% url 'accounts:user_list' %}" title="Users & Approvals">
-          <i class="fa-solid fa-users-gear"></i> <span class="nav-text">Users & Approvals</span>
+          href="{% url 'accounts:user_list' %}" title="User Management">
+          <i class="fa-solid fa-users-gear"></i> <span class="nav-text">User Management</span>
         </a>
 
         <!-- Subtab 2: Team Performance -->
@@ -384,7 +384,7 @@
       <div class="collapse {% if active in 'users tasks team_history reports eod_reports reports_daily' %}show{% endif %} nav-sub-items"
         id="sec_acad_team">
         <a class="nav-link {% if active == 'users' %}active{% endif %}" href="{% url 'accounts:user_list' %}"
-          title="Users & Approvals"><i class="fa-regular fa-user"></i> <span class="nav-text">Users & Approvals</span></a>
+          title="User Management"><i class="fa-regular fa-user"></i> <span class="nav-text">User Management</span></a>
         <a class="nav-link {% if active == 'team_history' %}active{% endif %}" href="{% url 'leads:team_history' %}"
           title="Team Performance"><i class="fa-solid fa-arrow-trend-up"></i> <span class="nav-text">Team Performance</span></a>
         <!-- Subtab 3: Tasks & EOD Reports (Unified for Academy Admin) -->
