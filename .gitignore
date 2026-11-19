@@ -94,6 +94,8 @@ HOSPITAL_LEAD_LIFECYCLE_FLOWCHART.md
 count_hospital_occurrences.py
 test_mobile_responsiveness.py
 test_*.py
+clean_nelson_excel.py
+apply_standard_headers.py
 
 # Agent and developer instruction notes
 AGENT_INSTRUCTIONS.md

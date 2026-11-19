@@ -1612,22 +1612,22 @@ def business_delete(request, pk):
 
     if request.method == "POST":
         from django.db import transaction
-        from leads.models import Lead, LeadStage, Course, Campaign, Appointment, LeadSource, DoctorSchedule, DoctorLeave
+        from leads.models import Lead, LeadStage, Course, Campaign, Appointment, DoctorSchedule, DoctorLeave, Trainer, HospitalDoctor, UserCustomMessage
         from followups.models import FollowUp, Note, Activity
         from admissions.models import Admission
         from payments.models import Payment
+        from imports.models import ImportJob
+        from dashboard.models import DailyReport, TaskReminder
+        from notifications.models import Notification
 
         business = get_object_or_404(Hospital, pk=pk)
         name = business.name
         try:
             with transaction.atomic():
-                # 1. Unassign and deactivate users belonging exclusively to this business
-                User.objects.filter(hospital=business).update(hospital=None, is_active=False)
-
-                # 2. Find all leads associated with this business
+                # 1. Leads of this business
                 leads_qs = Lead.objects.filter(hospital=business)
 
-                # 3. Clean up child records linked to leads of this business
+                # 2. Child records & footprints linked to leads
                 Appointment.objects.filter(lead__in=leads_qs).delete()
                 FollowUp.objects.filter(lead__in=leads_qs).delete()
                 Note.objects.filter(lead__in=leads_qs).delete()
@@ -1635,23 +1635,51 @@ def business_delete(request, pk):
                 Payment.objects.filter(admission__lead__in=leads_qs).delete()
                 Admission.objects.filter(lead__in=leads_qs).delete()
 
-                # 4. Delete the leads themselves
+                # Delete all leads
                 leads_qs.delete()
 
-                # 5. Clean up doctor schedules and leaves for this business
+                # 3. Direct hospital operational records
+                Appointment.objects.filter(hospital=business).delete()
                 DoctorSchedule.objects.filter(hospital=business).delete()
                 DoctorLeave.objects.filter(hospital=business).delete()
-
-                # 6. Delete business-scoped stages, courses, campaigns, and sources
                 LeadStage.objects.filter(hospital=business).delete()
                 Course.objects.filter(hospital=business).delete()
                 Campaign.objects.filter(hospital=business).delete()
-                LeadSource.objects.filter(hospital=business).delete()
 
-                # 7. Delete the business instance
+                # 4. Master / configuration records
+                for rel_attr in [
+                    'role_permissions', 'branches', 'hospital_departments', 
+                    'diseases', 'hospital_doctors', 'master_items', 
+                    'custom_form_fields', 'custom_messages', 'meta_connections', 
+                    'campaign_stats', 'trainers', 'batches'
+                ]:
+                    if hasattr(business, rel_attr):
+                        getattr(business, rel_attr).all().delete()
+
+                # 5. Clean up users associated with this business (excluding superadmins)
+                business_users = User.objects.filter(hospital=business, is_superuser=False)
+                
+                # Delete user-specific footprints
+                DailyReport.objects.filter(user__in=business_users).delete()
+                TaskReminder.objects.filter(user__in=business_users).delete()
+                TaskReminder.objects.filter(assigned_by__in=business_users).delete()
+                Notification.objects.filter(user__in=business_users).delete()
+                ImportJob.objects.filter(created_by__in=business_users).delete()
+                UserCustomMessage.objects.filter(user__in=business_users).delete()
+
+                # Unlink reports_to for any team members
+                User.objects.filter(reports_to__in=business_users).update(reports_to=None)
+
+                # Delete the business users
+                business_users.delete()
+
+                # In case any superuser was assigned to this hospital, just unlink
+                User.objects.filter(hospital=business, is_superuser=True).update(hospital=None)
+
+                # 6. Delete the business instance
                 business.delete()
 
-            messages.success(request, f"Business '{name}' and all its associated data have been permanently removed.")
+            messages.success(request, f"Business '{name}', all associated leads, users, and footprints have been permanently deleted.")
         except Exception as e:
             messages.error(request, f"Could not delete business '{name}': {e}")
 
