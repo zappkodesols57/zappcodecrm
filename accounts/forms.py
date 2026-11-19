@@ -237,6 +237,17 @@ class CRMUserCreateForm(UserCreationForm):
                 raise forms.ValidationError(f"Branches {', '.join(invalid_branches)} do not belong to the selected business '{hospital.name}'.")
         return branches
 
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get("role")
+        hospital = cleaned_data.get("hospital") or (self.user.hospital if self.user and self.user.hospital else getattr(self.instance, 'hospital', None))
+
+        # Enforce that every non-superadmin user must be strictly linked to a business
+        if role != User.Role.SUPER_ADMIN and not hospital:
+            self.add_error("hospital", "Business selection is mandatory. Every user must belong to a business.")
+
+        return cleaned_data
+
     def save(self, commit=True):
         user = super().save(commit=False)
         if self.user and self.user.hospital:

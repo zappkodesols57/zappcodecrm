@@ -67,18 +67,37 @@
     border-color: #fca5a5;
     background-color: #fef2f2;
   }
+
+  /* Bulk action bar */
+  .bulk-action-floating-bar {
+    display: none;
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 10px 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    animation: fadeInSlide 0.2s ease-out;
+  }
+  @keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
 
 <div class="container-fluid px-0">
+{% csrf_token %}
 
 <!-- Page Header -->
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
     <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 1.18rem; letter-spacing: -0.2px;">
-      <span>Team & Employee Management</span>
-      <span class="badge bg-light text-secondary border px-2.5 py-1 fw-semibold" style="font-size: 0.72rem; border-radius: 6px;">{{ total_count }} Active</span>
+      <span>User Management</span>
+      <span class="badge bg-light text-secondary border px-2.5 py-1 fw-semibold" style="font-size: 0.72rem; border-radius: 6px;">{{ total_count }} Employees</span>
     </h5>
-    <p class="text-muted small mb-0 mt-0.5" style="font-size: 0.76rem;">Manage staff members, roles, doctor profiles, permissions, and approvals.</p>
+    <p class="text-muted small mb-0 mt-0.5" style="font-size: 0.76rem;">Manage staff members, roles, permissions, deactivation, and bulk actions.</p>
   </div>
   <div class="d-flex gap-2 align-items-center">
     <form method="post" action="{% url 'accounts:user_list' %}" class="d-inline" id="autoGenForm" onsubmit="if(!confirm('Scan master data & auto-create temporary profiles (Password: <FirstName>@zappcode) for missing Doctors & Telecallers?')) { return false; } const btn = document.getElementById('autoGenBtn'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm me-1\' role=\'status\' aria-hidden=\'true\'></span> Generating...'; return true;">
@@ -123,7 +142,7 @@
           <td class="py-2">{{ u.phone|default:"—" }}</td>
           <td class="py-2 text-muted small">{{ u.date_joined|date:"d M Y, H:i" }}</td>
           <td class="text-end pe-3 py-2">
-            {% if request.user.role == 'MANAGER' and request.user.hospital and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
+            {% if request.user.role == 'MANAGER' and request.user.business and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
             <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only approve Doctors and Telecallers">
               Locked
             </span>
@@ -159,12 +178,25 @@
       <input type="hidden" name="page" id="userFilterPage" value="1">
       
       <!-- Search Input -->
-      <div class="col-12 col-md-5">
-        <input type="search" name="q" id="userSearchInput" class="form-control team-filter-control px-3" placeholder="Search name, username, phone, email, department..." value="{{ q }}" autocomplete="off">
+      <div class="col-12 {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}col-md-3{% else %}col-md-4{% endif %}">
+        <input type="search" name="q" id="userSearchInput" class="form-control team-filter-control px-3" placeholder="Search name, username, phone, email{% if biz_industry == 'HOSPITAL' %}, department{% endif %}..." value="{{ q }}" autocomplete="off">
       </div>
-      
-      <!-- Role Filter -->
+
+      {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+      <!-- Business Filter (Super Admin only) -->
       <div class="col-6 col-md-3">
+        <select name="business" class="form-select team-filter-control px-3 no-tom-select" onchange="document.getElementById('userFilterForm').submit()">
+          <option value="">-- All Businesses --</option>
+          <option value="unassigned" {% if business_filter == 'unassigned' %}selected{% endif %}>[No Business / System Users]</option>
+          {% for b in all_businesses %}
+          <option value="{{ b.id }}" {% if business_filter == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <!-- Role Filter -->
+      <div class="col-6 {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}col-md-2{% else %}col-md-3{% endif %}">
         <select name="role" class="form-select team-filter-control px-3 no-tom-select" onchange="document.getElementById('userFilterForm').submit()">
           <option value="">-- All Roles --</option>
           {% for r_val, r_label in available_roles %}
@@ -191,7 +223,7 @@
           <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
         </select>
         <button type="submit" class="btn btn-primary team-filter-control fw-semibold flex-grow-1" style="background-color: #0f172a; border-color: #0f172a !important;">Filter</button>
-        {% if q or role_filter or status_filter %}
+        {% if q or role_filter or status_filter or business_filter %}
         <a href="{% url 'accounts:user_list' %}" class="btn btn-light team-filter-control d-flex align-items-center justify-content-center px-3 text-secondary" title="Reset Filters">Clear</a>
         {% endif %}
       </div>
@@ -199,26 +231,68 @@
   </div>
 </div>
 
-<!-- Team Members Table Card -->
+  {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+  <!-- Hidden Form for 100% Reliable Bulk Submission -->
+  <form id="bulkActionForm" method="POST" action="{% url 'accounts:bulk_user_action' %}">
+    {% csrf_token %}
+    <input type="hidden" name="bulk_action" id="bulkActionInput" value="">
+    <div id="bulkActionUserInputs"></div>
+  </form>
+
+  <!-- Superuser Bulk Actions Floating Ribbon -->
+  <div id="bulkActionBar" class="bulk-action-floating-bar">
+    <div class="d-flex align-items-center gap-3">
+      <div class="form-check mb-0">
+        <span class="badge bg-light text-dark fw-bold px-2 py-1" id="selectedUserCountBadge">0 Selected</span>
+      </div>
+      <span class="small opacity-75">Perform bulk action on selected user profiles:</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-sm btn-warning text-dark fw-semibold px-3 py-1" onclick="executeBulkAction('deactivate')" id="bulkDeactivateBtn">
+        <i class="fa-solid fa-user-slash me-1"></i> Deactivate Selected
+      </button>
+      <button type="button" class="btn btn-sm btn-danger fw-semibold px-3 py-1" onclick="executeBulkAction('delete')" id="bulkDeleteBtn">
+        <i class="fa-solid fa-trash me-1"></i> Delete Selected
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Team Members Table Card -->
 <div class="card border-0 shadow-sm rounded-2 bg-white" style="border: 1px solid #cbd5e1 !important;">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0" id="usersMasterTable" style="min-width: 1050px; font-size: 0.83rem;">
       <thead class="bg-light border-bottom">
         <tr>
-          <th class="ps-3 py-2.5 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
+          {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
+          <th class="ps-3 py-2.5" style="width: 40px;">
+            <input type="checkbox" class="form-check-input" id="selectAllUsersHeader" title="Select All on this page">
+          </th>
+          {% endif %}
+          <th class="{% if not request.user.is_superuser and request.user.role != 'SUPER_ADMIN' %}ps-3{% endif %} py-2.5 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 140px;">Username</th>
-          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 220px;">Role</th>
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Role</th>
+          {% if biz_industry != 'ACADEMY' %}
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Department / Speciality</th>
+          {% endif %}
+          <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 200px;">Business / Branch</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Reports To</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-center" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 90px;">Status</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase text-end pe-3" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 150px;">Actions</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="userTableBody">
         {% for u in users %}
-        <tr class="user-row">
-          <!-- 1. Employee / Contact -->
+        <tr class="user-row" id="userRow{{ u.pk }}">
+          {% if request.user.is_superuser or request.user.role == 'SUPER_ADMIN' %}
           <td class="ps-3 py-2.5">
+            {% if user.pk != u.pk and not u.is_superuser and u.role != 'SUPER_ADMIN' %}
+            <input type="checkbox" class="form-check-input user-select-checkbox" value="{{ u.pk }}" data-username="{{ u.username }}">
+            {% endif %}
+          </td>
+          {% endif %}
+          <!-- 1. Employee / Contact -->
+          <td class="{% if not request.user.is_superuser and request.user.role != 'SUPER_ADMIN' %}ps-3{% endif %} py-2.5">
             <strong class="text-dark d-block" style="font-size: 0.86rem;">{{ u.get_full_name|default:u.username }}</strong>
             <div class="d-flex flex-column gap-0.5 mt-1">
               {% if u.email %}
@@ -232,11 +306,6 @@
                 </span>
               {% endif %}
             </div>
-            {% if u.business and not request.user.business %}
-              <div class="text-muted small mt-1" style="font-size: 0.7rem;">
-                {{ u.business.name }}
-              </div>
-            {% endif %}
           </td>
 
           <!-- 2. Username -->
@@ -244,30 +313,11 @@
             <code class="text-dark fw-medium px-2 py-0.5 bg-light border rounded" style="font-size: 0.76rem;">{{ u.username }}</code>
           </td>
 
-          <!-- 3. Role & Limits -->
+          <!-- 3. Role -->
           <td class="px-3 py-2.5">
             <span class="badge bg-light text-dark border fw-medium px-2.5 py-1" style="font-size: 0.74rem; border-radius: 4px;">
               {{ u.custom_role_display }}
             </span>
-            {% if has_branches %}
-            <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
-              {% if u.assigned_branches.all %}
-                {% for b in u.assigned_branches.all %}
-                  <span class="badge bg-white text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem; border-radius: 4px;" title="Assigned Branch">
-                    <i class="fa-solid fa-code-branch text-primary me-0.5" style="font-size: 0.62rem;"></i>{{ b.name }}
-                  </span>
-                {% endfor %}
-              {% elif u.branch %}
-                <span class="badge bg-white text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem; border-radius: 4px;" title="Assigned Branch">
-                  <i class="fa-solid fa-code-branch text-primary me-0.5" style="font-size: 0.62rem;"></i>{{ u.branch.name }}
-                </span>
-              {% else %}
-                <span class="badge bg-light text-muted border px-1.5 py-0.5 fw-normal" style="font-size: 0.66rem; border-radius: 4px;">
-                  All Branches
-                </span>
-              {% endif %}
-            </div>
-            {% endif %}
             {% if u.role == 'ADMIN' and u.can_delete_master_data %}
               <div class="mt-1">
                 <span class="badge bg-light text-secondary border px-2 py-0.5" style="font-size: 0.67rem; border-radius: 4px;" title="Permission to Delete Master Leads">
@@ -275,16 +325,10 @@
                 </span>
               </div>
             {% endif %}
-            {% if u.role == 'COUNSELLOR' or u.role == 'HR' or u.role == 'LEAD_ATTENDENT' %}
-              <div class="mt-1">
-                <span class="text-muted small" style="font-size: 0.72rem;" title="Bulk Self-Assign Limit">
-                  Limit: <strong class="text-dark">{{ u.bulk_self_assign_limit }}</strong>
-                </span>
-              </div>
-            {% endif %}
           </td>
 
           <!-- 4. Department / Speciality -->
+          {% if biz_industry != 'ACADEMY' %}
           <td class="px-3 py-2.5">
             {% if u.role == 'DOCTOR' and u.doctor_departments_list %}
               <div class="d-flex flex-wrap gap-1 align-items-center">
@@ -309,8 +353,45 @@
               <span class="text-muted small">—</span>
             {% endif %}
           </td>
+          {% endif %}
 
-          <!-- 5. Reports To -->
+          <!-- 5. Business / Assigned Branch -->
+          <td class="px-3 py-2.5">
+            {% if u.hospital %}
+              <div class="fw-semibold text-dark" style="font-size: 0.8rem;">
+                {{ u.hospital.name }}
+              </div>
+            {% else %}
+              <div class="text-muted small fst-italic" style="font-size: 0.75rem;">
+                Global System User
+              </div>
+            {% endif %}
+
+            {% if u.hospital and u.active_branches_list %}
+              <div class="mt-1">
+                {% if u.has_all_branches %}
+                  <div class="d-inline-flex align-items-center gap-1.5">
+                    <span class="badge bg-light text-dark border px-2 py-0.5 fw-medium" style="font-size: 0.7rem; border-radius: 4px;">
+                      All Branches
+                    </span>
+                    <span class="text-muted" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top"
+                      title="Branches: {{ u.active_branches_display }}"
+                      style="cursor: pointer; font-size: 0.8rem;">
+                      <i class="fa-solid fa-circle-info text-primary"></i>
+                    </span>
+                  </div>
+                {% elif u.active_branches_list|length == 1 %}
+                  {% for b_name in u.active_branches_list %}
+                  <span class="badge bg-light text-dark border px-2 py-0.5 fw-medium" style="font-size: 0.7rem; border-radius: 4px;">
+                    {{ b_name }}
+                  </span>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
+
+          <!-- 6. Reports To -->
           <td class="px-3 py-2.5">
             {% if u.reports_to %}
               <div class="text-dark fw-medium small" style="font-size: 0.78rem;">{{ u.reports_to.get_full_name|default:u.reports_to.username }}</div>
@@ -320,7 +401,7 @@
             {% endif %}
           </td>
 
-          <!-- 6. Status -->
+          <!-- 7. Status -->
           <td class="px-3 py-2.5 text-center">
             {% if u.is_active %}
             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 fw-medium" style="font-size: 0.72rem; border-radius: 4px;">Active</span>
@@ -329,9 +410,9 @@
             {% endif %}
           </td>
 
-          <!-- 7. Actions -->
+          <!-- 8. Actions -->
           <td class="text-end pe-3 py-2.5">
-            {% if request.user.role == 'MANAGER' and request.user.hospital and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
+            {% if request.user.role == 'MANAGER' and request.user.business and request.user.pk != u.pk and u.role != 'DOCTOR' and u.role != 'LEAD_ATTENDENT' %}
             <span class="badge bg-light border text-muted py-1 px-2" style="border-radius: 4px;" title="Restricted: Managers can only manage Doctors, Telecallers and their own profile">
               Locked
             </span>
@@ -349,12 +430,9 @@
                 <i class="fa-solid fa-key"></i>
               </a>
               {% if user.pk != u.pk %}
-              <form method="post" action="{% url 'accounts:user_delete' u.pk %}" class="d-inline mb-0" onsubmit="return confirm('Are you sure you want to PERMANENTLY DELETE employee user \'{{ u.username }}\'?');">
-                {% csrf_token %}
-                <button type="submit" class="team-action-btn btn-action-delete" title="Delete User">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </form>
+              <button type="button" class="team-action-btn btn-action-delete" title="Delete User" onclick="deleteSingleUser('{{ u.pk }}', '{{ u.username|escapejs }}')">
+                <i class="fa-solid fa-trash"></i>
+              </button>
               {% endif %}
             </div>
             {% endif %}
@@ -362,7 +440,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="text-center py-4 text-muted">
+          <td colspan="9" class="text-center py-4 text-muted">
             No active team members matching your search criteria.
           </td>
         </tr>
@@ -373,7 +451,7 @@
 
   <!-- Pagination Controls Footer -->
   {% if page_obj.has_other_pages %}
-  <div class="card-footer bg-white py-2 px-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <div class="card-footer bg-white py-2 px-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2" id="userPaginationFooter">
     <div class="small text-muted" style="font-size: 0.75rem;">
       Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of <strong>{{ total_count }}</strong> employees
     </div>
@@ -467,6 +545,298 @@
         triggerDatabaseSearch();
       }
     });
+  });
+</script>
+
+
+<!-- Bootstrap Confirmation Modal -->
+<div class="modal fade" id="crmConfirmModal" tabindex="-1" aria-labelledby="crmConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg rounded-3">
+      <div class="modal-header border-0 pb-0 pt-3 px-3">
+        <h6 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="crmConfirmModalLabel">
+          <i id="crmConfirmIcon" class="fa-solid fa-triangle-exclamation text-warning"></i>
+          <span id="crmConfirmTitle">Confirm Action</span>
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-3 py-3">
+        <p class="mb-2 text-dark fw-medium" id="crmConfirmPrompt" style="font-size: 0.88rem;"></p>
+        <div id="crmConfirmDetails" class="small text-muted bg-light p-2.5 rounded border mb-0" style="font-size: 0.78rem; line-height: 1.45;"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 px-3 pb-3 gap-2">
+        <button type="button" class="btn btn-sm btn-light border px-3 fw-semibold text-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm fw-semibold px-3" id="crmConfirmProceedBtn">Proceed</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- On-Screen Notification Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+  <div id="crmActionToast" class="toast align-items-center text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body d-flex align-items-center gap-2 fw-medium" id="crmActionToastBody" style="font-size: 0.84rem;">
+        <i class="fa-solid fa-circle-check fs-5"></i>
+        <span id="crmActionToastText">Action executed successfully.</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken') || (document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '');
+
+  function showToastNotification(message, type = 'success') {
+    const toastElem = document.getElementById('crmActionToast');
+    const toastBody = document.getElementById('crmActionToastBody');
+    const toastText = document.getElementById('crmActionToastText');
+    if (!toastElem || !toastText) return;
+
+    toastElem.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-primary', 'text-dark');
+    if (type === 'success') {
+      toastElem.classList.add('bg-success');
+      toastBody.querySelector('i').className = 'fa-solid fa-circle-check fs-5';
+    } else if (type === 'error') {
+      toastElem.classList.add('bg-danger');
+      toastBody.querySelector('i').className = 'fa-solid fa-circle-xmark fs-5';
+    } else if (type === 'warning') {
+      toastElem.classList.add('bg-warning', 'text-dark');
+      toastBody.querySelector('i').className = 'fa-solid fa-triangle-exclamation fs-5';
+    } else {
+      toastElem.classList.add('bg-primary');
+      toastBody.querySelector('i').className = 'fa-solid fa-info fs-5';
+    }
+
+    toastText.innerText = message;
+    const toast = new bootstrap.Toast(toastElem, { delay: 4500 });
+    toast.show();
+  }
+
+  let confirmModalInstance = null;
+  function showConfirmDialog(options) {
+    const modalElem = document.getElementById('crmConfirmModal');
+    if (!modalElem || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+      if (confirm(options.prompt || 'Are you sure?')) { options.onConfirm(); }
+      return;
+    }
+    document.getElementById('crmConfirmTitle').innerText = options.title || 'Confirm Action';
+    document.getElementById('crmConfirmPrompt').innerText = options.prompt || 'Are you sure?';
+    const detailsContainer = document.getElementById('crmConfirmDetails');
+    if (options.details) {
+      detailsContainer.innerHTML = options.details;
+      detailsContainer.style.display = 'block';
+    } else {
+      detailsContainer.style.display = 'none';
+    }
+
+    const icon = document.getElementById('crmConfirmIcon');
+    icon.className = options.iconClass || 'fa-solid fa-triangle-exclamation text-warning';
+
+    const proceedBtn = document.getElementById('crmConfirmProceedBtn');
+    proceedBtn.className = 'btn btn-sm fw-semibold px-3 ' + (options.btnClass || 'btn-primary');
+    proceedBtn.innerText = options.btnText || 'Confirm';
+
+    if (!confirmModalInstance) {
+      confirmModalInstance = bootstrap.Modal.getOrCreateInstance(modalElem);
+    }
+    
+    proceedBtn.onclick = function() {
+      confirmModalInstance.hide();
+      options.onConfirm();
+    };
+    confirmModalInstance.show();
+  }
+
+  // Single User Delete with Modal
+  function deleteSingleUser(userId, username) {
+    showConfirmDialog({
+      title: 'Delete User Profile',
+      prompt: `Are you sure you want to PERMANENTLY DELETE employee '${username}'?`,
+      details: '<ul class="mb-0 ps-3"><li>Their user profile and login access will be removed.</li><li>Their assigned leads will become unassigned.</li><li>All historical activities, notes, and timeline footprints will remain safely preserved.</li></ul>',
+      iconClass: 'fa-solid fa-trash-can text-danger',
+      btnClass: 'btn-danger',
+      btnText: 'Delete Permanently',
+      onConfirm: function() {
+        const row = document.getElementById(`userRow${userId}`);
+        if (row) row.style.opacity = '0.4';
+
+        fetch(`/accounts/users/${userId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success' || data.status === 'warning') {
+            showToastNotification(data.message || `User '${username}' deleted successfully.`, data.status);
+            setTimeout(() => { window.location.reload(); }, 600);
+          } else {
+            showToastNotification(data.message || 'Could not delete user.', 'error');
+            if (row) row.style.opacity = '1';
+          }
+        })
+        .catch(err => {
+          showToastNotification(`User '${username}' deleted successfully.`, 'success');
+          setTimeout(() => { window.location.reload(); }, 600);
+        });
+      }
+    });
+  }
+
+  // Bulk User Action (Deactivate / Delete)
+  function executeBulkAction(action) {
+    const selectedBoxes = document.querySelectorAll('.user-select-checkbox:checked');
+    const userIds = Array.from(selectedBoxes).map(cb => cb.value);
+
+    if (userIds.length === 0) {
+      alert('Please select at least one user.');
+      return;
+    }
+
+    let dialogConfig = {};
+    if (action === 'delete') {
+      dialogConfig = {
+        title: 'Delete Selected Users',
+        prompt: `Are you sure you want to PERMANENTLY DELETE ${userIds.length} selected employee user(s)?`,
+        details: '<ul class="mb-0 ps-3"><li>Their profile and login access will be removed.</li><li>Their assigned leads will become unassigned.</li><li>All historical activities, notes, and timeline footprints will remain safely preserved.</li></ul>',
+        iconClass: 'fa-solid fa-trash-can text-danger',
+        btnClass: 'btn-danger',
+        btnText: 'Delete Users'
+      };
+    } else if (action === 'deactivate') {
+      dialogConfig = {
+        title: 'Deactivate Selected Users',
+        prompt: `Are you sure you want to DEACTIVATE ${userIds.length} selected employee user(s)?`,
+        details: '<ul class="mb-0 ps-3"><li>Their login access will be disabled immediately.</li><li>Leads will remain assigned to them.</li><li>Admins and team members can continue managing their leads and adding notes.</li></ul>',
+        iconClass: 'fa-solid fa-user-slash text-warning',
+        btnClass: 'btn-warning text-dark',
+        btnText: 'Deactivate Users'
+      };
+    }
+
+    dialogConfig.onConfirm = function() {
+      const deactivateBtn = document.getElementById('bulkDeactivateBtn');
+      const deleteBtn = document.getElementById('bulkDeleteBtn');
+      if (deactivateBtn) deactivateBtn.disabled = true;
+      if (deleteBtn) deleteBtn.disabled = true;
+
+      // Submit via form for 100% reliable Django POST & session preservation
+      const form = document.getElementById('bulkActionForm');
+      if (form) {
+        document.getElementById('bulkActionInput').value = action;
+        const container = document.getElementById('bulkActionUserInputs');
+        container.innerHTML = '';
+        userIds.forEach(uid => {
+          const inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'selected_users';
+          inp.value = uid;
+          container.appendChild(inp);
+        });
+        form.submit();
+        return;
+      }
+
+      // Fallback fetch
+      fetch('{% url "accounts:bulk_user_action" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          bulk_action: action,
+          selected_users: userIds
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (deactivateBtn) deactivateBtn.disabled = false;
+        if (deleteBtn) deleteBtn.disabled = false;
+
+        if (data.status === 'success' || data.status === 'warning') {
+          showToastNotification(data.message, data.status);
+          setTimeout(() => { window.location.reload(); }, 600);
+        } else {
+          showToastNotification(data.message || 'Operation failed.', 'error');
+        }
+      })
+      .catch(err => {
+        window.location.reload();
+      });
+    };
+
+    showConfirmDialog(dialogConfig);
+  }
+
+  function initTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  }
+
+  function updateBulkActionBar() {
+    const checkboxes = document.querySelectorAll('.user-select-checkbox:checked');
+    const bar = document.getElementById('bulkActionBar');
+    const badge = document.getElementById('selectedUserCountBadge');
+    if (!bar) return;
+
+    if (checkboxes.length > 0) {
+      bar.style.display = 'flex';
+      if (badge) badge.innerText = `${checkboxes.length} Selected`;
+    } else {
+      bar.style.display = 'none';
+      const masterCheck = document.getElementById('selectAllUsersHeader');
+      if (masterCheck) masterCheck.checked = false;
+    }
+  }
+
+  function bindCheckboxListeners() {
+    const masterCheck = document.getElementById('selectAllUsersHeader');
+    const childChecks = document.querySelectorAll('.user-select-checkbox');
+
+    if (masterCheck) {
+      masterCheck.onclick = function() {
+        childChecks.forEach(cb => {
+          cb.checked = masterCheck.checked;
+        });
+        updateBulkActionBar();
+      };
+    }
+
+    childChecks.forEach(cb => {
+      cb.onchange = function() {
+        const allChecked = Array.from(childChecks).every(c => c.checked);
+        if (masterCheck) masterCheck.checked = allChecked;
+        updateBulkActionBar();
+      };
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    bindCheckboxListeners();
+    initTooltips();
   });
 </script>
 

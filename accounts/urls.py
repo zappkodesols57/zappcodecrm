@@ -22,6 +22,7 @@ urlpatterns = [
     path("users/<int:pk>/doctor-schedule/", views.doctor_schedule_manage, name="doctor_schedule_manage"),
     path("users/<int:pk>/reset-password/", views.user_reset_password, name="user_reset_password"),
     path("users/<int:pk>/delete/", views.user_delete, name="user_delete"),
+    path("users/bulk-action/", views.bulk_user_action, name="bulk_user_action"),
     path("users/<int:pk>/approve/", views.approve_user, name="approve_user"),
     path("users/<int:pk>/reject/", views.reject_user, name="reject_user"),
     path("audit-log/", views.audit_log, name="audit_log"),
