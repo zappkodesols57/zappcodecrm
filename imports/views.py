@@ -231,16 +231,17 @@ def upload(request):
     is_super_admin_no_hospital = bool(user.role == User.Role.SUPER_ADMIN and not user.hospital)
     can_import_previous = bool(user.is_superuser or user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER))
     
-    # Check global active business filter for Superadmin
-    raw_biz = request.GET.get("business", "").strip() or request.GET.get("hospital", "").strip()
-    session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
-    selected_hospital_id = raw_biz or session_biz
-
-    effective_hospital = None
-    if user.hospital:
-        effective_hospital = user.hospital
-    elif selected_hospital_id and selected_hospital_id.isdigit():
-        effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id), is_active=True).first()
+    # Check global active business filter for Superadmin via get_effective_business
+    from dashboard.helpers import get_effective_business
+    effective_hospital = get_effective_business(request)
+    
+    # If not determined yet, check request params / session
+    if not effective_hospital:
+        raw_biz = request.GET.get("business", "").strip() or request.GET.get("target_business_id", "").strip() or request.GET.get("hospital", "").strip() or request.GET.get("target_hospital_id", "").strip()
+        session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
+        selected_business_id = raw_biz or session_biz
+        if selected_business_id and selected_business_id.isdigit():
+            effective_hospital = Hospital.objects.filter(id=int(selected_business_id), is_active=True).first()
 
     is_hospital = False
     if effective_hospital:
@@ -270,7 +271,7 @@ def upload(request):
         campaigns = HospitalCampaign.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(hospital=first_h, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(hospital=first_h, is_archived=False).count()
-    elif selected_hospital_id in ("none", "zappcode"):
+    elif selected_business_id in ("none", "zappcode"):
         campaigns = HospitalCampaign.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         courses = Course.objects.filter(hospital__isnull=True, is_active=True).annotate(leads_count=Count("leads")).order_by("-id")
         current_leads_count = Lead.objects.filter(hospital__isnull=True, is_archived=False).count()
@@ -320,9 +321,14 @@ def upload(request):
     if effective_hospital:
         base_leads_qs = Lead.objects.filter(hospital=effective_hospital, is_archived=False)
         base_jobs_qs = ImportJob.objects.filter(created_by__hospital=effective_hospital)
-    elif selected_hospital_id in ("none", "zappcode"):
+    elif selected_business_id in ("none", "zappcode"):
         base_leads_qs = Lead.objects.filter(hospital__isnull=True, is_archived=False)
         base_jobs_qs = ImportJob.objects.filter(created_by__hospital__isnull=True)
+    elif is_super_admin_no_hospital and all_hospitals.exists():
+        # Super admin default to first active business scope for consistency
+        first_biz = all_hospitals.first()
+        base_leads_qs = Lead.objects.filter(hospital=first_biz, is_archived=False)
+        base_jobs_qs = ImportJob.objects.filter(created_by__hospital=first_biz)
     else:
         # Global Super Admin without filter: can see all leads across all businesses
         base_leads_qs = Lead.objects.filter(is_archived=False)
@@ -512,15 +518,15 @@ def ajax_create_campaign(request):
 @user_passes_test(_can_user_access_import)
 def ajax_business_data(request):
     """
-    Returns campaigns, courses, business type, and lead count for a given hospital/business ID.
+    Returns campaigns, courses, business type, and lead count for a given business ID.
     Used for seamless dynamic switching on the import page by Super Admin.
     """
-    hospital_id = request.GET.get("hospital_id", "").strip()
+    business_id = request.GET.get("business_id", "").strip() or request.GET.get("hospital_id", "").strip()
     hospital = None
-    if hospital_id:
-        hospital = Hospital.objects.filter(pk=hospital_id).first()
-    elif request.user.hospital:
-        hospital = request.user.hospital
+    if business_id:
+        hospital = Hospital.objects.filter(pk=business_id).first()
+    elif request.user.business:
+        hospital = request.user.business
 
     is_hospital = True
     if hospital:
@@ -530,7 +536,7 @@ def ajax_business_data(request):
         else:
             name_lower = (hospital.name or "").lower()
             is_hospital = not ("academy" in name_lower or "zappcode" in name_lower)
-    elif not request.user.hospital:
+    elif not request.user.business:
         # Default global super admin without selected business
         is_hospital = False
 
@@ -570,6 +576,7 @@ def ajax_business_data(request):
         "success": True,
         "is_hospital": is_hospital,
         "business_name": business_name,
+        "business_id": hospital.id if hospital else None,
         "total_leads": total_leads,
         "campaigns": campaigns,
         "courses": courses,
@@ -703,11 +710,11 @@ def campaign_import_execute(request):
 
     rows = cached_data.get("rows", [])
     campaign_id = request.POST.get("campaign_id") or cached_data.get("campaign_id")
-    target_hospital_id = request.POST.get("target_business_id") or request.POST.get("target_hospital_id") or cached_data.get("target_business_id") or cached_data.get("target_hospital_id")
+    target_business_id = request.POST.get("target_business_id") or request.POST.get("target_hospital_id") or cached_data.get("target_business_id") or cached_data.get("target_hospital_id")
     original_filename = cached_data.get("original_filename", "campaign_leads.xml")
 
-    campaign = HospitalCampaign.objects.filter(pk=campaign_id).first()
-    target_hospital = Hospital.objects.filter(pk=target_hospital_id).first() if target_hospital_id else request.user.business
+    campaign = HospitalCampaign.objects.filter(pk=campaign_id).first() if campaign_id else None
+    target_hospital = Hospital.objects.filter(pk=target_business_id).first() if target_business_id else request.user.business
 
     # Apply row-level action decisions from form
     for idx, r in enumerate(rows):
@@ -786,12 +793,23 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                     pass
     current_seq = max_seq
 
-    job = ImportJob.objects.create(
-        original_filename=original_filename,
-        total_rows=len(rows),
-        created_by=request.user,
-        status=ImportJob.Status.PROCESSING,
-    )
+    try:
+        job = ImportJob.objects.create(
+            file=None,
+            original_filename=original_filename,
+            total_rows=len(rows),
+            created_by=request.user,
+            status=ImportJob.Status.PROCESSING,
+        )
+    except Exception as job_err:
+        import logging
+        logging.getLogger("django.request").warning(f"Could not persist ImportJob tracking: {job_err}")
+        job = ImportJob(
+            original_filename=original_filename,
+            total_rows=len(rows),
+            created_by=request.user,
+            status=ImportJob.Status.PROCESSING,
+        )
 
     imported_count = 0
     updated_count = 0
@@ -1044,12 +1062,13 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
             if update_cols:
                 campaign.save(update_fields=update_cols)
 
-    job.imported_count = imported_count + updated_count
-    job.updated_count = updated_count
-    job.skipped_count = skipped_count
-    job.status = ImportJob.Status.DONE
-    job.completed_at = timezone.now()
-    job.save()
+    if getattr(job, "pk", None):
+        job.imported_count = imported_count + updated_count
+        job.updated_count = updated_count
+        job.skipped_count = skipped_count
+        job.status = ImportJob.Status.DONE
+        job.completed_at = timezone.now()
+        job.save()
 
     campaign_label = f" with Campaign '{campaign.name}'" if campaign else ""
     messages.success(
@@ -1058,9 +1077,18 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
         f"{updated_count} existing records updated, {skipped_count} duplicates skipped."
     )
 
-    if request.user.role == User.Role.LEAD_ATTENDENT:
-        return redirect("dashboard:telecaller_new_enquiries")
-    return redirect("leads:lead_list")
+    # Seamless redirect: Stay directly on the Import page with active tab preserved
+    redirect_url = reverse("imports:upload")
+    tab_param = request.POST.get("tab", "master")
+    biz_id = target_hospital.id if target_hospital else getattr(request.user, "business_id", None)
+    params = []
+    if tab_param:
+        params.append(f"tab={tab_param}")
+    if biz_id:
+        params.append(f"business={biz_id}")
+    if params:
+        redirect_url += f"?{'&'.join(params)}"
+    return redirect(redirect_url)
 
 
 @login_required
@@ -2651,7 +2679,11 @@ def quick_import(request):
             request, 
             f"Quick import complete: {imported} created, {updated} updated, {duplicate} duplicate skipped, {invalid} invalid."
         )
-        return redirect("dashboard:telecaller_new_enquiries" if request.user.role == "LEAD_ATTENDENT" else "imports:job_detail", pk=job.pk) if request.user.role != "LEAD_ATTENDENT" else redirect("dashboard:telecaller_new_enquiries")
+        redirect_url = reverse("imports:upload") + "?tab=master"
+        biz_id = user_hospital.id if user_hospital else getattr(request.user, "business_id", None)
+        if biz_id:
+            redirect_url += f"&business={biz_id}"
+        return redirect(redirect_url)
         
     return redirect("imports:upload")
 

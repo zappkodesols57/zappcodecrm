@@ -132,11 +132,19 @@ def create_or_update_meta_lead(connection, data):
         logger.info(f"Duplicate Meta lead skipped (external_lead_id/notes): {meta_lead_id}")
         return None
 
-    # Ensure mobile is sanitized and strictly within 20 chars (handles dummy Meta test leads and extended strings)
+    # Ensure mobile is sanitized, country codes handled, and clean 10 digits prioritized
     mobile_raw = str(data.get("clean_mobile") or data.get("phone") or "").strip()
     digits_only = "".join(ch for ch in mobile_raw if ch.isdigit())
-    if digits_only:
-        mobile_num = digits_only[-15:]
+    if len(digits_only) == 12 and digits_only.startswith("91"):
+        mobile_num = digits_only[2:]
+    elif len(digits_only) == 13 and digits_only.startswith("091"):
+        mobile_num = digits_only[3:]
+    elif len(digits_only) == 11 and digits_only.startswith("0"):
+        mobile_num = digits_only[1:]
+    elif len(digits_only) >= 10:
+        mobile_num = digits_only[-10:]
+    elif digits_only:
+        mobile_num = digits_only
     elif mobile_raw:
         mobile_num = mobile_raw[:20]
     else:

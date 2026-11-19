@@ -63,11 +63,20 @@ def parse_lead_field_data(item):
         else:
             fields["other_details"].append(f"{f.get('name')}: {val_str}")
             
-    # Clean phone (strip non-digits, take 10 or 12 digits)
+    # Clean phone: normalize international code (+91, 0091, 0) and strip formatting spaces/dashes
     if fields["phone"]:
-        clean_phone = "".join(ch for ch in fields["phone"] if ch.isdigit())
-        if len(clean_phone) > 10 and clean_phone.startswith("91"):
-            clean_phone = clean_phone[2:]
+        raw_p = str(fields["phone"]).strip()
+        digits = "".join(ch for ch in raw_p if ch.isdigit())
+        if len(digits) == 12 and digits.startswith("91"):
+            clean_phone = digits[2:]
+        elif len(digits) == 13 and digits.startswith("091"):
+            clean_phone = digits[3:]
+        elif len(digits) == 11 and digits.startswith("0"):
+            clean_phone = digits[1:]
+        elif len(digits) > 10:
+            clean_phone = digits[-10:]
+        else:
+            clean_phone = digits
         fields["clean_mobile"] = clean_phone
     else:
         fields["clean_mobile"] = ""
@@ -100,10 +109,11 @@ def get_lead_details(access_token, lead_id):
         return None
 
 
-def fetch_all_form_leads(access_token, page_id, limit_per_form=50, max_forms=10):
+def fetch_all_form_leads(access_token, page_id, limit_per_form=100, max_forms=100):
     """
     Fetch recent leads across active leadgen forms for a Meta Page.
-    Optimized with max_forms limit (active forms first) to prevent timeout in background sync.
+    Fetches up to max_forms (default 100) and limit_per_form (default 100)
+    to ensure no incoming Meta leads across any created forms are missed.
     Returns a list of parsed lead dicts.
     """
     leads = []
