@@ -10,7 +10,7 @@ class ImportJob(models.Model):
         DONE = "DONE", "Done"
         FAILED = "FAILED", "Failed"
 
-    file = models.FileField(upload_to="imports/")
+    file = models.FileField(upload_to="imports/", null=True, blank=True)
     original_filename = models.CharField(max_length=255, blank=True)
     sheet_name = models.CharField(max_length=100, blank=True)
     column_mapping = models.JSONField(null=True, blank=True)

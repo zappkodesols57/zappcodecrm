@@ -233,13 +233,13 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div class="d-flex align-items-center gap-1 flex-wrap">
         <span class="text-muted small fw-semibold me-1">Period:</span>
-        <a href="?date_preset=today" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">Today</a>
-        <a href="?date_preset=yesterday" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">Yesterday</a>
-        <a href="?date_preset=last_7d" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">Last 7 Days</a>
-        <a href="?date_preset=this_month" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">This Month</a>
+        <a href="?date_preset=today{% if business_id %}&business={{ business_id }}{% endif %}" class="filter-pill-btn {% if date_preset == 'today' %}active{% endif %}">Today</a>
+        <a href="?date_preset=yesterday{% if business_id %}&business={{ business_id }}{% endif %}" class="filter-pill-btn {% if date_preset == 'yesterday' %}active{% endif %}">Yesterday</a>
+        <a href="?date_preset=last_7d{% if business_id %}&business={{ business_id }}{% endif %}" class="filter-pill-btn {% if date_preset == 'last_7d' %}active{% endif %}">Last 7 Days</a>
+        <a href="?date_preset=this_month{% if business_id %}&business={{ business_id }}{% endif %}" class="filter-pill-btn {% if date_preset == 'this_month' %}active{% endif %}">This Month</a>
       </div>
       <div class="small text-muted">
-        Selected: <span class="fw-bold text-dark">{{ preset_label }}</span> &bull; Total Leads: <span class="fw-bold text-dark">{{ total_period_leads }}</span>
+        Selected: <span class="fw-bold text-dark">{{ preset_label }}</span> &bull; Total Leads: <span class="fw-bold text-dark" id="headerPeriodLeadsCountDisplay">{{ total_period_leads }}</span>
       </div>
     </div>
   </div>
@@ -998,7 +998,7 @@
       delTargetHidden.value = String(hospitalId);
     }
 
-    fetch("{% url 'imports:ajax_business_data' %}?hospital_id=" + encodeURIComponent(hospitalId))
+    fetch("{% url 'imports:ajax_business_data' %}?business_id=" + encodeURIComponent(hospitalId))
       .then(r => r.json())
       .then(data => {
         if (!data.success) return;
@@ -1017,6 +1017,15 @@
         if (delModalBizName) delModalBizName.innerText = data.business_name;
         const delModalCount = document.getElementById('delMasterModalLeadsCount');
         if (delModalCount) delModalCount.innerText = data.total_leads;
+
+        // Keep period header links in sync with currently selected business
+        document.querySelectorAll('.filter-pill-btn').forEach(pill => {
+          try {
+            const url = new URL(pill.href, window.location.origin);
+            url.searchParams.set('business', hospitalId);
+            pill.href = url.pathname + url.search;
+          } catch(e) {}
+        });
 
         const campWrapper = document.getElementById('campaignFieldWrapper');
         const courseWrapper = document.getElementById('courseFieldWrapper');
@@ -1251,6 +1260,23 @@
 
     setupDropzone('campaignDropzone', 'campaignFileInput', 'campaignFileNameDisplay');
     setupDropzone('masterDropzone', 'masterFileInput', 'masterFileNameDisplay');
+
+    // Auto-activate tab from URL parameter ?tab=master or ?tab=campaign
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTabParam = urlParams.get('tab');
+    if (activeTabParam === 'master' || activeTabParam === 'previous') {
+      const prevTabBtn = document.getElementById('previous-tab');
+      if (prevTabBtn) {
+        const tabTrigger = new bootstrap.Tab(prevTabBtn);
+        tabTrigger.show();
+      }
+    } else if (activeTabParam === 'manage') {
+      const manageTabBtn = document.getElementById('master-manage-tab');
+      if (manageTabBtn) {
+        const tabTrigger = new bootstrap.Tab(manageTabBtn);
+        tabTrigger.show();
+      }
+    }
 
     const initBizSelect = document.getElementById('targetHospitalSelect') || document.getElementById('masterManageBusinessSelect') || document.getElementById('masterHospitalSelect');
     if (initBizSelect && initBizSelect.value) {
