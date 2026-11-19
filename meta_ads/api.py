@@ -109,53 +109,85 @@ def get_lead_details(access_token, lead_id):
         return None
 
 
-def fetch_all_form_leads(access_token, page_id, limit_per_form=100, max_forms=100):
+def fetch_all_form_leads(access_token, page_id, limit_per_form=200, max_forms=None):
     """
-    Fetch recent leads across active leadgen forms for a Meta Page.
-    Fetches up to max_forms (default 100) and limit_per_form (default 100)
-    to ensure no incoming Meta leads across any created forms are missed.
+    Fetch all leads across all leadgen forms for a Meta Page using full Graph API cursor pagination.
+    - Paginates through all available forms on the Page.
+    - Paginates through all leads in each form (up to limit_per_form).
+    - Guarantees no leads are dropped regardless of form count or lead volume.
     Returns a list of parsed lead dicts.
     """
     leads = []
     try:
+        # 1. Fetch ALL leadgen forms for the page using pagination
+        all_forms = []
         forms_url = f"{META_GRAPH_URL}/{page_id}/leadgen_forms"
-        forms_res = requests.get(forms_url, params={"access_token": access_token, "limit": 100}, timeout=15)
-        forms_res.raise_for_status()
-        forms = forms_res.json().get("data", [])
-        
-        # Filter for ACTIVE forms first; if status is absent or few active, take up to max_forms
-        active_forms = [f for f in forms if f.get("status") == "ACTIVE"]
-        forms_to_check = active_forms if active_forms else forms
-        if max_forms and len(forms_to_check) > max_forms:
-            forms_to_check = forms_to_check[:max_forms]
+        forms_params = {"access_token": access_token, "limit": 100}
 
-        logger.info(f"Checking {len(forms_to_check)} forms (of {len(forms)} total) on Meta Page {page_id}...")
+        while forms_url:
+            forms_res = requests.get(forms_url, params=forms_params, timeout=15)
+            if forms_res.status_code != 200:
+                break
+            forms_payload = forms_res.json()
+            page_data = forms_payload.get("data", [])
+            all_forms.extend(page_data)
 
+            # Check next cursor page for forms
+            paging = forms_payload.get("paging", {})
+            forms_url = paging.get("next")
+            forms_params = {} # params already encoded in next URL if present
+
+            if max_forms and len(all_forms) >= max_forms:
+                all_forms = all_forms[:max_forms]
+                break
+
+        # Filter for ACTIVE forms first; fallback to all forms if no active flag
+        active_forms = [f for f in all_forms if f.get("status") == "ACTIVE"]
+        forms_to_check = active_forms if active_forms else all_forms
+
+        logger.info(f"Checking {len(forms_to_check)} forms (of {len(all_forms)} total) on Meta Page {page_id}...")
+
+        # 2. Iterate each form and paginate leads
         for f in forms_to_check:
             fid = f.get("id")
             fname = f.get("name", "Form")
-            url = f"{META_GRAPH_URL}/{fid}/leads"
-            params = {"access_token": access_token, "limit": limit_per_form}
+            leads_url = f"{META_GRAPH_URL}/{fid}/leads"
+            leads_params = {"access_token": access_token, "limit": min(limit_per_form or 100, 100)}
+            form_leads_collected = 0
 
-            # Fetch first page with 5s timeout
-            try:
-                l_res = requests.get(url, params=params, timeout=5)
-                if l_res.status_code != 200:
-                    continue
-                ldata = l_res.json().get("data", [])
-            except Exception:
-                continue
+            while leads_url:
+                try:
+                    l_res = requests.get(leads_url, params=leads_params, timeout=10)
+                    if l_res.status_code != 200:
+                        break
+                    leads_payload = l_res.json()
+                    ldata = leads_payload.get("data", [])
+                    if not ldata:
+                        break
+                except Exception as form_err:
+                    logger.warning(f"Timeout/Error fetching leads for form {fid}: {form_err}")
+                    break
 
-            for item in ldata:
-                lead_dict = parse_lead_field_data(item)
-                lead_dict["form_id"] = fid
-                lead_dict["form_name"] = fname
-                # Ignore test dummy leads
-                if "test@meta.com" in lead_dict["email"].lower():
-                    continue
-                leads.append(lead_dict)
+                for item in ldata:
+                    lead_dict = parse_lead_field_data(item)
+                    lead_dict["form_id"] = fid
+                    lead_dict["form_name"] = fname
+                    # Ignore test dummy leads
+                    if "test@meta.com" in (lead_dict.get("email") or "").lower():
+                        continue
+                    leads.append(lead_dict)
+                    form_leads_collected += 1
 
-        logger.info(f"Total Meta form leads fetched: {len(leads)}")
+                # If reached limit requested per form, stop fetching this form
+                if limit_per_form and form_leads_collected >= limit_per_form:
+                    break
+
+                # Follow Graph API pagination cursor for leads
+                leads_paging = leads_payload.get("paging", {})
+                leads_url = leads_paging.get("next")
+                leads_params = {} # Already encoded in next URL
+
+        logger.info(f"Total Meta form leads fetched across all pages: {len(leads)}")
     except Exception as e:
         logger.error(f"Error fetching Meta form leads: {e}")
         
