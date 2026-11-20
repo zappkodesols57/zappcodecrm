@@ -104,7 +104,7 @@
             </tr>
             <tr>
               <th>Hospital Branch</th>
-              <td>{{ lead.custom_branch|default:user.hospital.name|default:"Main Branch" }}</td>
+              <td>{{ lead.custom_branch|default:user.hospital|default:"Main Branch" }}</td>
               <th>Department / Specialty</th>
               <td>{{ lead.custom_dept|default:"General OPD" }}</td>
             </tr>

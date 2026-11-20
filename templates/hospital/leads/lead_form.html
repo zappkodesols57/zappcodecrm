@@ -361,7 +361,7 @@
               <td>{{ d.name }}</td>
               <td>{{ d.mobile }}</td>
               <td>{{ d.custom_data.doctor|default:"—" }}</td>
-              <td><span class="badge text-bg-light border">{{ d.custom_data.appointment_status|default:d.stage.name }}</span></td>
+              <td><span class="badge text-bg-light border">{{ d.custom_data.appointment_status|default:d.stage }}</span></td>
               <td>{{ d.assigned_to.get_full_name|default:d.assigned_to.username|default:"Unassigned" }}</td>
               <td><a href="{% url 'leads:lead_detail' d.pk %}"
                   class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 small">View Patient</a></td>
