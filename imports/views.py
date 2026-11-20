@@ -2066,6 +2066,7 @@ def download_template(request):
 @login_required
 @user_passes_test(lambda u: u.can_import_export)
 def quick_import(request):
+    from leads.models import Campaign as HospitalCampaign
     if request.method == "POST" and "excel_file" in request.FILES:
         excel_file = request.FILES["excel_file"]
         on_duplicate = request.POST.get("on_duplicate", "skip")
@@ -2242,7 +2243,6 @@ def quick_import(request):
             return redirect("imports:upload")
             
         default_stage = _default_stage()
-        from leads.models import Campaign as HospitalCampaign
         
         imported = updated = skipped = duplicate = invalid = 0
         unknown_counter = 1
