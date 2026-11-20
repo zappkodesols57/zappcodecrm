@@ -241,16 +241,33 @@
         </div>
       </div>
 
-      <!-- Lead Date Dropdown (Single select) -->
+      <!-- Lead Date Dropdown (Clean Native Dropdown with Custom Range Trigger) -->
       <div class="col-6 col-md-4 col-xl-3">
         <label class="filter-field-label">Lead Date</label>
-        <select name="lead_date" class="form-select filter-input-unified no-tom-select" onchange="this.form.submit()">
-          <option value="" {% if not filter_lead_date %}selected{% endif %}>Lead date: All</option>
-          <option value="today" {% if filter_lead_date == 'today' %}selected{% endif %}>Today</option>
-          <option value="yesterday" {% if filter_lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
-          <option value="last_7_days" {% if filter_lead_date == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
-          <option value="this_month" {% if filter_lead_date == 'this_month' %}selected{% endif %}>This Month</option>
-        </select>
+        <div class="input-group">
+          <select name="lead_date" id="{{ filter_prefix }}_leadDateSelect" class="form-select filter-input-unified no-tom-select" onchange="handleLeadDateDropdownChange('{{ filter_prefix }}', this.value)">
+            <option value="" {% if not filter_lead_date and not filter_date_from and not filter_date_to %}selected{% endif %}>Lead date: All</option>
+            <option value="today" {% if filter_lead_date == 'today' %}selected{% endif %}>Today</option>
+            <option value="yesterday" {% if filter_lead_date == 'yesterday' %}selected{% endif %}>Yesterday</option>
+            <option value="last_7_days" {% if filter_lead_date == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+            <option value="this_month" {% if filter_lead_date == 'this_month' %}selected{% endif %}>This Month</option>
+            <option value="custom" {% if filter_lead_date == 'custom' or filter_date_from or filter_date_to %}selected{% endif %}>
+              {% if filter_date_from or filter_date_to %}
+                📅 {% if filter_date_from %}{{ filter_date_from|slice:"8:10" }}-{{ filter_date_from|slice:"5:7" }}-{{ filter_date_from|slice:"0:4" }}{% else %}Start{% endif %} → {% if filter_date_to %}{{ filter_date_to|slice:"8:10" }}-{{ filter_date_to|slice:"5:7" }}-{{ filter_date_to|slice:"0:4" }}{% else %}Today{% endif %}
+              {% else %}
+                Custom Date Range...
+              {% endif %}
+            </option>
+          </select>
+          {% if filter_date_from or filter_date_to %}
+            <button class="btn btn-outline-secondary border-start-0 py-0 px-2" type="button" title="Edit Date Range" onclick="handleLeadDateDropdownChange('{{ filter_prefix }}', 'custom')">
+              <i class="fa-solid fa-pen-to-square text-primary" style="font-size: 0.78rem;"></i>
+            </button>
+          {% endif %}
+        </div>
+        <!-- Hidden inputs for custom date submission -->
+        <input type="hidden" name="date_from" id="{{ filter_prefix }}_inputDateFrom" value="{{ filter_date_from }}">
+        <input type="hidden" name="date_to" id="{{ filter_prefix }}_inputDateTo" value="{{ filter_date_to }}">
       </div>
     </div>
 
@@ -355,3 +372,500 @@
     </div>
   </div>
 </div>
+
+<style>
+  /* Inline Range Calendar Styles */
+  .cal-picker-wrap {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px;
+    user-select: none;
+  }
+  .cal-nav-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+  }
+  .cal-nav-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+  .cal-day-cell {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.82rem;
+    color: #1e293b;
+    border-radius: 6px;
+    margin: 1px 0;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .cal-day-cell:hover:not(.cal-day-future):not(.cal-day-start):not(.cal-day-end) {
+    background-color: #f1f5f9;
+  }
+  .cal-day-empty {
+    height: 34px;
+    visibility: hidden;
+  }
+  .cal-day-future {
+    color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+    background: transparent !important;
+  }
+  .cal-day-start {
+    background-color: #052042 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  .cal-day-end {
+    background-color: #052042 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+  .cal-day-start.cal-day-end {
+    border-radius: 6px !important;
+  }
+  .cal-day-in-range {
+    background-color: #dbeafe !important;
+    color: #1e3a8a !important;
+    font-weight: 600 !important;
+    border-radius: 0 !important;
+  }
+  .cal-day-hover-range {
+    background-color: #eff6ff !important;
+    color: #1e40af !important;
+    border-radius: 0 !important;
+  }
+</style>
+
+<!-- Interactive Custom Date Range Modal -->
+<div class="modal fade" id="{{ filter_prefix }}_customDateModal" tabindex="-1" aria-labelledby="{{ filter_prefix }}_customDateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+      <div class="modal-header py-2.5 px-3" style="background-color: #052042; color: #ffffff;">
+        <h6 class="modal-title fw-bold mb-0 text-white" id="{{ filter_prefix }}_customDateModalLabel" style="font-size: 0.9rem;">
+          📅 Select Date Range
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <!-- 2 Selection Mode Tabs: From Date & To Date -->
+        <div class="btn-group w-100 mb-2.5" role="group">
+          <input type="radio" class="btn-check" name="{{ filter_prefix }}_modal_mode" id="{{ filter_prefix }}_modal_pick_from" value="from" checked onchange="setCalPickMode('{{ filter_prefix }}', 'from')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="{{ filter_prefix }}_modal_pick_from" style="font-size: 0.78rem;">
+            1. From Date
+          </label>
+
+          <input type="radio" class="btn-check" name="{{ filter_prefix }}_modal_mode" id="{{ filter_prefix }}_modal_pick_to" value="to" onchange="setCalPickMode('{{ filter_prefix }}', 'to')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="{{ filter_prefix }}_modal_pick_to" style="font-size: 0.78rem;">
+            2. To Date
+          </label>
+        </div>
+
+        <!-- Inline Interactive Range Calendar (Always Open Inside Modal) -->
+        <div class="cal-picker-wrap mb-2">
+          <!-- Month/Year Navigation -->
+          <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+            <button type="button" class="cal-nav-btn" onclick="navCalMonth('{{ filter_prefix }}', -1)" title="Previous Month">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="fw-bold text-dark fs-6" id="{{ filter_prefix }}_calMonthYear">November 2026</div>
+            <button type="button" class="cal-nav-btn" onclick="navCalMonth('{{ filter_prefix }}', 1)" title="Next Month">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <!-- Days of Week Header -->
+          <div class="d-grid text-center text-muted fw-semibold mb-1" style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem;">
+            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+          </div>
+
+          <!-- Calendar Days Grid (Populated dynamically by JS) -->
+          <div class="d-grid text-center" id="{{ filter_prefix }}_calDaysGrid" style="grid-template-columns: repeat(7, 1fr);" onmouseleave="handleCalMouseLeave('{{ filter_prefix }}')">
+          </div>
+        </div>
+
+        <small class="text-muted d-block text-center mb-2" style="font-size: 0.72rem;" id="{{ filter_prefix }}_modalHelper">
+          Click 1st date for <strong>From</strong>, then click 2nd date for <strong>To</strong>.
+        </small>
+
+        <!-- Selected Range Preview Box -->
+        <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-1">
+          <div>
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">From Date</span>
+            <strong class="text-dark" id="{{ filter_prefix }}_modalDispFrom" style="font-size: 0.85rem;">
+              {% if filter_date_from %}{{ filter_date_from|slice:"8:10" }}-{{ filter_date_from|slice:"5:7" }}-{{ filter_date_from|slice:"0:4" }}{% else %}(Open / Oldest){% endif %}
+            </strong>
+          </div>
+          <div class="text-muted">➔</div>
+          <div class="text-end">
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">To Date</span>
+            <strong class="text-dark" id="{{ filter_prefix }}_modalDispTo" style="font-size: 0.85rem;">
+              {% if filter_date_to %}{{ filter_date_to|slice:"8:10" }}-{{ filter_date_to|slice:"5:7" }}-{{ filter_date_to|slice:"0:4" }}{% else %}Today{% endif %}
+            </strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" onclick="clearModalDateRange('{{ filter_prefix }}')">Clear</button>
+        <button type="button" class="btn btn-sm btn-primary px-3 py-1 fw-semibold" style="background-color: #052042; border-color: #052042;" onclick="applyModalDateRange('{{ filter_prefix }}')">Apply Range</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  if (typeof calStates === 'undefined') {
+    window.calStates = {};
+  }
+
+  if (typeof formatIsoToDdMmYyyy !== 'function') {
+    window.formatIsoToDdMmYyyy = function(isoDateStr) {
+      if (!isoDateStr) return '';
+      const parts = isoDateStr.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return parts[2] + '-' + parts[1] + '-' + parts[0];
+      }
+      return isoDateStr;
+    };
+  }
+
+  if (typeof getFilterForm !== 'function') {
+    window.getFilterForm = function(prefix) {
+      return document.getElementById(prefix + 'FilterForm') ||
+             document.getElementById(prefix + '_filter_form') ||
+             document.querySelector(`form#${prefix}FilterForm`) ||
+             document.querySelector('form[id*="' + prefix + '"]') ||
+             document.querySelector('form');
+    };
+  }
+
+  if (typeof initCalState !== 'function') {
+    window.initCalState = function(prefix, fromIso, toIso) {
+      const today = new Date();
+      let viewYear = today.getFullYear();
+      let viewMonth = today.getMonth();
+
+      if (toIso) {
+        const p = toIso.split('-');
+        if (p.length === 3 && p[0].length === 4) {
+          viewYear = parseInt(p[0], 10);
+          viewMonth = parseInt(p[1], 10) - 1;
+        }
+      } else if (fromIso) {
+        const p = fromIso.split('-');
+        if (p.length === 3 && p[0].length === 4) {
+          viewYear = parseInt(p[0], 10);
+          viewMonth = parseInt(p[1], 10) - 1;
+        }
+      }
+
+      window.calStates[prefix] = {
+        from: fromIso || '',
+        to: toIso || '',
+        mode: (fromIso && !toIso) ? 'to' : 'from',
+        viewYear: viewYear,
+        viewMonth: viewMonth,
+        hoverDate: null
+      };
+    };
+  }
+
+  if (typeof setCalPickMode !== 'function') {
+    window.setCalPickMode = function(prefix, mode) {
+      if (!window.calStates[prefix]) {
+        const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+        const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+        window.initCalState(prefix, hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+      }
+      window.calStates[prefix].mode = mode;
+      const helper = document.getElementById(prefix + '_modalHelper');
+      if (helper) {
+        if (mode === 'from') {
+          helper.innerHTML = 'Click calendar date to set <strong>From Date</strong>.';
+        } else {
+          helper.innerHTML = 'Click calendar date to set <strong>To Date</strong>.';
+        }
+      }
+      window.renderCalendar(prefix);
+    };
+  }
+
+  if (typeof renderCalendar !== 'function') {
+    window.renderCalendar = function(prefix) {
+      const state = window.calStates[prefix];
+      if (!state) return;
+
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const headerEl = document.getElementById(prefix + '_calMonthYear');
+      if (headerEl) {
+        headerEl.innerText = `${monthNames[state.viewMonth]} ${state.viewYear}`;
+      }
+
+      const gridEl = document.getElementById(prefix + '_calDaysGrid');
+      if (!gridEl) return;
+      gridEl.innerHTML = '';
+
+      const firstDayIndex = new Date(state.viewYear, state.viewMonth, 1).getDay();
+      const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayIso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+      // Blank slots for start alignment
+      for (let i = 0; i < firstDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'cal-day-empty';
+        gridEl.appendChild(emptyCell);
+      }
+
+      const fromVal = state.from;
+      const toVal = state.to;
+      const hoverVal = state.hoverDate;
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dStr = String(d).padStart(2, '0');
+        const mStr = String(state.viewMonth + 1).padStart(2, '0');
+        const isoDate = `${state.viewYear}-${mStr}-${dStr}`;
+
+        const cell = document.createElement('div');
+        cell.className = 'cal-day-cell';
+        cell.innerText = d;
+
+        // Restriction: Filter date range can never select future dates! Max is today
+        if (isoDate > todayIso) {
+          cell.classList.add('cal-day-future');
+        } else {
+          cell.onclick = (e) => {
+            e.stopPropagation();
+            window.handleCalDateClick(prefix, isoDate);
+          };
+          cell.onmouseenter = () => {
+            window.handleCalDateHover(prefix, isoDate);
+          };
+        }
+
+        // Range styling & highlighting
+        if (fromVal && toVal) {
+          if (isoDate === fromVal && isoDate === toVal) {
+            cell.classList.add('cal-day-start', 'cal-day-end');
+          } else if (isoDate === fromVal) {
+            cell.classList.add('cal-day-start');
+          } else if (isoDate === toVal) {
+            cell.classList.add('cal-day-end');
+          } else if (isoDate > fromVal && isoDate < toVal) {
+            cell.classList.add('cal-day-in-range');
+          }
+        } else if (fromVal && !toVal) {
+          if (isoDate === fromVal) {
+            cell.classList.add('cal-day-start', 'cal-day-end');
+          } else if (hoverVal && isoDate > fromVal && isoDate <= hoverVal) {
+            cell.classList.add('cal-day-hover-range');
+          }
+        } else if (!fromVal && toVal) {
+          if (isoDate === toVal) {
+            cell.classList.add('cal-day-start', 'cal-day-end');
+          }
+        }
+
+        gridEl.appendChild(cell);
+      }
+
+      // Update bottom display text
+      const dispFrom = document.getElementById(prefix + '_modalDispFrom');
+      const dispTo = document.getElementById(prefix + '_modalDispTo');
+      if (dispFrom) {
+        dispFrom.innerText = state.from ? window.formatIsoToDdMmYyyy(state.from) : '(Open / Oldest)';
+      }
+      if (dispTo) {
+        dispTo.innerText = state.to ? window.formatIsoToDdMmYyyy(state.to) : 'Today';
+      }
+
+      // Sync radio buttons
+      const rFrom = document.getElementById(prefix + '_modal_pick_from');
+      const rTo = document.getElementById(prefix + '_modal_pick_to');
+      if (state.mode === 'from') {
+        if (rFrom) rFrom.checked = true;
+      } else {
+        if (rTo) rTo.checked = true;
+      }
+    };
+  }
+
+  if (typeof handleCalDateClick !== 'function') {
+    window.handleCalDateClick = function(prefix, isoDate) {
+      const state = window.calStates[prefix];
+      if (!state) return;
+
+      if (state.mode === 'from') {
+        state.from = isoDate;
+        state.to = ''; // reset To date for fresh range
+        state.mode = 'to'; // advance to 2nd click for To date
+      } else {
+        if (!state.from) {
+          state.from = isoDate;
+          state.mode = 'to';
+        } else {
+          if (isoDate < state.from) {
+            state.to = state.from;
+            state.from = isoDate;
+          } else {
+            state.to = isoDate;
+          }
+          state.mode = 'from';
+        }
+      }
+
+      // Sync to hidden form inputs
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+      if (hiddenFrom) hiddenFrom.value = state.from;
+      if (hiddenTo) hiddenTo.value = state.to;
+
+      const helper = document.getElementById(prefix + '_modalHelper');
+      if (helper) {
+        if (state.from && state.to) {
+          helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
+        } else {
+          helper.innerHTML = 'Now click calendar date for <strong>To Date</strong>.';
+        }
+      }
+
+      window.renderCalendar(prefix);
+    };
+  }
+
+  if (typeof handleCalDateHover !== 'function') {
+    window.handleCalDateHover = function(prefix, isoDate) {
+      const state = window.calStates[prefix];
+      if (!state || (state.from && state.to)) return;
+      if (state.hoverDate !== isoDate) {
+        state.hoverDate = isoDate;
+        window.renderCalendar(prefix);
+      }
+    };
+  }
+
+  if (typeof handleCalMouseLeave !== 'function') {
+    window.handleCalMouseLeave = function(prefix) {
+      const state = window.calStates[prefix];
+      if (!state || (state.from && state.to)) return;
+      state.hoverDate = null;
+      window.renderCalendar(prefix);
+    };
+  }
+
+  if (typeof navCalMonth !== 'function') {
+    window.navCalMonth = function(prefix, delta) {
+      const state = window.calStates[prefix];
+      if (!state) return;
+      state.viewMonth += delta;
+      if (state.viewMonth < 0) {
+        state.viewMonth = 11;
+        state.viewYear -= 1;
+      } else if (state.viewMonth > 11) {
+        state.viewMonth = 0;
+        state.viewYear += 1;
+      }
+      window.renderCalendar(prefix);
+    };
+  }
+
+  if (typeof handleLeadDateDropdownChange !== 'function') {
+    window.handleLeadDateDropdownChange = function(prefix, selectedVal) {
+      if (selectedVal === 'custom') {
+        const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+        const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+        window.initCalState(prefix, hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+        window.renderCalendar(prefix);
+
+        const modalEl = document.getElementById(prefix + '_customDateModal');
+        if (modalEl) {
+          const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+          modal.show();
+        }
+      } else {
+        const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+        const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+        if (hiddenFrom) hiddenFrom.value = '';
+        if (hiddenTo) hiddenTo.value = '';
+        const form = window.getFilterForm(prefix);
+        if (form) form.submit();
+      }
+    };
+  }
+
+  if (typeof clearModalDateRange !== 'function') {
+    window.clearModalDateRange = function(prefix) {
+      const state = window.calStates[prefix];
+      if (state) {
+        state.from = '';
+        state.to = '';
+        state.mode = 'from';
+        state.hoverDate = null;
+        window.renderCalendar(prefix);
+      }
+
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+      const select = document.getElementById(prefix + '_leadDateSelect');
+
+      if (hiddenFrom) hiddenFrom.value = '';
+      if (hiddenTo) hiddenTo.value = '';
+      if (select) select.value = '';
+
+      const form = window.getFilterForm(prefix);
+      if (form) form.submit();
+    };
+  }
+
+  if (typeof applyModalDateRange !== 'function') {
+    window.applyModalDateRange = function(prefix) {
+      const state = window.calStates[prefix];
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+
+      if (state) {
+        if (hiddenFrom) hiddenFrom.value = state.from || '';
+        if (hiddenTo) hiddenTo.value = state.to || '';
+      }
+
+      const select = document.getElementById(prefix + '_leadDateSelect');
+      if (select) select.value = 'custom';
+
+      const form = window.getFilterForm(prefix);
+      if (form) {
+        form.submit();
+      } else {
+        console.error("Filter form not found for prefix:", prefix);
+      }
+    };
+  }
+
+  // Initialize calendar on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const hiddenFrom = document.getElementById('{{ filter_prefix }}_inputDateFrom');
+    const hiddenTo = document.getElementById('{{ filter_prefix }}_inputDateTo');
+    window.initCalState('{{ filter_prefix }}', hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+    window.renderCalendar('{{ filter_prefix }}');
+  });
+</script>

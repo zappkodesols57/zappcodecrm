@@ -19,8 +19,20 @@
     selMin: "00",
     selAmPm: "AM",
 
+    getCurrentTime() {
+      const now = new Date();
+      let h = now.getHours();
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const p = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      if (h === 0) h = 12;
+      return { h: String(h).padStart(2, '0'), m: m, p: p };
+    },
+
     parseTimeVal(val) {
-      if (!val) return { h: "09", m: "00", p: "AM" };
+      if (!val || !val.trim()) {
+        return this.getCurrentTime();
+      }
       val = val.trim();
       const match12 = val.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
       if (match12) {
@@ -31,7 +43,7 @@
         if (h > 12) h = 12;
         return { h: String(h).padStart(2, '0'), m: m, p: p };
       }
-      const match24 = val.match(/^(\d{1,2}):(\d{2})$/);
+      const match24 = val.match(/^(\d{1,2}):(\d{2})/);
       if (match24) {
         let h24 = parseInt(match24[1], 10);
         let m = match24[2];
@@ -40,7 +52,26 @@
         if (h12 === 0) h12 = 12;
         return { h: String(h12).padStart(2, '0'), m: m, p: p };
       }
-      return { h: "09", m: "00", p: "AM" };
+      return this.getCurrentTime();
+    },
+
+    parseToMinutes(timeStr) {
+      if (!timeStr) return null;
+      timeStr = String(timeStr).trim();
+      const m12 = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (m12) {
+        let h = parseInt(m12[1], 10);
+        const m = parseInt(m12[2], 10);
+        const p = (m12[3] || 'AM').toUpperCase();
+        if (p === 'PM' && h < 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+      }
+      const m24 = timeStr.match(/^(\d{1,2}):(\d{2})/);
+      if (m24) {
+        return parseInt(m24[1], 10) * 60 + parseInt(m24[2], 10);
+      }
+      return null;
     },
 
     ensurePopover() {
@@ -312,9 +343,28 @@
       const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const selectedIso = this.activeInput ? this.parseToIso(this.activeInput.value) : "";
 
+      // Determine date restriction mode based on input attributes or name
+      const isPastOnly = this.activeInput && (
+        this.activeInput.dataset.dateMode === 'past-only' ||
+        this.activeInput.classList.contains('date-range-filter-input') ||
+        ['date_from', 'date_to', 'filter_date_from', 'filter_date_to', 'inquiry_date'].includes(this.activeInput.name) ||
+        this.activeInput.closest('.date-range-filter-wrap, #filterDrawer, .filter-bar')
+      );
+      const isFutureOnly = this.activeInput && (
+        this.activeInput.dataset.dateMode === 'future-only' ||
+        this.activeInput.min === todayIso ||
+        ['followup_date', 'next_followup_date', 'appointment_date', 'appo_booked_date', 'visit_date', 'start_date', 'end_date'].includes(this.activeInput.name) ||
+        this.activeInput.closest('#leaveFormCard, #addFollowupModal, #scheduleFollowupDetails, #bookingDetailsFields')
+      );
+
+      const tomorrowBtn = document.getElementById("globalCalTomorrowBtn");
+      if (tomorrowBtn) {
+        tomorrowBtn.style.display = isPastOnly ? "none" : "inline-block";
+      }
+
       for (let i = firstDayIdx - 1; i >= 0; i--) {
         const d = document.createElement("div");
-        d.className = "global-cal-cell other-month";
+        d.className = "global-cal-cell other-month disabled";
         d.textContent = prevMonthDays - i;
         gridElem.appendChild(d);
       }
@@ -328,7 +378,20 @@
         if (cellIso === todayIso) d.classList.add("today");
         if (cellIso === selectedIso) d.classList.add("selected");
 
-        d.addEventListener("click", () => this.selectDate(cellIso));
+        let isDisabled = false;
+        if (isFutureOnly && cellIso < todayIso) {
+          isDisabled = true;
+        } else if (isPastOnly && cellIso > todayIso) {
+          isDisabled = true;
+        }
+
+        if (isDisabled) {
+          d.classList.add("disabled");
+          d.setAttribute("title", isFutureOnly ? "Past date disabled" : "Future date disabled for filters");
+        } else {
+          d.addEventListener("click", () => this.selectDate(cellIso));
+        }
+
         gridElem.appendChild(d);
       }
     },

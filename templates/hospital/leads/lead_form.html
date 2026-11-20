@@ -1961,19 +1961,49 @@
 
     fuDateInput.min = todayStr;
 
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const currentTimeStr = `${hours}:${minutes}`;
+    const curHours = now.getHours();
+    const curMinutes = now.getMinutes();
+    const curTotalMins = curHours * 60 + curMinutes;
+    const curTimeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Keep min removed on time input itself so Chrome time picker dropdown list does not break with huge gaps
+    // Keep min removed on time input itself so custom 12h picker works cleanly
     fuTimeInput.removeAttribute('min');
 
-    if (fuDateInput.value === todayStr) {
-      if (fuTimeInput.value && fuTimeInput.value < currentTimeStr) {
-        fuTimeInput.setCustomValidity(`Please select an upcoming time after ${currentTimeStr}`);
+    function parseTimeToMinutes(tStr) {
+      if (!tStr) return null;
+      tStr = String(tStr).trim();
+      const m12 = tStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (m12) {
+        let h = parseInt(m12[1], 10);
+        const m = parseInt(m12[2], 10);
+        const p = (m12[3] || 'AM').toUpperCase();
+        if (p === 'PM' && h < 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+      }
+      const m24 = tStr.match(/^(\d{1,2}):(\d{2})/);
+      if (m24) {
+        return parseInt(m24[1], 10) * 60 + parseInt(m24[2], 10);
+      }
+      return null;
+    }
+
+    let selDateIso = fuDateInput.value;
+    if (/^\d{1,2}\s+[A-Za-z]{3,4}\s+\d{4}$/.test(selDateIso)) {
+      const parts = selDateIso.split(/\s+/);
+      const mIdx = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(parts[1].substring(0,3).toLowerCase());
+      if (mIdx !== -1) {
+        selDateIso = `${parts[2]}-${String(mIdx+1).padStart(2,'0')}-${String(parts[0]).padStart(2,'0')}`;
+      }
+    }
+
+    if (selDateIso === todayStr) {
+      const selMins = parseTimeToMinutes(fuTimeInput.value);
+      if (selMins !== null && selMins <= curTotalMins) {
+        fuTimeInput.setCustomValidity(`Please select an upcoming time after ${curTimeFormatted}`);
         fuTimeInput.classList.add('is-invalid');
         if (fuTimeErrorMsg) {
-          fuTimeErrorMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Please choose upcoming time after ${currentTimeStr} for today.`;
+          fuTimeErrorMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Invalid time: Please choose upcoming time after ${curTimeFormatted} for today.`;
           fuTimeErrorMsg.classList.remove('d-none');
         }
       } else {
