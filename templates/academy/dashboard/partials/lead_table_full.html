@@ -52,7 +52,7 @@
               {% elif l.deal_status == 'LOST' %}
                 <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">Lost</span>
               {% else %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ l.display_stage|default:l.stage.name|default:"Open" }}</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ l.display_stage|default:l.stage|default:"Open" }}</span>
               {% endif %}
             </td>
             <td>

@@ -106,7 +106,7 @@
                     <div class="small text-muted">{{ lead.custom_dept|default:'—' }}</div>
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark border">{{ lead.display_stage|default:lead.stage.name|default:'New' }}</span>
+                    <span class="badge bg-light text-dark border">{{ lead.display_stage|default:lead.stage|default:'New' }}</span>
                 </td>
                 <td>
                     <span class="badge {% if lead.custom_deal_status == 'Won' %}bg-success bg-opacity-10 text-success border border-success-subtle{% elif lead.custom_deal_status == 'Lost' %}bg-danger bg-opacity-10 text-danger border border-danger-subtle{% elif lead.custom_deal_status == 'Pending' %}bg-warning bg-opacity-10 text-warning border border-warning-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %}">
@@ -193,7 +193,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark border">{{ lead.display_stage|default:lead.stage.name|default:'New' }}</span>
+                    <span class="badge bg-light text-dark border">{{ lead.display_stage|default:lead.stage|default:'New' }}</span>
                 </td>
                 <td>
                     <span class="badge {% if lead.custom_deal_status == 'Won' %}bg-success bg-opacity-10 text-success border border-success-subtle{% elif lead.custom_deal_status == 'Lost' %}bg-danger bg-opacity-10 text-danger border border-danger-subtle{% elif lead.custom_deal_status == 'Pending' %}bg-warning bg-opacity-10 text-warning border border-warning-subtle{% else %}bg-primary bg-opacity-10 text-primary border border-primary-subtle{% endif %}">

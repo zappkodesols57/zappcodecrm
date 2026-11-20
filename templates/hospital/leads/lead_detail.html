@@ -247,7 +247,7 @@
               <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                 <h5 class="mb-0 fw-bold text-dark">{{ lead.name }}</h5>
                 <span class="crm-badge-lightblue">
-                  {{ lead.display_stage|default:lead.stage.name|default:lead.display_status }}
+                  {{ lead.display_stage|default:lead.stage|default:lead.display_status }}
                 </span>
                 {% if lead.custom_temperature %}
                   <span class="crm-badge-lightblue">{{ lead.custom_temperature }}</span>

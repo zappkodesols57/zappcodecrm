@@ -182,6 +182,7 @@ class CRMGlobalExceptionMiddleware:
         context = {
             "error_message": "An unexpected error occurred while processing your request.",
             "path": path,
+            "error_detail": f"{type(exception).__name__}: {str(exception)}\n\n{traceback.format_exc()}"
         }
         try:
             return render(request, "500.html", context, status=500)
