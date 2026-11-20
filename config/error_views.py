@@ -23,14 +23,23 @@ def custom_server_error_view(request):
     User-friendly 500 handler for HTML and JSON requests.
     Logs full exception trace internally and gives a clean, actionable UI to users.
     """
+    import sys, traceback
+    exc_type, exc_val, exc_tb = sys.exc_info()
+    tb_str = "".join(traceback.format_exception(exc_type, exc_val, exc_tb)) if exc_val else ""
     logger.exception("An unhandled 500 server error occurred on path: %s", getattr(request, 'path', 'unknown'))
+
     if request.path.startswith('/api/') or request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
         return JsonResponse({
             'status': 'error',
             'code': 500,
-            'message': 'An internal server error occurred. Our team has been notified.'
+            'message': 'An internal server error occurred. Our team has been notified.',
+            'error_detail': str(exc_val) if exc_val else None,
         }, status=500)
-    return render(request, '500.html', status=500)
+
+    context = {
+        'error_detail': f"{exc_type.__name__ if exc_type else 'Exception'}: {exc_val}\n\n{tb_str}" if exc_val else None
+    }
+    return render(request, '500.html', context, status=500)
 
 
 def custom_permission_denied_view(request, exception=None):
