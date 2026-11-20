@@ -965,7 +965,7 @@ def telecaller_home(request):
         # Hospital Filter Choices
         'filter_depts': Course.objects.filter(is_active=True, hospital=user.business) if user.business else Course.objects.filter(is_active=True),
         'filter_sources': LeadSource.objects.filter(is_active=True),
-        'filter_telecallers': User.objects.filter(business_id=user.business_id, is_active=True) if user.business_id else User.objects.filter(is_active=True),
+        'filter_telecallers': User.objects.filter(hospital=user.hospital, is_active=True) if user.hospital else User.objects.filter(is_active=True),
         'filter_stages': LeadStage.objects.filter(is_active=True, hospital=user.business).order_by('order', 'name') if user.business else LeadStage.objects.filter(is_active=True).order_by('order', 'name'),
         'filter_intents': [
             ('HIGHLY_INTERESTED', 'Highly Interested'),
