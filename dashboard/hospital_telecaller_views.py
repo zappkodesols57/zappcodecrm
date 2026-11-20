@@ -24,6 +24,23 @@ from dashboard.helpers import filter_uncontacted_leads_ids, extract_lead_followu
 
 @login_required
 def telecaller_home(request):
+    import logging
+    _logger = logging.getLogger('django.request')
+    try:
+        return _telecaller_home_internal(request)
+    except Exception as exc:
+        _logger.exception("Critical error in telecaller_home: %s", exc)
+        if settings.DEBUG:
+            raise
+        import sys, traceback
+        exc_type, exc_val, exc_tb = sys.exc_info()
+        tb_str = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+        context = {
+            'error_detail': f"telecaller_home crash: {exc}\n\n{tb_str}"
+        }
+        return render(request, "500.html", context, status=500)
+
+def _telecaller_home_internal(request):
     from accounts.models import User
     from leads.models import Lead, LeadTemperature, DealStatus, Appointment, AppointmentStatus
     from dashboard.models import TaskReminder
