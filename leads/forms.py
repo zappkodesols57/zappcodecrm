@@ -411,7 +411,11 @@ class LeadForm(forms.ModelForm):
 
     def clean_tags(self):
         """Allows users to enter new tag strings directly and automatically creates Tag instances."""
-        raw_tags = self.data.getlist("tags")
+        if hasattr(self.data, "getlist"):
+            raw_tags = self.data.getlist("tags")
+        else:
+            tags_val = self.data.get("tags")
+            raw_tags = tags_val if isinstance(tags_val, list) else ([tags_val] if tags_val else [])
         if not raw_tags and self.data.get("tags"):
             raw_tags = [self.data.get("tags")]
         
@@ -652,9 +656,9 @@ class HospitalLeadForm(forms.ModelForm):
     disease = NonStrictChoiceField(choices=[], required=False)
     appointment_status = NonStrictChoiceField(choices=[], required=False)
     appo_booked_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    appointment_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
+    appointment_time = FlexibleTimeField(widget=forms.TextInput(attrs={"type": "text", "class": "form-control time-mask-input custom-12h-time-input", "placeholder": "hh:mm AM/PM"}), required=False)
     followup_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
-    followup_time = FlexibleTimeField(widget=forms.TimeInput(attrs={"type": "time"}), required=False)
+    followup_time = FlexibleTimeField(widget=forms.TextInput(attrs={"type": "text", "class": "form-control time-mask-input custom-12h-time-input", "placeholder": "hh:mm AM/PM"}), required=False)
     followup_remark = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter patient remarks or follow-up notes..."}), required=False, label="Follow-up Remark")
     visit_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     priority = NonStrictChoiceField(choices=[], required=False)
