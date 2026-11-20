@@ -462,7 +462,7 @@
             <div class="crm-form-row mb-0">
               <label class="crm-form-label" style="width: 35%;">Slot Time</label>
               <div class="crm-form-field" style="width: 65%;">
-                <input type="text" name="custom_followup_time" id="custom_followup_time" class="form-control time-mask-input" placeholder="HH:MM" maxlength="8" inputmode="numeric" value="{{ form.instance.next_followup_time|time:'H:i'|default:'' }}">
+                <input type="text" name="custom_followup_time" id="custom_followup_time" class="form-control time-mask-input custom-12h-time-input" placeholder="hh:mm AM/PM" maxlength="10" value="{{ form.instance.next_followup_time|time:'h:i A'|default:'' }}">
               </div>
             </div>
           </div>

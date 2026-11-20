@@ -1305,10 +1305,13 @@ def run_import(request, pk):
             )
             continue
 
-        existing = Lead.objects.filter(mobile=parsed["mobile"]).first()
+        dup_search_qs = Lead.objects.all()
+        if user_hospital:
+            dup_search_qs = dup_search_qs.filter(hospital=user_hospital)
+        existing = dup_search_qs.filter(mobile=parsed["mobile"]).first()
         if not existing:
             digits = parsed["mobile"]
-            existing = next((l for l in Lead.objects.only("id", "mobile") if Lead.clean_mobile(l.mobile) == digits), None)
+            existing = next((l for l in dup_search_qs.only("id", "mobile") if Lead.clean_mobile(l.mobile) == digits), None)
 
         if existing and on_duplicate == "skip":
             duplicate += 1
@@ -2305,7 +2308,10 @@ def quick_import(request):
 
         # 4. Pre-cache existing leads mobile numbers
         existing_mobile_map = {}
-        for lead_id, raw_mob in Lead.objects.values_list("id", "mobile"):
+        mob_qs = Lead.objects.all()
+        if user_hospital:
+            mob_qs = mob_qs.filter(hospital=user_hospital)
+        for lead_id, raw_mob in mob_qs.values_list("id", "mobile"):
             if raw_mob:
                 cleaned = Lead.clean_mobile(raw_mob)
                 if cleaned and cleaned not in existing_mobile_map:

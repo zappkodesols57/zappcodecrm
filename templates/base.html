@@ -1,4 +1,4 @@
-{% load humanize %}
+{% load humanize static %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -1810,12 +1810,18 @@
       border-radius: 50%;
       background: #dc2626;
     }
-    /* Hide native browser datepicker spin/calendar arrow so custom calendar opens cleanly */
-    input[type="date"]::-webkit-calendar-picker-indicator {
+    /* Hide native browser datepicker and timepicker spin/calendar/clock arrow so custom modern picker opens cleanly */
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
       display: none !important;
-      -webkit-appearance: none;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
   </style>
+  <link rel="stylesheet" href="{% static 'css/crm_datetime_picker.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
 
@@ -2120,6 +2126,7 @@
       // Intercept click on any time input across the entire app
       document.addEventListener("focus", function(e) {
         if (e.target && (e.target.matches('.time-mask-input, .custom-12h-time-input') || (e.target.tagName === 'INPUT' && e.target.type === 'time'))) {
+          e.preventDefault();
           e.target.setAttribute('autocomplete', 'off');
           e.target.style.cursor = 'pointer';
           showPicker(e.target);
@@ -2129,6 +2136,7 @@
       document.addEventListener("click", function(e) {
         const inp = e.target.closest('.time-mask-input, .custom-12h-time-input, input[type="time"]');
         if (inp) {
+          e.preventDefault();
           e.stopPropagation();
           showPicker(inp);
           return;
@@ -2755,6 +2763,7 @@
   </script>
 
   {% load static %}
+  <script src="{% static 'js/crm_datetime_picker.js' %}"></script>
   <script src="{% static 'js/crm_live_sync.js' %}"></script>
 
   {% if request.session.auto_open_whatsapp %}

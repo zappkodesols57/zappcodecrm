@@ -77,7 +77,11 @@ def check_duplicate_mobile(request):
     if not digits or len(digits) < 8:
         return JsonResponse({"exists": False})
     
+    user_biz = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
     existing = Lead.objects.filter(is_archived=False)
+    if user_biz:
+        existing = existing.filter(hospital=user_biz)
+        
     for lead in existing.only("id", "lead_code", "name", "mobile", "assigned_to"):
         if Lead.clean_mobile(lead.mobile) == digits:
             assigned_name = lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned")

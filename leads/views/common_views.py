@@ -2766,7 +2766,11 @@ def lead_add(request):
         if form.is_valid():
             if not force:
                 mobile = form.cleaned_data.get("mobile")
-                duplicates = Lead.objects.filter(mobile=mobile, is_archived=False)
+                user_biz = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
+                dup_qs = Lead.objects.filter(mobile=mobile, is_archived=False)
+                if user_biz:
+                    dup_qs = dup_qs.filter(hospital=user_biz)
+                duplicates = dup_qs
                 if duplicates.exists():
                     return render(request, template, {
                         "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
