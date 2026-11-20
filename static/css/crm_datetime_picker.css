@@ -217,14 +217,20 @@ input[type="time"] {
   border: 2px solid #0f2744;
 }
 
+.global-cal-day.cal-disabled,
+.global-cal-cell.disabled,
 .global-cal-day.cal-past,
 .global-cal-cell.other-month {
-  color: #cbd5e1;
-  cursor: not-allowed;
+  color: #cbd5e1 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  opacity: 0.45;
 }
+.global-cal-day.cal-disabled:hover,
+.global-cal-cell.disabled:hover,
 .global-cal-day.cal-past:hover,
 .global-cal-cell.other-month:hover {
-  background: transparent;
+  background: transparent !important;
 }
 
 .global-cal-day-name {

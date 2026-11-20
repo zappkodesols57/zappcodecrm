@@ -45,6 +45,7 @@ venv.bak/
 local_settings.py
 db.sqlite3
 .django_cache/
+*.djcache
 db.sqlite3-journal
 db.sqlite3-shm
 db.sqlite3-wal
@@ -99,4 +100,15 @@ apply_standard_headers.py
 
 # Agent and developer instruction notes
 AGENT_INSTRUCTIONS.md
+system_instructions.md
 .gemini/
+workflows/
+scratch/
+*.xlsx
+*.xls
+*.csv
+*.sql
+*.sqlite3
+*.db
+*.djcache
+meta_leads_preview.json
