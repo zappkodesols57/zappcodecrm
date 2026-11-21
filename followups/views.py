@@ -84,8 +84,8 @@ def _board(request, leads, active, title, date_info=None):
         team_members = User.objects.filter(
             is_active=True, is_approved=True,
             hospital=business,
-            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
-        ).order_by("first_name", "username") if business else User.objects.filter(is_active=True, role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]).order_by("first_name")
+            role__in=[User.Role.COUNSELLOR, User.Role.MANAGER]
+        ).order_by("first_name", "username") if business else User.objects.filter(is_active=True, role__in=[User.Role.COUNSELLOR, User.Role.MANAGER]).order_by("first_name")
         courses = Course.objects.filter(is_active=True, hospital=business).order_by("name") if business else Course.objects.filter(is_active=True).order_by("name")
         stages = LeadStage.objects.filter(is_active=True, business_type=LeadStage.BusinessType.ACADEMY).order_by("order", "name")
 

@@ -491,9 +491,9 @@
             <label class="crm-form-label">Lead Source</label>
             <div class="crm-form-field">{{ form.lead_source }}</div>
           </div>
-          {% elif item.key == 'appointment_status' %}
+          {% elif item.key == 'appointment_status' or item.key == 'stage' %}
           <div class="crm-form-row mb-0">
-            <label class="crm-form-label">Appointment Status</label>
+            <label class="crm-form-label">Stage</label>
             <div class="crm-form-field">{{ form.appointment_status }}</div>
           </div>
           {% elif item.key == 'campaign' %}
@@ -609,9 +609,9 @@
             <label class="crm-form-label">Lead Source</label>
             <div class="crm-form-field">{{ form.lead_source }}</div>
           </div>
-          {% elif item.key == 'appointment_status' %}
+          {% elif item.key == 'appointment_status' or item.key == 'stage' %}
           <div class="crm-form-row mb-0">
-            <label class="crm-form-label">Appointment Status</label>
+            <label class="crm-form-label">Stage</label>
             <div class="crm-form-field">{{ form.appointment_status }}</div>
           </div>
           {% elif item.key == 'campaign' %}

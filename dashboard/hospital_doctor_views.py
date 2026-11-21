@@ -106,7 +106,7 @@ def doctor_home(request):
             lead.next_followup_date = timezone.localdate()
 
             # Assign 'Appointment Cancelled' or 'Cancelled' stage if available
-            b_type = LeadStage.BusinessType.HOSPITAL if lead.hospital_id else LeadStage.BusinessType.ALL
+            b_type = LeadStage.BusinessType.HOSPITAL if lead.business_id else LeadStage.BusinessType.ALL
             apt_cancelled_stage = (
                 LeadStage.objects.filter(hospital=lead.hospital, name__iexact='Appointment Cancelled', is_active=True).first()
                 or LeadStage.objects.filter(hospital=lead.hospital, name__icontains='Cancelled', is_active=True).first()

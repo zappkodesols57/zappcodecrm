@@ -109,18 +109,21 @@ if USE_MYSQL:
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
             'PORT': os.environ.get('DB_PORT', '3306'),
-            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 0)),
+            # High-throughput persistent connection pooling: reuse open connections for 60s
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', 60)),
+            # Auto-reconnect safety: test connection health before reusing idle connections
+            'CONN_HEALTH_CHECKS': True,
             'OPTIONS': {
                 'charset': 'utf8mb4',
-                'connect_timeout': 60,
+                'connect_timeout': 30,
                 'read_timeout': 300,
                 'write_timeout': 300,
                 'init_command': (
                     "SET sql_mode='STRICT_TRANS_TABLES', "
                     "net_read_timeout=300, "
                     "net_write_timeout=300, "
-                    "wait_timeout=600, "
-                    "interactive_timeout=600"
+                    "wait_timeout=28800, "
+                    "interactive_timeout=28800"
                 ),
             },
         }

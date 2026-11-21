@@ -57,11 +57,11 @@ class Admission(models.Model):
 
     @property
     def business(self):
-        return self.lead.hospital if self.lead else None
+        return self.lead.business if self.lead else None
 
     @property
     def business_id(self):
-        return self.lead.hospital_id if self.lead else None
+        return self.lead.business_id if self.lead else None
 
     @property
     def collected(self):

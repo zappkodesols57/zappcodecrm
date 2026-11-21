@@ -79,7 +79,7 @@ def _can_edit_lead(user, lead):
         return True
     if user.role == User.Role.LEAD_ATTENDENT:
         return True
-    if user.role in (User.Role.COUNSELLOR, User.Role.HR):
+    if user.role in (User.Role.COUNSELLOR):
         # Counsellors / HRs can only edit leads assigned to themselves or unassigned leads
         return (lead.assigned_to == user or lead.assigned_to is None)
     if user.can_edit_own_leads and (lead.assigned_to == user or lead.assigned_to is None):
@@ -314,7 +314,7 @@ def get_filtered_leads(request, base_qs=None, exclude_campaign_filter=False):
             if selected_hospital_id == "none":
                 leads = leads.filter(hospital__isnull=True)
             elif selected_hospital_id.isdigit():
-                leads = leads.filter(hospital_id=int(selected_hospital_id))
+                leads = leads.filter(hospital__id=int(selected_hospital_id))
     else:
         # Academy user without hospital assignment
         leads = leads.filter(hospital__isnull=True)
@@ -867,7 +867,7 @@ def lead_list(request):
     active_leads = Lead.objects.filter(is_archived=False)
     if request.user.hospital:
         active_leads = active_leads.filter(hospital=request.user.hospital)
-        if request.user.role in ('COUNSELLOR', 'HR'):
+        if request.user.role == 'COUNSELLOR':
             active_leads = active_leads.filter(
                 Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
             )
@@ -880,10 +880,10 @@ def lead_list(request):
                 Q(custom_data__doctor__icontains=doc_name)
             ).distinct()
     elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
-        active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
+        active_leads = active_leads.filter(hospital__id=int(selected_hospital_id))
 
     # Filter dropdown options scoped to current user's business (Cached for 60s to avoid full table scans on every click)
-    cache_biz_key = f"filter_opts_biz_{request.user.hospital_id if request.user.hospital else 'global'}_{request.user.role}"
+    cache_biz_key = f"filter_opts_biz_{request.user.business_id if request.user.business else 'global'}_{request.user.role}"
     from django.core.cache import cache
     cached_dropdowns = cache.get(cache_biz_key)
     if cached_dropdowns:
@@ -898,7 +898,7 @@ def lead_list(request):
     else:
         if request.user.hospital:
             active_leads = active_leads.filter(hospital=request.user.hospital)
-            if request.user.role in ('COUNSELLOR', 'HR'):
+            if request.user.role == 'COUNSELLOR':
                 active_leads = active_leads.filter(
                     Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
                 )
@@ -911,7 +911,7 @@ def lead_list(request):
                     Q(custom_data__doctor__icontains=doc_name)
                 ).distinct()
         elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
-            active_leads = active_leads.filter(hospital_id=int(selected_hospital_id))
+            active_leads = active_leads.filter(hospital__id=int(selected_hospital_id))
         
         used_sc_ids = list(active_leads.values_list("source_category_id", flat=True).distinct())
         used_ls_ids = list(active_leads.values_list("lead_source_id", flat=True).distinct())
@@ -1048,7 +1048,7 @@ def lead_list(request):
     if target_hospital:
         employees_qs = User.objects.filter(
             hospital=target_hospital,
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR],
             is_active=True,
             is_approved=True
         ).order_by("first_name", "last_name", "username")
@@ -1063,7 +1063,7 @@ def lead_list(request):
         hospital_statuses_qs = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
     else:
         employees_qs = User.objects.filter(
-            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT],
+            role__in=[User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT],
             is_active=True,
             is_approved=True
         ).order_by("first_name", "last_name", "username")
@@ -1155,7 +1155,7 @@ def lead_list(request):
 
     # Determine template
     if not selected_hospital_id and is_global_admin and not is_viewing_hospital:
-        template_name = "leads/lead_list.html"
+        template_name = "academy/leads/lead_list.html"
     elif is_viewing_hospital:
         template_name = "hospital/leads/lead_list.html"
     else:
@@ -1189,7 +1189,7 @@ def all_business_leads(request):
     if request.user.hospital:
         leads = leads.filter(hospital=request.user.hospital)
     elif is_global_admin and selected_hospital_id and selected_hospital_id.isdigit():
-        leads = leads.filter(hospital_id=int(selected_hospital_id))
+        leads = leads.filter(hospital__id=int(selected_hospital_id))
     elif not is_global_admin:
         leads = leads.filter(hospital__isnull=True)
 
@@ -1274,7 +1274,7 @@ def all_business_leads(request):
     }
 
     if not selected_hospital_id and is_global_admin and not is_viewing_hospital:
-        template_name = "leads/lead_list.html"
+        template_name = "academy/leads/lead_list.html"
     elif is_viewing_hospital:
         template_name = "hospital/leads/lead_list.html"
     else:
@@ -1296,7 +1296,7 @@ def my_leads(request):
 
     # Restrict to Academy tenant / Forward Hospital Telecallers
     if request.user.role == User.Role.LEAD_ATTENDENT or (request.user.industry == 'HOSPITAL' and request.user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR)):
-        return redirect("dashboard:telecaller_my_leads")
+        return redirect("/dashboard/hospital/telecaller/?tab=myleads&subtab=my_all")
 
     hospital = request.user.hospital
     leads = Lead.objects.filter(is_archived=False)
@@ -1575,7 +1575,7 @@ def team_history(request):
     if is_hospital_business:
         team_roles = [User.Role.LEAD_ATTENDENT, User.Role.DOCTOR, User.Role.MANAGER, User.Role.ADMIN]
     else:
-        team_roles = [User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER]
+        team_roles = [User.Role.COUNSELLOR, User.Role.MANAGER]
 
     # Get team members strictly scoped to the current business
     if business:
@@ -1710,7 +1710,7 @@ def team_history(request):
         # Non-hospital (e.g. Academy)
         attendants = User.objects.filter(
             is_active=True, is_approved=True,
-            role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
+            role__in=[User.Role.COUNSELLOR, User.Role.MANAGER],
             hospital=business,
         ).order_by("first_name", "last_name", "username")
         doctors = User.objects.none()
@@ -2785,7 +2785,7 @@ def lead_add(request):
                 lead.business = request.user.business
                 
             # If creator is a Lead Attendant, Counsellor, or employee without can_assign_leads permission, auto-assign to themselves
-            if request.user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR) or not request.user.can_assign_leads:
+            if request.user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR) or not request.user.can_assign_leads:
                 if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER):
                     lead.assigned_to = request.user
                 elif not lead.assigned_to:
@@ -3282,7 +3282,7 @@ def lead_edit(request, pk):
         if request.user.role == User.Role.DOCTOR:
             return redirect("dashboard:doctor_appointments")
         if request.user.role == User.Role.LEAD_ATTENDENT:
-            return redirect("dashboard:telecaller_my_leads")
+            return redirect("dashboard:telecaller_home")
         return redirect("leads:lead_list")
 
     if getattr(lead, "is_archived", False):
@@ -3872,7 +3872,7 @@ def lead_detail(request, pk):
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
         if request.user.role == User.Role.LEAD_ATTENDENT:
-            return redirect("dashboard:telecaller_my_leads")
+            return redirect("dashboard:telecaller_home")
         return redirect("leads:lead_list")
 
     if not _can_access_lead(request.user, lead):
@@ -4403,8 +4403,10 @@ def add_followup(request, pk):
             # Re-assign to current user, set deal_status=OPEN, admission_status=OPEN, stage=Follow up,
             # clear cancellation/lost flags so it drops out of Lost tab and enters active Follow-up count.
             fu_stage = (
-                LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first()
-                or LeadStage.objects.filter(name__iexact='Follow-up', is_active=True).first()
+                LeadStage.objects.filter(hospital=lead.hospital, name__iexact='Follow Up Pending', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='Follow Up Pending', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first()
+                or LeadStage.objects.filter(name__iexact='Fresh', is_active=True).first()
                 or LeadStage.objects.filter(name__iexact='New', is_active=True).first()
             )
 
@@ -5486,7 +5488,7 @@ def bulk_lead_transfer(request):
         active_business = Business.objects.filter(pk=int(active_biz_id)).first()
 
     # Allowed roles for assignment/transfer: LEAD_ATTENDENT, COUNSELLOR, HR
-    allowed_roles = [User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR]
+    allowed_roles = [User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR]
 
     # Filter available users, courses, and stages strictly based on current active business/tenant
     if active_business:

@@ -528,12 +528,12 @@
       <i class="fa-solid fa-bell"></i> <span class="nav-text">Notifications</span>
     </a>
 
-    {% elif user.role in 'COUNSELLOR HR' and user.industry != 'HOSPITAL' or user.role == 'LEAD_ATTENDENT' and user.industry != 'HOSPITAL' %}
+    {% elif user.role == 'COUNSELLOR' and user.industry != 'HOSPITAL' or user.role == 'LEAD_ATTENDENT' and user.industry != 'HOSPITAL' %}
     {# 🎓 DEDICATED ACADEMY COUNSELOR / TELECALLER SIDEBAR #}
     {% include "academy/dashboard/partials/counselor_sidebar.html" %}
 
     {% else %}
-    {# 💼 HOSPITAL COUNSELLOR / HR EMPLOYEE / TELECALLER SIDEBAR #}
+    {# 💼 HOSPITAL COUNSELLOR / TELECALLER SIDEBAR #}
 
     <!-- 1. Direct Dashboard Link -->
     <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard:home' %}"

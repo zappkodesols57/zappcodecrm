@@ -57,11 +57,11 @@ def superadmin_home(request):
     industry_filter = request.GET.get("industry", "").strip()
     session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
 
-    if user.hospital:
+    if user.business:
         # Tenant Admin / Manager: strictly restricted to their assigned business
-        effective_hospital = user.hospital
-        selected_hospital_id = str(user.hospital.id)
-        base_leads = Lead.objects.filter(is_archived=False, hospital=user.hospital)
+        effective_hospital = user.business
+        selected_business_id = str(user.business.id)
+        base_leads = Lead.objects.filter(is_archived=False, hospital=user.business)
         if user.role == User.Role.MANAGER:
             # Manager assigned branches (or single branch backward compatibility)
             mgr_branches = list(user.assigned_branches.filter(is_active=True)) if hasattr(user, 'assigned_branches') and user.assigned_branches.exists() else []
@@ -72,10 +72,6 @@ def superadmin_home(request):
                 mgr_branch_names = [b.name for b in mgr_branches]
                 mgr_branch_ids = [b.id for b in mgr_branches]
 
-                # Lead filter:
-                # 1. Lead has empty/null branch (open unassigned lead across hospital) -> visible to all branch managers
-                # 2. Lead tagged with any of manager's assigned branches
-                # 3. Lead assigned to telecaller assigned to any of manager's branches
                 lead_branch_q = (
                     Q(custom_data__hospital_branch__isnull=True, custom_data__branch__isnull=True) |
                     Q(custom_data__hospital_branch="") |
@@ -94,16 +90,16 @@ def superadmin_home(request):
                 )
                 base_leads = base_leads.filter(lead_branch_q).distinct()
     else:
-        selected_hospital_id = raw_biz or raw_hosp or session_biz
-        if selected_hospital_id and selected_hospital_id.isdigit():
-            effective_hospital = Hospital.objects.filter(id=int(selected_hospital_id)).first()
-            base_leads = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
-        elif selected_hospital_id in ("none", "zappcode"):
+        selected_business_id = raw_biz or raw_hosp or session_biz
+        if selected_business_id and selected_business_id.isdigit():
+            effective_hospital = Hospital.objects.filter(id=int(selected_business_id)).first()
+            base_leads = Lead.objects.filter(is_archived=False, hospital__id=int(selected_business_id))
+        elif selected_business_id in ("none", "zappcode"):
             effective_hospital = None
             base_leads = Lead.objects.filter(is_archived=False, hospital__isnull=True)
         else:
             effective_hospital = None
-            selected_hospital_id = ""
+            selected_business_id = ""
             base_leads = Lead.objects.filter(is_archived=False)
 
         # Apply industry filter for global SuperAdmin
@@ -118,7 +114,7 @@ def superadmin_home(request):
     if effective_hospital:
         telecaller_qs = User.objects.filter(
             hospital=effective_hospital,
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR],
             is_active=True
         )
         if user.role == User.Role.MANAGER:
@@ -135,7 +131,7 @@ def superadmin_home(request):
         telecaller_users = telecaller_qs.order_by('first_name', 'username')
     else:
         telecaller_users = User.objects.filter(
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR],
             is_active=True
         ).order_by('first_name', 'username')
 
@@ -166,7 +162,7 @@ def superadmin_home(request):
 
     # Dynamic filter caches strictly for this business
     from django.core.cache import cache
-    cache_scope = f"{selected_hospital_id or 'all'}_{industry_filter or 'all'}"
+    cache_scope = f"{selected_business_id or 'all'}_{industry_filter or 'all'}"
     cache_key = f"dash_filters_v7_{cache_scope}"
     filter_cache_data = cache.get(cache_key)
 
@@ -854,10 +850,9 @@ def superadmin_home(request):
         # Current Selected Filter Values
         "search_query": search_query,
         "current_industry": industry_filter,
-        "selected_hospital_id": selected_hospital_id,
-        "selected_business_id": selected_hospital_id,
+        "selected_business_id": selected_business_id,
         "business": effective_hospital,
-        "business_id": selected_hospital_id,
+        "business_id": selected_business_id,
         "current_stage": stage_filter,
         "current_deal_status": deal_status_filter,
         "current_telecaller": telecaller_filter,
@@ -973,9 +968,9 @@ def nel_card_drilldown_api(request):
         selected_date = None
 
     # Base tenant queryset
-    if user.hospital:
-        hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.hospital)
-        selected_hospital_id = str(user.hospital.id)
+    if user.business:
+        hospital_qs = Lead.objects.filter(is_archived=False, hospital=user.business)
+        selected_business_id = str(user.business.id)
         if not user.can_view_all_leads:
             if user.can_view_team_leads:
                 team = User.objects.filter(reports_to=user)
@@ -983,9 +978,7 @@ def nel_card_drilldown_api(request):
             elif user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=user)
                 hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
-                # Counsellors / HR / Telecallers: see assigned leads, leads created by them, or fresh unassigned leads in their business
-                # Also allow seeing new leads for current business so drilldown counts and cards match perfectly
+            elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT):
                 if card_type in ('new_leads', 'walkin'):
                     hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True) | Q(created_at__date=today) | Q(inquiry_date=today))
                 else:
@@ -994,14 +987,14 @@ def nel_card_drilldown_api(request):
         raw_biz = request.GET.get("business", "").strip()
         raw_hosp = request.GET.get("hospital", "").strip()
         session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
-        selected_hospital_id = raw_biz or raw_hosp or session_biz
+        selected_business_id = raw_biz or raw_hosp or session_biz
 
-        if selected_hospital_id and selected_hospital_id.isdigit():
-            hospital_qs = Lead.objects.filter(is_archived=False, hospital_id=int(selected_hospital_id))
-        elif selected_hospital_id in ("zappcode", "none"):
+        if selected_business_id and selected_business_id.isdigit():
+            hospital_qs = Lead.objects.filter(is_archived=False, hospital__id=int(selected_business_id))
+        elif selected_business_id in ("zappcode", "none"):
             hospital_qs = Lead.objects.filter(is_archived=False, hospital__isnull=True)
         else:
-            selected_hospital_id = ""
+            selected_business_id = ""
             hospital_qs = Lead.objects.filter(is_archived=False)
             
         if not user.can_view_all_leads:
@@ -1011,7 +1004,7 @@ def nel_card_drilldown_api(request):
             elif user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=user)
                 hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+            elif user.can_view_assigned_leads or user.role in (User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT):
                 if card_type in ('new_leads', 'walkin'):
                     hospital_qs = hospital_qs.filter(Q(assigned_to=user) | Q(created_by=user) | Q(assigned_to__isnull=True) | Q(created_at__date=today) | Q(inquiry_date=today))
                 else:
@@ -1032,7 +1025,7 @@ def nel_card_drilldown_api(request):
     from django.core.cache import cache
     cache_key = None
     if mode in ('all', 'this_month') and not (source_filter or department_filter or doctor_filter or location_filter or gender_filter or age_group_filter or payment_type_filter or final_status_filter):
-        cache_key = f"drilldown_api_{user.id}_{card_type}_{mode}_{selected_hospital_id}_{campaign_filter}_{year_param}_{month_param}"
+        cache_key = f"drilldown_api_{user.id}_{card_type}_{mode}_{selected_business_id}_{campaign_filter}_{year_param}_{month_param}"
         cached_response = cache.get(cache_key)
         if cached_response:
             return JsonResponse(cached_response)
@@ -1387,7 +1380,7 @@ def nel_card_drilldown_api(request):
         leads_qs = base_card_qs
 
     # Determine business mode strictly based on assigned industry: 'hospital', 'academy', or 'all'
-    target_biz_obj = user.hospital or (Hospital.objects.filter(id=int(selected_hospital_id)).first() if selected_hospital_id and selected_hospital_id.isdigit() else None)
+    target_biz_obj = user.business or (Hospital.objects.filter(id=int(selected_business_id)).first() if selected_business_id and selected_business_id.isdigit() else None)
     if target_biz_obj:
         if getattr(target_biz_obj, "industry", None) == Hospital.Industry.HOSPITAL:
             business_mode = "hospital"
@@ -1395,7 +1388,7 @@ def nel_card_drilldown_api(request):
             business_mode = "academy"
         else:
             business_mode = "other"
-    elif selected_hospital_id in ("zappcode", "none"):
+    elif selected_business_id in ("zappcode", "none"):
         business_mode = "academy"
     else:
         # All businesses or superadmin global view
@@ -1803,14 +1796,14 @@ def nel_card_drilldown_api(request):
         if user.role == User.Role.SUPER_ADMIN:
             # Superadmin: Counsellors, HR, and Lead Attendants across businesses
             qs = User.objects.filter(
-                role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT],
+                role__in=[User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT],
                 is_active=True,
                 is_approved=True
             ).select_related('hospital').order_by('hospital__name', 'first_name', 'last_name', 'username')
 
-            if selected_hospital_id and selected_hospital_id.isdigit():
-                qs = qs.filter(hospital_id=int(selected_hospital_id))
-            elif selected_hospital_id in ("zappcode", "none"):
+            if selected_business_id and selected_business_id.isdigit():
+                qs = qs.filter(hospital__id=int(selected_business_id))
+            elif selected_business_id in ("zappcode", "none"):
                 qs = qs.filter(hospital__isnull=True)
 
             for u in qs:
@@ -1833,7 +1826,7 @@ def nel_card_drilldown_api(request):
                 # Zappcode Admin: ONLY Counsellors (and HR) of Zappcode Academy
                 qs = User.objects.filter(
                     hospital__isnull=True,
-                    role__in=[User.Role.COUNSELLOR, User.Role.HR],
+                    role__in=[User.Role.COUNSELLOR],
                     is_active=True,
                     is_approved=True
                 ).order_by('first_name', 'last_name', 'username')
@@ -1905,7 +1898,7 @@ def live_metrics_api(request):
             leads_qs = leads_qs.filter(hospital=hospital)
 
         # Role-based restriction if telecaller / counsellor / hr
-        if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR) and not getattr(user, 'can_view_all_leads', False):
+        if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR) and not getattr(user, 'can_view_all_leads', False):
             my_leads_qs = leads_qs.filter(Q(assigned_to=user) | Q(assigned_to__isnull=True))
         else:
             my_leads_qs = leads_qs
@@ -2705,19 +2698,19 @@ def management_home(request):
     is_global_admin = request.user.is_superuser or (
         request.user.role == User.Role.SUPER_ADMIN and not request.user.hospital
     )
-    selected_hospital_id = ""
+    selected_business_id = ""
     if is_global_admin:
         raw_biz = request.GET.get("business", "").strip()
         raw_hosp = request.GET.get("hospital", "").strip()
         session_biz = str(getattr(request, 'session', {}).get("active_business_id", "")).strip()
-        selected_hospital_id = raw_biz or raw_hosp or session_biz
-    elif request.user.hospital:
-        selected_hospital_id = str(request.user.hospital.id)
+        selected_business_id = raw_biz or raw_hosp or session_biz
+    elif request.user.business:
+        selected_business_id = str(request.user.business.id)
 
     all_leads = Lead.objects.filter(is_archived=False)
-    if selected_hospital_id and selected_hospital_id.isdigit():
-        all_leads = all_leads.filter(hospital_id=int(selected_hospital_id))
-    elif selected_hospital_id in ("none", "zappcode"):
+    if selected_business_id and selected_business_id.isdigit():
+        all_leads = all_leads.filter(hospital__id=int(selected_business_id))
+    elif selected_business_id in ("none", "zappcode"):
         all_leads = all_leads.filter(hospital__isnull=True)
 
     # ─── Filter Handling ────────────────────────────────────────────────────────
@@ -2755,22 +2748,22 @@ def management_home(request):
     cold = leads.filter(temperature="COLD").count()
     followups_today = FollowUp.objects.filter(lead__in=all_leads, followup_date=today).count()
     overdue = FollowUp.objects.filter(lead__in=all_leads, followup_date__lt=today, followup_status="PENDING").count()
-    admissions_count = Admission.objects.filter(lead__in=all_leads).count() if (selected_hospital_id and (selected_hospital_id.isdigit() or selected_hospital_id in ("none", "zappcode"))) else Admission.objects.count()
+    admissions_count = Admission.objects.filter(lead__in=all_leads).count() if (selected_business_id and (selected_business_id.isdigit() or selected_business_id in ("none", "zappcode"))) else Admission.objects.count()
     visits_count = leads.filter(stage__name__icontains="visit").count()
     payments_qs = Payment.objects.filter(payment_status=PaymentStatus.SUCCESS)
-    if selected_hospital_id and selected_hospital_id.isdigit():
-        payments_qs = payments_qs.filter(lead__hospital_id=int(selected_hospital_id))
-    elif selected_hospital_id in ("none", "zappcode"):
+    if selected_business_id and selected_business_id.isdigit():
+        payments_qs = payments_qs.filter(lead__hospital__id=int(selected_business_id))
+    elif selected_business_id in ("none", "zappcode"):
         payments_qs = payments_qs.filter(lead__hospital__isnull=True)
     total_revenue = payments_qs.aggregate(s=Sum("amount"))["s"] or 0
     conversion_rate = round(admissions_count / total_leads * 100, 1) if total_leads else 0.0
     pending_approvals_count = User.objects.filter(is_approved=False).count()
 
     # ─── Team Activity Today ──────────────────────────────────────────────────
-    team_members = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'HR', 'LEAD_ATTENDENT'])
-    if selected_hospital_id and selected_hospital_id.isdigit():
-        team_members = team_members.filter(hospital_id=int(selected_hospital_id))
-    elif selected_hospital_id in ("none", "zappcode"):
+    team_members = User.objects.filter(is_active=True, is_approved=True, role__in=['COUNSELLOR', 'LEAD_ATTENDENT'])
+    if selected_business_id and selected_business_id.isdigit():
+        team_members = team_members.filter(hospital__id=int(selected_business_id))
+    elif selected_business_id in ("none", "zappcode"):
         team_members = team_members.filter(hospital__isnull=True)
     team_stats = []
     for member in team_members:

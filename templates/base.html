@@ -1288,7 +1288,7 @@
       background: #3b82f6;
     }
 
-    /* Zoho-style Horizontal Table Scrollbar (Thick, Distinct, User-Friendly) */
+    /* Modern High-Visibility Horizontal Table Scrollbar (Thick, Distinct, User-Friendly) */
     .custom-table-scrollbar {
       overflow-x: auto !important;
       -webkit-overflow-scrolling: touch;
@@ -1489,9 +1489,9 @@
         margin-bottom: 0 !important;
       }
 
-      /* Compact content container padding on mobile */
+      /* Compact content container padding on mobile (with space for bottom nav bar) */
       .content {
-        padding: 0.65rem 0.65rem !important;
+        padding: 0.65rem 0.65rem 75px 0.65rem !important;
       }
 
       /* Compact Topbar & Header */
@@ -1502,6 +1502,55 @@
       .topbar .search-box {
         max-width: 100% !important;
         margin-top: 0.25rem;
+      }
+
+      /* Universal KPI Cards 2-per-row grid on mobile (< 768px) */
+      .stats-kpi-grid,
+      .kpi-row,
+      .counselor-kpi-bar {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.5rem !important;
+        margin-bottom: 0.75rem !important;
+      }
+
+      .stats-kpi-grid .stat-card,
+      .kpi-row .kpi-box,
+      .counselor-kpi-bar .counselor-kpi-card,
+      .doc-stat-card {
+        padding: 0.55rem 0.65rem !important;
+        min-height: 72px !important;
+        border-radius: 10px !important;
+      }
+
+      .stat-card .stat-title,
+      .kpi-box .kpi-title,
+      .counselor-kpi-card .counselor-kpi-title,
+      .doc-stat-card .doc-stat-title {
+        font-size: 0.70rem !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      .stat-card .stat-value,
+      .kpi-box .kpi-val,
+      .counselor-kpi-card .counselor-kpi-value,
+      .doc-stat-card .doc-stat-val {
+        font-size: 1.25rem !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
+        margin: 0.15rem 0 !important;
+      }
+
+      .stat-card .stat-sub,
+      .counselor-kpi-card .stat-sub,
+      .doc-stat-card .doc-stat-sub {
+        font-size: 0.62rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
       }
 
       /* KPI Cards 2-per-row grid on mobile with compact numbers */
@@ -1842,6 +1891,8 @@
     </div>
   </div>
 
+  {% include "includes/mobile_bottom_nav.html" %}
+
   <!-- Universal Clean Logout Confirmation Modal (All Panels & All Industries) -->
   <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
@@ -2108,6 +2159,7 @@
   {% load static %}
   <script src="{% static 'js/crm_datetime_picker.js' %}"></script>
   <script src="{% static 'js/crm_live_sync.js' %}"></script>
+  <script src="{% static 'js/district_search.js' %}"></script>
 
   {% if request.session.auto_open_whatsapp %}
   <script>

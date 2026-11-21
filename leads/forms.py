@@ -92,14 +92,14 @@ class LeadForm(forms.ModelForm):
                         is_active=True,
                         is_approved=True,
                         hospital=user_biz,
-                        role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR]
+                        role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR]
                     ).order_by("first_name", "username")
                 else:
                     # Global Super Admin: assign to Counsellor, HR, Lead Attendant
                     self.fields["assigned_to"].queryset = User.objects.filter(
                         is_active=True,
                         is_approved=True,
-                        role__in=[User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT]
+                        role__in=[User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT]
                     ).order_by("first_name", "username")
             if "assigned_manager" in self.fields:
                 if user and user_biz:
@@ -663,7 +663,7 @@ class HospitalLeadForm(forms.ModelForm):
     visit_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     priority = NonStrictChoiceField(choices=[], required=False)
     # Location & Comments
-    location = NonStrictChoiceField(choices=[], required=False)
+    location = forms.CharField(required=False, max_length=255, widget=forms.TextInput(attrs={"class": "form-control district-search-input", "placeholder": "Search district / city...", "autocomplete": "off"}))
     comments = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter patient notes, summary, or comments..."}), required=False, label="Comments / Notes")
     
     # Custom Overrides for System Fields
@@ -889,8 +889,7 @@ class HospitalLeadForm(forms.ModelForm):
                 return []
         
         try:
-            loc_items = list(MasterItem.objects.filter(group__name__iexact="Locations", is_active=True).order_by("name").values_list("name", "name"))
-            self.fields["location"].choices = [("", "-- Select Patient Location (City, State) --")] + loc_items
+            # location is now standard searchable district input
             # 1. Departments filtered by Branch if available
             from leads.models import HospitalDepartment, HospitalDoctor, HospitalBranch, HospitalDisease
             init_branch = cd.get("hospital_branch") or cd.get("branch")
@@ -987,23 +986,27 @@ class HospitalLeadForm(forms.ModelForm):
 
             self.fields["gender"].choices = [("", "-- Select Gender --")] + get_field_options("gender", "Genders", "-- Select Gender --")
             self.fields["priority"].choices = [("", "-- Select Priority --")] + get_field_options("priority", "Priorities", "-- Select Priority --")
-            appt_status_options = get_field_options("appointment_status", "Appointment Statuses", "-- Select Appointment Status --")
+            # Hospital Stages for Lead Stage dropdown
+            from leads.models import LeadStage
+            hosp_stages_qs = LeadStage.objects.filter(is_active=True)
+            if user and user_biz:
+                hosp_stages_qs = hosp_stages_qs.filter(hospital=user_biz)
+            else:
+                hosp_stages_qs = hosp_stages_qs.filter(business_type='HOSPITAL')
+            
+            seen_stage_names = set()
+            stage_choices = []
+            for st in hosp_stages_qs.order_by('order', 'id'):
+                s_name = (st.name or '').strip()
+                if s_name and s_name.lower() not in seen_stage_names:
+                    seen_stage_names.add(s_name.lower())
+                    stage_choices.append((s_name, s_name))
+            
             curr_appt = self.fields["appointment_status"].initial
-            if curr_appt:
-                opt_dict = {o[0].lower(): o[0] for o in appt_status_options}
-                curr_lower = str(curr_appt).lower()
-                if curr_lower not in opt_dict:
-                    # Map legacy 'booked' or 'booking' to 'opd booking' if available
-                    if curr_lower in ['booked', 'booking', 'opd booking']:
-                        for candidate in ['opd booking', 'booking', 'booked']:
-                            if candidate in opt_dict:
-                                self.fields["appointment_status"].initial = opt_dict[candidate]
-                                break
-                    elif 'consult' in curr_lower and 'consultation booking' in opt_dict:
-                        self.fields["appointment_status"].initial = opt_dict['consultation booking']
-                    else:
-                        appt_status_options.insert(0, (str(curr_appt), str(curr_appt)))
-            self.fields["appointment_status"].choices = [("", "-- Select Appointment Status --")] + appt_status_options
+            if curr_appt and str(curr_appt).strip().lower() not in seen_stage_names:
+                stage_choices.insert(0, (str(curr_appt).strip(), str(curr_appt).strip()))
+
+            self.fields["appointment_status"].choices = [("", "-- Select Stage --")] + stage_choices
             self.fields["deal_status"].choices = [("", "-- Select Deal Status --")] + get_field_options("deal_status", "Deal Statuses", "-- Select Deal Status --")
 
             master_campaigns = get_field_options("campaign", "Campaigns", "-- Select Campaign --")
@@ -1020,13 +1023,7 @@ class HospitalLeadForm(forms.ModelForm):
             if curr_src and str(curr_src).lower() not in src_dict:
                 master_sources.insert(0, (str(curr_src), str(curr_src)))
 
-            curr_loc = self.fields["location"].initial
-            loc_options = get_field_options("location", "Locations", "-- Select Patient Location --")
-            loc_names = {l[0].lower() for l in loc_options if l[0]}
-            if curr_loc and str(curr_loc).lower() not in loc_names:
-                loc_options.insert(0, (str(curr_loc), str(curr_loc)))
-
-            self.fields["location"].choices = [("", "-- Select Patient Location (City, State) --")] + loc_options
+            # location is now standard searchable district input
             self.fields["campaign"].choices = [("", "-- Select Campaign --")] + master_campaigns
             self.fields["lead_source"].choices = [("", "-- Select Lead Source --")] + master_sources
 
@@ -1654,7 +1651,13 @@ class HospitalLeadForm(forms.ModelForm):
             if instance.assigned_to:
                 instance.stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.order_by("order", "id").first()
             else:
-                instance.stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.order_by("order", "id").first()
+                instance.stage = (
+                    LeadStage.objects.filter(hospital=target_business, name__iexact='Fresh').first()
+                    or LeadStage.objects.filter(hospital=target_business, name__iexact='New').first()
+                    or LeadStage.objects.filter(name__iexact='Fresh').first()
+                    or LeadStage.objects.filter(name__iexact='New').first()
+                    or LeadStage.objects.order_by("order", "id").first()
+                )
 
         instance.custom_data = cd
         def _save_related():

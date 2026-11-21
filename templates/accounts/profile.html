@@ -144,8 +144,8 @@
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="profile-avatar-box">
-                    {% if request.user.profile_picture %}
-                        <img src="{{ request.user.profile_picture.url }}" alt="Profile" class="profile-avatar-img">
+                    {% if request.user.get_profile_picture_url %}
+                        <img src="{{ request.user.get_profile_picture_url }}" alt="Profile" class="profile-avatar-img">
                     {% else %}
                         {{ request.user.first_name|first|default:request.user.username|first|upper }}
                     {% endif %}
@@ -320,8 +320,8 @@
                                 <input type="hidden" name="delete_profile_picture" id="delete_profile_picture_input" value="0">
                                 <div class="d-flex align-items-center gap-3">
                                     <div id="avatar_preview_container" style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; border: 1px solid #cbd5e1; flex-shrink: 0; background: #f8fafc; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #64748b;">
-                                        {% if request.user.profile_picture %}
-                                            <img id="avatar_live_preview" src="{{ request.user.profile_picture.url }}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                                        {% if request.user.get_profile_picture_url %}
+                                            <img id="avatar_live_preview" src="{{ request.user.get_profile_picture_url }}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
                                             <span id="avatar_preview_placeholder_icon" style="display: none;">{{ request.user.first_name|first|default:request.user.username|first|upper }}</span>
                                         {% else %}
                                             <img id="avatar_live_preview" src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
@@ -338,7 +338,7 @@
                                             <span>Clear Selection</span>
                                         </button>
                                         <!-- Option 1: Delete Photo (Removes current saved profile picture and reverts to default avatar) -->
-                                        <button type="button" id="btnDeleteCurrentPic" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" style="white-space: nowrap; {% if not request.user.profile_picture %}display: none !important;{% endif %}" title="Delete current profile photo and reset to default avatar">
+                                        <button type="button" id="btnDeleteCurrentPic" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" style="white-space: nowrap; {% if not request.user.get_profile_picture_url %}display: none !important;{% endif %}" title="Delete current profile photo and reset to default avatar">
                                             <i class="fa-solid fa-trash-can"></i>
                                             <span>Delete Photo</span>
                                         </button>

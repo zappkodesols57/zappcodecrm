@@ -232,8 +232,8 @@ def user_list(request):
     business_id = getattr(active_biz, 'id', None) or getattr(request.user, 'business_id', None)
 
     if business_id:
-        pending_users = pending_users.filter(hospital_id=business_id)
-        users_qs = users_qs.filter(hospital_id=business_id)
+        pending_users = pending_users.filter(hospital=active_biz or business_id)
+        users_qs = users_qs.filter(hospital=active_biz or business_id)
         # If Branch Manager is scoped to specific branch(es), isolate users to those branches (or all-branches users)
         if request.user.role == User.Role.MANAGER:
             mgr_branches = list(request.user.assigned_branches.filter(is_active=True)) if hasattr(request.user, 'assigned_branches') and request.user.assigned_branches.exists() else []
@@ -291,7 +291,7 @@ def user_list(request):
             elif business_filter.isdigit():
                 selected_business_obj = Hospital.objects.filter(id=int(business_filter)).first()
                 if selected_business_obj:
-                    users_qs = users_qs.filter(hospital_id=selected_business_obj.id)
+                    users_qs = users_qs.filter(hospital=selected_business_obj)
 
     total_count = users_qs.count()
 
@@ -314,14 +314,12 @@ def user_list(request):
             available_roles = [
                 (User.Role.ADMIN, "Admin"),
                 (User.Role.MANAGER, "Manager"),
-                (User.Role.HR, "HR"),
                 (User.Role.COUNSELLOR, "Counsellor"),
             ]
         else:
             available_roles = [
                 (User.Role.ADMIN, "Admin"),
                 (User.Role.MANAGER, "Manager"),
-                (User.Role.HR, "HR"),
             ]
     elif request.user.is_superuser or request.user.role == User.Role.SUPER_ADMIN:
         # Superadmin with All Businesses selected: full visibility of all system roles
@@ -331,7 +329,6 @@ def user_list(request):
             (User.Role.MANAGER, "Manager"),
             (User.Role.LEAD_ATTENDENT, "Telecaller"),
             (User.Role.DOCTOR, "Doctor"),
-            (User.Role.HR, "HR"),
             (User.Role.COUNSELLOR, "Counsellor"),
         ]
     elif biz_industry == 'ACADEMY':
@@ -343,7 +340,6 @@ def user_list(request):
             available_roles = [
                 (User.Role.ADMIN, "Admin"),
                 (User.Role.MANAGER, "Manager"),
-                (User.Role.HR, "HR"),
                 (User.Role.COUNSELLOR, "Counsellor"),
             ]
     elif biz_industry == 'HOSPITAL':
@@ -460,14 +456,14 @@ def auto_generate_master_data_profiles(hospital=None):
 
     # 2. Pre-fetch existing Users into in-memory maps to avoid N+1 queries
     all_users = list(User.objects.all().only(
-        'id', 'username', 'first_name', 'last_name', 'role', 'hospital_id', 
+        'id', 'username', 'first_name', 'last_name', 'role', 'hospital', 
         'phone', 'email', 'speciality', 'department', 'is_active', 'is_active_employee'
     ))
     user_by_uname = {u.username.lower(): u for u in all_users}
-    user_by_uname_and_hosp = {(u.username.lower(), u.hospital_id): u for u in all_users}
+    user_by_uname_and_biz = {(u.username.lower(), u.business_id): u for u in all_users}
     user_by_name = {(u.first_name.strip().lower(), u.last_name.strip().lower()): u for u in all_users if u.first_name}
-    user_by_name_and_hosp = {
-        (u.first_name.strip().lower(), u.last_name.strip().lower() if u.last_name else "", u.hospital_id): u 
+    user_by_name_and_biz = {
+        (u.first_name.strip().lower(), u.last_name.strip().lower() if u.last_name else "", u.business_id): u 
         for u in all_users if u.first_name
     }
     existing_unames = set(user_by_uname.keys())
@@ -495,7 +491,7 @@ def auto_generate_master_data_profiles(hospital=None):
         existing_master_items = {m.lower() for m in mi_qs.values_list('name', flat=True)}
 
     created_users = []
-    hospital_id = hospital.id if hospital else None
+    business_id = hospital.id if hospital else None
 
     # 3. Auto-generate Temporary User Profiles for Lead Attendants
     for att_name in attendants:
@@ -507,8 +503,8 @@ def auto_generate_master_data_profiles(hospital=None):
         if not base_username:
             continue
 
-        name_key = (first_n.lower(), last_n.lower(), hospital_id)
-        existing_user = user_by_uname_and_hosp.get((base_username, hospital_id)) or user_by_name_and_hosp.get(name_key)
+        name_key = (first_n.lower(), last_n.lower(), business_id)
+        existing_user = user_by_uname_and_biz.get((base_username, business_id)) or user_by_name_and_biz.get(name_key)
 
         if not existing_user:
             uname = base_username
@@ -532,8 +528,8 @@ def auto_generate_master_data_profiles(hospital=None):
             if hospital:
                 new_user.assigned_branches.set(hospital.branches.filter(is_active=True))
             created_users.append(new_user)
-            user_by_uname_and_hosp[(uname.lower(), hospital_id)] = new_user
-            user_by_name_and_hosp[name_key] = new_user
+            user_by_uname_and_biz[(uname.lower(), business_id)] = new_user
+            user_by_name_and_biz[name_key] = new_user
             existing_unames.add(uname.lower())
 
     # 4. Auto-generate Temporary User & HospitalDoctor Profiles for Doctors
@@ -548,8 +544,8 @@ def auto_generate_master_data_profiles(hospital=None):
         raw_uname = f"dr_{re.sub(r'[^a-zA-Z0-9]', '', clean_doc_name).lower()}"
 
         # Match user specifically in this hospital/business context
-        name_key = (first_n.lower(), last_n.lower(), hospital_id)
-        existing_user = user_by_uname_and_hosp.get((raw_uname, hospital_id)) or user_by_name_and_hosp.get(name_key)
+        name_key = (first_n.lower(), last_n.lower(), business_id)
+        existing_user = user_by_uname_and_biz.get((raw_uname, business_id)) or user_by_name_and_biz.get(name_key)
 
         if not existing_user:
             uname = raw_uname
@@ -573,8 +569,8 @@ def auto_generate_master_data_profiles(hospital=None):
             if hospital:
                 existing_user.assigned_branches.set(hospital.branches.filter(is_active=True))
             created_users.append(existing_user)
-            user_by_uname_and_hosp[(uname.lower(), hospital_id)] = existing_user
-            user_by_name_and_hosp[name_key] = existing_user
+            user_by_uname_and_biz[(uname.lower(), business_id)] = existing_user
+            user_by_name_and_biz[name_key] = existing_user
             existing_unames.add(uname.lower())
 
         # Ensure sync to HospitalDoctor model and MasterItem efficiently
@@ -1369,7 +1365,7 @@ def audit_log(request):
     if user_biz:
         logs = logs.filter(user__hospital=user_biz)
     elif selected_business_id and selected_business_id.isdigit():
-        logs = logs.filter(user__hospital_id=int(selected_business_id))
+        logs = logs.filter(user__hospital__id=int(selected_business_id))
 
     action = request.GET.get("action", "").strip()
     if action:
@@ -1383,7 +1379,7 @@ def audit_log(request):
     if user_biz:
         actions_qs = actions_qs.filter(user__hospital=user_biz)
     elif selected_business_id and selected_business_id.isdigit():
-        actions_qs = actions_qs.filter(user__hospital_id=int(selected_business_id))
+        actions_qs = actions_qs.filter(user__hospital__id=int(selected_business_id))
 
     return render(request, "accounts/audit_log.html", {
         "active": "audit", 

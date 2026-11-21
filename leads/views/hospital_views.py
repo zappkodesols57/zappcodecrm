@@ -1708,7 +1708,7 @@ def appointments_done_list(request):
 
         telecallers_qs = User.objects.filter(
             hospital=target_hospital,
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.MANAGER],
             is_active=True
         ).order_by("first_name", "last_name", "username")
         campaigns_list = list(MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital).values_list("name", flat=True))
@@ -1728,7 +1728,7 @@ def appointments_done_list(request):
                 seen_d.add(str(d).strip().lower())
                 doctors_list.append(str(d).strip())
         telecallers_qs = User.objects.filter(
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.MANAGER],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.MANAGER],
             is_active=True
         ).order_by("first_name", "last_name", "username")
         campaigns_list = list(MasterGroup.get_active_choices("Campaigns").values_list("name", flat=True).distinct())
@@ -2061,7 +2061,7 @@ def pending_leads(request):
     if target_hospital:
         context["employees"] = User.objects.filter(
             hospital=target_hospital,
-            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR],
+            role__in=[User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR],
             is_active=True,
             is_approved=True
         ).order_by("first_name", "last_name", "username")

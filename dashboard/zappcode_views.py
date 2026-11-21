@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, Sum
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from accounts.models import Hospital, User
@@ -47,8 +47,13 @@ def management_home(request):
     if request.user.role not in (User.Role.SUPER_ADMIN, User.Role.MANAGER):
         raise PermissionDenied("This dashboard is restricted to management accounts.")
 
+    # If the user belongs to a specific business (e.g. Hospital or Academy Manager),
+    # smoothly route them to their business admin dashboard view
     if request.user.business is not None:
-        raise PermissionDenied("This dashboard is restricted to Zappcode management only.")
+        if request.user.industry == 'HOSPITAL':
+            return redirect("dashboard:hospital_admin_home")
+        else:
+            return redirect("dashboard:academy_admin_home")
 
     today = timezone.localdate()
     
@@ -104,9 +109,9 @@ def management_home(request):
     base_leads = Lead.objects.filter(is_archived=False)
     
     if not is_all_businesses:
-        numeric_hosp_ids = [int(bid) for bid in selected_business_ids if bid.isdigit()]
-        if numeric_hosp_ids:
-            base_leads = base_leads.filter(hospital_id__in=numeric_hosp_ids)
+        numeric_biz_ids = [int(bid) for bid in selected_business_ids if bid.isdigit()]
+        if numeric_biz_ids:
+            base_leads = base_leads.filter(hospital__id__in=numeric_biz_ids)
 
     # ── 4. Apply Additional Dashboard Filters ──────────────────────────────────
     filtered_leads = base_leads
@@ -245,7 +250,7 @@ def management_home(request):
             if b["id"] == "zappcode":
                 b_leads = filtered_leads.filter(hospital__isnull=True)
             else:
-                b_leads = filtered_leads.filter(hospital_id=int(b["id"]))
+                b_leads = filtered_leads.filter(hospital__id=int(b["id"]))
 
             b_total = b_leads.count()
             b_lead_ids = b_leads.values_list("id", flat=True)
@@ -273,7 +278,7 @@ def management_home(request):
     if is_single_business and selected_businesses:
         b_id = selected_businesses[0].get("id")
         if b_id:
-            all_stages = list(LeadStage.objects.filter(is_active=True, hospital_id=b_id).order_by("order", "name"))
+            all_stages = list(LeadStage.objects.filter(is_active=True, hospital__id=b_id).order_by("order", "name"))
         else:
             b_name_low = (selected_businesses[0]["name"] or "").lower()
             if any(k in b_name_low for k in ["hospital", "nelson", "clinic", "medical"]):
@@ -322,7 +327,7 @@ def management_home(request):
             if b["id"] == "zappcode":
                 b_leads = filtered_leads.filter(hospital__isnull=True)
             else:
-                b_leads = filtered_leads.filter(hospital_id=int(b["id"]))
+                b_leads = filtered_leads.filter(hospital__id=int(b["id"]))
 
             stage_counts_map = dict(b_leads.values("stage__name").annotate(c=Count("id")).values_list("stage__name", "c"))
             b_counts = [stage_counts_map.get(sname, 0) for sname in funnel_stage_labels]
@@ -341,7 +346,7 @@ def management_home(request):
             if b["id"] == "zappcode":
                 b_leads = filtered_leads.filter(hospital__isnull=True)
             else:
-                b_leads = filtered_leads.filter(hospital_id=int(b["id"]))
+                b_leads = filtered_leads.filter(hospital__id=int(b["id"]))
 
             emp_map = dict(b_leads.values("assigned_to__first_name", "assigned_to__username").annotate(c=Count("id")).values_list("assigned_to__first_name", "c"))
             emp_counts = [emp_map.get(lbl, 0) for lbl in emp_labels]
@@ -359,7 +364,7 @@ def management_home(request):
             if b["id"] == "zappcode":
                 b_leads = filtered_leads.filter(hospital__isnull=True)
             else:
-                b_leads = filtered_leads.filter(hospital_id=int(b["id"]))
+                b_leads = filtered_leads.filter(hospital__id=int(b["id"]))
 
             b_meta = get_category_meta_for_business(b["name"])
 
@@ -444,8 +449,8 @@ def management_home(request):
     if not is_all_businesses:
         if "zappcode" in selected_business_ids and len(selected_business_ids) == 1:
             team_members = team_members.filter(hospital__isnull=True)
-        elif numeric_hosp_ids and "zappcode" not in selected_business_ids:
-            team_members = team_members.filter(hospital_id__in=numeric_hosp_ids)
+        elif numeric_biz_ids and "zappcode" not in selected_business_ids:
+            team_members = team_members.filter(hospital__id__in=numeric_biz_ids)
 
     team_stats = []
     for member in team_members[:15]:

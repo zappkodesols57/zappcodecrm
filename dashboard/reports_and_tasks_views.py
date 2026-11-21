@@ -3306,7 +3306,7 @@ def admin_reports_view(request):
     # Base Employees for this specific business only
     employees_qs = User.objects.filter(is_active=True)
     if active_business:
-        employees_qs = employees_qs.filter(hospital_id=active_business.id)
+        employees_qs = employees_qs.filter(hospital=active_business)
     elif not user.is_superuser and user.role != User.Role.SUPER_ADMIN:
         # Fallback security shield: If user has no business and is not superadmin, empty queryset
         employees_qs = employees_qs.none()
@@ -3396,7 +3396,7 @@ def admin_reports_view(request):
         # Activity summary for this date (strictly scoped to lead under this business)
         leads_assigned_on_date = Lead.objects.filter(assigned_to=emp, inquiry_date=target_date)
         if active_business:
-            leads_assigned_on_date = leads_assigned_on_date.filter(hospital_id=active_business.id)
+            leads_assigned_on_date = leads_assigned_on_date.filter(hospital=active_business)
         leads_assigned_count = leads_assigned_on_date.count()
         
         staff_attendance.append({
@@ -3435,7 +3435,7 @@ def admin_reports_view(request):
             (User.Role.LEAD_ATTENDENT, "Telecaller"),
             (User.Role.DOCTOR, "Doctor"),
             (User.Role.COUNSELLOR, "Counsellor"),
-            (User.Role.HR, "HR"),
+            ("HR"),
         ]
         role_choices = [c for c in all_choices if c[0] in allowed_keys]
     else:
@@ -3445,7 +3445,7 @@ def admin_reports_view(request):
             (User.Role.LEAD_ATTENDENT, "Telecaller"),
             (User.Role.DOCTOR, "Doctor"),
             (User.Role.COUNSELLOR, "Counsellor"),
-            (User.Role.HR, "HR"),
+            ("HR"),
         ]
 
     context = {

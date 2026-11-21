@@ -23,32 +23,35 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 def meta_webhook(request, business_id=None):
     """
+    Meta (Facebook/Instagram) Lead Ads Webhook Endpoint.
     GET  → Meta verification handshake (one-time setup)
     POST → Real-time lead notification from Meta
     Supports dedicated per-business endpoints: /meta-ads/webhook/<business_id>/
-    as well as global fallback endpoint: /meta-ads/webhook/
+    as well as global multi-tenant endpoint: /meta-ads/webhook/
     """
+    import hmac
+    import hashlib
+
     connection = None
     if business_id:
-        connection = MetaAdsConnection.objects.filter(is_active=True, hospital_id=business_id).first()
+        connection = MetaAdsConnection.objects.filter(is_active=True, hospital__id=business_id).first()
     if not connection:
-        # Fallback to connection matching verify token or active connection
         v_token = request.GET.get("hub.verify_token")
         if v_token:
             connection = MetaAdsConnection.objects.filter(is_active=True, webhook_verify_token=v_token).first()
     if not connection:
-        # Default global webhook is permanently attached to Zappcode Academy (Business ID: 7)
+        # Default global active connection fallback
         connection = (
-            MetaAdsConnection.objects.filter(is_active=True, hospital_id=7).first()
+            MetaAdsConnection.objects.filter(is_active=True, hospital__id=7).first()
             or MetaAdsConnection.objects.filter(is_active=True, name__icontains="academy").first()
             or MetaAdsConnection.objects.filter(is_active=True).first()
         )
 
-    # ── Verification Handshake ──
+    # ── 1. Verification Handshake (GET) ──
     if request.method == "GET":
         mode = request.GET.get("hub.mode")
-        token = request.GET.get("hub.verify_token")
-        challenge = request.GET.get("hub.challenge")
+        received_token = request.GET.get("hub.verify_token", "")
+        challenge = request.GET.get("hub.challenge", "")
 
         valid_tokens = {
             "zappcode_meta_webhook_secret_2026",
@@ -60,16 +63,35 @@ def meta_webhook(request, business_id=None):
         if hasattr(settings, "META_WEBHOOK_VERIFY_TOKEN"):
             valid_tokens.add(settings.META_WEBHOOK_VERIFY_TOKEN)
 
-        if mode == "subscribe" and token in valid_tokens:
-            logger.info(f"✅ Meta webhook verified successfully with token: {token}")
+        # Timing-attack safe comparison using hmac.compare_digest
+        is_token_valid = any(hmac.compare_digest(vt, received_token) for vt in valid_tokens if vt)
+
+        if mode == "subscribe" and is_token_valid:
+            logger.info(f"✅ Meta webhook verified successfully with token: {received_token}")
             return HttpResponse(challenge, content_type="text/plain")
         
-        logger.warning(f"❌ Meta webhook verification failed. Received token: {token}")
+        logger.warning(f"❌ Meta webhook verification failed. Received token: {received_token}")
         return HttpResponse("Verification failed.", status=403)
 
-    # ── Real-time Lead Notification ──
+    # ── 2. Real-time Lead Notification (POST) ──
     if request.method == "POST":
         try:
+            # Payload Signature Check (if app_secret is configured on connection)
+            signature_header = request.headers.get("X-Hub-Signature-256")
+            if signature_header and connection and connection.app_secret:
+                try:
+                    hash_method, received_signature = signature_header.split("=", 1)
+                    if hash_method == "sha256":
+                        expected_hash = hmac.new(
+                            connection.app_secret.encode("utf-8"),
+                            msg=request.body,
+                            digestmod=hashlib.sha256
+                        ).hexdigest()
+                        if not hmac.compare_digest(expected_hash, received_signature):
+                            logger.warning(f"⚠️ Meta webhook signature mismatch for connection {connection.name}!")
+                except Exception as sig_err:
+                    logger.warning(f"⚠️ Error parsing webhook signature: {sig_err}")
+
             payload = json.loads(request.body)
             logger.info(f"Meta webhook received: {payload}")
             for entry in payload.get("entry", []):
@@ -92,7 +114,7 @@ def meta_webhook(request, business_id=None):
 
                         # 2. If business_id is in webhook URL path (/meta-ads/webhook/<business_id>/)
                         if not target_conn and business_id:
-                            target_conn = MetaAdsConnection.objects.filter(is_active=True, hospital_id=business_id).first()
+                            target_conn = MetaAdsConnection.objects.filter(is_active=True, hospital__id=business_id).first()
 
                         # 3. By form_id from MetaLeadForm table
                         val_form_id = str(val.get("form_id", "")).strip()
@@ -170,7 +192,7 @@ def create_or_update_meta_lead(connection, data):
             business = Hospital.objects.filter(industry="ACADEMY", is_active=True).first() or Business.objects.filter(is_active=True).first()
         
         # Auto-heal: bind this connection to the resolved business permanently so it never fluctuates
-        if business and connection and not connection.hospital_id:
+        if business and connection and not connection.business_id:
             try:
                 connection.hospital = business
                 connection.save(update_fields=["hospital"])
@@ -178,8 +200,14 @@ def create_or_update_meta_lead(connection, data):
             except Exception as e:
                 logger.warning(f"Failed to auto-bind connection to business: {e}")
 
-    # 1. Stage
-    stage = LeadStage.objects.filter(name__iexact='New').first() or LeadStage.objects.filter(is_active=True).order_by("order").first()
+    # 1. Stage (Fresh / New)
+    stage = (
+        LeadStage.objects.filter(hospital=business, name__iexact='Fresh').first()
+        or LeadStage.objects.filter(hospital=business, name__iexact='New').first()
+        or LeadStage.objects.filter(name__iexact='Fresh').first()
+        or LeadStage.objects.filter(name__iexact='New').first()
+        or LeadStage.objects.filter(is_active=True).order_by("order").first()
+    )
 
     # 2. Source Category & Lead Source
     source_cat = SourceCategory.objects.filter(name__icontains="Digital").first() or \
@@ -845,7 +873,7 @@ def update_meta_token(request):
     if not connection:
         # Default global webhook is permanently attached to Zappcode Academy (Business ID: 7)
         connection = (
-            MetaAdsConnection.objects.filter(is_active=True, hospital_id=7).first()
+            MetaAdsConnection.objects.filter(is_active=True, hospital__id=7).first()
             or MetaAdsConnection.objects.filter(is_active=True, name__icontains="academy").first()
             or MetaAdsConnection.objects.filter(is_active=True).first()
         )
@@ -1281,7 +1309,7 @@ def academy_sync_meta_now(request):
     if not connection:
         # Default global webhook is permanently attached to Zappcode Academy (Business ID: 7)
         connection = (
-            MetaAdsConnection.objects.filter(is_active=True, hospital_id=7).first()
+            MetaAdsConnection.objects.filter(is_active=True, hospital__id=7).first()
             or MetaAdsConnection.objects.filter(is_active=True, name__icontains="academy").first()
             or MetaAdsConnection.objects.filter(is_active=True).first()
         )

@@ -1,0 +1,215 @@
+{% if user.is_authenticated %}
+<style>
+  /* App-Style Bottom Navigation for Mobile Devices */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1040;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -2px 10px rgba(15, 39, 68, 0.08);
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none !important;
+    color: #64748b;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 4px 0;
+    transition: color 0.15s ease;
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .mobile-nav-item i {
+    font-size: 1.15rem;
+    margin-bottom: 2px;
+    transition: transform 0.15s ease;
+  }
+
+  .mobile-nav-item.active,
+  .mobile-nav-item:hover,
+  .mobile-nav-item:focus {
+    color: var(--brand, #0f2744) !important;
+  }
+
+  .mobile-nav-item.active i {
+    transform: scale(1.1);
+  }
+
+  /* Center Floating / Highlighted Button */
+  .mobile-nav-item-center {
+    position: relative;
+    top: -10px;
+    background: var(--brand, #0f2744) !important;
+    color: #ffffff !important;
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
+    border-radius: 50% !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(15, 39, 68, 0.35);
+    border: 3px solid #ffffff !important;
+    flex: 0 0 48px;
+    padding: 0 !important;
+  }
+
+  .mobile-nav-item-center i {
+    font-size: 1.35rem;
+    margin-bottom: 0;
+    color: #ffffff !important;
+  }
+
+  .mobile-nav-item-center:hover,
+  .mobile-nav-item-center:focus {
+    color: #ffffff !important;
+    transform: translateY(-2px);
+  }
+
+  /* Role Badge in Header */
+  .mobile-header-role-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: var(--brand, #0f2744);
+    border: 1px solid #cbd5e1;
+    white-space: nowrap;
+  }
+</style>
+
+<!-- Mobile Bottom Navigation (Visible ONLY on Mobile < 768px) -->
+<nav class="mobile-bottom-nav d-md-none" aria-label="Mobile Navigation">
+
+  {% if user.role == 'DOCTOR' %}
+    {# ─── DOCTOR BOTTOM NAV ─── #}
+    <!-- 1. Menu (Toggle Sidebar) -->
+    <button type="button" class="mobile-nav-item" onclick="toggleMobileSidebar()" aria-label="Open Sidebar Menu">
+      <i class="fa-solid fa-bars"></i>
+      <span>Menu</span>
+    </button>
+
+    <!-- 2. Pending Approval Consultations -->
+    <a href="{% url 'dashboard:doctor_home' %}?tab=appointments&subtab=pending" class="mobile-nav-item {% if request.GET.subtab == 'pending' %}active{% endif %}">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>Pending</span>
+    </a>
+
+    <!-- 3. Center Action: Today's Appointments -->
+    <a href="{% url 'dashboard:doctor_home' %}?tab=appointments&subtab=today" class="mobile-nav-item mobile-nav-item-center" title="Today's Appointments" aria-label="Today's Appointments">
+      <i class="fa-solid fa-calendar-day"></i>
+    </a>
+
+    <!-- 4. Notifications -->
+    <button type="button" class="mobile-nav-item position-relative" data-bs-toggle="dropdown" data-bs-target="#notifDropdownBtn" aria-expanded="false" onclick="triggerMobileNotif()" aria-label="Notifications">
+      <i class="fa-solid fa-bell"></i>
+      <span>Alerts</span>
+      <span class="position-absolute badge rounded-pill mobile-notif-dot" id="mobileNotifDot" style="display: none; top: 2px; right: 22%; width: 8px; height: 8px; padding: 0; background-color: #ef4444; border: 1.5px solid #ffffff;"></span>
+    </button>
+
+    <!-- 5. Profile -->
+    <a href="{% url 'accounts:profile' %}" class="mobile-nav-item {% if active == 'profile' %}active{% endif %}">
+      <i class="fa-solid fa-user-doctor"></i>
+      <span>Profile</span>
+    </a>
+
+  {% else %}
+    {# ─── STANDARD BOTTOM NAV (Admin, Telecaller, Counselor, HR, Manager, Superadmin) ─── #}
+    <!-- 1. Menu (Toggle Sidebar) -->
+    <button type="button" class="mobile-nav-item" onclick="toggleMobileSidebar()" aria-label="Open Sidebar Menu">
+      <i class="fa-solid fa-bars"></i>
+      <span>Menu</span>
+    </button>
+
+    <!-- 2. Import Leads (or All Leads for Counselors/Telecallers if no import permission) -->
+    {% if user.can_import_export or user.role == 'LEAD_ATTENDENT' or user.role == 'MANAGER' or user.role == 'ADMIN' or user.is_superuser %}
+      <a href="{% url 'imports:upload' %}" class="mobile-nav-item {% if active == 'import' %}active{% endif %}">
+        <i class="fa-solid fa-file-arrow-up"></i>
+        <span>Import</span>
+      </a>
+    {% else %}
+      <a href="{% url 'leads:lead_list' %}" class="mobile-nav-item {% if active == 'leads_all' or active == 'my_leads' %}active{% endif %}">
+        <i class="fa-solid fa-list-check"></i>
+        <span>Leads</span>
+      </a>
+    {% endif %}
+
+    <!-- 3. Center Hero Action: Add Lead -->
+    {% if user.can_add_leads or user.is_superuser or user.role == 'ADMIN' or user.role == 'COUNSELOR' or user.role == 'TELECALLER' or user.role == 'MANAGER' %}
+      <a href="{% url 'leads:lead_add' %}" class="mobile-nav-item mobile-nav-item-center" title="Add Lead" aria-label="Add Lead">
+        <i class="fa-solid fa-plus"></i>
+      </a>
+    {% else %}
+      <a href="{% url 'dashboard:home' %}" class="mobile-nav-item mobile-nav-item-center" title="Dashboard Home" aria-label="Dashboard Home">
+        <i class="fa-solid fa-house"></i>
+      </a>
+    {% endif %}
+
+    <!-- 4. Notifications -->
+    <button type="button" class="mobile-nav-item position-relative" onclick="triggerMobileNotif()" aria-label="Notifications">
+      <i class="fa-solid fa-bell"></i>
+      <span>Alerts</span>
+      <span class="position-absolute badge rounded-pill mobile-notif-dot" id="mobileNotifDotStd" style="display: none; top: 2px; right: 22%; width: 8px; height: 8px; padding: 0; background-color: #ef4444; border: 1.5px solid #ffffff;"></span>
+    </button>
+
+    <!-- 5. Profile / Account -->
+    <a href="{% url 'accounts:profile' %}" class="mobile-nav-item {% if active == 'profile' %}active{% endif %}">
+      <i class="fa-solid fa-circle-user"></i>
+      <span>Profile</span>
+    </a>
+  {% endif %}
+
+</nav>
+
+<script>
+  // Helper to open topbar notification drawer from bottom footer
+  function triggerMobileNotif() {
+    const notifBtn = document.getElementById('notifDropdownBtn');
+    if (notifBtn) {
+      // Scroll to top smoothly if needed and trigger dropdown
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        const bsDropdown = bootstrap.Dropdown.getOrCreateInstance(notifBtn);
+        bsDropdown.toggle();
+      }, 100);
+    }
+  }
+
+  // Sync unread notification indicator to mobile bottom nav dot
+  document.addEventListener("DOMContentLoaded", function() {
+    const observer = new MutationObserver(function() {
+      const mainBadge = document.getElementById('notifBadge');
+      const dot1 = document.getElementById('mobileNotifDot');
+      const dot2 = document.getElementById('mobileNotifDotStd');
+      const isVisible = mainBadge && mainBadge.style.display !== 'none' && parseInt(mainBadge.textContent.trim(), 10) > 0;
+      if (dot1) dot1.style.display = isVisible ? 'inline-block' : 'none';
+      if (dot2) dot2.style.display = isVisible ? 'inline-block' : 'none';
+    });
+
+    const badgeElem = document.getElementById('notifBadge');
+    if (badgeElem) {
+      observer.observe(badgeElem, { attributes: true, childList: true, characterData: true });
+    }
+  });
+</script>
+{% endif %}
