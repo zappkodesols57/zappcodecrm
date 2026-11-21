@@ -341,9 +341,9 @@
     </div>
   </div>
 
-  <!-- Stats KPI Cards -->
-  <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-lg">
+  <!-- Stats KPI Cards (Strictly 2 per row on mobile) -->
+  <div class="row g-2 g-md-3 mb-4">
+    <div class="col-6 col-sm-6 col-lg">
       <div class="doc-stat-card kpi-today" onclick="switchMainTab('appointments', 'today')">
         <div>
           <div class="doc-stat-title">Today's Appointments</div>
@@ -353,7 +353,7 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg">
+    <div class="col-6 col-sm-6 col-lg">
       <div class="doc-stat-card kpi-upcoming" onclick="switchMainTab('appointments', 'upcoming')">
         <div>
           <div class="doc-stat-title">Upcoming Appointments</div>
@@ -363,7 +363,7 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg">
+    <div class="col-6 col-sm-6 col-lg">
       <div class="doc-stat-card kpi-pending" onclick="switchMainTab('appointments', 'pending')">
         <div>
           <div class="doc-stat-title">Pending Approval</div>
@@ -373,11 +373,11 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg">
+    <div class="col-6 col-sm-6 col-lg">
       <div class="doc-stat-card kpi-hours" onclick="switchMainTab('calendar', 'hours')">
         <div>
           <div class="doc-stat-title">OPD Working Hours</div>
-          <div class="doc-stat-val text-success text-nowrap" style="font-size: 1.25rem; margin-top: 0.2rem;">
+          <div class="doc-stat-val text-success text-nowrap" style="font-size: 1.1rem; margin-top: 0.2rem;">
             {{ schedule.opd_start_time|time:"h:i A" }} - {{ schedule.opd_end_time|time:"h:i A" }}
           </div>
         </div>
@@ -385,7 +385,7 @@
       </div>
     </div>
 
-    <div class="col-sm-6 col-lg">
+    <div class="col-6 col-sm-6 col-lg">
       <div class="doc-stat-card kpi-total" onclick="switchMainTab('completed')">
         <div>
           <div class="doc-stat-title">Total Bookings</div>

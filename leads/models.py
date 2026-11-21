@@ -201,6 +201,27 @@ class LeadStage(models.Model):
     order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
+    @property
+    def mapped_deal_status(self):
+        """
+        Calculates the standard macro DealStatus for this stage.
+        Strict 5 DealStatus: UNCONTACTED, CONTACTED, INTERESTED, WON, LOST
+        """
+        n = (self.name or "").strip().lower()
+        if n in ("lost", "cancelled", "dropout", "rejected", "not interested", "closed lost"):
+            return DealStatus.LOST
+        elif n in ("payment done", "admission done", "ipd done", "closed won", "won"):
+            return DealStatus.WON
+        elif n in ("payment pending", "appointment done", "opd done", "visit done"):
+            return DealStatus.WON
+        elif n in ("fresh", "new", "uncontacted", "assigned"):
+            return DealStatus.UNCONTACTED
+        elif n in ("follow up pending", "follow-up pending", "follow up - pending"):
+            return DealStatus.CONTACTED
+        elif any(k in n for k in ("follow", "visit", "demo", "appointment", "booking", "approval", "planned", "pending", "contacted", "interested", "done", "rescheduled")):
+            return DealStatus.INTERESTED
+        return DealStatus.CONTACTED
+
     class Meta:
         ordering = ["order", "name"]
         unique_together = ("hospital", "name", "business_type")
@@ -537,11 +558,12 @@ class LeadIntent(models.TextChoices):
 
 
 class DealStatus(models.TextChoices):
-    OPEN = "OPEN", "Open"
+    UNCONTACTED = "UNCONTACTED", "Uncontacted"
     CONTACTED = "CONTACTED", "Contacted"
     INTERESTED = "INTERESTED", "Interested"
     WON = "WON", "Won"
     LOST = "LOST", "Lost"
+    OPEN = "OPEN", "Open"
 
 
 class AdmissionStatus(models.TextChoices):
@@ -648,7 +670,43 @@ def wrap_safe_custom_data(data):
     return data if data is not None else SafeCustomDict()
 
 
+class LeadQuerySet(models.QuerySet):
+    def for_user(self, user):
+        """
+        Unified Multi-Tenant QuerySet:
+        - SuperAdmin sees all leads across the CRM (global plane).
+        - Business users (Hospital / Academy) strictly see leads belonging to their business.
+        """
+        if not user or not user.is_authenticated:
+            return self.none()
+        if user.is_superuser or getattr(user, 'role', '') == 'SUPERADMIN':
+            return self.all()
+        biz = getattr(user, 'business', None) or getattr(user, 'hospital', None)
+        if biz:
+            return self.filter(hospital=biz)
+        return self.none()
+
+    def for_business(self, business):
+        """Filter leads strictly for a specific business entity."""
+        if not business:
+            return self.none()
+        return self.filter(hospital=business)
+
+
+class LeadManager(models.Manager):
+    def get_queryset(self):
+        return LeadQuerySet(self.model, using=self._db)
+
+    def for_user(self, user):
+        return self.get_queryset().for_user(user)
+
+    def for_business(self, business):
+        return self.get_queryset().for_business(business)
+
+
 class Lead(models.Model):
+    objects = LeadManager()
+
     # Identity
     lead_code = models.CharField(max_length=20, unique=True, editable=False)
 
@@ -769,6 +827,24 @@ class Lead(models.Model):
 
     def __str__(self):
         return f"{self.lead_code} — {self.name}"
+
+    @property
+    def business(self):
+        """Unified multi-tenant business accessor."""
+        return self.hospital
+
+    @business.setter
+    def business(self, value):
+        self.hospital = value
+
+    @property
+    def business_id(self):
+        """Unified business ID accessor."""
+        return self.hospital_id
+
+    @business_id.setter
+    def business_id(self, value):
+        self.hospital_id = value
 
     def get_custom(self, key, default=""):
         """Safely fetch values from custom_data dictionary."""
@@ -959,7 +1035,7 @@ class Lead(models.Model):
                 or adm_st in ("LOST", "CANCELLED", "DROPOUT")
                 or cd_ds in ("LOST", "CANCELLED")
                 or st_name.lower() in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
-                or self.custom_temperature == "Freeze"
+                or self.temperature == LeadTemperature.FREEZE
             ):
                 return "Lost"
             return st_name or "New"
@@ -976,8 +1052,7 @@ class Lead(models.Model):
             return "Appointment Cancelled"
 
         # Check Lost / Cancelled -> Maintain one single unified stage: 'Lost'
-        temp_val = self.custom_temperature
-        if temp_val == "Freeze":
+        if self.temperature == LeadTemperature.FREEZE or self.deal_status == DealStatus.LOST:
             return "Lost"
 
         if adm_st in ("LOST", "CANCELLED") or (("CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up) and st_name != "appointment cancelled") or "LOST" in appt_st or ("CANCEL" in appt_st and "DOCTOR" not in appt_st):
@@ -1039,7 +1114,7 @@ class Lead(models.Model):
             or raw_ds in ("lost", "cancelled")
             or any(k in st_name for k in ["lost", "cancelled", "not int", "rejected", "dropout", "dropped"])
             or any(k in appt_st for k in ["lost", "cancel", "not int"])
-            or self.custom_temperature == "Freeze"
+            or self.temperature == LeadTemperature.FREEZE
         )
         if is_lost:
             return LeadIntent.NOT_INTERESTED.value
@@ -1064,15 +1139,15 @@ class Lead(models.Model):
         if stored_intent and stored_intent in LeadIntent.values and stored_intent != LeadIntent.NORMAL_INTERESTED.value:
             return stored_intent
 
-        # If stored intent is explicitly set to NORMAL_INTERESTED but custom_temperature is Hot or Cold
-        temp = self.custom_temperature
-        if temp == "Hot":
+        # Use stored temperature directly without hitting N+1 notes query loop
+        temp = self.temperature
+        if temp == LeadTemperature.HOT or temp == "Hot":
             return LeadIntent.HIGHLY_INTERESTED.value
-        elif temp == "Warm":
+        elif temp == LeadTemperature.WARM or temp == "Warm":
             return LeadIntent.MODERATE_INTERESTED.value
-        elif temp == "Cold":
+        elif temp == LeadTemperature.COLD or temp == "Cold":
             return LeadIntent.BELOW_AVERAGE.value
-        elif temp == "Freeze":
+        elif temp == LeadTemperature.FREEZE or temp == "Freeze":
             return LeadIntent.NOT_INTERESTED.value
 
         return stored_intent or LeadIntent.NORMAL_INTERESTED.value
@@ -1440,7 +1515,7 @@ class Lead(models.Model):
         appt_st = str(cd.get("appointment_status") or "").strip()
         appt_st_up = appt_st.upper()
         raw_ds = str(cd.get("deal_status") or "").strip().upper()
-        temp = (self.custom_temperature or self.temperature or "").strip().upper()
+        temp = (self.temperature or "").strip().upper()
         attendant = cd.get("lead_attendant") or (self.assigned_to.get_full_name() if self.assigned_to else "")
 
         is_doctor_cancelled = "DOCTOR CANCELLED" in appt_st_up or "DOCTOR REJECT" in appt_st_up or st_name == "appointment cancelled"
@@ -1759,160 +1834,49 @@ class Lead(models.Model):
 
         is_doc_cancelled = "doctor cancel" in cd_apt or "doctor reject" in cd_apt or st_name == "appointment cancelled"
 
-        if self.is_academy_industry:
-            # =================================================================
-            # ACADEMY / EDUCATION SPECIFIC LIFECYCLE RESOLUTION
-            # =================================================================
-            # 1. Lost / Cancelled (Manual or Automatic Freeze)
-            is_manual_lost = (
-                adm_st in ("LOST", "CANCELLED", "DROPOUT")
-                or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
-                or self.deal_status == DealStatus.LOST
-                or cd_ds in ("lost", "cancelled")
-            )
-            # Automatic Freeze (e.g. 3 negative remarks + 3 completed followups)
-            is_auto_freeze = (self.temperature == LeadTemperature.FREEZE or self.custom_temperature == "Freeze")
+        # Check Lost Condition
+        is_lost_condition = not is_doc_cancelled and (
+            adm_st in ("LOST", "CANCELLED", "DROPOUT")
+            or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
+            or self.deal_status == DealStatus.LOST
+            or "cancel" in cd_apt
+            or "not int" in cd_apt
+            or (cd_ds in ("lost", "cancelled") and adm_st not in ("OPEN", "HOLD", "WON"))
+            or self.temperature == LeadTemperature.FREEZE
+            or self.custom_temperature == "Freeze"
+        )
 
-            if is_manual_lost or is_auto_freeze:
-                self.deal_status = DealStatus.LOST
-                self.temperature = LeadTemperature.FREEZE
-                self.intent_level = LeadIntent.NOT_INTERESTED
-                cd["deal_status"] = "Lost"
-                if adm_st != "CANCELLED" and "cancel" not in st_name:
-                    self.admission_status = AdmissionStatus.LOST
-                else:
-                    self.admission_status = AdmissionStatus.CANCELLED
+        # Check Won Condition
+        is_won_condition = (
+            adm_st in ("WON", "ADMISSION_DONE")
+            or tot > 0
+            or st_name in ("payment done", "admission done", "ipd done", "closed won", "payment completed", "won")
+            or "payment done" in cd_apt
+            or "payment done" in cd_ds
+            or cd_ds in ("won", "won (payment done)", "admission done", "ipd done")
+            or self.deal_status == DealStatus.WON
+        )
 
-                # Sync stage to 'Lost' if not already set to Lost/Cancelled stage
-                if not st_name or st_name not in ("lost", "cancelled", "not interested", "rejected", "closed lost", "dropped", "dropout"):
-                    lost_stage = LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
-                    if lost_stage:
-                        self.stage = lost_stage
-
-            # 2. Payment Done -> Won (HOT & HIGHLY_INTERESTED)
-            elif (
-                adm_st in ("WON", "ADMISSION_DONE")
-                or tot > 0
-                or st_name in ("payment done", "closed won")
-                or cd_ds in ("won", "won (payment done)")
-            ):
-                self.deal_status = DealStatus.WON
+        if is_lost_condition:
+            self.deal_status = DealStatus.LOST
+            self.temperature = LeadTemperature.FREEZE
+            self.intent_level = LeadIntent.NOT_INTERESTED
+            cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
+            if adm_st not in ("CANCELLED", "LOST"):
+                self.admission_status = AdmissionStatus.LOST
+        elif is_won_condition:
+            self.deal_status = DealStatus.WON
+            self.intent_level = LeadIntent.HIGHLY_INTERESTED
+            cd["deal_status"] = "Won (Payment Done)" if tot > 0 else "Won"
+            if self.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
                 self.temperature = LeadTemperature.HOT
-                self.intent_level = LeadIntent.HIGHLY_INTERESTED
-                cd["deal_status"] = "Won"
-
-            # 3. Admission Done / Admission Planned -> INTERESTED (HOT & HIGHLY_INTERESTED)
-            elif st_name in ("admission done", "admission planned") or cd_ds in ("admission done", "admission planned"):
-                self.deal_status = DealStatus.INTERESTED
-                self.temperature = LeadTemperature.HOT
-                self.intent_level = LeadIntent.HIGHLY_INTERESTED
-                cd["deal_status"] = "Interested"
-
-            # 4. Visit Planned / Visited / Admission Pending / Payment Pending -> INTERESTED (at least WARM)
-            elif (
-                st_name in ("visit planned", "visited", "admission pending", "payment pending")
-                or cd_ds in ("interested", "visit planned", "visited", "admission pending", "payment pending")
-            ):
-                self.deal_status = DealStatus.INTERESTED
-                cd["deal_status"] = "Interested"
-                if self.temperature in (LeadTemperature.COLD, LeadTemperature.FREEZE):
-                    self.temperature = LeadTemperature.WARM
-
-            # 5. Follow-up / Follow-up Completed / Contacted
-            elif (
-                st_name in ("follow up", "follow-up", "follow up completed")
-                or cd_ds in ("follow up", "follow-up", "follow up completed")
-            ):
-                self.deal_status = DealStatus.OPEN
-                cd["deal_status"] = "Open"
-
-            # 6. Assigned (counsellor assigned) / New (unassigned)
-            elif st_name in ("assigned", "new", "fresh", "open") or not self.deal_status:
-                if self.deal_status == DealStatus.CONTACTED and st_name == "assigned":
-                    pass  # keep Contacted if counsellor added remarks
-                else:
-                    self.deal_status = DealStatus.OPEN
-                    cd["deal_status"] = "Open"
-                # Fresh unassigned leads default to HOT
-                if not self.assigned_to and st_name in ("new", "fresh", ""):
-                    self.temperature = LeadTemperature.HOT
-
-        elif self.is_hospital_industry:
-            # =================================================================
-            # HOSPITAL CLINICAL PIPELINE (EXISTING LOGIC 100% PRESERVED)
-            # =================================================================
-            # Condition 1: LOST (Manual or Automatic Freeze)
-            is_manual_hosp_lost = not is_doc_cancelled and (
-                adm_st in ("LOST", "CANCELLED", "DROPOUT")
-                or st_name in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
-                or self.deal_status == DealStatus.LOST
-                or "cancel" in cd_apt
-                or "not int" in cd_apt
-                or (cd_ds in ("lost", "cancelled") and adm_st not in ("OPEN", "HOLD", "WON"))
-            )
-            is_auto_hosp_freeze = not is_doc_cancelled and (self.temperature == LeadTemperature.FREEZE or self.custom_temperature == "Freeze")
-
-            if is_manual_hosp_lost or is_auto_hosp_freeze:
-                self.deal_status = DealStatus.LOST
-                self.temperature = LeadTemperature.FREEZE
-                self.intent_level = LeadIntent.NOT_INTERESTED
-                cd["deal_status"] = "Cancelled" if ("cancel" in cd_apt or adm_st == "CANCELLED" or "cancel" in st_name) else "Lost"
-                if adm_st not in ("CANCELLED", "LOST"):
-                    self.admission_status = AdmissionStatus.LOST
-
-                if not st_name or st_name not in ("lost", "cancelled", "not interested", "rejected", "closed lost", "dropped", "dropout"):
-                    lost_stage = LeadStage.objects.filter(name__iexact="Lost", is_active=True).first()
-                    if lost_stage:
-                        self.stage = lost_stage
-
-            # Condition 2: WON (Payment Done / Completed Consultation / Appointment Booked -> HIGHLY_INTERESTED)
-            elif (
-                adm_st in ("WON", "ADMISSION_DONE")
-                or tot > 0
-                or st_name in ("payment done", "appointment completed", "admission done", "admission", "payment completed", "closed won")
-                or "payment done" in cd_apt
-                or "payment done" in cd_ds
-                or cd_ds in ("won", "won (payment done)", "admission")
-            ):
-                self.deal_status = DealStatus.WON
-                self.intent_level = LeadIntent.HIGHLY_INTERESTED
-                cd["deal_status"] = "Won (Payment Done)" if tot > 0 else "Won"
-
-            # Condition 3: CONTACTED
-            elif (
-                st_name in ("follow-up", "follow up", "contacted", "awaiting doctor approval", "awaiting approval from doctor", "appointment confirmed", "booking confirmed", "payment pending", "visited", "visit planned", "interested")
-                or any(k in cd_apt for k in ["follow", "visit", "book", "confirm", "contact", "awaiting"])
-                or self.last_followup_date is not None
-                or self.next_followup_date is not None
-            ):
-                self.deal_status = DealStatus.CONTACTED
-                cd["deal_status"] = "Contacted"
-                # If appointment is confirmed/booked or visited, set Highly Interested
-                if any(k in st_name for k in ["appointment confirmed", "booking confirmed", "appointment booked", "visited"]) or any(k in cd_apt for k in ["book", "confirm", "visit"]):
-                    self.intent_level = LeadIntent.HIGHLY_INTERESTED
-
-            # Condition 4: OPEN
-            elif (
-                adm_st == "OPEN"
-                or st_name in ("new", "fresh", "uncontacted", "assigned", "open")
-                or not self.deal_status
-            ):
-                self.deal_status = DealStatus.OPEN
-                cd["deal_status"] = "Open"
-
+        elif self.stage:
+            # Map automatically from standardized LeadStage.mapped_deal_status
+            self.deal_status = self.stage.mapped_deal_status
+            cd["deal_status"] = self.get_deal_status_display()
         else:
-            # =================================================================
-            # GENERIC / OTHER FUTURE INDUSTRIES (CLEAN SAFE DEFAULT)
-            # =================================================================
-            if adm_st in ("LOST", "CANCELLED") or st_name in ("cancelled", "lost"):
-                self.deal_status = DealStatus.LOST
-                cd["deal_status"] = "Lost"
-            elif adm_st == "WON" or st_name in ("won", "closed won"):
-                self.deal_status = DealStatus.WON
-                cd["deal_status"] = "Won"
-            elif not self.deal_status:
-                self.deal_status = DealStatus.OPEN
-                cd["deal_status"] = "Open"
+            self.deal_status = DealStatus.UNCONTACTED
+            cd["deal_status"] = "Uncontacted"
 
         super().save(*args, **kwargs)
 
@@ -2022,12 +1986,18 @@ class Lead(models.Model):
             # Format branch suffix only if distinct branch actually exists
             biz_branch_display = f"{biz_name} ({branch_name})" if branch_name else biz_name
 
-            # Check for confirmed UserCustomMessage (Default off, Custom on)
-            custom_obj = None
-            if user:
-                custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
-            if not custom_obj and self.assigned_to:
-                custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+            # Check for confirmed UserCustomMessage with in-process / thread cache to prevent N+1 queries on lead lists
+            from django.core.cache import cache
+            cache_k = f"ucm_{getattr(user, 'id', None)}_{getattr(self.assigned_to, 'id', None)}_{msg_type}"
+            custom_obj = cache.get(cache_k)
+            if custom_obj is None:
+                if user:
+                    custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
+                if not custom_obj and self.assigned_to:
+                    custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+                cache.set(cache_k, custom_obj or False, timeout=300)
+            if custom_obj is False:
+                custom_obj = None
             if not custom_obj and self.hospital:
                 custom_obj = UserCustomMessage.objects.filter(hospital=self.hospital, message_type=msg_type, is_confirmed=True).first()
             if not custom_obj:
@@ -2135,12 +2105,18 @@ class Lead(models.Model):
                 else:
                     msg_type = "FOLLOWUP"
 
-            # Check for confirmed UserCustomMessage (Default off, Custom on)
-            custom_obj = None
-            if user:
-                custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
-            if not custom_obj and self.assigned_to:
-                custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+            # Check for confirmed UserCustomMessage with in-process / thread cache to prevent N+1 queries on lead lists
+            from django.core.cache import cache
+            cache_k = f"ucm_{getattr(user, 'id', None)}_{getattr(self.assigned_to, 'id', None)}_{msg_type}"
+            custom_obj = cache.get(cache_k)
+            if custom_obj is None:
+                if user:
+                    custom_obj = UserCustomMessage.objects.filter(user=user, message_type=msg_type, is_confirmed=True).first()
+                if not custom_obj and self.assigned_to:
+                    custom_obj = UserCustomMessage.objects.filter(user=self.assigned_to, message_type=msg_type, is_confirmed=True).first()
+                cache.set(cache_k, custom_obj or False, timeout=300)
+            if custom_obj is False:
+                custom_obj = None
 
             if custom_obj and custom_obj.custom_text and custom_obj.custom_text.strip():
                 text = custom_obj.custom_text

@@ -232,7 +232,7 @@ class CRMUserCreateForm(UserCreationForm):
         hospital = self.cleaned_data.get("hospital") or (self.user.hospital if self.user and self.user.hospital else getattr(self.instance, 'hospital', None))
         if branches and hospital:
             # Strictly ensure assigned branches belong to the selected hospital
-            invalid_branches = [b.name for b in branches if b.hospital_id != hospital.id]
+            invalid_branches = [b.name for b in branches if b.business_id != hospital.id]
             if invalid_branches:
                 raise forms.ValidationError(f"Branches {', '.join(invalid_branches)} do not belong to the selected business '{hospital.name}'.")
         return branches
@@ -513,7 +513,7 @@ class CRMUserEditForm(forms.ModelForm):
         hospital = self.cleaned_data.get("hospital") or (self.user.hospital if self.user and self.user.hospital else getattr(self.instance, 'hospital', None))
         if branches and hospital:
             # Filter strictly to branches belonging to the selected business
-            valid_branches = [b for b in branches if b.hospital_id == hospital.id]
+            valid_branches = [b for b in branches if b.business_id == hospital.id]
             return valid_branches
         return branches
 
@@ -717,7 +717,7 @@ class BusinessForm(forms.ModelForm):
             if self.instance.business_code:
                 self.fields["business_code"].initial = self.instance.business_code
         else:
-            self.initial["allowed_roles"] = [User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.HR]
+            self.initial["allowed_roles"] = [User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR]
             self.fields["business_code"].help_text = "Will be automatically generated upon creation based on industry."
 
         for name, field in self.fields.items():

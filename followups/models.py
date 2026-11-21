@@ -52,11 +52,11 @@ class FollowUp(models.Model):
 
     @property
     def business(self):
-        return self.lead.hospital if self.lead else None
+        return self.lead.business if self.lead else None
 
     @property
     def business_id(self):
-        return self.lead.hospital_id if self.lead else None
+        return self.lead.business_id if self.lead else None
 
     class Meta:
         ordering = ["-followup_date", "-followup_time"]
@@ -74,11 +74,11 @@ class Note(models.Model):
 
     @property
     def business(self):
-        return self.lead.hospital if self.lead else None
+        return self.lead.business if self.lead else None
 
     @property
     def business_id(self):
-        return self.lead.hospital_id if self.lead else None
+        return self.lead.business_id if self.lead else None
 
     @property
     def is_editable(self):
@@ -127,11 +127,11 @@ class Activity(models.Model):
 
     @property
     def business(self):
-        return self.lead.hospital if self.lead else None
+        return self.lead.business if self.lead else None
 
     @property
     def business_id(self):
-        return self.lead.hospital_id if self.lead else None
+        return self.lead.business_id if self.lead else None
 
     @property
     def is_editable(self):

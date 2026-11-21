@@ -429,10 +429,10 @@ def ajax_create_course(request):
     if not name:
         return JsonResponse({"success": False, "error": "Course name is required."})
 
-    hospital_id = request.POST.get("hospital_id", "").strip()
+    business_id = request.POST.get("business_id", "").strip() or request.POST.get("hospital_id", "").strip()
     target_hospital = None
-    if hospital_id:
-        target_hospital = Hospital.objects.filter(pk=hospital_id).first()
+    if business_id:
+        target_hospital = Hospital.objects.filter(pk=business_id).first()
     elif request.user.hospital and "zappcode" not in (request.user.hospital.name or "").lower():
         target_hospital = request.user.hospital
 
@@ -447,7 +447,8 @@ def ajax_create_course(request):
         "course": {
             "id": course.id,
             "name": course.name,
-            "hospital_id": course.hospital_id,
+            "business_id": course.business_id,
+            "hospital_id": course.business_id,
         }
     })
 
@@ -462,14 +463,14 @@ def ajax_create_campaign(request):
     name = request.POST.get("name", "").strip()
     platform = request.POST.get("platform", "Meta Ads").strip()
     ad_set = request.POST.get("ad_set", "").strip()
-    hospital_id = request.POST.get("hospital_id", "").strip()
+    business_id = request.POST.get("business_id", "").strip() or request.POST.get("hospital_id", "").strip()
 
     if not name:
         return JsonResponse({"success": False, "error": "Campaign name is required."})
 
     target_hospital = None
-    if hospital_id:
-        target_hospital = Hospital.objects.filter(pk=hospital_id).first()
+    if business_id:
+        target_hospital = Hospital.objects.filter(pk=business_id).first()
     elif request.user.hospital:
         target_hospital = request.user.hospital
 
@@ -510,7 +511,8 @@ def ajax_create_campaign(request):
             "id": campaign.id,
             "name": campaign.name,
             "platform": campaign.platform,
-            "hospital_id": campaign.hospital_id,
+            "business_id": campaign.business_id,
+            "hospital_id": campaign.business_id,
         }
     })
 
@@ -1492,7 +1494,7 @@ def history(request):
     # Role-based visibility:
     # Telecallers / Lead Attendants / Counsellors see strictly their own uploaded history.
     # Admins, Super Admins, and Managers see all users' upload history for the business.
-    if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.HR, User.Role.DOCTOR):
+    if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR, User.Role.DOCTOR):
         jobs_qs = jobs_qs.filter(created_by=user)
 
     date_preset = request.GET.get('date_preset', 'all_time')

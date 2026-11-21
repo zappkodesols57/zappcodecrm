@@ -24,7 +24,7 @@
 </div>
 {% endif %}
 {% if request.user.role == 'LEAD_ATTENDENT' %}
-<a href="{% url 'dashboard:telecaller_new_enquiries' %}" class="btn btn-brand text-white mt-3"><i class="fa-solid fa-users me-1"></i> View Imported Leads in New Enquiries ({{ job.imported_count }})</a>
+<a href="{% url 'dashboard:telecaller_home' %}?tab=overall" class="btn btn-brand text-white mt-3"><i class="fa-solid fa-users me-1"></i> View Imported Leads in New Enquiries ({{ job.imported_count }})</a>
 {% else %}
 <a href="{% url 'leads:lead_list' %}?import_job={{ job.id }}" class="btn btn-brand text-white mt-3"><i class="fa-solid fa-users me-1"></i> View Imported Leads ({{ job.imported_count }})</a>
 {% endif %}

@@ -175,8 +175,16 @@
           </button>
           <div class="dropdown-menu p-2 shadow-sm" style="min-width: 220px; max-height: 280px; overflow-y: auto;">
             <div class="form-check mb-1">
-              <input class="form-check-input" type="checkbox" name="status" value="OPEN" id="{{ filter_prefix }}_st_open" {% if 'OPEN' in filter_status %}checked{% endif %}>
-              <label class="form-check-label small" for="{{ filter_prefix }}_st_open">Open / In Progress</label>
+              <input class="form-check-input" type="checkbox" name="status" value="UNCONTACTED" id="{{ filter_prefix }}_st_uncontacted" {% if 'UNCONTACTED' in filter_status %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ filter_prefix }}_st_uncontacted">Uncontacted</label>
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="status" value="CONTACTED" id="{{ filter_prefix }}_st_contacted" {% if 'CONTACTED' in filter_status %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ filter_prefix }}_st_contacted">Contacted</label>
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="status" value="INTERESTED" id="{{ filter_prefix }}_st_interested" {% if 'INTERESTED' in filter_status %}checked{% endif %}>
+              <label class="form-check-label small" for="{{ filter_prefix }}_st_interested">Interested</label>
             </div>
             <div class="form-check mb-1">
               <input class="form-check-input" type="checkbox" name="status" value="WON" id="{{ filter_prefix }}_st_won" {% if 'WON' in filter_status %}checked{% endif %}>

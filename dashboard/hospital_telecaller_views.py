@@ -59,7 +59,9 @@ def _telecaller_home_internal(request):
     today_str = today_date.strftime("%Y-%m-%d")
     today_alt_str = today_date.strftime("%d-%m-%Y")
     
-    hospital_leads = Lead.objects.filter(hospital=user.business, is_archived=False).select_related('hospital')
+    hospital_leads = Lead.objects.filter(hospital=user.business, is_archived=False).select_related(
+        'hospital', 'stage', 'campaign', 'lead_source', 'course', 'assigned_to'
+    )
 
     # CARD 1: Today's New Leads Count (Fresh unassigned leads OR leads assigned to this user today)
     todays_new_leads_count = hospital_leads.filter(
@@ -1355,6 +1357,8 @@ def telecaller_tab_data_api(request):
 
 
 def telecaller_search(request):
+    from django.shortcuts import redirect
+    return redirect("dashboard:telecaller_home")
     from accounts.models import User
     from leads.models import Lead, DealStatus, AdmissionStatus, MasterGroup, HospitalDepartment, HospitalDoctor
     from django.db.models import Q
@@ -1661,6 +1665,8 @@ def telecaller_appointments(request):
 
 
 def telecaller_my_leads(request):
+    from django.shortcuts import redirect
+    return redirect("dashboard:telecaller_home")
     from accounts.models import User
     from leads.models import Lead, MasterGroup, HospitalDepartment, HospitalDoctor
     from django.db.models import Q
@@ -1926,6 +1932,8 @@ from django.shortcuts import get_object_or_404
 
 
 def telecaller_new_enquiries(request):
+    from django.shortcuts import redirect
+    return redirect("dashboard:telecaller_home")
     from accounts.models import User
     from leads.models import Lead, MasterGroup, HospitalDepartment, HospitalDoctor
     from django.db.models import Q

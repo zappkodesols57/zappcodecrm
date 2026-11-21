@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from django.contrib.auth import views as auth_views
 from . import views
 from . import default_profile_view
@@ -34,6 +35,10 @@ urlpatterns = [
     path("businesses/<int:pk>/delete/", views.business_delete, name="business_delete"),
     path("switch-business/", views.switch_business, name="switch_business"),
     path("system/default-profile/", default_profile_view.default_system_profile, name="default_system_profile"),
+
+    # Compatibility redirect shims for legacy bookmarks & breadcrumbs (BUG-002)
+    path("hospitals/", RedirectView.as_view(pattern_name="accounts:business_list", permanent=False)),
+    path("hospitals", RedirectView.as_view(pattern_name="accounts:business_list", permanent=False)),
 
 
     # Single-Page 6-Digit OTP Password Reset

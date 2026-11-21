@@ -480,8 +480,8 @@
   <!-- Inline Filter Ribbon (Inside the Card directly above table) -->
   <div class="report-filter-bar">
     <form method="GET" action="{% url 'leads:lead_list' %}" id="leadsInteractiveFilterForm" class="d-flex flex-wrap align-items-center gap-2">
-      {% if selected_hospital_id %}
-      <input type="hidden" name="business" value="{{ selected_hospital_id }}">
+      {% if selected_business_id %}
+      <input type="hidden" name="business" value="{{ selected_business_id }}">
       {% endif %}
       <input type="hidden" name="sort" id="formSortInput" value="{{ current_sort|default:'-created_at' }}">
 
@@ -507,7 +507,7 @@
           <option value="OPEN" {% if 'OPEN' in selected_deal_statuses %}selected{% endif %}>Open</option>
           <option value="PENDING" {% if 'PENDING' in selected_deal_statuses %}selected{% endif %}>Pending</option>
           <option value="WON" {% if 'WON' in selected_deal_statuses %}selected{% endif %}>Won / Payment Done</option>
-          <option value="LOST" {% if 'LOST' in selected_deal_statuses %}selected{% endif %}>Lost / Cancelled</option>
+          <option value="LOST" {% if 'LOST' in selected_deal_statuses %}selected{% endif %}>Lost</option>
           {% for st_item in hospital_statuses %}
           {% if st_item.name|upper not in "OPEN,PENDING,WON,LOST" %}
           <option value="{{ st_item.name }}" {% if st_item.name in selected_deal_statuses %}selected{% endif %}>{{ st_item.name }}</option>
@@ -535,7 +535,7 @@
         <select name="business" class="form-select no-tom-select" onchange="document.getElementById('leadsInteractiveFilterForm').submit()">
           <option value="">All Businesses</option>
           {% for b in available_businesses %}
-          <option value="{{ b.id }}" {% if selected_hospital_id == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+          <option value="{{ b.id }}" {% if selected_business_id == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
         </select>
       </div>

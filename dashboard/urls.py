@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 from . import zappcode_views
 
@@ -48,6 +49,10 @@ urlpatterns = [
     path("academy/manager/", views.academy_admin_home, name="academy_manager_home"),
     path("counselor/", views.academy_counselor_home, name="academy_counselor_home"),
     path("academy/counselor/", views.academy_counselor_home, name="academy_counselor_home_alias"),
+
+    # Compatibility redirect shims for legacy bookmarks & breadcrumbs (BUG-002)
+    path("leads/", RedirectView.as_view(pattern_name="leads:lead_list", permanent=False)),
+    path("leads", RedirectView.as_view(pattern_name="leads:lead_list", permanent=False)),
     path("telecaller/tab-data/", views.telecaller_tab_data_api, name="telecaller_tab_data_api"),
     path("telecaller/my-leads/", views.telecaller_my_leads, name="telecaller_my_leads"),
     path("telecaller/new-enquiries/", views.telecaller_new_enquiries, name="telecaller_new_enquiries"),

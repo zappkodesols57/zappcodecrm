@@ -40,7 +40,7 @@ class Command(BaseCommand):
 
         connections_qs = MetaAdsConnection.objects.filter(is_active=True)
         if target_business_id:
-            connections_qs = connections_qs.filter(hospital_id=target_business_id)
+            connections_qs = connections_qs.filter(hospital__id=target_business_id)
 
         if not connections_qs.exists():
             self.stdout.write(self.style.ERROR(
@@ -53,7 +53,7 @@ class Command(BaseCommand):
 
         for connection in connections_qs:
             biz_name = connection.hospital.name if connection.hospital else connection.name
-            biz_id = connection.hospital_id or "Unassigned"
+            biz_id = connection.business_id or "Unassigned"
             self.stdout.write(self.style.MIGRATE_HEADING(
                 f"\n--> Syncing Meta Connection: '{connection.name}' [Business ID: {biz_id} - {biz_name}]"
             ))

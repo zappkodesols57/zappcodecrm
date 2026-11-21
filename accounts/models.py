@@ -101,10 +101,14 @@ class Hospital(models.Model):
 
     @property
     def get_logo_url(self):
-        """Returns custom business logo URL if uploaded; otherwise returns Global Default System Logo."""
-        if self.logo and hasattr(self.logo, 'url'):
+        """Returns custom business logo URL if uploaded and exists on disk; otherwise returns Global Default System Logo."""
+        import os
+        from django.conf import settings
+        if self.logo and hasattr(self.logo, 'name') and self.logo.name:
             try:
-                return self.logo.url
+                full_path = os.path.join(settings.MEDIA_ROOT, self.logo.name)
+                if os.path.exists(full_path) and hasattr(self.logo, 'url'):
+                    return self.logo.url
             except Exception:
                 pass
         return SystemDefaultProfile.get_active_logo_url()
@@ -124,7 +128,6 @@ class User(AbstractUser):
         MANAGER = "MANAGER", "Manager"
         LEAD_ATTENDENT = "LEAD_ATTENDENT", "Telecaller"
         DOCTOR = "DOCTOR", "Doctor"
-        HR = "HR", "HR"
         COUNSELLOR = "COUNSELLOR", "Counsellor"
 
     Role.TELECALLER = Role.LEAD_ATTENDENT
@@ -354,7 +357,7 @@ class User(AbstractUser):
             return bool(self.custom_permissions["allow_self_assign"])
         if "can_self_assign" in self.custom_permissions:
             return bool(self.custom_permissions["can_self_assign"])
-        return self.role in (self.Role.COUNSELLOR, self.Role.HR, self.Role.LEAD_ATTENDENT)
+        return self.role in (self.Role.COUNSELLOR, self.Role.LEAD_ATTENDENT)
 
     @property
     def can_manage_users(self):
@@ -457,6 +460,20 @@ class User(AbstractUser):
     @property
     def can_view_reports(self):
         return self.has_dynamic_permission("view_reports", default=self.role in (self.Role.SUPER_ADMIN, self.Role.ADMIN))
+
+    @property
+    def get_profile_picture_url(self):
+        """Returns valid profile picture URL if file physically exists on disk, otherwise None for initials fallback."""
+        import os
+        from django.conf import settings
+        if self.profile_picture and hasattr(self.profile_picture, 'name') and self.profile_picture.name:
+            try:
+                full_path = os.path.join(settings.MEDIA_ROOT, self.profile_picture.name)
+                if os.path.exists(full_path) and hasattr(self.profile_picture, 'url'):
+                    return self.profile_picture.url
+            except Exception:
+                pass
+        return None
 
 
 class HospitalRolePermission(models.Model):

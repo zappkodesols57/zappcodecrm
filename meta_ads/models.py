@@ -23,7 +23,7 @@ class MetaAdsConnection(models.Model):
 
     @property
     def business_id(self):
-        return self.hospital_id
+        return self.business.id if self.business else None
 
     def __str__(self):
         return f"{self.name} — Meta Ads"
@@ -65,7 +65,7 @@ class MetaCampaignStat(models.Model):
 
     @property
     def business_id(self):
-        return self.hospital_id
+        return self.business.id if self.business else None
 
     @property
     def cpl(self):

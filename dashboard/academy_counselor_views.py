@@ -47,8 +47,10 @@ def academy_counselor_home(request):
     business_id = getattr(active_business, 'id', None) or getattr(user, 'business_id', None)
 
     leads_qs = Lead.objects.filter(is_archived=False)
-    if business_id:
-        leads_qs = leads_qs.filter(hospital_id=business_id)
+    if active_business:
+        leads_qs = leads_qs.filter(hospital=active_business)
+    elif business_id:
+        leads_qs = leads_qs.filter(hospital__id=business_id)
     else:
         leads_qs = leads_qs.none()
 
@@ -253,8 +255,10 @@ def academy_counselor_home(request):
     # Strictly 20 per page pagination with database filters
     # =========================================================================
     overall_leads_base = Lead.objects.all()
-    if business_id:
-        overall_leads_base = overall_leads_base.filter(hospital_id=business_id)
+    if active_business:
+        overall_leads_base = overall_leads_base.filter(hospital=active_business)
+    elif business_id:
+        overall_leads_base = overall_leads_base.filter(hospital__id=business_id)
     else:
         overall_leads_base = overall_leads_base.none()
     overall_leads_base = overall_leads_base.select_related(
@@ -265,8 +269,10 @@ def academy_counselor_home(request):
 
     # Filter Counselors for dropdown
     counselors_qs = User.objects.filter(is_active=True)
-    if business_id:
-        counselors_qs = counselors_qs.filter(hospital_id=business_id)
+    if active_business:
+        counselors_qs = counselors_qs.filter(hospital=active_business)
+    elif business_id:
+        counselors_qs = counselors_qs.filter(hospital__id=business_id)
 
     # =========================================================================
     # TAB 1: MY LEADS (Fresh, Uncontacted, Walk-in, Today's Inquiry)
@@ -705,10 +711,10 @@ def academy_counselor_home(request):
         'p_overall': p_overall,
 
         # Filter Dropdown Options (CRM Database Values)
-        'filter_courses': Course.objects.filter(is_active=True, hospital_id=business_id) if business_id else Course.objects.filter(is_active=True),
+        'filter_courses': Course.objects.filter(is_active=True, hospital=active_business) if active_business else Course.objects.filter(is_active=True),
         'filter_sources': LeadSource.objects.filter(is_active=True),
         'filter_counselors': counselors_qs,
-        'filter_stages': LeadStage.objects.filter(is_active=True, hospital_id=business_id).order_by('order', 'name') if business_id else LeadStage.objects.filter(is_active=True).order_by('order', 'name'),
+        'filter_stages': LeadStage.objects.filter(is_active=True, hospital=active_business).order_by('order', 'name') if active_business else LeadStage.objects.filter(is_active=True).order_by('order', 'name'),
         'filter_intents': [
             ('HIGHLY_INTERESTED', 'Highly Interested'),
             ('MODERATE_INTERESTED', 'Moderate Interested'),
@@ -759,8 +765,10 @@ def academy_admin_home(request):
 
     # Base Queryset strictly scoped to this Academy business
     leads_base = Lead.objects.filter(is_archived=False)
-    if business_id:
-        leads_base = leads_base.filter(hospital_id=business_id)
+    if active_business:
+        leads_base = leads_base.filter(hospital=active_business)
+    elif business_id:
+        leads_base = leads_base.filter(hospital__id=business_id)
     else:
         leads_base = leads_base.none()
     leads = leads_base
@@ -1119,9 +1127,9 @@ def academy_admin_home(request):
             trend_counts = [r["cnt"] for r in all_months if r.get("m")]
 
     # Team Activity Today (Strictly scoped to current business)
-    if business_id:
+    if active_business:
         team_members = User.objects.filter(
-            hospital_id=business_id, is_active=True
+            hospital=active_business, is_active=True
         ).exclude(role=User.Role.SUPER_ADMIN).order_by("first_name", "username")
     else:
         team_members = User.objects.filter(
@@ -1147,11 +1155,11 @@ def academy_admin_home(request):
             "total_entries": member_fu.count() + notes_cnt,
         })
 
-    pending_approvals_count = User.objects.filter(hospital_id=business_id, is_active=False).count() if business_id else 0
+    pending_approvals_count = User.objects.filter(hospital=active_business, is_active=False).count() if active_business else 0
 
     # Business-Scoped Filter Dropdown Options
     # Courses
-    business_courses = Course.objects.filter(hospital_id=business_id, is_active=True) if business_id else Course.objects.filter(hospital__isnull=True, is_active=True)
+    business_courses = Course.objects.filter(hospital=active_business, is_active=True) if active_business else Course.objects.filter(hospital__isnull=True, is_active=True)
     if not business_courses.exists():
         business_courses = Course.objects.filter(is_active=True)
 
@@ -1159,8 +1167,8 @@ def academy_admin_home(request):
     from leads.models import Trainer
     business_trainers = []
     trainers_qs = Trainer.objects.filter(is_active=True)
-    if business_id:
-        trainers_qs = trainers_qs.filter(hospital_id=business_id)
+    if active_business:
+        trainers_qs = trainers_qs.filter(hospital=active_business)
     else:
         trainers_qs = trainers_qs.filter(hospital__isnull=True)
     for tr in trainers_qs.order_by("name"):
@@ -1173,9 +1181,9 @@ def academy_admin_home(request):
             business_trainers.append(t.strip())
 
     # Counselors (Users with COUNSELLOR role in this business)
-    if business_id:
+    if active_business:
         counselors = User.objects.filter(
-            hospital_id=business_id,
+            hospital=active_business,
             is_active=True,
             role=User.Role.COUNSELLOR
         ).order_by("first_name", "username")
@@ -1192,13 +1200,13 @@ def academy_admin_home(request):
         Q(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]) |
         Q(id__in=lead_stage_ids)
     )
-    if business_id:
-        stages = stages.filter(Q(hospital_id=business_id) | Q(hospital__isnull=True) | Q(id__in=lead_stage_ids))
+    if active_business:
+        stages = stages.filter(Q(hospital=active_business) | Q(hospital__isnull=True) | Q(id__in=lead_stage_ids))
     stages = stages.distinct().order_by("order", "name")
 
     # Campaigns (Business-specific)
-    if business_id:
-        campaigns = Campaign.objects.filter(hospital_id=business_id, is_active=True).order_by("name")
+    if active_business:
+        campaigns = Campaign.objects.filter(hospital=active_business, is_active=True).order_by("name")
     else:
         campaigns = Campaign.objects.filter(hospital__isnull=True, is_active=True).order_by("name")
 

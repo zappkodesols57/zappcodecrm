@@ -170,7 +170,7 @@ def welcome_view(request):
     is_super_admin = (user.role == User.Role.SUPER_ADMIN and not user.hospital)
     is_doctor = (user.role == User.Role.DOCTOR)
     is_lead_attendant = (user.role == User.Role.LEAD_ATTENDENT)
-    is_counsellor = (user.role in (User.Role.COUNSELLOR, User.Role.HR))
+    is_counsellor = (user.role in (User.Role.COUNSELLOR))
     is_business_admin = (user.role in (User.Role.SUPER_ADMIN, User.Role.ADMIN, User.Role.MANAGER) and bool(user.hospital))
 
     # Data structures to pass to template
@@ -321,8 +321,8 @@ def home(request):
         # Academy Admin / Manager goes to dedicated Academy Admin Dashboard
         query = request.GET.urlencode()
         return redirect(f"{reverse('dashboard:academy_admin_home')}?{query}" if query else "dashboard:academy_admin_home")
-    elif request.user.role in (User.Role.COUNSELLOR, User.Role.HR) or (request.user.role == User.Role.LEAD_ATTENDENT and not (request.user.hospital and request.user.industry == 'HOSPITAL')):
-        # Academy Counselor / Telecaller / HR goes to Academy Counselor Dashboard
+    elif request.user.role == User.Role.COUNSELLOR or (request.user.role == User.Role.LEAD_ATTENDENT and not (request.user.hospital and request.user.industry == 'HOSPITAL')):
+        # Academy Counselor / Telecaller goes to Academy Counselor Dashboard
         query = request.GET.urlencode()
         return redirect(f"{reverse('dashboard:academy_counselor_home')}?{query}" if query else "dashboard:academy_counselor_home")
 
@@ -349,21 +349,21 @@ def home(request):
             elif request.user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT):
                 # Counsellors / HR: see assigned leads, leads created by them, or fresh unassigned leads in their business
                 leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
             else:
                 leads = leads.none()
     elif is_global_admin:
         # Global Super Admin: check if active_business is selected in session or URL
-        selected_hospital_id = (
+        selected_business_id = (
             request.GET.get("business", "").strip()
             or request.GET.get("hospital", "").strip()
             or str(request.session.get("active_business_id", "")).strip()
         )
-        if selected_hospital_id and selected_hospital_id.isdigit():
-            leads = leads.filter(hospital_id=int(selected_hospital_id))
-        elif selected_hospital_id == "none":
+        if selected_business_id and selected_business_id.isdigit():
+            leads = leads.filter(hospital__id=int(selected_business_id))
+        elif selected_business_id == "none":
             leads = leads.filter(hospital__isnull=True)
     else:
         # User without a hospital assigned (e.g. Academy user / Counsellor / HR / Staff)
@@ -375,7 +375,7 @@ def home(request):
             elif request.user.role == User.Role.MANAGER:
                 team = User.objects.filter(reports_to=request.user)
                 leads = leads.filter(Q(assigned_to=request.user) | Q(assigned_to__in=team) | Q(assigned_to__isnull=True))
-            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.HR, User.Role.LEAD_ATTENDENT):
+            elif request.user.can_view_assigned_leads or request.user.role in (User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT):
                 leads = leads.filter(Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True))
 
     # 1. Apply Filters
@@ -556,16 +556,16 @@ def home(request):
     source_counts = [s["count"] for s in source_data]
 
     # 4. Chart Data (Stage Funnel) - strictly scoped to user's business_id
-    current_business_id = request.user.hospital_id or getattr(request.user, "business_id", None)
+    current_business_id = getattr(request.user, "business_id", None)
     if current_business_id:
         stage_data = list(
-            LeadStage.objects.filter(is_active=True, hospital_id=current_business_id).order_by("order", "name")
+            LeadStage.objects.filter(is_active=True, hospital__id=current_business_id).order_by("order", "name")
         )
     else:
         # Global Super Admin without hospital filter: check selected hospital or fallback
-        if selected_hospital_id and selected_hospital_id.isdigit():
+        if selected_business_id and selected_business_id.isdigit():
             stage_data = list(
-                LeadStage.objects.filter(is_active=True, hospital_id=int(selected_hospital_id)).order_by("order", "name")
+                LeadStage.objects.filter(is_active=True, hospital__id=int(selected_business_id)).order_by("order", "name")
             )
         else:
             stage_data = list(
@@ -605,7 +605,7 @@ def home(request):
     # 7. Dropdowns for filters - scoped to current user's business
     if request.user.hospital:
         active_leads_all = Lead.objects.filter(is_archived=False, hospital=request.user.hospital)
-        if request.user.role in ('COUNSELLOR', 'HR'):
+        if request.user.role == 'COUNSELLOR':
             active_leads_all = active_leads_all.filter(
                 Q(assigned_to=request.user) | Q(created_by=request.user) | Q(assigned_to__isnull=True)
             )
@@ -628,7 +628,7 @@ def home(request):
         team_members = User.objects.filter(
             is_active=True, 
             is_approved=True, 
-            role__in=['COUNSELLOR', 'HR']
+            role__in=['COUNSELLOR']
         )
         from followups.models import FollowUp, Note
         for member in team_members:

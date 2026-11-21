@@ -161,14 +161,14 @@ Analytics Dashboard{% endif %}{% endblock %}
 
     @media (max-width: 768px) {
         .stats-kpi-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, 1fr) !important;
             gap: 0.5rem;
         }
     }
 
     @media (max-width: 480px) {
         .stats-kpi-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr) !important;
             gap: 0.5rem;
         }
     }
@@ -504,8 +504,8 @@ Analytics Dashboard{% endif %}{% endblock %}
       <div class="card-body p-3">
         <form method="GET" action="{% url 'dashboard:hospital_admin_home' %}" id="interactiveFilterForm">
             <!-- Hidden inputs to maintain tenant context -->
-            {% if selected_hospital_id %}
-            <input type="hidden" name="business" value="{{ selected_hospital_id }}">
+            {% if selected_business_id %}
+            <input type="hidden" name="business" value="{{ selected_business_id }}">
             {% endif %}
 
             <div class="row g-2 align-items-end">
@@ -564,20 +564,16 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- 6. Location Filter -->
+                <!-- 6. Location / District Filter (Fast Searchable with at most 10 visible results) -->
                 <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 16%; max-width: 16%;">
-                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">LOCATION</label>
-                    <select name="location" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
-                        <option value="">All Locations</option>
-                        {% for loc in locations %}
-                        <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>{{ loc }}</option>
-                        {% endfor %}
-                    </select>
+                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">LOCATION / DISTRICT</label>
+                    <input type="text" name="location" class="form-control form-control-sm district-search-input border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;"
+                        placeholder="Search district..." value="{{ current_location }}">
                 </div>
 
                 <!-- ROW 2 (6 fields + Action Buttons): DEPARTMENT (13.5%), SOURCE (13.5%), CAMPAIGN (13.5%), DATE RANGE (13.5%), FROM DATE (13.5%), TO DATE (13.5%), BUTTONS (19%) -->
                 <!-- 7. Department Filter -->
-                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 18%; max-width: 18%;">
                     <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">DEPARTMENT</label>
                     <select name="department" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Departments</option>
@@ -588,7 +584,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                 </div>
 
                 <!-- 8. Source Filter -->
-                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 18%; max-width: 18%;">
                     <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">SOURCE</label>
                     <select name="source" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Sources</option>
@@ -599,7 +595,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                 </div>
 
                 <!-- 9. Campaign Filter -->
-                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 20%; max-width: 20%;">
                     <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">CAMPAIGN</label>
                     <select name="campaign" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;">
                         <option value="">All Campaigns</option>
@@ -609,32 +605,32 @@ Analytics Dashboard{% endif %}{% endblock %}
                     </select>
                 </div>
 
-                <!-- 10. Date Range Quick Dropdown -->
-                <div class="col-6 col-md-4 col-xl-2" style="flex: 0 0 13.5%; max-width: 13.5%;">
+                <!-- 10. Date Range Quick Dropdown with Standard Custom Range Pop-up Trigger -->
+                <div class="col-6 col-md-4 col-xl-3" style="flex: 0 0 25%; max-width: 25%;">
                     <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">DATE RANGE</label>
-                    <select name="time_filter" id="formTimeFilterSelect" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" onchange="onTimeFilterSelectChange(this.value)">
-                        <option value="last_7_days" {% if time_filter == 'last_7_days' or not time_filter and not custom_start %}selected{% endif %}>Last 7 Days</option>
-                        <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
-                        <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
-                        <option value="all_time" {% if time_filter == 'all_time' %}selected{% endif %}>All Time</option>
-                        <option value="custom" {% if custom_start or custom_end or time_filter == 'custom' %}selected{% endif %}>Custom Range</option>
-                    </select>
-                </div>
-
-                <!-- 11. From Date -->
-                <div class="col-6 col-md-4 col-xl-2" id="filterStartDateCol" style="flex: 0 0 13.5%; max-width: 13.5%;">
-                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">FROM DATE</label>
-                    <input type="date" name="start_date" id="filterStartDate"
-                        class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" value="{{ custom_start }}"
-                        max="{{ today_str }}" onchange="onCustomDateRangeInput()">
-                </div>
-
-                <!-- 12. To Date -->
-                <div class="col-6 col-md-4 col-xl-2" id="filterEndDateCol" style="flex: 0 0 13.5%; max-width: 13.5%;">
-                    <label class="filter-label mb-1" style="font-size: 0.68rem; font-weight: 700; color: #052042;">TO DATE</label>
-                    <input type="date" name="end_date" id="filterEndDate"
-                        class="form-control form-control-sm border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" value="{{ custom_end }}"
-                        max="{{ today_str }}" onchange="onCustomDateRangeInput()">
+                    <div class="input-group">
+                        <select name="time_filter" id="formTimeFilterSelect" class="form-select form-select-sm no-tom-select border" style="border-color: #E5E7EB !important; height: 32px; font-size: 0.8rem; border-radius: 6px; padding: 2px 8px;" onchange="onAdminHomeDateSelectChange(this.value)">
+                            <option value="last_7_days" {% if time_filter == 'last_7_days' or not time_filter and not custom_start and not custom_end %}selected{% endif %}>Last 7 Days</option>
+                            <option value="today" {% if time_filter == 'today' %}selected{% endif %}>Today</option>
+                            <option value="last_30_days" {% if time_filter == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
+                            <option value="all_time" {% if time_filter == 'all_time' %}selected{% endif %}>All Time</option>
+                            <option value="custom" {% if custom_start or custom_end or time_filter == 'custom' %}selected{% endif %}>
+                                {% if custom_start or custom_end %}
+                                  📅 {% if custom_start %}{{ custom_start|slice:"8:10" }}-{{ custom_start|slice:"5:7" }}-{{ custom_start|slice:"0:4" }}{% else %}Start{% endif %} → {% if custom_end %}{{ custom_end|slice:"8:10" }}-{{ custom_end|slice:"5:7" }}-{{ custom_end|slice:"0:4" }}{% else %}Today{% endif %}
+                                {% else %}
+                                  Custom Date Range...
+                                {% endif %}
+                            </option>
+                        </select>
+                        {% if custom_start or custom_end %}
+                        <button class="btn btn-outline-secondary border-start-0 py-0 px-2" type="button" title="Edit Date Range" onclick="openAdminCustomDateModal()" style="height: 32px;">
+                            <i class="fa-solid fa-pen-to-square text-primary" style="font-size: 0.76rem;"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <!-- Hidden inputs for custom date submission -->
+                    <input type="hidden" name="start_date" id="filterStartDate" value="{{ custom_start }}">
+                    <input type="hidden" name="end_date" id="filterEndDate" value="{{ custom_end }}">
                 </div>
 
                 <!-- Action Buttons: Apply & Reset -->
@@ -643,7 +639,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                         <button type="submit" class="btn btn-sm btn-primary text-white flex-fill shadow-sm d-flex align-items-center justify-content-center" style="height: 32px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; background-color: #052042 !important; border-color: #052042 !important;">
                             <i class="ph ph-check me-1"></i> Apply
                         </button>
-                        <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_hospital_id %}?business={{ selected_hospital_id }}{% endif %}"
+                        <a href="{% url 'dashboard:hospital_admin_home' %}{% if selected_business_id %}?business={{ selected_business_id }}{% endif %}"
                             class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center" style="height: 32px; border-radius: 6px; border-color: #E5E7EB !important; font-size: 0.82rem; font-weight: 500;" title="Reset all filters">
                             <i class="ph ph-arrow-counter-clockwise me-1"></i> Reset
                         </a>
@@ -654,6 +650,76 @@ Analytics Dashboard{% endif %}{% endblock %}
         </form>
       </div>
     </div>
+</div>
+
+<!-- Standard Interactive Custom Date Range Modal for Admin Dashboard -->
+<div class="modal fade" id="adminHomeCustomDateModal" tabindex="-1" aria-labelledby="adminHomeCustomDateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+      <div class="modal-header py-2.5 px-3" style="background-color: #052042; color: #ffffff;">
+        <h6 class="modal-title fw-bold mb-0 text-white" id="adminHomeCustomDateModalLabel" style="font-size: 0.9rem;">
+          📅 Select Date Range
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <div class="btn-group w-100 mb-2.5" role="group">
+          <input type="radio" class="btn-check" name="admin_home_modal_mode" id="admin_home_modal_pick_from" value="from" checked onchange="setAdminHomeCalMode('from')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="admin_home_modal_pick_from" style="font-size: 0.78rem;">
+            1. From Date
+          </label>
+
+          <input type="radio" class="btn-check" name="admin_home_modal_mode" id="admin_home_modal_pick_to" value="to" onchange="setAdminHomeCalMode('to')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="admin_home_modal_pick_to" style="font-size: 0.78rem;">
+            2. To Date
+          </label>
+        </div>
+
+        <div class="cal-picker-wrap mb-2">
+          <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+            <button type="button" class="cal-nav-btn" onclick="navAdminHomeCalMonth(-1)" title="Previous Month">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="fw-bold text-dark fs-6" id="adminHomeCalMonthYear">November 2026</div>
+            <button type="button" class="cal-nav-btn" onclick="navAdminHomeCalMonth(1)" title="Next Month">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="d-grid text-center text-muted fw-semibold mb-1" style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem;">
+            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+          </div>
+
+          <div class="d-grid text-center" id="adminHomeCalDaysGrid" style="grid-template-columns: repeat(7, 1fr);" onmouseleave="handleAdminHomeCalMouseLeave()">
+          </div>
+        </div>
+
+        <small class="text-muted d-block text-center mb-2" style="font-size: 0.72rem;" id="adminHomeModalHelper">
+          Click 1st date for <strong>From</strong>, then click 2nd date for <strong>To</strong>.
+        </small>
+
+        <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-1">
+          <div>
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">From Date</span>
+            <strong class="text-dark" id="adminHomeModalDispFrom" style="font-size: 0.85rem;">
+              {% if custom_start %}{{ custom_start|slice:"8:10" }}-{{ custom_start|slice:"5:7" }}-{{ custom_start|slice:"0:4" }}{% else %}(Open / Oldest){% endif %}
+            </strong>
+          </div>
+          <div class="text-muted">➔</div>
+          <div class="text-end">
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">To Date</span>
+            <strong class="text-dark" id="adminHomeModalDispTo" style="font-size: 0.85rem;">
+              {% if custom_end %}{{ custom_end|slice:"8:10" }}-{{ custom_end|slice:"5:7" }}-{{ custom_end|slice:"0:4" }}{% else %}Today{% endif %}
+            </strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" onclick="clearAdminHomeDateRange()">Clear</button>
+        <button type="button" class="btn btn-sm btn-primary px-3 py-1 fw-semibold" style="background-color: #052042; border-color: #052042;" onclick="applyAdminHomeDateRange()">Apply Range</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 10 Core Hospital KPIs Grid (Strictly 5 per row, 2 rows) -->
@@ -806,7 +872,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Cancelled / Lost Leads</span>
+            <span>Cancelled Leads</span>
         </div>
     </div>
 
@@ -1365,19 +1431,206 @@ Analytics Dashboard{% endif %}{% endblock %}
         });
     }
 
-    // Date Range Dropdown and Custom Range handlers
-    function onTimeFilterSelectChange(val) {
-        const startInput = document.getElementById('filterStartDate');
-        const endInput = document.getElementById('filterEndDate');
-        if (val !== 'custom') {
-            if (startInput) startInput.value = '';
-            if (endInput) endInput.value = '';
+    // Date Range Dropdown and Standard Custom Range modal handlers
+    const adminHomeCalState = {
+        from: '{{ custom_start|default:"" }}',
+        to: '{{ custom_end|default:"" }}',
+        mode: 'from',
+        viewYear: new Date().getFullYear(),
+        viewMonth: new Date().getMonth(),
+        hoverDate: null
+    };
+
+    function setAdminHomeCalMode(mode) {
+        adminHomeCalState.mode = mode;
+        const fromRadio = document.getElementById('admin_home_modal_pick_from');
+        const toRadio = document.getElementById('admin_home_modal_pick_to');
+        if (mode === 'from' && fromRadio) fromRadio.checked = true;
+        if (mode === 'to' && toRadio) toRadio.checked = true;
+    }
+
+    function navAdminHomeCalMonth(delta) {
+        adminHomeCalState.viewMonth += delta;
+        if (adminHomeCalState.viewMonth < 0) {
+            adminHomeCalState.viewMonth = 11;
+            adminHomeCalState.viewYear -= 1;
+        } else if (adminHomeCalState.viewMonth > 11) {
+            adminHomeCalState.viewMonth = 0;
+            adminHomeCalState.viewYear += 1;
+        }
+        renderAdminHomeCalendar();
+    }
+
+    function handleAdminHomeCalMouseLeave() {
+        if (adminHomeCalState.from && adminHomeCalState.to) return;
+        adminHomeCalState.hoverDate = null;
+        renderAdminHomeCalendar();
+    }
+
+    function formatAdminHomeDate(isoStr) {
+        if (!isoStr) return '';
+        const parts = isoStr.split('-');
+        if (parts.length === 3) return parts[2] + '-' + parts[1] + '-' + parts[0];
+        return isoStr;
+    }
+
+    function renderAdminHomeCalendar() {
+        const grid = document.getElementById('adminHomeCalDaysGrid');
+        const title = document.getElementById('adminHomeCalMonthYear');
+        const dispFrom = document.getElementById('adminHomeModalDispFrom');
+        const dispTo = document.getElementById('adminHomeModalDispTo');
+        if (!grid || !title) return;
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        title.textContent = monthNames[adminHomeCalState.viewMonth] + " " + adminHomeCalState.viewYear;
+
+        if (dispFrom) dispFrom.textContent = adminHomeCalState.from ? formatAdminHomeDate(adminHomeCalState.from) : '(Open / Oldest)';
+        if (dispTo) dispTo.textContent = adminHomeCalState.to ? formatAdminHomeDate(adminHomeCalState.to) : 'Today';
+
+        grid.innerHTML = '';
+        const firstDay = new Date(adminHomeCalState.viewYear, adminHomeCalState.viewMonth, 1).getDay();
+        const daysInMonth = new Date(adminHomeCalState.viewYear, adminHomeCalState.viewMonth + 1, 0).getDate();
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        for (let i = 0; i < firstDay; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'cal-day-cell cal-empty';
+            grid.appendChild(empty);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const mStr = String(adminHomeCalState.viewMonth + 1).padStart(2, '0');
+            const dStr = String(day).padStart(2, '0');
+            const iso = `${adminHomeCalState.viewYear}-${mStr}-${dStr}`;
+
+            const cell = document.createElement('div');
+            cell.className = 'cal-day-cell';
+            cell.textContent = day;
+
+            if (iso > todayStr) {
+                cell.classList.add('cal-future');
+            } else {
+                if (iso === adminHomeCalState.from) cell.classList.add('cal-selected-start');
+                if (iso === adminHomeCalState.to) cell.classList.add('cal-selected-end');
+
+                const effectiveTo = adminHomeCalState.to || (!adminHomeCalState.to && adminHomeCalState.hoverDate && adminHomeCalState.hoverDate >= adminHomeCalState.from ? adminHomeCalState.hoverDate : null);
+                if (adminHomeCalState.from && effectiveTo && iso > adminHomeCalState.from && iso < effectiveTo) {
+                    cell.classList.add('cal-in-range');
+                }
+
+                cell.onclick = () => onAdminHomeDateClick(iso);
+                cell.onmouseenter = () => {
+                    if (adminHomeCalState.from && !adminHomeCalState.to) {
+                        adminHomeCalState.hoverDate = iso;
+                        renderAdminHomeCalendar();
+                    }
+                };
+            }
+            grid.appendChild(cell);
         }
     }
 
-    function onCustomDateRangeInput() {
-        const timeFilterSelect = document.getElementById('formTimeFilterSelect');
-        if (timeFilterSelect) timeFilterSelect.value = 'custom';
+    function onAdminHomeDateClick(iso) {
+        if (adminHomeCalState.mode === 'from') {
+            adminHomeCalState.from = iso;
+            if (adminHomeCalState.to && adminHomeCalState.to < iso) adminHomeCalState.to = '';
+            setAdminHomeCalMode('to');
+        } else {
+            if (!adminHomeCalState.from) {
+                adminHomeCalState.from = iso;
+                setAdminHomeCalMode('to');
+            } else {
+                if (iso < adminHomeCalState.from) {
+                    adminHomeCalState.to = adminHomeCalState.from;
+                    adminHomeCalState.from = iso;
+                } else {
+                    adminHomeCalState.to = iso;
+                }
+                setAdminHomeCalMode('from');
+            }
+        }
+        renderAdminHomeCalendar();
+    }
+
+    function openAdminCustomDateModal() {
+        const modalEl = document.getElementById('adminHomeCustomDateModal');
+        if (modalEl) {
+            renderAdminHomeCalendar();
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+    }
+
+    function onAdminHomeDateSelectChange(val) {
+        if (val === 'custom') {
+            openAdminCustomDateModal();
+        } else {
+            const startInput = document.getElementById('filterStartDate');
+            const endInput = document.getElementById('filterEndDate');
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+            const form = document.getElementById('interactiveFilterForm');
+            if (form) form.submit();
+        }
+    }
+
+    function clearAdminHomeDateRange() {
+        adminHomeCalState.from = '';
+        adminHomeCalState.to = '';
+        adminHomeCalState.hoverDate = null;
+        renderAdminHomeCalendar();
+        const startInput = document.getElementById('filterStartDate');
+        const endInput = document.getElementById('filterEndDate');
+        const select = document.getElementById('formTimeFilterSelect');
+        if (startInput) startInput.value = '';
+        if (endInput) endInput.value = '';
+        if (select) select.value = 'last_7_days';
+        const form = document.getElementById('interactiveFilterForm');
+        if (form) form.submit();
+    }
+
+    function applyAdminHomeDateRange() {
+        const startInput = document.getElementById('filterStartDate');
+        const endInput = document.getElementById('filterEndDate');
+        const select = document.getElementById('formTimeFilterSelect');
+        if (startInput) startInput.value = adminHomeCalState.from || '';
+        if (endInput) endInput.value = adminHomeCalState.to || '';
+        if (select) select.value = 'custom';
+        const form = document.getElementById('interactiveFilterForm');
+        if (form) form.submit();
+    }
+
+    function checkChartEmptyState(canvasId, values) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const wrapper = canvas.parentElement;
+        if (!wrapper) return;
+
+        let emptyPlaceholder = wrapper.querySelector('.chart-zero-state-placeholder');
+        const hasData = values && values.length > 0 && values.some(v => v > 0);
+
+        if (!hasData) {
+            canvas.style.display = 'none';
+            if (!emptyPlaceholder) {
+                emptyPlaceholder = document.createElement('div');
+                emptyPlaceholder.className = 'chart-zero-state-placeholder d-flex flex-column align-items-center justify-content-center text-center w-100 h-100 py-4 text-muted';
+                emptyPlaceholder.innerHTML = `
+                    <div class="mb-2 d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 48px; height: 48px; background: #f1f5f9; color: #94a3b8;">
+                        <i class="fa-solid fa-chart-column" style="font-size: 1.35rem;"></i>
+                    </div>
+                    <div class="fw-semibold text-secondary" style="font-size: 0.85rem;">No leads recorded</div>
+                    <div class="small text-muted" style="font-size: 0.74rem;">Zero records match the selected filter criteria</div>
+                `;
+                wrapper.appendChild(emptyPlaceholder);
+            } else {
+                emptyPlaceholder.style.display = 'flex';
+            }
+        } else {
+            canvas.style.display = 'block';
+            if (emptyPlaceholder) {
+                emptyPlaceholder.style.display = 'none';
+            }
+        }
     }
 
     // Top N Updaters
@@ -1387,6 +1640,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         chartInstances['locationChart'].data.labels = sorted.labels;
         chartInstances['locationChart'].data.datasets[0].data = sorted.values;
         chartInstances['locationChart'].update();
+        checkChartEmptyState('locationChart', sorted.values);
     }
 
     function updateFinalStatusChart() {
@@ -1395,6 +1649,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         chartInstances['finalStatusChart'].data.labels = sorted.labels;
         chartInstances['finalStatusChart'].data.datasets[0].data = sorted.values;
         chartInstances['finalStatusChart'].update();
+        checkChartEmptyState('finalStatusChart', sorted.values);
     }
 
     function updateDepartmentChart() {
@@ -1403,6 +1658,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         chartInstances['departmentChart'].data.labels = sorted.labels;
         chartInstances['departmentChart'].data.datasets[0].data = sorted.values;
         chartInstances['departmentChart'].update();
+        checkChartEmptyState('departmentChart', sorted.values);
     }
 
     function updateDoctorChart() {
@@ -1411,6 +1667,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         chartInstances['doctorChart'].data.labels = sorted.labels;
         chartInstances['doctorChart'].data.datasets[0].data = sorted.values;
         chartInstances['doctorChart'].update();
+        checkChartEmptyState('doctorChart', sorted.values);
     }
 
     function updateCampaignChart() {
@@ -1419,6 +1676,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         chartInstances['campaignChart'].data.labels = sorted.labels;
         chartInstances['campaignChart'].data.datasets[0].data = sorted.values;
         chartInstances['campaignChart'].update();
+        checkChartEmptyState('campaignChart', sorted.values);
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -1469,6 +1727,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         chartInstances['monthChart'].data.labels = monthEntries.map(e => e[0]);
         chartInstances['monthChart'].data.datasets[0].data = monthEntries.map(e => e[1]);
         chartInstances['monthChart'].update();
+        checkChartEmptyState('monthChart', monthEntries.map(e => e[1]));
 
         // 4. Department Bar Chart (Default Top 10)
         chartInstances['departmentChart'] = createBarChart('departmentChart', 'department', singleChartColor, true);
@@ -1540,7 +1799,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         const activeTimeFilter = pageParams.get('time_filter') || '{{ time_filter|default:"today" }}';
         const activeStartDate = pageParams.get('start_date') || '{{ custom_start|default:"" }}';
         const activeEndDate = pageParams.get('end_date') || '{{ custom_end|default:"" }}';
-        const activeBiz = pageParams.get('hospital') || pageParams.get('business') || '{{ selected_hospital_id|default:"" }}';
+        const activeBiz = pageParams.get('hospital') || pageParams.get('business') || '{{ selected_business_id|default:"" }}';
 
         const drillParams = new URLSearchParams();
         drillParams.set('card_type', cardType);
@@ -1844,7 +2103,7 @@ Analytics Dashboard{% endif %}{% endblock %}
         if (currentUrlParams.get('final_lead_status')) {
             searchParams.set('final_lead_status', currentUrlParams.get('final_lead_status'));
         }
-        const bizParam = currentUrlParams.get('business') || '{{ selected_hospital_id|default:"" }}';
+        const bizParam = currentUrlParams.get('business') || '{{ selected_business_id|default:"" }}';
         if (bizParam) {
             searchParams.set('business', bizParam);
         }
