@@ -1020,72 +1020,73 @@ class Lead(models.Model):
     @property
     def display_stage(self):
         """
-        Dynamically calculates pipeline Stage:
-        - For Hospital: dynamic clinical pipeline (Awaiting Doctor Approval, Booking Confirmed, Completed, Payment Done, Follow up, New, Lost, etc.)
-        - For Academy and other industries: uses the configured stage name, or 'New'.
+        Calculates pipeline Stage dynamically according to standardized business stages:
+        - If lead has an explicitly assigned stage object, return its exact standardized name (e.g. 'Fresh', 'OPD Done', 'Visit planned').
+        - Fallbacks dynamically based on lifecycle attributes if no stage object is assigned.
         """
-        st_name = (self.stage.name if self.stage_id and self.stage else "").strip()
-        if not self.is_hospital_industry:
-            adm_st = str(self.admission_status or "").strip().upper()
-            cd = self.custom_data or {}
-            cd_ds = str(cd.get("deal_status") or "").strip().upper()
-            # If lead is marked Lost or Freeze (meets 3 negative + 3 completed followups rule)
-            if (
-                self.deal_status == DealStatus.LOST
-                or adm_st in ("LOST", "CANCELLED", "DROPOUT")
-                or cd_ds in ("LOST", "CANCELLED")
-                or st_name.lower() in ("cancelled", "lost", "not interested", "rejected", "closed lost", "dropped", "dropout")
-                or self.temperature == LeadTemperature.FREEZE
-            ):
-                return "Lost"
-            return st_name or "New"
+        if self.stage_id and self.stage:
+            return self.stage.name
 
         cd = self.custom_data or {}
         tot = self.total_billed_amount
-        st_up = st_name.upper()
         adm_st = str(self.admission_status or "").strip().upper()
         appt_st = str(cd.get("appointment_status") or "").strip().upper()
         raw_ds = str(cd.get("deal_status") or "").strip().upper()
 
-        # Doctor Cancelled / Rejected appointment awaiting follow-up -> Stage is 'Appointment Cancelled'
-        if "DOCTOR CANCELLED" in appt_st or "DOCTOR REJECT" in appt_st or st_name == "appointment cancelled" or "APPOINTMENT CANCELLED" in st_up:
-            return "Appointment Cancelled"
+        if not self.is_hospital_industry:
+            if (
+                self.deal_status == DealStatus.LOST
+                or adm_st in ("LOST", "CANCELLED", "DROPOUT")
+                or raw_ds in ("LOST", "CANCELLED")
+                or self.temperature == LeadTemperature.FREEZE
+            ):
+                return "Cancelled"
+            if tot > 0 or self.deal_status == DealStatus.WON or adm_st in ("WON", "ADMISSION_DONE") or "PAYMENT DONE" in raw_ds:
+                return "Payment Done"
+            if adm_st == "ADMISSION_PLANNED" or "ADMISSION PLANNED" in raw_ds:
+                return "Admission planned"
+            if "VISIT DONE" in raw_ds or "VISITED" in raw_ds:
+                return "Visit Done"
+            if "VISIT" in raw_ds:
+                return "Visit planned"
+            if self.next_followup_date:
+                return "Follow Up Pending"
+            if self.assigned_to_id:
+                return "Assigned"
+            return "Fresh"
 
-        # Check Lost / Cancelled -> Maintain one single unified stage: 'Lost'
-        if self.temperature == LeadTemperature.FREEZE or self.deal_status == DealStatus.LOST:
-            return "Lost"
+        # Hospital Business Stage Fallback Logic
+        if self.temperature == LeadTemperature.FREEZE or self.deal_status == DealStatus.LOST or adm_st in ("LOST", "CANCELLED") or "CANCEL" in appt_st or "CANCEL" in raw_ds:
+            return "Cancelled"
 
-        if adm_st in ("LOST", "CANCELLED") or (("CANCEL" in st_up or "LOST" in st_up or "NOT INT" in st_up) and st_name != "appointment cancelled") or "LOST" in appt_st or ("CANCEL" in appt_st and "DOCTOR" not in appt_st):
-            return "Lost"
-
-        if tot > 0 or "PAYMENT" in raw_ds or "PAYMENT" in appt_st or "PAYMENT" in st_up or (st_up == "PAYMENT" and cd.get("payment_status") == "Done"):
+        if tot > 0 or "PAYMENT DONE" in raw_ds or "PAYMENT DONE" in appt_st or (raw_ds == "PAYMENT" and cd.get("payment_status") == "Done"):
             return "Payment Done"
 
-        if "CONFIRM" in st_up or "CONFIRM" in appt_st or "BOOKING CONFIRMED" in appt_st or "APPROVED" in appt_st:
-            return "Appointment Confirmed"
+        if "PAYMENT PENDING" in raw_ds or "PAYMENT PENDING" in appt_st:
+            return "Payment Pending"
 
-        if "COMPLET" in appt_st or "CONSULTATION COMPLETED" in appt_st or "COMPLET" in st_up or "WON" in raw_ds or adm_st == "WON":
-            return "Appointment Completed"
+        if "IPD DONE" in raw_ds or "IPD DONE" in appt_st:
+            return "IPD Done"
 
-        if "AWAIT" in appt_st or "APPROVAL" in appt_st or "PENDING_APPROVAL" in appt_st or "AWAIT" in st_up:
-            return "Awaiting Approval from Doctor"
+        if "IPD" in raw_ds or "IPD" in appt_st:
+            return "IPD Booking"
 
-        has_active_pending_fu = bool(self.next_followup_date)
-        if self.pk and hasattr(self, '_prefetched_objects_cache') and 'followups' in self._prefetched_objects_cache:
-            has_active_pending_fu = bool(self.followups.all())
-        elif self.pk:
-            from followups.models import FollowUp
-            has_active_pending_fu = FollowUp.objects.filter(lead=self).exists()
+        if "OPD DONE" in raw_ds or "OPD DONE" in appt_st or "COMPLET" in appt_st or "CONSULTATION COMPLETED" in appt_st or adm_st == "WON":
+            return "OPD Done"
 
-        def is_clean_val(v):
-            return bool(v and str(v).strip().lower() not in ("nan", "none", "—", "-", "", "null", "nil"))
+        if "CONFIRM" in appt_st or "BOOKING CONFIRMED" in appt_st or "APPROVED" in appt_st:
+            return "Appointment - Confirmed"
 
-        has_remarks = any(is_clean_val(cd.get(k)) for k in ["remark_1", "remark_2", "remark_3", "followup_remark", "comments"])
+        if "AWAIT" in appt_st or "APPROVAL" in appt_st or "PENDING_APPROVAL" in appt_st:
+            return "Appointment - Approval Pending"
 
-        if has_active_pending_fu or has_remarks or "FOLLOW" in st_up or "FOLLOW" in appt_st:
-            return "Follow up"
+        if self.next_followup_date or "FOLLOW" in appt_st or "FOLLOW" in raw_ds:
+            return "Follow Up Pending"
 
-        return "New"
+        if self.assigned_to_id:
+            return "Assigned"
+
+        return "Fresh"
 
     @property
     def effective_intent_level(self):

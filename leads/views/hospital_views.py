@@ -73,6 +73,7 @@ def book_appointment(request, pk):
 def check_duplicate_mobile(request):
     from django.http import JsonResponse
     raw_mobile = request.GET.get("mobile", "").strip()
+    input_name = request.GET.get("name", "").strip().lower()
     digits = Lead.clean_mobile(raw_mobile)
     if not digits or len(digits) < 8:
         return JsonResponse({"exists": False})
@@ -85,8 +86,16 @@ def check_duplicate_mobile(request):
     for lead in existing.only("id", "lead_code", "name", "mobile", "assigned_to"):
         if Lead.clean_mobile(lead.mobile) == digits:
             assigned_name = lead.assigned_to.get_full_name() if lead.assigned_to else (lead.assigned_to.username if lead.assigned_to else "Unassigned")
+            
+            # Check if name is also provided and differs (family member)
+            is_same_name = True
+            if input_name:
+                cand_name = (lead.name or "").strip().lower()
+                is_same_name = (cand_name == input_name) or (len(input_name) >= 3 and input_name in cand_name) or (len(cand_name) >= 3 and cand_name in input_name)
+            
             return JsonResponse({
                 "exists": True,
+                "is_same_name": is_same_name,
                 "lead_id": lead.pk,
                 "lead_code": lead.lead_code,
                 "name": lead.name,
@@ -2068,10 +2077,18 @@ def pending_leads(request):
         context["hospital_campaigns"] = MasterGroup.get_active_choices("Campaigns").filter(hospital=target_hospital)
         context["hospital_sources"] = MasterGroup.get_active_choices("Lead Sources").filter(hospital=target_hospital)
         context["hospital_statuses"] = MasterGroup.get_active_choices("Deal Statuses").filter(hospital=target_hospital)
-        hospital_deal_statuses = list(context["hospital_statuses"].values_list("name", flat=True))
-        if hospital_deal_statuses:
-            context["bulk_stages"] = [{"id": s, "name": s} for s in hospital_deal_statuses]
-        else:
-            context["bulk_stages"] = [{"id": s.id, "name": s.name} for s in LeadStage.objects.filter(is_active=True)]
+        active_stages = list(LeadStage.objects.filter(is_active=True, hospital=target_hospital).order_by("order", "name"))
+        if not active_stages:
+            active_stages = list(LeadStage.objects.filter(is_active=True).order_by("order", "name"))
+        bulk_stages_list = [{"id": s.id, "name": s.name} for s in active_stages if s.name.strip().lower() not in ("cancelled", "archive")]
+        existing_stage_names = {s.name.strip().lower() for s in active_stages}
+        for extra_status in ["Won", "Lost"]:
+            if extra_status.lower() not in existing_stage_names:
+                extra_stage_obj = LeadStage.objects.filter(name__iexact=extra_status).first()
+                if extra_stage_obj:
+                    bulk_stages_list.append({"id": extra_stage_obj.id, "name": extra_stage_obj.name})
+                else:
+                    bulk_stages_list.append({"id": extra_status, "name": extra_status})
+        context["bulk_stages"] = bulk_stages_list
 
     return render(request, "hospital/leads/lead_list.html", context)

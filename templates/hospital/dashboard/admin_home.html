@@ -725,18 +725,18 @@ Analytics Dashboard{% endif %}{% endblock %}
 <!-- 10 Core Hospital KPIs Grid (Strictly 5 per row, 2 rows) -->
 <div class="stats-kpi-grid">
 
-    <!-- KPI 1: New Leads -->
+    <!-- KPI 1: Total Leads -->
     <div class="stat-card c-leads shadow-sm position-relative">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
-                    <span>New Leads</span>
+                    <span>Total Leads</span>
                 </div>
                 <div class="stat-value text-primary mt-1" data-live-metric="new_leads">{{ insights.new_leads|default:0|intcomma }}</div>
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Unassigned: {{ insights.unassigned_leads|default:0 }} &bull; Assigned: {{ insights.assigned_leads|default:0 }}</span>
+            <span>Fresh: {{ insights.fresh_leads|default:0 }} &bull; Assigned: {{ insights.assigned_leads|default:0 }}</span>
         </div>
     </div>
 
@@ -751,7 +751,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Untouched Leads</span>
+            <span>Fresh: {{ insights.cnd_fresh_count|default:0 }} &bull; Assigned: {{ insights.cnd_assigned_count|default:0 }}</span>
         </div>
     </div>
 
@@ -766,7 +766,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Confirmed Bookings</span>
+            <span>Active: {{ insights.appointment_active_count|default:0 }} &bull; Completed: {{ insights.appointment_completed_count|default:0 }}</span>
         </div>
     </div>
 
@@ -826,7 +826,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Payment Completed</span>
+            <span>OPD: {{ insights.won_opd_count|default:0 }} &bull; IPD: {{ insights.won_ipd_count|default:0 }}</span>
         </div>
     </div>
 
@@ -857,7 +857,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Total Realized Revenue</span>
+            <span>OPD: {{ insights.formatted_opd_revenue|default:"₹0" }} &bull; IPD: {{ insights.formatted_ipd_revenue|default:"₹0" }}</span>
         </div>
     </div>
 
@@ -872,7 +872,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Cancelled Leads</span>
+            <span>Cancelled / Lost Leads</span>
         </div>
     </div>
 

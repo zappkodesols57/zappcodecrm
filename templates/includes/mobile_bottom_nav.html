@@ -121,11 +121,13 @@
     </a>
 
     <!-- 4. Notifications -->
-    <button type="button" class="mobile-nav-item position-relative" data-bs-toggle="dropdown" data-bs-target="#notifDropdownBtn" aria-expanded="false" onclick="triggerMobileNotif()" aria-label="Notifications">
-      <i class="fa-solid fa-bell"></i>
+    <a href="{% url 'notifications:list' %}" class="mobile-nav-item position-relative {% if active == 'notifications' %}active{% endif %}" aria-label="Notifications">
+      <div class="position-relative d-inline-flex align-items-center justify-content-center">
+        <i class="fa-solid fa-bell"></i>
+        <span class="position-absolute mobile-notif-dot" id="mobileNotifDot" style="display: none; top: -2px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; border: 1.5px solid #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); pointer-events: none;"></span>
+      </div>
       <span>Alerts</span>
-      <span class="position-absolute badge rounded-pill mobile-notif-dot" id="mobileNotifDot" style="display: none; top: 2px; right: 22%; width: 8px; height: 8px; padding: 0; background-color: #ef4444; border: 1.5px solid #ffffff;"></span>
-    </button>
+    </a>
 
     <!-- 5. Profile -->
     <a href="{% url 'accounts:profile' %}" class="mobile-nav-item {% if active == 'profile' %}active{% endif %}">
@@ -166,11 +168,13 @@
     {% endif %}
 
     <!-- 4. Notifications -->
-    <button type="button" class="mobile-nav-item position-relative" onclick="triggerMobileNotif()" aria-label="Notifications">
-      <i class="fa-solid fa-bell"></i>
+    <a href="{% url 'notifications:list' %}" class="mobile-nav-item position-relative {% if active == 'notifications' %}active{% endif %}" aria-label="Notifications">
+      <div class="position-relative d-inline-flex align-items-center justify-content-center">
+        <i class="fa-solid fa-bell"></i>
+        <span class="position-absolute mobile-notif-dot" id="mobileNotifDotStd" style="display: none; top: -2px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; border: 1.5px solid #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); pointer-events: none;"></span>
+      </div>
       <span>Alerts</span>
-      <span class="position-absolute badge rounded-pill mobile-notif-dot" id="mobileNotifDotStd" style="display: none; top: 2px; right: 22%; width: 8px; height: 8px; padding: 0; background-color: #ef4444; border: 1.5px solid #ffffff;"></span>
-    </button>
+    </a>
 
     <!-- 5. Profile / Account -->
     <a href="{% url 'accounts:profile' %}" class="mobile-nav-item {% if active == 'profile' %}active{% endif %}">

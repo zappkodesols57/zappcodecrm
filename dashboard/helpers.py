@@ -21,7 +21,7 @@ def filter_uncontacted_leads_ids(c_base, today=None):
 
     # 1. Broad DB exclusions (fast indexed filter, order_by() strips created_at filesort)
     q = c_base.order_by().filter(
-        deal_status__in=[DealStatus.OPEN, 'New', 'OPEN']
+        deal_status__in=[DealStatus.UNCONTACTED, DealStatus.OPEN, 'UNCONTACTED', 'New', 'OPEN']
     ).exclude(
         deal_status__in=[DealStatus.WON, DealStatus.LOST, 'WON', 'LOST', 'CLOSED']
     ).exclude(
@@ -109,9 +109,15 @@ def filter_uncontacted_leads_ids(c_base, today=None):
         c_date3 = cd.get('calling_date_remark_3')
         last_called = cd.get('last_called_date')
 
+        # If lead has deal_status explicitly marked Call Not Done / UNCONTACTED (even with unreached note like 'CALL NOT RECIVE'), it is genuinely uncontacted
         has_calling_remark = any(is_clean_val(rk) for rk in [r1, r2, r3, r4, r5, f_rem, c_date1, c_date2, c_date3, last_called])
+        unreached_remarks = {'call not recive', 'call not received', 'not received', 'ringing', 'switch off', 'switched off', 'not reachable', 'busy', 'call cut', 'no reply', 'network issue', 'call not pick'}
         if has_calling_remark:
-            continue
+            # Check if calling remark is only uncontacted / unreached call
+            cleaned_rem = str(r1 or '').strip().lower()
+            is_unreached = any(k in cleaned_rem for k in unreached_remarks) or raw_ds in ('call not done', 'uncontacted')
+            if not is_unreached:
+                continue
 
         matched_ids.append(lid)
 

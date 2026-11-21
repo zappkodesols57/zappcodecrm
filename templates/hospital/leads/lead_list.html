@@ -608,7 +608,7 @@
   <div id="leadsBulkActionBar" class="card border-0 shadow-sm rounded-0 px-3 py-2 bg-light border-top border-bottom d-none" style="border-color: #E2E8F0 !important;">
     <div class="d-flex flex-wrap align-items-center gap-2.5">
 
-      <!-- Label + Live Count + Clear Selection -->
+      <!-- Label + Live Count -->
       <div class="d-flex align-items-center me-1">
         <div>
           <div class="fw-bold text-dark d-flex align-items-center gap-1.5" style="font-size: 0.82rem; letter-spacing: -0.2px;">
@@ -616,9 +616,6 @@
             <span id="bulkSelectedCountBadge" class="badge bg-light text-muted border rounded-pill px-2 py-0.5" style="font-size: 0.70rem; font-weight: 600;">
               <span id="bulkSelectedCountNum">0</span> selected
             </span>
-            <button type="button" class="btn btn-link text-danger p-0 ms-1 text-decoration-none small" style="font-size: 0.72rem;" onclick="clearAllSelectedLeads()" title="Deselect all selected leads across all pages">
-              <i class="fa-solid fa-xmark me-0.5"></i> Clear
-            </button>
           </div>
           <div class="text-muted small" style="font-size: 0.70rem;">Choose an action to apply to selected leads</div>
         </div>
@@ -687,13 +684,19 @@
         </div>
       </div>
 
-      <!-- Apply Button -->
-      <div class="ms-auto pt-1 pt-md-0">
+      <!-- Apply Button & Clear Action -->
+      <div class="ms-auto pt-1 pt-md-0 d-flex align-items-center gap-2">
         <button type="button" id="submitAdminBulkActionBtn" class="btn btn-primary px-3 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1.5"
           style="font-size: 0.82rem; height: 35px; border-radius: 6px; background-color: #052042 !important; border-color: #052042 !important;"
           onclick="submitAdminBulkAction()">
           <i class="fa-solid fa-check-double"></i>
           <span>Apply to Selected</span>
+        </button>
+        <button type="button" class="btn btn-outline-danger px-2.5 py-1 d-flex align-items-center gap-1 small"
+          style="font-size: 0.78rem; height: 35px; border-radius: 6px;"
+          onclick="clearAllSelectedLeads()" title="Deselect all selected leads across all pages">
+          <i class="fa-solid fa-xmark"></i>
+          <span>Clear</span>
         </button>
       </div>
 

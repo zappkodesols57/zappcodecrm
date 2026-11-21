@@ -2689,31 +2689,37 @@
             }
 
             // Deal / Appointment Status Badge
-            const displaySt = lead.appointment_status || lead.status || 'Open';
+            const displaySt = lead.stage || lead.appointment_status || lead.status || 'Fresh';
             let statusBadge = `<span class="badge bg-light text-dark border">${displaySt}</span>`;
             const stLower = displaySt.toLowerCase();
-            if (stLower.includes('payment done') || stLower.includes('won')) {
+            if (stLower.includes('payment done') || stLower === 'won') {
                 statusBadge = `<span class="badge badge-payment-done"><i class="ph ph-check me-1"></i>Payment Done</span>`;
-            } else if (stLower.includes('confirm')) {
-                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-calendar-check me-1"></i>Booking Confirmed</span>`;
-            } else if (stLower.includes('await') || stLower.includes('approval pending')) {
-                statusBadge = `<span class="badge badge-booking-pending"><i class="ph ph-clock-countdown me-1"></i>Awaiting Approval from Doctor</span>`;
-            } else if (stLower.includes('complete') || stLower.includes('visit')) {
-                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-check-circle me-1"></i>Completed</span>`;
-            } else if (stLower.includes('book') || stLower === 'yes') {
-                statusBadge = `<span class="badge badge-booking"><i class="ph ph-calendar me-1"></i>Booked</span>`;
-            } else if (stLower.includes('follow') || stLower.includes('wait')) {
-                statusBadge = `<span class="badge badge-followup-needed"><i class="ph ph-clock me-1"></i>Follow-up Needed</span>`;
+            } else if (stLower.includes('ipd done')) {
+                statusBadge = `<span class="badge badge-payment-done"><i class="ph ph-check-circle me-1"></i>IPD Done</span>`;
+            } else if (stLower.includes('ipd booking') || stLower.includes('ipd')) {
+                statusBadge = `<span class="badge badge-booking"><i class="ph ph-bed me-1"></i>IPD Booking</span>`;
+            } else if (stLower.includes('opd done') || stLower.includes('complete') || stLower.includes('consultation completed')) {
+                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-check-circle me-1"></i>OPD Done</span>`;
+            } else if (stLower.includes('appointment - confirmed') || stLower.includes('appointment confirmed') || stLower.includes('booking confirmed')) {
+                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-calendar-check me-1"></i>Appointment Confirmed</span>`;
+            } else if (stLower.includes('approval pending') || stLower.includes('await')) {
+                statusBadge = `<span class="badge badge-booking-pending"><i class="ph ph-clock-countdown me-1"></i>Appointment - Approval Pending</span>`;
+            } else if (stLower.includes('payment pending')) {
+                statusBadge = `<span class="badge badge-payment-pending"><i class="ph ph-clock-countdown me-1"></i>Payment Pending</span>`;
+            } else if (stLower.includes('follow up done')) {
+                statusBadge = `<span class="badge badge-booking-confirmed"><i class="ph ph-check me-1"></i>Follow Up Done</span>`;
+            } else if (stLower.includes('follow up rescheduled')) {
+                statusBadge = `<span class="badge badge-followup-needed"><i class="ph ph-clock-counter-clockwise me-1"></i>Follow Up Rescheduled</span>`;
+            } else if (stLower.includes('follow')) {
+                statusBadge = `<span class="badge badge-followup-needed"><i class="ph ph-clock me-1"></i>Follow Up Pending</span>`;
                 if (lead.next_followup && lead.next_followup !== '-' && lead.next_followup !== 'None') {
                     statusBadge += `<div class="mt-1 small text-muted" style="font-size:0.7rem;"><i class="ph-bold ph-calendar me-1"></i>${lead.next_followup}</div>`;
                 }
-            } else if (stLower.includes('payment pending')) {
-                statusBadge = `<span class="badge badge-payment-pending"><i class="ph ph-clock-countdown me-1"></i>Payment Pending</span>`;
             } else if (stLower.includes('assign')) {
                 statusBadge = `<span class="badge badge-assigned"><i class="ph ph-user-check me-1"></i>Assigned</span>`;
             } else if (stLower.includes('lost') || stLower.includes('cancel') || stLower.includes('not int')) {
                 statusBadge = `<span class="badge badge-lost"><i class="ph ph-prohibit me-1"></i>${displaySt}</span>`;
-            } else if (stLower.includes('new')) {
+            } else if (stLower.includes('fresh') || stLower.includes('new')) {
                 statusBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">${displaySt}</span>`;
             }
 
