@@ -475,44 +475,51 @@ def website_lead_webhook(request, business_id=1):
                 inner_fields.update(payload)
                 payload = inner_fields
 
+            # Helper to safely extract string value even if CF7 sends it as a single-element list e.g. ["Oncology"]
+            def _extract_str(val, default=""):
+                if isinstance(val, (list, tuple)):
+                    val = val[0] if val else default
+                return str(val or default).strip()
+
             # Contact Form 7 field name variations
-            name = (
+            name = _extract_str(
                 payload.get("your-name") or payload.get("name") or payload.get("patient_name")
-                or payload.get("full_name") or payload.get("your_name") or "Website Patient"
-            ).strip()
+                or payload.get("full_name") or payload.get("your_name"),
+                default="Website Patient"
+            )
 
-            phone = (
+            phone = _extract_str(
                 payload.get("your-phone") or payload.get("your-tel") or payload.get("phone")
-                or payload.get("mobile") or payload.get("contact") or payload.get("your_phone") or ""
-            ).strip()
+                or payload.get("mobile") or payload.get("contact") or payload.get("your_phone")
+            )
 
-            email = (
-                payload.get("your-email") or payload.get("email") or payload.get("your_email") or ""
-            ).strip()
+            email = _extract_str(
+                payload.get("your-email") or payload.get("email") or payload.get("your_email")
+            )
 
-            department = (
+            department = _extract_str(
                 payload.get("your-department") or payload.get("department") or payload.get("speciality")
-                or payload.get("your_department") or ""
-            ).strip()
+                or payload.get("your_department")
+            )
 
-            doctor = (
+            doctor = _extract_str(
                 payload.get("your-doctor") or payload.get("doctor") or payload.get("doctor_name")
-                or payload.get("your_doctor") or ""
-            ).strip()
+                or payload.get("your_doctor")
+            )
 
-            appointment_date = (
+            appointment_date = _extract_str(
                 payload.get("appointment-date") or payload.get("appointment_date") or payload.get("date")
-                or payload.get("booking_date") or payload.get("your-date") or ""
-            ).strip()
+                or payload.get("booking_date") or payload.get("your-date")
+            )
 
-            appointment_time = (
-                payload.get("appointment-time") or payload.get("appointment_time") or payload.get("time") or ""
-            ).strip()
+            appointment_time = _extract_str(
+                payload.get("appointment-time") or payload.get("appointment_time") or payload.get("time")
+            )
 
-            message = (
+            message = _extract_str(
                 payload.get("your-message") or payload.get("message") or payload.get("notes")
-                or payload.get("comments") or payload.get("your_message") or ""
-            ).strip()
+                or payload.get("comments") or payload.get("your_message")
+            )
 
             # Target Business Tenant (Hospital ID: 1 by default)
             hosp_biz = Hospital.objects.filter(pk=business_id, is_active=True).first()
@@ -523,21 +530,21 @@ def website_lead_webhook(request, business_id=1):
             clean_phone = "".join(filter(str.isdigit, str(phone)))[-10:] if phone else ""
 
             # Detect whether source is Dr. Nelsa Chatbot or Website Appointment Form
-            source_type = (
-                payload.get("source_type") or payload.get("source") or payload.get("type") or ""
-            ).strip().lower()
+            source_type = _extract_str(
+                payload.get("source_type") or payload.get("source") or payload.get("type")
+            ).lower()
             is_chatbot = "chat" in source_type or "nelsa" in source_type or bool(payload.get("concern"))
 
             # Hospital Branch vs Patient Address:
             # - Appointment Modal form has hospital branch dropdown (e.g. "Dhantoli", "CBSH")
             # - Dr. Nelsa Chatbot has patient personal address
-            hospital_branch_val = (
-                payload.get("your-branch") or payload.get("branch") or payload.get("hospital_branch") or ""
-            ).strip()
+            hospital_branch_val = _extract_str(
+                payload.get("your-branch") or payload.get("branch") or payload.get("hospital_branch")
+            )
             
-            patient_address_val = (
-                payload.get("your-address") or payload.get("address") or payload.get("location") or ""
-            ).strip()
+            patient_address_val = _extract_str(
+                payload.get("your-address") or payload.get("address") or payload.get("location")
+            )
 
             if not is_chatbot and not hospital_branch_val and patient_address_val:
                 # In appointment form, the location dropdown is the hospital branch
@@ -545,7 +552,7 @@ def website_lead_webhook(request, business_id=1):
                 patient_address_val = ""
 
             selected_branch = hospital_branch_val or (hosp_biz.name if hosp_biz else "Nelson Hospital Dhantoli")
-            city = patient_address_val or (payload.get("city") or "Nagpur").strip()
+            city = patient_address_val or _extract_str(payload.get("city"), default="Nagpur")
 
             # Resolve Category: Organic
             cat_obj = SourceCategory.objects.filter(name__iexact="Organic").first() or SourceCategory.objects.filter(name__iexact="Digital").first() or SourceCategory.objects.first()
