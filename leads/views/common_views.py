@@ -19,7 +19,7 @@ from accounts.models import User, Hospital
 from leads.models import (
     Lead, SourceCategory, LeadSource, Campaign, Course, Trainer, Batch, LeadStage, Tag, 
     MasterGroup, MasterItem, HospitalBranch, HospitalDepartment, HospitalDoctor, 
-    HospitalDisease, DoctorBranchAvailability, DealStatus, LeadTemperature,
+    HospitalDisease, DoctorBranchAvailability, DealStatus, LeadTemperature, LeadIntent,
     AdmissionStatus, Appointment, AppointmentStatus,
 )
 from leads.forms import (
@@ -1087,11 +1087,16 @@ def lead_list(request):
             seen_camps.add(hc_n.lower())
             clean_campaigns.append({"id": hc.id, "name": hc_n})
 
-    hospital_deal_statuses = list(hospital_statuses_qs.values_list("name", flat=True)) if hospital_statuses_qs else []
-    if hospital_deal_statuses:
-        bulk_stages_list = [{"id": s, "name": s} for s in hospital_deal_statuses]
-    else:
-        bulk_stages_list = [{"id": s.id, "name": s.name} for s in stages_qs]
+    bulk_stages_list = [{"id": s.id, "name": s.name} for s in stages_qs if s.name.strip().lower() not in ("cancelled", "archive")]
+    # Also add standard Deal Statuses like Won and Lost if not already present in stages
+    existing_stage_names = {s.name.strip().lower() for s in stages_qs}
+    for extra_status in ["Won", "Lost"]:
+        if extra_status.lower() not in existing_stage_names:
+            extra_stage_obj = LeadStage.objects.filter(name__iexact=extra_status).first()
+            if extra_stage_obj:
+                bulk_stages_list.append({"id": extra_stage_obj.id, "name": extra_stage_obj.name})
+            else:
+                bulk_stages_list.append({"id": extra_status, "name": extra_status})
 
     context = {
         "query_params": query_params.urlencode(),
@@ -2766,19 +2771,33 @@ def lead_add(request):
         if form.is_valid():
             if not force:
                 mobile = form.cleaned_data.get("mobile")
+                input_name = (form.cleaned_data.get("name") or "").strip().lower()
                 user_biz = getattr(request.user, "business", None) or getattr(request.user, "hospital", None)
                 dup_qs = Lead.objects.filter(mobile=mobile, is_archived=False)
                 if user_biz:
                     dup_qs = dup_qs.filter(hospital=user_biz)
-                duplicates = dup_qs
-                if duplicates.exists():
-                    return render(request, template, {
-                        "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
-                        "available_branches": available_branches,
-                        "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
-                        "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
-                        "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
-                    })
+                
+                # Check if exact same person or family member with same contact
+                if dup_qs.exists():
+                    exact_person = False
+                    for existing in dup_qs:
+                        ex_name = (existing.name or "").strip().lower()
+                        if ex_name == input_name or (len(input_name) >= 3 and input_name in ex_name) or (len(ex_name) >= 3 and ex_name in input_name):
+                            exact_person = True
+                            break
+                    # If same person name, prompt confirmation/duplicate warning
+                    if exact_person:
+                        duplicates = dup_qs
+                        return render(request, template, {
+                            "active": "leads_add", "form": form, "mode": "Add", "duplicates": duplicates,
+                            "available_branches": available_branches,
+                            "custom_booking_tpl": custom_booking_tpl.custom_text if custom_booking_tpl else "",
+                            "custom_followup_tpl": custom_followup_tpl.custom_text if custom_followup_tpl else "",
+                            "custom_billing_tpl": custom_billing_tpl.custom_text if custom_billing_tpl else "",
+                        })
+                    else:
+                        # Different family member using same mobile number -> allow creation with info note
+                        pass
             lead = form.save(commit=False)
             lead.created_by = request.user
             if getattr(request.user, "business", None):
@@ -5039,6 +5058,12 @@ def bulk_action(request):
                 eligible_leads = leads.filter(Q(stage__name__iexact=from_stage) | Q(deal_status__iexact=from_stage))
         
         target_stage = LeadStage.objects.filter(pk=stage_id).first() if stage_id and str(stage_id).isdigit() else None
+        if not target_stage and stage_id:
+            user_biz = getattr(request.user, "business", None)
+            if user_biz:
+                target_stage = LeadStage.objects.filter(name__iexact=str(stage_id).strip(), hospital=user_biz).first()
+            if not target_stage:
+                target_stage = LeadStage.objects.filter(name__iexact=str(stage_id).strip()).first()
         target_stage_name = target_stage.name if target_stage else (stage_id or "Updated")
         
         updated_count = 0
@@ -5046,22 +5071,42 @@ def bulk_action(request):
             prev_stage = str(lead.stage or lead.deal_status)
             if target_stage:
                 lead.stage = target_stage
-                if target_stage.name.strip().lower() == "archive":
+                stg_lower = target_stage.name.strip().lower()
+                if stg_lower == "archive":
                     lead.is_archived = True
-                    lead.save(update_fields=["stage", "is_archived", "updated_at"])
-                else:
-                    lead.save(update_fields=["stage", "updated_at"])
+                elif stg_lower in ("lost", "cancelled", "dropout", "rejected", "not interested", "closed lost"):
+                    lead.deal_status = DealStatus.LOST
+                    lead.admission_status = "LOST"
+                    lead.temperature = LeadTemperature.FREEZE
+                    lead.intent_level = LeadIntent.NOT_INTERESTED
+                    if not lead.custom_data:
+                        lead.custom_data = {}
+                    lead.custom_data["deal_status"] = "Lost"
+                elif stg_lower in ("payment done", "admission done", "ipd done", "closed won", "won"):
+                    lead.deal_status = DealStatus.WON
+                    lead.admission_status = "WON"
+                    if not lead.custom_data:
+                        lead.custom_data = {}
+                    lead.custom_data["deal_status"] = "Won"
+                lead.save()
             else:
                 # Custom deal status / stage name
                 lead.deal_status = stage_id
                 if not lead.custom_data:
                     lead.custom_data = {}
                 lead.custom_data["deal_status"] = stage_id
-                if str(stage_id).strip().lower() == "archive":
+                stg_lower = str(stage_id).strip().lower()
+                if stg_lower == "archive":
                     lead.is_archived = True
-                    lead.save(update_fields=["deal_status", "custom_data", "is_archived", "updated_at"])
-                else:
-                    lead.save(update_fields=["deal_status", "custom_data", "updated_at"])
+                elif stg_lower in ("lost", "cancelled", "dropout", "rejected", "not interested", "closed lost"):
+                    lead.deal_status = DealStatus.LOST
+                    lead.admission_status = "LOST"
+                    lead.temperature = LeadTemperature.FREEZE
+                    lead.intent_level = LeadIntent.NOT_INTERESTED
+                elif stg_lower in ("payment done", "admission done", "ipd done", "closed won", "won"):
+                    lead.deal_status = DealStatus.WON
+                    lead.admission_status = "WON"
+                lead.save()
             Activity.objects.create(
                 lead=lead,
                 created_by=request.user,

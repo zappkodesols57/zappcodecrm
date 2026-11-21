@@ -882,8 +882,8 @@ def _telecaller_home_internal(request):
     except (EmptyPage, PageNotAnInteger):
         tele_my_all_page = tele_my_all_paginator.page(1)
 
-    # Overall Leads (All leads of this hospital business including active, lost, archived)
-    tele_overall_base = Lead.objects.filter(hospital=user.business).select_related(
+    # Overall Leads (All active leads of this hospital business)
+    tele_overall_base = Lead.objects.filter(hospital=user.business, is_archived=False).select_related(
         'stage', 'campaign', 'lead_source', 'course', 'assigned_to'
     ).order_by('-created_at')
     tele_overall_qs = apply_hospital_lead_filters(tele_overall_base)

@@ -439,6 +439,246 @@ def practo_webhook(request):
     return HttpResponse(status=405)
 
 
+@csrf_exempt
+def website_lead_webhook(request, business_id=1):
+    """
+    Webhook endpoint to ingest real-time appointment bookings and inquiries 
+    from Nelson Hospital website (WordPress Contact Form 7 / Webhook Plugin).
+    Default or path business_id is 1 (Nelson Hospital Dhantoli).
+    """
+    import re
+    from accounts.models import Hospital
+    from leads.models import Lead, LeadSource, SourceCategory, Campaign, LeadStage, LeadTemperature
+
+    if request.method == "GET":
+        return JsonResponse({
+            "status": "active",
+            "service": "Nelson Hospital Website Lead Ingestion Webhook",
+            "target_business_id": business_id
+        }, status=200)
+
+    if request.method == "POST":
+        try:
+            # Parse payload from JSON body or standard POST form data (CF7 Webhook sends either)
+            payload = {}
+            if request.body:
+                try:
+                    payload = json.loads(request.body)
+                except Exception:
+                    pass
+            if not payload:
+                payload = request.POST.dict()
+
+            # If payload has nested "fields" wrapper (e.g. {"form_id": "...", "fields": {...}})
+            if isinstance(payload.get("fields"), dict):
+                inner_fields = payload.pop("fields")
+                inner_fields.update(payload)
+                payload = inner_fields
+
+            # Contact Form 7 field name variations
+            name = (
+                payload.get("your-name") or payload.get("name") or payload.get("patient_name")
+                or payload.get("full_name") or payload.get("your_name") or "Website Patient"
+            ).strip()
+
+            phone = (
+                payload.get("your-phone") or payload.get("your-tel") or payload.get("phone")
+                or payload.get("mobile") or payload.get("contact") or payload.get("your_phone") or ""
+            ).strip()
+
+            email = (
+                payload.get("your-email") or payload.get("email") or payload.get("your_email") or ""
+            ).strip()
+
+            department = (
+                payload.get("your-department") or payload.get("department") or payload.get("speciality")
+                or payload.get("your_department") or ""
+            ).strip()
+
+            doctor = (
+                payload.get("your-doctor") or payload.get("doctor") or payload.get("doctor_name")
+                or payload.get("your_doctor") or ""
+            ).strip()
+
+            appointment_date = (
+                payload.get("appointment-date") or payload.get("appointment_date") or payload.get("date")
+                or payload.get("booking_date") or payload.get("your-date") or ""
+            ).strip()
+
+            appointment_time = (
+                payload.get("appointment-time") or payload.get("appointment_time") or payload.get("time") or ""
+            ).strip()
+
+            message = (
+                payload.get("your-message") or payload.get("message") or payload.get("notes")
+                or payload.get("comments") or payload.get("your_message") or ""
+            ).strip()
+
+            # Target Business Tenant (Hospital ID: 1 by default)
+            hosp_biz = Hospital.objects.filter(pk=business_id, is_active=True).first()
+            if not hosp_biz:
+                hosp_biz = Hospital.objects.filter(industry=Hospital.Industry.HOSPITAL, is_active=True).first() or Hospital.objects.first()
+
+            # Clean 10-digit mobile number
+            clean_phone = "".join(filter(str.isdigit, str(phone)))[-10:] if phone else ""
+
+            # Detect whether source is Dr. Nelsa Chatbot or Website Appointment Form
+            source_type = (
+                payload.get("source_type") or payload.get("source") or payload.get("type") or ""
+            ).strip().lower()
+            is_chatbot = "chat" in source_type or "nelsa" in source_type or bool(payload.get("concern"))
+
+            # Hospital Branch vs Patient Address:
+            # - Appointment Modal form has hospital branch dropdown (e.g. "Dhantoli", "CBSH")
+            # - Dr. Nelsa Chatbot has patient personal address
+            hospital_branch_val = (
+                payload.get("your-branch") or payload.get("branch") or payload.get("hospital_branch") or ""
+            ).strip()
+            
+            patient_address_val = (
+                payload.get("your-address") or payload.get("address") or payload.get("location") or ""
+            ).strip()
+
+            if not is_chatbot and not hospital_branch_val and patient_address_val:
+                # In appointment form, the location dropdown is the hospital branch
+                hospital_branch_val = patient_address_val
+                patient_address_val = ""
+
+            selected_branch = hospital_branch_val or (hosp_biz.name if hosp_biz else "Nelson Hospital Dhantoli")
+            city = patient_address_val or (payload.get("city") or "Nagpur").strip()
+
+            # Resolve Category: Organic
+            cat_obj = SourceCategory.objects.filter(name__iexact="Organic").first() or SourceCategory.objects.filter(name__iexact="Digital").first() or SourceCategory.objects.first()
+            # Lead Source: Website (or Chatbot)
+            source_obj = LeadSource.objects.filter(name__iexact="Website").first() or LeadSource.objects.filter(name__icontains="Web").first()
+            
+            # Campaign differentiation under Organic:
+            # 1. "Website Appointment Form"
+            # 2. "Dr. Nelsa Chatbot"
+            target_campaign_name = "Dr. Nelsa Chatbot" if is_chatbot else "Website Appointment Form"
+            camp_obj = Campaign.objects.filter(name__iexact=target_campaign_name, hospital=hosp_biz).first()
+            if not camp_obj:
+                camp_obj = Campaign.objects.filter(name__iexact="ORGANIC LEAD", hospital=hosp_biz).first() or Campaign.objects.first()
+
+            # Resolve initial stage
+            stage_obj = LeadStage.objects.filter(name__iexact="Fresh", hospital=hosp_biz).first()
+            if not stage_obj:
+                stage_obj = LeadStage.objects.filter(name__iexact="Fresh").first()
+
+            # Prepare custom_data with all appointment & branch details
+            custom_data = {
+                "branch": selected_branch,
+                "hospital_branch": selected_branch,
+                "lead_source": "Website",
+                "campaign": target_campaign_name,
+                "deal_status": "Uncontacted",
+                "source_type": "Dr. Nelsa Chatbot" if is_chatbot else "Website Appointment Form",
+                "raw_form_data": payload
+            }
+            if department:
+                custom_data["department"] = department
+            if doctor:
+                custom_data["doctor"] = doctor
+            if appointment_date:
+                custom_data["appo_booked_date"] = appointment_date
+                custom_data["appointment_status"] = "Awaiting Approval from Doctor"
+            if appointment_time:
+                custom_data["appointment_time"] = appointment_time
+            if is_chatbot and payload.get("concern"):
+                custom_data["health_concern"] = str(payload.get("concern")).strip()
+
+            # -------------------------------------------------------------
+            # SMART PATIENT DEDUPLICATION: (Mobile + Patient Name Matching)
+            # -------------------------------------------------------------
+            # If same mobile number has a DIFFERENT patient name (e.g. father booking for child or wife):
+            # -> DO NOT overwrite! CREATE A NEW PATIENT LEAD and link them.
+            # If SAME mobile and SAME/SIMILAR patient name:
+            # -> DEDUPLICATE and update existing inquiry notes.
+            existing_lead = None
+            if clean_phone:
+                same_mobile_leads = Lead.objects.filter(
+                    hospital=hosp_biz,
+                    mobile=clean_phone,
+                    is_archived=False
+                ).order_by("-created_at")
+
+                input_name_clean = re.sub(r"[^a-zA-Z0-9\s]", "", name.lower()).strip()
+
+                for cand in same_mobile_leads:
+                    cand_name_clean = re.sub(r"[^a-zA-Z0-9\s]", "", cand.name.lower()).strip()
+                    # Check exact or partial name match (e.g., "Anita" in "Anita Sharma")
+                    if (
+                        input_name_clean == cand_name_clean
+                        or (len(input_name_clean) >= 3 and input_name_clean in cand_name_clean)
+                        or (len(cand_name_clean) >= 3 and cand_name_clean in input_name_clean)
+                    ):
+                        existing_lead = cand
+                        break
+
+            if existing_lead:
+                # Same patient submitted again -> Deduplicate and log activity/timeline
+                source_label = "Dr. Nelsa Chatbot" if is_chatbot else "Website Appointment Form"
+                new_inquiry_log = f"\n[Re-Inquiry via {source_label} on {timezone.localtime().strftime('%d-%m-%Y %I:%M %p')}]: {message or 'Appointment inquiry re-submitted'}"
+                existing_lead.notes = (str(existing_lead.notes or "") + new_inquiry_log).strip()
+                existing_lead.custom_data.update(custom_data)
+                existing_lead.save()
+
+                try:
+                    from followups.models import Activity
+                    Activity.objects.create(
+                        lead=existing_lead,
+                        activity_type="NOTE",
+                        description=f"Website Re-Inquiry received via {source_label}. Dept: {department or 'N/A'}, Branch: {selected_branch}.",
+                    )
+                except Exception:
+                    pass
+
+                logger.info(f"🔄 Website Lead Deduplicated & Updated: {existing_lead.lead_code} - {existing_lead.name}")
+                return JsonResponse({
+                    "status": "success",
+                    "action": "updated",
+                    "lead_id": existing_lead.id,
+                    "lead_code": existing_lead.lead_code,
+                    "message": "Existing patient record updated with new website inquiry."
+                }, status=200)
+
+            # Different patient name or first-time number -> Create New Patient Lead
+            notes_text = message or (f"Website Chatbot inquiry: {payload.get('concern')}" if is_chatbot else "Website Appointment inquiry from nelsonhospitals.com")
+            lead = Lead.objects.create(
+                name=name,
+                mobile=clean_phone,
+                email=email,
+                city=city,
+                hospital=hosp_biz,
+                lead_source=source_obj,
+                source_category=cat_obj,
+                campaign=camp_obj,
+                stage=stage_obj,
+                temperature=LeadTemperature.HOT if appointment_date else LeadTemperature.WARM,
+                ad_platform="Website",
+                inquiry_date=timezone.localdate(),
+                custom_data=custom_data,
+                notes=notes_text
+            )
+
+            logger.info(f"✅ Website Lead Ingested: {lead.lead_code} - {lead.name} (Phone: {clean_phone}) for {hosp_biz.name}")
+            return JsonResponse({
+                "status": "success",
+                "action": "created",
+                "lead_id": lead.id,
+                "lead_code": lead.lead_code,
+                "business_id": hosp_biz.id,
+                "business_name": hosp_biz.name,
+                "message": "Lead successfully created in CRM."
+            }, status=201)
+
+        except Exception as e:
+            logger.error(f"❌ Error ingesting website lead: {e}", exc_info=True)
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+    return HttpResponse(status=405)
+
+
 # ─────────────────────────────────────────────
 # CAMPAIGN DASHBOARD
 # ─────────────────────────────────────────────

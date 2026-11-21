@@ -506,30 +506,33 @@ def superadmin_home(request):
     # 10 CORE REFINED KPIs (Calculated strictly on the filtered hospital dataset)
     # =========================================================================
     
-    # 1. New Leads: All leads count in filtered date range / filters
-    new_leads_count = hospital_all_leads.count()
-    unassigned_count = hospital_all_leads.filter(assigned_to__isnull=True).count()
-    assigned_leads_count = max(0, new_leads_count - unassigned_count)
+    # 1. Total Leads: All leads count in filtered date range / filters with Fresh vs Assigned breakdown
+    total_leads_count = hospital_all_leads.count()
+    fresh_leads_count = hospital_all_leads.filter(stage__name='Fresh').count()
+    assigned_leads_count = hospital_all_leads.filter(stage__name='Assigned').count()
 
-    # 2. Call Not Done: Fresh or assigned leads untouched by users (exclude system remarks)
-    cnd_matched_ids = filter_uncontacted_leads_ids(hospital_all_leads, today=today)
-    call_not_done_count = len(cnd_matched_ids)
-
-    # 3. Appointment Booked: Leads where stage or appointment status is confirmed/booked in date range
-    appo_booked_qs = hospital_all_leads.filter(
-        Q(custom_data__appointment_status__icontains='confirm') |
-        Q(custom_data__appointment_status__icontains='book') |
-        Q(custom_data__appointment_confirmed_at__isnull=False) |
-        Q(stage__name__icontains='confirm') |
-        Q(stage__name__icontains='booked')
+    # 2. Call Not Done: Leads with UNCONTACTED deal status or in Fresh/Assigned stage without calling notes
+    cnd_qs = hospital_all_leads.filter(
+        Q(deal_status=DealStatus.UNCONTACTED) |
+        (Q(stage__name__in=['Fresh', 'Assigned']) & Q(deal_status__in=[DealStatus.OPEN, 'OPEN', 'New']))
     ).exclude(
-        deal_status=DealStatus.LOST
-    ).exclude(
-        custom_data__deal_status__icontains='lost'
-    ).exclude(
-        custom_data__appointment_status__icontains='cancel'
+        Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
+        Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done'])
     )
-    appointment_booked_count = appo_booked_qs.distinct().count()
+    call_not_done_count = cnd_qs.count()
+    cnd_fresh_count = cnd_qs.filter(stage__name='Fresh').count()
+    cnd_assigned_count = cnd_qs.filter(stage__name='Assigned').count()
+
+    # 3. Appointments Booked: Total cumulative appointments ever booked (Active Confirmed + Converted to Visit/Payment)
+    appt_active_qs = hospital_all_leads.filter(
+        stage__name__in=['Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']
+    )
+    appt_completed_qs = hospital_all_leads.filter(
+        stage__name__in=['OPD Done', 'Payment Done', 'IPD Done']
+    )
+    appointment_active_count = appt_active_qs.count()
+    appointment_completed_count = appt_completed_qs.count()
+    appointment_booked_count = appointment_active_count + appointment_completed_count
 
     # 4. Walk-in Leads: Leads where source or lead type is Walk-in
     walkin_qs = hospital_all_leads.filter(
@@ -547,7 +550,6 @@ def superadmin_home(request):
             appointment_date__range=(date_range_start_dt.date(), date_range_end_dt.date())
         ).exclude(status=AppointmentStatus.CANCELLED)
         appo_sched_count = appo_sched_qs.count()
-        # If no Appointment model rows, fall back to leads marked as scheduled
         if appo_sched_count == 0:
             appo_sched_count = hospital_all_leads.filter(
                 Q(custom_data__appo_booked_date__isnull=False) |
@@ -575,50 +577,63 @@ def superadmin_home(request):
     )
     admitted_patients_count = admitted_qs.distinct().count()
 
-    # 7. Won Leads: Payment completed / Won deals
-    payment_done_condition = (
-        Q(deal_status=DealStatus.WON)
-        | Q(deal_status__in=[DealStatus.WON, "WON", "Payment Done", "PAYMENT DONE", "PAYMENT_DONE"])
-        | Q(admission_status__in=["WON", "ADMISSION_DONE", "PAYMENT_DONE"])
-        | (Q(custom_data__total__isnull=False) & ~Q(custom_data__total__in=["0", "0.00", "", "0.0", 0, 0.0]))
-        | (Q(custom_data__total_paid__isnull=False) & ~Q(custom_data__total_paid__in=["0", "0.00", "", "0.0", 0, 0.0]))
-        | (Q(custom_data__opd_bill__isnull=False) & ~Q(custom_data__opd_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
-        | (Q(custom_data__pharmacy_bill__isnull=False) & ~Q(custom_data__pharmacy_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
-        | (Q(custom_data__ipd_bill__isnull=False) & ~Q(custom_data__ipd_bill__in=["0", "0.00", "", "0.0", 0, 0.0]))
-        | Q(admission__payments__payment_status="SUCCESS", admission__payments__amount__gt=0)
-        | Q(custom_data__deal_status__icontains="Won")
-        | Q(custom_data__deal_status__icontains="Payment")
-        | Q(custom_data__appointment_status__icontains="Payment Done")
-        | Q(stage__name__icontains="Payment")
-        | Q(stage__name__icontains="Won")
-    )
-    won_leads_qs = hospital_all_leads.filter(
-        payment_done_condition
-    ).exclude(
-        Q(deal_status=DealStatus.LOST) | Q(stage__name__icontains="lost") | Q(stage__name__icontains="cancel") | Q(custom_data__deal_status__icontains="lost")
-    ).distinct()
-    won_leads_count = won_leads_qs.count()
+    # 7. Won Leads: Realized paid patients with OPD & IPD breakdown
+    won_leads_count = 0
+    won_opd_count = 0
+    won_ipd_count = 0
+    total_revenue = 0.0
+    opd_revenue = 0.0
+    ipd_revenue = 0.0
+
+    for l in hospital_all_leads:
+        cd = l.custom_data or {}
+        opd_b = 0.0
+        ipd_b = 0.0
+        tot_p = 0.0
+        try:
+            opd_b = float(cd.get('opd_bill') or 0.0)
+        except (ValueError, TypeError):
+            opd_b = 0.0
+        try:
+            ipd_b = float(cd.get('ipd_bill') or 0.0)
+        except (ValueError, TypeError):
+            ipd_b = 0.0
+        try:
+            tot_p = float(cd.get('total_paid') or cd.get('total') or 0.0)
+            if tot_p > 10000000:
+                tot_p = 0.0
+        except (ValueError, TypeError):
+            tot_p = 0.0
+
+        is_paid = (tot_p > 0 or opd_b > 0 or ipd_b > 0 or (l.stage and l.stage.name == 'Payment Done') or l.deal_status == DealStatus.WON)
+        if is_paid:
+            won_leads_count += 1
+            if ipd_b > 0 or (l.stage and 'ipd' in l.stage.name.lower()):
+                won_ipd_count += 1
+            else:
+                won_opd_count += 1
+
+            opd_revenue += opd_b
+            ipd_revenue += ipd_b
+            total_revenue += (tot_p if tot_p > 0 else (opd_b + ipd_b))
 
     # 8. Follow-ups Pending: Leads with pending follow-up status
     fu_pending_qs = hospital_all_leads.exclude(
         deal_status__in=[DealStatus.WON, DealStatus.LOST]
     ).filter(
         Q(followups__followup_status__in=['PENDING', 'RESCHEDULED']) |
-        (Q(next_followup_date__isnull=False) & ~Q(stage__name__icontains='lost')) |
+        (Q(next_followup_date__isnull=False) & ~Q(stage__name__icontains='lost') & ~Q(stage__name__icontains='cancel')) |
         Q(custom_data__appointment_status__icontains='follow')
     ).distinct()
     followups_pending_count = fu_pending_qs.count()
 
-    # 9. Total Revenue & 10. Lost Leads
-    total_revenue = 0.0
-    lost_leads_count = hospital_all_leads.filter(
+    # 10. Lost Leads: Strictly leads with LOST deal status or Cancelled stage
+    lost_leads_qs = hospital_all_leads.filter(
         Q(deal_status=DealStatus.LOST) |
-        Q(temperature=LeadTemperature.FREEZE) |
-        Q(stage__name__icontains='lost') |
-        Q(custom_data__deal_status__icontains='lost') |
-        Q(custom_data__appointment_status__icontains='lost') |
-        Q(custom_data__appointment_status__icontains='cancel')
-    ).distinct().count()
+        Q(stage__name__iexact='Cancelled') |
+        Q(stage__name__iexact='Lost')
+    ).distinct()
+    lost_leads_count = lost_leads_qs.count()
 
     # Dynamic Distributions & Revenue Calculation in single pass
     location_dist = {}
@@ -765,26 +780,38 @@ def superadmin_home(request):
             return f"{sign}₹{int(abs_amt):,}"
 
     formatted_revenue = format_indian_currency(total_revenue)
+    formatted_opd_revenue = format_indian_currency(opd_revenue)
+    formatted_ipd_revenue = format_indian_currency(ipd_revenue)
 
     insights = {
         # Core KPIs for SuperAdmin
         "active_businesses": active_businesses_count,
-        "total_leads": new_leads_count,
+        "total_leads": total_leads_count,
         "total_users": total_users_count,
         "won_leads": won_leads_count,
         "lost_leads": lost_leads_count,
 
-        "new_leads": new_leads_count,
-        "unassigned_leads": unassigned_count,
+        "new_leads": total_leads_count,
+        "fresh_leads": fresh_leads_count,
         "assigned_leads": assigned_leads_count,
         "call_not_done": call_not_done_count,
+        "cnd_fresh_count": cnd_fresh_count,
+        "cnd_assigned_count": cnd_assigned_count,
         "appointment_booked": appointment_booked_count,
+        "appointment_active_count": appointment_active_count,
+        "appointment_completed_count": appointment_completed_count,
         "walkin_leads": walkin_leads_count,
         "appointments_scheduled": appo_sched_count,
         "admitted_patients": admitted_patients_count,
+        "won_opd_count": won_opd_count,
+        "won_ipd_count": won_ipd_count,
         "followups_pending": followups_pending_count,
         "total_revenue": total_revenue,
         "formatted_revenue": formatted_revenue,
+        "opd_revenue": opd_revenue,
+        "formatted_opd_revenue": formatted_opd_revenue,
+        "ipd_revenue": ipd_revenue,
+        "formatted_ipd_revenue": formatted_ipd_revenue,
 
         # Charts Data JSON Formatted
         "month_distribution": month_dist,
@@ -1931,7 +1958,7 @@ def live_metrics_api(request):
         awaiting_approval_count = apt_qs.filter(status=AppointmentStatus.SCHEDULED).count()
         confirmed_count = apt_qs.filter(status=AppointmentStatus.APPROVED).count()
 
-        # Call Not Done (Exact same logic as telecaller_home and calculate_insights)
+        # Call Not Done (Exact same logic as admin_home and calculate_insights)
         if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR):
             call_not_done_base = leads_qs.filter(assigned_to=user)
         else:
@@ -1949,8 +1976,14 @@ def live_metrics_api(request):
         else:
             cnd_raw_qs = call_not_done_base.distinct()
 
-        cnd_matched_ids = filter_uncontacted_leads_ids(cnd_raw_qs, today=today)
-        call_not_done_count = len(cnd_matched_ids)
+        cnd_qs = cnd_raw_qs.filter(
+            Q(deal_status=DealStatus.UNCONTACTED) |
+            (Q(stage__name__in=['Fresh', 'Assigned']) & Q(deal_status__in=[DealStatus.OPEN, 'OPEN', 'New']))
+        ).exclude(
+            Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
+            Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done'])
+        )
+        call_not_done_count = cnd_qs.count()
 
         # Latest lead tracking to detect new entries
         latest_lead = my_leads_qs.order_by('-id').values('id', 'name', 'mobile', 'created_at').first()
