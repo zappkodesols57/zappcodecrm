@@ -830,7 +830,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                 <div class="stat-title d-flex align-items-center justify-content-between">
                     <span class="text-dark">Call Not Done</span>
                 </div>
-                <div class="stat-value text-dark mt-1" data-live-metric="call_not_done">{{ insights.call_not_done|default:0|intcomma }}</div>
+                <div class="stat-value text-dark mt-1" >{{ insights.call_not_done|default:0|intcomma }}</div>
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
