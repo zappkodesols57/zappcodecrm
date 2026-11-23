@@ -222,6 +222,11 @@ def hospital_admin_home(request):
                         if d_clean and d_clean.lower() not in ['not mentioned', 'docotor', 'doctor', 'nan', 'none']:
                             raw_doc_set.add(d_clean)
 
+        # Ensure official standard hospital sources are always available in dropdown
+        hospital_core_sources = ["Google My Business", "Website", "Meta Ads", "Direct Walk-in", "Just Dial", "Practo"]
+        for h_src in hospital_core_sources:
+            raw_source_set.add(h_src)
+
         # Clean case-insensitive deduplication for sources (strictly hospital leads)
         clean_sources = []
         seen_sources = set()
