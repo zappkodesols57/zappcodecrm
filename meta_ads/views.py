@@ -481,44 +481,77 @@ def website_lead_webhook(request, business_id=1):
                     val = val[0] if val else default
                 return str(val or default).strip()
 
-            # Contact Form 7 field name variations
-            name = _extract_str(
-                payload.get("your-name") or payload.get("name") or payload.get("patient_name")
-                or payload.get("full_name") or payload.get("your_name"),
-                default="Website Patient"
+            # Helper to recursively search payload keys for matching patterns
+            def _find_field_value(patterns, default=""):
+                for k, v in payload.items():
+                    k_lower = str(k).lower().replace("_", "").replace("-", "")
+                    for pat in patterns:
+                        if pat in k_lower:
+                            extracted = _extract_str(v)
+                            if extracted:
+                                return extracted
+                return default
+
+            # Contact Form 7 / Webhook field extraction
+            name = (
+                _extract_str(payload.get("your-name") or payload.get("name") or payload.get("patient_name")
+                             or payload.get("full_name") or payload.get("your_name"))
+                or _find_field_value(["patientname", "fullname", "name"], default="Website Patient")
             )
 
-            phone = _extract_str(
-                payload.get("your-phone") or payload.get("your-tel") or payload.get("phone")
-                or payload.get("mobile") or payload.get("contact") or payload.get("your_phone")
+            # Robust Phone extraction: check known keys, then regex/pattern match across all keys
+            phone = (
+                _extract_str(payload.get("your-phone") or payload.get("your-tel") or payload.get("phone")
+                             or payload.get("mobile") or payload.get("contact") or payload.get("your_phone")
+                             or payload.get("tel") or payload.get("contact_number") or payload.get("phone_number"))
+                or _find_field_value(["phone", "tel", "mobile", "contact", "cell", "number"])
             )
 
-            email = _extract_str(
-                payload.get("your-email") or payload.get("email") or payload.get("your_email")
+            # Fallback for phone: scan values in payload for any valid 10+ digit sequence if phone is still empty
+            if not phone:
+                for k, v in payload.items():
+                    val_str = _extract_str(v)
+                    digits = re.sub(r"\D", "", val_str)
+                    if len(digits) == 10 and digits[0] in "6789":
+                        phone = val_str
+                        break
+
+            email = (
+                _extract_str(payload.get("your-email") or payload.get("email") or payload.get("your_email"))
+                or _find_field_value(["email", "mail"])
             )
 
-            department = _extract_str(
-                payload.get("your-department") or payload.get("department") or payload.get("speciality")
-                or payload.get("your_department")
+            department = (
+                _extract_str(payload.get("your-department") or payload.get("department") or payload.get("speciality")
+                             or payload.get("specialty") or payload.get("your_department"))
+                or _find_field_value(["department", "speciality", "specialty"])
             )
 
-            doctor = _extract_str(
-                payload.get("your-doctor") or payload.get("doctor") or payload.get("doctor_name")
-                or payload.get("your_doctor")
+            doctor = (
+                _extract_str(payload.get("your-doctor") or payload.get("doctor") or payload.get("doctor_name")
+                             or payload.get("your_doctor") or payload.get("consulting_doctor"))
+                or _find_field_value(["doctor", "consultant", "physician"])
             )
 
-            appointment_date = _extract_str(
-                payload.get("appointment-date") or payload.get("appointment_date") or payload.get("date")
-                or payload.get("booking_date") or payload.get("your-date")
+            appointment_date = (
+                _extract_str(payload.get("appointment-date") or payload.get("appointment_date") or payload.get("date")
+                             or payload.get("booking_date") or payload.get("your-date"))
+                or _find_field_value(["appointmentdate", "bookingdate", "preferreddate"])
             )
 
-            appointment_time = _extract_str(
-                payload.get("appointment-time") or payload.get("appointment_time") or payload.get("time")
+            appointment_time = (
+                _extract_str(payload.get("appointment-time") or payload.get("appointment_time") or payload.get("time")
+                             or payload.get("booking_time"))
+                or _find_field_value(["appointmenttime", "bookingtime", "preferredtime", "time"])
             )
 
-            message = _extract_str(
-                payload.get("your-message") or payload.get("message") or payload.get("notes")
-                or payload.get("comments") or payload.get("your_message")
+            # Extract message / remark / inquiry / concern
+            message = (
+                _extract_str(payload.get("your-message") or payload.get("message") or payload.get("notes")
+                             or payload.get("comments") or payload.get("your_message") or payload.get("concern")
+                             or payload.get("inquiry") or payload.get("remark") or payload.get("query")
+                             or payload.get("description"))
+                or _find_field_value(["message", "comment", "note", "concern", "query", "inquiry", "remark", "desc"])
             )
 
             # Target Business Tenant (Hospital ID: 1 by default)
@@ -536,14 +569,14 @@ def website_lead_webhook(request, business_id=1):
             is_chatbot = "chat" in source_type or "nelsa" in source_type or bool(payload.get("concern"))
 
             # Hospital Branch vs Patient Address:
-            # - Appointment Modal form has hospital branch dropdown (e.g. "Dhantoli", "CBSH")
-            # - Dr. Nelsa Chatbot has patient personal address
-            hospital_branch_val = _extract_str(
-                payload.get("your-branch") or payload.get("branch") or payload.get("hospital_branch")
+            hospital_branch_val = (
+                _extract_str(payload.get("your-branch") or payload.get("branch") or payload.get("hospital_branch"))
+                or _find_field_value(["branch", "hospitalbranch"])
             )
             
-            patient_address_val = _extract_str(
-                payload.get("your-address") or payload.get("address") or payload.get("location")
+            patient_address_val = (
+                _extract_str(payload.get("your-address") or payload.get("address") or payload.get("location"))
+                or _find_field_value(["address", "location", "area"])
             )
 
             if not is_chatbot and not hospital_branch_val and patient_address_val:
@@ -558,19 +591,44 @@ def website_lead_webhook(request, business_id=1):
             cat_obj = SourceCategory.objects.filter(name__iexact="Organic").first() or SourceCategory.objects.filter(name__iexact="Digital").first() or SourceCategory.objects.first()
             # Lead Source: Website (or Chatbot)
             source_obj = LeadSource.objects.filter(name__iexact="Website").first() or LeadSource.objects.filter(name__icontains="Web").first()
+            if not source_obj:
+                source_obj, _ = LeadSource.objects.get_or_create(name="Website", defaults={"category": cat_obj})
             
-            # Campaign differentiation under Organic:
-            # 1. "Website Appointment Form"
-            # 2. "Dr. Nelsa Chatbot"
-            target_campaign_name = "Dr. Nelsa Chatbot" if is_chatbot else "Website Appointment Form"
-            camp_obj = Campaign.objects.filter(name__iexact=target_campaign_name, hospital=hosp_biz).first()
-            if not camp_obj:
-                camp_obj = Campaign.objects.filter(name__iexact="ORGANIC LEAD", hospital=hosp_biz).first() or Campaign.objects.first()
+            # Campaign name requirement: "Nelson Website" (or "Dr. Nelsa Chatbot" for chatbot)
+            target_campaign_name = "Dr. Nelsa Chatbot" if is_chatbot else "Nelson Website"
+            camp_obj, _ = Campaign.objects.get_or_create(
+                name=target_campaign_name,
+                hospital=hosp_biz,
+                defaults={
+                    "source": source_obj,
+                    "status": "ACTIVE"
+                }
+            )
 
             # Resolve initial stage
             stage_obj = LeadStage.objects.filter(name__iexact="Fresh", hospital=hosp_biz).first()
             if not stage_obj:
                 stage_obj = LeadStage.objects.filter(name__iexact="Fresh").first()
+
+            # Build comprehensive note text from message and appointment details
+            note_lines = []
+            if message:
+                note_lines.append(f"Message: {message}")
+            if department:
+                note_lines.append(f"Department: {department}")
+            if doctor:
+                note_lines.append(f"Doctor: {doctor}")
+            if appointment_date or appointment_time:
+                date_time_str = f"{appointment_date} {appointment_time}".strip()
+                note_lines.append(f"Preferred Appointment: {date_time_str}")
+            if selected_branch:
+                note_lines.append(f"Branch: {selected_branch}")
+
+            source_label = "Dr. Nelsa Chatbot" if is_chatbot else "Nelson Website Appointment Form"
+            if note_lines:
+                notes_text = f"[{source_label} Inquiry]\n" + "\n".join(note_lines)
+            else:
+                notes_text = f"[{source_label} Inquiry from nelsonhospitals.com]"
 
             # Prepare custom_data with all appointment & branch details
             custom_data = {
@@ -579,9 +637,11 @@ def website_lead_webhook(request, business_id=1):
                 "lead_source": "Website",
                 "campaign": target_campaign_name,
                 "deal_status": "Uncontacted",
-                "source_type": "Dr. Nelsa Chatbot" if is_chatbot else "Website Appointment Form",
+                "source_type": target_campaign_name,
                 "raw_form_data": payload
             }
+            if message:
+                custom_data["patient_message"] = message
             if department:
                 custom_data["department"] = department
             if doctor:
@@ -597,10 +657,6 @@ def website_lead_webhook(request, business_id=1):
             # -------------------------------------------------------------
             # SMART PATIENT DEDUPLICATION: (Mobile + Patient Name Matching)
             # -------------------------------------------------------------
-            # If same mobile number has a DIFFERENT patient name (e.g. father booking for child or wife):
-            # -> DO NOT overwrite! CREATE A NEW PATIENT LEAD and link them.
-            # If SAME mobile and SAME/SIMILAR patient name:
-            # -> DEDUPLICATE and update existing inquiry notes.
             existing_lead = None
             if clean_phone:
                 same_mobile_leads = Lead.objects.filter(
@@ -624,8 +680,7 @@ def website_lead_webhook(request, business_id=1):
 
             if existing_lead:
                 # Same patient submitted again -> Deduplicate and log activity/timeline
-                source_label = "Dr. Nelsa Chatbot" if is_chatbot else "Website Appointment Form"
-                new_inquiry_log = f"\n[Re-Inquiry via {source_label} on {timezone.localtime().strftime('%d-%m-%Y %I:%M %p')}]: {message or 'Appointment inquiry re-submitted'}"
+                new_inquiry_log = f"\n\n[{timezone.localtime().strftime('%d-%m-%Y %I:%M %p')} - {source_label} Re-Inquiry]:\n{notes_text}"
                 existing_lead.notes = (str(existing_lead.notes or "") + new_inquiry_log).strip()
                 existing_lead.custom_data.update(custom_data)
                 existing_lead.save()
@@ -635,7 +690,7 @@ def website_lead_webhook(request, business_id=1):
                     Activity.objects.create(
                         lead=existing_lead,
                         activity_type="NOTE",
-                        description=f"Website Re-Inquiry received via {source_label}. Dept: {department or 'N/A'}, Branch: {selected_branch}.",
+                        description=f"{notes_text}",
                     )
                 except Exception:
                     pass
@@ -650,7 +705,6 @@ def website_lead_webhook(request, business_id=1):
                 }, status=200)
 
             # Different patient name or first-time number -> Create New Patient Lead
-            notes_text = message or (f"Website Chatbot inquiry: {payload.get('concern')}" if is_chatbot else "Website Appointment inquiry from nelsonhospitals.com")
             lead = Lead.objects.create(
                 name=name,
                 mobile=clean_phone,
@@ -667,6 +721,17 @@ def website_lead_webhook(request, business_id=1):
                 custom_data=custom_data,
                 notes=notes_text
             )
+
+            # Also record note in Activity Timeline for immediate visibility
+            try:
+                from followups.models import Activity
+                Activity.objects.create(
+                    lead=lead,
+                    activity_type="NOTE",
+                    description=notes_text,
+                )
+            except Exception:
+                pass
 
             logger.info(f"✅ Website Lead Ingested: {lead.lead_code} - {lead.name} (Phone: {clean_phone}) for {hosp_biz.name}")
             return JsonResponse({

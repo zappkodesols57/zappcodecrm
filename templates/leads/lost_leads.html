@@ -17,12 +17,93 @@
 <!-- Campaign Breakdown & Date Filters Ribbon -->
 {% include "includes/campaign_date_header.html" %}
 
+<!-- Bulk Action Form Container -->
+<form method="post" action="{% url 'leads:bulk_action' %}" id="lostLeadsBulkActionForm">
+  {% csrf_token %}
+  <input type="hidden" name="bulk_action" id="bulkActionInput" value="assign">
+
+  <!-- Bulk Action Bar: Hidden by default (d-none), only visible when >= 1 leads are selected -->
+  <div id="lostLeadsBulkActionBar" class="card border-0 shadow-sm rounded-3 px-3 py-2 bg-light border mb-3 d-none" style="border-color: #E2E8F0 !important;">
+    <div class="d-flex flex-wrap align-items-center gap-2.5">
+
+      <!-- Label + Live Count -->
+      <div class="d-flex align-items-center me-1">
+        <div>
+          <div class="fw-bold text-dark d-flex align-items-center gap-1.5" style="font-size: 0.82rem; letter-spacing: -0.2px;">
+            <span>Bulk Action</span>
+            <span id="bulkSelectedCountBadge" class="badge bg-light text-muted border rounded-pill px-2 py-0.5" style="font-size: 0.70rem; font-weight: 600;">
+              <span id="bulkSelectedCountNum">0</span> selected
+            </span>
+          </div>
+          <div class="text-muted small" style="font-size: 0.70rem;">Choose an action to apply to selected lost leads</div>
+        </div>
+      </div>
+
+      <!-- 1. Action Dropdown -->
+      <div style="min-width: 175px;">
+        <label class="form-label fw-bold text-uppercase mb-0.5 d-block" style="font-size: 0.65rem; letter-spacing: 0.5px; color: #475569;">Action</label>
+        <select name="admin_bulk_action" id="adminBulkActionSelect"
+          class="form-select form-select-sm no-tom-select shadow-none"
+          style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;"
+          onchange="handleLostBulkActionChange()">
+          <option value="">-- Select Action --</option>
+          <option value="assign">Assign Telecaller to...</option>
+          <option value="stage">Change Stage to...</option>
+        </select>
+      </div>
+
+      <!-- 2. Target Assignee Field -->
+      <div id="targetUserContainer" style="min-width: 185px; display: none;">
+        <label class="form-label fw-bold text-uppercase mb-0.5 d-block" style="font-size: 0.65rem; letter-spacing: 0.5px; color: #475569;">Assign To</label>
+        <select name="assign_to" id="toUserSelect" class="form-select form-select-sm no-tom-select shadow-none"
+          style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;">
+          <option value="">-- Select Telecaller --</option>
+          {% for e in employees %}
+          <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 3. Target Stage Field -->
+      <div id="targetStageContainer" style="min-width: 185px; display: none;">
+        <label class="form-label fw-bold text-uppercase mb-0.5 d-block" style="font-size: 0.65rem; letter-spacing: 0.5px; color: #475569;">New Stage</label>
+        <select name="stage" id="toStageSelect" class="form-select form-select-sm no-tom-select shadow-none"
+          style="border: 1px solid #cbd5e1 !important; height: 35px !important; border-radius: 6px !important; background-color: #ffffff; font-size: 0.82rem !important;">
+          <option value="">-- Select New Stage --</option>
+          {% for s in bulk_stages %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Apply Button & Clear Action -->
+      <div class="ms-auto pt-1 pt-md-0 d-flex align-items-center gap-2">
+        <button type="button" id="submitLostBulkActionBtn" class="btn btn-primary px-3 py-1 fw-semibold shadow-xs d-flex align-items-center gap-1.5"
+          style="font-size: 0.82rem; height: 35px; border-radius: 6px; background-color: #052042 !important; border-color: #052042 !important;"
+          onclick="submitLostBulkAction()">
+          <i class="fa-solid fa-check-double"></i>
+          <span>Apply to Selected</span>
+        </button>
+        <button type="button" class="btn btn-outline-secondary px-2.5 py-1 d-flex align-items-center gap-1 small"
+          style="font-size: 0.78rem; height: 35px; border-radius: 6px;"
+          onclick="clearAllSelectedLostLeads()" title="Deselect all selected leads">
+          <i class="fa-solid fa-xmark"></i>
+          <span>Clear</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
 <!-- Standard Lead Table Card -->
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white" style="border: 1px solid #e2e8f0 !important;">
   <div class="table-responsive custom-table-scrollbar pb-2">
     <table class="table table-hover align-middle mb-0" style="min-width: 1250px; font-size: 0.86rem;">
       <thead class="bg-light border-bottom">
         <tr>
+          <th style="width: 40px;" class="py-2.5 px-3 text-center">
+            <input type="checkbox" id="masterLostCheckbox" class="form-check-input" style="cursor: pointer;" title="Select All">
+          </th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px;">{% if is_hospital_business %}Patient Name{% else %}Student / Lead Name{% endif %}</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Contact / Location</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important;">Source / Campaign</th>
@@ -37,6 +118,10 @@
       <tbody>
         {% for lead in page_obj %}
         <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}" style="cursor: pointer;">
+          <!-- Checkbox -->
+          <td class="px-3 text-center" onclick="event.stopPropagation();">
+            <input type="checkbox" name="selected" value="{{ lead.pk }}" class="form-check-input lost-row-check" style="cursor: pointer;" onchange="updateLostBulkCount()">
+          </td>
           
           <!-- 1. Patient / Student Name -->
           <td class="px-3">
@@ -157,7 +242,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="10" class="text-center py-5">
+          <td colspan="11" class="text-center py-5">
             <div class="empty-state-standard py-4 text-center text-muted">
               <i class="fa-solid fa-user-xmark fs-2 mb-2 text-danger opacity-50 d-block"></i>
               <div class="fw-semibold fs-6 text-dark mb-1">No lost or cancelled leads found.</div>
@@ -170,6 +255,100 @@
     </table>
   </div>
 </div>
+</form>
+
+<script>
+  // Master Checkbox & Bulk Actions Logic for Lost Leads
+  const masterLostCheckbox = document.getElementById('masterLostCheckbox');
+  const lostRowChecks = document.querySelectorAll('.lost-row-check');
+  const lostLeadsBulkActionBar = document.getElementById('lostLeadsBulkActionBar');
+  const bulkSelectedCountNum = document.getElementById('bulkSelectedCountNum');
+
+  if (masterLostCheckbox) {
+    masterLostCheckbox.addEventListener('change', function () {
+      lostRowChecks.forEach(cb => cb.checked = masterLostCheckbox.checked);
+      updateLostBulkCount();
+    });
+  }
+
+  function updateLostBulkCount() {
+    const checkedBoxes = document.querySelectorAll('.lost-row-check:checked');
+    const count = checkedBoxes.length;
+    if (bulkSelectedCountNum) {
+      bulkSelectedCountNum.textContent = count;
+    }
+    if (lostLeadsBulkActionBar) {
+      if (count > 0) {
+        lostLeadsBulkActionBar.classList.remove('d-none');
+      } else {
+        lostLeadsBulkActionBar.classList.add('d-none');
+        if (masterLostCheckbox) masterLostCheckbox.checked = false;
+      }
+    }
+  }
+
+  function clearAllSelectedLostLeads() {
+    lostRowChecks.forEach(cb => cb.checked = false);
+    if (masterLostCheckbox) masterLostCheckbox.checked = false;
+    updateLostBulkCount();
+  }
+
+  function handleLostBulkActionChange() {
+    const actionSelect = document.getElementById('adminBulkActionSelect');
+    const bulkActionInput = document.getElementById('bulkActionInput');
+    const targetUserContainer = document.getElementById('targetUserContainer');
+    const targetStageContainer = document.getElementById('targetStageContainer');
+
+    const action = actionSelect.value;
+    if (bulkActionInput) bulkActionInput.value = action;
+
+    if (action === 'assign') {
+      if (targetUserContainer) targetUserContainer.style.display = 'block';
+      if (targetStageContainer) targetStageContainer.style.display = 'none';
+    } else if (action === 'stage') {
+      if (targetUserContainer) targetUserContainer.style.display = 'none';
+      if (targetStageContainer) targetStageContainer.style.display = 'block';
+    } else {
+      if (targetUserContainer) targetUserContainer.style.display = 'none';
+      if (targetStageContainer) targetStageContainer.style.display = 'none';
+    }
+  }
+
+  function submitLostBulkAction() {
+    const actionSelect = document.getElementById('adminBulkActionSelect');
+    const action = actionSelect ? actionSelect.value : '';
+    const checkedBoxes = document.querySelectorAll('.lost-row-check:checked');
+
+    if (checkedBoxes.length === 0) {
+      alert('Please select at least one lead.');
+      return;
+    }
+
+    if (!action) {
+      alert('Please select an action to apply (Assign or Change Stage).');
+      return;
+    }
+
+    if (action === 'assign') {
+      const userSelect = document.getElementById('toUserSelect');
+      if (!userSelect || !userSelect.value) {
+        alert('Please choose a telecaller/user to assign the selected leads.');
+        return;
+      }
+    } else if (action === 'stage') {
+      const stageSelect = document.getElementById('toStageSelect');
+      if (!stageSelect || !stageSelect.value) {
+        alert('Please choose a new stage for the selected leads.');
+        return;
+      }
+    }
+
+    const form = document.getElementById('lostLeadsBulkActionForm');
+    if (form) {
+      form.submit();
+    }
+  }
+</script>
 
 <!-- Pagination & Records Summary -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3 px-1 py-2 border-top">
