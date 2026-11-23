@@ -91,9 +91,9 @@
 
         isPolling = true;
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const timeFilter = urlParams.get('time_filter') || 'today';
-            const fetchUrl = `${LIVE_METRICS_URL}?time_filter=${encodeURIComponent(timeFilter)}`;
+            // Forward current dashboard query parameters (business, campaign, source, time_filter, etc.)
+            const currentQuery = window.location.search ? window.location.search.substring(1) : '';
+            const fetchUrl = currentQuery ? `${LIVE_METRICS_URL}?${currentQuery}` : LIVE_METRICS_URL;
 
             const res = await fetch(fetchUrl, {
                 headers: {

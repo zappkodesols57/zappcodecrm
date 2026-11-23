@@ -211,7 +211,8 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
     ]
     phone_cols = [
         "phone_number", "phone", "mobile", "mobile_no", "contact", 
-        "contact_no", "whatsapp", "whatsapp_number", "call_number", "cell"
+        "contact_no", "whatsapp", "whatsapp_number", "call_number", "cell",
+        "mobile_number", "phone_no", "contact_number", "patient_mobile", "mobile_num"
     ]
     email_cols = ["email", "e_mail", "email_address", "mail"]
     date_cols = [
@@ -358,12 +359,16 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
         platform_val = get_col_val(platform_cols)
         canonical_platform = "Meta Ads"
         plat_lower = platform_val.lower()
-        if "ig" in plat_lower or "insta" in plat_lower:
+        if "google my business" in plat_lower or "gmb" in plat_lower:
+            canonical_platform = "Google My Business"
+        elif "ig" in plat_lower or "insta" in plat_lower:
             canonical_platform = "Instagram"
         elif "fb" in plat_lower or "face" in plat_lower:
             canonical_platform = "Facebook"
-        elif "google" in plat_lower or "gads" in plat_lower:
+        elif "google ads" in plat_lower or "gads" in plat_lower:
             canonical_platform = "Google Ads"
+        elif "google" in plat_lower and "organic" in plat_lower:
+            canonical_platform = "Google Organic"
         elif "whats" in plat_lower or "wa" in plat_lower:
             canonical_platform = "WhatsApp"
         elif "web" in plat_lower:

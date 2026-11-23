@@ -2044,10 +2044,27 @@ def live_metrics_api(request):
         start_date_month = date(today.year, today.month, 1)
         end_date_month = date(today.year, today.month, last_day)
 
-        # Base Leads QuerySet
+        # Base Leads QuerySet strictly respecting selected business/tenant
         leads_qs = Lead.objects.filter(is_archived=False)
-        if hospital:
+        biz_id = request.GET.get('business') or request.GET.get('hospital') or (hospital.id if hospital else None)
+        if biz_id and str(biz_id).isdigit():
+            leads_qs = leads_qs.filter(hospital_id=int(biz_id))
+        elif hospital:
             leads_qs = leads_qs.filter(hospital=hospital)
+
+        # Apply campaign and source filters if present in active page URL
+        req_camp = request.GET.get('campaign', '').strip()
+        if req_camp:
+            leads_qs = leads_qs.filter(Q(campaign__name__iexact=req_camp) | Q(custom_data__campaign__iexact=req_camp))
+        req_source = request.GET.get('source', '').strip()
+        if req_source:
+            leads_qs = leads_qs.filter(Q(lead_source__name__iexact=req_source) | Q(custom_data__lead_source__iexact=req_source))
+        req_dept = request.GET.get('department', '').strip()
+        if req_dept:
+            leads_qs = leads_qs.filter(custom_data__department__iexact=req_dept)
+        req_doc = request.GET.get('doctor', '').strip()
+        if req_doc:
+            leads_qs = leads_qs.filter(custom_data__doctor__icontains=req_doc)
 
         # Role-based restriction if telecaller / counsellor / hr
         if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR) and not getattr(user, 'can_view_all_leads', False):
@@ -2055,8 +2072,23 @@ def live_metrics_api(request):
         else:
             my_leads_qs = leads_qs
 
+        # Date range filtering on live metrics
+        time_filter = request.GET.get('time_filter', '')
+        if time_filter == 'today':
+            active_date_leads = my_leads_qs.filter(
+                Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)
+            )
+        elif time_filter == 'this_month':
+            active_date_leads = my_leads_qs.filter(
+                Q(created_at__range=(start_of_month, end_of_month)) |
+                Q(inquiry_date__range=(start_date_month, end_date_month))
+            )
+        else:
+            # all_time or custom or not set -> keep full dataset
+            active_date_leads = my_leads_qs
+
         # Counts
-        total_leads = my_leads_qs.count()
+        total_leads = active_date_leads.count()
         today_leads = my_leads_qs.filter(
             Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)
         ).count()
@@ -2085,30 +2117,20 @@ def live_metrics_api(request):
 
         # Call Not Done (Exact same logic as admin_home and calculate_insights)
         if user.role in (User.Role.LEAD_ATTENDENT, User.Role.COUNSELLOR):
-            call_not_done_base = leads_qs.filter(assigned_to=user)
+            call_not_done_base = active_date_leads.filter(assigned_to=user)
         else:
-            call_not_done_base = my_leads_qs
+            call_not_done_base = active_date_leads
 
-        if time_filter == 'today':
-            cnd_raw_qs = call_not_done_base.filter(
-                Q(created_at__range=(start_today, end_today)) | Q(inquiry_date=today)
-            ).distinct()
-        elif time_filter == 'this_month':
-            cnd_raw_qs = call_not_done_base.filter(
-                Q(created_at__range=(start_of_month, end_of_month)) |
-                Q(inquiry_date__range=(start_date_month, end_date_month))
-            ).distinct()
-        else:
-            cnd_raw_qs = call_not_done_base.distinct()
-
-        cnd_qs = cnd_raw_qs.filter(
-            Q(deal_status=DealStatus.UNCONTACTED) |
-            (Q(stage__name__in=['Fresh', 'Assigned']) & Q(deal_status__in=[DealStatus.OPEN, 'OPEN', 'New']))
+        cnd_qs = call_not_done_base.filter(
+            Q(stage__name__in=['Fresh', 'Assigned', 'New']) |
+            Q(deal_status__in=[DealStatus.UNCONTACTED, 'UNCONTACTED', 'New', 'Uncontacted'])
         ).exclude(
             Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
-            Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done'])
+            Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost'])
         )
-        call_not_done_count = cnd_qs.count()
+        cnd_fresh = cnd_qs.filter(stage__name__in=['Fresh', 'New']).count()
+        cnd_assigned = cnd_qs.filter(stage__name='Assigned').count()
+        call_not_done_count = cnd_fresh + cnd_assigned
 
         # Latest lead tracking to detect new entries
         latest_lead = my_leads_qs.order_by('-id').values('id', 'name', 'mobile', 'created_at').first()
