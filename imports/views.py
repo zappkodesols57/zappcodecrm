@@ -954,6 +954,25 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                     current_seq += 1
                     lead_code = f"{full_prefix}{current_seq:06d}"
                     
+                    # Determine Smart Temperature (Check Excel value -> Lifecycle / Remarks / Stage -> Fallback WARM)
+                    explicit_temp = str(r.get("temperature") or r.get("priority") or "").strip().upper()
+                    if explicit_temp in ("HOT", "WARM", "COLD", "FREEZE"):
+                        resolved_temp = explicit_temp
+                    else:
+                        st_name = str(lead_stage.name if lead_stage else "").lower()
+                        deal_st = str(lead_deal_status or "").upper()
+                        all_notes = f"{notes} {custom_data}".lower()
+                        if any(k in st_name for k in ("lost", "cancel", "drop")) or deal_st in ("LOST", "CANCELLED"):
+                            resolved_temp = "FREEZE"
+                        elif any(k in st_name for k in ("payment done", "admission done", "won")) or deal_st == "WON":
+                            resolved_temp = "HOT"
+                        elif any(k in all_notes for k in ("not interested", "not intrested", "call cut", "wrong number", "busy", "switch off")):
+                            resolved_temp = "COLD"
+                        elif any(k in st_name for k in ("booking", "appointment", "visit planned", "admit")):
+                            resolved_temp = "HOT"
+                        else:
+                            resolved_temp = "WARM"
+
                     new_lead = Lead(
                         lead_code=lead_code,
                         name=name,
@@ -968,7 +987,7 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                         source_category=default_cat,
                         lead_source=lead_source_obj,
                         stage=lead_stage,
-                        temperature="HOT",
+                        temperature=resolved_temp,
                         deal_status=lead_deal_status,
                         admission_status="OPEN",
                         inquiry_date=inquiry_date or timezone.localdate(),
@@ -2628,6 +2647,24 @@ def quick_import(request):
                     current_seq += 1
                     gen_code = f"{full_prefix}{current_seq:06d}"
                 used_lead_codes.add(gen_code)
+                # Determine Smart Temperature (Check Excel value -> Lifecycle / Remarks / Stage -> Fallback WARM)
+                explicit_temp = str(row_data.get("temperature") or row_data.get("priority") or "").strip().upper()
+                if explicit_temp in ("HOT", "WARM", "COLD", "FREEZE"):
+                    resolved_temp = explicit_temp
+                else:
+                    st_name = str(default_stage.name if default_stage else "").lower()
+                    all_text = f"{combined_notes} {fu1_remark} {fu2_remark} {fu3_remark} {custom_data_payload}".lower()
+                    if any(k in st_name for k in ("lost", "cancel", "drop")) or "cancel" in all_text or "lost" in all_text:
+                        resolved_temp = "FREEZE"
+                    elif any(k in st_name for k in ("payment done", "admission done", "won")) or "opd done" in all_text or "ipd" in all_text:
+                        resolved_temp = "HOT"
+                    elif any(k in all_text for k in ("not interested", "not intrested", "call cut", "wrong number", "switch off")):
+                        resolved_temp = "COLD"
+                    elif any(k in st_name for k in ("booking", "appointment", "visit")):
+                        resolved_temp = "HOT"
+                    else:
+                        resolved_temp = "WARM"
+
                 lead_obj = Lead.objects.create(
                     lead_code=gen_code,
                     name=name, mobile=mobile, alternate_mobile=alt_mobile,
@@ -2635,7 +2672,7 @@ def quick_import(request):
                     course=course_obj,
                     campaign=campaign_obj,
                     assigned_to=assigned_user,
-                    temperature="HOT", stage=default_stage,
+                    temperature=resolved_temp, stage=default_stage,
                     deal_status="OPEN", admission_status="NOT_APPLIED",
                     inquiry_date=inquiry_date, source_category=cat, lead_source=src,
                     notes=combined_notes, created_by=request.user, hospital=user_hospital,
