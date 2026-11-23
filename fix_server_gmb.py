@@ -1,6 +1,6 @@
 
 import json
-from leads.models import Lead, LeadSource, Campaign, Stage
+from leads.models import Lead, LeadSource, Campaign, LeadStage
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from decimal import Decimal
@@ -66,9 +66,9 @@ for r in records:
         
         # stage
         if stage_str:
-            s_qs = Stage.objects.filter(hospital_id=HOSPITAL_ID, name__iexact=stage_str)
+            s_qs = LeadStage.objects.filter(hospital_id=HOSPITAL_ID, name__iexact=stage_str)
             if not s_qs.exists():
-                s_qs = Stage.objects.filter(hospital_id=HOSPITAL_ID, name__icontains=stage_str)
+                s_qs = LeadStage.objects.filter(hospital_id=HOSPITAL_ID, name__icontains=stage_str)
             if s_qs.exists():
                 lead.stage = s_qs.first()
         
