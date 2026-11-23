@@ -588,21 +588,60 @@ def hospital_admin_home(request):
     fresh_leads_count = hospital_all_leads.filter(stage__name__in=['Fresh', 'New']).count()
     assigned_leads_count = hospital_all_leads.filter(stage__name='Assigned').count()
 
-    # 2. Call Not Done: Strictly uncontacted leads (no calling date, no follow-up remarks, no appointment booking)
-    cnd_qs = hospital_all_leads.filter(
-        Q(stage__name__in=['Fresh', 'New', 'Uncontacted']) |
-        Q(deal_status__in=[DealStatus.UNCONTACTED, 'UNCONTACTED', 'New', 'Uncontacted'])
-    ).exclude(
-        Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
-        Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost', 'Assigned']) |
-        Q(custom_data__first_calling_date__isnull=False) |
-        Q(custom_data__follow_up_1_remark__isnull=False) |
-        Q(custom_data__calling_remark_1__isnull=False) |
-        Q(custom_data__appointment_status__icontains='Book')
-    )
-    cnd_fresh_count = cnd_qs.filter(stage__name__in=['Fresh', 'New']).count()
-    cnd_assigned_count = cnd_qs.filter(stage__name='Uncontacted').count()
-    call_not_done_count = cnd_fresh_count + cnd_assigned_count
+    # 2. Call Not Done: Strictly uncontacted leads (Fresh / New / Uncontacted or Assigned with NO human touch/remarks)
+    # Exclude won/lost/cancelled/payment done/booked
+    # Ignore system-generated remarks (form capture, website appointment, meta survey)
+    def _is_user_contacted(lead):
+        # Check stage: If lead progressed beyond Fresh/New/Assigned to any done/booked/lost/followup stage
+        st_name = (lead.stage.name if lead.stage else '').strip().lower()
+        if st_name in ['payment done', 'opd done', 'cancelled', 'appointment - confirmed', 'appointment booking', 'follow up done', 'lost', 'ipd done', 'ipd booking']:
+            return True
+        if lead.deal_status in [DealStatus.WON, DealStatus.LOST]:
+            return True
+        
+        cd = lead.custom_data or {}
+        # If user explicitly scheduled first calling or has human calling remark
+        f_date = cd.get('first_calling_date') or cd.get('calling_date_remark_1')
+        if f_date:
+            return True
+            
+        system_phrases = ['captured with lead form', 'website appointment form submitted', 'form submitted', 'system']
+        for r_key in ['follow_up_1_remark', 'calling_remark_1', 'remark_1', 'followup_remark']:
+            r_val = str(cd.get(r_key) or '').strip().lower()
+            if r_val and not any(p in r_val for p in system_phrases):
+                return True
+                
+        # Check Appointment Status
+        app_st = str(cd.get('appointment_status') or '').strip().lower()
+        if any(w in app_st for w in ['book', 'confirm', 'done', 'visit', 'admit']):
+            return True
+            
+        # Check related followups/notes added by human
+        try:
+            if hasattr(lead, 'followups') and lead.followups.exists():
+                return True
+            if hasattr(lead, 'lead_notes') and lead.lead_notes.exists():
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    cnd_lead_ids = []
+    cnd_fresh_count = 0
+    cnd_assigned_count = 0
+
+    for l in hospital_all_leads:
+        st_name = (l.stage.name if l.stage else '').strip()
+        if st_name in ['Fresh', 'New', 'Assigned', 'Uncontacted'] or l.deal_status in [DealStatus.UNCONTACTED, 'UNCONTACTED', 'New', 'Uncontacted', DealStatus.OPEN]:
+            if not _is_user_contacted(l):
+                cnd_lead_ids.append(l.id)
+                if st_name in ['Fresh', 'New']:
+                    cnd_fresh_count += 1
+                else:
+                    cnd_assigned_count += 1
+
+    call_not_done_count = len(cnd_lead_ids)
 
     # 3. Appointments Booked: Total distinct leads with appointments booked (Active vs Completed)
     # Active: Scheduled / Confirmed appointments awaiting visit

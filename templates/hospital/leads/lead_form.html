@@ -1001,6 +1001,32 @@
         </div>
       </div>
 
+      <!-- 4. IPD Booking & IPD Done Container -->
+      <div id="ipdFieldsContainer" style="display: none;"
+        class="mb-3 p-3 rounded-3 bg-light border border-info-subtle shadow-xs">
+        <div class="d-flex align-items-center gap-2 mb-2 text-info fw-bold small">
+          <i class="fa-solid fa-bed-pulse"></i> <span id="ipdBoxTitle">IPD Admission & Schedule Details</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4" id="ipdDoctorCol">
+            <label class="form-label small fw-bold text-dark">Admitting / Consulting Doctor <span class="text-danger">*</span></label>
+            {{ form.ipd_doctor }}
+          </div>
+          <div class="col-md-4" id="ipdFromDateCol">
+            <label class="form-label small fw-bold text-dark">IPD Admission Date (From Date) <span class="text-danger">*</span></label>
+            {{ form.ipd_from_date }}
+          </div>
+          <div class="col-md-4" id="ipdFromTimeCol">
+            <label class="form-label small fw-bold text-dark">Admission Time</label>
+            {{ form.ipd_from_time }}
+          </div>
+          <div class="col-md-4" id="ipdToDateCol" style="display: none;">
+            <label class="form-label small fw-bold text-dark">Discharge Date (To Date) <span class="text-danger">*</span></label>
+            {{ form.ipd_to_date }}
+          </div>
+        </div>
+      </div>
+
       <!-- Conditional Container for UHID & Billing Details (Appears ONLY when Appointment Status is Completed) -->
       <div id="billingDetailsSection" style="{% if not is_appointment_completed %}display: none;{% endif %}"
         class="mt-4">
@@ -1433,16 +1459,25 @@
     const combinedVal = `${val} ${selectedText}`;
 
     const isCancelling = combinedVal.includes('CANCEL') || combinedVal.includes('NOT INT') || combinedVal.includes('NOT_INT') || combinedVal.includes('REJECT') || combinedVal.includes('DECLINE') || combinedVal.includes('DROP') || combinedVal.includes('LOST');
-    const isBooking = !isCancelling && (combinedVal.includes('BOOK') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
+    
+    // IPD Stages Check
+    const isIpdBooking = !isCancelling && (combinedVal.includes('IPD BOOKING') || combinedVal.includes('IPD_BOOKING'));
+    const isIpdDone = !isCancelling && (combinedVal.includes('IPD DONE') || combinedVal.includes('IPD_DONE'));
+    
+    // Appointment / OPD Booking Check: strictly for Appointment Booking / OPD Booking
+    const isBooking = !isCancelling && !isIpdBooking && !isIpdDone && (combinedVal.includes('APPOINTMENT BOOKING') || combinedVal.includes('OPD BOOKING') || combinedVal.includes('BOOKING') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
+    
     const isFollowupDone = combinedVal.includes('FOLLOW UP DONE') || combinedVal.includes('FOLLOW-UP DONE') || combinedVal.includes('FOLLOWUP DONE');
-    const isFollowup = !isCancelling && !isBooking && !isFollowupDone && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
-    const isCompleted = combinedVal.includes('COMPLET') || combinedVal.includes('DONE') || combinedVal.includes('VISIT') || {{ is_appointment_completed|yesno:"true,false" }};
+    const isFollowup = !isCancelling && !isBooking && !isIpdBooking && !isIpdDone && !isFollowupDone && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
+    
+    // Payment Done / Billing section check: MUST be strictly PAYMENT DONE or is_payment_done, NEVER Follow Up Done
+    const isPaymentDoneStage = combinedVal.includes('PAYMENT DONE') || combinedVal.includes('PAYMENT_DONE');
+    const isCompleted = !isFollowupDone && !isFollowup && (isPaymentDoneStage || {{ is_payment_done|yesno:"true,false" }});
 
     const hasConfirmedCard = {{ is_appointment_confirmed|yesno:"true,false" }};
 
-  // 1. Booking / Slot Selection Box
+  // 1. Booking / Slot Selection Box (For OPD / Doctor Appointment Booking)
   if (bookedContainer) {
-    // If appointment is already confirmed, only show slot selection box if manually toggled
     if (hasConfirmedCard && !window._manualBookingToggled) {
       bookedContainer.style.display = 'none';
     } else {
@@ -1457,7 +1492,25 @@
     }
   }
 
-  // 2. Follow-up Needed Box
+  // 2. IPD Booking & IPD Done Container
+  const ipdContainer = document.getElementById('ipdFieldsContainer');
+  const ipdBoxTitle = document.getElementById('ipdBoxTitle');
+  const ipdToDateCol = document.getElementById('ipdToDateCol');
+  if (ipdContainer) {
+    if (isIpdBooking || isIpdDone) {
+      ipdContainer.style.display = 'block';
+      if (ipdBoxTitle) {
+        ipdBoxTitle.innerText = isIpdDone ? 'IPD Discharge & Final Details (IPD Done)' : 'IPD Booking & Admission Details';
+      }
+      if (ipdToDateCol) {
+        ipdToDateCol.style.display = isIpdDone ? 'block' : 'none';
+      }
+    } else {
+      ipdContainer.style.display = 'none';
+    }
+  }
+
+  // 3. Follow-up Needed Box
   if (waitingContainer) {
     waitingContainer.style.display = isFollowup ? 'block' : 'none';
     if (isFollowup && typeof updateFollowupTimeConstraints === 'function') {
@@ -1465,12 +1518,12 @@
     }
   }
 
-  // 3. Reason for Cancellation / Not Interested Box
+  // 4. Reason for Cancellation / Not Interested Box
   if (cancellationContainer) {
     cancellationContainer.style.display = isCancelling ? 'block' : 'none';
   }
 
-  // 4. UHID & Billing details unlock ONLY when Appointment is Completed
+  // 5. Patient Billing & Payment Entry unlock ONLY when Payment Done stage is selected
   const billingSection = document.getElementById('billingDetailsSection');
   if (billingSection) {
     billingSection.style.display = isCompleted ? 'block' : 'none';

@@ -74,16 +74,14 @@
               {% endwith %}
             </td>
             <td class="small text-nowrap">
-              {{ l.created_at|date:"d M Y" }}
+              {{ l.effective_created_display }}
             </td>
             <td class="small text-nowrap">
-              {% with last_fu=l.followups.last %}
-                {% if last_fu %}
-                  {{ last_fu.created_at|date:"d M Y" }}
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              {% endwith %}
+              {% if l.effective_last_contact_date %}
+                {{ l.effective_last_contact_date|date:"d M Y" }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
             </td>
             <td class="small text-nowrap">
               {% if l.next_followup_date %}
