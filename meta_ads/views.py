@@ -600,8 +600,8 @@ def website_lead_webhook(request, business_id=1):
                 name=target_campaign_name,
                 hospital=hosp_biz,
                 defaults={
-                    "source": source_obj,
-                    "status": "ACTIVE"
+                    "platform": "Website",
+                    "is_active": True
                 }
             )
 
