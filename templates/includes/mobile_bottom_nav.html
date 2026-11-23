@@ -109,15 +109,15 @@
       <span>Menu</span>
     </button>
 
-    <!-- 2. Pending Approval Consultations -->
-    <a href="{% url 'dashboard:doctor_home' %}?tab=appointments&subtab=pending" class="mobile-nav-item {% if request.GET.subtab == 'pending' %}active{% endif %}">
-      <i class="fa-solid fa-clock-rotate-left"></i>
-      <span>Pending</span>
+    <!-- 2. Booked Appointments -->
+    <a href="{% url 'dashboard:doctor_home' %}?tab=appointments&subtab=today" class="mobile-nav-item {% if request.GET.tab == 'appointments' or not request.GET.tab %}active{% endif %}">
+      <i class="fa-solid fa-calendar-check"></i>
+      <span>Appointments</span>
     </a>
 
-    <!-- 3. Center Action: Today's Appointments -->
-    <a href="{% url 'dashboard:doctor_home' %}?tab=appointments&subtab=today" class="mobile-nav-item mobile-nav-item-center" title="Today's Appointments" aria-label="Today's Appointments">
-      <i class="fa-solid fa-calendar-day"></i>
+    <!-- 3. Center Action: Completed Consultations -->
+    <a href="{% url 'dashboard:doctor_home' %}?tab=completed" class="mobile-nav-item mobile-nav-item-center" title="Completed Consultations" aria-label="Completed Consultations">
+      <i class="fa-solid fa-circle-check"></i>
     </a>
 
     <!-- 4. Notifications -->

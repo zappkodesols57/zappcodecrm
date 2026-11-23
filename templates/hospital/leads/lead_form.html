@@ -1434,7 +1434,8 @@
 
     const isCancelling = combinedVal.includes('CANCEL') || combinedVal.includes('NOT INT') || combinedVal.includes('NOT_INT') || combinedVal.includes('REJECT') || combinedVal.includes('DECLINE') || combinedVal.includes('DROP') || combinedVal.includes('LOST');
     const isBooking = !isCancelling && (combinedVal.includes('BOOK') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
-    const isFollowup = !isCancelling && !isBooking && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
+    const isFollowupDone = combinedVal.includes('FOLLOW UP DONE') || combinedVal.includes('FOLLOW-UP DONE') || combinedVal.includes('FOLLOWUP DONE');
+    const isFollowup = !isCancelling && !isBooking && !isFollowupDone && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
     const isCompleted = combinedVal.includes('COMPLET') || combinedVal.includes('DONE') || combinedVal.includes('VISIT') || {{ is_appointment_completed|yesno:"true,false" }};
 
     const hasConfirmedCard = {{ is_appointment_confirmed|yesno:"true,false" }};
@@ -2140,7 +2141,8 @@
     const isCancelling = appStatusVal.includes('CANCEL') || appStatusVal.includes('NOT INT') || appStatusVal.includes('NOT_INT') || appStatusVal.includes('REJECT') || appStatusVal.includes('DECLINE') || appStatusVal.includes('DROP') || appStatusVal.includes('LOST');
     const isBilling = !isCancelling && (appStatusVal.includes('PAYMENT') || appStatusVal.includes('BILLING') || dealStatusVal.includes('PAYMENT') || dealStatusVal.includes('WON') || hasTotalVal || (appStatusVal.includes('COMPLET') && hasTotalVal));
     const isBooking = !isCancelling && !isBilling && (appStatusVal.includes('BOOK') || appStatusVal.includes('CONFIRM') || appStatusVal.includes('SLOT') || appStatusVal.includes('OPD') || appStatusVal.includes('CONSULT'));
-    const isFollowup = !isCancelling && !isBilling && !isBooking && (appStatusVal.includes('FOLLOW') || appStatusVal.includes('WAIT') || appStatusVal.includes('CALL') || appStatusVal.includes('LATER') || appStatusVal.includes('INTEREST') || appStatusVal.includes('NEED') || appStatusVal === '' || appStatusVal.includes('NEW') || appStatusVal.includes('ASSIGN'));
+    const isFollowupDone = appStatusVal.includes('FOLLOW UP DONE') || appStatusVal.includes('FOLLOW-UP DONE') || appStatusVal.includes('FOLLOWUP DONE');
+    const isFollowup = !isCancelling && !isBilling && !isBooking && !isFollowupDone && (appStatusVal.includes('FOLLOW') || appStatusVal.includes('WAIT') || appStatusVal.includes('CALL') || appStatusVal.includes('LATER') || appStatusVal.includes('INTEREST') || appStatusVal.includes('NEED'));
 
     // Dynamic field requirements based on status
     const canReasonInput = document.querySelector('textarea[name="cancellation_reason"], input[name="cancellation_reason"]');

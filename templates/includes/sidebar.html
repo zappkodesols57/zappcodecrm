@@ -448,19 +448,15 @@
 
     <!-- 2. Section: Appointments -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if request.GET.tab != 'appointments' and request.GET.tab not in 'completed cancelled' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if request.GET.tab != 'appointments' and request.GET.tab not in 'completed' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_doc_appointments"
-        aria-expanded="{% if request.GET.tab == 'appointments' or request.GET.tab in 'completed cancelled' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if request.GET.tab == 'appointments' or request.GET.tab in 'completed' %}true{% else %}false{% endif %}"
         title="Appointments">
         <span><i class="fa-solid fa-calendar-check section-icon"></i><span class="section-title">Appointments</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if request.GET.tab == 'appointments' or request.GET.tab in 'completed cancelled' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if request.GET.tab == 'appointments' or request.GET.tab in 'completed' %}show{% endif %} nav-sub-items"
         id="sec_doc_appointments">
-        <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'pending' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=appointments&subtab=pending" title="Pending Requests">
-          <i class="fa-solid fa-hourglass-half"></i> <span class="nav-text">Pending Requests</span>
-        </a>
         <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'today' %}active{% endif %}"
           href="{% url 'dashboard:home' %}?tab=appointments&subtab=today" title="Today's Appointments">
           <i class="fa-solid fa-calendar-day"></i> <span class="nav-text">Today's Appointments</span>
@@ -469,43 +465,31 @@
           href="{% url 'dashboard:home' %}?tab=appointments&subtab=upcoming" title="Upcoming Appointments">
           <i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Upcoming Appointments</span>
         </a>
-        <a class="nav-link {% if request.GET.tab == 'appointments' and request.GET.subtab == 'admitted' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=appointments&subtab=admitted" title="Admitted">
-          <i class="fa-solid fa-bed-pulse"></i> <span class="nav-text">Admitted</span>
-        </a>
         <a class="nav-link {% if request.GET.tab == 'completed' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=completed" title="Completed">
+          href="{% url 'dashboard:home' %}?tab=completed" title="Completed Consultations">
           <i class="fa-solid fa-circle-check"></i> <span class="nav-text">Completed</span>
-        </a>
-        <a class="nav-link {% if request.GET.tab == 'cancelled' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=cancelled" title="Cancelled">
-          <i class="fa-solid fa-circle-xmark"></i> <span class="nav-text">Cancelled</span>
         </a>
       </div>
     </div>
 
     <!-- 3. Section: Calendar -->
     <div class="nav-section-group">
-      <button class="nav-section-btn {% if request.GET.tab != 'calendar' %}collapsed{% endif %}"
+      <button class="nav-section-btn {% if request.GET.tab not in 'opd-hours leaves' and request.GET.tab != 'calendar' %}collapsed{% endif %}"
         type="button" data-bs-toggle="collapse" data-bs-target="#sec_doc_calendar"
-        aria-expanded="{% if request.GET.tab == 'calendar' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if request.GET.tab in 'opd-hours leaves' or request.GET.tab == 'calendar' %}true{% else %}false{% endif %}"
         title="Calendar">
         <span><i class="fa-solid fa-calendar-days section-icon"></i><span class="section-title">Calendar</span></span>
         <i class="fa-solid fa-chevron-down section-arrow"></i>
       </button>
-      <div class="collapse {% if request.GET.tab == 'calendar' %}show{% endif %} nav-sub-items"
+      <div class="collapse {% if request.GET.tab in 'opd-hours leaves' or request.GET.tab == 'calendar' %}show{% endif %} nav-sub-items"
         id="sec_doc_calendar">
-        <a class="nav-link {% if request.GET.tab == 'calendar' and request.GET.subtab == 'hours' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=calendar&subtab=hours" title="Regular Working Hours">
-          <i class="fa-solid fa-clock"></i> <span class="nav-text">Regular Working Hours</span>
+        <a class="nav-link {% if request.GET.tab == 'opd-hours' or request.GET.subtab == 'hours' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=opd-hours" title="OPD Working Hours">
+          <i class="fa-solid fa-clock"></i> <span class="nav-text">OPD Working Hours</span>
         </a>
-        <a class="nav-link {% if request.GET.tab == 'calendar' and request.GET.subtab == 'add_leave' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=calendar&subtab=add_leave" title="Leave Calendar">
+        <a class="nav-link {% if request.GET.tab == 'leaves' or request.GET.subtab == 'recorded_leaves' %}active{% endif %}"
+          href="{% url 'dashboard:home' %}?tab=leaves&subtab=recorded_leaves" title="Leave Calendar">
           <i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Leave Calendar</span>
-        </a>
-        <a class="nav-link {% if request.GET.tab == 'calendar' and request.GET.subtab == 'recorded_leaves' %}active{% endif %}"
-          href="{% url 'dashboard:home' %}?tab=calendar&subtab=recorded_leaves" title="Leaves History">
-          <i class="fa-solid fa-list-check"></i> <span class="nav-text">Leaves History</span>
         </a>
       </div>
     </div>
