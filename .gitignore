@@ -112,3 +112,14 @@ scratch/
 *.db
 *.djcache
 meta_leads_preview.json
+
+# Temporary analysis & scratch scripts
+temp_*
+*_temp.*
+patch_*.py
+fix_*.py
+fix_*.json
+*.tmp
+analyze_*.py
+process_*.py
+check_*.py
